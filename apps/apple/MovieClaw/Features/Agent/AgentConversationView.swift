@@ -38,6 +38,13 @@ struct AgentConversationView: View {
     /// （真机实测大会话首帧 8645pt，几十毫秒内涨到 35749pt），只在首次布局定位到底部会停在对话中间。
     /// 贴底期内内容再怎么长高都锚在底部；用户一开始拖动或 1.5 秒后结束，之后回到「贴近底部才跟随」的规则
     @State private var pinnedToBottom = true
+    @State private var kickoff = AgentLoadKickoff()
+    /// 输入框晚一拍建：App 这次运行里第一次建输入框很重（模拟器实测 120～280ms，同一次运行里再建只要约 10ms），
+    /// 跟着页面一起建会把页面跳转推迟这么久。首帧先放等高占位，跳转画面出去后马上建——此时正在等轨迹，
+    /// 主线程空着（真机上跳转排版约 30ms、轨迹网络 70～100ms），这笔一次性开销被网络等待吸收
+    @State private var composerReady = false
+    /// 上次量到的输入区高度，占位按它留空，换成真输入框时底部不跳（初值取 iPhone Air 实测的单行输入区高度）
+    private static var composerHeight: CGFloat = 126
 
     init(sessionId: String) {
         self.sessionId = sessionId
@@ -45,6 +52,12 @@ struct AgentConversationView: View {
     }
 
     var body: some View {
+        // 抢跑：body 首次求值（点开后约 20ms）就在后台线程发出轨迹请求。`.task` 要等整页首次排版完、
+        // 开始滑入才触发，冷启动时晚 100～200ms；提前发出后，网络等待与页面跳转的排版同时进行
+        let _ = kickoff.fire { [conversation, api] in
+            conversation.prefetch(api: api)
+            Task { await conversation.open(api: api) }
+        }
         content
             .background(Theme.background.ignoresSafeArea())
             .navigationTitle(conversation.loaded ? conversation.title : "AI 会话")
@@ -65,6 +78,8 @@ struct AgentConversationView: View {
             })
             .tracksSubscriptionIndex()
             .task(id: sessionId) {
+                // 第一次出现由上面的抢跑负责；之后每次重新出现（从子页面返回）再刷新一次轨迹
+                if kickoff.consumeFirstAppearance() { return }
                 await conversation.open(api: api)
             }
             .task {
@@ -75,29 +90,48 @@ struct AgentConversationView: View {
                 modelOptions = await options
                 knownSkills = await skills
             }
+            .task {
+                // 页面出现（首帧已排版提交）后的下一轮就换上真输入框，见 composerReady
+                guard !composerReady else { return }
+                await Task.yield()
+                composerReady = true
+            }
             .onDisappear { conversation.detachIfIdle() }
     }
 
-    @ViewBuilder
+    /// 输入区挂在「加载中 / 消息列」的分支之外：跳转首帧后马上建好（加载期间禁用，见 composerReady），
+    /// 等轨迹的那段网络时间里顺手完成创建与排版；数据到了只剩消息列要排。放进分支里切换时会被当成新视图重建
     private var content: some View {
-        if !conversation.loaded, let error = conversation.loadError {
-            VStack(spacing: 8) {
-                Text("无法打开会话").font(.system(size: 17, weight: .medium)).foregroundStyle(Theme.text)
-                Text(error).font(.system(size: 14)).foregroundStyle(Theme.textMuted).multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityIdentifier("agent-load-error")
-        } else if !conversation.loaded {
-            Text("正在加载会话…")
-                .font(.system(size: 16))
-                .foregroundStyle(Theme.textMuted)
-                .modifier(AgentPulse(active: true))
+        Group {
+            if !conversation.loaded, let error = conversation.loadError {
+                VStack(spacing: 8) {
+                    Text("无法打开会话").font(.system(size: 17, weight: .medium)).foregroundStyle(Theme.text)
+                    Text(error).font(.system(size: 14)).foregroundStyle(Theme.textMuted).multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityIdentifier("agent-loading")
-        } else {
-            transcript
-                .safeAreaInset(edge: .bottom, spacing: 0) { composerArea }
+                .accessibilityIdentifier("agent-load-error")
+            } else if !conversation.loaded {
+                Text("正在加载会话…")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Theme.textMuted)
+                    .modifier(AgentPulse(active: true))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityIdentifier("agent-loading")
+            } else {
+                transcript
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // 会话打不开时不给输入框（没有可续聊的会话）
+            if conversation.loaded || conversation.loadError == nil {
+                if composerReady {
+                    composerArea
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { Self.composerHeight = $0 }
+                } else {
+                    Theme.background.frame(height: Self.composerHeight)
+                }
+            }
         }
     }
 
@@ -106,14 +140,12 @@ struct AgentConversationView: View {
     private var transcript: some View {
         let running = conversation.running
         return ScrollView {
-            LazyVStack(alignment: .leading, spacing: 32) {
-                if let handoff = conversation.handoff {
-                    AgentHandoffCard(sourceId: handoff.sourceId, sourceTitle: handoff.sourceTitle)
-                }
-                ForEach(conversation.turns) { turn in
+            // 段落级的行（见 AgentTranscriptRows）：进页面只构建、排版最底下一屏，长会话不再整轮卡住
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(conversation.rows) { row in
                     // 运行中不给改写入口：服务端会拒绝替换正在写轨迹的会话
-                    AgentTurnView(
-                        turn: turn,
+                    AgentTranscriptRowView(
+                        row: row,
                         sessionId: sessionId,
                         knownSkills: knownSkills,
                         onEdit: running || retrying ? nil : { messageId, input in
@@ -122,6 +154,7 @@ struct AgentConversationView: View {
                         }
                     )
                     .equatable()
+                    .padding(.top, row.spacing)
                 }
             }
             .padding(.horizontal, 16)
@@ -204,7 +237,8 @@ struct AgentConversationView: View {
                 placeholder: locked ? "请先接入 AI 模型，再继续对话"
                     : retryTarget != nil ? "修改问题后发送，将从这里重新生成回答" : nil,
                 busy: conversation.running,
-                disabled: locked || (retrying && retryTarget != nil),
+                // 轨迹还没回放完不许发：乐观轮次会被随后到达的完整轨迹覆盖掉
+                disabled: locked || !conversation.loaded || (retrying && retryTarget != nil),
                 // 改写模式不开图片入口：retry 沿用原消息的图，新加的图无处安放，藏起入口比静默丢弃诚实
                 imageUpload: retryTarget == nil,
                 modelOptions: modelOptions,
@@ -348,6 +382,60 @@ struct AgentConversationView: View {
             }
         }
     }
+}
+
+/// 会话页的抢跑加载开关：每个页面实例只在 body 首次求值时发一次轨迹请求（body 会被反复求值，
+/// 不能每次都发）；`.task` 第一次触发时据此跳过，免得同一份轨迹拉两遍
+final class AgentLoadKickoff {
+    private var fired = false
+    private var firstAppearanceConsumed = false
+
+    func fire(_ start: () -> Void) {
+        guard !fired else { return }
+        fired = true
+        start()
+    }
+
+    /// 第一次调用返回 true（首次加载已由 `fire` 发出），之后都返回 false
+    func consumeFirstAppearance() -> Bool {
+        defer { firstAppearanceConsumed = true }
+        return !firstAppearanceConsumed
+    }
+}
+
+/// 输入框预热：App 这次运行里第一次建输入框很重（模拟器实测创建 + 首次上屏共 200～300ms，
+/// 同一次运行里再建只要约 10ms），点进会话时会和对话首屏抢主线程、把字拖晚。挂在会话入口所在的页面
+/// （「我的」页的最近会话），页面出现、空闲下来后在背景里悄悄建一个看不见的输入框再拆掉，
+/// 把这笔一次性开销提前消化；每次运行只做一次
+struct AgentComposerWarmup: ViewModifier {
+    private static var done = false
+    @State private var showing = false
+    @State private var draft = AgentDraft()
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                if showing {
+                    AgentComposer(draft: $draft, onSubmit: {})
+                        .opacity(0)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .task {
+                guard !Self.done else { return }
+                Self.done = true
+                // 先让页面自己显示完，再建；建好并上过一次屏后拆掉（框架层的初始化成果会留下）
+                try? await Task.sleep(for: .milliseconds(600))
+                showing = true
+                try? await Task.sleep(for: .seconds(1))
+                showing = false
+            }
+    }
+}
+
+extension View {
+    func agentComposerWarmup() -> some View { modifier(AgentComposerWarmup()) }
 }
 
 /// 未接入模型时的公共引导（对应 Web `LlmSetupNotice`）：说明能解锁什么，并给唯一的设置入口

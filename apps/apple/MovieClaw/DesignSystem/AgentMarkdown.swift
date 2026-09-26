@@ -345,8 +345,24 @@ enum AgentMarkdownParser {
 enum AgentInline {
     static let linkColor = Color(red: 0x8A / 255, green: 0xB4 / 255, blue: 1)
 
+    /// 解析结果缓存（键 = 字号 + 原文）。长会话里段落是懒加载的：滑出屏幕被回收、滑回来要重建视图，
+    /// 同一段文字不必再过一遍系统 Markdown 解析（单段 0.3～0.5ms，一屏几十段就吃掉一帧的预算）
+    private static let cache: NSCache<NSString, AttributedBox> = {
+        let cache = NSCache<NSString, AttributedBox>()
+        cache.countLimit = 4000
+        return cache
+    }()
+
     /// 行内 Markdown → 带样式的 AttributedString（行内代码等宽 + 浅底，链接蓝色下划线）
     static func attributed(_ text: String, size: CGFloat) -> AttributedString {
+        let key = "\(size)|\(text)" as NSString
+        if let hit = cache.object(forKey: key) { return hit.value }
+        let result = parse(text, size: size)
+        cache.setObject(AttributedBox(result), forKey: key)
+        return result
+    }
+
+    private static func parse(_ text: String, size: CGFloat) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace, failurePolicy: .returnPartiallyParsedIfPossible)
         var result = (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
         for run in result.runs {
@@ -361,6 +377,12 @@ enum AgentInline {
         }
         return result
     }
+}
+
+/// NSCache 只收对象，把值类型的 AttributedString 包一层
+private final class AttributedBox {
+    let value: AttributedString
+    init(_ value: AttributedString) { self.value = value }
 }
 
 // MARK: - 视图
@@ -382,21 +404,28 @@ struct AgentMarkdownBlocks: View {
     var body: some View {
         VStack(alignment: .leading, spacing: size * 0.75) {
             ForEach(blocks.indices, id: \.self) { i in
-                block(blocks[i])
+                AgentMarkdownBlockView(block: blocks[i], size: size)
                     // 标题前多留一点空（Web：* + h1..h4 margin-top 1.4em）
-                    .padding(.top, i > 0 && isHeading(blocks[i]) ? size * 0.65 : 0)
+                    .padding(.top, i > 0 && blocks[i].isHeading ? size * 0.65 : 0)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    private func isHeading(_ block: AgentMarkdownBlock) -> Bool {
-        if case .heading = block { return true }
+extension AgentMarkdownBlock {
+    var isHeading: Bool {
+        if case .heading = self { return true }
         return false
     }
+}
 
-    @ViewBuilder
-    private func block(_ block: AgentMarkdownBlock) -> some View {
+/// 单个 Markdown 块。会话消息列按块拆成懒加载的行（见 AgentTranscriptRows），与 `AgentMarkdownBlocks` 共用这一份版式
+struct AgentMarkdownBlockView: View {
+    let block: AgentMarkdownBlock
+    var size: CGFloat
+
+    var body: some View {
         switch block {
         case let .heading(level, text):
             let scale: CGFloat = level == 1 ? 1.25 : level == 2 ? 1.15 : 1.05

@@ -28,6 +28,11 @@ final class AgentConversation {
     @ObservationIgnored private var pending: [(turnId: String, event: AgentStreamEvent)] = []
     @ObservationIgnored private var flushTask: Task<Void, Never>?
     @ObservationIgnored private var loading = false
+    @ObservationIgnored private var prefetched: Task<AgentTranscript, Error>?
+    @ObservationIgnored private let rowCache = AgentTranscriptRowCache()
+
+    /// 消息列的行（段落级懒加载单位，见 AgentTranscriptRows）：由 turns 派生、按轮缓存，只重拆变了的那一轮
+    var rows: [AgentTranscriptRow] { rowCache.rows(turns: turns, handoff: handoff) }
 
     init(id: String, title: String = "") {
         self.id = id
@@ -41,14 +46,32 @@ final class AgentConversation {
 
     // MARK: 打开
 
+    /// 抢跑拉轨迹：在后台线程发请求并解码（1MB 级 JSON 解码不占主线程），随后的 `open` 直接等它的结果。
+    /// 会话页 body 首次求值时调用：那一刻主线程正忙着排版页面跳转，排到主线程上的任务要等它忙完才轮得到，
+    /// 放后台线程才能真正在点开后二十来毫秒就把请求发出去
+    func prefetch(api: APIClient) {
+        if prefetched != nil || following || loading || (loaded && running) { return }
+        let id = self.id
+        prefetched = Task.detached(priority: .userInitiated) {
+            try await api.agentTranscript(sessionId: id)
+        }
+    }
+
     /// 打开会话：拉轨迹回放；会话仍在运行时自动接上事件流。已在跟随中的直接复用。
     func open(api: APIClient) async {
         // 跟随中 / 正在加载 / 本地乐观轮次还没接上事件流时都不重拉，免得把乐观轮次覆盖掉
         if following || loading || (loaded && running) { return }
         loading = true
         defer { loading = false }
+        let pending = prefetched
+        prefetched = nil
         do {
-            let detail = try await api.agentTranscript(sessionId: id)
+            let detail: AgentTranscript
+            if let pending {
+                detail = try await pending.value
+            } else {
+                detail = try await api.agentTranscript(sessionId: id)
+            }
             apply(detail)
             loadError = nil
             if detail.session.running, let last = turns.last {

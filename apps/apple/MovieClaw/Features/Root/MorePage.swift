@@ -141,6 +141,8 @@ struct MorePage: View {
         .task { await loadSessions() }
         // 待处理事项与 Web NoticeCenter 同频 30 秒轮询（首轮立即拉）
         .polling(every: 30, immediately: true) { await loadNotices() }
+        // 最近会话的入口页：空闲时预热一次输入框，点进会话时首屏不再被它拖慢
+        .agentComposerWarmup()
     }
 
     /// 会话行按 iOS 列表惯例处理操作（同邮件 / 信息）：行上不放「⋯」，左滑出三个纯图标按钮——

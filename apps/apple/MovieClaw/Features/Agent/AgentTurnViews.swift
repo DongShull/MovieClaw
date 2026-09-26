@@ -1,7 +1,8 @@
 import NukeUI
 import SwiftUI
 
-// 会话时间线里的单轮渲染（对应 Web `agent-conversation-view.tsx` 的 TurnView 及其子组件）。
+// 会话时间线里一轮的各个组成部分（对应 Web `agent-conversation-view.tsx` 的 TurnView 及其子组件）。
+// 消息列按段落级的行懒加载（见 AgentTranscriptRows），这里只提供每一行用到的组件。
 //
 // 呈现取舍（与 Web 一致，刻意做减法）：
 // - 用户消息右侧气泡；Agent 回应整栏正文，不挂头像、不套气泡（ChatGPT / Claude 同款版式）；
@@ -9,65 +10,20 @@ import SwiftUI
 //   只列单行摘要，点某一行才展开参数与输出——一轮动辄十几次调用，全量平铺等于没有排版；
 // - 轮次页脚只留耗时（进行中是进度环 + 实时秒数），模型/token 这些排查信息不上屏。
 
-/// 单轮：用户气泡 + Agent 回应块。Equatable：流式时只有正在生成的那一轮变化，历史轮次整轮跳过重绘。
-struct AgentTurnView: View, Equatable {
-    let turn: AgentTurn
-    let sessionId: String
-    /// 已知技能名（小写）；nil = 名单未就绪（暂不过滤）
-    let knownSkills: Set<String>?
-    /// 改写本轮重问；nil（运行中）则气泡上不出现该入口
-    let onEdit: ((String, String) -> Void)?
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.turn == rhs.turn && lhs.sessionId == rhs.sessionId && lhs.knownSkills == rhs.knownSkills
-            && (lhs.onEdit == nil) == (rhs.onEdit == nil)
-    }
+/// 本轮以错误收尾时的红色提示卡片
+struct AgentTurnErrorView: View {
+    let message: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            AgentUserBubble(
-                text: turn.input,
-                images: turn.images,
-                sessionId: sessionId,
-                knownSkills: knownSkills,
-                onEdit: onEdit.flatMap { edit in turn.messageId.map { id in { edit(id, turn.input) } } }
-            )
-
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(turn.segments.indices, id: \.self) { index in
-                    let active = turn.isRunning && index == turn.segments.count - 1
-                    switch turn.segments[index] {
-                    case let .process(items):
-                        // 生成式 UI：该块里 show_media_cards 画的卡片组紧跟在折叠块之后常显
-                        AgentProcessBlock(items: items, active: active)
-                        ForEach(AgentMediaCards.groups(in: items), id: \.id) { entry in
-                            AgentMediaCardsBlock(group: entry.group)
-                        }
-                    case let .text(text):
-                        VStack(alignment: .leading, spacing: 0) {
-                            AgentMarkdownView(text: text)
-                            if active { AgentStreamingCursor() }
-                        }
-                    case let .compaction(summary, before, after):
-                        AgentCompactionCard(summary: summary, tokensBefore: before, tokensAfter: after)
-                    }
-                }
-
-                if turn.status == .error, let error = turn.error {
-                    Text(error)
-                        .font(.system(size: 14))
-                        .foregroundStyle(Theme.danger)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 14).padding(.vertical, 10)
-                        .background(Theme.danger.opacity(0.1), in: .rect(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.danger.opacity(0.3)))
-                        .textSelection(.enabled)
-                        .accessibilityIdentifier("agent-turn-error")
-                }
-
-                AgentTurnFooter(turn: turn)
-            }
-        }
+        Text(message)
+            .font(.system(size: 14))
+            .foregroundStyle(Theme.danger)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(Theme.danger.opacity(0.1), in: .rect(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.danger.opacity(0.3)))
+            .textSelection(.enabled)
+            .accessibilityIdentifier("agent-turn-error")
     }
 }
 
@@ -239,11 +195,16 @@ struct AgentProcessBlock: View {
     let active: Bool
     @State private var open = false
 
-    var body: some View {
-        let visible = items.filter { item in
+    /// 折叠块里要列的条目（去掉生成式 UI 的绘制调用）；为空则整块不出现，消息列拆行时据此不给它占行
+    static func visibleItems(_ items: [AgentProcessItem]) -> [AgentProcessItem] {
+        items.filter { item in
             if case let .tool(tool) = item { return !AgentMediaCards.isMediaCardsTool(tool.name) }
             return true
         }
+    }
+
+    var body: some View {
+        let visible = Self.visibleItems(items)
         if !visible.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Button {
@@ -447,6 +408,13 @@ struct AgentHandoffCard: View {
 struct AgentTurnFooter: View {
     let turn: AgentTurn
     @State private var copied = false
+
+    /// 页脚会不会画出东西（与下面 body 的分支一致）；消息列拆行时据此决定要不要给它占一行
+    static func hasContent(_ turn: AgentTurn) -> Bool {
+        if turn.status == .error { return false }
+        if turn.isRunning { return true }
+        return turn.result != nil || turn.endedAt != nil || turn.stopped || turn.interrupted || !turn.answerText.isEmpty
+    }
 
     var body: some View {
         if turn.status == .error {
