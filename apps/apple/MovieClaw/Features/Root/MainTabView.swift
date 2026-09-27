@@ -107,6 +107,15 @@ struct MainTabView: View {
             }
             router.open(webPath: path)
         }
+        .task {
+            // 开发期：-mcPerfScript 按时刻依次切页签（量切页耗时，见 PerfTrace）
+            for step in DebugLaunch.perfScript {
+                let wait = step.at - (PerfTrace.now() - PerfTrace.mainStart) / 1000
+                if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+                if Task.isCancelled { return }
+                router.selectedTab = step.tab
+            }
+        }
         #endif
         .onChange(of: permissions, initial: true) { _, value in
             let tabs = Set(Self.visibleTabs(value))
@@ -173,6 +182,13 @@ extension MainTabView {
     private func land(permissions: Permissions) {
         guard !landed else { return }
         landed = true
+        defer { PerfTrace.pageBegan(router.selectedTab.rawValue, trigger: "launch", at: 0) }
+        #if DEBUG
+        if let tab = DebugLaunch.tab, router.availableTabs.contains(tab) {
+            router.selectedTab = tab
+            return
+        }
+        #endif
         // 已经被别处（深链、调试启动路由）导航过就不再抢落点
         guard router.selectedTab == .discover, router.paths.values.allSatisfy(\.isEmpty), router.rootParameter == nil else { return }
         if let resume = model.takeResume(), router.availableTabs.contains(resume.tab),
@@ -199,6 +215,7 @@ struct TabRoot<Root: View>: View {
                     route.destination
                 }
         }
+        .environment(\.perfPage, tab.rawValue)
     }
 }
 

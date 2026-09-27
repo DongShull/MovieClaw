@@ -116,7 +116,14 @@ struct LibraryHomeView: View {
             }
         }
         .refreshable { await reload() }
-        .onAppear { Task { await reload() } }
+        .onAppear {
+            PerfTrace.pageAppeared("library")
+            if dataComplete { PerfTrace.pageDataReady("library") }
+            Task { await reload() }
+        }
+        .onChange(of: dataComplete) { _, complete in
+            if complete { PerfTrace.pageDataReady("library") }
+        }
         .polling(every: pollInterval) { await reload() }
         .task(id: busyUntil) {
             // 窗口到期把 recentlyBusy 落回 false，轮询间隔随之回到慢档
@@ -134,6 +141,12 @@ struct LibraryHomeView: View {
     // MARK: 派生状态
 
     private var visibleLibraries: [API.LibraryView] { (libraries ?? []).filter(\.viewerAccess) }
+
+    /// 整页数据都到了（打点用，见 PerfTrace）：库、接下来继续、收藏、各行条目
+    private var dataComplete: Bool {
+        guard let libraries else { return false }
+        return libraries.isEmpty || (upNext != nil && favorites != nil && lastSnapshot != nil)
+    }
 
     private var rows: [HomeRows.Row] {
         HomeRows.build(prefs: prefs.rows ?? [], libraries: libraries ?? [], collections: collections)
@@ -358,6 +371,7 @@ struct LibraryHomeView: View {
             failed = false
             if libs != libraries { libraries = libs }
             if cols != collections { collections = cols }
+            PerfTrace.pageStage("library", "libraries")
             if libs.contains(where: { $0.scanning || $0.organizing }) { busyUntil = .now.addingTimeInterval(12) }
 
             let visibleRows = HomeRows.build(prefs: prefs.rows ?? [], libraries: libs, collections: cols).filter { !$0.hidden }
@@ -369,6 +383,7 @@ struct LibraryHomeView: View {
             let (latestUpNext, latestFavorites) = await (upNextTask, favoritesTask)
             if let latestUpNext { upNext = latestUpNext } else if upNext == nil { upNext = [] }
             if let latestFavorites { favorites = latestFavorites } else if favorites == nil { favorites = API.FavoritesView(items: [], total: 0) }
+            PerfTrace.pageStage("library", "upNext+favorites")
 
             // 各行条目：库状态、要取的行、合集都没变时跳过
             let fetches = rowFetches(visibleRows, libs)
@@ -656,13 +671,16 @@ private struct UpNextCard: View {
                     .aspectRatio(16 / 9, contentMode: .fit)
                     .overlay {
                         LazyImage(url: api.image(url, .landscapeCard)) { state in
-                            if let image = state.image {
-                                image.resizable().aspectRatio(contentMode: .fill)
-                            } else if state.error != nil {
-                                artworkFallback
-                            } else {
-                                Theme.surfaceRaised
+                            Group {
+                                if let image = state.image {
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } else if state.error != nil {
+                                    artworkFallback
+                                } else {
+                                    Theme.surfaceRaised
+                                }
                             }
+                            .perfImage(api.image(url, .landscapeCard), state)
                         }
                     }
                     .clipped()

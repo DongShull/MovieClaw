@@ -107,7 +107,10 @@ struct SubscribeRequest: Hashable {
 /// `push` 压到当前标签，`open(_:)` 按路由归属切到对应标签再压栈。
 @Observable
 final class Router {
-    var selectedTab: MainTab = .discover
+    var selectedTab: MainTab = .discover {
+        // 打点：切页签的那一刻是页面打开的起点（见 PerfTrace）
+        didSet { if selectedTab != oldValue { PerfTrace.pageBegan(selectedTab.rawValue, trigger: "tab") } }
+    }
     var paths: [MainTab: [AppRoute]] = [:]
     /// 全屏播放器
     var player: PlayRequest?

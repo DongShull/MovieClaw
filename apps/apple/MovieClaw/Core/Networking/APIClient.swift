@@ -77,7 +77,7 @@ nonisolated struct APIClient: Sendable {
     static let encoder = JSONEncoder()
 
     /// App 全局共用的 URLSession：凭证只走 Authorization 头（设备令牌），不收发任何 Cookie。
-    static let sharedSession = makeSession()
+    static let sharedSession = makeSession("api")
 
     /// 外壳常驻数据专用的 URLSession：活动标签的任务 SSE、下载器 / 播放活动轮询与活动总览的预取
     /// （`ShellBadges` 的两个数据仓）走这里，配置与 `sharedSession` 相同，只是连接池独立。
@@ -86,15 +86,15 @@ nonisolated struct APIClient: Sendable {
     /// URLSession 对同一台主机的并发连接有上限，HTTP/1.1 下超出的请求在本机排队：`/jobs/stream` 这条 SSE
     /// 常年占着一条连接，发现页冷启动一次并发二十来个请求又会把活动数据挤到队尾——模拟器连 NAS 实测，
     /// 活动相关请求在本机排队等连接近 1 秒，服务端处理只要 14～120ms。分开后两边互不挤占。
-    static let liveSession = makeSession()
+    static let liveSession = makeSession("live")
 
     /// 播放器专用的 URLSession：起播协商（决策、开会话）、心跳、进度上报走这里，连接池同样独立。
     /// 点播放时页面上可能正有一批慢请求（发现页的 TMDB 列表一次并发二十来个、每个一两秒）占满连接，
     /// 起播请求排在它们后面就要多等几秒——模拟器冷启动直达播放页实测，决策请求在本机排队 8 秒，
     /// 服务端处理只要 17 毫秒。
-    static let playbackSession = makeSession()
+    static let playbackSession = makeSession("playback")
 
-    private static func makeSession() -> URLSession {
+    private static func makeSession(_ name: String) -> URLSession {
         let config = URLSessionConfiguration.default
         config.httpCookieStorage = nil
         config.httpShouldSetCookies = false
@@ -102,7 +102,9 @@ nonisolated struct APIClient: Sendable {
         config.waitsForConnectivity = false
         config.timeoutIntervalForRequest = 60
         config.httpAdditionalHeaders = ["User-Agent": userAgent]
-        return URLSession(configuration: config)
+        let session = URLSession(configuration: config)
+        session.sessionDescription = name
+        return session
     }
 
     /// 所有请求带的 User-Agent：`MovieClaw-iOS/0.1.0 (iPhone18,4; iOS 26.0; build 1)`。
@@ -190,6 +192,8 @@ nonisolated struct APIClient: Sendable {
         }
         let data = try await perform(request)
         if T.self == Empty.self, data.isEmpty { return Empty() as! T }
+        let decodeStarted = PerfTrace.enabled ? PerfTrace.now() : 0
+        defer { if PerfTrace.enabled { PerfTrace.decoded(path, bytes: data.count, started: decodeStarted) } }
         do {
             return try Self.decoder.decode(T.self, from: data)
         } catch {
@@ -232,7 +236,7 @@ nonisolated struct APIClient: Sendable {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: authorized(request))
+            (data, response) = try await session.data(for: authorized(request), delegate: PerfTrace.enabled ? PerfTrace.NetworkMetrics.shared : nil)
         } catch let error as URLError {
             switch error.code {
             case .timedOut: throw APIError.timeout

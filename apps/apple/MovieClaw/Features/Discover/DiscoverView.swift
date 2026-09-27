@@ -71,6 +71,13 @@ struct DiscoverView: View {
         .task(id: feedKey) {
             await feed.loadIfNeeded(api: api)
         }
+        .onAppear {
+            PerfTrace.pageAppeared("discover")
+            if feed.perfComplete { PerfTrace.pageDataReady("discover") }
+        }
+        .onChange(of: feed.perfComplete) { _, complete in
+            if complete { PerfTrace.pageDataReady("discover") }
+        }
         .tracksSubscriptionIndex()
     }
 
@@ -261,6 +268,12 @@ final class DiscoverFeed {
 
     var declaresHero: Bool { layout?.sections.contains { $0.presentation == "hero" } == true }
     var rowSections: [API.DiscoveryPageSectionView] { layout?.sections.filter { $0.presentation != "hero" } ?? [] }
+
+    /// 整页数据都到了（打点用，见 PerfTrace）：版面、Hero 与每一行都有了结果（成功或失败）
+    var perfComplete: Bool {
+        guard layout != nil else { return failure != nil }
+        return (!declaresHero || hero != nil) && rowSections.allSatisfy { rows[$0.collectionRef] != nil }
+    }
 
     /// 常规行全部失败（且没有任何一行成功）→ 整页错误态
     var allRowsFailed: Bool {

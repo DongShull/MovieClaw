@@ -173,11 +173,14 @@ private struct SubsHomeRecentCard: View {
     private var logo: some View {
         if let raw = card.media.logoUrl, let url = api.image(raw) {
             LazyImage(url: url) { state in
-                if let image = state.image {
-                    image.resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .shadow(color: .black.opacity(0.6), radius: 6, y: 1)
+                Group {
+                    if let image = state.image {
+                        image.resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .shadow(color: .black.opacity(0.6), radius: 6, y: 1)
+                    }
                 }
+                .perfImage(url, state)
             }
             .frame(maxWidth: 118, maxHeight: 34, alignment: .bottomLeading)
         }

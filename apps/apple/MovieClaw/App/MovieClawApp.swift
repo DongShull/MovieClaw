@@ -2,11 +2,15 @@ import SwiftUI
 
 @main
 struct MovieClawApp: App {
+    /// 最先执行（存储属性按声明顺序初始化，早于下面的 AppModel）：打点记下 main 的时刻，并配好图片加载器
+    private let bootstrap: Void = {
+        PerfTrace.markMain()
+        ImagePipelineSetup.configure()
+    }()
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = AppModel()
 
     init() {
-        ImagePipelineSetup.configure()
         PlayerCapability.prewarm()
     }
 
@@ -46,5 +50,12 @@ struct RootView: View {
             }
         }
         .animation(.default, value: model.phase)
+        .onAppear {
+            PerfTrace.record("root.appear")
+            PerfTrace.afterCommit("root.firstFrame")
+        }
+        .onChange(of: model.session != nil) { _, ready in
+            if ready { PerfTrace.record("session.ready") }
+        }
     }
 }

@@ -34,6 +34,8 @@ struct SubscriptionsView: View {
     @State private var pastHero = false
     /// 连续滚动距离单独放在可观察对象里：只有 Hero 与氛围底读它，页面主体不随每一帧滚动重算
     @State private var scroll = ImmersiveHeroScroll()
+    /// 首次整页加载（订阅清单 + 预告 / 刚刚入库 / 下载快照）已经跑完（打点用，见 PerfTrace）
+    @State private var loadedOnce = false
 
     #if DEBUG
     private static var debugSubscribeConsumed = false
@@ -86,6 +88,13 @@ struct SubscriptionsView: View {
         .toolbar { healthToolbar }
         .refreshable { await reload() }
         .task { await reload() }
+        .onAppear {
+            PerfTrace.pageAppeared("subscriptions")
+            if dataComplete { PerfTrace.pageDataReady("subscriptions") }
+        }
+        .onChange(of: dataComplete) { _, complete in
+            if complete { PerfTrace.pageDataReady("subscriptions") }
+        }
         .task(id: tintSource(slides)) { await updateTint(slides) }
         #if DEBUG
         .task {
@@ -197,6 +206,7 @@ struct SubscriptionsView: View {
         guard let url = tintSource(slides) else { return }
         if let color = await ImmersiveHeroAmbientColor.color(for: url), !Task.isCancelled {
             tint = color
+            PerfTrace.record("subs.tint")
         }
     }
 
@@ -204,18 +214,24 @@ struct SubscriptionsView: View {
 
     private var hasSubscriptions: Bool { !(all ?? []).isEmpty }
 
+    /// 整页数据都在（打点用，见 PerfTrace）：订阅清单 + 预告 / 刚刚入库 / 下载快照都跑完一轮
+    private var dataComplete: Bool { all != nil && loadedOnce }
+
     private func reload() async {
         failed = false
         feed.adopt(owner: SubscriptionsHomeFeed.ownerKey(api: api, username: model.session?.username))
         let ok = await index.refresh(api: api, owner: model.session?.username)
         failed = !ok && index.subscriptions == nil
+        PerfTrace.pageStage("subscriptions", "subscriptions")
         guard hasSubscriptions else {
             await refreshHealth()
+            loadedOnce = true
             return
         }
         async let health: Void = refreshHealth()
         async let data: Void = feed.refreshAll(api: api, isAdmin: permissions.isAdmin)
         _ = await (health, data)
+        loadedOnce = true
     }
 
     private func refreshHealth() async {
