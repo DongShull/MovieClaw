@@ -178,36 +178,46 @@ struct TorrentResultsView: View {
     /// - 第一颗是排序，写当前键与方向；
     /// - 其后按固定顺序列本次结果里出现过的维度（分辨率 → 站点 → 年份 → … → 压制组），
     ///   没有取值的维度不出（已选的例外，免得选中项凭空消失）。已启用的胶囊高亮并写出所选值；
-    /// - 有条件时末尾一颗「清除」。
+    /// - 有筛选条件时，最左边钉一颗「清空」：不随胶囊横滑，条件再多也不用滑到末尾去找，一点清掉全部筛选
+    ///   （原先是末尾一颗「清除」，条件一多就在屏幕外，2026-09-27 用户反馈）。排序不算筛选条件，不动。
     /// 顺序固定不按启用与否重排——改完一项胶囊原地变亮，手指下的东西不会跑位。
     private var conditionChips: some View {
         let dims = TorrentFilterDim.allCases.filter { !dimValues($0).isEmpty || !model.filters.values($0).isEmpty }
-        return ScrollView(.horizontal) {
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 8) {
-                    sortChip
-                    ForEach(dims, id: \.self) { dim in
-                        filterChip(dim)
-                    }
-                    if model.filters.isActive {
-                        Button {
-                            model.filters = TorrentFilters()
-                        } label: {
-                            conditionLabel(Label("清除", systemImage: "xmark").labelStyle(.titleAndIcon), active: false, chevron: false)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("清除全部筛选条件")
-                        .accessibilityIdentifier("torrent-filter-clear")
-                    }
+        let clearing = model.filters.isActive
+        return HStack(spacing: 0) {
+            if clearing {
+                Button {
+                    model.filters = TorrentFilters()
+                } label: {
+                    conditionLabel(Label("清空", systemImage: "xmark").labelStyle(.titleAndIcon), active: false, chevron: false)
                 }
-                .padding(.horizontal, Theme.pagePadding)
+                .buttonStyle(.plain)
+                .padding(.leading, Theme.pagePadding)
                 .padding(.vertical, 4)
+                .transition(.move(edge: .leading).combined(with: .opacity))
+                .accessibilityLabel("清空全部筛选条件")
+                .accessibilityIdentifier("torrent-filter-clear")
             }
+            ScrollView(.horizontal) {
+                GlassEffectContainer(spacing: 8) {
+                    HStack(spacing: 8) {
+                        sortChip
+                        ForEach(dims, id: \.self) { dim in
+                            filterChip(dim)
+                        }
+                    }
+                    // 左边钉着「清空」时只留胶囊间距，胶囊横滑时从它右侧滑进滑出
+                    .padding(.leading, clearing ? 8 : Theme.pagePadding)
+                    .padding(.trailing, Theme.pagePadding)
+                    .padding(.vertical, 4)
+                }
+            }
+            .scrollIndicators(.hidden)
+            .accessibilityIdentifier("torrent-conditions")
         }
-        .scrollIndicators(.hidden)
+        .animation(.snappy, value: clearing)
         // 横滑出页边距：胶囊能滑到屏幕边缘再消失，而不是在 16pt 页边距处被一刀切掉
         .padding(.horizontal, -Theme.pagePadding)
-        .accessibilityIdentifier("torrent-conditions")
     }
 
     /// 排序胶囊：写当前键与方向；菜单分「常规 / 智能」，点当前项翻转升降序（同 Web SortDropdown）

@@ -185,24 +185,24 @@ struct AgentConversationView: View {
         }
         .overlay(alignment: .bottom) {
             if !nearBottom {
+                // 系统液态玻璃圆形按钮（原先是手画的深色圆 + 描边 + 阴影，与页面其余玻璃控件不是一套）
                 Button {
                     withAnimation { position.scrollTo(edge: .bottom) }
                 } label: {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.textMuted)
-                        .frame(width: 36, height: 36)
-                        .background(Color(red: 0x23 / 255, green: 0x23 / 255, blue: 0x25 / 255), in: .circle)
-                        .overlay(Circle().strokeBorder(Color.white.opacity(0.1)))
-                        .shadow(color: .black.opacity(0.4), radius: 8, y: 3)
-                        .contentShape(Circle().inset(by: -4))
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(width: 26, height: 26)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .controlSize(.large)
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
                 .padding(.bottom, 10)
                 .accessibilityLabel("回到最新消息")
                 .accessibilityIdentifier("agent-scroll-latest")
             }
         }
+        .animation(.snappy, value: nearBottom)
     }
 
     // MARK: 底部输入
