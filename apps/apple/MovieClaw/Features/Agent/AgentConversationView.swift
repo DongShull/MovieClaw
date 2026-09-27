@@ -62,7 +62,7 @@ struct AgentConversationView: View {
             .background(Theme.background.ignoresSafeArea())
             .navigationTitle(conversation.loaded ? conversation.title : "AI 会话")
             .navigationBarTitleDisplayMode(.inline)
-            .hidesTabBar()
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar {
                 // 右上角只留「⋯」，操作的是当前会话；Web 顶栏的搜索与「+」在会话页里用不上（2026-09-26 用户决定去掉）
                 if conversation.loaded {

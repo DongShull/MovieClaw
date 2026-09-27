@@ -10,7 +10,8 @@ import SwiftUI
 /// 搜索不占页签，在各标签根页右上角（见 AppTopBar）：iPhone 标签栏最多放 5 个页签，管理员
 /// 四个内容页签加头像已满，再放搜索页签会被系统收进「More」。标签栏的高度与玻璃质感是系统定的
 /// （实测去掉文字仍是 62pt，控件尺寸 / 字号也改不动；背景色设置对液态玻璃不生效），不自绘——用户明确要
-/// 原生标签栏。要压暗只能从玻璃身后的内容下手（TabBarScrim）；图标统一成正方形见 TabIcon。
+/// 原生标签栏，也不在玻璃身后垫黑色压暗层（试过，底栏上方多出一条黑带，2026-09-27 用户要求撤掉）：
+/// App 全局深色，玻璃透出的本就是暗底。图标统一成正方形见 TabIcon。
 ///
 /// 这里还负责注入全局依赖：Router（导航）、Feedback（提示/确认）、APIClient、权限，
 /// 并在根部统一挂载全屏播放器与全局弹层。
@@ -180,13 +181,11 @@ extension MainTabView {
     }
 }
 
-/// 一个标签页的导航根：独立导航栈 + 路由映射 + 全局顶栏（右上角搜索）+ 底栏压暗
+/// 一个标签页的导航根：独立导航栈 + 路由映射 + 全局顶栏（右上角搜索）
 struct TabRoot<Root: View>: View {
     let tab: MainTab
     @ViewBuilder let root: () -> Root
     @Environment(Router.self) private var router
-    /// 当前页藏起了标签栏（AI 会话页，见 hidesTabBar）：压暗层跟着撤掉，免得压在输入框上
-    @State private var tabBarHidden = false
 
     var body: some View {
         NavigationStack(path: router.path(for: tab)) {
@@ -196,54 +195,6 @@ struct TabRoot<Root: View>: View {
                     route.destination
                 }
         }
-        .onPreferenceChange(TabBarHiddenKey.self) { tabBarHidden = $0 }
-        .overlay {
-            if !tabBarHidden { TabBarScrim() }
-        }
-    }
-}
-
-/// 垫在标签栏底下的黑色渐变，让液态玻璃整体暗一些（2026-09-26 用户要求底栏压暗）。
-///
-/// 液态玻璃的背景色 / `.toolbarBackground` 都不生效（实测），玻璃显示的是它身后内容的模糊，
-/// 所以从内容这一侧下手：在屏幕最底下铺一层黑，玻璃透出来的就是暗底，毛玻璃质地不变。
-/// 系统的 `.scrollEdgeEffectStyle(.hard)` 也能压暗，但会在底栏上方切出一条硬边横带，没用。
-/// 实色部分正好盖住底栏（62pt 高 + 离屏幕底边 21pt），上面再留一段渐变过渡，不出硬边。
-struct TabBarScrim: View {
-    private static let barCover: CGFloat = 83
-    private static let fade: CGFloat = 24
-    private static let opacity = 0.75
-
-    var body: some View {
-        let height = Self.barCover + Self.fade
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            LinearGradient(
-                stops: [
-                    .init(color: .black.opacity(0), location: 0),
-                    .init(color: .black.opacity(Self.opacity), location: Self.fade / height),
-                    .init(color: .black.opacity(Self.opacity), location: 1),
-                ],
-                startPoint: .top, endPoint: .bottom
-            )
-            .frame(height: height)
-        }
-        .ignoresSafeArea(edges: .bottom)
-        .allowsHitTesting(false)
-    }
-}
-
-/// 页面是否藏起了标签栏（TabRoot 据此撤掉压暗层）
-struct TabBarHiddenKey: PreferenceKey {
-    static let defaultValue = false
-    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
-}
-
-extension View {
-    /// 藏起标签栏，并通知 TabRoot 撤掉垫在底栏下的压暗层
-    func hidesTabBar() -> some View {
-        toolbarVisibility(.hidden, for: .tabBar)
-            .preference(key: TabBarHiddenKey.self, value: true)
     }
 }
 
