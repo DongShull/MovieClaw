@@ -59,6 +59,9 @@ apps/apple/
   加载用 `await Loadable.load(into: $state) { try await api.xxx() }`（已有数据时静默刷新，不闪）。
 - 空态 `EmptyState`，失败 `ErrorState`（后端中文原因原样显示）。
 - 轮询：`.polling(every: 秒) { await reload() }`，自动随页面可见性与前后台启停；间隔同 Web（清单第 13 节）。
+- 秒开（标签根页这类「一打开就要整页」的页面）：数据放进跟着账号走的共享对象 + 本机快照（`PageSnapshots`），
+  首屏图片提前解码进内存（`FirstScreenImages`），不急的启动工作等首帧（`FirstFrameGate`）；做法、口径与实测数字见
+  [ios-page-open.md](ios-page-open.md)，量打开速度用 `scripts/perf/ios_open_bench.py`。
 - SSE：`for try await event in api.events("/jobs/stream") { … }` 放在 `.task` 里，离开页面自动断开。
 - **弹层**：所有 `.sheet` / `.fullScreenCover` 的内容必须调用 `.sheetFeedback()`——根部的确认框/输入框被 sheet 盖住时弹不出，
   它给弹层配独立的反馈中心，关窗时未消失的 Toast 转交回根部（全局弹层已自动挂上）。
