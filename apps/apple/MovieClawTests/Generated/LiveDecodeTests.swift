@@ -33,14 +33,14 @@ struct LiveDecodeTests {
     @Test func authBootstrapStatus() async throws {
         try await LiveServer.check { try await $0.authBootstrapStatus() }
     }
-    @Test func authDevicesRequests() async throws {
-        try await LiveServer.check { try await $0.authDevicesRequests() }
+    @Test func authDevicesList() async throws {
+        try await LiveServer.check { try await $0.authDevicesList() }
+    }
+    @Test func authDevicesCurrent() async throws {
+        try await LiveServer.check { try await $0.authDevicesCurrent() }
     }
     @Test func authMe() async throws {
         try await LiveServer.check { try await $0.authMe() }
-    }
-    @Test func authTokensList() async throws {
-        try await LiveServer.check { try await $0.authTokensList() }
     }
     @Test func channelsImPushConfigGet() async throws {
         try await LiveServer.check { try await $0.channelsImPushConfigGet() }

@@ -2,12 +2,14 @@ import Foundation
 
 /// 本机登录过的一台服务器，以及它上面已登录账号的本地快照。
 ///
-/// 登录态本身在服务器那边：每台服务器给本机发一个 Cookie 账号袋（最多 5 个账号，见 docs/design/account-switching.md），
-/// Cookie 按主机隔离，所以「多台服务器 × 各自多个账号」天然互不干扰。App 这边只记两样东西：
-/// - 有哪些服务器（地址 + 最近使用时间）：冷启动时据此把每台的 Cookie 从钥匙串灌回来；
-/// - 每台上有哪些账号（昵称、头像、角色）：列账号的接口要那台服务器在线、且那边的当前账号没过期，
-///   连不上或过期时，切换账号列表和欢迎页「选择账号」照样要能把人列出来。
-///   快照只用于展示，每次成功取到 `/auth/accounts` 就整体覆盖；真正能不能切，以切换接口的结果为准。
+/// 登录态是每个账号一枚设备令牌（钥匙串 `TokenVault`，docs/design/login-devices.md），这里只记展示用的东西：
+/// - 有哪些服务器（地址 + 最近使用时间）；
+/// - 每台上有哪些账号（昵称、头像、角色，`active` 标出这台上的当前账号）：服务器连不上、令牌失效时，
+///   切换账号列表和欢迎页「选择账号」照样要能把人列出来。快照在登录、切换、刷新时更新；
+///   真正能不能切，以那枚令牌向服务器问 `/auth/me` 的结果为准。
+///
+/// 头像地址带 `mc_account` 标记（`AvatarURL.tagged`）：切换账号列表里同一台服务器上的几个账号
+/// 各用各的令牌取自己的头像。
 nonisolated struct SavedServer: Codable, Hashable, Sendable, Identifiable {
     var address: ServerAddress
     var accounts: [API.AccountView]
@@ -57,6 +59,37 @@ nonisolated enum SavedServers {
         list.map { $0.address == address ? SavedServer(address: $0.address, accounts: accounts, lastUsed: $0.lastUsed) : $0 }
     }
 
+    /// 登录 / 切换 / 刷新后写入一个账号的快照：同名的替换；`active` 为真时它成为这台服务器的当前账号
+    /// （排到最前、其余账号取消「当前」）
+    static func upserting(_ list: [SavedServer], _ address: ServerAddress, account: API.AccountView) -> [SavedServer] {
+        let base = list.contains(where: { $0.address == address }) ? list : touching(list, address, accounts: nil)
+        return base.map { saved in
+            guard saved.address == address else { return saved }
+            var copy = saved
+            var others = copy.accounts.filter { $0.username.lowercased() != account.username.lowercased() }
+            if account.active {
+                others = others.map { API.AccountView(username: $0.username, nickname: $0.nickname, avatarUrl: $0.avatarUrl, role: $0.role, active: false) }
+                copy.accounts = [account] + others
+            } else if let index = copy.accounts.firstIndex(where: { $0.username.lowercased() == account.username.lowercased() }) {
+                copy.accounts[index] = account
+            } else {
+                copy.accounts = others + [account]
+            }
+            return copy
+        }
+    }
+
+    /// 会话视图 → 本机快照（头像地址带上这个账号的标记，见 `AvatarURL`）
+    static func snapshot(of session: API.SessionView, active: Bool) -> API.AccountView {
+        API.AccountView(
+            username: session.username,
+            nickname: session.nickname,
+            avatarUrl: AvatarURL.tagged(session.avatarUrl, username: session.username),
+            role: session.role,
+            active: active
+        )
+    }
+
     /// 从某台服务器的快照里去掉一个账号
     static func removingAccount(_ list: [SavedServer], _ username: String, from address: ServerAddress) -> [SavedServer] {
         list.map { saved in
@@ -67,7 +100,7 @@ nonisolated enum SavedServers {
         }
     }
 
-    /// 没有账号、也不是当前服务器的记录不再保留：它既不会出现在账号列表里，也没有 Cookie 需要恢复
+    /// 没有账号、也不是当前服务器的记录不再保留：它既不会出现在账号列表里，也没有令牌需要恢复
     static func pruned(_ list: [SavedServer], keeping current: ServerAddress?) -> [SavedServer] {
         list.filter { !$0.accounts.isEmpty || $0.address == current }
     }

@@ -419,7 +419,7 @@ final class ShellBadges {
 
     func run(api: APIClient) async {
         // 常驻的 SSE 与轮询走专用连接池，不和页面请求抢连接（见 APIClient.liveSession）
-        let live = APIClient(server: api.server, session: APIClient.liveSession)
+        let live = APIClient(server: api.server, token: api.token, session: APIClient.liveSession)
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.tasks.run(api: live) }
             group.addTask { await self.media.run(api: live) }

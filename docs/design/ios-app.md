@@ -10,7 +10,7 @@
 | 技术栈 | SwiftUI 全原生，iOS 26+ | 液态玻璃标签栏/工具栏/浮层系统自带；网页 PWA 的画中画、全屏、字幕等受 WebKit 所限 |
 | 范围 | Web 手机端全部功能原生重写（不内嵌网页） | 用户决定 |
 | 播放 | Swiftfin 式多引擎：AVPlayer + libmpv（MPVKit，LGPL 构建） | 用户决定；AVPlayer 管画中画/AirPlay/杜比视界，mpv 管 MKV/ASS/PGS 直出 |
-| 认证 | 复用 Web 同一套会话 Cookie | 后端零改动，多账号切换、吊销、改密下线与网页一致 |
+| 认证 | 设备令牌（`POST /auth/device/login` 用账号密码换，存钥匙串，`Authorization: Bearer`），见 login-devices.md | 长期有效不再满 30 天重登；这台手机是「我的设备」里的一台，可单独注销；多账号完全在本机 |
 | 接口层 | 脚本生成（`apps/apple/scripts/gen_api.py`） | 340 个接口、459 个模型手写不可维护 |
 | 工程 | XcodeGen（`project.yml`，同步文件夹） | 不提交 .pbxproj，并行加文件不冲突 |
 | 外观 | 不提供网页的「外观」设置（主题、背景图、界面质感、导航顺序都只作用于网页），设置里没有这一页；底色固定纯黑（同 Apple Music），App 强制暗色（含启动屏），剧照灯箱不带「设为背景」；账号在网页的外观设置原样保留 | 用户决定（2026-09-26），列为已接受差异 |
@@ -35,7 +35,7 @@ apps/apple/
     App/                      入口、AppModel（连接/登录状态机）、Routing（路由/导航/全局弹层）
     Core/API/Generated/       生成的模型（命名空间 API.*）与接口函数（APIClient 扩展）——勿手改
     Core/API/*.swift          少量手写补充（multipart 上传、SSE 等生成器跳过的接口）
-    Core/Networking/          APIClient、Cookie 钥匙串备份、SSE、服务器地址
+    Core/Networking/          APIClient、设备令牌钥匙串（TokenVault）、SSE、服务器地址
     Core/Session/             权限、环境值
     DesignSystem/             主题令牌、反馈中心、三态加载、远程图片、占位页、通用组件
     Features/<模块>/           各功能模块

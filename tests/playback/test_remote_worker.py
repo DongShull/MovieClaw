@@ -606,7 +606,7 @@ async def test_handshake_rejection_reason_reaches_the_worker(monkeypatch, princi
 
     from movieclaw_api.api.routes import transcode_worker as route
 
-    async def _principal(_authorization):
+    async def _principal(_authorization, **_client):
         return principal
 
     monkeypatch.setattr(route, "resolve_worker_principal", _principal)

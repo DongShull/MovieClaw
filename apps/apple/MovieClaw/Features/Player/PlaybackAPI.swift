@@ -135,7 +135,7 @@ struct PlaybackAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? APIClient.encoder.encode(body)
         let done = DispatchSemaphore(value: 0)
-        api.session.dataTask(with: request) { _, _, _ in done.signal() }.resume()
+        api.session.dataTask(with: api.authorized(request)) { _, _, _ in done.signal() }.resume()
         _ = done.wait(timeout: .now() + 1.5)
     }
 

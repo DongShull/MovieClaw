@@ -51,8 +51,6 @@ from movieclaw_api.settings.remote_transcode import (
 )
 from movieclaw_api.settings.schemas import (
     AdminAccountSetting,
-    ApiTokenRecord,
-    ApiTokensSetting,
     ExtensionSyncSetting,
     SessionSecretSetting,
     SystemBootstrap,
@@ -99,8 +97,6 @@ __all__ = [
     "generate_sync_token",
     "revoke_sync_token",
     # CLI API 令牌（PAT）
-    "ApiTokenRecord",
-    "ApiTokensSetting",
     # 超级管理员账号与登录会话
     "AdminAccountSetting",
     "SessionSecretSetting",

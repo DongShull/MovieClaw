@@ -9,6 +9,9 @@
 //	<配置目录>/config.toml   多上下文配置（服务器地址）
 //	<配置目录>/credentials   设备令牌（JSON，0600，按服务器地址存）
 //
+// 另有一个配对时自动生成的 <配置目录>/installation-id（本机安装标识，见
+// InstallationID），它随机器走，同样不该进 dotfiles 同步。
+//
 // 配置目录按平台取（与 gh / gcloud 同款惯例）：
 //
 //	Linux / macOS   $XDG_CONFIG_HOME/movieclaw，缺省 ~/.config/movieclaw
@@ -20,6 +23,7 @@
 package config
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -314,6 +318,42 @@ func writeCredentials(creds map[string]credentialEntry) error {
 		return clierr.Usagef("无法写入凭证：%v", err)
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// 安装标识
+// ---------------------------------------------------------------------------
+
+// installationIDMaxLen 与服务端 installation_id 字段的长度上限一致。
+const installationIDMaxLen = 128
+
+func installationIDPath() string { return filepath.Join(Dir(), "installation-id") }
+
+// InstallationID 返回本机的安装标识；第一次调用时随机生成并落盘，之后一直复用。
+//
+// 配对时上报给服务端（docs/design/login-devices.md §4）：同一个人在同一台机器上
+// 重新 mclaw login，服务端据此替换旧令牌，「设置 → 设备」里就不会越积越多。
+// 所以它必须跨配对、跨 logout 保持不变——logout 只删令牌，不碰它。
+//
+// 它不是凭据，拿到它做不了任何事；但只有本用户用得着，照凭证文件的规矩以
+// 0600 创建。文件被改坏（空的、超长的）就重新生成一个：代价只是服务端把下一次
+// 配对当成一台新机器，旧令牌留在设备列表里等人注销。
+func InstallationID() (string, error) {
+	path := installationIDPath()
+	if raw, err := os.ReadFile(path); err == nil {
+		if id := strings.TrimSpace(string(raw)); id != "" && len(id) <= installationIDMaxLen {
+			return id, nil
+		}
+	}
+	id := rand.Text()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return "", clierr.Usagef("无法创建配置目录：%s（%v）", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(id+"\n"), 0o600); err != nil {
+		return "", clierr.Usagef("无法写入安装标识：%s（%v）", path, err).
+			WithHint("检查配置目录是否可写；也可以用 %s 换一个可写的配置目录", EnvConfigDir)
+	}
+	return id, nil
 }
 
 // ---------------------------------------------------------------------------

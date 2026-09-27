@@ -53,7 +53,7 @@ nonisolated extension ServerAddress {
 }
 
 /// 统一的远程图片视图：带占位底色、渐显、失败兜底图标。
-/// 会话 Cookie 由共享 Cookie 存储自动携带（后端图片接口需要登录）。
+/// 后端图片接口需要登录：设备令牌由图片加载器（`AuthorizedDataLoader`）按主机补上。
 struct RemoteImage: View {
     let url: URL?
     var contentMode: ContentMode = .fill
@@ -86,14 +86,34 @@ struct RemoteImage: View {
     }
 }
 
-/// App 启动时配置 Nuke：300MB 磁盘缓存 + 与 APIClient 同一套 Cookie
+/// App 启动时配置 Nuke：300MB 磁盘缓存 + 与 APIClient 同一套设备令牌（不收发 Cookie）
 enum ImagePipelineSetup {
     static func configure() {
         var configuration = ImagePipeline.Configuration.withDataCache(name: "io.movieclaw.images", sizeLimit: 300 * 1024 * 1024)
         let urlConfig = DataLoader.defaultConfiguration
-        urlConfig.httpCookieStorage = .shared
-        urlConfig.httpShouldSetCookies = true
-        configuration.dataLoader = DataLoader(configuration: urlConfig)
+        urlConfig.httpCookieStorage = nil
+        urlConfig.httpShouldSetCookies = false
+        configuration.dataLoader = AuthorizedDataLoader(base: DataLoader(configuration: urlConfig))
         ImagePipeline.shared = ImagePipeline(configuration: configuration)
+    }
+}
+
+/// 给图片请求补上设备令牌：海报、头像这些地址只是一个 URL，经 Nuke 直接加载、不经过 `APIClient`，
+/// 令牌按 URL 的主机从 `AuthTokenRegistry` 取（当前账号的；带 `mc_account` 标记的头像用那个账号的）。
+/// 非 MovieClaw 的主机（TMDB 直链等）取不到令牌，原样放行。
+private nonisolated struct AuthorizedDataLoader: DataLoading {
+    let base: DataLoader
+
+    func loadData(
+        with request: URLRequest,
+        didReceiveData: @escaping @Sendable (Data, URLResponse) -> Void,
+        completion: @escaping @Sendable (Error?) -> Void
+    ) -> any Cancellable {
+        var request = request
+        if let url = request.url, request.value(forHTTPHeaderField: "Authorization") == nil,
+           let token = AuthTokenRegistry.shared.token(for: url) {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        return base.loadData(with: request, didReceiveData: didReceiveData, completion: completion)
     }
 }

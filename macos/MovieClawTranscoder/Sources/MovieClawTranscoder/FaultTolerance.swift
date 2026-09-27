@@ -97,9 +97,11 @@ enum JobWatchdog {
 /// NAS 拒绝连接的理由分类（WebSocket 1008 关闭帧里的那句话）。
 ///
 /// 靠文字匹配是不得已：服务端只在关闭理由里说原因，没有单独的错误码。匹配的是服务端
-/// `transcode_worker.py` 里写死的那几句，改那边的文案时要一起看这里。
+/// `transcode_worker.py` 里写死的那几句，以及在网页上注销这台转码器时
+/// `login_devices.py` 当场断开连接的那句（「转码器凭证已被注销，请重新配对」），
+/// 改那边的文案时要一起看这里。
 enum NASRejection: Equatable {
-    /// 凭证无效或已被吊销：多半要重新配对，放慢到每 5 分钟重试一次。
+    /// 凭证无效、已被吊销或注销：多半要重新配对，放慢到每 5 分钟重试一次。
     case authRejected
     /// 服务端没打开远程转码：等管理员打开，慢慢重试。
     case remoteDisabled
@@ -107,7 +109,7 @@ enum NASRejection: Equatable {
     case other
 
     init(reason: String) {
-        if reason.contains("凭证") || reason.contains("吊销") {
+        if reason.contains("凭证") || reason.contains("吊销") || reason.contains("注销") {
             self = .authRejected
         } else if reason.contains("尚未启用远程转码") {
             self = .remoteDisabled

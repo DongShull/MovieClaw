@@ -35,6 +35,8 @@ export interface MemberView {
   all_sites: boolean;
   site_ids: string[];
   created_at: string;
+  /** 登录着这个账号的设备数（网页、App、命令行、播放器） */
+  device_count: number;
 }
 
 /** 编辑成员的可选字段；未提供的字段不改动，白名单为整体覆盖。 */
@@ -97,6 +99,19 @@ export function resetMemberPassword(
       { method: "POST" },
     ),
   );
+}
+
+/**
+ * 让成员在全部设备上下线（网页、App、命令行、播放器），账号本身不动。
+ * 返回更新后的成员（设备数归零）与后端回执（写明下线了几台）。
+ */
+export async function signOutMember(
+  id: number,
+): Promise<{ member: MemberView; message: string }> {
+  const response = await request<ApiEnvelope<MemberView>>(`/members/${id}/sign-out`, {
+    method: "POST",
+  });
+  return { member: response.data, message: response.message };
 }
 
 export function deleteMember(id: number): Promise<void> {

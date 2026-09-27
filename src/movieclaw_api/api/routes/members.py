@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from movieclaw_api.api.deps import require_interactive
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import NotFoundException
 from movieclaw_api.schemas.member import (
@@ -21,6 +22,7 @@ from movieclaw_api.schemas.member import (
 )
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services import avatar as avatar_media
+from movieclaw_api.services import login_devices
 from movieclaw_api.services import members as members_service
 from movieclaw_db.engine import get_session
 from movieclaw_db.models.member import Member
@@ -35,6 +37,23 @@ def _member_avatar_url(member_id: int) -> str | None:
     if version is None:
         return None
     return f"{get_settings().api_v1_prefix}/members/{member_id}/avatar?v={version}"
+
+
+async def _device_count(session: AsyncSession, member_id: int) -> int:
+    """登录着这个成员账号的设备数：登录设备 + Jellyfin 播放器。"""
+    from sqlalchemy import func, select
+
+    from movieclaw_db.models import JellyfinDevice
+
+    players = (
+        await session.execute(
+            select(func.count())
+            .select_from(JellyfinDevice)
+            .where(JellyfinDevice.member_id == member_id)
+        )
+    ).scalar_one()
+    devices = await login_devices.list_devices(session, member_id=member_id)
+    return int(players) + len(devices)
 
 
 async def _member_view(session: AsyncSession, member: Member) -> MemberView:
@@ -56,6 +75,7 @@ async def _member_view(session: AsyncSession, member: Member) -> MemberView:
         content_age_limit=member.content_age_limit,
         allow_unrated=member.allow_unrated,
         created_at=member.created_at,
+        device_count=await _device_count(session, member.id),
     )
 
 
@@ -161,6 +181,27 @@ async def reset_member_password(
         MemberPasswordResetView(id=member.id, username=member.username, password=plaintext),
         message="密码已重置，请立即复制发给成员；旧会话已全部下线",
     )
+
+
+@router.post(
+    "/{member_id}/sign-out",
+    response_model=ApiResponse[MemberView],
+    summary="让成员在全部设备上下线（网页、App、命令行、播放器；账号本身不动）",
+    operation_id="members.sign-out",
+    # 注销别人的设备只能由人在网页或 App 里做（docs/design/login-devices.md「签发权」）
+    dependencies=[Depends(require_interactive)],
+    openapi_extra={"x-cli-hidden": True},
+)
+async def sign_out_member(
+    member_id: int, session: AsyncSession = Depends(get_session)
+) -> ApiResponse[MemberView]:
+    member, count = await members_service.sign_out_member(session, member_id)
+    message = (
+        f"已让 {member.nickname or member.username} 在全部设备上下线（{count} 台）"
+        if count
+        else f"{member.nickname or member.username} 目前没有登录着的设备"
+    )
+    return ok(await _member_view(session, member), message=message)
 
 
 @router.delete(

@@ -214,7 +214,7 @@ export interface PlaybackFileSpec {
 
 export interface ActivePlaybackSession {
   device_id: string;
-  /** 能否「注销此设备」：只有持 Jellyfin 设备凭据的会话可以；网页播放器不行。 */
+  /** 能否「注销此设备」：Jellyfin 播放器与登录设备（新的网页会话、App）可以；升级前的旧网页会话不行。 */
   revocable: boolean;
   member_name: string;
   client: string;

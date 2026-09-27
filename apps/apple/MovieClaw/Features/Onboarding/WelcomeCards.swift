@@ -57,7 +57,8 @@ struct WelcomeAccountChooser: View {
         } label: {
             HStack(spacing: 12) {
                 AvatarBadge(session: nil, avatarUrl: saved.account.avatarUrl, nickname: saved.account.nickname, size: 38)
-                    // 头像地址是那台服务器上的相对路径，按那台服务器解析、带那台的 Cookie 去取
+                    // 头像地址是那台服务器上的相对路径，按那台服务器解析；地址里带着这个账号的标记，
+                    // 图片加载器据此用它自己的令牌去取（AvatarURL）
                     .environment(\.api, APIClient(server: saved.server))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(saved.account.nickname)
@@ -100,7 +101,7 @@ struct WelcomeAccountChooser: View {
 
 /// 欢迎页「连不上服务器」：冷启动连不上当前服务器时。
 ///
-/// 连不上不等于要重新登录——登录态还在 Cookie 里，服务器恢复后点「重试」就能进，不用再输密码，
+/// 连不上不等于要重新登录——令牌还在钥匙串里，服务器恢复后点「重试」就能进，不用再输密码，
 /// 所以这里不给登录表单，而是：重试 / 修改服务器地址（换了 IP、换了域名）/ 切换到别的服务器上的账号。
 /// 从后台回到前台时自动重试一次（常见情形：NAS 刚开机、手机刚连上家里的 Wi-Fi）。
 struct WelcomeUnreachableCard: View {

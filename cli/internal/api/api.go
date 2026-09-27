@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -34,6 +35,21 @@ const (
 	// SpecHashHeader 携带服务端 spec 指纹，用于版本偏斜检测。
 	SpecHashHeader = "X-Movieclaw-Spec-Hash"
 )
+
+// Version 是 mclaw 自身的版本号。main 启动时把构建注入的 main.version 传进来
+// （goreleaser 与应用内更新产物注入仓库版本号，其余构建保持 "dev"）。
+//
+// 它有两个去处：每个请求的 User-Agent，以及配对时上报的 client_version——服务端
+// 「设置 → 设备」据此写清这台机器跑的是哪个版本的命令行。
+var Version = "dev"
+
+// UserAgent 形如 mclaw/0.27.0 (darwin/arm64)。
+//
+// 服务端把登录设备最近一次请求的 User-Agent 记在设备行上；不设的话记下来的是
+// Go 标准库的 Go-http-client/1.1，设备列表里看不出这是哪个客户端、什么版本。
+func UserAgent() string {
+	return fmt.Sprintf("mclaw/%s (%s/%s)", Version, runtime.GOOS, runtime.GOARCH)
+}
 
 // LastSeen 记录最近一次请求观察到的服务端 spec 指纹，供命令执行完后统一处理
 // 偏斜刷新（避免每个命令自行处理）。
@@ -57,15 +73,23 @@ type Client struct {
 // 环境变量优先于落盘令牌——产品内 Agent 工作区注入的短时效令牌与 CI 里注入的
 // 令牌都走这条，且完全不落盘。
 func New(server string, timeout time.Duration, debug bool) (*Client, error) {
+	token, err := TokenFor(server)
+	if err != nil {
+		return nil, err
+	}
+	return NewWithToken(server, token, timeout, debug)
+}
+
+// NewWithToken 同 New，但令牌由调用方指定，不看环境变量。
+//
+// 给 `mclaw logout` 用：它要在服务端注销的是凭证文件里那一枚——环境变量里的
+// 令牌可能属于 Agent、CI 或别的机器，绝不能被 logout 顺手注销掉。
+func NewWithToken(server, token string, timeout time.Duration, debug bool) (*Client, error) {
 	// 地址漏写 http:// 是最常见的输入错误。在这里一次性挡掉，比让它漏成
 	// 传输层的英文解析错误强得多——「错误即帮助」，用户要的是能照做的下一步。
 	if !strings.HasPrefix(server, "http://") && !strings.HasPrefix(server, "https://") {
 		return nil, clierr.Networkf("服务器地址缺少 http:// 或 https:// 前缀：%s", server).
 			WithHint("改成 http://%s 再试", strings.TrimPrefix(strings.TrimPrefix(server, "//"), "/"))
-	}
-	token, err := TokenFor(server)
-	if err != nil {
-		return nil, err
 	}
 	return &Client{
 		Server: server,
@@ -247,6 +271,7 @@ func (c *Client) newRequest(
 			WithHint("检查服务器地址格式（须含 http:// 前缀，当前为 %s）与网络状况", c.Server)
 	}
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", UserAgent())
 	req.Header.Set("X-MovieClaw-Client", "cli")
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)

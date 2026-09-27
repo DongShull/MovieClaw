@@ -9,16 +9,15 @@ nonisolated enum LiveServer {
 
     private static let shared = Task { () throws -> APIClient in
         let address = try ServerAddress(parsing: env["MC_TEST_SERVER"] ?? "http://localhost:3000")
-        let client = APIClient(server: address)
-        _ = try await client.authLogin(body: .init(
+        let login = try await APIClient(server: address).authDeviceLogin(body: .init(
             username: env["MC_TEST_USERNAME"] ?? "admin",
             password: env["MC_TEST_PASSWORD"] ?? "mclaw-dev-2026",
-            remember: true
+            client: .init(kind: "ios", installationId: "ios-live-server-tests", name: "单元测试", platform: nil, clientVersion: nil)
         ))
-        return client
+        return APIClient(server: address, token: login.token)
     }
 
-    /// 登录一次后复用同一个客户端（Cookie 在共享存储里）
+    /// 登录一次后复用同一个客户端（设备令牌在客户端里）
     static func client() async throws -> APIClient {
         try await shared.value
     }

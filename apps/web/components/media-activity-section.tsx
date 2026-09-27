@@ -315,7 +315,7 @@ function DeviceActionsMenu({
   deviceLabel: string;
   /** 「结束播放」：只掐断本次播放，不动凭据。没传就不提供（下载卡） */
   onEnd?: (deviceId: string, label: string) => void;
-  /** 「注销此设备」：网页会话没有可撤销的凭据，没传就不提供 */
+  /** 「注销此设备」：升级前的旧网页会话与分享访客没有可注销的凭据，没传就不提供 */
   onRevoke?: (deviceId: string, label: string) => void;
   busy: boolean;
 }) {
@@ -386,8 +386,9 @@ function SessionCard({
           <ActivityTitle media={media} />
           <div className="flex shrink-0 items-center gap-1.5">
             <StatusBadge paused={session.paused} />
-            {/* 「结束播放」对两类会话都成立；「注销设备」只对持 Jellyfin 凭据的会话，
-                网页播放器走登录会话，没有可注销的凭据，不给假菜单项 */}
+            {/* 「结束播放」对所有会话都成立；「注销设备」只对持可注销凭证的会话
+                （Jellyfin 播放器、新的网页会话与 App），升级前的旧网页会话没有，
+                不给假菜单项 */}
             <DeviceActionsMenu
               deviceId={session.device_id}
               deviceLabel={deviceLabel(session.client, session.device_name)}
@@ -924,7 +925,7 @@ interface RevokeTarget {
   label: string;
 }
 
-/** 注销确认：设备要重新登录（电视上尤其麻烦），值得一次显式确认。 */
+/** 注销确认：设备要重新登录（电视上尤其麻烦），值得一次显式确认。文案对浏览器、App、播放器都成立。 */
 function RevokeDeviceDialog({
   target,
   busy,
@@ -937,7 +938,7 @@ function RevokeDeviceDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Modal open onClose={busy ? () => {} : onClose} label="注销播放器设备" topmost>
+    <Modal open onClose={busy ? () => {} : onClose} label="注销设备" topmost>
       <div className="p-6 max-md:p-5">
         <h2 className="text-title-sm font-bold text-white">注销这台设备？</h2>
         <p className="mt-2 text-sub leading-6 text-[var(--text-muted)]">

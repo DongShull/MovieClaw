@@ -90,12 +90,11 @@ struct MorePage: View {
                     }
                     .accessibilityIdentifier("more-notices")
                 }
-                if permissions.isAdmin {
-                    MoreRouteRow(routes: [.settings]) {
-                        Label("设置", systemImage: "gearshape")
-                    }
-                    .accessibilityIdentifier("more-settings")
+                // 成员也有设置：个人信息与自己的设备（设置首页按身份过滤分区）
+                MoreRouteRow(routes: [.settings]) {
+                    Label("设置", systemImage: "gearshape")
                 }
+                .accessibilityIdentifier("more-settings")
                 if permissions.isAdmin, let label = badges.updateLabel {
                     MoreRouteRow(routes: [.settingsSection(.app)], tint: Theme.info) {
                         Label(label, systemImage: "arrow.down.app")

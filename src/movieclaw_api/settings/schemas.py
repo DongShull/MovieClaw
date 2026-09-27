@@ -159,57 +159,9 @@ async def revoke_sync_token() -> None:
 
 
 # ---------------------------------------------------------------------------
-# CLI API 令牌（PAT）
+# CLI API 令牌：已迁入 login_device 表（docs/design/login-devices.md），
+# 旧配置域 auth.api_tokens 由迁移 5b8e2c4f9a17 搬走并删除。
 # ---------------------------------------------------------------------------
-# mclaw 等远程客户端的长期凭证（docs/design/cli.md §8.1）。与插件同步令牌的
-# 关键差异：**只存哈希、不可回显**——PAT 面向脚本/定时任务，明文只在创建
-# 时返回一次，用户抄走后服务端无法（也无需）再展示；泄露疑虑时按 id 单独
-# 吊销即可，不影响其他令牌。
-
-
-class ApiTokenRecord(BaseModel):
-    """单枚 API 令牌的落库记录（仅哈希与元信息，无明文）。
-
-    记录里存的是「谁批准的、给哪种客户端」，**不是「能干什么」**——权限在每次
-    验签时按批准者装配（docs/design/device-auth.md §4）。这样管理员事后调整
-    权限能立刻对令牌生效，不会出现「令牌里冻结的旧权限」。
-
-    新增字段全部带默认值：老记录读出来就是「超管批准的手工令牌、长期有效」，
-    与升级前语义一致，零迁移。
-    """
-
-    id: str = Field(description="令牌 id（吊销时使用）")
-    name: str = Field(description="用户起的名字，如 'nas-cron'")
-    token_hash: str = Field(description="令牌明文的 sha256 十六进制哈希")
-    created_at: str = Field(description="创建时间（ISO8601 字符串）")
-    client_type: str = Field(
-        default="manual",
-        description="客户端形态：worker（只能转码）/ cli / manual（网页手工创建）",
-    )
-    owner_kind: str = Field(
-        default="admin",
-        description="批准者身份。当前只有超管能批准设备，恒为 admin；"
-        "保留字段是为了将来开放成员批准时能按它分流",
-    )
-    expires_at: str | None = Field(
-        default=None,
-        description="过期时间（ISO8601）。None = 长期有效，当前签发的令牌都不设过期",
-    )
-    last_used_at: str | None = Field(
-        default=None,
-        description="最近一次使用时间（按分钟粒度落盘）。设备列表靠它回答"
-        "「这台机器还活着吗」，也是吊销决策的依据",
-    )
-
-
-@register_setting(
-    namespace="auth.api_tokens",
-    title="CLI API 令牌",
-)
-class ApiTokensSetting(SettingSchema):
-    """全部有效 API 令牌的清单；吊销即从清单移除。"""
-
-    tokens: list[ApiTokenRecord] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

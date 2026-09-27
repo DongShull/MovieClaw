@@ -3,7 +3,9 @@ from __future__ import annotations
 import hmac
 
 from fastapi import Cookie, Depends, Header
+from starlette.requests import HTTPConnection
 
+from movieclaw_api.api.client_address import client_address
 from movieclaw_api.exceptions import ForbiddenException, UnauthorizedException
 from movieclaw_api.services import auth as auth_service
 from movieclaw_api.services.auth import Principal
@@ -40,6 +42,7 @@ async def require_sync_token(authorization: str | None = Header(default=None)) -
 
 
 async def optional_login(
+    connection: HTTPConnection,
     session_token: str | None = Cookie(default=None, alias=auth_service.SESSION_COOKIE_NAME),
     authorization: str | None = Header(default=None),
 ) -> Principal | None:
@@ -47,11 +50,16 @@ async def optional_login(
 
     仅用于少量“匿名可读、登录后按账号分流”的接口，例如背景图库。不能用它
     替代业务接口的 ``require_login``，否则会把默认拒绝边界改成匿名放行。
+
+    来源地址与 User-Agent 顺带交给验签：登录设备的「最近活跃」据此记录
+    （按分钟节流落盘），「我的设备」页才答得出这台设备最近在哪儿用过。
     """
+    ip = client_address(connection) or None  # type: ignore[arg-type]
+    user_agent = connection.headers.get("user-agent")
     if session_token:
-        return await auth_service.verify_session_token(session_token)
+        return await auth_service.verify_cookie_token(session_token, ip=ip, user_agent=user_agent)
     if bearer := _extract_bearer(authorization):
-        return await auth_service.verify_bearer_token(bearer)
+        return await auth_service.verify_bearer_token(bearer, ip=ip, user_agent=user_agent)
     return None
 
 
@@ -70,20 +78,37 @@ async def require_login(
     未登录 / 会话过期 / 令牌无效统一 401。授权（管理员/能力开关）不在
     这里判——挂 ``require_admin`` 或在服务层消费 Principal。
 
-    唯一的例外是**转码 Worker 的形态上限**（docs/design/device-auth.md §4.3）：
-    Worker 令牌只为转码链路签发，在这里直接拒绝。这样做是默认拒绝而不是白名单
-    枚举——新增的任何业务路由只要照常挂本依赖，就自动把 Worker 令牌挡在外面，
-    不需要记得给它加标注。放行 Worker 的白名单只有一处：``require_transcode_worker``。
+    唯一的例外是**转码器凭证的形态上限**（docs/design/device-auth.md §4.3）：
+    scope=transcode 的凭证只为转码链路签发，在这里直接拒绝。这样做是默认拒绝而
+    不是白名单枚举——新增的任何业务路由只要照常挂本依赖，就自动把转码器凭证挡在
+    外面，不需要记得给它加标注。放行它的白名单只有两处：``resolve_worker_principal``
+    （转码控制面）与 ``require_device_principal``（注销自己）。
     """
     if principal is None:
         raise UnauthorizedException("未登录，请先登录")
-    if principal.client_type == "worker":
-        raise ForbiddenException("转码 Worker 的凭证只能用于转码，不能访问业务接口")
+    if principal.device is not None and principal.device.scope == "transcode":
+        raise ForbiddenException("转码器的凭证只能用于转码，不能访问业务接口")
     return principal
 
 
-async def resolve_worker_principal(authorization: str | None) -> Principal | None:
-    """从 Authorization 头解析转码 Worker 主体；不是 Worker 令牌一律返回 None。
+async def require_device_principal(
+    principal: Principal | None = Depends(optional_login),
+) -> Principal:
+    """「管理我自己这台设备」的接口专用：任何登录设备的凭证都行，含转码器。
+
+    注销自己是所有凭证都该有的能力——命令行 ``mclaw logout``、转码器「断开并
+    重新配置」都要能在服务端把自己作废，而不是只删本地文件、留一枚还能用的
+    令牌在服务端。升级前的签名会话 Cookie 没有设备行，这里返回 404 由调用方说明。
+    """
+    if principal is None:
+        raise UnauthorizedException("未登录，请先登录")
+    return principal
+
+
+async def resolve_worker_principal(
+    authorization: str | None, *, ip: str | None = None, user_agent: str | None = None
+) -> Principal | None:
+    """从 Authorization 头解析转码器主体；不是转码凭证（scope=transcode）一律返回 None。
 
     抽成普通函数是因为 WebSocket 与 HTTP 两条入口要共用它：WS 握手不能抛
     HTTPException（只能关连接并给关闭码），FastAPI 的依赖那套在那里用不上。
@@ -93,10 +118,12 @@ async def resolve_worker_principal(authorization: str | None) -> Principal | Non
     if not token:
         return None
     try:
-        principal = await auth_service.verify_bearer_token(token)
+        principal = await auth_service.verify_bearer_token(token, ip=ip, user_agent=user_agent)
     except UnauthorizedException:
         return None
-    return principal if principal.client_type == "worker" else None
+    if principal.device is None or principal.device.scope != "transcode":
+        return None
+    return principal
 
 
 async def require_transcode_worker(
@@ -125,23 +152,36 @@ async def require_admin(principal: Principal = Depends(require_login)) -> Princi
     return principal
 
 
+async def require_interactive(principal: Principal = Depends(require_login)) -> Principal:
+    """要求「人在第一方客户端里亲自操作」（浏览器或 App），成员也可以。
+
+    用在两类接口上：**签发凭证**（批准配对、创建令牌）与**管理别的设备**
+    （列出、改名、注销他人的设备）。按客户端类型判断而不是按登录方式
+    （docs/design/login-devices.md「签发权」）：
+
+    - 程序类客户端（命令行、转码器、手工令牌、Agent、MCP）一旦能签发新凭证，
+      泄露的令牌就能给自己造一枚备份，注销原来那枚也止不住损——而注销是这套
+      设计唯一的事后止损手段；
+    - 它们也不能注销别的设备：一枚泄露的命令行令牌不该能把主人的手机踢下线。
+      注销**自己**不受此限，见 ``require_device_principal``。
+    """
+    if not principal.interactive:
+        raise ForbiddenException(
+            "这个操作只能由人在网页或 App 里完成，命令行、转码器与 Agent 的凭证不能执行"
+        )
+    return principal
+
+
 async def require_admin_session(
     principal: Principal = Depends(require_admin),
 ) -> Principal:
-    """在管理员之上再要求「这是人在浏览器里操作」——只接受会话 Cookie 主体。
+    """管理员 + 人在第一方客户端里亲自操作（浏览器或 App），见 ``require_interactive``。
 
-    用途只有一个：**凭证的签发与吊销**（创建/吊销令牌、批准/拒绝设备接入）。
-
-    为什么不能让 Bearer 令牌调这些接口：设备令牌一旦能签发新令牌，就能给自己
-    造一枚备份，吊销原来那枚也止不住损——而吊销是这套设计唯一的事后止损手段
-    （docs/design/device-auth.md §8）。把签发闸门收在「人 + 浏览器」上，
-    泄漏的令牌就无法自我复制，也无法把别的机器拉进来。
-
-    Agent 工作区令牌同样被挡住，这正是想要的：Agent 不该能给自己续命。
+    用于只有超管才能做的凭证签发：手工创建令牌、签发 / 轮换 MCP 端点令牌。
     """
-    if principal.kind != "admin":
+    if not principal.interactive:
         raise ForbiddenException(
-            "签发与吊销凭证只能在网页上完成，请用管理员账号登录 movieclaw 后操作"
+            "签发凭证只能由人在网页或 App 里完成，请用管理员账号登录 movieclaw 后操作"
         )
     return principal
 

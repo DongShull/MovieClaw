@@ -479,7 +479,11 @@ async def test_native_app_progress_is_labelled_by_platform(
 
 async def test_web_player_progress_feeds_live_session(client: TestClient) -> None:
     """网页播放器的上报走与 Jellyfin 同一条服务：开始后立刻出现在「正在播放」，
-    带浏览器推导的设备名、不可注销；停止后从实时视图消失、留在播放记录。"""
+    带浏览器推导的设备名；停止后从实时视图消失、留在播放记录。
+
+    播放挂在这次网页登录的登录设备名下（``ld-<n>``，docs/design/login-devices.md），
+    所以活动页上可以「注销此设备」——改造前网页播放用浏览器自报的 id，与任何
+    凭证都对不上，永远注销不了。"""
     movie_id, library_id = await _seed_movie_in_library(
         title="盗梦空间", tmdb_id=27205, library_name="电影"
     )
@@ -506,14 +510,14 @@ async def test_web_player_progress_feeds_live_session(client: TestClient) -> Non
     data = client.get("/api/v1/playback/activity").json()["data"]
     assert len(data["sessions"]) == 1
     live = data["sessions"][0]
-    assert live["device_id"] == "web-0-browser-a"
+    assert live["device_id"].startswith("ld-")
     assert live["client"] == "MovieClaw Web"
     assert live["device_name"] == "Safari · iPhone"
     assert live["member_name"] == "admin"
     assert live["position_ms"] == 600_000
     assert live["paused"] is True
-    # 网页会话没有可撤销的设备凭据
-    assert live["revocable"] is False
+    # 网页登录是一台登录设备：可注销
+    assert live["revocable"] is True
     assert live["media"]["library_id"] == library_id
 
     client.post(
@@ -590,13 +594,15 @@ async def test_end_playback_drops_live_session_and_signals_the_player(client: Te
         "/api/v1/playback/progress",
         json={**body, "event": "progress", "position_ms": 300_000},
     )
-    assert len(client.get("/api/v1/playback/activity").json()["data"]["sessions"]) == 1
+    sessions = client.get("/api/v1/playback/activity").json()["data"]["sessions"]
+    assert len(sessions) == 1
+    device_id = sessions[0]["device_id"]
 
     # 没在播的设备：404
     assert (
         client.post("/api/v1/playback/activity/sessions/web-0-nobody/end").status_code == 404
     )
-    resp = client.post("/api/v1/playback/activity/sessions/web-0-browser-a/end")
+    resp = client.post(f"/api/v1/playback/activity/sessions/{device_id}/end")
     assert resp.status_code == 200, resp.text
     assert "已结束" in resp.json()["message"]
     assert client.get("/api/v1/playback/activity").json()["data"]["sessions"] == []

@@ -59,7 +59,7 @@ nonisolated struct SSELineParser {
 
 nonisolated extension APIClient {
     /// 订阅 SSE 流（任务中心 `/jobs/stream`、资源搜索 `/search/torrents/stream`、
-    /// AI 会话 `/sessions/{id}/events`）。携带会话 Cookie；调用方取消 Task 即断开。
+    /// AI 会话 `/sessions/{id}/events`）。携带设备令牌；调用方取消 Task 即断开。
     func events(_ path: String, query: [URLQueryItem] = [], lastEventId: String? = nil) -> AsyncThrowingStream<ServerEvent, Error> {
         var request = URLRequest(url: url(path, query: query))
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
@@ -67,7 +67,8 @@ nonisolated extension APIClient {
         if let lastEventId { request.setValue(lastEventId, forHTTPHeaderField: "Last-Event-ID") }
         let session = self.session
         let server = self.server
-        let finalRequest = request
+        let token = self.token
+        let finalRequest = authorized(request)
 
         return AsyncThrowingStream { continuation in
             let task = Task { @Sendable in
@@ -81,7 +82,7 @@ nonisolated extension APIClient {
                         for try await byte in bytes { body.append(byte); if body.count > 64_000 { break } }
                         let message = (try? JSONSerialization.jsonObject(with: body) as? [String: Any])?["message"] as? String
                         if http.statusCode == 401 {
-                            NotificationCenter.default.post(name: .apiUnauthorized, object: server)
+                            NotificationCenter.default.post(name: .apiUnauthorized, object: server, userInfo: token.map { ["token": $0] })
                         }
                         throw APIError.http(status: http.statusCode, message: message ?? "请求失败（HTTP \(http.statusCode)）", code: nil)
                     }

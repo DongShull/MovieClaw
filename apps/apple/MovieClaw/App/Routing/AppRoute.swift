@@ -127,7 +127,7 @@ enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
         case .overview: "配置状态一览：缺什么、有什么问题、下一步做什么"
         case .profile: "头像、昵称与登录密码"
         case .members: "家庭成员账号、能力开关与可见范围"
-        case .devices: "命令行与转码 Worker 的接入审批和吊销"
+        case .devices: "登录着你的账号的浏览器、App、命令行与转码器"
         case .subscription: "订阅规则组与投递模拟预演"
         case .sites: "站点接入与鉴权、搜索分类、插件 Cookie 同步"
         case .downloaders: "qBittorrent / Transmission 接入"
@@ -168,14 +168,16 @@ enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
         }
     }
 
-    /// 成员只能看到「个人信息」，其余分区仅超级管理员可见
-    var memberVisible: Bool { self == .profile }
+    /// 成员能看到「个人信息」与「设备」（自己的设备），其余分区仅超级管理员可见
+    var memberVisible: Bool { self == .profile || self == .devices }
 
     /// 分组（空标题的组不渲染组头）。「个人信息」不列在设置目录里：「我的」页顶部的头像卡
     /// 就是它的入口（2026-09-27 用户要求去掉重复入口），分区本身与 /settings/profile 深链照旧可用
     static let groups: [(title: String, items: [SettingsSection])] = [
         ("", [.overview]),
-        ("成员与设备", [.members, .devices]),
+        // 「设备」人人可用（成员看自己的设备，docs/design/login-devices.md）；「个人信息」走「我的」页头像卡
+        ("账号", [.devices]),
+        ("成员", [.members]),
         ("资源与下载", [.subscription, .sites, .downloaders, .importWatch]),
         ("媒体库", [.scrape, .playback]),
         ("通知与集成", [.imPush, .webhook, .llm, .mcp, .ai]),

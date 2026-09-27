@@ -44,6 +44,7 @@ struct MembersSettingsView: View {
                                 member: member, libraries: libraries,
                                 onEdit: { editing = member },
                                 onResetPassword: { Task { await resetPassword(member) } },
+                                onSignOut: { Task { await signOut(member) } },
                                 onToggleStatus: { Task { await toggleStatus(member) } },
                                 onDelete: { Task { await remove(member) } }
                             )
@@ -98,7 +99,7 @@ struct MembersSettingsView: View {
     private func resetPassword(_ member: API.MemberView) async {
         let ok = await feedback.confirm(
             "重置「\(member.nickname)」的密码？",
-            message: "旧密码和该成员的全部登录会立即失效。新密码只显示一次。",
+            message: "旧密码和该成员在网页、App 与播放器上的登录会立即失效（配对的命令行保留）。新密码只显示一次。",
             confirmTitle: "重置密码"
         )
         guard ok else { return }
@@ -107,6 +108,23 @@ struct MembersSettingsView: View {
             passwordResult = SettingsMemberPasswordResult(title: "密码已重置", username: result.username, password: result.password)
         } catch {
             feedback.error("重置失败：\(error.localizedDescription)")
+        }
+    }
+
+    /// 全部下线：网页、App、命令行、播放器上的登录全部注销，账号本身不动（借出的账号要收回、设备丢了）
+    private func signOut(_ member: API.MemberView) async {
+        let ok = await feedback.confirm(
+            "让「\(member.nickname)」在全部设备上下线？",
+            message: "该成员在网页、App、命令行和播放器上的登录都会立即失效，正在播放的也会停止。账号本身不受影响，重新登录即可再用。",
+            confirmTitle: "全部下线",
+            destructive: true
+        )
+        guard ok else { return }
+        do {
+            replace(try await api.membersSignOut(memberId: member.id))
+            feedback.success("已让「\(member.nickname)」在全部设备上下线")
+        } catch {
+            feedback.error("操作失败：\(error.localizedDescription)")
         }
     }
 
@@ -165,6 +183,7 @@ private struct MemberRow: View {
     let libraries: [API.LibraryView]
     let onEdit: () -> Void
     let onResetPassword: () -> Void
+    let onSignOut: () -> Void
     let onToggleStatus: () -> Void
     let onDelete: () -> Void
 
@@ -213,13 +232,18 @@ private struct MemberRow: View {
                     }
                 }
                 Text(libraryScope).font(.subheadline).foregroundStyle(Theme.textMuted).lineLimit(2)
-                Text(member.lastLoginAt.map { Formatters.relative($0) } ?? "从未登录")
+                Text([member.lastLoginAt.map { Formatters.relative($0) } ?? "从未登录",
+                      member.deviceCount > 0 ? "\(member.deviceCount) 台设备登录着" : nil]
+                    .compactMap { $0 }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(Theme.textFaint)
             }
             Spacer(minLength: 4)
             Menu {
                 Button("编辑成员", systemImage: "pencil", action: onEdit)
                 Button("重置密码", systemImage: "key", action: onResetPassword)
+                if member.deviceCount > 0 {
+                    Button("全部下线", systemImage: "rectangle.portrait.and.arrow.right", action: onSignOut)
+                }
                 Divider()
                 if member.status == "active" {
                     Button("停用成员", systemImage: "pause.circle", role: .destructive, action: onToggleStatus)

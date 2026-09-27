@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import ClientDisconnect
 from starlette.websockets import WebSocketDisconnect
 
+from movieclaw_api.api.client_address import client_address
 from movieclaw_api.api.deps import require_admin, resolve_worker_principal
 from movieclaw_api.exceptions import (
     InsufficientStorageException,
@@ -33,6 +34,7 @@ from movieclaw_api.schemas.transcode_worker import (
     RemoteTranscodeConfigPayload,
     RemoteTranscodeConfigView,
 )
+from movieclaw_api.services import login_devices
 from movieclaw_api.services.playback import remote_config as remote_transcode_config
 from movieclaw_api.services.playback.disc_source import disc_source_for_file
 from movieclaw_api.services.playback.ffmpeg_args import (
@@ -243,7 +245,11 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
     # 每条拒绝都在 NAS 留一行（同一来源同一原因限频）：拒绝理由只随关闭帧发给
     # Worker，用户说「Worker 连不上」时，NAS 日志此前一个字都没有。
     client = _client_host(websocket)
-    principal = await resolve_worker_principal(websocket.headers.get("authorization"))
+    principal = await resolve_worker_principal(
+        websocket.headers.get("authorization"),
+        ip=client_address(websocket) or None,  # type: ignore[arg-type]
+        user_agent=websocket.headers.get("user-agent"),
+    )
     if principal is None:
         reason = "凭证无效或已被吊销，请在网页「设置 → 设备」重新配对"
         _warn_throttled(
@@ -290,7 +296,11 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
             return
         try:
             connection = await registry.register(
-                websocket, hello, observed_base_url=_observed_base_url(websocket)
+                websocket,
+                hello,
+                observed_base_url=_observed_base_url(websocket),
+                # 注销这台转码器时据此当场断开连接（login_devices._after_revoke）
+                login_device_id=principal.device.id if principal.device is not None else None,
             )
         except ValueError as exc:
             _warn_throttled(
@@ -304,8 +314,15 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
                 "protocol_version": REMOTE_WORKER_PROTOCOL_VERSION,
             }
         )
+        worker_ip = client_address(websocket) or None  # type: ignore[arg-type]
+        worker_ua = websocket.headers.get("user-agent")
         while True:
             message = await websocket.receive_json()
+            if connection.login_device_id is not None:
+                # 心跳也算活跃：否则「设置 → 设备」里的「最近活跃」停在握手那一刻
+                await login_devices.touch_id(
+                    connection.login_device_id, ip=worker_ip, user_agent=worker_ua
+                )
             if isinstance(message, dict):
                 artifact_failure = await registry.handle_message(connection, message)
                 if artifact_failure is not None:

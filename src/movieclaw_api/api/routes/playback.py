@@ -884,7 +884,11 @@ async def start_playback_session(
     share_kwargs = _share_stream_kwargs(principal)
     # 取流 token 带上浏览器设备标识：取流字节据此记到活动页上这台浏览器的
     # 会话名下（与进度上报同一个标识）
-    device_id = playback_watch.web_device_id(payload.device_id, member_id=member_id)
+    device_id = playback_watch.web_device_id(
+        payload.device_id,
+        member_id=member_id,
+        login_device_id=principal.device.id if principal.device is not None else None,
+    )
     if activity.device_ended(device_id):
         # 管理员刚在活动页结束了这台浏览器的播放：拒绝窗口内不再开会话，
         # 否则播放器把会话 404 当成超时回收、原地重开，结束就等于没结束
@@ -1788,7 +1792,11 @@ async def report_playback_progress(
     )
     member_id = principal.member_id if principal.member_id is not None else 0
     client = playback_watch.web_client_info(
-        device_id=playback_watch.web_device_id(payload.device_id, member_id=member_id),
+        device_id=playback_watch.web_device_id(
+            payload.device_id,
+            member_id=member_id,
+            login_device_id=principal.device.id if principal.device is not None else None,
+        ),
         user_agent=request.headers.get("user-agent"),
     )
     if payload.event == "start":
@@ -1943,7 +1951,11 @@ async def set_playback_marks(
     )
     member_id = principal.member_id if principal.member_id is not None else 0
     client = playback_watch.web_client_info(
-        device_id=playback_watch.web_device_id(payload.device_id, member_id=member_id),
+        device_id=playback_watch.web_device_id(
+            payload.device_id,
+            member_id=member_id,
+            login_device_id=principal.device.id if principal.device is not None else None,
+        ),
         user_agent=request.headers.get("user-agent"),
     )
     if payload.played is not None:
