@@ -110,6 +110,8 @@ struct MainTabView: View {
             // 权限被收回时（后台重新校验身份后），停在已不可见的标签上要落回媒体库
             if !tabs.contains(router.selectedTab) { router.selectedTab = .library }
             land(permissions: value)
+            // 退出 / 移除当前账号后自动换到了下一个账号：这里才弹得出提示（见 AppModel.pendingNotice）
+            if let notice = model.takeNotice() { feedback.success(notice) }
         }
         .onDisappear {
             // 会话过期被打回登录页：记下此刻的位置，重新登录后回到这里（Web 401 → /login?next=原路径）

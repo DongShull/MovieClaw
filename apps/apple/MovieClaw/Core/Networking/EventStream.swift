@@ -66,6 +66,7 @@ nonisolated extension APIClient {
         request.timeoutInterval = 3600
         if let lastEventId { request.setValue(lastEventId, forHTTPHeaderField: "Last-Event-ID") }
         let session = self.session
+        let server = self.server
         let finalRequest = request
 
         return AsyncThrowingStream { continuation in
@@ -80,7 +81,7 @@ nonisolated extension APIClient {
                         for try await byte in bytes { body.append(byte); if body.count > 64_000 { break } }
                         let message = (try? JSONSerialization.jsonObject(with: body) as? [String: Any])?["message"] as? String
                         if http.statusCode == 401 {
-                            NotificationCenter.default.post(name: .apiUnauthorized, object: nil)
+                            NotificationCenter.default.post(name: .apiUnauthorized, object: server)
                         }
                         throw APIError.http(status: http.statusCode, message: message ?? "请求失败（HTTP \(http.statusCode)）", code: nil)
                     }

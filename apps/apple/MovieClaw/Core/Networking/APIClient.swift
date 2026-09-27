@@ -49,8 +49,8 @@ private nonisolated struct APIErrorBody: Decodable {
     let code: String?
 }
 
-/// 通知：任何业务接口返回 401（会话过期、被踢下线、密码被改）。
-/// 由 AppModel 监听后回到登录页，对应 Web 端 `redirectToLoginOn401`。
+/// 通知：任何业务接口返回 401（会话过期、被踢下线、密码被改）。`object` 是出事的那台服务器（`ServerAddress`）。
+/// 由 AppModel 监听后回到登录页，对应 Web 端 `redirectToLoginOn401`；只认当前服务器的 401。
 nonisolated extension Notification.Name {
     static let apiUnauthorized = Notification.Name("MovieClaw.apiUnauthorized")
 }
@@ -222,7 +222,8 @@ nonisolated struct APIClient: Sendable {
             let body = try? Self.decoder.decode(APIErrorBody.self, from: data)
             let message = body?.message ?? "请求失败（HTTP \(http.statusCode)）"
             if http.statusCode == 401, !Self.isAuthEndpoint(request.url) {
-                NotificationCenter.default.post(name: .apiUnauthorized, object: nil)
+                // 带上是哪台服务器：切换账号时会去问别的服务器，它们的 401 不能把当前会话踢下线
+                NotificationCenter.default.post(name: .apiUnauthorized, object: server)
             }
             throw APIError.http(status: http.statusCode, message: message, code: body?.code)
         }

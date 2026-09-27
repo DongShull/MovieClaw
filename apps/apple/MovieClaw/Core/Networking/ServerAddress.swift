@@ -20,6 +20,12 @@ nonisolated struct ServerAddress: Hashable, Codable, Sendable {
     /// 展示给用户看的地址（去掉协议前缀里的冗余，保留端口）
     var displayString: String { origin.absoluteString }
 
+    /// 简短标签：只有主机和端口（`192.168.1.10:3000`），账号列表里区分服务器用
+    var hostLabel: String {
+        let host = origin.host ?? origin.absoluteString
+        return origin.port.map { "\(host):\($0)" } ?? host
+    }
+
     enum ParseError: LocalizedError, Equatable {
         case empty
         case invalid
@@ -27,7 +33,7 @@ nonisolated struct ServerAddress: Hashable, Codable, Sendable {
         var errorDescription: String? {
             switch self {
             case .empty: "请输入服务器地址"
-            case .invalid: "地址格式不正确，示例：http://192.168.1.10:3000"
+            case .invalid: "地址格式不正确，示例：http://192.168.0.100:3000"
             }
         }
     }

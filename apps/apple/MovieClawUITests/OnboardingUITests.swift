@@ -1,6 +1,6 @@
 import XCTest
 
-/// 首次启动流程的端到端验收：输入地址 → 测试连接 → 登录 → 进入主界面。
+/// 首次启动流程的端到端验收：片头 →「启程」→ 地址与账号一张表填完 → 登录 → 进入主界面。
 ///
 /// 依赖一台真实运行的 MovieClaw（默认本机 dev 环境 http://localhost:3000）。
 /// 通过环境变量覆盖（xcodebuild 需加 TEST_RUNNER_ 前缀传入）：
@@ -11,12 +11,17 @@ final class OnboardingUITests: XCTestCase {
     private var username: String { env["MC_TEST_USERNAME"] ?? "admin" }
     private var password: String { env["MC_TEST_PASSWORD"] ?? "mclaw-dev-2026" }
 
+    /// 全新安装启动，看完片头点「启程」，停在登录表单
     @MainActor
     private func launchFresh() -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--reset-state", "--ui-testing"]
         app.launch()
+        let start = app.buttons["welcome-start"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10), "首次打开应先放片头")
+        snapshot("片头")
+        start.tap()
         return app
     }
 
@@ -35,7 +40,13 @@ final class OnboardingUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         field.tap()
         field.typeText("127.0.0.1:1")
-        app.buttons["connect-button"].tap()
+        let user = app.textFields["login-username"]
+        user.tap()
+        user.typeText("someone")
+        let pass = app.secureTextFields["login-password"]
+        pass.tap()
+        pass.typeText("whatever")
+        app.buttons["login-submit"].tap()
         let error = app.staticTexts.containing(NSPredicate(format: "label CONTAINS '无法连接'")).firstMatch
         XCTAssertTrue(error.waitForExistence(timeout: 15))
         snapshot("连接失败")
@@ -49,16 +60,15 @@ final class OnboardingUITests: XCTestCase {
         field.tap()
         // 故意带上路径，验证「粘贴浏览器地址栏」也能用
         field.typeText("\(server)/login")
-        snapshot("输入地址")
-        app.buttons["connect-button"].tap()
-
+        // 地址与账号在同一张表里，一次提交
         let user = app.textFields["login-username"]
-        XCTAssertTrue(user.waitForExistence(timeout: 15), "连接成功后应进入登录页")
+        XCTAssertTrue(user.exists, "服务器地址与账号应在同一张表单里")
         user.tap()
         user.typeText(username)
         let pass = app.secureTextFields["login-password"]
         pass.tap()
         pass.typeText("wrong-password")
+        snapshot("登录表单")
         app.buttons["login-submit"].tap()
         XCTAssertTrue(app.staticTexts["login-error"].waitForExistence(timeout: 10), "密码错误应提示")
         snapshot("密码错误")

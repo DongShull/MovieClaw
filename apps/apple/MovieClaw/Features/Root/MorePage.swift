@@ -7,7 +7,8 @@ import SwiftUI
 ///   返回直接回到本页，不再像 Web 那样垫一层设置列表；因此常用组里不再单列「个人信息」行；
 /// - 常用：待处理（管理员且有事项时，30 秒轮询）/ 设置（仅管理员——成员的设置里只有个人信息，
 ///   已由头像卡覆盖）/ 应用更新（管理员且有待更新时，文案「新版本 vX」或「新识别模型 X」）；
-/// - 账号：切换账号 / 退出登录；
+/// - 账号：切换账号（可跨服务器，也在那里添加账号）/ 退出登录（同一台服务器上还有账号就自动切过去，
+///   新主界面弹提示说明换成了谁；都退完了回欢迎页）；
 /// - 最近会话（管理员）：首行「新会话」（顶栏的「+」已去掉，这里是发起新会话的入口），下面是 AI 会话，
 ///   每页 20 条、滑到末尾自动加载下一页（用户决定不要「显示全部 / 收起」，与 Web 的差异）；
 ///   操作走 iOS 列表惯例：左滑出续接 / 重命名 / 删除三个图标按钮，长按出完整菜单（与会话页右上角同图标、同顺序）。
@@ -45,6 +46,12 @@ struct MorePage: View {
                                 Text("@\(session.username) · \(session.roleLabel)")
                                     .font(.subheadline)
                                     .foregroundStyle(Theme.textMuted)
+                                // 本机登录了不止一台服务器时标出当前是哪台，免得分不清自己在哪台上
+                                if let server = model.server, model.savedServers.filter({ !$0.accounts.isEmpty }).count > 1 {
+                                    Label(server.hostLabel, systemImage: "server.rack")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.textFaint)
+                                }
                             }
                             Spacer()
                             Image(systemName: "chevron.right")

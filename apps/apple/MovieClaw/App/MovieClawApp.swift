@@ -35,15 +35,13 @@ struct RootView: View {
             case .launching:
                 ProgressView()
                     .task { await model.restore() }
-            case .needsServer:
-                ServerConnectView()
-            case .needsSetup:
-                LoginView(mode: .setup)
-            case .needsLogin:
-                LoginView(mode: .login)
+            case .needsServer, .needsSetup, .needsLogin, .chooseAccount, .unreachable:
+                // 这几种状态共用同一个欢迎页（同一分支 = 同一视图身份），状态之间切换时表单里填的内容不丢
+                WelcomeView(mode: .root, phase: model.phase)
             case let .ready(session):
                 MainTabView()
-                    .id(session.username) // 切换账号时整棵树重建，避免残留上个账号的数据
+                    // 换账号（含换到另一台服务器上的同名账号）时整棵树重建，避免残留上个账号的数据
+                    .id("\(model.server?.origin.absoluteString ?? "")#\(session.username)")
             }
         }
         .animation(.default, value: model.phase)

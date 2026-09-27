@@ -43,7 +43,16 @@ nonisolated enum CookieVault {
         }
     }
 
-    /// 清空全部备份（UI 测试重置、退出全部账号）
+    /// 清掉某台服务器的全部 Cookie（共享存储里的与钥匙串备份都删）：退出全部账号时，
+    /// 即使服务器连不上、退出接口没调通，本机也不再留着它的登录态
+    static func clear(for server: ServerAddress) {
+        for cookie in HTTPCookieStorage.shared.cookies(for: server.origin) ?? [] {
+            HTTPCookieStorage.shared.deleteCookie(cookie)
+        }
+        SecItemDelete(baseQuery(server) as CFDictionary)
+    }
+
+    /// 清空全部备份（UI 测试重置）
     static func clearAll() {
         SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service] as CFDictionary)
     }

@@ -107,21 +107,16 @@ final class ShellParityUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["我的"].waitForExistence(timeout: 10), "从个人信息返回应直接回到「我的」")
     }
 
-    /// 登录页：「记住我」默认不勾、副标题同 Web（只打开页面，不提交任何登录）。App 登录页是纯黑底，不铺背景图
+    /// 登录表单：「记住我」默认不勾（同 Web；只打开页面，不提交任何登录）。App 登录在欢迎页的流光背景上，不铺网页背景图
     @MainActor
     func testLoginPageMatchesWeb() throws {
-        guard password != nil else { throw XCTSkip("未提供 MC_TEST_PASSWORD，跳过联调用例") }
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--reset-state", "--ui-testing"]
         app.launch()
-        let field = app.textFields["server-address"]
-        XCTAssertTrue(field.waitForExistence(timeout: 10))
-        tapSafely(app, field, "服务器地址")
-        field.typeText(server)
-        tapSafely(app, app.buttons["connect-button"], "连接")
-        XCTAssertTrue(app.textFields["login-username"].waitForExistence(timeout: 15), "连接成功后应进入登录页")
-        XCTAssertTrue(app.staticTexts["使用你的 MovieClaw 账号进入。"].exists)
+        tapSafely(app, app.buttons["welcome-start"], "启程")
+        XCTAssertTrue(app.textFields["server-address"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["login-username"].exists, "服务器地址与账号应在同一张表单里")
         let remember = app.switches["30 天内记住我"]
         XCTAssertTrue(remember.exists)
         XCTAssertEqual(remember.value as? String, "0", "「记住我」默认不勾（同 Web）")

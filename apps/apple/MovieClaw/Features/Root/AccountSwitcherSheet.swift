@@ -2,76 +2,135 @@ import SwiftUI
 
 /// 切换账号（Web components/account-switcher-dialog.tsx，设计见 docs/design/account-switching.md）。
 ///
-/// 本机登录过的全部账号（后端 `movieclaw_accounts` Cookie 账号袋，最多 5 个）；
-/// 点其他账号即切换（不用再输密码），行尾 × 移除（也可左滑）；底部「添加账号」与「退出全部账号」，
-/// 存满 5 个时「添加账号」换成上限说明（文案同 Web，「本浏览器」改称「本机」）。
-/// 切换后 RootView 以用户名为 id 重建整棵界面树，不会串到上一个账号的数据。
+/// 列出本机登录过的全部账号，**可以跨服务器**：每台服务器一个分组（只有一台时不显示服务器名），
+/// 每台上最多 5 个账号（后端 `movieclaw_accounts` Cookie 账号袋的上限）。
+/// - 点其他账号即切换，不用再输密码；换到另一台服务器上的账号也一样。那个账号的登录已过期时，
+///   打开登录卡片、预填服务器与用户名，只需输密码；
+/// - 行尾 × 移除（也可左滑）；
+/// - 底部「添加账号」打开和欢迎页同一张登录卡片：服务器预填当前这台、可以改，改了就是登录到另一台服务器；
+///   「退出全部账号」退出本机所有服务器上的全部账号。
+///
+/// 列表先用本机快照（`AppModel.savedServers`）立即画出来，再逐台向服务器刷新；取不到的那台照样列出，
+/// 标上「连不上」或「需要重新登录」。切换后 RootView 以「服务器 + 用户名」为 id 重建整棵界面树，不会串数据。
 struct AccountSwitcherSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(Feedback.self) private var feedback
-    @Environment(\.api) private var api
     @Environment(\.dismiss) private var dismiss
 
-    @State private var accounts: Loadable<[API.AccountView]> = .loading
+    /// 某台服务器的账号列表此刻取没取到
+    private enum Freshness {
+        case loading
+        case fresh
+        /// 那台服务器上当前账号过期了：列表是旧快照，点哪个都要重新输密码
+        case needsLogin
+        case unreachable
+    }
+
+    /// 打开登录卡片：添加账号，或给某个过期账号重新输密码
+    private struct CardRequest: Identifiable {
+        var server: ServerAddress?
+        var username: String?
+        var id: String { "\(server?.origin.absoluteString ?? "")#\(username ?? "")" }
+    }
+
+    @State private var freshness: [URL: Freshness] = [:]
     @State private var busy = false
-    @State private var addingAccount = false
+    @State private var card: CardRequest?
     private static let maxAccounts = 5
 
     var body: some View {
         NavigationStack {
-            AsyncContent(accounts, retry: load) { list in
-                List {
+            List {
+                ForEach(Array(servers.enumerated()), id: \.element.id) { index, saved in
                     Section {
-                        ForEach(list, id: \.username) { account in
-                            row(account)
+                        if saved.accounts.isEmpty, freshness[saved.id] == .loading {
+                            HStack { Spacer(); ProgressView(); Spacer() }
+                        }
+                        ForEach(saved.accounts, id: \.username) { account in
+                            row(account, on: saved)
                                 .swipeActions {
-                                    Button("退出", role: .destructive) { Task { await remove(account) } }
+                                    Button("退出", role: .destructive) { Task { await remove(account, on: saved.address) } }
                                 }
                         }
                     } header: {
-                        Text("本机已登录的账号，点击即可切换，不用再输密码。")
-                            .textCase(nil)
-                    }
-                    Section {
-                        if list.count < Self.maxAccounts {
-                            Button {
-                                addingAccount = true
-                            } label: {
-                                Label("添加账号", systemImage: "person.badge.plus")
-                            }
-                        }
-                        Button(role: .destructive) {
-                            Task { await logoutAll(count: list.count) }
-                        } label: {
-                            Label("退出全部账号", systemImage: "rectangle.portrait.and.arrow.right")
-                        }
+                        header(saved, first: index == 0)
                     } footer: {
-                        if list.count >= Self.maxAccounts {
-                            Text("最多同时保存 \(Self.maxAccounts) 个账号，移除一个后可再添加")
+                        if saved.accounts.count >= Self.maxAccounts {
+                            Text("这台服务器最多同时保存 \(Self.maxAccounts) 个账号，再添加会挤掉最久没用的那个")
                         }
                     }
                 }
-                .disabled(busy)
+                Section {
+                    Button {
+                        card = CardRequest(server: model.server, username: nil)
+                    } label: {
+                        Label("添加账号", systemImage: "person.badge.plus")
+                    }
+                    .accessibilityIdentifier("account-add")
+                    Button(role: .destructive) {
+                        Task { await logoutEverywhere() }
+                    } label: {
+                        Label("退出全部账号", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
+                } footer: {
+                    Text("添加账号时改一下服务器地址，就能登录到另一台 MovieClaw。")
+                }
             }
+            .disabled(busy)
             .navigationTitle("切换账号")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("关闭") { dismiss() } }
             }
-            .sheet(isPresented: $addingAccount) {
-                LoginView(mode: .addAccount)
+            .fullScreenCover(item: $card) { request in
+                WelcomeView(mode: .addAccount(server: request.server, username: request.username), phase: model.phase) {
+                    card = nil
+                }
             }
         }
-        .task { await load() }
+        .task { refreshAll() }
     }
 
-    private func row(_ account: API.AccountView) -> some View {
-        HStack(spacing: 10) {
+    /// 要列出的服务器：有账号的，外加当前服务器（快照还没取回来时也要占个位转圈）；当前服务器排第一
+    private var servers: [SavedServer] {
+        let listed = model.savedServers.filter { !$0.accounts.isEmpty || $0.address == model.server }
+        return listed.filter { $0.address == model.server } + listed.filter { $0.address != model.server }
+    }
+
+    private var multipleServers: Bool { servers.count > 1 }
+
+    @ViewBuilder
+    private func header(_ saved: SavedServer, first: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if first {
+                Text("本机已登录的账号，点击即可切换，不用再输密码。")
+            }
+            if multipleServers {
+                HStack(spacing: 6) {
+                    Image(systemName: "server.rack")
+                    Text(saved.address.hostLabel)
+                    switch freshness[saved.id] {
+                    case .unreachable: Text("· 连不上").foregroundStyle(Theme.warning)
+                    case .needsLogin: Text("· 需要重新登录").foregroundStyle(Theme.warning)
+                    default: EmptyView()
+                    }
+                }
+                .font(.caption.weight(.medium))
+            }
+        }
+        .textCase(nil)
+    }
+
+    private func row(_ account: API.AccountView, on saved: SavedServer) -> some View {
+        let isCurrent = saved.address == model.server && account.username == model.session?.username
+        return HStack(spacing: 10) {
             Button {
-                Task { await switchTo(account) }
+                Task { await switchTo(account.username, on: saved.address) }
             } label: {
                 HStack(spacing: 12) {
                     AvatarBadge(session: nil, avatarUrl: account.avatarUrl, nickname: account.nickname, size: 40)
+                        // 头像地址是那台服务器上的相对路径：按那台服务器解析、带那台的 Cookie 去取
+                        .environment(\.api, APIClient(server: saved.address))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(account.nickname).foregroundStyle(Theme.text)
                         Text("@\(account.username) · \(account.role == "admin" ? "超级管理员" : "成员")")
@@ -79,7 +138,7 @@ struct AccountSwitcherSheet: View {
                             .foregroundStyle(Theme.textMuted)
                     }
                     Spacer()
-                    if account.active {
+                    if isCurrent {
                         HStack(spacing: 3) {
                             Image(systemName: "checkmark").font(.caption2.weight(.bold))
                             Text("当前")
@@ -91,10 +150,10 @@ struct AccountSwitcherSheet: View {
                 .contentShape(Rectangle())
             }
             // 当前账号不可点，但不置灰（Web 当前行是高亮而不是禁用色）
-            .allowsHitTesting(!account.active)
+            .allowsHitTesting(!isCurrent)
             // 行尾 ×：从本机移除该账号（Web AccountRow 行尾常驻）
             Button {
-                Task { await remove(account) }
+                Task { await remove(account, on: saved.address) }
             } label: {
                 Image(systemName: "xmark")
                     .font(.footnote.weight(.semibold))
@@ -108,52 +167,64 @@ struct AccountSwitcherSheet: View {
         .buttonStyle(.borderless)
     }
 
-    private func load() async {
-        await Loadable.load(into: $accounts) { try await api.authAccountsList() }
+    /// 逐台刷新账号列表：各台并行（连不上的那台要等超时，不能拖住其他台）
+    private func refreshAll() {
+        for saved in servers {
+            freshness[saved.id] = .loading
+            let address = saved.address
+            Task {
+                do {
+                    try await model.refreshAccounts(on: address)
+                    freshness[address.origin] = .fresh
+                } catch let error as APIError where error.isUnauthorized {
+                    freshness[address.origin] = .needsLogin
+                } catch {
+                    freshness[address.origin] = .unreachable
+                }
+            }
+        }
     }
 
-    private func switchTo(_ account: API.AccountView) async {
+    private func switchTo(_ username: String, on address: ServerAddress) async {
         busy = true
         defer { busy = false }
         do {
-            let session = try await api.authAccountsSwitch(body: .init(username: account.username))
+            try await model.switchAccount(to: username, on: address)
             dismiss()
-            model.update(session: session)
-        } catch let error as APIError where error.status == 404 {
-            feedback.error("「\(account.nickname)」的登录已过期，请重新登录")
-            await load()
+        } catch AppModel.AccountError.needsPassword(let server, let username) {
+            // 登录过期：打开登录卡片，预填服务器与用户名，只需输密码
+            card = CardRequest(server: server, username: username)
         } catch {
             feedback.error(error)
         }
     }
 
-    private func remove(_ account: API.AccountView) async {
-        let message = account.active
+    private func remove(_ account: API.AccountView, on address: ServerAddress) async {
+        let isCurrent = address == model.server && account.username == model.session?.username
+        let message = isCurrent
             ? "这是当前账号。退出后本机不再保留它的登录状态，会自动切到其他账号；再回来需要重新输入密码。"
             : "本机将不再保留它的登录状态，再回来需要重新输入密码。账号本身不受影响。"
         guard await feedback.confirm("退出「\(account.nickname)」？", message: message, confirmTitle: "退出", destructive: true) else { return }
         busy = true
         defer { busy = false }
         do {
-            let next = try await api.authAccountsRemove(username: account.username)
-            if account.active {
-                dismiss()
-                if let next { model.update(session: next) } else { await model.logout() }
-            } else {
-                await load()
-            }
+            try await model.removeAccount(account.username, on: address)
+            if isCurrent { dismiss() }
         } catch {
             feedback.error(error)
         }
     }
 
-    private func logoutAll(count: Int) async {
+    private func logoutEverywhere() async {
+        let count = model.savedAccountCount
+        let serverCount = model.savedServers.filter { !$0.accounts.isEmpty }.count
+        let scope = serverCount > 1 ? "本机登录过的 \(count) 个账号（\(serverCount) 台服务器）" : "本机里的 \(count) 个账号"
         guard await feedback.confirm(
             "退出全部账号？",
-            message: "本机里的 \(count) 个账号都会退出登录，再回来需要逐个重新输入密码。共用设备时建议这样做。",
+            message: "\(scope)都会退出登录，再回来需要逐个重新输入密码。共用设备时建议这样做。",
             confirmTitle: "全部退出", destructive: true
         ) else { return }
         dismiss()
-        await model.logout(all: true)
+        model.logoutEverywhere()
     }
 }
