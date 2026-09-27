@@ -58,7 +58,7 @@ struct AgentNewSessionView: View {
             .background(Theme.background.ignoresSafeArea())
             .navigationTitle("新会话")
             .navigationBarTitleDisplayMode(.inline)
-            .hidesTabBar()
+            .toolbarVisibility(.hidden, for: .tabBar)
             .task {
                 async let configured = AgentCatalog.llmConfigured(api: api)
                 async let options = AgentCatalog.modelOptions(api: api)

@@ -166,8 +166,9 @@ final class Router {
         // 切到路由归属的标签（该标签对当前账号不可见时——例如成员没有订阅页——留在当前标签）
         if let target = route.tab, availableTabs.contains(target) { selectedTab = target }
         // 设置分区的返回固定回设置列表（Web app-shell：/settings/[x] 的返回是 /settings）：
-        // 从通知「去处理」、更多页「新版本」等处直达分区时，栈顶不是设置列表就先垫一层
-        if case .settingsSection = route, paths[selectedTab]?.last != .settings {
+        // 从通知「去处理」、更多页「新版本」等处直达分区时，栈顶不是设置列表就先垫一层。
+        // 「个人信息」不在设置列表里（入口是「我的」页头像卡），不垫
+        if case let .settingsSection(section, _) = route, section != .profile, paths[selectedTab]?.last != .settings {
             paths[selectedTab, default: []].append(.settings)
         }
         paths[selectedTab, default: []].append(route)

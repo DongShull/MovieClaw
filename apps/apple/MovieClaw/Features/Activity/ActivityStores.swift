@@ -181,18 +181,31 @@ final class TaskActivityStore {
 ///
 /// 外壳活动标签的「有人在看」提示与活动页「正在播放」共用这一份：Web 是两处各自轮询，
 /// App 里合成一路，数据一致也省一半请求。可见范围口径（我的浏览范围 / 全部）记在本机。
+///
+/// 活动总览的「最近播放」与「最近 7 天」统计卡（`recentPlays` / `weekly`）也由这里预取：原先是活动页出现后
+/// 才去取，第一次打开时这两组要晚 0.2～1 秒才插进来、把下面的「最近完成」往下顶；现在外壳
+/// 拿到第一份播放活动后顺手取一次，打开活动页就是完整的一页。之后有人开播 / 停播（播放记录会多一条）、
+/// 切换范围、活动页每次出现时重取，结果就地更新；失败保留上次结果。
 @Observable
 final class MediaActivityStore {
     private(set) var snapshot = API.MediaActivityView(sessions: [], downloads: [], hiddenSessionCount: 0, hiddenDownloadCount: 0)
     private(set) var loading = true
     private(set) var error: String?
     private(set) var scope: String = MediaActivityStore.loadScope()
+    /// 活动总览「最近播放」的几条（按开始时间倒序）
+    private(set) var recentPlays: [API.PlaybackLogEntryView] = []
+    /// 活动总览「观看统计」卡：最近 7 天（含今天）与前 7 天对比；nil = 还没取到
+    private(set) var weekly: API.PlaybackWatchStatsView?
 
     @ObservationIgnored private var api: APIClient?
     @ObservationIgnored private var inFlight = false
     @ObservationIgnored private var loaded = false
+    /// 「最近播放 / 7 天统计」在途请求的口径；同口径在途时不重复发，切了口径则另起一轮
+    @ObservationIgnored private var extrasInFlight: String?
 
     static let poll: Duration = .seconds(8)
+    /// 活动总览「最近播放」露几条
+    static let recentPlaysLimit = 3
     private static let scopeKey = "movieclaw.activity.scope"
 
     /// 「此刻有人在播」的计数口径：范围外折叠的会话与下载也算
@@ -203,6 +216,8 @@ final class MediaActivityStore {
     func run(api: APIClient) async {
         self.api = api
         loaded = false
+        recentPlays = []
+        weekly = nil
         refresh()
         await withTaskGroup(of: Void.self) { group in
             group.addTask {
@@ -232,14 +247,36 @@ final class MediaActivityStore {
                 let next = try await api.playbackActivity(scope: target)
                 // 切口径期间在途的旧口径响应不能盖掉新口径
                 guard target == scope else { return }
+                // 这个口径的第一份快照（启动、切范围）或在播设备数变了（有人开播 / 停播）：重取最近播放与统计
+                let first = !loaded
+                let liveChanged = next.sessions.count + next.hiddenSessionCount
+                    != snapshot.sessions.count + snapshot.hiddenSessionCount
                 snapshot = next
                 error = nil
                 loaded = true
+                if first || liveChanged { Task { await refreshExtras() } }
             } catch is CancellationError {
             } catch {
                 self.error = error.localizedDescription.isEmpty ? "媒体库活动加载失败" : error.localizedDescription
             }
         }
+    }
+
+    /// 重取活动总览的「最近播放」与「最近 7 天」统计（两路并行，都回来后一起更新，页面只变一次）
+    func refreshExtras() async {
+        let target = scope
+        guard let api, extrasInFlight != target else { return }
+        extrasInFlight = target
+        defer { if extrasInFlight == target { extrasInFlight = nil } }
+        let offset = TimeZone.current.secondsFromGMT() / 60
+        async let plays = api.playbackHistory(limit: Self.recentPlaysLimit, before: nil, memberId: nil, scope: target)
+        async let stats = api.playbackStatsWatch(days: 7, tzOffset: offset, memberId: nil, scope: target)
+        let page = try? await plays
+        let week = try? await stats
+        // 切口径期间在途的旧口径结果作废（新口径已另起一轮）
+        guard target == scope else { return }
+        if let page { recentPlays = page.entries }
+        if let week { weekly = week }
     }
 
     /// 切换可见范围：记住选择并立即按新口径重拉

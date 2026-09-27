@@ -13,8 +13,8 @@ import SwiftUI
 ///   每种故障的补救动作不同（换种、重试、交给 AI、删除、忽略），压成一行反而要多点一层；
 /// - **浏览范围**（我的浏览范围 / 全部）不占顶栏：只在确有被隐藏的内容时以分组脚注出现、就地切换。
 ///
-/// 实时数据来自外壳常驻的 `ShellBadges.tasks / media`（SSE + 轮询，来回切标签不打断）；
-/// 最近播放与 7 天统计是页面自己取的快照，进页、切范围、有人开始 / 结束播放时重取。
+/// 数据全部来自外壳常驻的 `ShellBadges.tasks / media`（SSE + 轮询，来回切标签不打断）：最近播放与 7 天统计
+/// 也由 `media` 预取（见 MediaActivityStore），打开就是完整的一页，页面出现时只做一次就地刷新。
 struct ActivityView: View {
     @Environment(ShellBadges.self) private var badges
     @Environment(\.api) private var api
@@ -23,14 +23,12 @@ struct ActivityView: View {
 
     @State private var taskActions = TaskCenterActions()
     @State private var deviceActions = ActivityDeviceActions()
-    @State private var recentPlays: [API.PlaybackLogEntryView] = []
-    @State private var weekly: API.PlaybackWatchStatsView?
     /// 刷流在池概况（刷流行要按站点开关状态、待清理数写文案）；只在有刷流种子时取
     @State private var boostPool: API.BoostPoolView?
 
     /// 总览上「进行中」最多露几条，其余进二级页
     private static let activeLimit = 5
-    /// 最近播放 / 最近完成各露几条
+    /// 最近完成露几条（最近播放的条数见 MediaActivityStore.recentPlaysLimit）
     private static let recentLimit = 3
 
     /// 进行中的一条：下载组或后台作业（两者在二级页的时间线里也是这个顺序）
@@ -44,12 +42,6 @@ struct ActivityView: View {
             case let .job(job): "job:\(job.id)"
             }
         }
-    }
-
-    /// 重取「最近播放 / 7 天统计」的时机：范围切换，或正在播放的设备数变了（有人开播 / 停播就会多一条记录）
-    private struct ExtrasKey: Hashable {
-        var scope: String
-        var live: Int
     }
 
     var body: some View {
@@ -138,9 +130,9 @@ struct ActivityView: View {
                 }
             }
 
-            if !recentPlays.isEmpty {
+            if !media.recentPlays.isEmpty {
                 Section {
-                    ForEach(recentPlays, id: \.id) { entry in
+                    ForEach(media.recentPlays, id: \.id) { entry in
                         if let route = WatchFormat.detailRoute(entry.media) {
                             NavigationLink(value: route) { ActivityRecentPlayRow(entry: entry) }
                         } else {
@@ -155,7 +147,7 @@ struct ActivityView: View {
                 }
             }
 
-            if let weekly {
+            if let weekly = media.weekly {
                 Section {
                     NavigationLink(value: AppRoute.activityPage(.stats)) { ActivityWeeklyWatchCard(stats: weekly) }
                 } header: {
@@ -186,18 +178,16 @@ struct ActivityView: View {
             tasks.refreshJobs()
             tasks.refreshDownloads()
             media.refresh()
-            await loadExtras(scope: media.scope)
+            await media.refreshExtras()
+            await loadBoostPool()
         }
         .navigationTitle("活动")
         .toolbarTitleDisplayMode(.inlineLarge)
         .appBackground()
         .taskDeleteSheet(taskActions, store: tasks)
-        .task(id: ExtrasKey(scope: media.scope, live: snapshot.sessions.count + snapshot.hiddenSessionCount)) {
-            await loadExtras(scope: media.scope)
-        }
-        .task(id: activity.boostTasks.isEmpty) {
-            if !activity.boostTasks.isEmpty, let loaded = await ActivityBoostPoolLoader.load(api) { boostPool = loaded.pool }
-        }
+        // 外壳已预取过，这里只为拿最新（观看时长、看到哪会一直变），回来后就地更新
+        .task { await media.refreshExtras() }
+        .task(id: activity.boostTasks.isEmpty) { await loadBoostPool() }
         .onChange(of: router.rootParameter, initial: true) { _, parameter in
             // 站内链接 /activity?view=…：点名二级页的（plays / stats / history / active）接着压栈打开，
             // 其余（需要处理、正在播放、全部、缺省）都落在总览本身
@@ -302,13 +292,8 @@ struct ActivityView: View {
 
     // MARK: 数据
 
-    /// 最近播放 3 条 + 最近 7 天统计（两路并行；失败时保留上次结果）
-    private func loadExtras(scope: String) async {
-        let offset = TimeZone.current.secondsFromGMT() / 60
-        async let plays = api.playbackHistory(limit: Self.recentLimit, before: nil, memberId: nil, scope: scope)
-        async let stats = api.playbackStatsWatch(days: 7, tzOffset: offset, memberId: nil, scope: scope)
-        if let page = try? await plays { recentPlays = page.entries }
-        if let result = try? await stats { weekly = result }
+    /// 刷流在池概况：只在有刷流种子时取
+    private func loadBoostPool() async {
         if !badges.tasks.activity.boostTasks.isEmpty, let loaded = await ActivityBoostPoolLoader.load(api) { boostPool = loaded.pool }
     }
 }
