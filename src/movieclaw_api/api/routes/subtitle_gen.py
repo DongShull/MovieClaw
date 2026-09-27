@@ -107,7 +107,9 @@ def _request_origin(principal: Principal, client_name: str | None) -> str:
         return "agent"
     if client_name and client_name.lower() in {"web", "cli", "agent", "scheduler"}:
         return client_name.lower()
-    return "cli" if principal.kind == "pat" else "web"
+    # 命令行与手工令牌（脚本）记成 cli；网页、App 记成 web
+    device = principal.device
+    return "cli" if device is not None and device.kind in ("cli", "manual") else "web"
 
 
 @router.get(

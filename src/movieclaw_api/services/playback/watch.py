@@ -108,14 +108,22 @@ def describe_user_agent(user_agent: str | None) -> str:
     return f"{browser} · {platform}" if platform else browser
 
 
-def web_device_id(raw: str | None, *, member_id: int) -> str:
-    """网页端设备标识：``web-<成员 id>-<浏览器 id>``；没带浏览器 id 就按成员兜底。
+def web_device_id(
+    raw: str | None, *, member_id: int, login_device_id: int | None = None
+) -> str:
+    """网页端 / App 的播放设备标识。
 
-    浏览器 id 是客户端自报的，命名空间里带上成员 id，成员就不可能用别人的
-    浏览器 id 顶掉别人在活动页上的会话卡片。兜底键让老版本前端（或 sendBeacon
-    丢字段）的播放仍出现在活动页——代价是同一成员的两台浏览器会合并成一个
-    会话，好过完全不可见。
+    - 用登录设备的凭证（新的网页会话、App）：挂在那台登录设备名下，``ld-<id>``
+      （``login_devices.playback_device_id``）。活动页的「注销此设备」据此找到
+      凭证，注销即连带停掉它正在播的流（docs/design/login-devices.md）；
+    - 否则（升级前签发的旧网页会话、分享访客）：``web-<成员 id>-<浏览器 id>``，
+      没带浏览器 id 就按成员兜底。浏览器 id 是客户端自报的，命名空间里带上成员
+      id，成员就不可能用别人的浏览器 id 顶掉别人在活动页上的会话卡片。兜底键让
+      老版本前端（或 sendBeacon 丢字段）的播放仍出现在活动页——代价是同一成员的
+      两台浏览器会合并成一个会话，好过完全不可见。
     """
+    if login_device_id is not None:
+        return f"ld-{login_device_id}"
     cleaned = _DEVICE_ID_SAFE.sub("", raw or "")[:64]
     return f"{_WEB_DEVICE_PREFIX}{member_id}-{cleaned or 'browser'}"
 

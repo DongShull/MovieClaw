@@ -4,7 +4,7 @@
 覆盖保存。成员侧：改自己的昵称与密码。
 
 生命周期语义（与设计文档 §3.9.1 的表格一一对应）：
-- 停用：token_version+1 即时踢下线，数据全部保留；
+- 停用：注销其全部登录设备 + token_version+1，即时踢下线，数据全部保留；
 - 删除：清理个人数据（头像；P1 起还包括播放进度、订阅关注），公共资源
   （订阅与下载成果）绝不连带删除。
 """
@@ -25,6 +25,7 @@ from movieclaw_api.exceptions import (
 from movieclaw_api.services import appearance as appearance_media
 from movieclaw_api.services import auth as auth_service
 from movieclaw_api.services import avatar as avatar_media
+from movieclaw_api.services import login_devices
 from movieclaw_db.models.member import Member
 from movieclaw_db.repositories.library_repo import LibraryRepository
 from movieclaw_db.repositories.member_repo import MemberRepository
@@ -142,14 +143,19 @@ async def _drop_jellyfin_devices(session: AsyncSession, member_id: int) -> None:
 
 
 async def set_member_status(session: AsyncSession, member_id: int, *, enabled: bool) -> Member:
-    """启用/停用成员。停用即时踢下线（token_version+1 + 删 Jellyfin 设备），
-    数据全部保留。"""
+    """启用/停用成员。停用即时踢下线（注销全部登录设备 + token_version+1 +
+    删 Jellyfin 设备），数据全部保留。
+
+    停用本身已让他的凭证在验签时失效（主人不再是 active），这里仍然把设备行删掉：
+    重新启用的账号应当从零开始登录，而不是让停用前散落在外的令牌全部复活。
+    """
     repo = MemberRepository(session)
     member = await get_member(session, member_id)
     member.status = "active" if enabled else "disabled"
     member = await repo.bump_token_version(member)
     if not enabled:
         await _drop_jellyfin_devices(session, member_id)
+        await login_devices.revoke_for_member(session, member_id)
     logger.info("成员 %s 已%s", member.username, "启用" if enabled else "停用")
     return member
 
@@ -162,8 +168,36 @@ async def reset_member_password(session: AsyncSession, member_id: int) -> tuple[
     member.password_hash = auth_service.hash_password(plaintext)
     member = await repo.bump_token_version(member)
     await _drop_jellyfin_devices(session, member_id)
+    # 重置多半是成员忘了密码：密码换来的登录（网页、App）下线，配对的命令行保留
+    await login_devices.revoke_for_member(session, member_id, families=("login",))
     logger.info("已重置成员 %s 的密码（旧会话与播放器凭据已全部下线）", member.username)
     return member, plaintext
+
+
+async def sign_out_member(session: AsyncSession, member_id: int) -> tuple[Member, int]:
+    """让成员在全部设备上下线（网页、App、命令行、播放器），账号本身不动；
+    返回 (成员, 注销的设备数)。用在「借出去的账号要收回」「设备丢了」这类场景。"""
+    repo = MemberRepository(session)
+    member = await get_member(session, member_id)
+    member = await repo.bump_token_version(member)
+    from sqlalchemy import func, select
+
+    from movieclaw_db.models import JellyfinDevice
+
+    players = int(
+        (
+            await session.execute(
+                select(func.count())
+                .select_from(JellyfinDevice)
+                .where(JellyfinDevice.member_id == member_id)
+            )
+        ).scalar_one()
+    )
+    await _drop_jellyfin_devices(session, member_id)
+    revoked = await login_devices.revoke_for_member(session, member_id)
+    count = players + len(revoked)
+    logger.info("已让成员 %s 在全部设备上下线（%d 台）", member.username, count)
+    return member, count
 
 
 async def delete_member(session: AsyncSession, member_id: int) -> None:
@@ -188,6 +222,9 @@ async def delete_member(session: AsyncSession, member_id: int) -> None:
     avatar_media.delete_avatar(avatar_media.member_stem(member_id))
     appearance_media.remove_member_gallery(member_id)
     await _drop_jellyfin_devices(session, member_id)
+    # 登录设备也在成员级表里、会被下面的统一清理删掉；这里先走一遍正式注销，
+    # 让他正在播的流、正在跑的转码连接当场断开（统一清理只删行，不管这些）
+    await login_devices.revoke_for_member(session, member_id)
     for model in member_scoped_models():
         await session.execute(sa_delete(model).where(model.member_id == member_id))
     await MemberRepository(session).delete(member)
@@ -227,5 +264,6 @@ async def change_own_password(
     member.password_hash = auth_service.hash_password(new_password)
     member = await repo.bump_token_version(member)
     await _drop_jellyfin_devices(session, member_id)
+    # 登录设备的注销由路由层做（它知道当前是哪台设备、要不要连配对的一起注销）
     logger.info("成员 %s 已修改密码，其他会话与播放器凭据已下线", member.username)
     return member

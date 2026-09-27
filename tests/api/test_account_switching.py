@@ -217,8 +217,12 @@ def test_disabled_member_disappears_from_bag(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
-def test_admin_password_change_empties_bag_except_self(client: TestClient) -> None:
-    """超管改密轮换全局密钥：袋子里其余账号一并失效，只剩超管自己（新令牌）。"""
+def test_admin_password_change_keeps_other_accounts_in_this_browser(client: TestClient) -> None:
+    """超管改密只注销超管自己的其他登录（docs/design/login-devices.md）。
+
+    同一浏览器里登着的成员与超管的密码无关，不该被连坐；改密轮换了签名密钥，
+    账号袋用新密钥重签，里面仍然有效的账号原样保留、照常能切换。
+    """
     _setup(client)
     client.post(f"{_AUTH}/accounts/switch", json={"username": "admin"})
 
@@ -228,11 +232,16 @@ def test_admin_password_change_empties_bag_except_self(client: TestClient) -> No
     )
     assert resp.status_code == 200
     assert _me(client) == "admin"
-    assert [a["username"] for a in _accounts(client)] == ["admin"]
+    assert [(a["username"], a["active"]) for a in _accounts(client)] == [
+        ("admin", True),
+        ("family", False),
+    ]
+    assert client.post(f"{_AUTH}/accounts/switch", json={"username": "family"}).status_code == 200
+    assert _me(client) == "family"
 
 
 def test_member_password_change_keeps_other_accounts(client: TestClient) -> None:
-    """成员改密只踢自己的其他设备：袋子里的超管原样保留，本人令牌换成新版本。"""
+    """成员改密只踢自己的其他设备：袋子里的超管原样保留，本人当前会话照常可用。"""
     _setup(client)
 
     resp = client.put(
@@ -244,7 +253,7 @@ def test_member_password_change_keeps_other_accounts(client: TestClient) -> None
         ("family", True),
         ("admin", False),
     ]
-    # 改密后仍能来回切换（袋子里的成员令牌是重签的新版本）
+    # 改密后仍能来回切换（当前这台设备的会话保留，不因改密失效）
     assert client.post(f"{_AUTH}/accounts/switch", json={"username": "admin"}).status_code == 200
     assert client.post(f"{_AUTH}/accounts/switch", json={"username": "family"}).status_code == 200
     assert _me(client) == "family"

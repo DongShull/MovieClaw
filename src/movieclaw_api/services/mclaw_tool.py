@@ -105,7 +105,7 @@ _TOP_LEVEL_LINES = [
 #   部署者本人的账号治理，绝不该由对话式 Agent 代劳（Agent 令牌是超管级，
 #   放进目录等于把开号/改权限的能力交给模型）。CLI 命令保留给人类管理员。
 # - mcp：MCP 端点的增删改与令牌轮换属于凭证签发面，和 members 同理不该由对话式
-#   Agent 代劳；真正的签发闸门在 require_admin_session（人 + 浏览器）上。
+#   Agent 代劳；真正的签发闸门在 require_admin_session（人在网页或 App 里）上。
 _EXCLUDED_DOMAINS = {"fs", "logs", "members", "mcp"}
 
 

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Literal
+
 from pydantic import Field
 
 from movieclaw_api.schemas.base import BaseModel
@@ -29,6 +32,13 @@ class LoginRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password: str = Field(min_length=1, max_length=128, description="当前密码（校验身份）")
     new_password: str = Field(min_length=8, max_length=128, description="新密码，至少 8 位")
+    sign_out_paired: bool = Field(
+        default=False,
+        description=(
+            "同时注销命令行、转码器与手工令牌。默认保留：它们常年无人值守，"
+            "改个密码就停转码很难排查；怀疑密码泄露时应勾上"
+        ),
+    )
 
 
 class UpdateProfileRequest(BaseModel):
@@ -38,28 +48,24 @@ class UpdateProfileRequest(BaseModel):
 
 
 class ApiTokenCreateRequest(BaseModel):
-    """创建 CLI API 令牌。"""
+    """网页手工创建令牌（给没有人能按批准的无人值守环境）。"""
 
     name: str = Field(
-        min_length=1, max_length=64, description="令牌名字，如 'nas-cron'，便于识别与吊销"
+        min_length=1, max_length=64, description="令牌名字，如 'nas-cron'，便于识别与注销"
+    )
+    scope: Literal["full", "transcode"] = Field(
+        default="full",
+        description="full=与你相同的完全权限；transcode=只能转码（给命令行模式的转码器用）",
     )
 
 
-class ApiTokenView(BaseModel):
-    """令牌元信息（列表用；不含任何可用于认证的内容）。"""
-
-    id: str
-    name: str
-    created_at: str
-    client_type: str = Field(default="manual", description="客户端形态：worker / cli / manual")
-    last_used_at: str | None = Field(
-        default=None, description="最近一次使用时间；None 表示从未使用过"
-    )
-
-
-class ApiTokenCreatedView(ApiTokenView):
+class ApiTokenCreatedView(BaseModel):
     """创建成功的返回体：token 明文仅此一次，请立即保存。"""
 
+    id: str = Field(description="设备 id（在「设备」列表里注销时使用）")
+    name: str
+    scope: str
+    created_at: datetime
     token: str = Field(description="令牌明文；服务端只存哈希，之后无法再次查看")
 
 
@@ -69,6 +75,14 @@ class SessionCapabilities(BaseModel):
     allow_subscribe: bool = True
     allow_search: bool = True
     allow_direct_download: bool = True
+
+
+class DeviceBrief(BaseModel):
+    """当前请求所用的登录设备（「当前设备」标记、``mclaw status`` 回显用）。"""
+
+    id: str
+    kind: str = Field(description="web / ios / tvos / android / cli / worker / manual")
+    name: str
 
 
 class SessionView(BaseModel):
@@ -83,6 +97,10 @@ class SessionView(BaseModel):
     capabilities: SessionCapabilities = Field(
         default_factory=SessionCapabilities,
         description="能力开关快照；管理员恒为全开",
+    )
+    device: DeviceBrief | None = Field(
+        default=None,
+        description="本次请求所用的登录设备；升级前签发的旧网页会话为空",
     )
 
 
@@ -133,6 +151,15 @@ class DeviceAuthorizeRequest(BaseModel):
         max_length=64,
         description="设备名，批准页上给人看的，如 'Yi的Mac-mini'",
     )
+    installation_id: str | None = Field(
+        default=None,
+        max_length=128,
+        description="客户端安装标识：同一台机器重新配对时替换旧凭证，而不是越积越多",
+    )
+    platform: str | None = Field(
+        default=None, max_length=128, description="系统与架构，如 'macOS 26.0 · arm64'"
+    )
+    client_version: str | None = Field(default=None, max_length=64, description="客户端版本")
 
 
 class DeviceAuthorizeView(BaseModel):
@@ -140,7 +167,10 @@ class DeviceAuthorizeView(BaseModel):
 
     user_code: str = Field(description="配对码，客户端显示给用户，在网页上核对")
     device_code: str = Field(description="兑换凭据，仅客户端持有，不得展示给用户")
-    verification_uri: str = Field(description="用户应当打开的网页地址")
+    verification_uri: str = Field(description="批准页地址（不带配对码，用户需手动输入）")
+    verification_uri_complete: str = Field(
+        description="带配对码的批准页地址：打开即显示这一条请求，客户端应优先打开它"
+    )
     interval: int = Field(description="建议的轮询间隔（秒），不要比这更快")
     expires_in: int = Field(description="配对码有效期（秒），超时需重新发起")
 
@@ -157,11 +187,11 @@ class DeviceTokenView(BaseModel):
     token: str = Field(description="令牌明文；服务端只存哈希，之后无法再次查看")
     client_name: str
     client_type: str
-    granted_by: str = Field(description="批准者身份，仅用于客户端回显「你现在是谁」")
+    granted_by: str = Field(description="批准者的用户名：这枚令牌就是他的身份")
 
 
 class DeviceRequestView(BaseModel):
-    """待批准的接入请求（网页审批卡的数据源）。"""
+    """一条待批准的接入请求（按配对码取，批准页的数据源）。"""
 
     user_code: str
     client_type: str
@@ -173,3 +203,77 @@ class DeviceRequestView(BaseModel):
         )
     )
     expires_in: int = Field(description="剩余有效秒数")
+    platform: str | None = Field(default=None, description="客户端自报的系统与架构")
+    client_version: str | None = Field(default=None, description="客户端自报的版本")
+    requires_admin: bool = Field(
+        default=False, description="只有管理员能批准（转码器）；成员看到时应说明原因"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 登录设备（docs/design/login-devices.md）
+# ---------------------------------------------------------------------------
+
+
+class DeviceClientInfo(BaseModel):
+    """原生 App 登录时自报的设备信息。"""
+
+    kind: Literal["ios", "tvos", "android"] = Field(description="App 平台")
+    installation_id: str = Field(
+        min_length=8,
+        max_length=128,
+        description="App 安装标识（存在系统钥匙串）：同一台设备同一个人重新登录时替换旧凭证",
+    )
+    name: str | None = Field(
+        default=None, max_length=64, description="设备名，如 'iPhone Air'；用户之后可改名"
+    )
+    platform: str | None = Field(
+        default=None, max_length=128, description="系统与机型，如 'iOS 26.0 · iPhone18,4'"
+    )
+    client_version: str | None = Field(default=None, max_length=64, description="App 版本")
+
+
+class DeviceLoginRequest(BaseModel):
+    """原生 App 用账号密码登录，换一枚设备令牌。"""
+
+    username: str = Field(min_length=1, max_length=32)
+    password: str = Field(min_length=1, max_length=128)
+    client: DeviceClientInfo
+
+
+class LoginDeviceView(BaseModel):
+    """「我的设备」列表里的一台设备（登录设备或 Jellyfin 播放器）。"""
+
+    id: str = Field(description="设备 id：登录设备为 ld-<n>，Jellyfin 播放器为 jf-<n>")
+    kind: str = Field(
+        description="web / ios / tvos / android / cli / worker / manual / jellyfin"
+    )
+    kind_label: str = Field(description="给人看的类型名：浏览器、iOS App、命令行、Infuse……")
+    family: str = Field(
+        description="login=用密码登录的（改密即下线）；paired=配对或手工创建的（改密默认保留）"
+    )
+    name: str
+    scope: str = Field(description="full=与主人相同的权限；transcode=只能转码")
+    platform: str | None = None
+    client_version: str | None = None
+    created_at: datetime
+    last_seen_at: datetime | None = None
+    last_seen_ip: str | None = None
+    expires_at: datetime | None = Field(default=None, description="网页会话的过期时间")
+    current: bool = Field(description="是不是发起本次请求的这台设备")
+    renamable: bool = Field(description="能否改名（Jellyfin 播放器的名字由客户端上报，不能改）")
+    owner_id: int = Field(description="主人：成员 id；0 = 超管")
+    owner_username: str
+    owner_nickname: str
+
+
+class DeviceLoginView(BaseModel):
+    """App 登录成功：设备令牌（明文仅此一次）+ 这台设备 + 当前身份。"""
+
+    token: str = Field(description="设备令牌明文；存进系统钥匙串，服务端只存哈希")
+    device: LoginDeviceView
+    session: SessionView
+
+
+class RenameDeviceRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=64, description="新的设备名")

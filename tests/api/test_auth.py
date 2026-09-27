@@ -179,6 +179,8 @@ _ADMIN_VIEW_EXTRAS = {
         "allow_search": True,
         "allow_direct_download": True,
     },
+    # 登录 / 建号的响应不带当前设备（客户端要看就调 /auth/me）
+    "device": None,
 }
 
 
@@ -214,9 +216,16 @@ def test_nickname_defaults_to_username_and_editable(client: TestClient) -> None:
 
 
 def test_change_password_kicks_other_sessions(client: TestClient) -> None:
-    """改密码轮换签名密钥：旧会话全部失效，本会话续期，新密码可登录。"""
+    """改密码：其他登录全部失效，操作者当前这台设备保留，新密码可登录。"""
     _bootstrap(client)
-    old_session = client.cookies.get("movieclaw_session")
+    this_session = client.cookies.get("movieclaw_session")
+    # 模拟另一台设备：再登录一次，拿到第二枚会话
+    client.cookies.clear()
+    client.post(f"{_AUTH}/login", json=_ADMIN)
+    other_session = client.cookies.get("movieclaw_session")
+    assert other_session and other_session != this_session
+    client.cookies.clear()
+    client.cookies.set("movieclaw_session", this_session)
 
     resp = client.put(
         f"{_AUTH}/password",
@@ -224,11 +233,11 @@ def test_change_password_kicks_other_sessions(client: TestClient) -> None:
     )
     assert resp.status_code == 200
 
-    # 操作者本人拿到新 Cookie，不被踢出
+    # 操作者本人不被踢出
     assert client.get(f"{_AUTH}/me").status_code == 200
 
-    # 旧会话令牌已失效（模拟另一台设备）
-    client.cookies.set("movieclaw_session", old_session)
+    # 另一台设备的会话已失效
+    client.cookies.set("movieclaw_session", other_session)
     assert client.get(f"{_AUTH}/me").status_code == 401
 
     # 旧密码不可登录，新密码可以
@@ -292,7 +301,9 @@ _PUBLIC_ALLOWLIST = {
     ("POST", "/api/v1/auth/logout"),  # 仅清 Cookie，无信息暴露
     # 设备授权的两个协议端点（docs/design/device-auth.md §2.1）：设备在拿到
     # 令牌之前无凭可用，必须匿名。防滥用不靠鉴权，靠服务层三道约束——单 IP
-    # 未决请求上限、轮询退避、挑战全程不落库；且批准这一步要管理员会话。
+    # 未决请求上限、轮询退避、挑战全程不落库；且批准这一步要人在网页或 App 里做。
+    # 原生 App 的账号密码登录：与网页登录同一套校验与限速，只是换的是设备令牌
+    ("POST", "/api/v1/auth/device/login"),
     ("POST", "/api/v1/auth/device/authorize"),
     ("POST", "/api/v1/auth/device/token"),
     ("GET", "/api/v1/appearance"),  # 登录页需要背景图地址
@@ -320,6 +331,60 @@ _PUBLIC_ALLOWLIST = {
 }
 
 
+def fill_path_params(path: str) -> str:
+    """把 OpenAPI 路径里的参数换成哑值（鉴权在路由解析后、业务逻辑前执行，哑值足够）。
+
+    设备授权的全路由扫描（tests/api/test_device_auth.py）也复用这一份。
+    """
+    return (
+        path.replace("{site_id}", "mteam")
+        .replace("{history_id}", "1")
+        .replace("{backdrop_id}", "f" * 32)
+        .replace("{attachment_id}", "f" * 32)
+        .replace("{downloader_id}", "1")
+        .replace("{category}", "anime")
+        .replace("{provider_id}", "1")
+        .replace("{info_hash}", "f" * 40)
+        .replace("{kind}", "movie")
+        .replace("{media_type}", "movie")
+        .replace("{collection_ref}", "tmdb:movie:popular")
+        .replace("{title_ref}", "tmdb:movie:1")
+        .replace("{row_id}", "popular")
+        .replace("{tmdb_id}", "1")
+        .replace("{tmdb_person_id}", "1")
+        .replace("{douban_id}", "26266893")
+        .replace("{collection_id}", "movie_top250")
+        .replace("{subscription_id}", "1")
+        .replace("{rule_set_id}", "1")
+        .replace("{library_id}", "1")
+        .replace("{media_item_id}", "1")
+        .replace("{rule_id}", "1")
+        .replace("{entry_id}", "1")
+        .replace("{file_id}", "1")
+        .replace("{token_id}", "1")
+        .replace("{notice_id}", "1")
+        .replace("{run_id}", "test-run")
+        .replace("{session_id}", "test-session")
+        .replace("{day}", "2026-01-01")
+        .replace("{path}", "1/poster.jpg")
+        .replace("{challenge_id}", "test-challenge")
+        .replace("{account_id}", "test-bot")
+        .replace("{channel}", "weixin")
+        .replace("{endpoint_id}", "test-endpoint")
+        .replace("{username}", "family")
+        .replace("{member_id}", "1")
+        .replace("{job_id}", "job_test")
+        .replace("{device_id}", "test-device")
+        .replace("{task_key}", "library_reconcile")
+        .replace("{user_code}", "MCLW-TEST")
+        .replace("{name}", "seg00000.m4s")
+        .replace("{index}", "0")
+        .replace("{slug}", "no-such-share")
+        .replace("{share_id}", "1")
+        .replace("{key}", "cache.images")  # 缓存管理的登记目录 key
+    )
+
+
 def test_every_route_denies_anonymous_access(client: TestClient) -> None:
     """行为级默认拒绝：匿名请求 OpenAPI 里每一条路由，白名单之外必须 401。
 
@@ -331,53 +396,7 @@ def test_every_route_denies_anonymous_access(client: TestClient) -> None:
 
     checked = 0
     for path, methods in openapi["paths"].items():
-        url = (
-            path.replace("{site_id}", "mteam")
-            .replace("{history_id}", "1")
-            .replace("{backdrop_id}", "f" * 32)
-            .replace("{attachment_id}", "f" * 32)
-            .replace("{downloader_id}", "1")
-            .replace("{category}", "anime")
-            .replace("{provider_id}", "1")
-            .replace("{info_hash}", "f" * 40)
-            .replace("{kind}", "movie")
-            .replace("{media_type}", "movie")
-            .replace("{collection_ref}", "tmdb:movie:popular")
-            .replace("{title_ref}", "tmdb:movie:1")
-            .replace("{row_id}", "popular")
-            .replace("{tmdb_id}", "1")
-            .replace("{tmdb_person_id}", "1")
-            .replace("{douban_id}", "26266893")
-            .replace("{collection_id}", "movie_top250")
-            .replace("{subscription_id}", "1")
-            .replace("{rule_set_id}", "1")
-            .replace("{library_id}", "1")
-            .replace("{media_item_id}", "1")
-            .replace("{rule_id}", "1")
-            .replace("{entry_id}", "1")
-            .replace("{file_id}", "1")
-            .replace("{token_id}", "1")
-            .replace("{notice_id}", "1")
-            .replace("{run_id}", "test-run")
-            .replace("{session_id}", "test-session")
-            .replace("{day}", "2026-01-01")
-            .replace("{path}", "1/poster.jpg")
-            .replace("{challenge_id}", "test-challenge")
-            .replace("{account_id}", "test-bot")
-            .replace("{channel}", "weixin")
-            .replace("{endpoint_id}", "test-endpoint")
-            .replace("{username}", "family")
-            .replace("{member_id}", "1")
-            .replace("{job_id}", "job_test")
-            .replace("{device_id}", "test-device")
-            .replace("{task_key}", "library_reconcile")
-            .replace("{user_code}", "MCLW-TEST")
-            .replace("{name}", "seg00000.m4s")
-            .replace("{index}", "0")
-            .replace("{slug}", "no-such-share")
-            .replace("{share_id}", "1")
-            .replace("{key}", "cache.images")  # 缓存管理的登记目录 key
-        )
+        url = fill_path_params(path)
         assert "{" not in url, f"守护测试不认识路径参数，请补充哑值：{path}"
         for method in methods:
             if (method.upper(), path) in _PUBLIC_ALLOWLIST:

@@ -10,7 +10,14 @@
   GET/POST/DELETE /auth/accounts*（多账号列表 / 切换 / 移除）。
 
 会话凭证放 HttpOnly Cookie（同源部署下前端零改造自动携带；XSS 偷不走，
-SameSite=Lax 挡跨站请求伪造）。
+SameSite=Lax 挡跨站请求伪造）。Cookie 里装的是一枚登录设备令牌
+（docs/design/login-devices.md）：网页每次登录都是「我的设备」里的一行，
+退出登录即作废这一行，不再只是删掉浏览器里的 Cookie。
+
+登录设备（原生 App、命令行、转码器）走同一张表：
+- POST /auth/device/login：App 用账号密码换设备令牌（公开，限速同网页登录）；
+- /auth/device/authorize、/auth/device/token：命令行、转码器的配对流（公开）；
+- /auth/devices*：「我的设备」列表、改名、注销，按配对码批准 / 拒绝。
 
 多账号（docs/design/account-switching.md）：除激活会话 Cookie 外，还有一个同样
 HttpOnly 的"账号袋" Cookie 装着本浏览器登录过的全部会话令牌。登录总是并入袋子，
@@ -27,24 +34,38 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.client_address import client_address
-from movieclaw_api.api.deps import require_admin_session, require_login
+from movieclaw_api.api.deps import (
+    require_admin_session,
+    require_device_principal,
+    require_interactive,
+    require_login,
+)
 from movieclaw_api.core.config import get_settings
-from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.exceptions import (
+    BadRequestException,
+    ForbiddenException,
+    NotFoundException,
+    UnauthorizedException,
+)
 from movieclaw_api.schemas.auth import (
     AccountView,
     ApiTokenCreatedView,
     ApiTokenCreateRequest,
-    ApiTokenView,
     BootstrapRequest,
     BootstrapStatus,
     ChangePasswordRequest,
     DeviceAuthorizeRequest,
     DeviceAuthorizeView,
+    DeviceBrief,
+    DeviceLoginRequest,
+    DeviceLoginView,
     DeviceRequestView,
     DeviceTokenRequest,
     DeviceTokenView,
+    LoginDeviceView,
     LoginRequest,
     LogoutRequest,
+    RenameDeviceRequest,
     SessionCapabilities,
     SessionView,
     SwitchAccountRequest,
@@ -53,6 +74,7 @@ from movieclaw_api.schemas.auth import (
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services import auth as auth_service
 from movieclaw_api.services import avatar as avatar_media
+from movieclaw_api.services import login_devices
 from movieclaw_api.services import members as members_service
 from movieclaw_api.services.auth import Principal, SavedAccount
 from movieclaw_api.settings import (
@@ -61,7 +83,9 @@ from movieclaw_api.settings import (
     get_setting_store,
     mark_initialized,
 )
-from movieclaw_db.engine import get_session
+from movieclaw_db.engine import get_database, get_session
+from movieclaw_db.models import JellyfinDevice
+from movieclaw_db.models.login_device import LoginDevice
 from movieclaw_db.models.member import Member
 
 logger = logging.getLogger("movieclaw_api.auth")
@@ -110,10 +134,35 @@ def _member_session_view(member: Member) -> SessionView:
 
 
 async def _principal_session_view(principal: Principal) -> SessionView:
-    """请求主体 → 会话视图。成员主体已携带成员行；其余（含 PAT/Agent）按超管展示。"""
+    """请求主体 → 会话视图。成员主体已携带成员行；其余（含 Agent）按超管展示。
+    带上本次请求所用的登录设备，客户端据此标出「当前设备」。"""
     if principal.kind == "member" and principal.member is not None:
-        return _member_session_view(principal.member)
-    return _session_view(await auth_service.get_admin_account())
+        view = _member_session_view(principal.member)
+    else:
+        view = _session_view(await auth_service.get_admin_account())
+    if principal.device is not None:
+        view.device = DeviceBrief(
+            id=login_devices.playback_device_id(principal.device.id),
+            kind=principal.device.kind,
+            name=principal.device.name,
+        )
+    return view
+
+
+async def _issue_web_session(
+    request: Request, *, owner_id: int, remember: bool
+) -> tuple[str, int]:
+    """网页登录：签发一枚浏览器会话令牌（「我的设备」里的一行），返回 (令牌, 有效秒数)。"""
+    max_age = (
+        auth_service.SESSION_TTL_REMEMBER_SECONDS if remember else auth_service.SESSION_TTL_SECONDS
+    )
+    token = await login_devices.issue_web_session(
+        member_id=owner_id,
+        ttl_seconds=max_age,
+        user_agent=request.headers.get("user-agent"),
+        ip=client_address(request) or None,
+    )
+    return token, max_age
 
 
 def _set_session_cookie(response: Response, token: str, max_age: int) -> None:
@@ -239,7 +288,7 @@ async def bootstrap_create(
     account = await auth_service.create_admin(payload.username, payload.password)
     await mark_initialized()
 
-    token, max_age = await auth_service.issue_session_token(account.username)
+    token, max_age = await _issue_web_session(request, owner_id=0, remember=False)
     await _remember_login(
         request, response, token, max_age, Principal(kind="admin", name=account.username)
     )
@@ -265,8 +314,8 @@ async def login(
     """
     identity = await auth_service.authenticate(payload.username, payload.password)
     if isinstance(identity, Member):
-        token, max_age = await auth_service.issue_member_session_token(
-            identity, remember=payload.remember
+        token, max_age = await _issue_web_session(
+            request, owner_id=identity.id or 0, remember=payload.remember
         )
         principal = Principal(
             kind="member",
@@ -278,9 +327,7 @@ async def login(
         await _remember_login(request, response, token, max_age, principal)
         return ok(_member_session_view(identity), message="登录成功")
 
-    token, max_age = await auth_service.issue_session_token(
-        identity.username, remember=payload.remember
-    )
+    token, max_age = await _issue_web_session(request, owner_id=0, remember=payload.remember)
     await _remember_login(
         request, response, token, max_age, Principal(kind="admin", name=identity.username)
     )
@@ -303,12 +350,21 @@ async def logout(
 
     返回体是退出后浏览器所处的账号：袋子里还有别的账号就自动切过去并返回它，
     空则返回 null（前端据此决定回首页还是去登录页）。``all=true`` 清空全部。
+
+    退出即在服务端作废这枚会话令牌（「我的设备」里那一行随之消失），而不只是
+    删掉浏览器里的 Cookie——Cookie 被人拷走过的话，退出之后它也用不了了。
     """
+    active_token = request.cookies.get(auth_service.SESSION_COOKIE_NAME)
     if payload is not None and payload.all:
+        for saved in await _saved_accounts(request):
+            await login_devices.revoke_token(saved.token)
+        if active_token:
+            await login_devices.revoke_token(active_token)
         await _activate(response, [], None)
         return ok(None, message="已退出全部账号")
 
-    active_token = request.cookies.get(auth_service.SESSION_COOKIE_NAME)
+    if active_token:
+        await login_devices.revoke_token(active_token)
     remaining = [a for a in await _saved_accounts(request) if a.token != active_token]
     view = await _activate(response, remaining, remaining[0] if remaining else None)
     if view is None:
@@ -435,15 +491,23 @@ async def change_password(
     principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[SessionView]:
-    """改密后旧会话失效，随即为当前会话重新签发 Cookie，操作者本人不被踢出。
+    """改密后本人的其他登录下线，操作者当前这台设备保留不踢。
 
-    失效范围按身份不同（docs/design/member-management.md §3.3）：
-    - 超管：轮换全局签名密钥，**所有端**全部下线（密钥可能泄露时的正确行为）；
-    - 成员：token_version+1，只踢该成员自己的其他设备。
+    失效范围（docs/design/login-devices.md「失效联动」）：
+    - 用密码登录的设备（网页、App、Jellyfin 播放器）：除当前这台外全部注销；
+    - 配对 / 手工创建的（命令行、转码器、手工令牌）：默认保留，
+      ``sign_out_paired`` 为真时一并注销；
+    - 超管另外轮换全局签名密钥（升级前的签名会话、在途取流 token 一并作废）；
+      成员 token_version+1（升级前的签名会话失效）。
 
-    账号袋同步重写（新令牌置顶）：成员改密不影响袋子里的其他账号；超管改密
-    轮换了密钥，袋子里其余令牌随之失效，重写后只剩超管自己。
+    当前请求若来自升级前签发的签名会话 Cookie，它会随改密失效，这里当场为这个
+    浏览器补发一枚新的网页会话，操作者不被踢出。
     """
+    current_id = principal.device.id if principal.device is not None else None
+    families = ("login", "paired") if payload.sign_out_paired else ("login",)
+    # 改密前先把账号袋里的令牌读出来：超管改密会轮换签名密钥，袋子本身的签名
+    # 随之失效——不先读出来，同一浏览器里登着的其他账号就都丢了。
+    bag_before = await _saved_accounts(request)
     if principal.kind == "member" and principal.member_id is not None:
         member = await members_service.change_own_password(
             session,
@@ -451,26 +515,51 @@ async def change_password(
             old_password=payload.old_password,
             new_password=payload.new_password,
         )
-        token, max_age = await auth_service.issue_member_session_token(member)
+        revoked = await login_devices.revoke_for_member(
+            session, principal.member_id, families=families, except_id=current_id
+        )
         refreshed = Principal(
             kind="member",
             name=member.username,
             member_id=member.id,
             is_admin=False,
             member=member,
+            device=principal.device,
+        )
+        view = _member_session_view(member)
+    else:
+        revoked = await auth_service.change_password(
+            payload.old_password,
+            payload.new_password,
+            keep_device_id=current_id,
+            sign_out_paired=payload.sign_out_paired,
+        )
+        refreshed = Principal(kind="admin", name=str(principal), device=principal.device)
+        view = _session_view(await auth_service.get_admin_account())
+
+    if principal.device is None:
+        # 升级前签发的签名会话随改密失效：为这个浏览器补发一枚网页会话
+        token, max_age = await _issue_web_session(
+            request, owner_id=refreshed.owner_id, remember=True
         )
         await _remember_login(request, response, token, max_age, refreshed)
-        return ok(_member_session_view(member), message="密码已修改，其他设备已全部下线")
+    elif principal.device.kind == "web":
+        # 当前会话仍然有效；用改密后的签名密钥重写账号袋，只留仍然有效的账号
+        # （超管改密轮换了密钥，旧袋子的签名已经对不上了）
+        kept: list[SavedAccount] = []
+        for saved in bag_before:
+            try:
+                await auth_service.verify_cookie_token(saved.token, touch=False)
+            except UnauthorizedException:
+                continue
+            kept.append(saved)
+        await _set_accounts_cookie(response, kept)
 
-    await auth_service.change_password(payload.old_password, payload.new_password)
-    token, max_age = await auth_service.issue_session_token(str(principal))
-    await _remember_login(
-        request, response, token, max_age, Principal(kind="admin", name=str(principal))
-    )
-    return ok(
-        _session_view(await auth_service.get_admin_account()),
-        message="密码已修改，其他设备已全部下线",
-    )
+    message = "密码已修改，其他登录已全部下线"
+    paired = [r for r in revoked if login_devices.spec_of(r.kind).family == "paired"]
+    if paired:
+        message += f"，命令行与转码器也已注销（{len(paired)} 台）"
+    return ok(view, message=message)
 
 
 # ---------------------------------------------------------------------------
@@ -534,86 +623,125 @@ async def remove_account(
     target = _find_account(accounts, username)
     if target is None:
         raise NotFoundException("该账号不在本浏览器的已登录列表里")
+    # 从本浏览器移除 = 这个账号在本浏览器退出登录：服务端一并作废这枚会话
+    await login_devices.revoke_token(target.token)
     remaining = [a for a in accounts if a.token != target.token]
     view = await _activate(response, remaining, remaining[0] if remaining else None)
     return ok(view, message="已移除该账号")
 
 
 # ---------------------------------------------------------------------------
-# CLI API 令牌（PAT）管理。管理员专属——PAT 与管理员完全同权，若允许成员
-# 创建即完成提权（docs/design/member-management.md §3.8）。
+# 原生 App 登录：账号密码换一枚设备令牌（docs/design/login-devices.md）
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/device/login",
+    response_model=ApiResponse[DeviceLoginView],
+    summary="原生 App 用账号密码登录，换取设备令牌（明文仅返回这一次）",
+    operation_id="auth.device.login",
+    # 客户端之间的协议端点：mclaw 走配对码，不该出现在命令树里
+    openapi_extra={"x-cli-hidden": True},
+)
+async def device_login(
+    payload: DeviceLoginRequest, request: Request
+) -> ApiResponse[DeviceLoginView]:
+    """App 登录。与网页登录同一套密码校验与限速（连续失败 429），区别只在凭证形态：
+
+    网页拿 HttpOnly Cookie，App 拿一枚设备令牌存进系统钥匙串、每个请求带
+    ``Authorization: Bearer``。令牌长期有效（不再「满 30 天必须重新输密码」），
+    失效只靠注销或改密；这台设备随之出现在「我的设备」里，写明是谁在用。
+    """
+    identity = await auth_service.authenticate(payload.username, payload.password)
+    owner_id = (identity.id or 0) if isinstance(identity, Member) else 0
+    client = payload.client
+    async with get_database().session() as session:
+        token, device = await login_devices.issue(
+            session,
+            member_id=owner_id,
+            kind=client.kind,
+            name=client.name or login_devices.spec_of(client.kind).label,
+            installation_id=client.installation_id,
+            client_version=client.client_version,
+            platform=client.platform,
+            user_agent=request.headers.get("user-agent"),
+            ip=client_address(request) or None,
+        )
+        owners = await _owner_labels(session)
+    assert device.id is not None
+    ref = auth_service.DeviceRef(
+        id=device.id, kind=device.kind, scope=device.scope, name=device.name
+    )
+    if isinstance(identity, Member):
+        session_view = _member_session_view(identity)
+        principal = Principal(
+            kind="member",
+            name=identity.username,
+            member_id=identity.id,
+            is_admin=False,
+            member=identity,
+            device=ref,
+        )
+    else:
+        session_view = _session_view(identity)
+        principal = Principal(kind="admin", name=identity.username, device=ref)
+    session_view.device = DeviceBrief(
+        id=login_devices.playback_device_id(device.id), kind=device.kind, name=device.name
+    )
+    return ok(
+        DeviceLoginView(
+            token=token,
+            device=_device_view(device, principal=principal, owners=owners),
+            session=session_view,
+        ),
+        message="登录成功",
+    )
+
+
+# ---------------------------------------------------------------------------
+# 手工令牌：给没有人能按批准的无人值守环境（定时任务、命令行模式的转码器）
 # ---------------------------------------------------------------------------
 
 
 @router.post(
     "/tokens",
     response_model=ApiResponse[ApiTokenCreatedView],
-    summary="创建 CLI API 令牌（明文仅返回这一次，请立即保存）",
+    summary="手工创建一枚令牌（明文仅返回这一次，请立即保存）",
     dependencies=[Depends(require_admin_session)],
     operation_id="auth.tokens.create",
-    # 签发凭证只能是人在浏览器里的动作，CLI 调不动，也就不该出现在命令树里
+    # 签发凭证只能是人在网页或 App 里的动作，CLI 调不动，也就不该出现在命令树里
     openapi_extra={"x-cli-hidden": True},
 )
 async def create_api_token(payload: ApiTokenCreateRequest) -> ApiResponse[ApiTokenCreatedView]:
-    plaintext, record = await auth_service.create_api_token(payload.name.strip())
+    """令牌归属超管、长期有效，在「设备」列表里与其他设备一起管理和注销。"""
+    plaintext, device = await auth_service.create_manual_token(
+        payload.name.strip(), scope=payload.scope
+    )
+    assert device.id is not None
     return ok(
         ApiTokenCreatedView(
-            id=record.id, name=record.name, created_at=record.created_at, token=plaintext
+            id=login_devices.playback_device_id(device.id),
+            name=device.name,
+            scope=device.scope,
+            created_at=device.created_at,
+            token=plaintext,
         ),
         message="令牌已创建；明文不会再次显示，请立即保存",
     )
 
 
-@router.get(
-    "/tokens",
-    response_model=ApiResponse[list[ApiTokenView]],
-    summary="列出已创建的 CLI API 令牌（仅元信息，不含明文）",
-    dependencies=[Depends(require_admin_session)],
-    operation_id="auth.tokens.list",
-    openapi_extra={"x-cli-hidden": True},
-)
-async def list_api_tokens() -> ApiResponse[list[ApiTokenView]]:
-    records = await auth_service.list_api_tokens()
-    return ok(
-        [
-            ApiTokenView(
-                id=r.id,
-                name=r.name,
-                created_at=r.created_at,
-                client_type=r.client_type,
-                last_used_at=r.last_used_at,
-            )
-            for r in records
-        ]
-    )
-
-
-@router.delete(
-    "/tokens/{token_id}",
-    response_model=ApiResponse[None],
-    summary="吊销一枚 CLI API 令牌（立即失效，不影响其他令牌）",
-    dependencies=[Depends(require_admin_session)],
-    operation_id="auth.tokens.revoke",
-    openapi_extra={"x-cli-dangerous": "confirm", "x-cli-hidden": True},
-)
-async def revoke_api_token(token_id: str) -> ApiResponse[None]:
-    if not await auth_service.revoke_api_token(token_id):
-        raise NotFoundException("令牌不存在或已被吊销")
-    return ok(None, message="令牌已吊销")
-
-
 # ---------------------------------------------------------------------------
-# 设备授权：客户端出示配对码，人在网页上批准
+# 设备授权：客户端出示配对码，人在网页或 App 上批准
 # ---------------------------------------------------------------------------
 #
-# 两个匿名端点是本次唯一新增的匿名可达面（已在 tests/api/test_auth.py 的
-# 公开白名单里登记）。它们必须匿名——设备在拿到令牌之前无凭可用；防滥用靠
+# 两个匿名端点是配对流唯一的匿名可达面（已在 tests/api/test_auth.py 的公开
+# 白名单里登记）。它们必须匿名——设备在拿到令牌之前无凭可用；防滥用靠
 # 服务层的三道约束：单 IP 未决请求上限、轮询退避、挑战全程不落库。
-# 设计见 docs/design/device-auth.md §2。
+# 设计见 docs/design/device-auth.md §2 与 docs/design/login-devices.md「配对」。
 
 
 async def _verification_uri(request: Request) -> str:
-    """用户应当打开的网页地址。
+    """用户应当打开的网页地址（批准页）。
 
     优先用配置好的「外部访问地址」——那是用户平时访问 movieclaw 的地址，
     也是他浏览器里已经登录着的那个源。没配置时回落到本次请求的地址：
@@ -645,16 +773,21 @@ async def authorize_device(
         client_type=payload.client_type,
         client_name=payload.client_name,
         source_ip=client_address(request),
+        installation_id=payload.installation_id,
+        platform=payload.platform,
+        client_version=payload.client_version,
     )
+    uri = await _verification_uri(request)
     return ok(
         DeviceAuthorizeView(
             user_code=challenge.user_code,
             device_code=device_code,
-            verification_uri=await _verification_uri(request),
+            verification_uri=uri,
+            verification_uri_complete=f"{uri}?code={challenge.user_code}",
             interval=auth_service.DEVICE_POLL_INTERVAL_SECONDS,
             expires_in=auth_service.DEVICE_CODE_TTL_SECONDS,
         ),
-        message="请在浏览器里核对配对码并批准",
+        message="请在浏览器或 App 里核对配对码并批准",
     )
 
 
@@ -680,7 +813,7 @@ async def redeem_device_token(
 
     if result.status == "pending":
         response.status_code = 202
-        return ok(None, code="AUTHORIZATION_PENDING", message="等待用户在浏览器里批准")
+        return ok(None, code="AUTHORIZATION_PENDING", message="等待用户在浏览器或 App 里批准")
     if result.status == "slow_down":
         response.status_code = 429
         return ok(None, code="SLOW_DOWN", message="轮询过快，请按 interval 退避后重试")
@@ -689,62 +822,67 @@ async def redeem_device_token(
     if result.status == "expired":
         raise BadRequestException("配对码已过期或不存在，请重新发起配对")
 
-    assert result.token is not None and result.record is not None  # status == "granted"
+    assert result.token is not None and result.device is not None  # status == "granted"
     return ok(
         DeviceTokenView(
             token=result.token,
-            client_name=result.record.name,
-            client_type=result.record.client_type,
-            granted_by=result.record.owner_kind,
+            client_name=result.device.name,
+            client_type=result.device.kind,
+            granted_by=result.approver_name or "",
         ),
         message="配对成功；令牌明文不会再次显示，请立即保存",
     )
 
 
 @router.get(
-    "/devices/requests",
-    response_model=ApiResponse[list[DeviceRequestView]],
-    summary="列出待批准的设备接入请求",
-    dependencies=[Depends(require_admin_session)],
-    operation_id="auth.devices.requests",
+    "/devices/requests/{user_code}",
+    response_model=ApiResponse[DeviceRequestView],
+    summary="按配对码查看一条待批准的接入请求",
+    dependencies=[Depends(require_interactive)],
+    operation_id="auth.devices.request",
     openapi_extra={"x-cli-hidden": True},
 )
-async def list_device_requests() -> ApiResponse[list[DeviceRequestView]]:
-    """网页审批卡的数据源。当前只有超管能看、能批准（device-auth.md §4.4）。"""
-    now = time.monotonic()
+async def get_device_request(user_code: str) -> ApiResponse[DeviceRequestView]:
+    """批准页的数据源：只显示用户手里这个配对码对应的一条（不列出全部待批准请求）。"""
+    challenge = auth_service.get_device_request(user_code)
     return ok(
-        [
-            DeviceRequestView(
-                user_code=ch.user_code,
-                client_type=ch.client_type,
-                client_name=ch.client_name,
-                source_ip=ch.source_ip,
-                expires_in=max(0, int(ch.expires_at - now)),
-            )
-            for ch in auth_service.list_device_requests()
-        ]
+        DeviceRequestView(
+            user_code=challenge.user_code,
+            client_type=challenge.client_type,
+            client_name=challenge.client_name,
+            source_ip=challenge.source_ip,
+            expires_in=max(0, int(challenge.expires_at - time.monotonic())),
+            platform=challenge.platform,
+            client_version=challenge.client_version,
+            requires_admin=challenge.client_type == "worker",
+        )
     )
 
 
 @router.post(
     "/devices/requests/{user_code}/approve",
     response_model=ApiResponse[None],
-    summary="批准一台设备接入（此刻才签发令牌）",
-    dependencies=[Depends(require_admin_session)],
+    summary="批准一台设备接入（此刻才签发令牌，令牌归属批准者）",
     operation_id="auth.devices.approve",
     openapi_extra={"x-cli-hidden": True},
 )
-async def approve_device_request(user_code: str) -> ApiResponse[None]:
-    """批准前请核对配对码与设备上显示的一致——这是防钓鱼的唯一一道人工闸。"""
-    challenge = await auth_service.approve_device_request(user_code)
-    return ok(None, message=f"已批准「{challenge.client_name}」接入")
+async def approve_device_request(
+    user_code: str, principal: Principal = Depends(require_interactive)
+) -> ApiResponse[None]:
+    """批准前请核对配对码与设备上显示的一致——这是防钓鱼的唯一一道人工闸。
+
+    谁批准，令牌就是谁的：成员批准自己的命令行，它的权限就是这个成员的权限。
+    转码器只能由超管批准。
+    """
+    challenge = await auth_service.approve_device_request(user_code, principal)
+    return ok(None, message=f"已批准「{challenge.client_name}」以 {principal.name} 的身份接入")
 
 
 @router.post(
     "/devices/requests/{user_code}/deny",
     response_model=ApiResponse[None],
     summary="拒绝一台设备接入",
-    dependencies=[Depends(require_admin_session)],
+    dependencies=[Depends(require_interactive)],
     operation_id="auth.devices.deny",
     openapi_extra={"x-cli-hidden": True},
 )
@@ -752,3 +890,228 @@ async def deny_device_request(user_code: str) -> ApiResponse[None]:
     """拒绝不生成任何令牌，也不在磁盘上留痕。"""
     challenge = auth_service.deny_device_request(user_code)
     return ok(None, message=f"已拒绝「{challenge.client_name}」的接入请求")
+
+
+# ---------------------------------------------------------------------------
+# 我的设备：列表 / 改名 / 注销（docs/design/login-devices.md）
+# ---------------------------------------------------------------------------
+# 管理别人的设备（列出、改名、注销）只能由人在网页或 App 里做
+# （require_interactive）；注销**自己**所有凭证都能做（require_device_principal），
+# 命令行 ``mclaw logout``、转码器「断开并重新配置」都走它。
+
+
+async def _owner_labels(session: AsyncSession) -> dict[int, tuple[str, str]]:
+    """主人 id → (用户名, 昵称)。超管为 0。"""
+    from sqlalchemy import select
+
+    admin = await auth_service.get_admin_account()
+    labels = {0: (admin.username, admin.nickname or admin.username)}
+    for member in (await session.execute(select(Member))).scalars().all():
+        if member.id is not None:
+            labels[member.id] = (member.username, member.nickname or member.username)
+    return labels
+
+
+def _device_view(
+    device: LoginDevice, *, principal: Principal, owners: dict[int, tuple[str, str]]
+) -> LoginDeviceView:
+    assert device.id is not None
+    spec = login_devices.spec_of(device.kind)
+    username, nickname = owners.get(device.member_id, (f"#{device.member_id}", "已删除的成员"))
+    return LoginDeviceView(
+        id=login_devices.playback_device_id(device.id),
+        kind=device.kind,
+        kind_label=spec.label,
+        family=spec.family,
+        name=device.name,
+        scope=device.scope,
+        platform=device.platform,
+        client_version=device.client_version,
+        created_at=device.created_at,
+        last_seen_at=device.last_seen_at,
+        last_seen_ip=device.last_seen_ip,
+        expires_at=device.expires_at,
+        current=principal.device is not None and principal.device.id == device.id,
+        renamable=True,
+        owner_id=device.member_id,
+        owner_username=username,
+        owner_nickname=nickname,
+    )
+
+
+def _jellyfin_view(
+    device: JellyfinDevice, *, owners: dict[int, tuple[str, str]]
+) -> LoginDeviceView:
+    """Jellyfin 播放器（Infuse 等）：凭证仍在自己的表里，只在列表上合并展示。"""
+    assert device.id is not None
+    username, nickname = owners.get(device.member_id, (f"#{device.member_id}", "已删除的成员"))
+    return LoginDeviceView(
+        id=f"jf-{device.id}",
+        kind="jellyfin",
+        kind_label=device.client or "Jellyfin 播放器",
+        family="login",
+        name=device.device_name or device.client or "播放器",
+        scope="full",
+        platform=None,
+        client_version=device.version or None,
+        created_at=device.created_at,
+        last_seen_at=device.last_seen_at,
+        last_seen_ip=None,
+        expires_at=None,
+        current=False,
+        renamable=False,
+        owner_id=device.member_id,
+        owner_username=username,
+        owner_nickname=nickname,
+    )
+
+
+def _sort_key(view: LoginDeviceView) -> tuple[int, float]:
+    """当前设备置顶，其余按最近活跃从新到旧。"""
+    seen = view.last_seen_at or view.created_at
+    return (0 if view.current else 1, -seen.timestamp())
+
+
+def _assert_manageable(principal: Principal, owner_id: int) -> None:
+    """只能管理自己的设备；超管能管理所有人的。"""
+    if principal.is_admin or principal.owner_id == owner_id:
+        return
+    raise NotFoundException("设备不存在或已被注销")
+
+
+async def _find_device(
+    session: AsyncSession, device_id: str
+) -> LoginDevice | JellyfinDevice:
+    """``ld-<n>`` / ``jf-<n>`` → 设备行；找不到一律 404。"""
+    if device_id.startswith("jf-") and device_id[3:].isdigit():
+        row = await session.get(JellyfinDevice, int(device_id[3:]))
+        if row is not None:
+            return row
+    elif (parsed := login_devices.parse_playback_device_id(device_id)) is not None:
+        found = await login_devices.get_device(session, parsed)
+        if found is not None:
+            return found
+    raise NotFoundException("设备不存在或已被注销")
+
+
+@router.get(
+    "/devices",
+    response_model=ApiResponse[list[LoginDeviceView]],
+    summary="我的设备：登录着我的账号的浏览器、App、命令行、转码器与播放器",
+    operation_id="auth.devices.list",
+    openapi_extra={"x-cli-hidden": True},
+)
+async def list_devices(
+    principal: Principal = Depends(require_interactive),
+    session: AsyncSession = Depends(get_session),
+    all_members: bool = Query(
+        default=False, alias="all", description="管理员查看全部成员的设备"
+    ),
+) -> ApiResponse[list[LoginDeviceView]]:
+    """当前设备置顶，其余按最近活跃排序。``all=true`` 仅超管可用，带上每台设备的主人。"""
+    from sqlalchemy import select
+
+    if all_members and not principal.is_admin:
+        raise ForbiddenException("只有管理员能查看全部成员的设备")
+    owner_filter = None if all_members else principal.owner_id
+    owners = await _owner_labels(session)
+    views = [
+        _device_view(row, principal=principal, owners=owners)
+        for row in await login_devices.list_devices(session, member_id=owner_filter)
+    ]
+    stmt = select(JellyfinDevice)
+    if owner_filter is not None:
+        stmt = stmt.where(JellyfinDevice.member_id == owner_filter)
+    views.extend(
+        _jellyfin_view(row, owners=owners) for row in (await session.execute(stmt)).scalars()
+    )
+    views.sort(key=_sort_key)
+    return ok(views)
+
+
+@router.get(
+    "/devices/current",
+    response_model=ApiResponse[LoginDeviceView],
+    summary="当前这台设备（命令行 mclaw status 用）",
+    operation_id="auth.devices.current",
+    openapi_extra={"x-cli-hidden": True},
+)
+async def current_device(
+    principal: Principal = Depends(require_device_principal),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[LoginDeviceView]:
+    if principal.device is None:
+        raise NotFoundException("当前登录不是设备凭证（升级前的旧网页会话），重新登录后即可查看")
+    device = await login_devices.get_device(session, principal.device.id)
+    if device is None:
+        raise NotFoundException("设备不存在或已被注销")
+    return ok(_device_view(device, principal=principal, owners=await _owner_labels(session)))
+
+
+@router.delete(
+    "/devices/current",
+    response_model=ApiResponse[None],
+    summary="注销当前这台设备（退出登录 / 断开配对）",
+    operation_id="auth.devices.revoke_current",
+    openapi_extra={"x-cli-dangerous": "confirm", "x-cli-hidden": True},
+)
+async def revoke_current_device(
+    principal: Principal = Depends(require_device_principal),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[None]:
+    """所有凭证都能注销自己：命令行 ``mclaw logout``、App 退出登录、转码器断开配对。"""
+    if principal.device is None:
+        raise NotFoundException("当前登录不是设备凭证（升级前的旧网页会话），请直接退出登录")
+    device = await login_devices.get_device(session, principal.device.id)
+    if device is None:
+        raise NotFoundException("设备不存在或已被注销")
+    await login_devices.revoke(session, device)
+    return ok(None, message=f"已注销「{device.name}」")
+
+
+@router.patch(
+    "/devices/{device_id}",
+    response_model=ApiResponse[LoginDeviceView],
+    summary="给设备改名",
+    operation_id="auth.devices.rename",
+    openapi_extra={"x-cli-hidden": True},
+)
+async def rename_device(
+    device_id: str,
+    payload: RenameDeviceRequest,
+    principal: Principal = Depends(require_interactive),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[LoginDeviceView]:
+    device = await _find_device(session, device_id)
+    _assert_manageable(principal, device.member_id)
+    if isinstance(device, JellyfinDevice):
+        raise BadRequestException("播放器的名字由它自己上报，不能在这里修改")
+    device = await login_devices.rename(session, device, payload.name)
+    return ok(
+        _device_view(device, principal=principal, owners=await _owner_labels(session)),
+        message="设备已改名",
+    )
+
+
+@router.delete(
+    "/devices/{device_id}",
+    response_model=ApiResponse[None],
+    summary="注销一台设备（凭证立即失效，正在播放与转码的一并停止）",
+    operation_id="auth.devices.revoke",
+    openapi_extra={"x-cli-dangerous": "confirm", "x-cli-hidden": True},
+)
+async def revoke_device(
+    device_id: str,
+    principal: Principal = Depends(require_interactive),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[None]:
+    """只能注销自己的设备，超管能注销任何人的。注销是唯一的事后止损手段，立即生效。"""
+    device = await _find_device(session, device_id)
+    _assert_manageable(principal, device.member_id)
+    if isinstance(device, JellyfinDevice):
+        from movieclaw_api.services.playback_activity import revoke_device as revoke_player
+
+        label = await revoke_player(session, device.device_id)
+        return ok(None, message=f"已注销「{label or device.device_name}」")
+    await login_devices.revoke(session, device)
+    return ok(None, message=f"已注销「{device.name}」")

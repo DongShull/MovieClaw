@@ -26,6 +26,7 @@ from movieclaw_api.schemas.playback import (
     PlaybackFileSpec,
 )
 from movieclaw_api.services import auth as auth_service
+from movieclaw_api.services import login_devices
 from movieclaw_api.services.media_scrape import asset_version
 from movieclaw_api.services.playback.session import get_session_manager
 
@@ -34,6 +35,7 @@ from movieclaw_api.services.playback_up_next import _progress_percent, _runtime_
 from movieclaw_db.models import (
     JellyfinDevice,
     LibraryFile,
+    LoginDevice,
     MediaEpisode,
     MediaItem,
     MediaMetadata,
@@ -359,10 +361,15 @@ async def media_activity_overview(
     names_needed = {s.member_id for s in play_sessions}
     names_needed.update(m.member_id for m in download_meters)
 
-    # 只有持 Jellyfin 设备凭据的会话才能「注销」；网页播放器走登录会话，
-    # 没有可撤销的设备凭据，前端据此隐藏菜单
+    # 持有可注销凭证的会话才能「注销」：Jellyfin 播放器的设备凭据，以及登录
+    # 设备（新的网页会话、App，设备标识是 ld-<id>）。升级前的旧网页会话没有
+    # 设备凭证，前端据此隐藏菜单
     revocable_device_ids = set(
         (await session.execute(select(JellyfinDevice.device_id))).scalars()
+    )
+    revocable_device_ids.update(
+        login_devices.playback_device_id(row_id)
+        for row_id in (await session.execute(select(LoginDevice.id))).scalars()
     )
 
     names = await _member_names(session, names_needed)
@@ -564,7 +571,17 @@ async def revoke_device(session: AsyncSession, device_id: str) -> str | None:
        Range 连接，不停就会继续为一台已注销的设备转磁盘。
 
     返回被注销设备的展示名；设备不存在返回 None（调用方给 404）。
+
+    ``ld-<id>`` 是登录设备（网页会话、App）：交给 ``login_devices.revoke``，它做
+    同样的三件事（删凭证、结束实时会话、停掉取流与转码）。
     """
+    login_device_id = login_devices.parse_playback_device_id(device_id)
+    if login_device_id is not None:
+        login_device = await login_devices.get_device(session, login_device_id)
+        if login_device is None:
+            return None
+        await login_devices.revoke(session, login_device)
+        return login_device.name
     device = (
         await session.execute(
             select(JellyfinDevice).where(JellyfinDevice.device_id == device_id)

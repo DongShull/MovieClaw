@@ -25,7 +25,7 @@ _HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete"})
 ArgLocation = Literal["path", "query", "body"]
 
 #: 不进工具面的域：
-#: - mcp 自身——端点不该能增删 MCP 端点（与「签发凭证必须人在浏览器里」同义）。
+#: - mcp 自身——端点不该能增删 MCP 端点（与「签发凭证必须人在网页或 App 里」同义）。
 _EXCLUDED_DOMAINS = frozenset({"mcp"})
 
 #: 不进工具面的单个操作：会话的发起与重跑。理由与 mclaw 工具里的那条硬闸相同——

@@ -483,7 +483,7 @@ _MEMBER_ALLOWLIST = {
     ("POST", "/api/v1/auth/login"),
     ("POST", "/api/v1/auth/logout"),
     # 设备授权的两个协议端点：设备在拿到令牌前无凭可用，必须匿名（成员自然可达）。
-    # 真正的闸在批准那一步——/auth/devices/* 全部挂 require_admin，成员批不了。
+    # 真正的闸在批准那一步：人要在网页或 App 里核对配对码；转码器只有超管批得了。
     ("POST", "/api/v1/auth/device/authorize"),
     ("POST", "/api/v1/auth/device/token"),
     # 个人信息自助（按 Principal 分流到成员表）
@@ -497,6 +497,18 @@ _MEMBER_ALLOWLIST = {
     ("GET", "/api/v1/auth/accounts"),
     ("POST", "/api/v1/auth/accounts/switch"),
     ("DELETE", "/api/v1/auth/accounts/{username}"),
+    # 登录设备（docs/design/login-devices.md）：原生 App 的账号密码登录是公开端点；
+    # 「我的设备」列表 / 改名 / 注销只能管理自己的设备（服务层按主人校验），
+    # 成员也能按配对码批准自己的命令行——令牌的权限就是他自己的权限
+    ("POST", "/api/v1/auth/device/login"),
+    ("GET", "/api/v1/auth/devices"),
+    ("GET", "/api/v1/auth/devices/current"),
+    ("DELETE", "/api/v1/auth/devices/current"),
+    ("PATCH", "/api/v1/auth/devices/{device_id}"),
+    ("DELETE", "/api/v1/auth/devices/{device_id}"),
+    ("GET", "/api/v1/auth/devices/requests/{user_code}"),
+    ("POST", "/api/v1/auth/devices/requests/{user_code}/approve"),
+    ("POST", "/api/v1/auth/devices/requests/{user_code}/deny"),
     # 外观：匿名读取管理员背景；登录成员的图库、当前背景与写操作均按账号隔离
     ("GET", "/api/v1/appearance"),
     ("POST", "/api/v1/appearance/backdrops"),
@@ -718,6 +730,13 @@ def test_every_route_denies_member_overreach(client: TestClient) -> None:
     openapi = client.get("/api/v1/openapi.json").json()
     _use(client, member_cookie)
 
+    # 这几个接口会在服务端作废当前会话（退出登录即作废令牌，docs/design/login-devices.md），
+    # 扫到之后重新登录再继续，否则后面的路由全是 401、测不出越权
+    sign_out_routes = {
+        ("POST", "/api/v1/auth/logout"),
+        ("DELETE", "/api/v1/auth/devices/current"),
+        ("DELETE", "/api/v1/auth/accounts/{username}"),
+    }
     checked = 0
     for path, methods in openapi["paths"].items():
         url = path
@@ -725,7 +744,10 @@ def test_every_route_denies_member_overreach(client: TestClient) -> None:
             url = url.replace(placeholder, dummy)
         assert "{" not in url, f"守护测试不认识路径参数，请补充哑值：{path}"
         for method in methods:
+            _use(client, member_cookie)
             resp = client.request(method.upper(), url)
+            if (method.upper(), path) in sign_out_routes:
+                member_cookie = _login(client, _MEMBER["username"], _MEMBER["password"])
             if (method.upper(), path) in _MEMBER_ALLOWLIST:
                 assert resp.status_code not in (401, 403), (
                     f"成员白名单路由被拒：{method.upper()} {path} → {resp.status_code}。"
