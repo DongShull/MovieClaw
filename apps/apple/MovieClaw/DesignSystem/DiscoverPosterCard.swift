@@ -5,7 +5,7 @@ import UIKit
 ///
 /// 发现页、搜索影视结果、影人作品、详情页相似推荐、媒体库搜索结果（以及后续 AI 卡片）
 /// 都画成同一种海报卡，数据先各自映射成它。字段缺失就不显示（豆瓣轻量搜索没有年份与类型）。
-nonisolated struct DiscoverPosterItem: Identifiable, Hashable, Sendable {
+nonisolated struct DiscoverPosterItem: Identifiable, Hashable, Sendable, Codable {
     /// 服务端签发的稳定引用（`tmdb:movie:550` / `douban:1292052`）；历史快照/本地条目可能没有
     var titleRef: String?
     /// 来源站条目 ID
@@ -74,8 +74,8 @@ nonisolated extension DiscoverPosterItem {
 }
 
 /// 海报角上的斜标
-nonisolated struct DiscoverRibbon: Hashable, Sendable {
-    enum Tone: Hashable { case owned, subscribed }
+nonisolated struct DiscoverRibbon: Hashable, Sendable, Codable {
+    enum Tone: Hashable, Codable { case owned, subscribed }
     var label: String
     var tone: Tone
 }

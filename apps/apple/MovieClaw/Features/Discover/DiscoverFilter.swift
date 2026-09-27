@@ -72,15 +72,24 @@ enum DiscoverFilterDimension: CaseIterable, Identifiable {
 @MainActor
 enum DiscoverGenreCatalog {
     private static var cache: [String: [API.DiscoveryGenreView]] = [:]
+    /// 正在拉的：顶栏菜单会同时建出好几份，并发的调用合并成一次请求
+    private static var inFlight: [String: Task<[API.DiscoveryGenreView]?, Never>] = [:]
 
     static func cached(_ mediaType: String) -> [API.DiscoveryGenreView] { cache[mediaType] ?? [] }
 
     /// 拉取失败返回 nil（其他维度照常可用，类型菜单里给一行失败提示）
     static func load(api: APIClient, mediaType: String) async -> [API.DiscoveryGenreView]? {
         if let hit = cache[mediaType] { return hit }
-        guard let options = try? await api.discoverFilterOptions(mediaType: mediaType) else { return nil }
-        cache[mediaType] = options.genres
-        return options.genres
+        if let pending = inFlight[mediaType] { return await pending.value }
+        let task = Task { () -> [API.DiscoveryGenreView]? in
+            guard let options = try? await api.discoverFilterOptions(mediaType: mediaType) else { return nil }
+            cache[mediaType] = options.genres
+            return options.genres
+        }
+        inFlight[mediaType] = task
+        let genres = await task.value
+        inFlight[mediaType] = nil
+        return genres
     }
 }
 

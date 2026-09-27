@@ -12,6 +12,7 @@ enum SessionPrewarm {
         let owner = PageSnapshots.owner(server: server, username: username)
         let api = APIClient(server: server)
         let canSubscribe = Permissions(session: session).canSubscribe
+        DiscoverSnapshots.adopt(owner: owner, synchronously: landing == .discover)
         var reads = [LibraryHomeStore.shared.adopt(owner: owner, synchronously: landing == .library)]
         if canSubscribe {
             reads.append(SubscriptionIndex.shared.adopt(api: api, owner: username, synchronously: landing == .subscriptions))
@@ -19,7 +20,7 @@ enum SessionPrewarm {
         }
         // 其余页面：快照读好就把它们的首屏图片低优先级解码进内存（后台线程），
         // 启动后马上切过去也不会先出占位底、再渐显
-        let others: [MainTab] = [.library, .subscriptions].filter { $0 != landing && ($0 != .subscriptions || canSubscribe) }
+        let others: [MainTab] = [.library, .subscriptions, .discover].filter { $0 != landing && ($0 != .subscriptions || canSubscribe) }
         let pending = reads.compactMap { $0 }
         Task {
             for read in pending { await read.value }
@@ -28,6 +29,9 @@ enum SessionPrewarm {
         }
         // 落点页面的首屏图片马上开始从磁盘解码进内存，和主界面的搭建同时进行（见 FirstScreenImages）
         switch landing {
+        case .discover:
+            let feed = DiscoverFeed(mediaType: "movie", provider: "tmdb")
+            FirstScreenImages.warm(feed.firstScreenImageURLs(api: api), urgent: true)
         case .library:
             FirstScreenImages.warm(LibraryHomeStore.shared.firstScreenImageURLs(api: api), urgent: true)
         case .subscriptions:
@@ -49,6 +53,8 @@ enum SessionPrewarm {
                 if let subscriptions = SubscriptionIndex.shared.subscriptions {
                     FirstScreenImages.warm(SubscriptionsHomeFeed.shared.firstScreenImageURLs(subscriptions: subscriptions, api: api), urgent: false)
                 }
+            case .discover:
+                FirstScreenImages.warm(DiscoverFeed(mediaType: "movie", provider: "tmdb").firstScreenImageURLs(api: api), urgent: false)
             default:
                 break
             }

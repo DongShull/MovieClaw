@@ -121,7 +121,13 @@ struct MainTabView: View {
                 let wait = step.at - (PerfTrace.now() - PerfTrace.mainStart) / 1000
                 if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
                 if Task.isCancelled { return }
-                router.selectedTab = step.tab
+                if let tab = MainTab(rawValue: step.target) {
+                    router.selectedTab = tab
+                } else {
+                    // 站内路径（如 /discover/tv 切到剧集视角）：页面不换，按路径的首段记一次打开
+                    PerfTrace.pageBegan(String(step.target.split(separator: "/").first ?? ""), trigger: "route")
+                    router.open(webPath: step.target)
+                }
             }
         }
         #endif
@@ -170,8 +176,8 @@ struct MainTabView: View {
             // 刷新走常驻数据的连接池，不和当前页面抢连接
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled, let username = session?.username else { return }
-            let pending = [MainTab.library, .subscriptions].filter { tab in
-                tab != router.selectedTab && (tab == .library || permissions.canSubscribe)
+            let pending = [MainTab.library, .subscriptions, .discover].filter { tab in
+                tab != router.selectedTab && (tab != .subscriptions || permissions.canSubscribe)
             }
             // 一次只预热一个页签：每个在主线程上是一两百毫秒的一整块，分开做、中间留出空档，
             // 不在用户正滑着落地页时连着卡两下
@@ -595,6 +601,7 @@ private struct PageWarmup: View {
             ZStack {
                 if tabs.contains(.library) { LibraryHomeView() }
                 if tabs.contains(.subscriptions) { SubscriptionsView() }
+                if tabs.contains(.discover) { DiscoverView(kind: "movie") }
             }
             .environment(\.pageWarmup, true)
             .opacity(0)

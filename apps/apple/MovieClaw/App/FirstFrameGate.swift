@@ -1,3 +1,4 @@
+import Observation
 import QuartzCore
 
 /// 冷启动首帧闸门：一批「不急」的启动工作等主界面第一帧提交上屏之后再开始。
@@ -10,6 +11,12 @@ import QuartzCore
 /// 判定「提交过」：挂一个 RunLoop 观察者，排在 Core Animation 提交事务（beforeWaiting）之后。
 /// 闸门只开一次，之后 `wait()` 立即返回。
 enum FirstFrameGate {
+    /// 给视图读的开闸状态（可观察）：冷启动落地页据此先画骨架、开闸后下一帧再画完整内容
+    @Observable final class State {
+        fileprivate(set) var opened = false
+    }
+
+    static let state = State()
     private static var opened = false
     private static var waiters: [CheckedContinuation<Void, Never>] = []
     private static var observing = false
@@ -34,6 +41,7 @@ enum FirstFrameGate {
     private static func open() {
         guard !opened else { return }
         opened = true
+        state.opened = true
         PerfTrace.record("gate.firstFrame")
         let pending = waiters
         waiters = []

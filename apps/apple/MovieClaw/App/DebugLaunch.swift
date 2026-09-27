@@ -12,7 +12,7 @@ import Foundation
 ///   `-mcRouteDelay <秒>` 让它等落地页的冷启动请求跑完再开（量起播耗时用）。
 /// - `-mcTab library`：冷启动落在这个页签（代替按身份定的默认落点）；
 /// - `-mcPerf YES`：记录页面打开打点（见 PerfTrace）；`-mcPerfScript "library@4,subscriptions@8"`
-///   按「页签@距 main 的秒数」依次切页签，量切页耗时用。
+///   按「页签或站内路径@距 main 的秒数」依次切换，量切页耗时用。
 ///
 /// 参数经 UserDefaults 的命令行域读取（`-key value` 形式）。
 enum DebugLaunch {
@@ -22,11 +22,12 @@ enum DebugLaunch {
     static var route: String? { UserDefaults.standard.string(forKey: "mcRoute") }
     static var routeDelay: Double? { UserDefaults.standard.object(forKey: "mcRouteDelay").map { _ in UserDefaults.standard.double(forKey: "mcRouteDelay") } }
     static var tab: MainTab? { UserDefaults.standard.string(forKey: "mcTab").flatMap(MainTab.init(rawValue:)) }
-    static var perfScript: [(tab: MainTab, at: Double)] {
+    /// 每步是页签名或站内路径（`/discover/tv` 切到剧集视角）
+    static var perfScript: [(target: String, at: Double)] {
         (UserDefaults.standard.string(forKey: "mcPerfScript") ?? "").split(separator: ",").compactMap { step in
             let parts = step.split(separator: "@")
-            guard parts.count == 2, let tab = MainTab(rawValue: String(parts[0])), let at = Double(parts[1]) else { return nil }
-            return (tab, at)
+            guard parts.count == 2, let at = Double(parts[1]) else { return nil }
+            return (String(parts[0]), at)
         }
     }
 }

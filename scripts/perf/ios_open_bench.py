@@ -55,6 +55,17 @@ SCENARIOS = {
         "args": ["-mcPerfScript", "library@4,subscriptions@8,library@12,subscriptions@16"],
         "duration": 20,
     },
+    # 发现页：冷启动落在发现页（管理员默认落点），第 4 秒切到剧集视角（第一次），
+    # 第 7 秒切媒体库、第 10 秒切回发现（热切换）
+    "discover": {
+        "args": ["-mcPerfScript", "/discover/tv@4,library@7,discover@10"],
+        "duration": 13,
+    },
+    # 从别的页签第一次切到发现页：冷启动落在媒体库，第 4 秒切发现
+    "switch-discover": {
+        "args": ["-mcTab", "library", "-mcPerfScript", "discover@4,library@7,discover@10"],
+        "duration": 13,
+    },
     "switch-early": {
         "args": ["-mcPerfScript", "library@1.5,subscriptions@5,library@9,subscriptions@12"],
         "duration": 16,
