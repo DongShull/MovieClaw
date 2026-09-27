@@ -1061,7 +1061,7 @@ async def current_device(
     "/devices/current",
     response_model=ApiResponse[None],
     summary="注销当前这台设备（退出登录 / 断开配对）",
-    operation_id="auth.devices.revoke_current",
+    operation_id="auth.devices.revoke-current",
     openapi_extra={"x-cli-dangerous": "confirm", "x-cli-hidden": True},
 )
 async def revoke_current_device(

@@ -30,14 +30,14 @@ var knownNonGenerated = []string{
 	// App 里做；「当前设备」与「注销自己」由精选命令 mclaw status / logout 承担
 	"auth.devices.list",
 	"auth.devices.current",
-	"auth.devices.revoke_current",
+	"auth.devices.revoke-current",
 	"auth.devices.rename",
 	"auth.devices.revoke",
 	"auth.devices.request",
 	"auth.devices.approve",
 	"auth.devices.deny",
 	// 让成员在全部设备上下线：同属管理别人的设备，只在网页或 App 的成员管理里做
-	"members.sign_out",
+	"members.sign-out",
 	"images.asset",
 	"images.proxy",
 	"libraries.cover",

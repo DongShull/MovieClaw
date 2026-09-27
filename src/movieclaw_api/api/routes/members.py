@@ -187,7 +187,7 @@ async def reset_member_password(
     "/{member_id}/sign-out",
     response_model=ApiResponse[MemberView],
     summary="让成员在全部设备上下线（网页、App、命令行、播放器；账号本身不动）",
-    operation_id="members.sign_out",
+    operation_id="members.sign-out",
     # 注销别人的设备只能由人在网页或 App 里做（docs/design/login-devices.md「签发权」）
     dependencies=[Depends(require_interactive)],
     openapi_extra={"x-cli-hidden": True},
