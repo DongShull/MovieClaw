@@ -171,10 +171,10 @@ enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
     /// 成员只能看到「个人信息」，其余分区仅超级管理员可见
     var memberVisible: Bool { self == .profile }
 
-    /// 分组（空标题的组不渲染组头）
+    /// 分组（空标题的组不渲染组头）。「个人信息」不列在设置目录里：「我的」页顶部的头像卡
+    /// 就是它的入口（2026-09-27 用户要求去掉重复入口），分区本身与 /settings/profile 深链照旧可用
     static let groups: [(title: String, items: [SettingsSection])] = [
         ("", [.overview]),
-        ("账号", [.profile]),
         ("成员与设备", [.members, .devices]),
         ("资源与下载", [.subscription, .sites, .downloaders, .importWatch]),
         ("媒体库", [.scrape, .playback]),
