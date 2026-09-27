@@ -1,11 +1,26 @@
 from __future__ import annotations
 
+from sqlalchemy import ColumnElement, distinct, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_db.models.base import utcnow
 from movieclaw_db.models.media_item import MediaItem, MediaSeason, MediaSource
 from movieclaw_db.models.media_metadata import MediaEpisode, MediaMetadata
+
+
+def _aired_conditions(
+    media_item_ids: list[int], *, include_specials: bool
+) -> list[ColumnElement[bool]]:
+    """「已播出」的唯一判定：air_date 非空且不晚于今天；可选排除特别季（季 0）。"""
+    conditions: list[ColumnElement[bool]] = [
+        MediaEpisode.media_item_id.in_(media_item_ids),  # type: ignore[attr-defined]
+        MediaEpisode.air_date.is_not(None),  # type: ignore[union-attr]
+        MediaEpisode.air_date <= utcnow().date(),  # type: ignore[operator]
+    ]
+    if not include_specials:
+        conditions.append(MediaEpisode.season_number != 0)  # type: ignore[arg-type]
+    return conditions
 
 
 class MediaItemRepository:
@@ -80,18 +95,36 @@ class MediaItemRepository:
             MediaEpisode.media_item_id,
             MediaEpisode.season_number,
             MediaEpisode.episode_number,
-        ).where(
-            MediaEpisode.media_item_id.in_(media_item_ids),  # type: ignore[attr-defined]
-            MediaEpisode.air_date.is_not(None),  # type: ignore[union-attr]
-            MediaEpisode.air_date <= utcnow().date(),
-        )
-        if not include_specials:
-            statement = statement.where(MediaEpisode.season_number != 0)
+        ).where(*_aired_conditions(media_item_ids, include_specials=include_specials))
         result = await self._session.execute(statement)
         aired: dict[int, set[tuple[int, int]]] = {}
         for media_item_id, season_number, episode_number in result.all():
             aired.setdefault(media_item_id, set()).add((season_number, episode_number))
         return aired
+
+    async def aired_counts_by_season_many(
+        self, media_item_ids: list[int], *, include_specials: bool = False
+    ) -> dict[int, dict[int, int]]:
+        """``aired_units_many`` 的计数版：{条目: {季号: 已播集数}}，口径完全一致。
+
+        只要每季集数的列表页（订阅海报墙）用它：数据库里分组计数，不必把每一集
+        都读成 Python 元组再逐季数一遍——订阅多时那是整个接口最重的一段。
+        """
+        if not media_item_ids:
+            return {}
+        result = await self._session.execute(
+            select(
+                MediaEpisode.media_item_id,
+                MediaEpisode.season_number,
+                func.count(distinct(MediaEpisode.episode_number)),
+            )
+            .where(*_aired_conditions(media_item_ids, include_specials=include_specials))
+            .group_by(MediaEpisode.media_item_id, MediaEpisode.season_number)
+        )
+        counts: dict[int, dict[int, int]] = {}
+        for media_item_id, season_number, count in result.all():
+            counts.setdefault(media_item_id, {})[season_number] = count
+        return counts
 
     async def list_episodes(
         self, media_item_id: int, season_number: int | None = None

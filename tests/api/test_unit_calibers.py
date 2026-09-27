@@ -126,7 +126,49 @@ async def test_aired_and_owned_calibers(db) -> None:
         assert owned_single == {(1, 1), (1, 2)}
         assert owned_many[item.id] == owned_single
 
+        # 计数版（订阅海报墙用）与集合版同一口径：按季数出来的集数就是集合里该季的单元数
+        assert await media_repo.aired_counts_by_season_many([item.id]) == {item.id: {1: 2}}
+        assert await media_repo.aired_counts_by_season_many(
+            [item.id], include_specials=True
+        ) == {item.id: {1: 2, 0: 1}}
+        assert await file_repo.owned_counts_by_season_many([item.id]) == {item.id: {1: 2}}
+
         # 空入参不炸
         assert await media_repo.aired_units_many([]) == {}
         assert await media_repo.list_seasons_many([]) == {}
         assert await file_repo.owned_units_many([]) == {}
+        assert await media_repo.aired_counts_by_season_many([]) == {}
+        assert await file_repo.owned_counts_by_season_many([]) == {}
+
+
+async def test_owned_counts_count_an_episode_once_across_versions(db) -> None:
+    """同一集的 1080p 与 2160p 两个版本（甚至分在两个库）只算一集——
+    计数版必须与集合版的去重口径一致，否则海报墙会写出「已有 3/2 集」。"""
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="库", kind="tv", root_paths=["/a"], match_rules=[]
+        )
+        other = await LibraryRepository(session).create(
+            name="4K 库", kind="tv", root_paths=["/b"], match_rules=[]
+        )
+        item = MediaItem(kind="tv", tmdb_id=2, title="剧", original_title="Show", aliases=[])
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        for library_id, name in ((library.id, "/a/E01.1080p.mkv"), (other.id, "/b/E01.2160p.mkv")):
+            session.add(
+                LibraryFile(
+                    source="scanned",
+                    library_id=library_id,
+                    file_path=name,
+                    size_bytes=1,
+                    media_item_id=item.id,
+                    season_number=1,
+                    episode_number=1,
+                )
+            )
+        await session.commit()
+
+        file_repo = LibraryFileRepository(session)
+        assert await file_repo.owned_units_many([item.id]) == {item.id: {(1, 1)}}
+        assert await file_repo.owned_counts_by_season_many([item.id]) == {item.id: {1: 1}}

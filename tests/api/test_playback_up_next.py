@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest_asyncio
 
@@ -435,6 +435,47 @@ async def test_limit_caps_the_row(db) -> None:
 
         assert len(await _cards(session, {library.id})) == 3
         assert len(await _cards(session, {library.id}, limit=2)) == 2
+
+
+async def test_cards_keep_recency_order_across_batches(db) -> None:
+    """库存与观看状态按批取（凑够 limit 就停）：最近看的一大串都已看完、能出卡的
+    都在后面的批次里时，照样按最近播放的先后凑满，不因为分批漏掉或乱序。"""
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="电影库", kind="movie", root_paths=["/m"]
+        )
+        unfinished: list[int] = []
+        # 30 部：最近看的 25 部都看完了（超过一批），最早的 5 部没看完
+        for index in range(30):
+            movie = MediaItem(
+                kind="movie", tmdb_id=500 + index, title=f"片{index}", original_title=f"M{index}"
+            )
+            session.add(movie)
+            await session.flush()
+            assert library.id and movie.id
+            finished = index >= 5
+            if not finished:
+                unfinished.append(movie.id)
+            session.add_all(
+                [
+                    _file(library.id, movie.id, 0, 0),
+                    _state(
+                        movie.id,
+                        0,
+                        0,
+                        played=finished,
+                        position_ms=0 if finished else 60_000,
+                        at=datetime(2026, 8, 1) + timedelta(hours=index),
+                    ),
+                ]
+            )
+        await session.commit()
+
+        newest_first = list(reversed(unfinished))
+        assert [c.media_item_id for c in await _cards(session, {library.id}, limit=3)] == (
+            newest_first[:3]
+        )
+        assert [c.media_item_id for c in await _cards(session, {library.id})] == newest_first
 
 
 async def test_a_movie_with_metadata_carries_its_runtime_and_aspect(db) -> None:

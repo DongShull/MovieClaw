@@ -97,19 +97,17 @@ class SeasonOverview(BaseModel):
         season: MediaSeason,
         *,
         aired_count: int,
-        owned_units: set[tuple[int, int]] | None = None,
+        owned_count: int = 0,
     ) -> SeasonOverview:
-        """``aired_count`` 由调用方从 media_episode 表统计（集数据唯一事实源）。"""
-        owned = 0
-        if owned_units:
-            owned = sum(1 for s, _e in owned_units if s == season.season_number)
+        """``aired_count`` / ``owned_count`` 由调用方分别从 media_episode 表与库存
+        台账统计（集数据唯一事实源），这里只组装。"""
         return cls(
             season_number=season.season_number,
             name=season.name,
             air_date=season.air_date,
             episode_count=season.episode_count,
             aired_count=aired_count,
-            owned_count=owned,
+            owned_count=owned_count,
         )
 
 

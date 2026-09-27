@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import func
+from typing import Any
+
+from sqlalchemy import Row, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -196,9 +198,17 @@ class SubscriptionRepository:
         return list(result.scalars().all())
 
     async def list_wanted_many(
-        self, subscription_ids: list[int], *, in_scope_only: bool = False
+        self,
+        subscription_ids: list[int],
+        *,
+        in_scope_only: bool = False,
+        statuses: tuple[str, ...] | None = None,
     ) -> list[WantedItem]:
-        """批量读取多条订阅的工单，供首页聚合视图使用，避免逐订阅查询。"""
+        """批量读取多条订阅的工单，供首页聚合视图使用，避免逐订阅查询。
+
+        ``statuses`` 只取这几种状态：已入库工单占绝大多数，整行（带预测 JSON）
+        读成 ORM 对象是首页聚合里最重的一步，不需要它们的调用方应当滤掉。
+        """
         if not subscription_ids:
             return []
         query = select(WantedItem).where(
@@ -206,6 +216,8 @@ class SubscriptionRepository:
         )
         if in_scope_only:
             query = query.where(WantedItem.in_scope.is_(True))  # type: ignore[attr-defined]
+        if statuses is not None:
+            query = query.where(WantedItem.status.in_(statuses))  # type: ignore[attr-defined]
         result = await self._session.execute(
             query.order_by(
                 WantedItem.subscription_id,
@@ -214,6 +226,29 @@ class SubscriptionRepository:
             )
         )
         return list(result.scalars().all())
+
+    async def imported_timings_many(self, subscription_ids: list[int]) -> list[Row[Any]]:
+        """批量读取已入库工单（在范围内）的链路时间戳，供首页估算「投递→入库」耗时。
+
+        只取四列、不建 ORM 对象：这类工单是表里的大头，整行读出来只为算中位数
+        太重。返回的行可按属性名取 ``subscription_id / grabbed_at /
+        downloaded_at / imported_at``。
+        """
+        if not subscription_ids:
+            return []
+        result = await self._session.execute(
+            select(
+                WantedItem.subscription_id,
+                WantedItem.grabbed_at,
+                WantedItem.downloaded_at,
+                WantedItem.imported_at,
+            ).where(
+                WantedItem.subscription_id.in_(subscription_ids),  # type: ignore[union-attr]
+                WantedItem.in_scope.is_(True),  # type: ignore[attr-defined]
+                WantedItem.imported_at.is_not(None),  # type: ignore[union-attr]
+            )
+        )
+        return list(result.all())
 
     async def add_wanted(self, rows: list[WantedItem]) -> None:
         """批量补工单；与订阅行的变更共用调用方的提交时机。"""
