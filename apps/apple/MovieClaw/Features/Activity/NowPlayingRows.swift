@@ -196,7 +196,8 @@ struct ActivityPoster: View {
 ///   客户端版本号不上行（排障用，一行放不下时最先被截断的正是有用的设备名）；
 /// - 传输只留一个实时速率（本地直连在传时）或「网盘直链」；已传输总量、连接数属于排障细节，不上行；
 /// - 进度条下左右两端是已看到的时刻与剩余时长，比「1:23:16 / 2:21:06」更好读。
-/// 左滑「结束播放」；长按菜单：打开影片详情、结束播放、注销此设备（仅持 Jellyfin 凭据的会话）。
+/// 左滑「结束播放」；长按菜单：打开影片详情、结束播放、注销此设备（持有可注销凭证的会话：
+/// Jellyfin 播放器，以及网页与 App 的登录设备，见 docs/design/login-devices.md §7）。
 struct ActivityPlaybackSessionRow: View {
     let session: API.ActivePlaybackSessionView
     let store: MediaActivityStore
