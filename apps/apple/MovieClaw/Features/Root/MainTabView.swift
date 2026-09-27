@@ -28,6 +28,9 @@ struct MainTabView: View {
     @State private var avatarIcon: UIImage?
     /// 正在背后预热的页签（见 PageWarmup）
     @State private var warmupTabs: [MainTab] = []
+    /// 主界面出现之后是否已经在前台过：冷启动用快照直接进主界面时，主界面比场景「变成前台」还早，
+    /// 那一次激活不是「回到前台」，不补做身份校验与更新检查（冷启动那份由 AppModel.revalidate、角标轮询首轮做）
+    @State private var wasActive = false
 
     var body: some View {
         let session = model.session
@@ -132,6 +135,7 @@ struct MainTabView: View {
             // 退出 / 移除当前账号后自动换到了下一个账号：这里才弹得出提示（见 AppModel.pendingNotice）
             if let notice = model.takeNotice() { feedback.success(notice) }
         }
+        .onAppear { if scenePhase == .active { wasActive = true } }
         .onDisappear {
             // 会话过期被打回登录页：记下此刻的位置，重新登录后回到这里（Web 401 → /login?next=原路径）
             model.captureResume(tab: router.selectedTab, path: router.paths[router.selectedTab] ?? [])
@@ -142,6 +146,10 @@ struct MainTabView: View {
             // 回到前台：后台静默重新校验身份与权限（Web AuthGate 每次挂载重取 /auth/me），
             // 管理员顺带刷新待更新快照（Web 窗口获得焦点即刷新）
             guard phase == .active else { return }
+            guard wasActive else {
+                wasActive = true
+                return
+            }
             Task {
                 if let fresh = try? await api.authMe(), fresh.username == session?.username {
                     model.update(session: fresh)

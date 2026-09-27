@@ -18,6 +18,9 @@ struct PollingModifier: ViewModifier {
     @Environment(\.pageWarmup) private var warmup
     /// 离开过前台：回来时要补刷一次
     @State private var missedWhileInactive = false
+    /// 轮询在前台跑过：只有跑过之后离开前台才算「错过」。冷启动用快照直接进主界面时页面比场景
+    /// 「变成前台」还早出现，那一次激活不补刷（页面自己的首载已经在取），否则首载的请求会各多打一遍
+    @State private var wasActive = false
 
     /// 任务身份：前后台与间隔任一变化都重启轮询
     private struct PollingKey: Equatable {
@@ -30,9 +33,10 @@ struct PollingModifier: ViewModifier {
             .task(id: PollingKey(active: scenePhase == .active, seconds: seconds)) {
                 guard !warmup else { return }
                 guard scenePhase == .active else {
-                    missedWhileInactive = true
+                    if wasActive { missedWhileInactive = true }
                     return
                 }
+                wasActive = true
                 if immediately || missedWhileInactive {
                     missedWhileInactive = false
                     await action()
