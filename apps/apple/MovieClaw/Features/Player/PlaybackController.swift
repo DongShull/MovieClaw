@@ -76,6 +76,8 @@ final class PlaybackController {
     private(set) var originMs = 0
     /// 本单元内 MPV 已失败过：不再尝试，直接走系统播放器
     private var mpvFailed = false
+    /// 自研引擎本单元放失败过：回落 MPV（开发期 `-movieclaw.player.engine native` 时才会用到自研引擎）
+    private var nativeFailed = false
     /// 本单元内 MPV 直出原文件失败过（例如多剪辑原盘没有单一原文件）：下次让 MPV 放服务端 HLS
     private var mpvDirectFailed = false
     /// 已因线路不够降到转码档（自动模式下这时交给 AVPlayer 放 HLS）
@@ -271,6 +273,7 @@ final class PlaybackController {
         bufferedEndMs = nil
         nextDismissed = false
         mpvFailed = false
+        nativeFailed = false
         mpvDirectFailed = false
         bandwidthDegraded = false
         failedTiers = []
@@ -424,7 +427,10 @@ final class PlaybackController {
     /// 起播协商的输入（选引擎的规则见类注释；各请求体与能力快照都在主线程算好）
     private func negotiationInputs(startMs: Int?) -> PlaybackAPI.NegotiationInputs {
         let mode: PlaybackAPI.EngineMode
-        if engineOverride == .mpv {
+        if wantsNative {
+            // 自研引擎直出原文件：与 MPV 直出同一套请求（申报全解码，服务端直接给档 0 原文件地址、不起 ffmpeg）
+            mode = .mpv
+        } else if engineOverride == .mpv || engineOverride == .native {
             mode = mpvFailed ? .system : .mpv
         } else if !mpvAvailable {
             mode = .system
@@ -574,7 +580,14 @@ final class PlaybackController {
         // 5. 挂引擎
         trace.mark("建引擎")
         let newEngine: any PlayerEngine
-        if useMPV {
+        if useMPV, original, wantsNative {
+            do {
+                newEngine = try NativeEngine(playsOriginalFile: true)
+            } catch {
+                nativeFallback(reason: error.localizedDescription)
+                return
+            }
+        } else if useMPV {
             do {
                 newEngine = try MPVEngine(playsOriginalFile: original)
             } catch {
@@ -642,6 +655,20 @@ final class PlaybackController {
         errorMessage = message
         errorSuggestion = suggestion
         session = nil
+    }
+
+    /// 这次该不该用自研引擎（开发期强制、且本单元没失败过）
+    private var wantsNative: Bool { engineOverride == .native && !nativeFailed }
+
+    /// 自研引擎放不了：本单元按兜底阶梯改走 MPV 直出（再失败才到服务端 HLS + 系统播放器）
+    private func nativeFallback(reason: String) {
+        nativeFailed = true
+        scope.clientLog("engine-fallback", [
+            "from": .string("native"), "reason": .string(reason),
+            "media_item_id": .int(unit.mediaItemId),
+        ])
+        flash("自研引擎播放失败，已改用 MPV")
+        request(startMs: positionMs, phase: .sessionStarting)
     }
 
     /// MPV 不可用 / 放不了：本单元改走服务端 HLS + 系统播放器
@@ -786,6 +813,16 @@ final class PlaybackController {
             "engine": .string(engine?.kind.rawValue ?? ""), "reason": .string(reason),
             "tier": session.decision.tier.map { .int($0) } ?? .null,
         ])
+        if engine?.kind == .native {
+            if cause == .network, networkRestarts.allowRestart() {
+                // 取流失败（断线、token 过期）：同一引擎原地重开（新会话 = 新 token），不回落
+                scope.clientLog("network-restart", ["reason": .string(reason), "attempt": .int(networkRestarts.consecutive)])
+                request(startMs: positionMs, phase: .sessionStarting)
+                return
+            }
+            nativeFallback(reason: reason)
+            return
+        }
         if engine?.kind == .mpv {
             if playsOriginalFile, session.sessionId != nil || session.decision.tier != 0, !mpvDirectFailed {
                 // 原文件拉不下来（原盘多剪辑、网盘直链失效……）：先让 MPV 改放服务端 HLS 再试一次
@@ -1049,8 +1086,8 @@ final class PlaybackController {
         subtitleTouched = true
         selectedSubtitle = ref
         let target = ref.flatMap { ref in subtitles.options.first { $0.ref == ref } }
-        if engine?.kind == .mpv {
-            // MPV：图形字幕交给 mpv 画，文字字幕由叠加层画（在 applySubtitleToEngine 里分流）
+        if engine?.kind == .mpv || engine?.kind == .native {
+            // MPV / 自研引擎：图形字幕交给引擎画，文字字幕由叠加层画（在 applySubtitleToEngine 里分流）
             applySubtitleToEngine()
             if burnedSubtitle != nil {
                 // MPV 在放烧录过的转码流：撤下烧录
@@ -1085,7 +1122,7 @@ final class PlaybackController {
 
     /// 当前是系统播放器、选中的是图形字幕（PGS）、MPV 可用 → 该换 MPV
     private func shouldSwitchToMPV(forSubtitle ref: String?) -> Bool {
-        guard mpvAvailable, !preferMPV, engine?.kind != .mpv,
+        guard mpvAvailable, !preferMPV, engine?.kind != .mpv, engine?.kind != .native,
               let ref, let option = subtitles.options.first(where: { $0.ref == ref }) else { return false }
         return option.kind == "pgs"
     }

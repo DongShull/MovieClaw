@@ -1600,6 +1600,12 @@ async def stream_library_file(
     file = await session.get(LibraryFile, file_id)
     if file is None:
         raise NotFoundException("文件不存在")
+    # 读完台账立刻把数据库连接还回连接池。FastAPI 的 yield 依赖要等响应**发完**才收尾，
+    # 而直出播放器按 Range 长连接续拉，一条流能挂几十分钟：不在这里提前释放，每条流都一直
+    # 占着一个连接，十几条并发流（一个本机换封装的播放器同时开主读取、尾部预读、字幕预读几路）
+    # 就能耗尽连接池（5 + 溢出 10），整个服务的接口一起卡 30 秒超时（2026-09-27 NAS 实测）。
+    # 往下只用已读出的列，不再访问数据库。
+    await session.close()
     if is_strm(file.file_path):
         remote = resolve_strm_url(file.file_path)
         if remote is None:

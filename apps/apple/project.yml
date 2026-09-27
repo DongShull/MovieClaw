@@ -21,6 +21,18 @@ packages:
   # 绝不能换成 `MPVKit-GPL`（GPL 会传染整个 App 的许可）。
   MPVKit:
     path: Vendor/MPVKit
+  # 自研引擎的内核（LGPL-3.0 + App Store 例外）：FFmpeg 解封装、就地换封装成 HLS 交给 AVPlayer，
+  # AVPlayer 解不了的编码走 FFmpeg 软解 + 系统显示层。设计见 docs/design/player-engine.md。
+  # 钉死版本：上游几乎每天发版，升级前要用语料回归（见设计文档「质量体系」）。
+  AetherEngine:
+    url: https://github.com/superuser404notfound/AetherEngine
+    exactVersion: "7.19.0"
+  # AetherEngine 自带的 FFmpeg（AetherLib* 动态框架，LGPL-2.1，无 GPL 组件）。
+  # 单独声明是为了让 App 目标把这些动态框架嵌进包里（见 MovieClaw 目标的依赖说明）；
+  # 版本必须与 AetherEngine 当前版本要求的一致，升级 AetherEngine 时一起改。
+  FFmpegBuild:
+    url: https://github.com/superuser404notfound/FFmpegBuild
+    exactVersion: "3.6.0"
 configFiles:
   # 开发者团队从本机 Signing.local.xcconfig 读（不入库），见 XcodeConfig/Signing.xcconfig
   Debug: XcodeConfig/Signing.xcconfig
@@ -48,6 +60,12 @@ targets:
         product: NukeUI
       # libmpv 经 MPVCore 动态框架间接引入（LGPL 合规，见下方 MPVCore 目标的说明）
       - target: MPVCore
+      # 自研引擎经 AetherCore 动态框架间接引入（见下方 AetherCore 目标的说明）
+      - target: AetherCore
+      # AetherCore 运行时要加载的 AetherLib* 动态框架：框架目标不会替 App 把它们嵌进包里，由 App 嵌入。
+      # App 自己的代码不调 FFmpeg，链接它们不影响符号绑定（mpv 的 FFmpeg 在 MPVCore 内部已静态解析）
+      - package: FFmpegBuild
+        product: AetherFFmpegBuild
     info:
       path: MovieClaw/Info.plist
       properties:
@@ -103,6 +121,25 @@ targets:
         SKIP_INSTALL: YES
         # OpenGL ES / GLKit 在 iOS 上已标记废弃，但仍是模拟器上唯一可用的 mpv 渲染路径
         GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS: NO
+  # 自研引擎（AetherEngine）的动态框架边界。
+  # 为什么不直接链进 App：同一个 App 里还有 mpv（MPVCore 里静态打着一份 FFmpeg），
+  # AetherEngine 调 avcodec_* 时由链接顺序决定绑到哪一份，绑错了症状像引擎 bug（上游文档「One FFmpeg」）。
+  # 收进独立动态框架后，它的 FFmpeg 引用在这个框架链接时就绑定到自带的 AetherLib* 框架，与 mpv 互不干扰；
+  # 同时也是 LGPL 组件的替换边界。App 只 import AetherCore，不得直接依赖 AetherEngine。
+  AetherCore:
+    type: framework
+    platform: iOS
+    sources:
+      - path: AetherCore
+        type: syncedFolder
+    dependencies:
+      - package: AetherEngine
+        product: AetherEngine
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.movieclaw.aethercore
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
   MovieClawTests:
     type: bundle.unit-test
     platform: iOS

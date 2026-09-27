@@ -74,6 +74,25 @@ struct PlayerScreen: View {
                     created.togglePictureInPicture()
                 }
             }
+            // 引擎验证用：-mcAutoAudio "<秒>:<音轨引用>" 到点自动换音轨；-mcAutoSeek "<秒>:<目标秒>" 到点自动跳转
+            // （量换轨、跳转耗时，见 docs/design/player-engine.md 第 6 节）
+            if let spec = UserDefaults.standard.string(forKey: "mcAutoAudio"), let colon = spec.firstIndex(of: ":"),
+               let after = Double(spec[..<colon]) {
+                let ref = String(spec[spec.index(after: colon)...])
+                Task {
+                    try? await Task.sleep(for: .seconds(after))
+                    FileHandle.standardError.write(Data("[AutoTest] 换音轨 → \(ref)\n".utf8))
+                    created.selectAudio(ref)
+                }
+            }
+            if let spec = UserDefaults.standard.string(forKey: "mcAutoSeek"), let colon = spec.firstIndex(of: ":"),
+               let after = Double(spec[..<colon]), let target = Double(spec[spec.index(after: colon)...]) {
+                Task {
+                    try? await Task.sleep(for: .seconds(after))
+                    FileHandle.standardError.write(Data("[AutoTest] 跳转 → \(Int(target)) 秒\n".utf8))
+                    created.seek(toFileMs: Int(target * 1000))
+                }
+            }
             // 真机排查用：-mcAutoLandscape <秒> 起播后自动切横屏；
             // 再加 -mcAutoRotate <次数> 则之后每 3 秒横竖交替，共转这么多次（测旋转耗时）
             let autoLandscape = UserDefaults.standard.double(forKey: "mcAutoLandscape")

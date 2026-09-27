@@ -334,6 +334,29 @@ def test_direct_play_supports_range_requests(client, tmp_path):
     assert resp.content == b"FAKE-MEDIA-BYTES"
 
 
+def test_direct_play_releases_the_db_connection_before_streaming(client, tmp_path, monkeypatch):
+    """直出流开始发字节时，这个请求已经不占数据库连接。
+
+    直出播放器按 Range 长连接续拉，一条流能挂几十分钟；FastAPI 的 yield 依赖要等响应发完才收尾，
+    若取流期间一直占着连接，十几条并发流就会耗尽连接池，整个服务的接口一起超时（2026-09-27 NAS 实测）。
+    """
+    file_id = seed(client, tmp_path, container="mp4")
+    url = start_session(client, file_id)["stream_url"]
+    pool = get_database().engine.sync_engine.pool
+    checked_out: list[int] = []
+    original = routes_playback.DisconnectAwareFileResponse
+
+    class ProbeResponse(original):
+        async def __call__(self, scope, receive, send):
+            checked_out.append(pool.checkedout())
+            await super().__call__(scope, receive, send)
+
+    monkeypatch.setattr(routes_playback, "DisconnectAwareFileResponse", ProbeResponse)
+    resp = client.get(url, headers={"Range": "bytes=0-15"})
+    assert resp.status_code == 206
+    assert checked_out == [0]
+
+
 def test_strm_entry_redirects_to_cloud_url(client, tmp_path):
     """strm 只允许直连，服务器零流量（硬边界 2）。"""
     file_id = seed(client, tmp_path, container="strm", strm=True)

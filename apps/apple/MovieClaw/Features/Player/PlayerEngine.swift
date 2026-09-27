@@ -6,11 +6,14 @@ enum EngineKind: String {
     case avPlayer = "avplayer"
     /// libmpv（MPVKit LGPL 构建）：MKV/HEVC/TrueHD/DTS 直出，ASS/PGS 由 libass 渲染
     case mpv
+    /// 自研引擎（AetherEngine）：本机把原文件换封装成 HLS 交给 AVPlayer，杜比视界、全景声、画中画都由系统完成
+    case native
 
     var label: String {
         switch self {
         case .avPlayer: "系统播放器（AVPlayer）"
         case .mpv: "MPV（libmpv）"
+        case .native: "自研引擎（AetherEngine）"
         }
     }
 }

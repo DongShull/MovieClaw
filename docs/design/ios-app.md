@@ -104,6 +104,7 @@ PlayerScreen（控制层 UI、手势、字幕叠加、选轨、诊断）
   `LoadingSpeedMeter` / `BandwidthMeter`。
 - 起播链路与流畅度（2026-09-27 秒开优化）：后台一口气完成决策与开会话、MPV 直出申报全解码拿档 0、HLS 列表带 EXT-X-START、AVPlayer 起播不等缓冲、mpv 用 fast 画质档等，改法与实测数字见 [playback-startup.md](playback-startup.md)；起播慢先看 NAS 日志里的「起播分段」一行。
 - LGPL 合规：MPVKit 动态库形式链接；关于页列出 libmpv/FFmpeg 许可与源码地址。
+- 自研引擎（阶段 0 实验，`feat/ios-player-engine`）：`NativeEngine` 经 AetherCore 动态框架接入 AetherEngine，本机把原文件换封装成 HLS 交给 AVPlayer；开发期 `-movieclaw.player.engine native` 启用，失败回落 MPV。方向、兜底阶梯与验证清单见 [player-engine.md](player-engine.md)。
 - MPV 真机渲染走 Metal（MoltenVK + gpu-next）：黑底容器铺满播放区，渲染面按视频比例居中摆放，
   横竖屏切换时渲染面随系统旋转动画等比缩放，全程不变形、不黑屏，不重建视频输出。依赖 libmpv 的两个补丁
   （`Vendor/MPVKit/patches/`：渲染面尺寸一变就重排、每帧以交换链实际尺寸为准）。构建产物 `Libmpv.xcframework`
