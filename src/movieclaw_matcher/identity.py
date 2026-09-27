@@ -30,13 +30,20 @@ NER 的正确抽取同样是季全名（这就是该季的官方名，不是抽�
 
 保守原则：**宁可漏（返回 None，等更好的候选/更多信号），绝不静默错配**。
 所有守卫（年份、短别名、类型冲突、覆盖率）都朝"多拒少错"的方向倾斜。
+
+性能口径（「派生数据缓存与必要条件预筛」一节）：调用形态总是「一批候选 × 一批
+条目」逐对判定，只取决于一方的派生数据（候选的片名段、条目的归一化别名）各算
+一次挂在实例上；逐对判定先过一道 C 层子串的必要条件，绝大多数"不是这部剧"的
+组合停在那里。两者都只改快慢，不改判定结论。
 """
 
 from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Callable, Iterable
 from dataclasses import replace
+from typing import TypeVar
 
 from movieclaw_matcher.models import IdentityMatch, MediaIdentity, TorrentCandidate
 
@@ -114,6 +121,102 @@ def _title_segment(text: str) -> str:
     return "".join(parts)
 
 
+# ---------------------------------------------------------------------------
+# 派生数据缓存与必要条件预筛
+# ---------------------------------------------------------------------------
+#
+# 身份匹配的调用形态是「一批候选 × 一批条目」逐对判定：被动匹配是新种 × 全部
+# 订阅，发布预测是种子索引 × 在追剧，换源是新种 × 待换源尝试。旧实现每判一对，
+# 都要把候选的标题、副标题、NER 片名重新分词切段，再把条目的每个别名重新归一化。
+# 这些只取决于其中一方，却被乘上了另一方的数量。候选与条目都是不可变数据类，
+# 派生结果算一次挂在实例的 __dict__ 上即可（functools.cached_property 同一做法，
+# frozen 只拦 __setattr__，不拦直接写 __dict__）。
+#
+# 在此之上再加一道**必要条件**：别名路线的三种命中——覆盖率、短别名整词、季名
+# 组合等式——都要求「归一化后的别名」是某个片名字段归一化文本的连续子串。
+# 片名段是字段归一化文本的前缀（逐 token 拼接到第一个边界标记为止），分词得到
+# 的 token 也是它的连续片段，季名组合则以别名本身开头。所以候选的检索文本里
+# 一个别名都找不到时，_match_alias 必然返回 None，可以直接判不命中，结论与逐项
+# 细查完全一致；绝大多数"不是这部剧"的组合就停在这一次 C 层子串查找上。
+#
+# 同一份检索文本也存进 site_torrent.match_text（写入时算好），发布预测据此在
+# SQLite 里预筛，只把几十行可能相关的种子交给这里细查——两处必须同一口径，
+# 所以检索文本与别名子串都只在本模块定义。
+
+_T = TypeVar("_T")
+_MISSING = object()
+# 检索文本的字段分隔符：不是字母数字，归一化后的别名不可能跨字段命中
+MATCH_TEXT_SEPARATOR = "\x1f"
+
+
+def _memo(obj: object, key: str, compute: Callable[[object], _T]) -> _T:
+    """把只取决于 ``obj`` 的派生数据算一次挂在实例上（obj 须为不可变数据类）。"""
+    cache = obj.__dict__
+    value = cache.get(key, _MISSING)
+    if value is _MISSING:
+        value = cache[key] = compute(obj)
+    return value  # type: ignore[return-value]
+
+
+def match_text(
+    title: str, subtitle: str, titles_zh: Iterable[str] = (), titles_en: Iterable[str] = ()
+) -> str:
+    """候选的「检索文本」：主标题、副标题、NER 中外文片名各自归一化后拼接。
+
+    覆盖 _match_alias 的全部片名来源（片名段、NER 片名段、短别名的分词），
+    是「别名子串必要条件」的判定对象，也是 site_torrent.match_text 列的取值。
+    非字符串的脏值直接跳过（富化数据异常时不让它把整行拖垮）。
+    """
+    parts = [title, subtitle, *titles_zh, *titles_en]
+    return MATCH_TEXT_SEPARATOR.join(
+        normalize_title(part) for part in parts if isinstance(part, str) and part
+    )
+
+
+def candidate_match_text(candidate: TorrentCandidate) -> str:
+    """候选的检索文本（算一次后缓存在实例上）。"""
+    return _memo(
+        candidate,
+        "_match_text",
+        lambda c: match_text(c.title, c.subtitle, c.attrs.titles_zh, c.attrs.titles_en),
+    )
+
+
+def alias_needles(media: MediaIdentity) -> tuple[str, ...]:
+    """别名路线命中的必要条件：候选检索文本里至少要出现其中一条。
+
+    取条目全部别名的归一化形态，去重后再去掉「包含另一条更短别名」的冗余项——
+    "三体第一季" 出现时 "三体" 必然也出现，只留短的那条就够判定"有没有"。
+    返回空元组表示条目没有可用别名，别名路线不可能命中。
+    """
+    return _memo(media, "_alias_needles", _minimal_needles)
+
+
+def _minimal_needles(media: MediaIdentity) -> tuple[str, ...]:
+    ordered = sorted(
+        {needle for needle in (normalize_title(alias) for alias in media.aliases) if needle},
+        key=len,
+    )
+    kept: list[str] = []
+    for needle in ordered:
+        if not any(shorter in needle for shorter in kept):
+            kept.append(needle)
+    return tuple(kept)
+
+
+def may_match(candidate: TorrentCandidate, media: MediaIdentity) -> bool:
+    """``match_identity`` 可能命中的必要条件：外部 ID 相等，或某个别名出现在检索文本里。
+
+    返回 False 时 ``match_identity`` 必然返回 None；返回 True 只表示"值得细查"。
+    """
+    if candidate.imdb_id and media.imdb_id and candidate.imdb_id == media.imdb_id:
+        return True
+    if candidate.douban_id and media.douban_id and candidate.douban_id == media.douban_id:
+        return True
+    text = candidate_match_text(candidate)
+    return any(needle in text for needle in alias_needles(media))
+
+
 def _candidate_segments(candidate: TorrentCandidate) -> list[str]:
     """候选的全部可比对片名段：主标题一段 + 副标题按分隔符拆出的每段。
 
@@ -157,13 +260,23 @@ def _match_alias(candidate: TorrentCandidate, media: MediaIdentity) -> str | Non
     （别名比段还长就当不了子串），但会让短别名的"整段相等"变得廉价——
     一部叫《餐厅》的剧不该因为碎片就认领《中餐厅》的种子。
     """
-    segments = _candidate_segments(candidate) + _ner_title_segments(candidate)
+    # 候选的片名段、条目的季名与归一化别名都只取决于一方，各算一次缓存在实例上
+    # （见「派生数据缓存与必要条件预筛」）；判定逻辑与逐对现算完全相同
+    segments: list[str] = _memo(
+        candidate, "_alias_segments", lambda c: _candidate_segments(c) + _ner_title_segments(c)
+    )
     if not segments:
         return None
-    season_titles = [t for t in (normalize_title(s) for s in media.season_titles) if t]
+    season_titles: list[str] = _memo(
+        media,
+        "_season_needles",
+        lambda m: [t for t in (normalize_title(s) for s in m.season_titles) if t],
+    )
     tokens: set[str] | None = None  # 短别名整词判定用，懒构建
-    for alias in media.aliases:
-        needle = normalize_title(alias)
+    aliases: tuple[tuple[str, str], ...] = _memo(
+        media, "_alias_pairs", lambda m: tuple((a, normalize_title(a)) for a in m.aliases)
+    )
+    for alias, needle in aliases:
         if not needle:
             continue
         # 季名组合等式：片名段**恰好等于**"别名+已知季名"（"中餐厅"+"南洋拾光季"
@@ -180,8 +293,10 @@ def _match_alias(candidate: TorrentCandidate, media: MediaIdentity) -> str | Non
             if candidate.attrs.year is None or candidate.attrs.year != media.year:
                 continue
             if tokens is None:
-                tokens = set(_tokenize(candidate.title)) | set(
-                    _tokenize(candidate.subtitle)
+                tokens = _memo(
+                    candidate,
+                    "_alias_tokens",
+                    lambda c: set(_tokenize(c.title)) | set(_tokenize(c.subtitle)),
                 )
             if needle in tokens:
                 return alias
@@ -193,7 +308,11 @@ def _match_alias(candidate: TorrentCandidate, media: MediaIdentity) -> str | Non
 
 
 def _is_multi_year_movie_pack(candidate: TorrentCandidate) -> bool:
-    """候选是否明确写了跨年份电影合集。"""
+    """候选是否明确写了跨年份电影合集（只取决于候选，结论缓存在实例上）。"""
+    return _memo(candidate, "_multi_year_movie_pack", _scan_multi_year_movie_pack)
+
+
+def _scan_multi_year_movie_pack(candidate: TorrentCandidate) -> bool:
     attrs = candidate.attrs
     text = " ".join(
         (
@@ -231,6 +350,11 @@ def match_identity(
         return _derive_units(candidate, media, confidence="exact_id", alias=None)
 
     # -- 信号二：别名覆盖率匹配 + 年份约束 -----------------------------------
+    # 必要条件先行：一个别名都没出现在检索文本里，别名路线必然不命中，
+    # 省掉逐段覆盖率细查（见「派生数据缓存与必要条件预筛」，结论不变）
+    text = candidate_match_text(candidate)
+    if not any(needle in text for needle in alias_needles(media)):
+        return None
     matched_alias = _match_alias(candidate, media)
     if matched_alias is None:
         return None
