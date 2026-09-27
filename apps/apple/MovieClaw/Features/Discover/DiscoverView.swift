@@ -464,10 +464,11 @@ private struct DiscoverHeroSlide: View {
                         router.present(.subscribe(SubscribeRequest(titleRef: item.resolvedTitleRef, title: item.title)))
                     } label: {
                         Label(sub == nil ? "订阅影片" : "已订阅", systemImage: sub == nil ? "plus" : "checkmark")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 6)
+                            .heroActionLabel()
                     }
+                    // 尺寸统一见 HeroActionButton.swift
                     .buttonStyle(HeroButtonStyle(prominent: sub == nil))
+                    .controlSize(.regular)
                     .padding(.top, 6)
                     .accessibilityLabel(sub == nil ? "订阅影片《\(item.title)》" : "管理《\(item.title)》的订阅")
                     .accessibilityIdentifier("hero-subscribe")

@@ -231,14 +231,13 @@ private struct SubsHomeHeroSlideView: View {
                 router.play(play)
             } label: {
                 Label(slide.resumePercent == nil ? "播放" : "继续播放", systemImage: "play.fill")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 30)
-                    .frame(height: 46)
-                    .background(.white, in: .capsule)
-                    .contentShape(.capsule)
+                    .heroActionLabel()
             }
-            .buttonStyle(SubsHomePressStyle())
+            // 尺寸统一见 HeroActionButton.swift；白底黑字同影片页的播放键
+            .buttonStyle(.glassProminent)
+            .controlSize(.regular)
+            .tint(.white)
+            .foregroundStyle(.black)
             .accessibilityLabel("播放《\(slide.media.title)》\(slide.detail.map { " \($0)" } ?? "")")
             .accessibilityIdentifier("hero-play")
         } else {
@@ -246,12 +245,10 @@ private struct SubsHomeHeroSlideView: View {
                 router.push(.subscription(id: slide.subscriptionId))
             } label: {
                 Text("查看订阅")
-                    .font(.body.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .frame(height: 30)
+                    .heroActionLabel()
             }
             .buttonStyle(.glass)
-            .controlSize(.large)
+            .controlSize(.regular)
             .accessibilityLabel("查看《\(slide.media.title)》的订阅")
             .accessibilityIdentifier("hero-detail")
         }

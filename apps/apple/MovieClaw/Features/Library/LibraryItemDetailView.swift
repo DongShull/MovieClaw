@@ -418,11 +418,12 @@ struct LibraryItemDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Button { play(start: nil) } label: {
                 Label(label, systemImage: "play.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 34)
+                    .heroActionLabel()
+                    .frame(maxWidth: HeroAction.maxWideLabelWidth)
             }
+            // 尺寸统一见 HeroActionButton.swift：与下面两颗次键同为系统 regular 档，主次靠白底与通栏区分
             .buttonStyle(.glassProminent)
+            .controlSize(.regular)
             .tint(.white)
             .foregroundStyle(.black)
             .accessibilityLabel(progressText.map { "\(label)，\($0)" } ?? label)
@@ -430,23 +431,21 @@ struct LibraryItemDetailView: View {
             HStack(spacing: 10) {
                 Button { Task { await toggleFavorite() } } label: {
                     Label(favorite == true ? "已收藏" : "收藏", systemImage: favorite == true ? "heart.fill" : "heart")
-                        .font(.subheadline.weight(.medium))
+                        .heroActionLabel()
                         .foregroundStyle(favorite == true ? Theme.danger : .white.opacity(0.85))
-                        .padding(.horizontal, 6)
-                        .frame(height: 30)
                 }
                 .buttonStyle(.glass)
+                .controlSize(.regular)
                 .disabled(marking)
                 .accessibilityLabel(favorite == true ? "取消收藏\(favoriteLabel)" : "收藏\(favoriteLabel)")
                 .accessibilityIdentifier("item-favorite")
                 Button { Task { await togglePlayed() } } label: {
                     Label(finished ? "已看完" : "标为已看", systemImage: "checkmark")
-                        .font(.subheadline.weight(.medium))
+                        .heroActionLabel()
                         .foregroundStyle(finished ? Theme.success : .white.opacity(0.85))
-                        .padding(.horizontal, 6)
-                        .frame(height: 30)
                 }
                 .buttonStyle(.glass)
+                .controlSize(.regular)
                 .disabled(marking)
                 .accessibilityLabel(finished ? "标记为未看" : "标记为已看")
                 .accessibilityIdentifier("item-played")

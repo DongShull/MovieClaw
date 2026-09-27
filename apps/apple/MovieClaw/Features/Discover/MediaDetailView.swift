@@ -275,7 +275,7 @@ struct MediaDetailView: View {
                                 } icon: {
                                     Image(systemName: "checkmark").foregroundStyle(SubscriptionStatusMeta.color(sub.status))
                                 }
-                                .font(.subheadline.weight(.semibold))
+                                .heroActionLabel()
                             }
                             .buttonStyle(.glass)
                             .accessibilityIdentifier("detail-subscribed")
@@ -283,7 +283,7 @@ struct MediaDetailView: View {
                             Button {
                                 router.present(.subscribe(SubscribeRequest(titleRef: item.titleRef, title: item.title)))
                             } label: {
-                                Label("订阅追踪", systemImage: "bell").font(.subheadline.weight(.semibold))
+                                Label("订阅追踪", systemImage: "bell").heroActionLabel()
                             }
                             .discoverProminentButton()
                             .accessibilityIdentifier("detail-subscribe")
@@ -293,7 +293,7 @@ struct MediaDetailView: View {
                         Button {
                             router.push(.search(.init(q: item.title)))
                         } label: {
-                            Label("搜索资源", systemImage: "magnifyingglass").font(.subheadline.weight(.semibold))
+                            Label("搜索资源", systemImage: "magnifyingglass").heroActionLabel()
                         }
                         .buttonStyle(.glass)
                         .accessibilityIdentifier("detail-search")
@@ -308,6 +308,8 @@ struct MediaDetailView: View {
                         .frame(minHeight: 36)
                     }
                 }
+                // 尺寸统一见 HeroActionButton.swift
+                .controlSize(.regular)
                 .padding(.top, 6)
             }
         }
