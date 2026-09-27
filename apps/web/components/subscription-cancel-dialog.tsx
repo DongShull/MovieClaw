@@ -19,6 +19,13 @@
 import { useEffect, useState } from "react";
 
 import { Modal } from "@/components/modal";
+import {
+  SheetRow,
+  SheetScaffold,
+  SheetSection,
+  SheetToggleRow,
+  useSheetForm,
+} from "@/components/sheet-scaffold";
 import { formatBytes } from "@/lib/format";
 import {
   getSubscriptionRemovalPreview,
@@ -53,6 +60,7 @@ export function SubscriptionCancelDialog({
   const [deleteTorrents, setDeleteTorrents] = useState(false);
   const [deleteLibraryFiles, setDeleteLibraryFiles] = useState(false);
   const [busy, setBusy] = useState(false);
+  const sheetForm = useSheetForm();
 
   // 每次打开都重新拉预览并复位开关：上次勾过的"连媒体库一起删"绝不能
   // 在下一次取消订阅时被默认带上
@@ -87,6 +95,76 @@ export function SubscriptionCancelDialog({
   const torrentCount = preview?.torrent_count ?? 0;
   const fileCount = preview?.library_file_count ?? 0;
   const retention = preview?.recycle_retention_days ?? 7;
+  // 两个清理开关的文案与可用性（桌面勾选框与手机开关行共用）
+  const torrentToggle = {
+    disabled: preview === null || torrentCount === 0,
+    label:
+      preview === null
+        ? "同时删除相关的下载任务"
+        : torrentCount === 0
+          ? "同时删除相关的下载任务（没有可删除的任务）"
+          : `同时删除相关的下载任务（${torrentCount} 个）`,
+    description:
+      torrentCount === 0 ? undefined : "从下载器移除任务，并删除下载目录里的文件，不可恢复。",
+    warning:
+      deleteTorrents && (preview?.hit_and_run_count ?? 0) > 0
+        ? `其中 ${preview?.hit_and_run_count} 个种子仍在 H&R 考核或考核状态未知，删除后可能影响站点考核。`
+        : undefined,
+  };
+  const fileToggle = {
+    disabled: preview === null || fileCount === 0,
+    label:
+      preview === null
+        ? "同时删除媒体库里的资源"
+        : fileCount === 0
+          ? "同时删除媒体库里的资源（媒体库中没有该作品）"
+          : `同时删除媒体库里的资源（${fileCount} 个文件 · ${formatBytes(preview.library_bytes)}）`,
+    description: fileCount === 0 ? undefined : `文件会移入媒体库回收站，${retention} 天内可以恢复。`,
+  };
+
+  // 银玻璃手机端：表单弹层（对齐 iOS SubscriptionCancelSheet）——两个清理项是开关行，
+  // 破坏性确认不放右上 ✓，而是末尾单独一组红色「取消订阅」行；左上 ✕ 即「先不」
+  if (sheetForm) {
+    return (
+      <SheetScaffold
+        open={open}
+        onClose={busy ? () => {} : onClose}
+        title="取消订阅"
+        label={`取消订阅《${title}》`}
+        closeLabel="先不"
+        raised={raised}
+        subtitle={`取消订阅《${title}》将停止追踪剩余内容。默认只取消订阅，已经下载或入库的内容都会保留。`}
+      >
+        <SheetSection
+          footer={
+            (deleteTorrents || deleteLibraryFiles) &&
+            "订阅会立刻取消，清理在后台进行——可以在「任务中心」查看进度和结果。"
+          }
+        >
+          <SheetToggleRow
+            danger
+            checked={deleteTorrents}
+            onChange={setDeleteTorrents}
+            {...torrentToggle}
+          />
+          <SheetToggleRow
+            danger
+            checked={deleteLibraryFiles}
+            onChange={setDeleteLibraryFiles}
+            {...fileToggle}
+          />
+        </SheetSection>
+        <SheetSection>
+          <SheetRow
+            destructive
+            label={busy ? "处理中…" : "取消订阅"}
+            disabled={busy}
+            onClick={() => void submit()}
+          />
+        </SheetSection>
+      </SheetScaffold>
+    );
+  }
 
   return (
     <Modal
@@ -104,42 +182,18 @@ export function SubscriptionCancelDialog({
         <div className="mt-4 space-y-3">
           <CleanupToggle
             checked={deleteTorrents}
-            disabled={preview === null || torrentCount === 0}
+            disabled={torrentToggle.disabled}
             onChange={setDeleteTorrents}
-            label={
-              preview === null
-                ? "同时删除相关的下载任务"
-                : torrentCount === 0
-                  ? "同时删除相关的下载任务（没有可删除的任务）"
-                  : `同时删除相关的下载任务（${torrentCount} 个）`
-            }
-            description={
-              torrentCount === 0
-                ? undefined
-                : "从下载器移除任务，并删除下载目录里的文件，不可恢复。"
-            }
-            warning={
-              deleteTorrents && (preview?.hit_and_run_count ?? 0) > 0
-                ? `其中 ${preview?.hit_and_run_count} 个种子仍在 H&R 考核或考核状态未知，删除后可能影响站点考核。`
-                : undefined
-            }
+            label={torrentToggle.label}
+            description={torrentToggle.description}
+            warning={torrentToggle.warning}
           />
           <CleanupToggle
             checked={deleteLibraryFiles}
-            disabled={preview === null || fileCount === 0}
+            disabled={fileToggle.disabled}
             onChange={setDeleteLibraryFiles}
-            label={
-              preview === null
-                ? "同时删除媒体库里的资源"
-                : fileCount === 0
-                  ? "同时删除媒体库里的资源（媒体库中没有该作品）"
-                  : `同时删除媒体库里的资源（${fileCount} 个文件 · ${formatBytes(preview.library_bytes)}）`
-            }
-            description={
-              fileCount === 0
-                ? undefined
-                : `文件会移入媒体库回收站，${retention} 天内可以恢复。`
-            }
+            label={fileToggle.label}
+            description={fileToggle.description}
           />
         </div>
 

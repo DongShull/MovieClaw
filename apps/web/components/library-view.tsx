@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 
 import type { Route } from "next";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { BrandLoader } from "@/components/brand-loader";
 import { ContentEmptyState } from "@/components/content-empty-state";
@@ -12,11 +13,12 @@ import { LIBRARY_KIND_META } from "@/components/library-kind-meta";
 import {
   FilmIcon,
   GearIcon,
+  LayersIcon,
   ListIcon,
   PlusIcon,
 } from "@/components/icons";
 import { MediaRow } from "@/components/media-row";
-import { PAGE_NAV_BUTTON_CLASS } from "@/components/page-nav";
+import { TopBarMenu } from "@/components/top-bar-menu";
 import type { PosterCardAction } from "@/components/poster-card";
 import { UpNextRow } from "@/components/up-next-row";
 import {
@@ -143,39 +145,53 @@ let lastLoadedHome: {
 
 export function LibraryView({ hero }: { hero?: ReactNode }) {
   const { canManageLibraries } = usePermissions();
-  // 银玻璃手机：页面级动作（自定义首页 / 管理媒体库）按 iOS 导航栏惯例挂到全局
-  // 顶栏右端（与发现页的类型/数据源切换同一机制，见 lib/page-chrome.tsx），页头
-  // 只留标题与统计。Netflix 主题两端与银玻璃桌面维持页头右端的动作区不变。
+  // 银玻璃手机：同原生 App 的媒体库首页（LibraryHomeView.swift）——左上角大字标题
+  // 「媒体库」，页面级动作收成右上角一个 ⋯ 菜单：自定义首页 / 全部合集（常驻，合集页
+  // 在这里总有一条路进得去）/ 管理媒体库（有权限才有）；页头只留统计行。
+  // Netflix 主题两端与银玻璃桌面维持页头标题与右端动作区不变。
   const chrome = usePageChrome();
+  const router = useRouter();
   const isMobile = useIsMobile();
   const isNf = useTheme().structural;
   const actionsInTopBar = isMobile && !isNf;
   const setTopBarActions = chrome?.setTopBarActions;
+  const setTopBarTitle = chrome?.setTopBarTitle;
+  useEffect(() => {
+    if (!actionsInTopBar || !setTopBarTitle) return;
+    return setTopBarTitle("媒体库", { large: true });
+  }, [actionsInTopBar, setTopBarTitle]);
   useEffect(() => {
     if (!actionsInTopBar || !setTopBarActions) return;
     return setTopBarActions(
-      <div className="flex items-center gap-2">
-        <Link
-          href={"/library/customize" as Route}
-          aria-label="自定义首页"
-          title="自定义首页"
-          className={PAGE_NAV_BUTTON_CLASS}
-        >
-          <ListIcon className="size-[18px]" />
-        </Link>
-        {canManageLibraries && (
-          <Link
-            href={"/library/manage" as Route}
-            aria-label="管理媒体库"
-            title="管理媒体库"
-            className={PAGE_NAV_BUTTON_CLASS}
-          >
-            <GearIcon className="size-[18px]" />
-          </Link>
-        )}
-      </div>,
+      <TopBarMenu
+        label="媒体库操作"
+        items={[
+          {
+            id: "customize",
+            label: "自定义首页",
+            Icon: ListIcon,
+            onSelect: () => router.push("/library/customize" as Route),
+          },
+          {
+            id: "collections",
+            label: "全部合集",
+            Icon: LayersIcon,
+            onSelect: () => router.push("/library/collections" as Route),
+          },
+          ...(canManageLibraries
+            ? [
+                {
+                  id: "manage",
+                  label: "管理媒体库",
+                  Icon: GearIcon,
+                  onSelect: () => router.push("/library/manage" as Route),
+                },
+              ]
+            : []),
+        ]}
+      />,
     );
-  }, [actionsInTopBar, canManageLibraries, setTopBarActions]);
+  }, [actionsInTopBar, canManageLibraries, router, setTopBarActions]);
   // 首页的行清单存在界面偏好里（成员各存各的），应用启动时已随全站偏好拉过一次
   const { prefs } = useUiPrefs();
   const homePrefs = prefs.home;
@@ -369,7 +385,9 @@ export function LibraryView({ hero }: { hero?: ReactNode }) {
   // 彻底不可达。这两种情况下把入口抬到页头动作区，保证始终有一条路进得去。
   const librariesRowVisible =
     rows.some((row) => row.kind === "libraries" && !row.hidden) && visibleLibraries.length > 0;
-  const collectionsEntryInHeader = collectionCount > 0 && !librariesRowVisible;
+  // 银玻璃手机上顶栏 ⋯ 菜单里常驻「全部合集」，页头不再需要这个兜底
+  const collectionsEntryInHeader =
+    collectionCount > 0 && !librariesRowVisible && !actionsInTopBar;
 
   // 「我的收藏」的兜底入口：收藏行只有在**有收藏**时才渲染（没有事实不摆控件），
   // 被用户隐藏时也整个不出现——于是「还没有收藏」与「行被隐藏」两种状态下，
@@ -520,9 +538,12 @@ export function LibraryView({ hero }: { hero?: ReactNode }) {
           排序细节与行菜单——调整全部收进自定义页，首页只负责看 */}
       <div className={`flex items-start justify-between gap-4 pt-7 page-inset max-md:pt-4`}>
         <div className="min-w-0">
-          <h2 className="text-on-image text-[26px] font-bold leading-tight tracking-[-0.02em] text-white max-md:text-[21px]">
-            媒体库
-          </h2>
+          {/* 银玻璃手机的标题在顶栏（大字），页头只留统计行 */}
+          {!actionsInTopBar && (
+            <h2 className="text-on-image text-[26px] font-bold leading-tight tracking-[-0.02em] text-white max-md:text-[21px]">
+              媒体库
+            </h2>
+          )}
           <p className="text-on-image mt-1.5 text-ui text-[var(--text-muted)] max-md:mt-1 max-md:line-clamp-2 max-md:text-sub">
             {failed && libraries === null
               ? "暂时无法获取媒体库统计，正在自动重试"

@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 
+import { ActivityMobile } from "@/components/activity-overview";
 import { ActivityIcon } from "@/components/icons";
 import {
   MediaActivityPanel,
@@ -16,7 +17,12 @@ import { usePageChrome } from "@/lib/page-chrome";
 import { usePermissions } from "@/lib/permissions";
 import { useTheme } from "@/lib/ui-prefs";
 import { taskActivityBadge, useTaskActivity } from "@/lib/task-activity";
-import type { ActivityScope, TaskCenterViewName, WatchViewName } from "@/lib/task-center";
+import type {
+  ActivityPageName,
+  ActivityScope,
+  TaskCenterViewName,
+  WatchViewName,
+} from "@/lib/task-center";
 import { useIsMobile } from "@/lib/use-media-query";
 
 /**
@@ -29,15 +35,20 @@ import { useIsMobile } from "@/lib/use-media-query";
  *
  * 一级切换沿用发现页 TMDB/豆瓣 的分段控件形态，不新造交互词汇；两个视角
  * 各自持有数据，来回切不互相打断轮询。
+ *
+ * 银玻璃手机例外：换成原生 App 的「一页总览 + 二级页」（activity-overview.tsx），
+ * `page` 是由 `?view=` 解析出的二级页（null = 总览）。桌面银玻璃与 Netflix 主题不变。
  */
 export function ActivityView({
   initialScope = "media",
   initialView = "all",
   initialWatchView = "playing",
+  page = null,
 }: {
   initialScope?: ActivityScope;
   initialView?: TaskCenterViewName;
   initialWatchView?: WatchViewName;
+  page?: ActivityPageName | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -130,11 +141,29 @@ export function ActivityView({
   // （字标与搜索之间本来就空着），桌面端维持页头右上角。
   const chrome = usePageChrome();
   const isMobile = useIsMobile();
+  // 银玻璃手机：一页总览（大字标题 + 实时摘要），不再有「观看 / 任务」切换器与页内页头
+  const overview = isMobile && !isNf;
   const setTopBarActions = chrome?.setTopBarActions;
   useEffect(() => {
-    if (!isMobile || !setTopBarActions) return;
+    if (!isMobile || overview || !setTopBarActions) return;
     return setTopBarActions(switcher);
-  }, [isMobile, setTopBarActions, switcher]);
+  }, [isMobile, overview, setTopBarActions, switcher]);
+
+  // 总览与二级页共用同一个滚动容器：换页时回到顶部，别停在上一页的滚动位置
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [page]);
+
+  if (overview) {
+    return (
+      <div ref={scrollRef} className="scroll-thin scroll-safe h-full overflow-y-auto pb-10">
+        <div className="mx-auto w-full max-w-[1180px] page-inset pt-2">
+          <ActivityMobile page={page} media={mediaActivity} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="scroll-thin scroll-safe h-full overflow-y-auto pb-10">

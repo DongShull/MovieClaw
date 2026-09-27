@@ -12,13 +12,23 @@ import {
   TaskActionsMenu,
   TaskStatusDot,
 } from "@/components/job-center";
+import {
+  boostCleanupNote,
+  SpeedStat,
+  useBoostCleanup,
+  useBoostPool,
+} from "@/components/activity-boost";
 import { BrandLoader } from "@/components/brand-loader";
-import { useConfirm, useToast } from "@/components/feedback";
+import { useToast } from "@/components/feedback";
 import { HandoffButton } from "@/components/handoff-button";
 import {
+  ArrowDownIcon,
   ChevronRightIcon,
   CheckIcon,
+  ClockIcon,
+  DownloadIcon,
   FilmIcon,
+  GearIcon,
   InfoIcon,
   TvIcon,
   XIcon,
@@ -32,14 +42,6 @@ import {
   type DownloadTask,
   type DownloadTaskSource,
 } from "@/lib/api/downloaders";
-import {
-  type BoostPool,
-  type BoostPoolSite,
-  type BoostPoolTask,
-  cleanupBoostPool,
-  getBoostPool,
-} from "@/lib/api/sites";
-import { boostCleanupSummary, formatCleanupDeadline } from "@/lib/boost-cleanup";
 import { useDownloadTasks } from "@/lib/download-tasks";
 import { formatBytes, formatDuration } from "@/lib/format";
 import { imageUrl } from "@/lib/image-proxy";
@@ -82,26 +84,13 @@ const VIEW_LABELS: { id: TaskCenterViewName; label: string }[] = [
 ];
 
 /**
- * 任务视角：统一“观察入口”，不制造统一状态表。
- * Job 状态来自 MovieClaw 数据库，下载状态来自下载器实时快照，订阅关系仅按
- * infohash 投影视图；各自的取消、重试和入库生命周期仍由原领域负责。
+ * 任务卡片上的各种动作（删种、换种、取消、重试、忽略 / 撤销忽略）及其进行中状态。
  *
- * 页头与一级视角切换由 ActivityView 承担，本组件只渲染状态 tab 与任务内容。
+ * 任务视角（TaskCenterView）与银玻璃手机的活动总览（activity-overview.tsx 的「需要处理」
+ * 分组）共用同一套：两处渲染的是同一批卡片，动作与回执不能各写一份。删除确认框随 hook
+ * 一起返回（`deleteDialog`），调用方挂进自己的树里即可。
  */
-export function TaskCenterView({
-  view,
-  onViewChange,
-}: {
-  view: TaskCenterViewName;
-  onViewChange: (view: TaskCenterViewName) => void;
-}) {
-  const setView = onViewChange;
-  // 选项卡在窄屏横向滚动：深链直达靠后的视图（如媒体库）时，激活项可能整个
-  // 落在可视区之外，用户会以为该视图不存在。挂载与切换时把它滚进来。
-  const activeTabRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    activeTabRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
-  }, [view]);
+export function useTaskCenterActions() {
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [replacingTaskId, setReplacingTaskId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
@@ -111,13 +100,7 @@ export function TaskCenterView({
   const [pendingDeleteTask, setPendingDeleteTask] = useState<DownloadTask | null>(null);
   const toast = useToast();
   const { upsert } = useJobs();
-  const {
-    sources,
-    loading,
-    error,
-    refreshedAt,
-    refresh,
-  } = useDownloadTasks();
+  const { refresh } = useDownloadTasks();
 
   async function removeDownloadTask(task: DownloadTask, deleteFiles: boolean) {
     if (task.downloader_id == null || deletingTaskId != null) return;
@@ -208,13 +191,103 @@ export function TaskCenterView({
     }
   }
 
+  const deleteDialog = pendingDeleteTask && (
+    <DeleteDownloadTaskDialog
+      task={pendingDeleteTask}
+      busy={deletingTaskId === pendingDeleteTask.id}
+      onClose={() => {
+        if (deletingTaskId == null) setPendingDeleteTask(null);
+      }}
+      onConfirm={(deleteFiles) => void removeDownloadTask(pendingDeleteTask, deleteFiles)}
+    />
+  );
+
+  return {
+    deletingTaskId,
+    replacingTaskId,
+    cancellingJobId,
+    retryingJobId,
+    bulkDismissing,
+    undismissingJobId,
+    /** 删种先弹确认（是否连数据一起删），确认框见 deleteDialog */
+    requestDelete: setPendingDeleteTask,
+    replaceStalledTask: (task: DownloadTask) => void replaceStalledTask(task),
+    cancelBackgroundJob: (job: JobView) => void cancelBackgroundJob(job),
+    dismissAllFailed: () => void dismissAllFailed(),
+    restoreDismissedJob: (job: JobView) => void restoreDismissedJob(job),
+    retryHistoricalJob: (job: JobView) => void retryHistoricalJob(job),
+    deleteDialog,
+  };
+}
+
+export type TaskCenterActions = ReturnType<typeof useTaskCenterActions>;
+
+/**
+ * 「需要处理」的完整卡片（下载组卡片 + 作业卡片）：每种故障的补救动作不同（换种、重试、
+ * 交给 AI、删除、忽略），压成一行反而要多点一层，所以任务视角与活动总览都用完整卡片。
+ */
+export function TaskAttentionCards({ actions }: { actions: TaskCenterActions }) {
+  const { ingestJobsByHash, attentionDownloadGroups, standaloneAttentionJobs } = useTaskActivity();
+  return (
+    <>
+      {attentionDownloadGroups.map((group) => (
+        <DownloadTaskGroupCard
+          key={group.key}
+          group={group}
+          ingestJobsByHash={ingestJobsByHash}
+          deletingTaskId={actions.deletingTaskId}
+          replacingTaskId={actions.replacingTaskId}
+          onDelete={actions.requestDelete}
+          onReplace={actions.replaceStalledTask}
+        />
+      ))}
+      {standaloneAttentionJobs.map((job) => (
+        <JobCard key={job.id} job={job} onNavigate={() => undefined} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * 任务视角：统一“观察入口”，不制造统一状态表。
+ * Job 状态来自 MovieClaw 数据库，下载状态来自下载器实时快照，订阅关系仅按
+ * infohash 投影视图；各自的取消、重试和入库生命周期仍由原领域负责。
+ *
+ * 页头与一级视角切换由 ActivityView 承担，本组件只渲染状态 tab 与任务内容。
+ *
+ * `subPage`：银玻璃手机活动总览的二级页（进行中 / 已结束）。页名已在顶栏，状态 tab 不再出现；
+ * 刷流有自己的二级页（activity-boost.tsx），这里不再摆刷流分组。
+ */
+export function TaskCenterView({
+  view,
+  onViewChange,
+  subPage = false,
+}: {
+  view: TaskCenterViewName;
+  onViewChange?: (view: TaskCenterViewName) => void;
+  subPage?: boolean;
+}) {
+  // 选项卡在窄屏横向滚动：深链直达靠后的视图（如媒体库）时，激活项可能整个
+  // 落在可视区之外，用户会以为该视图不存在。挂载与切换时把它滚进来。
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [view]);
+  const actions = useTaskCenterActions();
+  const {
+    sources,
+    loading,
+    error,
+    refreshedAt,
+    refresh,
+  } = useDownloadTasks();
+
   // 页面按“是否需要用户行动”组织，而不是按底层执行器分类。归类与计数由
   // useTaskActivity 统一承担——侧栏角标、一级切换器和这里的状态选项卡必须
   // 用同一份口径，否则同一屏上会出现互相矛盾的数字（见 lib/task-activity）。
   // 每个分区内部仍沿用 Provider 的更新时间倒序，保留最重要的任务在前。
   const {
     ingestJobsByHash,
-    attentionDownloadGroups,
     activeDownloadGroups,
     boostTasks,
     standaloneAttentionJobs,
@@ -225,13 +298,14 @@ export function TaskCenterView({
   } = useTaskActivity();
   const showAttention = view === "all" || view === "attention";
   const showActive = view === "all" || view === "active";
+  const showBoost = showActive && !subPage && boostTasks.length > 0;
   const showHistory = view === "all" || view === "history";
   const hasContentBeforeHistory =
     (showAttention && attentionTotal > 0) || (showActive && activeTotal > 0);
   const visibleCount =
     (showAttention ? attentionTotal : 0) +
     (showActive ? activeTotal : 0) +
-    (showActive && boostTasks.length > 0 ? 1 : 0) +
+    (showBoost ? 1 : 0) +
     (showHistory ? standaloneHistoricalJobs.length : 0);
   const failedSources = sources.filter((source) => source.status !== "active");
   const viewCounts: Partial<Record<TaskCenterViewName, number>> = {
@@ -249,65 +323,54 @@ export function TaskCenterView({
           <SourceWarning sources={failedSources} error={error} />
         )}
 
-        <div className="mt-6 flex items-center gap-3 border-b border-white/[0.08] max-md:mt-5">
-          <div className="scroll-thin flex min-w-0 flex-1 gap-1 overflow-x-auto pb-2">
-            {VIEW_LABELS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                ref={view === item.id ? activeTabRef : undefined}
-                aria-pressed={view === item.id}
-                onClick={() => setView(item.id)}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-ui font-medium transition ${
-                  view === item.id
-                    ? "bg-white/[0.14] text-white"
-                    : "text-[var(--text-muted)] hover:bg-white/[0.06] hover:text-white"
-                }`}
-              >
-                {item.label}
-                {item.id !== "all" && (viewCounts[item.id] ?? 0) > 0 && (
-                  <span className="tnum ml-1.5 text-caption text-white/45">
-                    {viewCounts[item.id]}
-                  </span>
-                )}
-              </button>
-            ))}
+        {!subPage && (
+          <div className="mt-6 flex items-center gap-3 border-b border-white/[0.08] max-md:mt-5">
+            <div className="scroll-thin flex min-w-0 flex-1 gap-1 overflow-x-auto pb-2">
+              {VIEW_LABELS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  ref={view === item.id ? activeTabRef : undefined}
+                  aria-pressed={view === item.id}
+                  onClick={() => onViewChange?.(item.id)}
+                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-ui font-medium transition ${
+                    view === item.id
+                      ? "bg-white/[0.14] text-white"
+                      : "text-[var(--text-muted)] hover:bg-white/[0.06] hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                  {item.id !== "all" && (viewCounts[item.id] ?? 0) > 0 && (
+                    <span className="tnum ml-1.5 text-caption text-white/45">
+                      {viewCounts[item.id]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="shrink-0 pb-2 text-caption text-[var(--text-faint)] max-md:hidden">
+              {refreshedAt
+                ? `${formatRelativeTime(new Date(refreshedAt).toISOString())}更新`
+                : loading
+                  ? "正在读取下载器"
+                  : "等待刷新"}
+            </p>
           </div>
-          <p className="shrink-0 pb-2 text-caption text-[var(--text-faint)] max-md:hidden">
-            {refreshedAt
-              ? `${formatRelativeTime(new Date(refreshedAt).toISOString())}更新`
-              : loading
-                ? "正在读取下载器"
-                : "等待刷新"}
-          </p>
-        </div>
+        )}
 
         {showAttention && attentionTotal > 0 && (
           <TaskAttentionSection
             count={attentionTotal}
             canDismissAll={standaloneAttentionJobs.some((job) => job.status === "failed")}
-            dismissingAll={bulkDismissing}
-            onDismissAll={() => void dismissAllFailed()}
+            dismissingAll={actions.bulkDismissing}
+            onDismissAll={actions.dismissAllFailed}
           >
-            {attentionDownloadGroups.map((group) => (
-              <DownloadTaskGroupCard
-                key={group.key}
-                group={group}
-                ingestJobsByHash={ingestJobsByHash}
-                deletingTaskId={deletingTaskId}
-                replacingTaskId={replacingTaskId}
-                onDelete={setPendingDeleteTask}
-                onReplace={(task) => void replaceStalledTask(task)}
-              />
-            ))}
-            {standaloneAttentionJobs.map((job) => (
-              <JobCard key={job.id} job={job} onNavigate={() => undefined} />
-            ))}
+            <TaskAttentionCards actions={actions} />
           </TaskAttentionSection>
         )}
 
         {showActive && activeTotal > 0 && (
-          <TaskTimelineSection title="现在" count={activeTotal}>
+          <TaskTimelineSection title="现在" count={activeTotal} className={subPage ? "mt-4" : "mt-7"}>
             {activeDownloadGroups.map((group) => (
               <TaskTimelineItem
                 key={group.key}
@@ -316,10 +379,10 @@ export function TaskCenterView({
                 <DownloadTaskGroupFeed
                   group={group}
                   ingestJobsByHash={ingestJobsByHash}
-                  deletingTaskId={deletingTaskId}
-                  replacingTaskId={replacingTaskId}
-                  onDelete={setPendingDeleteTask}
-                  onReplace={(task) => void replaceStalledTask(task)}
+                  deletingTaskId={actions.deletingTaskId}
+                  replacingTaskId={actions.replacingTaskId}
+                  onDelete={actions.requestDelete}
+                  onReplace={actions.replaceStalledTask}
                 />
               </TaskTimelineItem>
             ))}
@@ -330,8 +393,8 @@ export function TaskCenterView({
               >
                 <ActiveJobFeedItem
                   job={job}
-                  cancelling={cancellingJobId === job.id}
-                  onCancel={() => void cancelBackgroundJob(job)}
+                  cancelling={actions.cancellingJobId === job.id}
+                  onCancel={() => actions.cancelBackgroundJob(job)}
                 />
               </TaskTimelineItem>
             ))}
@@ -340,7 +403,7 @@ export function TaskCenterView({
 
         {/* 刷流做种分组：默认折叠，头部常显实时汇总（速度 / 已上传 / 已下载）。
             这些种子没有入库流转语义，不进时间线，也不参与关注判定 */}
-        {showActive && boostTasks.length > 0 && (
+        {showBoost && (
           <BoostTaskSection tasks={boostTasks} onChanged={refresh} />
         )}
 
@@ -349,10 +412,10 @@ export function TaskCenterView({
             jobs={standaloneHistoricalJobs}
             initiallyOpen={view === "history"}
             separated={hasContentBeforeHistory}
-            retryingJobId={retryingJobId}
-            onRetry={(job) => void retryHistoricalJob(job)}
-            undismissingJobId={undismissingJobId}
-            onUndismiss={(job) => void restoreDismissedJob(job)}
+            retryingJobId={actions.retryingJobId}
+            onRetry={actions.retryHistoricalJob}
+            undismissingJobId={actions.undismissingJobId}
+            onUndismiss={actions.restoreDismissedJob}
           />
         )}
 
@@ -365,16 +428,7 @@ export function TaskCenterView({
           </div>
         )}
 
-      {pendingDeleteTask && (
-        <DeleteDownloadTaskDialog
-          task={pendingDeleteTask}
-          busy={deletingTaskId === pendingDeleteTask.id}
-          onClose={() => {
-            if (deletingTaskId == null) setPendingDeleteTask(null);
-          }}
-          onConfirm={(deleteFiles) => void removeDownloadTask(pendingDeleteTask, deleteFiles)}
-        />
-      )}
+      {actions.deleteDialog}
     </>
   );
 }
@@ -452,7 +506,7 @@ function DeleteDownloadTaskDialog({
   );
 }
 
-function SourceWarning({ sources, error }: { sources: DownloadTaskSource[]; error: string | null }) {
+export function SourceWarning({ sources, error }: { sources: DownloadTaskSource[]; error: string | null }) {
   const message = error
     ? error
     : sources
@@ -525,14 +579,16 @@ function TaskAttentionSection({
 function TaskTimelineSection({
   title,
   count,
+  className = "mt-7",
   children,
 }: {
   title: string;
   count: number;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-7" aria-labelledby="active-tasks-title">
+    <section className={className} aria-labelledby="active-tasks-title">
       <div className="mb-3 flex items-center gap-3">
         <h2 id="active-tasks-title" className="text-ui font-semibold text-white/65">
           {title}
@@ -897,44 +953,6 @@ function IngestHistoryFiles({ detail }: { detail: IngestHistoryDetail }) {
 
 /** 历史按本地日期拆成轻量 Feed，首组默认展开，避免完成卡片占满纵向空间。 */
 /**
- * 实时速度的统一配色：上传走 --ok 绿（做种的"战果"），下载走 --info 蓝（"正在进行"），
- * 数值加粗从灰色标签里跳出来。所有来自下载器（qB/Tr）的任务——刷流汇总、刷流单行、
- * 普通任务的实时行——都走这一个组件，保证任务中心里 ↑/↓ 的颜色语义处处一致。
- * glow 只给刷流汇总头部用（折叠时也要一眼可见）；speed 为 0/空时给破折号或灰字占位，
- * 由调用方决定是否渲染占位（固定列需要占位防塌陷，自由流式行则直接不渲染）。
- */
-function SpeedStat({
-  direction,
-  bytesPerSecond,
-  glow = false,
-  placeholder,
-  className,
-}: {
-  direction: "up" | "down";
-  bytesPerSecond: number | null | undefined;
-  glow?: boolean;
-  /** 速度为空/0 时的占位文案；不传则渲染 null */
-  placeholder?: string;
-  className?: string;
-}) {
-  const active = bytesPerSecond != null && bytesPerSecond > 0;
-  if (!active) {
-    return placeholder != null ? (
-      <span className={`tnum text-white/20 ${className ?? ""}`}>{placeholder}</span>
-    ) : null;
-  }
-  const tone =
-    direction === "up"
-      ? `text-[var(--ok)] ${glow ? "drop-shadow-[0_0_6px_rgba(74,222,128,0.45)]" : ""}`
-      : `text-[var(--info)] ${glow ? "drop-shadow-[0_0_6px_rgba(127,176,255,0.45)]" : ""}`;
-  return (
-    <span className={`tnum font-semibold ${tone} ${className ?? ""}`}>
-      {direction === "up" ? "↑" : "↓"} {formatBytes(bytesPerSecond)}/s
-    </span>
-  );
-}
-
-/**
  * 刷流做种分组：默认折叠的 <details>，头部常显最值得关心的实时汇总——
  * ↑/↓ 总速度与已上传/已下载总量；展开后逐种子一行（站点 + 名称 + 状态 +
  * 各自的速度与累计上传）。刷流种子没有媒体身份与入库流转，刻意不渲染
@@ -946,20 +964,8 @@ function SpeedStat({
  * 勾选才立即全删（可能被记 H&R）；还开着刷流的站点会一并关闭。
  */
 function BoostTaskSection({ tasks, onChanged }: { tasks: DownloadTask[]; onChanged: () => void }) {
-  const confirm = useConfirm();
-  const toast = useToast();
-  const [pool, setPool] = useState<BoostPool | null>(null);
-  const [cleaning, setCleaning] = useState(false);
-  // 种子数变化（汰换、清理、新抢入）时重取在池概况：站点开关 / 保留期 / 待删除标注都靠它
-  useEffect(() => {
-    let cancelled = false;
-    getBoostPool()
-      .then((next) => !cancelled && setPool(next))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [tasks.length]);
+  const { pool, setPool } = useBoostPool(tasks);
+  const { cleaning, cleanup } = useBoostCleanup({ onPool: setPool, onChanged });
   const poolSites = new Map((pool?.sites ?? []).map((site) => [site.site_id, site]));
   const taskStates = new Map((pool?.tasks ?? []).map((task) => [task.info_hash.toLowerCase(), task]));
   // 站点状态未知（概况没取到）时按运行中处理，不替用户下「已关闭」的结论
@@ -974,70 +980,6 @@ function BoostTaskSection({ tasks, onChanged }: { tasks: DownloadTask[]; onChang
   const scheduledCount = (pool?.tasks ?? []).filter((t) => t.cleanup_scheduled).length;
   const label =
     offCount === tasks.length ? "刷流已关闭" : pausedCount === tasks.length ? "刷流已暂停" : "刷流做种";
-
-  async function cleanup() {
-    if (cleaning) return;
-    let latest: BoostPool;
-    try {
-      // 先取最新概况再确认：刚关掉刷流 / 保留期刚过，旧数据会讲错后果
-      latest = await getBoostPool();
-      setPool(latest);
-    } catch (e) {
-      toast.error((e as Error).message);
-      return;
-    }
-    const sum = (pick: (site: BoostPoolSite) => number) =>
-      latest.sites.reduce((total, site) => total + pick(site), 0);
-    const count = sum((site) => site.task_count);
-    const protectedCount = sum((site) => site.protected_count);
-    const enabledNames = latest.sites.filter((site) => site.boost_enabled).map((site) => site.site_name);
-    const until = formatCleanupDeadline(
-      latest.sites.map((site) => site.protected_until).filter(Boolean).sort().at(-1),
-    );
-    const bullets = [
-      `从下载器删除 ${count} 个刷流种子及其数据文件（${formatBytes(sum((site) => site.size_bytes))}），无法恢复`,
-      ...(enabledNames.length > 0
-        ? [`${enabledNames.join("、")} 还开着刷流，会一并关闭（否则引擎几分钟内又会拉新种）`]
-        : []),
-      ...(protectedCount > 0
-        ? [
-            `其中 ${protectedCount} 个（${formatBytes(sum((site) => site.protected_bytes))}）还没做满站点要求的做种时长，现在删可能被记 H&R，默认到期后自动删除${until ? `（最晚 ${until}）` : ""}`,
-          ]
-        : []),
-    ];
-    const options = {
-      title: `清理 ${count} 个刷流种子？`,
-      bullets,
-      confirmLabel: enabledNames.length > 0 ? "关闭刷流并清理" : "清理",
-      tone: "danger" as const,
-    };
-    let force = false;
-    if (protectedCount > 0) {
-      const result = await confirm({
-        ...options,
-        checkbox: {
-          label: `保留期内的 ${protectedCount} 个也立即删除`,
-          description: "可能被站点记 H&R（影响账号），只在确定不在乎时勾选。",
-          defaultChecked: false,
-        },
-      });
-      if (!result.ok) return;
-      force = result.checked;
-    } else if (!(await confirm(options))) {
-      return;
-    }
-    setCleaning(true);
-    try {
-      const result = await cleanupBoostPool({ force });
-      toast.success(boostCleanupSummary(result));
-      onChanged();
-      setPool(await getBoostPool());
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setCleaning(false);
-    }
-  }
 
   const sum = (pick: (task: DownloadTask) => number | null) =>
     tasks.reduce((total, task) => total + (pick(task) ?? 0), 0);
@@ -1106,7 +1048,7 @@ function BoostTaskSection({ tasks, onChanged }: { tasks: DownloadTask[]; onChang
             <BoostTaskRow
               key={task.id}
               task={task}
-              cleanupNote={cleanupNote(taskStates.get(task.info_hash.toLowerCase()))}
+              cleanupNote={boostCleanupNote(taskStates.get(task.info_hash.toLowerCase()))}
             />
           ))}
         </div>
@@ -1142,13 +1084,6 @@ function BoostTaskSection({ tasks, onChanged }: { tasks: DownloadTask[]; onChang
  * 挂着一排毫无信息量的破折号，还把上行速度挤到要换行。它改成和进度百分比一起跟在
  * 名称后面，只在真的在下载时出现。
  */
-/** 刷流单行的清理备注：已请求清理的种子标出何时自动删除 */
-function cleanupNote(state: BoostPoolTask | undefined): string | null {
-  if (!state?.cleanup_scheduled) return null;
-  const until = formatCleanupDeadline(state.protected_until);
-  return until ? `已请求清理 · ${until} 保留期满后自动删除` : "已请求清理 · 下一轮巡检删除";
-}
-
 function BoostTaskRow({ task, cleanupNote }: { task: DownloadTask; cleanupNote?: string | null }) {
   const downloading = task.state === "downloading";
   const percent = task.progress == null ? null : Math.floor(task.progress * 100);
@@ -2467,6 +2402,130 @@ function EpisodeUnitsLabel({
         )}
       </div>
     </details>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 活动总览（银玻璃手机）的一行摘要：完整过程与全部操作在二级页，行上只露一眼能看懂的
+// 标题 · 一行状态 · 进度条（原生 App 的 ActivityDashboardRows.swift）。放在这里是因为
+// 状态口径（DOWNLOAD_STATE_META / ingestOwnsTaskState / 作业标题）都是任务视角的私有逻辑。
+// ---------------------------------------------------------------------------
+
+/** 一行摘要里的细进度条 */
+function RowProgress({ percent, color }: { percent: number; color: string }) {
+  return (
+    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/[0.08]">
+      <div
+        className="h-full rounded-full transition-[width] duration-700"
+        style={{ width: `${Math.min(100, Math.max(percent > 0 ? 1 : 0, percent))}%`, backgroundColor: color }}
+      />
+    </div>
+  );
+}
+
+/**
+ * 进行中的下载（按作品合并的一组）：下载完成后改报入库进度——下载与入库是同一件事的两段。
+ * 「下载中 · ↓ 12.4 MB/s · 剩 6 分钟」；入库时「正在入库 · 整理文件」。
+ */
+export function ActiveDownloadRow({
+  group,
+  ingestJobsByHash,
+}: {
+  group: DownloadTaskGroup;
+  ingestJobsByHash: Map<string, JobView>;
+}) {
+  const task = group.tasks[0];
+  const ingestJob = ingestJobsByHash.get(task.info_hash.toLowerCase()) ?? null;
+  const ingesting = ingestOwnsTaskState(task, ingestJob) && ingestJob != null;
+  const meta = ingesting ? INGEST_STATE_META[ingestJob.status] : DOWNLOAD_STATE_META[task.state];
+  const percent = ingesting
+    ? ingestJob.progress.percent
+    : task.progress == null
+      ? null
+      : task.progress * 100;
+  const status = [
+    meta.label,
+    ...(ingesting
+      ? [ingestJob.progress.message]
+      : [
+          (task.dlspeed_bytes ?? 0) > 0 ? `↓ ${formatBytes(task.dlspeed_bytes ?? 0)}/s` : null,
+          task.state === "downloading" && (task.eta_seconds ?? 0) > 0
+            ? `剩 ${formatDuration(task.eta_seconds ?? 0)}`
+            : null,
+        ]),
+  ].filter(Boolean);
+  const Icon = ingesting || task.state === "completed" ? DownloadIcon : task.state === "downloading" ? ArrowDownIcon : ClockIcon;
+  return (
+    <>
+      <span className="grid w-6 shrink-0 place-items-center" style={{ color: meta.color }}>
+        <Icon className="size-[18px]" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 truncate text-ui font-semibold text-[var(--text)]">{group.title}</span>
+          {group.tasks.length > 1 && (
+            <span className="shrink-0 text-caption text-[var(--text-faint)]">{group.tasks.length} 个资源</span>
+          )}
+          {percent != null && (
+            <span className="tnum ml-auto shrink-0 text-sub font-semibold text-[var(--text-muted)]">
+              {Math.floor(percent)}%
+            </span>
+          )}
+        </span>
+        <span className="tnum mt-0.5 block truncate text-sub text-[var(--text-muted)]">{status.join(" · ")}</span>
+        {percent != null && <RowProgress percent={percent} color={meta.color} />}
+      </span>
+    </>
+  );
+}
+
+/** 进行中的后台作业（扫描、生成字幕、整理入库……） */
+export function ActiveJobRow({ job }: { job: JobView }) {
+  const percent = job.progress.percent;
+  const status = [activeJobStatus(job), job.progress.message].filter(Boolean);
+  return (
+    <>
+      <span className="grid w-6 shrink-0 place-items-center text-[var(--info)]">
+        <GearIcon className="size-[18px]" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 truncate text-ui font-semibold text-[var(--text)]">
+            {jobFeedIdentity(job) || JOB_TYPE_LABELS[job.job_type] || job.job_type}
+          </span>
+          {percent != null && (
+            <span className="tnum ml-auto shrink-0 text-sub font-semibold text-[var(--text-muted)]">
+              {Math.round(percent)}%
+            </span>
+          )}
+        </span>
+        <span className="mt-0.5 block truncate text-sub text-[var(--text-muted)]">{status.join(" · ")}</span>
+        {percent != null && <RowProgress percent={percent} color="var(--info)" />}
+      </span>
+    </>
+  );
+}
+
+/** 最近完成一行：结果图标 · 标题 / 摘要 · 右侧相对时间 */
+export function FinishedJobRow({ job }: { job: JobView }) {
+  const succeeded = job.status === "succeeded";
+  return (
+    <>
+      <span
+        className={`grid w-6 shrink-0 place-items-center ${succeeded ? "text-[var(--ok)]" : "text-[var(--text-faint)]"}`}
+      >
+        {succeeded ? <CheckIcon className="size-[18px]" /> : <XIcon className="size-[18px]" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-ui font-semibold text-[var(--text)]">{historicalJobTitle(job)}</span>
+        <span className="mt-0.5 block truncate text-sub text-[var(--text-muted)]">
+          {buildIngestHistoryDetail(job)?.summary ?? historicalJobSummary(job)}
+        </span>
+      </span>
+      <span className="shrink-0 text-sub text-[var(--text-faint)]">
+        {formatRelativeTime(job.finished_at || job.created_at)}
+      </span>
+    </>
   );
 }
 

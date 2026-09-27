@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { ActivityView } from "@/components/activity-view";
 import {
+  activityPageFromQuery,
   activityScopeFromQuery,
   taskCenterViewFromQuery,
   watchViewFromQuery,
@@ -9,7 +10,10 @@ import {
 
 export const metadata: Metadata = { title: "活动" };
 
-/** 活动（/activity）：观看（媒体库实时活动）与任务（下载/入库/后台作业）两个视角。 */
+/**
+ * 活动（/activity）：观看（媒体库实时活动）与任务（下载/入库/后台作业）两个视角；
+ * 银玻璃手机是一页总览 + 二级页（`page`，见 lib/task-center.ts 的 activityPageFromQuery）。
+ */
 export default async function ActivityPage({
   searchParams,
 }: {
@@ -28,6 +32,7 @@ export default async function ActivityPage({
       initialScope={initialScope}
       initialView={initialView}
       initialWatchView={initialWatchView}
+      page={activityPageFromQuery(query.view)}
     />
   );
 }

@@ -10,7 +10,7 @@ const SIDEBAR_COLLAPSED_KEY = "movieclaw.sidebar-collapsed";
 const SETTINGS_RETURN_KEY = "movieclaw.settings-return";
 
 import { FeedbackProvider } from "@/components/feedback";
-import { ChevronLeftIcon, PencilIcon, PlusIcon } from "@/components/icons";
+import { ChevronLeftIcon } from "@/components/icons";
 import { PAGE_NAV_BUTTON_CLASS } from "@/components/page-nav";
 import { SearchCommand, type SearchSubmitOptions } from "@/components/search-command";
 import { Sidebar } from "@/components/sidebar";
@@ -19,8 +19,13 @@ import { MovieclawMark } from "@/components/brand";
 import { AgentConversationsProvider } from "@/lib/agent-conversations";
 import { useAppNavigationTracking, useBackNavigation } from "@/lib/back-navigation";
 import { BackdropProvider } from "@/lib/backdrop";
-import type { SearchScope } from "@/lib/categories";
-import { PageChromeProvider, isHomeRoute } from "@/lib/page-chrome";
+import type { SearchScope, SearchVertical } from "@/lib/categories";
+import {
+  PageChromeProvider,
+  TOP_BAR_LARGE_TITLE_CLASS,
+  isHomeRoute,
+  type TopBarTitleOptions,
+} from "@/lib/page-chrome";
 import { SearchPrefsProvider } from "@/lib/search-prefs";
 import { buildSearchPath } from "@/lib/search-url";
 import { UiPrefsProvider, useTheme } from "@/lib/ui-prefs";
@@ -97,7 +102,6 @@ function AppShellBody({ children }: { children: React.ReactNode }) {
   const { slots } = useResolvedTheme();
   const SettingsNav = slots.settingsNav;
   const MobileSettingsNav = slots.mobileSettingsNav;
-  const { isAdmin } = usePermissions();
   // 本页是否自带顶栏（详情类页面的 PageNav 会自登记，见 lib/page-chrome.tsx）。
   // 计数而非布尔：路由切换时新旧页面短暂共存，先卸载的那个不能把状态清零。
   const [pageNavCount, setPageNavCount] = useState(0);
@@ -113,23 +117,22 @@ function AppShellBody({ children }: { children: React.ReactNode }) {
     setTopBarActionsState(node);
     return () => setTopBarActionsState((current) => (current === node ? null : current));
   }, []);
-  // 底栏「底部附件」（发现页的电影/剧集切换），同一套按引用撤销的写法
-  const [tabBarAccessory, setTabBarAccessoryState] = useState<React.ReactNode>(null);
-  const setTabBarAccessory = useCallback((node: React.ReactNode) => {
-    setTabBarAccessoryState(node);
-    return () => setTabBarAccessoryState((current) => (current === node ? null : current));
-  }, []);
   // 页面标题顶替顶栏字标（如会话页），见 lib/page-chrome.tsx 的 setTopBarTitle。
   // 存 token 对象而非裸字符串：撤销时按引用比对，新旧页面短暂共存且标题恰好
   // 相同时，先卸载那个的清理不会误清新页面刚挂上的标题。
-  const [topBarTitle, setTopBarTitleState] = useState<{
-    text: string;
-    backHref?: Route;
-  } | null>(null);
-  const setTopBarTitle = useCallback((text: string, options?: { backHref?: Route }) => {
-    const token = { text, backHref: options?.backHref };
+  const [topBarTitle, setTopBarTitleState] = useState<
+    ({ text: string } & TopBarTitleOptions) | null
+  >(null);
+  const setTopBarTitle = useCallback((text: string, options?: TopBarTitleOptions) => {
+    const token = { text, ...options };
     setTopBarTitleState(token);
     return () => setTopBarTitleState((current) => (current === token ? null : current));
+  }, []);
+  // 顶栏左侧的自定义节点（发现页的标题菜单），同一套按引用撤销的写法
+  const [topBarLeading, setTopBarLeadingState] = useState<React.ReactNode>(null);
+  const setTopBarLeading = useCallback((node: React.ReactNode) => {
+    setTopBarLeadingState(node);
+    return () => setTopBarLeadingState((current) => (current === node ? null : current));
   }, []);
 
   const isSettings = pathname.startsWith("/settings");
@@ -249,30 +252,20 @@ function AppShellBody({ children }: { children: React.ReactNode }) {
   // 银玻璃移动端的液态玻璃底栏：Agent 会话页（沉浸路由）不显示——页底是会话
   // 输入行，底栏压上去就挡住了；iOS 信息的会话页同样收起标签栏。
   const showGlassTabBar = isMobile && !isNetflix && !isImmersive;
-  // 新会话：所有形态都进 /new 整页。银玻璃手机曾是从底部升起的撰写面板
-  // （2026-09-24 退役）：从「更多」面板点新会话得先收一张 sheet 再开一张，
-  // 而进一页再按返回回来更顺；整页还与会话页同构，发出第一条消息不跳变。
-  const openCompose = useCallback(() => {
-    router.push("/new" as Route);
-  }, [router]);
   const pageChrome = useMemo(
     () => ({
       registerPageNav,
       onSearch: handleSearch,
-      openCompose,
       setTopBarActions,
       setTopBarTitle,
-      setTabBarAccessory,
-      tabBarAccessory,
+      setTopBarLeading,
     }),
     [
       registerPageNav,
       handleSearch,
-      openCompose,
       setTopBarActions,
       setTopBarTitle,
-      setTabBarAccessory,
-      tabBarAccessory,
+      setTopBarLeading,
     ],
   );
 
@@ -290,7 +283,13 @@ function AppShellBody({ children }: { children: React.ReactNode }) {
           }
           // 设置从「更多」页进（银玻璃是底栏头像页签、Netflix 是「我的」页签）：列表页的
           // 返回在银玻璃下按历史回（多半就是 /my），无历史时两个主题都落「更多 / 我的」页
-          backHref={(isSettingsIndex ? "/my" : "/settings") as Route}
+          // 银玻璃的「个人信息」从「我的」页头像卡进（设置列表里不再单列，同原生 App），
+          // 返回直接回「我的」，不垫一层设置列表
+          backHref={
+            (isSettingsIndex || (!isNetflix && activeSettings === "profile")
+              ? "/my"
+              : "/settings") as Route
+          }
           historyBack={isSettingsIndex && !isNetflix}
         />
         <div className="min-h-0 flex-1">{children}</div>
@@ -405,10 +404,10 @@ function AppShellBody({ children }: { children: React.ReactNode }) {
         {showMobileTopBar && (
           <MobileTopBar
             onSearch={handleSearch}
-            onCompose={isAdmin ? openCompose : undefined}
             actions={topBarActions}
+            leading={topBarLeading}
             title={topBarTitle?.text}
-            backHref={topBarTitle?.backHref}
+            titleOptions={topBarTitle ?? undefined}
           />
         )}
         {/* 主区铺满外壳（absolute 而非 flex 子项）：全站页面清一色是
@@ -425,11 +424,17 @@ function AppShellBody({ children }: { children: React.ReactNode }) {
         body.cmdk-open .app-shell）：面板打开时整个外壳轻微缩放后退，浮层则漂在其上。
         高度同样减 --keyboard-inset：iPad 竖屏走的就是这一支布局，弹起软键盘时
         一样要把外壳收缩到键盘之上（桌面端该值恒为 0）。 */
-      <div className="app-shell viewport-app-height relative z-10 flex w-full gap-3.5 p-3.5">
+      <div
+        className="app-shell viewport-app-height relative z-10 flex w-full gap-3.5 p-3.5"
+        // 侧栏当前宽度：沉浸页（发现 / 订阅首页有 Hero 时）的大图从侧栏底下铺到窗口左沿，
+        // 文字与海报行按它让出侧栏（components/immersive-hero.tsx 的 DESKTOP_IMMERSIVE_FRAME）
+        style={{ "--sidebar-w": !isSettings && sidebarCollapsed ? "68px" : "300px" } as React.CSSProperties}
+      >
         {/* —— 左栏：浮起的玻璃侧栏卡片 ——
           宽度随折叠态动画（仅工作台可折叠；设置模式的分区菜单始终全宽）。 */}
+        {/* relative z-20：沉浸页的大图从侧栏底下穿过，侧栏要压在主区之上 */}
         <aside
-          className={`h-full shrink-0 transition-[width] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
+          className={`relative z-20 h-full shrink-0 transition-[width] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
             !isSettings && sidebarCollapsed ? "w-[68px]" : "w-[300px]"
           }`}
         >
@@ -482,53 +487,59 @@ function pathOfNavId(id: string): Route {
 }
 
 /**
- * 移动端顶栏：左侧（Netflix = M 标回媒体库；银玻璃留空，页面标题挂上来时显示标题）+
- * 页面级控件 + 右侧全局按键（银玻璃 = 新会话「+」（管理员）+ 搜索，搜索在最右；
- * Netflix = 搜索）。
+ * 移动端顶栏：左侧标题位 + 页面级控件 + 右上角搜索。
  *
- * 银玻璃的左上角原本是头像（点开「更多」面板），2026-09-26 与原生 App 一起改成
- * Instagram 式：头像挪进底栏最右的页签（components/glass-tab-bar.tsx），搜索从底栏
- * 尾端的圆钮挪到这里的右上角——常见 App 的搜索都在右上角（用户拍板）。
- * 品牌字标早在 2026-09-24 就被头像替掉（「回发现」由底栏首个页签接管），不再回来。
+ * 左侧（银玻璃，2026-09-27 对齐原生 App）：
+ *   - 标签根页（媒体库 / 订阅 / 活动 / 我的）挂大字标题（setTopBarTitle 的 large），
+ *     即 iOS 标签根页的 `.inlineLarge`：一行粗体大字就在顶栏这 52px 里，不另占一行；
+ *   - 发现页挂的是标题菜单节点（setTopBarLeading：大字「电影 / 剧集」+ 数据源小字 + ⌄）；
+ *   - 深层页（会话页）挂正文字号的小标题，左侧带返回键。
+ * Netflix 手机顶栏形态不动：没有标题时是 M 标回媒体库。
+ *
+ * 右侧：页面注入的控件 → 搜索（最右）。原先管理员在搜索左边还有一颗「+」新会话，
+ * 随原生 App 一起去掉（用户拍板），新会话入口在「我的 → 最近会话」首行。
+ * 搜索按所在标签预选模式（同 App 的 AppTopBar）：发现 / 订阅 → 影视，媒体库 → 媒体库，
+ * 活动 → 资源；只作用于这一次打开，不改写面板记住的上次模式。
  *
  * 为什么是「浮在内容之上」而不是「占一行把内容推下去」：全站有一半页面是
  * 大图氛围页与 Hero 大剧照，顶栏若占位会在画面顶端切出一条硬边。这里做成
  * absolute 的渐隐雾层（同 PageNav 的处理）。内容的让位收口在 globals.css 的
  * 一条 `.app-shell > main` 规则里（安全区 + --mobile-topbar-h），
  * 各页面不必各写各的 padding，新增路由自动继承。
- *
- * 两个主题都不再放 ☰：导航全在底部页签里（银玻璃的抽屉侧栏已随液态玻璃
- * 底栏退役，docs/design/web-themes-mobile/04），顶栏每一格宽度都留给页面级
- * 控件（发现页的电影/剧集 + 数据源切换）。
  */
 function MobileTopBar({
   onSearch,
-  onCompose,
   actions,
+  leading,
   title,
-  backHref,
+  titleOptions,
 }: {
   onSearch: (keyword: string, scope: SearchScope, options?: SearchSubmitOptions) => void;
-  /** 新会话撰写键的回调；不传则不渲染（成员没有 Agent 能力、Netflix 手机顶栏不放） */
-  onCompose?: () => void;
   /** 当前页面挂上来的页面级控件（见 lib/page-chrome.tsx 的 setTopBarActions） */
   actions?: React.ReactNode;
+  /** 当前页面挂上来的左侧节点（见 setTopBarLeading），优先于 title */
+  leading?: React.ReactNode;
   /** 当前页面挂上来的标题：有则显示在左侧（见 setTopBarTitle） */
   title?: string;
-  /** 标题页的返回落点（见 setTopBarTitle 的 backHref）；银玻璃下在标题左侧画返回键 */
-  backHref?: Route;
+  /** 标题的附加选项：返回落点、大字、隐藏搜索 */
+  titleOptions?: TopBarTitleOptions;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const backHref = titleOptions?.backHref;
   const back = useBackNavigation(backHref ?? ("/" as Route));
   const { canSearch } = usePermissions();
   // 雾层色由 globals.css 的 html[data-theme="netflix"] .mobile-topbar 覆盖，组件里不用管。
   const isNetflix = useTheme().structural;
+  const large = titleOptions?.large && !isNetflix;
   return (
     <header className="mobile-topbar pointer-events-none absolute inset-x-0 top-0 z-40">
       <div className="pointer-events-auto flex h-[52px] items-center gap-2 px-3">
-        {title ? (
+        {leading && !isNetflix ? (
+          <div className="flex min-w-0 shrink items-center pl-1">{leading}</div>
+        ) : title ? (
           <>
-            {/* 返回键（银玻璃）：会话页这类深层页在手机上底栏收起、抽屉侧栏已退役，
+            {/* 返回键（银玻璃）：会话页这类深层页在手机上底栏收起，
                 顶栏是唯一能离开的地方；能回就按历史回，回不了落到页面给的地址。
                 Netflix 主题的顶栏形态不动。 */}
             {backHref && !isNetflix && (
@@ -541,16 +552,21 @@ function MobileTopBar({
                 <ChevronLeftIcon className="size-[22px]" />
               </button>
             )}
-            {/* 页面标题顶替字标：min-w-0 + truncate 让超长标题在左缘与右侧控件
+            {/* 页面标题：min-w-0 + truncate 让超长标题在左缘与右侧控件
                 之间安全截断成省略号，绝不把搜索键挤出屏幕或撑破顶栏 */}
-            <h1 className="min-w-0 flex-1 truncate text-body font-semibold tracking-[-0.01em] text-[var(--text)]">
+            <h1
+              className={
+                large
+                  ? `${TOP_BAR_LARGE_TITLE_CLASS} flex-1 pl-1`
+                  : "min-w-0 flex-1 truncate text-body font-semibold tracking-[-0.01em] text-[var(--text)]"
+              }
+            >
               {title}
             </h1>
           </>
         ) : isNetflix ? (
           /* 字标可点区拉到 44px 高（与图标键同标准）——红色内联 SVG 本身保持
-             h-7 的视觉大小（无 actions 时整词 ≈175px 宽、窄屏仍放得下），
-             命中区靠按钮撑起，否则 28px 高的字标在触屏上很难点中。
+             h-7 的视觉大小，命中区靠按钮撑起，否则 28px 高的字标在触屏上很难点中。
              Netflix 主题没有首页：字标回媒体库（原内容首页已并入）。 */
           <button
             type="button"
@@ -558,47 +574,41 @@ function MobileTopBar({
             aria-label="回到媒体库"
             className="flex h-11 shrink-0 items-center transition-opacity active:opacity-60"
           >
-            {/* 全站统一用 M 标：媒体库等没有顶栏控件的页面不再回落到全字标，
-                与发现页等挂控件页面的品牌形态保持一致；全字标 ≈125px 宽，
-                在 390px 视口里会占掉近三分之一顶栏，M 标 24px 方正得下。 */}
+            {/* 全站统一用 M 标：M 标 24px 方正得下，全字标 ≈125px 宽会占掉近三分之一顶栏 */}
             <MovieclawMark className="size-6" />
           </button>
         ) : null}
-        {/* 页面级控件塞在左侧与右侧全局按键之间——那段本来就空着，够放一个分段控件；
-            min-w-0 让它在窄屏上自己收缩，而不是把搜索挤出屏幕。极窄视口
-            （<350px，控件三件套 + 撰写键 + 搜索的宽度预算兜不住）退化为
-            横向可滑：最右的控件被裁一半能看到、能划出来，好过整颗消失。
+        {/* 页面级控件塞在左侧与右侧搜索之间；min-w-0 让它在窄屏上自己收缩，
+            而不是把搜索挤出屏幕。极窄视口退化为横向可滑。
             py + 等量负 my：overflow-x 容器的裁切口按 padding box 算，正
             padding 把上下裁切口往外扩出角标（-top-1）需要的余量，负 margin
             把布局占位原样收回——52px 顶栏的排版不变，角标不再被削顶。 */}
         <div className="ml-auto flex min-w-0 shrink items-center gap-2 overflow-x-auto scroll-none py-1.5 -my-1.5">
           {actions}
-          {/* 新会话撰写键：iOS 信息 / 邮件的 compose 惯例，点开进 /new，四个顶层页与
-              会话页（聊完直接开下一个）都有；与 PageNav 同一副圆形玻璃键。银玻璃用
-              「+」（用户拍板，比撰写图标好看），Netflix 维持原来的光笔 */}
-          {onCompose && (
-            <button
-              type="button"
-              onClick={onCompose}
-              aria-label="新会话"
-              className={`${PAGE_NAV_BUTTON_CLASS} shrink-0`}
-            >
-              {isNetflix ? (
-                <PencilIcon className="size-[20px]" />
-              ) : (
-                <PlusIcon className="size-[22px]" />
-              )}
-            </button>
-          )}
           {/* 搜索固定在最右（右上角）。SearchCommand 自带全局 ⌘K 监听，全站只能挂一份：
               详情页的 PageNav 认领顶栏时本组件不渲染，搜索键改由 PageNav 挂 */}
-          {canSearch && (
+          {canSearch && !(titleOptions?.hideSearch && !isNetflix) && (
             <div className="shrink-0">
-              <SearchCommand onSearch={onSearch} triggerClassName={PAGE_NAV_BUTTON_CLASS} />
+              <SearchCommand
+                onSearch={onSearch}
+                triggerClassName={PAGE_NAV_BUTTON_CLASS}
+                preferredMode={isNetflix ? undefined : searchModeForPath(pathname)}
+              />
             </div>
           )}
         </div>
       </div>
     </header>
   );
+}
+
+/**
+ * 顶栏搜索按所在标签预选的模式（同原生 App 的 AppTopBar）：
+ * 发现 / 订阅 → 影视，媒体库 → 媒体库，活动 → 资源；其余页面沿用面板记住的上次模式。
+ */
+function searchModeForPath(pathname: string): SearchVertical | undefined {
+  if (pathname.startsWith("/discover") || pathname.startsWith("/subscriptions")) return "media";
+  if (pathname.startsWith("/library")) return "library";
+  if (pathname.startsWith("/activity")) return "torrent";
+  return undefined;
 }

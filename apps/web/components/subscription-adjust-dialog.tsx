@@ -21,7 +21,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/feedback";
 import { Modal } from "@/components/modal";
 import { SeasonCleanupDialog } from "@/components/season-cleanup-dialog";
-import { SeasonRow } from "@/components/subscribe-dialog";
+import {
+  SheetMenuRow,
+  SheetNotice,
+  SheetRow,
+  SheetScaffold,
+  SheetSection,
+  useSheetForm,
+} from "@/components/sheet-scaffold";
+import { SeasonChoiceRow, SeasonRow } from "@/components/subscribe-dialog";
 import { listLibraries, type MediaLibrary } from "@/lib/api/libraries";
 import {
   cleanupSubscriptionSeasons,
@@ -49,6 +57,7 @@ export function SubscriptionAdjustDialog({
 }) {
   const { canManageSubscriptions } = usePermissions();
   const toast = useToast();
+  const sheetForm = useSheetForm();
   const isMovie = detail.media.kind === "movie";
   // null = 加载中；[] 也是有效结果（电影没有季）
   const [seasons, setSeasons] = useState<SeasonOverview[] | null>(isMovie ? [] : null);
@@ -207,6 +216,89 @@ export function SubscriptionAdjustDialog({
     );
   }
 
+  // 投递路由预检说明（桌面与手机两套形态共用）
+  const previewNote =
+    preview &&
+    (preview.ok ? (
+      <p className="mt-1.5 text-caption leading-relaxed text-[var(--text-faint)]">
+        {preview.mode === "watch"
+          ? `将投递到自动入库的监听目录 ${preview.path ?? ""}，下载完成后自动整理入库`
+          : // 条目目录由后端按命名模板渲染，前端不自己拼名字
+            `将直接下载到库内目录 ${preview.entry_dir ?? preview.path ?? ""}，完成后自动入账`}
+      </p>
+    ) : (
+      <p className="mt-1.5 rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-caption leading-relaxed text-amber-200">
+        {preview.warning}
+      </p>
+    ));
+  const saveDisabled = busy || !dirty || (!isMovie && selectedSeasons.size === 0);
+  const droppedNote = droppedWithProgress.length > 0 && (
+    <>
+      第 {droppedWithProgress.join("、")} 季已有下载进度：保存只让它退出追踪
+      （停止进度关联、缺失搜索与自动换源），不会动任何文件
+      {canManageSubscriptions && "；保存后会问你要不要顺手清理这一季的内容"}
+    </>
+  );
+
+  // 银玻璃手机端：表单弹层（对齐 iOS SubscriptionAdjustSheet）——保存放头部 ✓，
+  // 季是对勾行、入库库是菜单行，投递预检写在组下脚注
+  if (sheetForm) {
+    return (
+      <SheetScaffold
+        onClose={onClose}
+        title="调整订阅"
+        subtitle={
+          <>
+            《{detail.media.title}》——加季会恢复或补建追踪；减季会让整季退出追踪范围，
+            但不会删除下载器任务、已下载文件或入库内容。
+          </>
+        }
+        confirm={{
+          label: "保存调整",
+          enabled: !saveDisabled,
+          busy,
+          onConfirm: () => void save(),
+        }}
+      >
+        {error && <SheetNotice tone="error">{error}</SheetNotice>}
+        {!isMovie && (
+          <SheetSection title="选择要收录的季" footer="勾选即要整季（含未播集）">
+            {seasons === null ? (
+              <SheetRow label={<span className="text-[var(--text-muted)]">正在加载季集信息…</span>} />
+            ) : (
+              seasons.map((s) => (
+                <SeasonChoiceRow
+                  key={s.season_number}
+                  season={s}
+                  checked={selectedSeasons.has(s.season_number)}
+                  onToggle={() => toggleSeason(s.season_number)}
+                />
+              ))
+            )}
+          </SheetSection>
+        )}
+        {droppedNote && <SheetNotice tone="warn">{droppedNote}</SheetNotice>}
+        {canManageSubscriptions && libraries.length > 0 && (
+          <SheetSection footer={previewNote}>
+            <SheetMenuRow
+              label="入库到"
+              value={libraryId === null ? "route" : String(libraryId)}
+              options={[
+                // 旧订阅 library_id 可能为 null（按默认库路由）：显式占位项，所见即所存
+                { value: "route", label: "（按默认库路由）" },
+                ...libraries.map((l) => ({
+                  value: String(l.id),
+                  label: `${l.name}${l.is_default ? "（默认）" : ""}`,
+                })),
+              ]}
+              onChange={(v) => setLibraryId(v === "route" ? null : Number(v))}
+            />
+          </SheetSection>
+        )}
+      </SheetScaffold>
+    );
+  }
+
   return (
     <Modal open onClose={onClose} label="调整订阅" width="lg" panelClassName="max-h-[76dvh]">
       {/* 头部常驻 */}
@@ -250,11 +342,9 @@ export function SubscriptionAdjustDialog({
                   ))}
                 </div>
               )}
-              {droppedWithProgress.length > 0 && (
+              {droppedNote && (
                 <p className="mt-2 rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-caption leading-relaxed text-amber-200">
-                  第 {droppedWithProgress.join("、")} 季已有下载进度：保存只让它退出追踪
-                  （停止进度关联、缺失搜索与自动换源），不会动任何文件
-                  {canManageSubscriptions && "；保存后会问你要不要顺手清理这一季的内容"}
+                  {droppedNote}
                 </p>
               )}
             </section>
@@ -280,19 +370,7 @@ export function SubscriptionAdjustDialog({
                   </option>
                 ))}
               </select>
-              {preview &&
-                (preview.ok ? (
-                  <p className="mt-1.5 text-caption leading-relaxed text-[var(--text-faint)]">
-                    {preview.mode === "watch"
-                      ? `将投递到自动入库的监听目录 ${preview.path ?? ""}，下载完成后自动整理入库`
-                      : // 条目目录由后端按命名模板渲染，前端不自己拼名字
-                        `将直接下载到库内目录 ${preview.entry_dir ?? preview.path ?? ""}，完成后自动入账`}
-                  </p>
-                ) : (
-                  <p className="mt-1.5 rounded-lg border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-caption leading-relaxed text-amber-200">
-                    {preview.warning}
-                  </p>
-                ))}
+              {previewNote}
             </section>
           )}
         </div>
@@ -305,7 +383,7 @@ export function SubscriptionAdjustDialog({
         </button>
         <button
           type="button"
-          disabled={busy || !dirty || (!isMovie && selectedSeasons.size === 0)}
+          disabled={saveDisabled}
           onClick={() => void save()}
           className="btn-accent h-9 rounded-full px-5 text-ui font-semibold disabled:opacity-40"
         >

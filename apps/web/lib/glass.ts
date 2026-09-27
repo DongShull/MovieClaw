@@ -7,7 +7,7 @@
  * BACKDROP：所有玻璃组件都要传入的背景图 URL。着色器会按元素在视口中的位置
  * 采样这张图做折射，因此它必须与 body 的固定背景是同一张、且同源（放在 public/ 下）。
  */
-export const BACKDROP = "/backdrop-default.jpg";
+export const BACKDROP = "/backdrop-neutral.jpg";
 
 /**
  * 侧栏玻璃 = LiquidGlassCard 的同款材质（用户明确要求「完全还原 Card 质感」）。

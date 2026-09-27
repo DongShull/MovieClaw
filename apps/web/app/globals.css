@@ -69,15 +69,15 @@
 :root {
   color-scheme: dark;
 
-  /* —— 分层表面（冷调近黑；比原先更透，以透出底部光斑 = 更强玻璃感） —— */
-  --bg: #0a0b10;
-  --surface-sidebar: rgba(20, 22, 30, 0.55);
-  --surface-main: rgba(13, 15, 21, 0.42);
-  --surface-raised: rgba(30, 33, 43, 0.74); /* 浮层：菜单 / 卡片 */
+  /* —— 分层表面（中性近黑，2026-09-27 起与原生 App 统一：App 底色是纯黑，同 Apple Music；
+     原先是「冷调蓝黑」，底图、光斑、蒙版一起把全站染成藏青，用户嫌偏蓝） —— */
+  --bg: #000000;
+  --surface-sidebar: rgba(22, 22, 24, 0.55);
+  --surface-main: rgba(14, 14, 16, 0.42);
+  --surface-raised: rgba(32, 32, 35, 0.74); /* 浮层：菜单 / 卡片 */
   --surface-inset: rgba(255, 255, 255, 0.05); /* 内嵌：输入框 */
-  /* 海报/剧照加载前的占位底（冷蓝黑，银玻璃画布上的既定观感；
-     Netflix 主题在下方覆盖组里换中性灰） */
-  --poster-placeholder: #141824;
+  /* 海报/剧照加载前的占位底（中性深灰，同 iOS 暗色的 secondarySystemBackground） */
+  --poster-placeholder: #1c1c1e;
 
   /* —— 主题布局留白档 ——
      页面级（px-6 档）与详情正文级（px-12 档）各一档；断点内收见下方
@@ -189,9 +189,9 @@
      必须走变量（docs/design/web-themes-mobile/01-外壳与导航.md §3） */
   --page-fog: linear-gradient(
     180deg,
-    rgba(9, 11, 16, 0.72) 0%,
-    rgba(9, 11, 16, 0.46) 46%,
-    rgba(9, 11, 16, 0) 100%
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.46) 46%,
+    rgba(0, 0, 0, 0) 100%
   );
 
   /* —— iOS 独立 App 的「视口比屏幕矮一截」补偿量 ——
@@ -503,17 +503,14 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(58% 48% at 16% 8%, rgba(96, 130, 220, 0.18), transparent 62%),
-    radial-gradient(54% 44% at 88% 14%, rgba(140, 104, 214, 0.14), transparent 60%),
-    radial-gradient(64% 58% at 80% 92%, rgba(64, 150, 186, 0.13), transparent 64%),
-    linear-gradient(180deg, rgba(9, 11, 17, 0.1) 0%, rgba(6, 7, 13, 0.32) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.32) 100%),
     /* --backdrop-image 由 BackdropProvider 按用户上传的图动态写入；未设置时回退到内置色调底图。
        顶部对齐（center top）而不是居中：与影片详情页的沉浸覆盖层同一口径
        （lib/backdrop.tsx 的 backgroundPosition，两处必须一致）。两层铺的是同一块视口、
        只是图不同，锚点不一样的话进出详情页时画面会整体上下挪一下；对齐之后只是换图。
        裁切上也更划算——宽屏配竖图时 cover 按宽度放大、纵向溢出，居中会把天空和人物头顶
        一起切掉，顶部对齐切的是画面下沿，而下沿本来就压在内容与底部操作区底下。 */
-    var(--backdrop-image, url("/backdrop-default.jpg")) center top / cover no-repeat;
+    var(--backdrop-image, url("/backdrop-neutral.jpg")) center top / cover no-repeat;
   background-color: var(--bg);
 }
 
@@ -528,11 +525,10 @@ body::before {
  * 同理只影响 backdrop-filter；mask-image 等前缀属性不受此规则约束。
  */
 /*
- * 站点铺底：默认为固定色调的深石墨蓝渐变底（public/backdrop-default.jpg，
- * 由构建脚本生成的斜向渐变 + 左上冷光晕 + 防色带噪声），用户可在外观设置换成
- * 自己的图。其上叠一层冷调 radial-gradient 光晕 + 竖向暗渐变蒙版：
- *   1) 蒙版压暗底图，保证半透明玻璃面板与文字始终可读；
- *   2) 冷色光晕（靛蓝 / 淡紫 / 青）与银冷主题呼应。
+ * 站点铺底：默认为中性近黑底（public/backdrop-neutral.jpg：左上一团极淡的石墨灰光，
+ * 往右下沉到纯黑，不带任何色相——液态玻璃要有一点层次可折射，纯色会让侧栏变成一块死黑），
+ * 用户可在外观设置换成自己的图。其上只叠一层竖向暗渐变，保证半透明玻璃面板与文字始终可读。
+ * 2026-09-27 与原生 App 统一（App 底色纯黑）：原先的深石墨蓝底图与靛蓝 / 淡紫 / 青三团光斑去掉。
  * 这张图同时被液态玻璃着色器采样做折射（见 lib/glass.ts 的 BACKDROP），二者须为同一张。
  */
 
@@ -583,16 +579,36 @@ body::before {
     --detail-hero-min-h: 120px;
   }
   /* 手机有页内剧照 Hero 时（两个详情页的 mobileHeroSrc）：页面上的剧照由
-     Hero 来画，滚动容器直接铺黑。全站背景仍换成同一张剧照（侧栏玻璃要折射它），但它在
-     竖屏上是按高度放大、只剩中间一条的裁切，由这层黑底整个挡住，不在页面上露出来 */
+     Hero 来画，滚动容器直接铺实底。全站背景仍换成同一张剧照（侧栏玻璃要折射它），但它在
+     竖屏上是按高度放大、只剩中间一条的裁切，由这层实底整个挡住，不在页面上露出来。
+     底色读 --detail-page-color：银玻璃由页面写入大图露出部分的底边色（lib/hero-edge-color.ts，
+     同原生 App 的 HeroEdgeColor），取到前 / 取不到是缺省的黑；变量已注册成 <color>，
+     取到后 0.5s 淡入，Hero 底部渐变（.detail-hero-fade）继承同一个变量、同步变色 */
   .detail-ambient.detail-ambient--hero {
-    background: #000;
+    background: var(--detail-page-color, #000);
+    transition: --detail-page-color 0.5s ease;
   }
+}
+
+@property --detail-page-color {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #000;
+}
+
+/* 银玻璃详情页手机 Hero 的底部渐变：透明 → 0.55 底色 → 底色，与整页底色无缝接上 */
+.detail-hero-fade {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--detail-page-color, #000) 55%, transparent),
+    var(--detail-page-color, #000)
+  );
 }
 
 
 .ambient-fallback {
-  background: rgb(5 7 12 / 0.72);
+  background: rgb(0 0 0 / 0.72);
   backdrop-filter: blur(12px);
 }
 
@@ -607,7 +623,7 @@ body::before {
 
 .page-scrim,
 .search-palette-overlay {
-  background: rgb(5 7 12 / var(--scrim-dark, 0.69));
+  background: rgb(0 0 0 / var(--scrim-dark, 0.69));
   backdrop-filter: blur(var(--scrim-blur, 13px));
 }
 
@@ -1547,9 +1563,9 @@ body.cmdk-open .app-shell {
   padding-right: var(--safe-right);
   background: linear-gradient(
     180deg,
-    rgba(9, 11, 16, 0.86) 0%,
-    rgba(9, 11, 16, 0.6) 58%,
-    rgba(9, 11, 16, 0) 100%
+    rgba(0, 0, 0, 0.86) 0%,
+    rgba(0, 0, 0, 0.6) 58%,
+    rgba(0, 0, 0, 0) 100%
   );
   backdrop-filter: blur(14px);
   mask-image: linear-gradient(180deg, #000 0%, #000 62%, transparent 100%);
@@ -1640,6 +1656,20 @@ body.cmdk-open .app-shell {
  *     径向亮环近似。元素自身不能 opacity<1（Safari 会让 backdrop-filter 失效），
  *     透明度一律放在 background alpha 里。
  */
+/* 底栏玻璃材质（2026-09-27 按 iOS 26 暗色模式的系统标签栏重调）：中心、WebGL 厚边
+   （lib/glass-rim.ts 的 RIM_MATERIAL）、顶栏圆钮（.page-nav-btn）共用这一份，
+   改任何一项都要三处一起看。
+   - 染色：中性石墨灰 rgb(62,62,66)、α 0.4。压在本站纯黑页面上出来约 rgb(25,25,26)
+     （系统玻璃在黑底上是一块略亮于底色的炭灰），压在亮海报上还剩六成原色——底下的
+     内容是「透上来」的，不是被一层黑挡住；
+   - 模糊 14px、饱和 180%：iOS 玻璃把底下的颜色糊成色块但提艳（相册截图里红色在玻璃里
+     反而更艳），所以饱和要高、模糊不用太大；
+   - 上一版（Instagram 式近黑 α 0.72～0.8）用户评「太暗」，否掉。 */
+:root {
+  --glass-tint: rgba(62, 62, 66, 0.4);
+  --glass-backdrop: blur(14px) saturate(180%);
+}
+
 .glass-tabbar {
   --tabbar-h: 54px;
   /* 收起态整排缩到 44px（对 iOS 26 相册收起态逐像素量出：收起圆钮约 44pt，
@@ -1665,96 +1695,48 @@ body.cmdk-open .app-shell {
   --tabbar-h: 44px;
 }
 
-/* —— 底部附件（iOS 26 tab bar bottom accessory；组件 glass-tab-bar.tsx）——
-   常驻在底栏那一行、收起圆钮右侧（左让 44px + 8px，右到底栏右缘），与圆钮同高。
-   主菜单展开时它隐藏（淡出 + 略缩），收回后再现——它不会浮到底栏上方去挤内容（用户拍板）。
-   选择器带上 .glass-capsule 提一级特异度：.glass-capsule 自身声明了 position:relative
-   与 transition，且排在本组之后，单类选择器会被它压掉（2026-09-24 踩过）。 */
-.glass-tabbar-accessory.glass-capsule {
-  position: fixed;
-  z-index: 40;
-  /* 只在收起态可见，按收起态的 44px 圆钮排：左让 44 + 8 */
-  left: calc(max(21px, var(--safe-left)) + 44px + 8px);
-  right: max(21px, var(--safe-right));
-  bottom: var(--tabbar-bottom);
-  height: 44px;
-  display: flex;
-  align-items: stretch;
-  /* 与主菜单胶囊同一档内边距（3px）：两枚选中药丸并排在同一行，差 1px 都看得出 */
-  padding: 3px;
-  transition:
-    opacity 260ms ease,
-    transform 420ms var(--ease-spring);
-}
-
-/* 主菜单展开时隐藏：胶囊展开会盖住这一段，附件淡出让位 */
-.glass-tabbar-accessory.glass-capsule[data-minimized="false"] {
-  opacity: 0;
-  transform: scale(0.94);
-  pointer-events: none;
-}
-
-.glass-tabbar-accessory__seg {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(var(--seg-count, 2), minmax(0, 1fr));
-  gap: 2px;
-  width: 100%;
-}
-
-.glass-tabbar-accessory__seg > button {
-  border-radius: 999px;
-  color: var(--text-muted);
-  /* 相册附件里的「年 / 月 / 全部」是 17pt 正文字号；44px 高的胶囊里 16px 半粗最接近 */
-  font-size: 16px;
-  font-weight: 600;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    color 200ms ease,
-    background-color 260ms ease;
-}
-
-/* 选中段与主菜单的选中药丸同一材质（平填充 + 1px 顶高光） */
-.glass-tabbar-accessory__seg > button[data-active="true"] {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
 .glass-tabbar > * {
   pointer-events: auto;
 }
 
-/* 暗色液态玻璃（2026-09-25 按用户给的 Instagram iOS 26 底栏截图调）：近乎不透明的
-   深色玻璃，底下内容只隐约透出一点；轮廓靠一圈清晰的亮边 + 顶沿高光线 + 底沿
-   微弱回光撑起来，而不是靠半透明。模糊加大、饱和度压低，透上来的颜色不抢图标 */
+/* iOS 26 暗色液态玻璃：半透明石墨灰 + 模糊提艳（材质见上方 --glass-tint 注释）。
+   投影轻而散：系统玻璃浮在内容上靠的是边缘高光，不是一圈黑晕 */
 .glass-capsule {
   position: relative;
   border-radius: 999px;
-  background: rgba(12, 14, 19, 0.8);
-  -webkit-backdrop-filter: blur(28px) saturate(140%);
-  backdrop-filter: blur(28px) saturate(140%);
+  background: var(--glass-tint);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.26),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.17),
-    inset 0 0 0 2px rgba(0, 0, 0, 0.35),
-    0 16px 36px -14px rgba(0, 0, 0, 0.85),
-    0 2px 8px rgba(0, 0, 0, 0.35);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 10px 30px -10px rgba(0, 0, 0, 0.5),
+    0 1px 3px rgba(0, 0, 0, 0.22);
   transition: transform 420ms var(--ease-spring);
 }
 
-/* 边缘透镜：亮边内侧一圈极淡的回光（上沿更亮、下沿次之），模拟玻璃厚边的折射；
-   不再铺斜向大高光——暗玻璃上那块高光会显得脏 */
+/* 边缘高光细线（specular rim）：iOS 玻璃的轮廓是一根 1px 的亮线，亮度沿周长变化——
+   光从左上打来，左上一段最亮、右下对侧回光次之，上沿整体比下沿亮，两腰最暗。
+   用 padding + mask 把几层渐变裁成 1px 的环；z-index 压在 WebGL 厚边之上
+   （厚边负责折射 / 色散这种「面」上的效果，这根线负责锐利的边） */
 .glass-capsule::before {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 1;
+  padding: 1px;
   border-radius: inherit;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 28%, transparent 72%, rgba(255, 255, 255, 0.045));
+    radial-gradient(90px 44px at 12% 0%, rgba(255, 255, 255, 0.62), transparent 70%),
+    radial-gradient(90px 44px at 88% 100%, rgba(255, 255, 255, 0.34), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.07) 45%, rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0.16));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
 }
 
 /* WebGL 玻璃厚边（lib/glass-rim.ts）：每个胶囊里铺满一块 canvas，画外沿一圈的
@@ -1775,20 +1757,15 @@ body.cmdk-open .app-shell {
 }
 
 .glass-capsule[data-rim="on"] {
-  /* 与 RIM_MATERIAL 同步：暗色毛玻璃（按 Instagram iOS 26 底栏实测），厚边叠同一层 */
-  background: rgba(12, 14, 18, 0.72);
-  backdrop-filter: blur(18px) saturate(150%);
+  /* 材质与 RIM_MATERIAL 同步（--glass-tint / --glass-backdrop），厚边叠同一层；
+     内描边交给着色器的菲涅尔，这里只留投影 */
   box-shadow:
-    0 16px 36px -14px rgba(0, 0, 0, 0.85),
-    0 2px 8px rgba(0, 0, 0, 0.35);
+    0 10px 30px -10px rgba(0, 0, 0, 0.5),
+    0 1px 3px rgba(0, 0, 0, 0.22);
 }
 
 .glass-capsule[data-rim="on"] > .glass-rim {
   opacity: 1;
-}
-
-.glass-capsule[data-rim="on"]::before {
-  content: none;
 }
 
 /* 清透玻璃下不再铺滚动边缘层：它的 6px 模糊 + 压暗正落在胶囊正下方，透过清透
@@ -1797,13 +1774,10 @@ body:has(.glass-capsule[data-rim="on"]) .glass-tabbar-edge {
   display: none;
 }
 
-/* 清透中心没有底色托字，白色图标 / 标签压在亮海报上会糊：加一层淡投影勾边 */
-.glass-capsule[data-rim="on"] svg {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
-}
-
-.glass-capsule[data-rim="on"] .glass-tabbar-accessory__seg > button {
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+/* 玻璃是半透明的，白色图标压在亮海报上会糊：加一层淡投影勾边（iOS 的做法是
+   按底色自动切深浅图标，网页取不到底下的像素，用投影兜住） */
+.glass-capsule svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
 }
 
 /* 按压辉光：触点处由内发亮（HIG：玻璃从指尖照亮），按下 90ms 亮起、松手 520ms
@@ -1899,9 +1873,10 @@ body:has(.glass-capsule[data-rim="on"]) .glass-tabbar-edge {
   /* 静止态是一块**平的**略亮填充（iOS 26 相册的选中药丸就是这样，没有描边、
      没有投影）；原先的内描边 + 外投影让它像一颗鼓起的气泡，在胶囊里显得
      缩了一圈（2026-09-24 用户拿相册逐像素对照）。行进态的边光仍保留在下面 */
-  /* 暗玻璃上的选中药丸要更亮一档才分得出（参考截图约 24% 白） */
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  /* 选中药丸：一块平的略亮填充（iOS 26 暗色标签栏约 +14% 白），玻璃本身提亮后
+     不再需要上一版暗玻璃上的 22% 白才分得出 */
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   will-change: transform;
   /* 行进态高光到位即收（原 260ms 淡出在胶囊停稳后还拖着一截，显得慢） */
   transition:
@@ -1932,8 +1907,8 @@ body:has(.glass-capsule[data-rim="on"]) .glass-tabbar-edge {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  /* 暗玻璃上图标一律白色（参考截图），未选中略收一点，选中态靠药丸区分 */
-  color: rgba(255, 255, 255, 0.82);
+  /* 图标一律白色（iOS 暗色标签栏未选中是 label 色），未选中略收一点，选中态靠药丸区分 */
+  color: rgba(255, 255, 255, 0.86);
   -webkit-tap-highlight-color: transparent;
   /* 展开时自左向右依次浮现（每格错开 35ms）；收起时一齐快速淡出 */
   transition:
@@ -1958,7 +1933,7 @@ body:has(.glass-capsule[data-rim="on"]) .glass-tabbar-edge {
 
 /* 拖动擦选时，高亮跟着手指走：原选中页签若不在指下就先暗下去 */
 .glass-tabbar[data-dragging="true"] .glass-tabbar__tab[aria-current="page"]:not([data-hover]) {
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.86);
 }
 
 /* 纯图标页签（无文字标签，参照 Instagram iOS 26 底栏）：图标放大一档、在胶囊里垂直居中 */
@@ -2016,7 +1991,8 @@ body:has(.glass-capsule[data-rim="on"]) .glass-tabbar-edge {
   height: 7px;
   border-radius: 999px;
   background: var(--info);
-  box-shadow: 0 0 0 2px rgba(12, 14, 19, 0.9);
+  /* 描边与玻璃压在暗底上的颜色相近，把圆点从图标线条里托出来 */
+  box-shadow: 0 0 0 2px rgba(28, 30, 35, 0.92);
 }
 
 .glass-tabbar__badge[data-alert="true"] {
@@ -2098,7 +2074,7 @@ body:has(.glass-capsule[data-rim="on"]) .glass-tabbar-edge {
   height: calc(var(--tabbar-bottom) + var(--vp-overshoot) + 54px + 44px);
   pointer-events: none;
   transition: height 480ms var(--ease-spring);
-  background: linear-gradient(180deg, transparent, rgba(8, 10, 15, 0.42) 62%, rgba(8, 10, 15, 0.58));
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.42) 62%, rgba(0, 0, 0, 0.58));
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   -webkit-mask-image: linear-gradient(180deg, transparent, #000 58%);
@@ -2106,8 +2082,9 @@ body:has(.glass-capsule[data-rim="on"]) .glass-tabbar-edge {
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .glass-capsule {
-    background: rgba(12, 14, 19, 0.95);
+  .glass-capsule,
+  .glass-capsule[data-rim="on"] {
+    background: rgba(30, 32, 37, 0.96);
     -webkit-backdrop-filter: blur(10px) saturate(120%);
     backdrop-filter: blur(10px) saturate(120%);
   }
@@ -2961,3 +2938,208 @@ html:has(.player-root) {
    这两个变量，改一处全链路跟随。 */
 
 
+
+/*
+ * —— 沉浸 Hero 与订阅首页（components/immersive-hero.tsx、components/subscriptions-home-*.tsx）——
+ * immersive-hero-fill：轮播指示器当前格按停留时长线性填满（transform 缩放，不触发布局）；
+ * immersive-hero-ambient-in：页面氛围底换色时新颜色 1.2 秒淡入叠在旧颜色上；
+ * subs-home-breathe：「正在发生」的状态小圆点呼吸（下载中 / 整理中，同 iOS 0.9 秒往返 1 ↔ 0.3）。
+ */
+@keyframes immersive-hero-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes immersive-hero-ambient-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes subs-home-breathe {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.3;
+  }
+}
+
+.subs-home-breathe {
+  animation: subs-home-breathe 0.9s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subs-home-breathe {
+    animation: none;
+  }
+}
+
+/* —— 顶栏圆钮（PAGE_NAV_BUTTON_CLASS 的 .page-nav-btn 钩子）与底栏同一种玻璃（银玻璃）——
+   iOS 26 导航栏按钮与标签栏是同一块液态玻璃：材质取 --glass-tint / --glass-backdrop，
+   轮廓是一根上亮下暗的 1px 高光细线（圆钮小，用内阴影画，不占 ::before——按钮可能是
+   absolute 定位的，不能强加 position:relative）。Netflix 主题的实底圆钮见
+   themes/netflix/tokens.css，这里用 :not 排除，不相互覆盖。 */
+html:not([data-theme="netflix"]) .page-nav-btn {
+  border-color: transparent;
+  background: var(--glass-tint);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 6px 18px -8px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+html:not([data-theme="netflix"]) .page-nav-btn svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+html:not([data-theme="netflix"]) .page-nav-btn:hover {
+  background: rgba(62, 66, 74, 0.46);
+}
+
+/* —— 欢迎页（登录 / 初始化，components/welcome-screen.tsx + cosmos-backdrop.tsx）——
+   对齐原生 App 的欢迎页片头：星空约 40 分钟转一圈（合成线程推进）；片名、细线、副标题、
+   台词、按钮在 data-revealed 后按 App 的时序依次浮现；换台词时旧句上移虚化淡出、新句
+   稍晚从下方浮上来；卡片从下方升起。「减弱动态效果」下不转、不做位移。 */
+.welcome-starfield-spin {
+  animation: welcome-spin 2400s linear infinite;
+}
+
+@keyframes welcome-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 欢迎页的玻璃（按钮与卡片）：与底栏、顶栏圆钮同一种材质（--glass-tint / --glass-backdrop），
+   轮廓是一根上亮下暗的 1px 高光细线 */
+.welcome-glass {
+  background: var(--glass-tint);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 18px 50px -20px rgba(0, 0, 0, 0.7);
+}
+
+.welcome-reveal {
+  opacity: 0;
+}
+
+[data-revealed="true"] .welcome-reveal {
+  opacity: 1;
+}
+
+.welcome-reveal--title {
+  letter-spacing: 12px;
+  transition:
+    opacity 2.4s ease-out 0.6s,
+    letter-spacing 2.4s ease-out 0.6s;
+}
+
+[data-revealed="true"] .welcome-reveal--title {
+  letter-spacing: 1px;
+}
+
+.welcome-reveal--rule {
+  width: 0;
+  transition: width 1.2s ease-in-out 1.4s;
+}
+
+[data-revealed="true"] .welcome-reveal--rule {
+  width: 28px;
+}
+
+.welcome-reveal--tagline {
+  transition: opacity 1.4s ease-out 1.6s;
+}
+
+.welcome-reveal--quote {
+  transition: opacity 1.4s ease-in-out 2.2s;
+}
+
+.welcome-reveal--button {
+  translate: 0 12px;
+  transition:
+    opacity 1s ease-out 2.8s,
+    translate 1s ease-out 2.8s,
+    scale 150ms ease;
+}
+
+[data-revealed="true"] .welcome-reveal--button {
+  translate: 0 0;
+}
+
+.welcome-quote-in {
+  animation: welcome-quote-in 0.7s ease-out 0.25s both;
+}
+
+.welcome-quote-out {
+  animation: welcome-quote-out 0.45s ease-in both;
+}
+
+@keyframes welcome-quote-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+}
+
+@keyframes welcome-quote-out {
+  to {
+    opacity: 0;
+    transform: translateY(-14px);
+    filter: blur(6px);
+  }
+}
+
+.welcome-card-rise {
+  animation: welcome-card-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes welcome-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-starfield-spin,
+  .welcome-quote-in,
+  .welcome-quote-out,
+  .welcome-card-rise {
+    animation: none;
+  }
+
+  .welcome-reveal,
+  .welcome-reveal--rule {
+    transition-duration: 0.4s;
+    transition-delay: 0s;
+  }
+}
+
+/* —— 桌面沉浸页（发现 / 订阅首页有 Hero 时，components/immersive-hero.tsx 的 useHeroWindowBackdrop）——
+   窗口背景已换成当前剧照：蒙版改成重模糊、轻压暗，侧栏四周的缝透出同一部片鲜艳的虚化版
+   （背景延伸），不再是一条压暗的灰带；海报行的可读性由主区自己的渐变压暗负责。
+   只在桌面宽度生效，手机不挂这个标记。 */
+@media (min-width: 768px) {
+  html.hero-window .page-scrim {
+    background: rgb(0 0 0 / 0.16);
+    backdrop-filter: blur(36px) saturate(135%);
+  }
+}

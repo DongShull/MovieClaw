@@ -1,23 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
+import { CheckIcon, ChevronDownIcon, SearchIcon } from "@/components/icons";
 import { LibrarySearchResults } from "@/components/library-search-results";
 import { MediaSearchResults } from "@/components/media-search-results";
+import { openSearchPalette } from "@/components/search-command";
 import { SearchResults, type SearchQuery } from "@/components/search-results";
 import {
-  CATEGORY_LABEL,
   SCOPE_ALL,
+  scopeEquals,
   scopeOfTab,
+  tabKeyOf,
+  tabLabel,
   type SearchScope,
   type SearchTab,
   type SearchVertical,
 } from "@/lib/categories";
+import { usePageChrome } from "@/lib/page-chrome";
 import { useSearchPrefs } from "@/lib/search-prefs";
 import { useSearchAccess } from "@/lib/search-access";
 import { buildSearchPath, parseSearchQuery } from "@/lib/search-url";
+import { useTheme } from "@/lib/ui-prefs";
+import { useIsMobile } from "@/lib/use-media-query";
 import { usePageTitle } from "@/lib/use-page-title";
 
 /**
@@ -32,6 +40,10 @@ import { usePageTitle } from "@/lib/use-page-title";
  *     已出的结果保留，切回来不重新搜索。
  * tab 参数被刻意排除在种子搜索的身份（torrentKey）之外——切换选项卡只改
  * tab，torrent query 引用不变，SearchResults 的搜索 effect 不会重新触发。
+ *
+ * 银玻璃手机端顶栏对齐原生 App（apps/apple/.../SearchResultsView.swift）：左侧是写着关键词的
+ * 玻璃胶囊，点它带着关键词 / 垂直 / 范围重新打开搜索面板改词重搜；站点资源垂直时右上角是
+ * 范围菜单（取代手机上会折成多行的分类胶囊）；各垂直不再重复关键词大标题。
  */
 export default function SearchPage() {
   const router = useRouter();
@@ -136,6 +148,10 @@ function SearchVerticals({
   const searchAccess = useSearchAccess();
   // 浏览模式：无关键词，只逛站点资源的分类列表页
   const browsing = !query.keyword;
+  // 银玻璃手机端：关键词胶囊 + 范围菜单挂进外壳顶栏（Netflix 主题与桌面维持原样）
+  const chrome = usePageChrome();
+  const isNf = useTheme().structural;
+  const silverMobile = useIsMobile() && !isNf;
   // 各垂直是否已被访问过：访问过才挂载、之后保活
   const [visited, setVisited] = useState<Record<SearchVertical, boolean>>(() => ({
     media: vertical === "media",
@@ -165,6 +181,52 @@ function SearchVerticals({
     (tab) =>
       searchAccess.available.includes(tab.id) && (!browsing || tab.id === "torrent"),
   );
+
+  // 顶栏左侧的关键词胶囊：点它重新打开外壳顶栏那份搜索面板，关键词、垂直、范围都填好
+  // （同 iOS keywordCapsule → Router.editSearch）；范围只在站点资源垂直带上
+  const setTopBarLeading = chrome?.setTopBarLeading;
+  const keywordCapsule = useMemo(
+    () =>
+      silverMobile ? (
+        <KeywordCapsule
+          keyword={query.keyword}
+          onClick={() =>
+            openSearchPalette({
+              keyword: query.keyword,
+              mode: vertical,
+              scope: vertical === "torrent" ? query.scope : undefined,
+            })
+          }
+        />
+      ) : null,
+    [query, silverMobile, vertical],
+  );
+  useEffect(() => {
+    if (!keywordCapsule || !setTopBarLeading) return;
+    return setTopBarLeading(keywordCapsule);
+  }, [keywordCapsule, setTopBarLeading]);
+
+  // 顶栏右上角的范围菜单（站点资源垂直才有）。onScopeSwitch 每次渲染都是新函数，
+  // 经 ref 转一道，挂进顶栏的节点才不会每次渲染都重建、反复写外壳状态
+  const scopeSwitchRef = useRef(onScopeSwitch);
+  useEffect(() => {
+    scopeSwitchRef.current = onScopeSwitch;
+  });
+  const switchScope = useCallback((scope: SearchScope) => scopeSwitchRef.current(scope), []);
+  const setTopBarActions = chrome?.setTopBarActions;
+  const showsScopeMenu =
+    silverMobile && vertical === "torrent" && visibleVerticalTabs.some((t) => t.id === "torrent");
+  const scopeMenu = useMemo(
+    () =>
+      showsScopeMenu ? (
+        <ScopeMenu scope={query.scope} tabs={visibleTabs} onSwitch={switchScope} />
+      ) : null,
+    [query.scope, showsScopeMenu, switchScope, visibleTabs],
+  );
+  useEffect(() => {
+    if (!scopeMenu || !setTopBarActions) return;
+    return setTopBarActions(scopeMenu);
+  }, [scopeMenu, setTopBarActions]);
 
   if (searchAccess.ready && visibleVerticalTabs.length === 0) {
     return (
@@ -208,7 +270,7 @@ function SearchVerticals({
           </div>
 
           {/* 分类是真实搜索范围而非结果筛选：点击后更新 URL，并按该配置重新请求站点。 */}
-          {vertical === "torrent" && (
+          {vertical === "torrent" && !silverMobile && (
             <div
               role="radiogroup"
               aria-label="站点资源搜索分类"
@@ -224,7 +286,7 @@ function SearchVerticals({
                 return (
                   <ScopeChip
                     key={tabKeyOf(tab)}
-                    label={tab.type === "category" ? CATEGORY_LABEL[tab.id] : tab.name}
+                    label={tabLabel(tab)}
                     active={scopeEquals(query.scope, scope)}
                     onClick={() => onScopeSwitch(scope)}
                   />
@@ -268,27 +330,6 @@ function SearchVerticals({
   );
 }
 
-/** 内置分类与自定义预设的稳定 UI key。 */
-function tabKeyOf(tab: SearchTab): string {
-  return `${tab.type}:${tab.id}`;
-}
-
-/**
- * 判断 URL 还原出的当前范围是否对应某个分类。
- * 数组来自同一份分类配置，顺序有意义且会被 URL 原样保留，因此逐项比较即可。
- */
-function scopeEquals(left: SearchScope, right: SearchScope): boolean {
-  return (
-    left.label === right.label &&
-    left.posterMode === right.posterMode &&
-    left.skipHistory === right.skipHistory &&
-    left.categories.length === right.categories.length &&
-    left.categories.every((value, index) => value === right.categories[index]) &&
-    left.siteIds.length === right.siteIds.length &&
-    left.siteIds.every((value, index) => value === right.siteIds[index])
-  );
-}
-
 /** 站点资源分类 chip；视觉与全局搜索弹窗里的分类选择保持一致。 */
 function ScopeChip({
   label,
@@ -313,5 +354,107 @@ function ScopeChip({
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * 顶栏左侧的关键词胶囊（银玻璃手机端，同 iOS SearchResultsView.keywordCapsule）：
+ * 放大镜 + 关键词，浏览模式写「最新资源」；点它回搜索面板改词重搜。
+ * 玻璃材质与顶栏圆钮同一套（border-white/[0.09] + bg-black/30 + 模糊）。
+ */
+function KeywordCapsule({ keyword, onClick }: { keyword: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={keyword ? `搜索词：${keyword}，点按修改` : "最新资源，点按重新搜索"}
+      className="flex h-9 min-w-0 max-w-[240px] items-center gap-1.5 rounded-full border border-white/[0.09] bg-black/30 px-4 text-white/85 backdrop-blur-md transition active:scale-[0.97] pointer-coarse:h-11"
+    >
+      <SearchIcon className="size-4 shrink-0 text-[var(--text-muted)]" />
+      <span className="truncate text-body font-semibold text-[var(--text)]">
+        {keyword || "最新资源"}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * 站点资源的范围菜单（银玻璃手机端顶栏右上角，同 iOS SearchResultsView.scopeMenu）：
+ * 胶囊写当前范围（默认「全部」），菜单列全部分类 / 内置分类 / 自定义分类，当前项打勾，
+ * 选中即按新范围重新搜索。历史回放进来的范围可能不在当前可见分类里（已隐藏的分类、
+ * 改过名的预设），单列一项「当前」，否则菜单里没有打勾项、看不出正在搜什么。
+ */
+function ScopeMenu({
+  scope,
+  tabs,
+  onSwitch,
+}: {
+  scope: SearchScope;
+  tabs: SearchTab[];
+  onSwitch: (scope: SearchScope) => void;
+}) {
+  const isAll = scopeEquals(scope, SCOPE_ALL);
+  const current = isAll ? null : tabs.find((tab) => scopeEquals(scopeOfTab(tab), scope));
+  const value = isAll ? "all" : current ? tabKeyOf(current) : "current";
+  const categories = tabs.filter((tab) => tab.type === "category");
+  const presets = tabs.filter((tab) => tab.type === "preset");
+  const itemCls =
+    "glass-row nav-item flex cursor-pointer items-center justify-between gap-4 px-3 py-2 text-sub outline-none data-[highlighted]:!bg-[var(--glass-fill-hover)]";
+  const item = (key: string, label: string, note?: string) => (
+    <DropdownMenu.RadioItem key={key} value={key} className={itemCls}>
+      <span className="min-w-0 truncate">
+        {label}
+        {note && <span className="ml-1.5 text-caption text-[var(--text-faint)]">{note}</span>}
+      </span>
+      <DropdownMenu.ItemIndicator>
+        <CheckIcon className="size-3.5 text-[var(--info)]" />
+      </DropdownMenu.ItemIndicator>
+    </DropdownMenu.RadioItem>
+  );
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          aria-label={`搜索范围：${scope.label ?? "全部分类"}`}
+          className="flex h-9 max-w-[8.5rem] shrink-0 items-center gap-1 rounded-full border border-white/[0.09] bg-black/30 px-3.5 text-sub font-semibold text-white/85 backdrop-blur-md transition active:scale-[0.97] data-[state=open]:bg-black/50 pointer-coarse:h-11"
+        >
+          <span className="truncate">{scope.label ?? "全部"}</span>
+          <ChevronDownIcon className="size-3 shrink-0 opacity-60" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          collisionPadding={12}
+          className="menu-surface z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[11rem] overflow-y-auto p-1"
+        >
+          <DropdownMenu.RadioGroup
+            value={value}
+            onValueChange={(next) => {
+              if (next === value || next === "current") return;
+              if (next === "all") {
+                onSwitch(SCOPE_ALL);
+                return;
+              }
+              const tab = tabs.find((t) => tabKeyOf(t) === next);
+              if (tab) onSwitch(scopeOfTab(tab));
+            }}
+          >
+            {item("all", "全部分类")}
+            {value === "current" && item("current", scope.label ?? "当前范围", "当前")}
+            {categories.length > 0 && <DropdownMenu.Separator className="my-1 h-px bg-white/[0.08]" />}
+            {categories.map((tab) => item(tabKeyOf(tab), tabLabel(tab)))}
+            {presets.length > 0 && (
+              <DropdownMenu.Label className="px-3 pb-1 pt-2 text-micro text-[var(--text-faint)]">
+                自定义分类
+              </DropdownMenu.Label>
+            )}
+            {presets.map((tab) => item(tabKeyOf(tab), tabLabel(tab)))}
+          </DropdownMenu.RadioGroup>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }

@@ -4,9 +4,11 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Route } from "next";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { AgentMediaCardsForSegment } from "@/components/agent-media-cards";
 import { Composer } from "@/components/composer";
+import { ConversationMenu, useConversationActions } from "@/components/conversation-menu";
 import { CopyButton, REVEAL_CLASS, useTapReveal } from "@/components/copy-button";
 import { useConfirm, useToast } from "@/components/feedback";
 import { HighlightedCode } from "@/components/highlighted-code";
@@ -32,6 +34,7 @@ import { sessionAttachmentUrl } from "@/lib/api/agent";
 import { saveComposerPrefs } from "@/lib/composer-prefs";
 import { resolveModelOption, useLlmModelOptions } from "@/lib/llm-thinking";
 import { usePageChrome } from "@/lib/page-chrome";
+import { PAGE_NAV_BUTTON_CLASS } from "@/components/page-nav";
 import { usePageTitle } from "@/lib/use-page-title";
 
 /**
@@ -56,11 +59,40 @@ export function AgentConversationView({ conversationId }: { conversationId: stri
   // 标题可能先于详情就绪（侧栏最近会话已带），也会随自动命名更新，跟着值重挂即可。
   const chrome = usePageChrome();
   const title = conversation?.title;
-  // 返回落点 /my：手机上会话列表在「更多」页；有应用内历史时按历史回
+  // 返回落点 /my：手机上会话列表在「我的」页；有应用内历史时按历史回。
+  // 右上角不放搜索（同原生 App：会话页里用不上），只放下面的会话菜单
   useEffect(() => {
     if (!chrome || !title) return;
-    return chrome.setTopBarTitle(title, { backHref: "/my" as Route });
+    return chrome.setTopBarTitle(title, { backHref: "/my" as Route, hideSearch: true });
   }, [chrome, title]);
+  // 顶栏右上角的会话菜单：从此处创建新会话 / 重命名 / 删除（删除后离开这张页），
+  // 对齐原生 App 会话页的 sessionMenu。只在手机顶栏出现（桌面会话操作在侧栏行尾）
+  const router = useRouter();
+  const { forkConversation, renameConversation, removeConversation } = useConversationActions();
+  const setTopBarActions = chrome?.setTopBarActions;
+  // 菜单节点只随会话与标题重挂；动作走 ref 取最新一版，免得每次渲染都重挂顶栏
+  const actionsRef = useRef({ forkConversation, renameConversation, removeConversation, router });
+  useEffect(() => {
+    actionsRef.current = { forkConversation, renameConversation, removeConversation, router };
+  });
+  useEffect(() => {
+    if (!setTopBarActions || !title) return;
+    const act = () => actionsRef.current;
+    return setTopBarActions(
+      <ConversationMenu
+        variant="nav"
+        forkLabel="从此处创建新会话"
+        onFork={() => void act().forkConversation(conversationId, title, true)}
+        onRename={() => void act().renameConversation(conversationId, title)}
+        onDelete={() =>
+          void act().removeConversation(conversationId, title, () =>
+            act().router.replace("/my" as Route),
+          )
+        }
+        iconClassName="size-[22px]"
+      />,
+    );
+  }, [setTopBarActions, conversationId, title]);
   const [input, setInput] = useState("");
   // 思维链档位：undefined = 用户没动过选择器（发送时不传，服务端沿用会话
   // 上一条）；null = 显式「默认」；string = 显式档位。展示值回落到会话最近
@@ -246,19 +278,23 @@ export function AgentConversationView({ conversationId }: { conversationId: stri
           </div>
         </div>
 
-        {!atBottom && (
-          <button
-            type="button"
-            aria-label="回到最新消息"
-            onClick={() => {
-              const el = scrollRef.current;
-              if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-            }}
-            className="absolute bottom-3 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-full border border-white/10 bg-[#232325] text-[var(--text-muted)] shadow-lg transition-colors hover:text-[var(--text)]"
-          >
-            <ChevronRightIcon className="size-4 rotate-90" />
-          </button>
-        )}
+        {/* 回到最新消息：与顶栏同一副圆形玻璃键（原先是手画的深色圆 + 描边 + 阴影，
+            与页面其余玻璃控件不是一套），出现 / 消失带缩放淡入淡出（同原生 App） */}
+        <button
+          type="button"
+          aria-label="回到最新消息"
+          aria-hidden={atBottom}
+          tabIndex={atBottom ? -1 : 0}
+          onClick={() => {
+            const el = scrollRef.current;
+            if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+          }}
+          className={`${PAGE_NAV_BUTTON_CLASS} absolute bottom-3 left-1/2 -translate-x-1/2 duration-200 ${
+            atBottom ? "pointer-events-none scale-60 opacity-0" : "scale-100 opacity-100"
+          }`}
+        >
+          <ChevronRightIcon className="size-[18px] rotate-90" />
+        </button>
       </div>
 
       {/* 底部输入：生成中可继续打字，发送键变停止键。
@@ -464,9 +500,11 @@ function UserBubble({
   );
   const closeLightbox = useCallback(() => setLightboxIndex(null), []);
   return (
-    <div className="group/copy flex flex-row-reverse items-end justify-start" {...revealProps}>
+    <div className="group/copy flex flex-col items-end" {...revealProps}>
       {/* 触摸端点气泡浮现操作键（桌面端靠 hover，这一下点击是多余但无害的）。
-          onClick 挂在气泡而非整行上：右对齐留出的空白不该也是热区。 */}
+          onClick 挂在气泡而非整行上：右对齐留出的空白不该也是热区。
+          操作键在气泡下方右对齐（同原生 App 与 ChatGPT）：原先挤在气泡左侧，
+          长问题的气泡占到八成宽时两颗键被压在一条窄缝里。 */}
       <div
         onClick={toggle}
         className="selectable max-w-[80%] whitespace-pre-wrap break-words rounded-2xl bg-[var(--glass-fill-active)] px-4 py-3 text-body leading-6 text-[var(--text)]"
@@ -520,25 +558,27 @@ function UserBubble({
           onClose={closeLightbox}
         />
       )}
-      <CopyButton
-        text={text}
-        className={`${REVEAL_CLASS} touch-target mb-1 mr-1 shrink-0 p-1 text-[var(--text-faint)] hover:text-[var(--text)]`}
-      />
-      {onEdit && (
-        <button
-          type="button"
-          aria-label="改写这条提问"
-          title="改写这条提问"
-          onClick={(event) => {
-            // 不冒泡到气泡的 toggle：否则点完操作键，浮现态立刻被切回去
-            event.stopPropagation();
-            onEdit();
-          }}
-          className={`${REVEAL_CLASS} touch-target mb-1 mr-1 shrink-0 rounded-md p-1 text-[var(--text-faint)] transition-colors hover:text-[var(--text)]`}
-        >
-          <PencilIcon className="size-3.5" />
-        </button>
-      )}
+      <div className="mt-1 flex items-center gap-1">
+        {onEdit && (
+          <button
+            type="button"
+            aria-label="改写这条提问"
+            title="改写这条提问"
+            onClick={(event) => {
+              // 不冒泡到气泡的 toggle：否则点完操作键，浮现态立刻被切回去
+              event.stopPropagation();
+              onEdit();
+            }}
+            className={`${REVEAL_CLASS} touch-target shrink-0 rounded-md p-1 text-[var(--text-faint)] transition-colors hover:text-[var(--text)]`}
+          >
+            <PencilIcon className="size-3.5" />
+          </button>
+        )}
+        <CopyButton
+          text={text}
+          className={`${REVEAL_CLASS} touch-target shrink-0 p-1 text-[var(--text-faint)] hover:text-[var(--text)]`}
+        />
+      </div>
     </div>
   );
 }
