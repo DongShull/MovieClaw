@@ -1533,7 +1533,7 @@ class SubscriptionService:
         """E 变化后在后台刷新该条目的资源发布时间预测，不挡在请求路径上。
 
         与 ``_kick_search`` 同一收口方式：预测是派生值，晚几秒无害；同步跑则要
-        把近 90 天的种子索引整个读出来解析匹配（见 release_forecast）。延迟导入
+        在请求里读种子索引并逐条细查（见 release_forecast）。延迟导入
         让测试能整体打桩。
         """
         from movieclaw_api.services.subscription.release_forecast import (

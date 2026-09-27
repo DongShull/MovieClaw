@@ -28,6 +28,8 @@ import logging
 from sqlalchemy import or_
 from sqlmodel import select
 
+# 重算 attrs 会改变 NER 片名，检索文本要跟着重算（见 services/torrent_match_text.py）
+import movieclaw_api.services.torrent_match_text  # noqa: F401
 from movieclaw_db.engine import get_database
 from movieclaw_db.models.site_torrent import SiteTorrent
 from movieclaw_enrich import ENRICH_VERSION, enrich

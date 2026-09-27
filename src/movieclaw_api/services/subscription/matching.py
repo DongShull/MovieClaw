@@ -22,6 +22,9 @@ from sqlalchemy import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+# 注册种子索引检索文本（site_torrent.match_text）的写入维护：订阅链路的写入与
+# 发布预测的预筛都依赖它与源字段一致（见 services/torrent_match_text.py）
+import movieclaw_api.services.torrent_match_text  # noqa: F401
 from movieclaw_api.services.subscription.identity_recheck import (
     fetch_external_ids,
     needs_external_id_recheck,
