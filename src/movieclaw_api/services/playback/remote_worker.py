@@ -221,6 +221,17 @@ class RemoteWorkerRegistry:
         for connection in workers:
             await self._close_quietly(connection.websocket, code=1001, reason="服务端关闭")
 
+    def connected_login_device_ids(self) -> set[int]:
+        """此刻有活控制连接的登录设备 id（「设置 → 设备」据此把转码器标成「已连接」）。
+
+        转码器只在握手时验一次凭证，之后整条连接靠心跳维持；只看凭证最近一次验签
+        的时间，连着的转码器 5 分钟后就会被显示成离线。连没连着以这里为准。
+        """
+        with self._lock:
+            return {
+                c.login_device_id for c in self._workers.values() if c.login_device_id is not None
+            }
+
     async def disconnect_device(self, login_device_id: int, reason: str) -> int:
         """断开用某台登录设备的凭证连上来的 Worker（注销转码器时调用），返回断开数。"""
         with self._lock:

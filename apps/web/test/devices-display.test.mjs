@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  activityLabel,
+  deviceLive,
   STALE_AFTER_DAYS,
   clientTypeLabel,
   deviceGroupKey,
@@ -227,4 +229,29 @@ test("仅限转码的令牌给的是转码器命令行模式的一行启动参�
   assert.equal(args, "--nas-url http://192.168.1.10:3000 --token mclaw_abc-123_x");
   assert.ok(!args.includes("\n"), "只给一行，整行复制就能用");
   assert.ok(!args.includes("MOVIECLAW_"), "转码器不读环境变量");
+});
+
+test("转码器的绿点看此刻连没连着，不看最近验签时间", () => {
+  const now = Date.parse("2026-09-27T12:00:00Z");
+  const handshakeAnHourAgo = "2026-09-27T11:00:00Z";
+  // 连着：凭证只在一小时前握手时验过，也照样是绿点、写「已连接」
+  const connected = { kind: "worker", scope: "transcode", connected: true, last_seen_at: handshakeAnHourAgo };
+  assert.equal(deviceLive(connected, now), true);
+  assert.equal(activityLabel(connected, now), "已连接");
+  // 断开：哪怕刚刚还活跃过，也不是绿点（它有长连接，断了就是断了）
+  const dropped = { kind: "worker", scope: "transcode", connected: false, last_seen_at: "2026-09-27T11:59:30Z" };
+  assert.equal(deviceLive(dropped, now), false);
+  assert.equal(activityLabel(dropped, now), "刚刚活跃");
+  // 「仅限转码」的手工令牌（命令行模式的转码器）同样按连接判断
+  const headless = { kind: "manual", scope: "transcode", connected: true, last_seen_at: null };
+  assert.equal(deviceLive(headless, now), true);
+});
+
+test("没有长连接的设备仍按最近 5 分钟有没有用过", () => {
+  const now = Date.parse("2026-09-27T12:00:00Z");
+  const phone = { kind: "ios", scope: "full", connected: false, last_seen_at: "2026-09-27T11:57:00Z" };
+  assert.equal(deviceLive(phone, now), true);
+  assert.equal(activityLabel(phone, now), "3 分钟前");
+  const cli = { kind: "cli", scope: "full", connected: false, last_seen_at: "2026-09-27T10:00:00Z" };
+  assert.equal(deviceLive(cli, now), false);
 });

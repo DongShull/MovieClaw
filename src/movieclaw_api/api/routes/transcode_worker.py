@@ -34,6 +34,7 @@ from movieclaw_api.schemas.transcode_worker import (
     RemoteTranscodeConfigPayload,
     RemoteTranscodeConfigView,
 )
+from movieclaw_api.services import login_devices
 from movieclaw_api.services.playback import remote_config as remote_transcode_config
 from movieclaw_api.services.playback.disc_source import disc_source_for_file
 from movieclaw_api.services.playback.ffmpeg_args import (
@@ -313,8 +314,15 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
                 "protocol_version": REMOTE_WORKER_PROTOCOL_VERSION,
             }
         )
+        worker_ip = client_address(websocket) or None  # type: ignore[arg-type]
+        worker_ua = websocket.headers.get("user-agent")
         while True:
             message = await websocket.receive_json()
+            if connection.login_device_id is not None:
+                # 心跳也算活跃：否则「设置 → 设备」里的「最近活跃」停在握手那一刻
+                await login_devices.touch_id(
+                    connection.login_device_id, ip=worker_ip, user_agent=worker_ua
+                )
             if isinstance(message, dict):
                 artifact_failure = await registry.handle_message(connection, message)
                 if artifact_failure is not None:

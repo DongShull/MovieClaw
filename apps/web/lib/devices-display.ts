@@ -233,6 +233,35 @@ export function isLive(iso: string | null, now: number = Date.now()): boolean {
   return !Number.isNaN(then) && now - then < 5 * 60 * 1000;
 }
 
+/** 列表行判断在线要用到的几个字段 */
+export interface LivenessFields {
+  kind: string;
+  scope: string;
+  connected: boolean;
+  last_seen_at: string | null;
+}
+
+/** 是不是靠长连接在线的转码器（配对来的 worker，或「仅限转码」的手工令牌） */
+function isTranscoder(device: LivenessFields): boolean {
+  return device.kind === "worker" || device.scope === "transcode";
+}
+
+/**
+ * 列表上的绿点：转码器看此刻连没连着（它只在握手时验一次凭证、之后靠心跳在线，
+ * 按最近验签时间判断的话，连着的转码器 5 分钟后就会变灰）；其余设备没有长连接，
+ * 仍按最近 5 分钟有没有用过。
+ */
+export function deviceLive(device: LivenessFields, now: number = Date.now()): boolean {
+  if (isTranscoder(device)) return device.connected;
+  return isLive(device.last_seen_at, now);
+}
+
+/** 活跃那一栏的第一段：连着的转码器写「已连接」，其余写最近活跃的相对时间。 */
+export function activityLabel(device: LivenessFields, now: number = Date.now()): string {
+  if (isTranscoder(device) && device.connected) return "已连接";
+  return relativeTime(device.last_seen_at, now);
+}
+
 // ---------------------------------------------------------------------------
 // 手工令牌：给无人值守环境的环境变量片段
 // ---------------------------------------------------------------------------

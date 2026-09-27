@@ -4653,6 +4653,8 @@ nonisolated extension API {
         var expiresAt: String?
         /// 是不是发起本次请求的这台设备
         var current: Bool
+        /// 此刻是否有一条活着的转码控制连接（只有转码器有长连接；其余设备恒为 false，在不在用看 last_seen_at）
+        var connected: Bool
         /// 能否改名（Jellyfin 播放器的名字由客户端上报，不能改）
         var renamable: Bool
         /// 主人：成员 id；0 = 超管
@@ -4674,6 +4676,7 @@ nonisolated extension API {
             case lastSeenIp = "last_seen_ip"
             case expiresAt = "expires_at"
             case current
+            case connected
             case renamable
             case ownerId = "owner_id"
             case ownerUsername = "owner_username"

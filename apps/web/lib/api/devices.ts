@@ -72,6 +72,11 @@ export interface LoginDeviceView {
   expires_at: string | null;
   /** 是不是发起本次请求的这台（即当前这个浏览器） */
   current: boolean;
+  /**
+   * 此刻有没有一条活着的转码控制连接。只有转码器有长连接：它只在握手时验一次
+   * 凭证、之后靠心跳在线，所以在不在线以它为准，而不是 last_seen_at。
+   */
+  connected: boolean;
   /** Jellyfin 播放器的名字由它自己上报，不能改名 */
   renamable: boolean;
   /** 主人：成员 id；0 = 超管 */

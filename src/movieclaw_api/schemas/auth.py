@@ -261,6 +261,13 @@ class LoginDeviceView(BaseModel):
     last_seen_ip: str | None = None
     expires_at: datetime | None = Field(default=None, description="网页会话的过期时间")
     current: bool = Field(description="是不是发起本次请求的这台设备")
+    connected: bool = Field(
+        default=False,
+        description=(
+            "此刻是否有一条活着的转码控制连接（只有转码器有长连接；其余设备恒为 false，"
+            "在不在用看 last_seen_at）"
+        ),
+    )
     renamable: bool = Field(description="能否改名（Jellyfin 播放器的名字由客户端上报，不能改）")
     owner_id: int = Field(description="主人：成员 id；0 = 超管")
     owner_username: str

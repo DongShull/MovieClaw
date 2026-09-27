@@ -606,3 +606,68 @@ def test_manual_token_creation_requires_a_person(client: TestClient) -> None:
         ).status_code
         == 403
     )
+
+
+def test_transcoder_shows_connected_while_its_control_link_is_up(client: TestClient) -> None:
+    """转码器只在握手时验一次凭证、之后靠长连接心跳在线：设备列表的「已连接」以连接为准，
+    不能按最近验签时间判断——否则连着的转码器 5 分钟后就显示成离线。"""
+    from movieclaw_api.services.playback.remote_worker import REMOTE_WORKER_PROTOCOL_VERSION
+
+    token = _pair(client, client_type="worker", name="Yi的Mac-mini")
+    assert client.put("/api/v1/transcode-worker/config", json={"enabled": True}).status_code == 200
+    assert _paired_devices(client)[0]["connected"] is False
+
+    with client.websocket_connect("/api/v1/transcode-worker/ws", headers=_bearer(token)) as ws:
+        ws.send_json(
+            {
+                "type": "worker.hello",
+                "protocol_version": REMOTE_WORKER_PROTOCOL_VERSION,
+                "worker_id": "yi-mac-mini",
+                "capabilities": {"platform": "macOS", "backends": ["videotoolbox"], "max_jobs": 1},
+            }
+        )
+        assert ws.receive_json()["type"] == "worker.accepted"
+        device = _paired_devices(client)[0]
+        assert device["connected"] is True
+        # 其他设备不受影响
+        assert all(
+            not d["connected"]
+            for d in client.get(f"{_AUTH}/devices").json()["data"]
+            if d["kind"] != "worker"
+        )
+
+    # 连接断开后回到「未连接」（服务端注销连接在断开处理里，稍等片刻）
+    for _ in range(50):
+        if _paired_devices(client)[0]["connected"] is False:
+            break
+        time.sleep(0.1)
+    assert _paired_devices(client)[0]["connected"] is False
+
+
+def test_worker_messages_refresh_last_seen(client: TestClient) -> None:
+    """心跳也算活跃：「最近活跃」跟得上转码器真实的在线时间，而不是停在握手那一刻。"""
+    from datetime import timedelta
+
+    from movieclaw_api.services import login_devices
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models.base import utcnow
+    from movieclaw_db.models.login_device import LoginDevice
+
+    _pair(client, client_type="worker", name="Yi的Mac-mini")
+    row_id = int(_paired_devices(client)[0]["id"].removeprefix("ld-"))
+    stale = utcnow() - timedelta(hours=3)
+
+    async def age_and_touch() -> None:
+        async with get_database().session() as session:
+            row = await session.get(LoginDevice, row_id)
+            row.last_seen_at = stale
+            await session.commit()
+        login_devices.reset_state()  # 清掉进程内的节流，模拟一分钟以后的下一条心跳
+        await login_devices.touch_id(
+            row_id, ip="192.168.1.60", user_agent="MovieClawTranscoder/1.0"
+        )
+
+    client.portal.call(age_and_touch)
+    device = _paired_devices(client)[0]
+    assert device["last_seen_ip"] == "192.168.1.60"
+    assert not device["last_seen_at"].startswith(stale.isoformat()[:16])

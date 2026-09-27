@@ -138,7 +138,9 @@ Jellyfin 播放器的凭证受协议约束多（令牌格式、同设备覆盖�
 | `PUT /auth/password` | 登录 | 新增 `sign_out_paired` |
 
 `GET /auth/me` 的 `SessionView` 新增 `device`（当前设备 id / 类型 / 名字）；成员
-视图新增 `device_count`。删除了 `GET/DELETE /auth/tokens`、`GET /auth/devices/requests`
+视图新增 `device_count`。设备视图带 `connected`：此刻有没有活着的转码控制连接——转码器
+只在握手时验一次凭证、之后靠心跳在线，列表上的在线状态以它为准（其余设备没有长连接，
+按 `last_seen_at` 最近 5 分钟判断）；转码器的每条控制消息也会刷新 `last_seen_at`。删除了 `GET/DELETE /auth/tokens`、`GET /auth/devices/requests`
 （被上表取代）。
 
 ## 7. 活动页

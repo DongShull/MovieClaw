@@ -279,12 +279,18 @@ async def resolve(token: str) -> ResolvedDevice | None:
 async def touch(device: LoginDevice, *, ip: str | None, user_agent: str | None) -> None:
     """记下设备的最近活跃（时间、来源地址、User-Agent），按分钟粒度落盘。"""
     assert device.id is not None
+    await touch_id(device.id, ip=ip, user_agent=user_agent)
+
+
+async def touch_id(device_id: int, *, ip: str | None, user_agent: str | None) -> None:
+    """同 ``touch``，按 id 记。转码器只在握手时验一次凭证，之后收到它的每条控制消息
+    （心跳、任务状态）都调这里，「最近活跃」才跟得上它真实的在线时间。"""
     now = time.monotonic()
-    if now - _touched_at.get(device.id, 0.0) < _TOUCH_INTERVAL_S:
+    if now - _touched_at.get(device_id, 0.0) < _TOUCH_INTERVAL_S:
         return
-    _touched_at[device.id] = now
+    _touched_at[device_id] = now
     async with get_database().session() as session:
-        row = await session.get(LoginDevice, device.id)
+        row = await session.get(LoginDevice, device_id)
         if row is None:
             return
         row.last_seen_at = utcnow()

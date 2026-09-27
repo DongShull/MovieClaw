@@ -921,8 +921,19 @@ async def _owner_labels(session: AsyncSession) -> dict[int, tuple[str, str]]:
     return labels
 
 
+def _connected_device_ids() -> set[int]:
+    """此刻连着转码控制面的登录设备（转码器只在握手时验一次凭证，在线与否以连接为准）。"""
+    from movieclaw_api.services.playback.remote_worker import get_remote_worker_registry
+
+    return get_remote_worker_registry().connected_login_device_ids()
+
+
 def _device_view(
-    device: LoginDevice, *, principal: Principal, owners: dict[int, tuple[str, str]]
+    device: LoginDevice,
+    *,
+    principal: Principal,
+    owners: dict[int, tuple[str, str]],
+    connected: set[int] | None = None,
 ) -> LoginDeviceView:
     assert device.id is not None
     spec = login_devices.spec_of(device.kind)
@@ -941,6 +952,7 @@ def _device_view(
         last_seen_ip=device.last_seen_ip,
         expires_at=device.expires_at,
         current=principal.device is not None and principal.device.id == device.id,
+        connected=connected is not None and device.id in connected,
         renamable=True,
         owner_id=device.member_id,
         owner_username=username,
@@ -1017,15 +1029,20 @@ async def list_devices(
         default=False, alias="all", description="管理员查看全部成员的设备"
     ),
 ) -> ApiResponse[list[LoginDeviceView]]:
-    """当前设备置顶，其余按最近活跃排序。``all=true`` 仅超管可用，带上每台设备的主人。"""
+    """当前设备置顶，其余按最近活跃排序。``all=true`` 仅超管可用，带上每台设备的主人。
+
+    转码器多带一个 ``connected``：它只在握手时验一次凭证，之后靠长连接心跳在线，
+    按「最近验签时间」判断的话，连着的转码器 5 分钟后就会被显示成离线。
+    """
     from sqlalchemy import select
 
     if all_members and not principal.is_admin:
         raise ForbiddenException("只有管理员能查看全部成员的设备")
     owner_filter = None if all_members else principal.owner_id
     owners = await _owner_labels(session)
+    connected = _connected_device_ids()
     views = [
-        _device_view(row, principal=principal, owners=owners)
+        _device_view(row, principal=principal, owners=owners, connected=connected)
         for row in await login_devices.list_devices(session, member_id=owner_filter)
     ]
     stmt = select(JellyfinDevice)
@@ -1054,7 +1071,14 @@ async def current_device(
     device = await login_devices.get_device(session, principal.device.id)
     if device is None:
         raise NotFoundException("设备不存在或已被注销")
-    return ok(_device_view(device, principal=principal, owners=await _owner_labels(session)))
+    return ok(
+        _device_view(
+            device,
+            principal=principal,
+            owners=await _owner_labels(session),
+            connected=_connected_device_ids(),
+        )
+    )
 
 
 @router.delete(
@@ -1097,7 +1121,12 @@ async def rename_device(
         raise BadRequestException("播放器的名字由它自己上报，不能在这里修改")
     device = await login_devices.rename(session, device, payload.name)
     return ok(
-        _device_view(device, principal=principal, owners=await _owner_labels(session)),
+        _device_view(
+            device,
+            principal=principal,
+            owners=await _owner_labels(session),
+            connected=_connected_device_ids(),
+        ),
         message="设备已改名",
     )
 

@@ -28,12 +28,12 @@ import {
   grantSummary,
   groupDevices,
   headlessArgs,
-  isLive,
+  activityLabel,
+  deviceLive,
   isStale,
   issuedVerb,
   manualGrantSummary,
   normalizePairingCode,
-  relativeTime,
   resolveServerAddress,
   revokeConsequence,
 } from "@/lib/devices-display";
@@ -91,6 +91,15 @@ export function DevicesSection() {
       alive = false;
     };
   }, [scope, reloadTick]);
+
+  // 在线状态会变（转码器连上 / 断开、手机刚用过）：页面开着时每 15 秒静默刷新一次，
+  // 切到后台标签页就不刷
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") reload();
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [reload]);
 
   const handleRename = async (device: LoginDeviceView) => {
     const input = await prompt({
@@ -535,7 +544,7 @@ function DeviceRow({
   onRename: () => void;
   onRevoke: () => void;
 }) {
-  const live = isLive(device.last_seen_at);
+  const live = deviceLive(device);
   const identity = [
     device.kind_label,
     device.platform,
@@ -544,7 +553,7 @@ function DeviceRow({
     .filter(Boolean)
     .join(" · ");
   const activity = [
-    relativeTime(device.last_seen_at),
+    activityLabel(device),
     device.last_seen_ip ? `来自 ${device.last_seen_ip}` : null,
     `${issuedVerb(device.kind, device.family)} ${formatDateTime(device.created_at)}`,
   ]

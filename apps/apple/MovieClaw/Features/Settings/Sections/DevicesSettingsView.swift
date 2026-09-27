@@ -61,6 +61,8 @@ struct DevicesSettingsView: View {
         .scrollDismissesKeyboard(.immediately)
         .appBackground()
         .task(id: showAll) { await load() }
+        // 在线状态会变（转码器连上 / 断开、别的设备刚用过）：页面开着时每 15 秒静默刷新一次
+        .polling(every: 15) { await load() }
         .task {
             if let preset = routeQuery["code"], !preset.isEmpty {
                 code = preset
@@ -213,7 +215,7 @@ struct DevicesSettingsView: View {
     }
 
     private func deviceRow(_ device: API.LoginDeviceView) -> some View {
-        let live = device.current || SettingsTime.isLive(device.lastSeenAt)
+        let live = DeviceText.isLive(device)
         return HStack(spacing: 12) {
             SettingsStatusDot(color: live ? Theme.success : Color.white.opacity(0.25), glow: live)
             VStack(alignment: .leading, spacing: 3) {
@@ -599,9 +601,29 @@ enum DeviceText {
         if device.scope == "transcode", device.kind != "worker" { parts.append("仅转码") }
         if let platform = device.platform { parts.append(platform) }
         if let version = device.clientVersion { parts.append("版本 \(version)") }
-        parts.append(device.current ? "正在使用" : SettingsTime.deviceRelative(device.lastSeenAt))
+        parts.append(device.current ? "正在使用" : activity(device))
         if let ip = device.lastSeenIp { parts.append(ip) }
         return parts.joined(separator: " · ")
+    }
+
+    /// 靠长连接在线的转码器（配对来的 worker，或「仅限转码」的手工令牌）
+    private static func isTranscoder(_ device: API.LoginDeviceView) -> Bool {
+        device.kind == "worker" || device.scope == "transcode"
+    }
+
+    /// 列表上的绿点：转码器看此刻连没连着（它只在握手时验一次凭证、之后靠心跳在线，按最近
+    /// 验签时间判断的话，连着的转码器 5 分钟后就会变灰）；其余设备没有长连接，仍按最近 5 分钟
+    /// 有没有用过，本机恒为在线
+    static func isLive(_ device: API.LoginDeviceView) -> Bool {
+        if device.current { return true }
+        if isTranscoder(device) { return device.connected }
+        return SettingsTime.isLive(device.lastSeenAt)
+    }
+
+    /// 活跃那一段：连着的转码器写「已连接」，其余写最近活跃的相对时间
+    static func activity(_ device: API.LoginDeviceView) -> String {
+        if isTranscoder(device), device.connected { return "已连接" }
+        return SettingsTime.deviceRelative(device.lastSeenAt)
     }
 
     /// 超过 90 天没用过：给一行提示，不自动失效（自动过期等于让用户某天莫名其妙掉线）
