@@ -23,12 +23,21 @@ var knownNonGenerated = []string{
 	"skills.list",
 	"auth.device.authorize",
 	"auth.device.token",
+	// 原生 App 的账号密码登录：客户端之间的协议端点，mclaw 走配对码
+	"auth.device.login",
 	"auth.tokens.create",
-	"auth.tokens.list",
-	"auth.tokens.revoke",
-	"auth.devices.requests",
+	// 登录设备（docs/design/login-devices.md）：管理设备、批准配对只能由人在网页或
+	// App 里做；「当前设备」与「注销自己」由精选命令 mclaw status / logout 承担
+	"auth.devices.list",
+	"auth.devices.current",
+	"auth.devices.revoke_current",
+	"auth.devices.rename",
+	"auth.devices.revoke",
+	"auth.devices.request",
 	"auth.devices.approve",
 	"auth.devices.deny",
+	// 让成员在全部设备上下线：同属管理别人的设备，只在网页或 App 的成员管理里做
+	"members.sign_out",
 	"images.asset",
 	"images.proxy",
 	"libraries.cover",

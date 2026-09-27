@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -53,9 +54,10 @@ func NewLoginCommand() *cobra.Command {
 不带 --server 时会广播查找同一局域网内的 movieclaw，找到后请你确认。跨网段、
 VPN，或服务端关掉了「Jellyfin 兼容层」时找不到，自己给地址即可。
 
-随后命令会显示一段配对码，请在浏览器里打开 movieclaw 的「设置 → 设备」，
-核对配对码后批准。配对成功后服务器地址会记入当前上下文，之后的命令
-无需再指定 --server。`,
+随后命令会显示一个批准链接和一段配对码：在登录着 movieclaw 的浏览器里打开
+链接，核对配对码后批准（打不开链接时，到网页或 App 的「设置 → 设备」手动
+输入配对码）。令牌的身份就是批准它的那个账号——成员也能批准自己的命令行。
+配对成功后服务器地址会记入当前上下文，之后的命令无需再指定 --server。`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := SettingsOf(cmd)
@@ -112,9 +114,19 @@ func runLogin(s *Settings, clientName string) error {
 	if clientName == "" {
 		clientName = defaultClientName()
 	}
+	installationID, err := config.InstallationID()
+	if err != nil {
+		return err
+	}
 	grant, err := client.Request(http.MethodPost, "/auth/device/authorize", nil, map[string]string{
 		"client_type": "cli",
 		"client_name": clientName,
+		// 以下三项是 docs/design/login-devices.md §4 的上报：安装标识让同一台机器
+		// 重新配对时替换旧令牌，而不是越积越多；系统架构与版本写在批准页和设备
+		// 列表上，帮人认出是哪台机器。老版本服务端不认识这些字段，会直接忽略。
+		"installation_id": installationID,
+		"platform":        clientPlatform(runtime.GOOS, runtime.GOARCH),
+		"client_version":  api.Version,
 	})
 	if err != nil {
 		return err
@@ -125,8 +137,12 @@ func runLogin(s *Settings, clientName string) error {
 		return clierr.New("服务器返回的配对回执缺少必要字段").
 			WithHint("服务器版本可能过旧，请升级 movieclaw")
 	}
+	// 优先给带配对码的链接：打开即显示这一条请求，不用再手抄配对码。
+	// 老版本服务端没有这个字段，退回不带码的批准页。
+	page := stringField(grant, "verification_uri_complete",
+		stringField(grant, "verification_uri", target+"/settings/devices"))
 	output.Info("")
-	output.Info("请在浏览器打开：%s", stringField(grant, "verification_uri", target+"/settings/devices"))
+	output.Info("请在浏览器打开：%s", page)
 	output.Info("核对配对码：      %s", userCode)
 	output.Info("")
 
@@ -134,13 +150,27 @@ func runLogin(s *Settings, clientName string) error {
 	if err != nil {
 		return err
 	}
+	// 覆盖本地凭证之前，先用这台服务器的旧令牌（如果有）尽力注销它自己。同一个人
+	// 重新配对时服务端已按安装标识替换掉旧令牌，这里只会得到 401；换了人批准时旧
+	// 令牌不会被替换，不注销的话它就成了本机再也拿不出来、却一直有效的孤儿。
+	// 结果一律忽略：失败了也不影响这次登录，旧令牌仍可在网页「设置 → 设备」里注销。
+	if previous, _ := config.LoadToken(target); previous != "" {
+		_ = revokeToken(s, target, previous)
+	}
 	if err := config.SaveToken(target, stringField(token, "token", "")); err != nil {
 		return err
 	}
 	if err := config.SaveContext(target, "default"); err != nil {
 		return err
 	}
-	output.Info("✓ 已授权：%s", stringField(token, "client_name", clientName))
+	name := stringField(token, "client_name", clientName)
+	// 身份回显：令牌就是批准者本人（成员批准的命令行只有成员的权限），
+	// 当场说清楚，免得以为配对出来的一律是管理员
+	if approver := stringField(token, "granted_by", ""); approver != "" {
+		output.Info("✓ 已授权：%s（由 %s 批准，之后的命令以 %s 的身份执行）", name, approver, approver)
+	} else {
+		output.Info("✓ 已授权：%s", name)
+	}
 	output.Info("  凭证已写入 %s（仅本用户可读）", config.CredentialsPath())
 	return nil
 }
@@ -195,12 +225,14 @@ func awaitGrant(s *Settings, server string, grant any, deviceCode string) (any, 
 func NewLogoutCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "logout",
-		Short: "删除本机保存的授权",
-		Long: `删除本机保存的令牌。
+		Short: "退出登录：在服务端注销本机并删除本地授权",
+		Long: `在服务端注销这台机器的令牌，再删除本机保存的副本。
 
-这只清本地凭证，不会吊销服务端的令牌——吊销是人在浏览器里的动作
-（docs/design/device-auth.md §4.4）。想彻底停用这台机器，请到网页的
-「设置 → 设备」里吊销它。`,
+服务端注销是尽力而为（docs/design/login-devices.md §6）：服务器连不上时照样
+删除本地令牌，并提示你到网页「设置 → 设备」里手动注销。
+
+令牌来自环境变量 MOVIECLAW_TOKEN 时，这条命令不会动它，也不会在服务端注销
+它——那枚令牌可能是 Agent 或 CI 在用；unset 之后才算真正断开。`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := SettingsOf(cmd)
@@ -208,20 +240,76 @@ func NewLogoutCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := config.DeleteToken(target); err != nil {
+			token, err := config.LoadToken(target)
+			if err != nil {
 				return err
 			}
-			output.Info("已删除本机保存的授权：%s", target)
+			if token == "" {
+				output.Info("本机没有保存 %s 的授权，无需退出。", target)
+			} else {
+				// 先注销、后删本地：顺序反过来的话，令牌一删就再也没法证明「我是谁」
+				revoked := revokeOnServer(s, target, token)
+				if err := config.DeleteToken(target); err != nil {
+					return err
+				}
+				output.Info("已删除本机保存的授权：%s", target)
+				if !revoked {
+					output.Info("提示：服务端的这枚令牌可能仍然有效。要彻底停用这台机器，请到网页「设置 → 设备」里注销它。")
+				}
+			}
 			// 删文件删不掉环境变量。不说破的话，用户会以为 logout 之后就断了，
 			// 而下一条命令照样带着 MOVIECLAW_TOKEN 跑通。
 			if os.Getenv(config.EnvToken) != "" {
 				output.Info("注意：环境变量 %s 仍然设置着，后续命令会继续用它授权。", config.EnvToken)
 				output.Info("      要在本终端里真的断开，执行：unset %s", config.EnvToken)
 			}
-			output.Info("提示：服务端的令牌仍然有效。要彻底停用这台机器，请到网页「设置 → 设备」里吊销。")
 			return nil
 		},
 	}
+}
+
+// revokeTimeout 是在服务端注销一枚令牌（logout、login 清理旧令牌）的等待上限。
+// 注销是尽力而为，服务器关机或网络不通时，命令不该被卡上半分钟。
+const revokeTimeout = 5 * time.Second
+
+// revokeToken 用指定令牌在服务端注销它自己（DELETE /auth/devices/current），
+// 最多等 revokeTimeout（--timeout 更短时按它）。错误原样返回，怎么对用户说由
+// 调用方决定。
+//
+// 令牌必须显式传入、不走环境变量：要注销的是本地凭证文件里的那一枚，
+// MOVIECLAW_TOKEN 可能属于 Agent 或 CI，绝不能被顺手注销。
+func revokeToken(s *Settings, server, token string) error {
+	timeout := s.Timeout
+	if timeout <= 0 || timeout > revokeTimeout {
+		timeout = revokeTimeout
+	}
+	client, err := api.NewWithToken(server, token, timeout, s.Debug)
+	if err != nil {
+		return err
+	}
+	_, err = client.Request(http.MethodDelete, "/auth/devices/current", nil, nil)
+	return err
+}
+
+// revokeOnServer 用即将删除的本地令牌在服务端注销这台设备，返回服务端的
+// 这枚令牌是否已确定失效。
+//
+// 只警告、不报错：服务器连不上也必须能退出，本地令牌由调用方照删，再提示用户
+// 去网页手动注销。服务端回 401 说明令牌早已失效（在网页上被注销过），结果
+// 与注销成功相同，不必再让用户去网页跑一趟。
+func revokeOnServer(s *Settings, server, token string) bool {
+	err := revokeToken(s, server, token)
+	if err == nil {
+		output.Info("✓ 已在服务端注销这台设备")
+		return true
+	}
+	var cliErr *clierr.Error
+	if asCliError(err, &cliErr) && cliErr.ExitCode == clierr.Auth {
+		output.Info("服务端的这枚令牌已经失效（此前已被注销），无需再注销")
+		return true
+	}
+	output.Info("警告：未能在服务端注销这台设备：%v", err)
+	return false
 }
 
 // NewStatusCommand 构造 `mclaw status`。
@@ -230,7 +318,7 @@ func NewStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "查看服务器与授权状态",
-		Long: `一眼看部署状态：服务健康、当前身份、凭证来源、spec 版本偏斜。
+		Long: `一眼看部署状态：服务健康、当前身份与设备、凭证来源、spec 版本偏斜。
 
 credential 这一项是排障的关键：「我明明配对过了」十次里有九次是因为 $HOME
 不同（sudo / launchd / systemd / 容器）读到了别的配置目录。把凭证到底从哪儿
@@ -251,6 +339,7 @@ credential 这一项是排障的关键：「我明明配对过了」十次里有
 				return err
 			}
 			identity := "未授权（mclaw login）"
+			device := ""
 			if me, err := client.Request(http.MethodGet, "/auth/me", nil, nil); err == nil {
 				if nickname := stringField(me, "nickname", ""); nickname != "" {
 					identity = nickname
@@ -259,6 +348,7 @@ credential 这一项是排障的关键：「我明明配对过了」十次里有
 				} else {
 					identity = "已授权"
 				}
+				device = currentDevice(client)
 			} else {
 				var cliErr *clierr.Error
 				if !asCliError(err, &cliErr) || cliErr.ExitCode != clierr.Auth {
@@ -280,17 +370,24 @@ credential 这一项是排障的关键：「我明明配对过了」十次里有
 			if serverHash != "" {
 				inSync = serverHash == spec.ActiveHash
 			}
-			payload := jsonval.NewMap(
+			fields := []any{
 				"server", target,
 				"service", stringField(health, "service", ""),
 				"status", stringField(health, "status", ""),
 				"environment", stringField(health, "environment", ""),
 				"identity", identity,
+			}
+			// 当前设备紧跟身份：「我是谁、用的是哪台设备的凭证」是一件事
+			if device != "" {
+				fields = append(fields, "device", device)
+			}
+			fields = append(fields,
 				"credential", credential,
 				"cli_spec_hash", spec.ActiveHash,
 				"server_spec_hash", serverHash,
 				"spec_in_sync", inSync,
 			)
+			payload := jsonval.NewMap(fields...)
 			format := outputFlag
 			if format == "" {
 				format = s.Output
@@ -300,6 +397,25 @@ credential 这一项是排障的关键：「我明明配对过了」十次里有
 	}
 	cmd.Flags().StringVarP(&outputFlag, "output", "o", "", "输出格式（覆盖全局设置）")
 	return cmd
+}
+
+// currentDevice 返回当前凭证对应的登录设备，形如「mclaw@nas（命令行）」。
+//
+// 拿不到就返回空串，status 里不显示这一项：老版本服务端没有这个接口，Agent
+// 注入的内部令牌也不是一台登录设备——这些都不该让 status 失败。
+func currentDevice(client *api.Client) string {
+	data, err := client.Request(http.MethodGet, "/auth/devices/current", nil, nil)
+	if err != nil {
+		return ""
+	}
+	name := stringField(data, "name", "")
+	if name == "" {
+		return ""
+	}
+	if label := stringField(data, "kind_label", ""); label != "" {
+		return fmt.Sprintf("%s（%s）", name, label)
+	}
+	return name
 }
 
 // defaultClientName 返回 mclaw@<主机名>。
@@ -462,6 +578,24 @@ func defaultClientName() string {
 		host = "unknown-host"
 	}
 	return fmt.Sprintf("mclaw@%s", host)
+}
+
+// clientPlatform 是配对时上报的系统与架构，形如「macOS · arm64」。
+//
+// 它显示在网页的批准页和「设置 → 设备」上，是给人认机器用的，所以系统名换成
+// 人熟悉的写法（darwin 这类 Go 内部叫法多数人认不出）；架构照 GOARCH 原样。
+// 分发目标之外的系统保持原名。
+func clientPlatform(goos, goarch string) string {
+	name := goos
+	switch goos {
+	case "darwin":
+		name = "macOS"
+	case "linux":
+		name = "Linux"
+	case "windows":
+		name = "Windows"
+	}
+	return name + " · " + goarch
 }
 
 func stringField(data any, key, fallback string) string {

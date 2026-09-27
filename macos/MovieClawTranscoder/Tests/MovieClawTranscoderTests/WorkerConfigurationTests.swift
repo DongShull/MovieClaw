@@ -127,13 +127,85 @@ final class WorkerConfigurationTests: XCTestCase {
         """#
         let pairing = DevicePairing(nasURL: URL(string: "http://10.1.1.5:3000")!, session: stubSession(200, payload))
 
-        let grant = try await pairing.authorize(clientName: "Yi的Mac-mini")
+        let grant = try await pairing.authorize(clientName: "Yi的Mac-mini", installationID: "install-1")
 
         XCTAssertEqual(grant.userCode, "MCLW-7F3K")
         XCTAssertEqual(grant.deviceCode, "dc-abc")
         XCTAssertEqual(grant.interval, 3)
         XCTAssertEqual(grant.expiresIn, 300)
         XCTAssertEqual(grant.verificationURI, "http://10.1.1.5:3000/settings/devices")
+        // 老版本服务端没有带码链接：退回不带码的批准页
+        XCTAssertNil(grant.verificationURIComplete)
+        XCTAssertEqual(grant.pageToOpen, "http://10.1.1.5:3000/settings/devices")
+    }
+
+    func testAuthorizeReportsThisMac() async throws {
+        // 安装标识让服务端在同一台 Mac 重新配对时替换旧凭证；系统与版本写在批准页和设备列表上
+        let payload = #"{"data":{"user_code":"MCLW-7F3K","device_code":"dc","verification_uri":"http://x/settings/devices"}}"#
+        let pairing = DevicePairing(nasURL: URL(string: "http://10.1.1.5:3000")!, session: stubSession(200, payload))
+
+        _ = try await pairing.authorize(clientName: "Yi的Mac-mini", installationID: "install-1")
+
+        let body = try XCTUnwrap(StubURLProtocol.lastBody)
+        let sent = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: String])
+        XCTAssertEqual(sent["client_type"], "worker")
+        XCTAssertEqual(sent["client_name"], "Yi的Mac-mini")
+        XCTAssertEqual(sent["installation_id"], "install-1")
+        XCTAssertEqual(sent["platform"], BuildInfo.platform)
+        XCTAssertEqual(sent["client_version"], BuildInfo.version)
+        XCTAssertTrue(BuildInfo.platform.hasPrefix("macOS "), BuildInfo.platform)
+    }
+
+    func testPairingOpensTheLinkWithCode() async throws {
+        // 带配对码的链接打开就是这一条请求，不用在网页上再输一遍配对码
+        let payload = #"""
+        {"data":{"user_code":"MCLW-7F3K","device_code":"dc","interval":2,"expires_in":300,
+                 "verification_uri":"http://10.1.1.5:3000/settings/devices",
+                 "verification_uri_complete":"http://10.1.1.5:3000/settings/devices?code=MCLW-7F3K"}}
+        """#
+        let pairing = DevicePairing(nasURL: URL(string: "http://10.1.1.5:3000")!, session: stubSession(200, payload))
+
+        let grant = try await pairing.authorize(clientName: "mac", installationID: "install-1")
+
+        XCTAssertEqual(grant.pageToOpen, "http://10.1.1.5:3000/settings/devices?code=MCLW-7F3K")
+    }
+
+    func testRevokeCurrentDeviceSendsBearerDelete() async throws {
+        // 「断开并重新配置」在服务端注销自己：带着本机令牌 DELETE 当前设备
+        let url = URL(string: "http://10.1.1.5:3000")!
+        let ok = DevicePairing(
+            nasURL: url,
+            session: stubSession(200, #"{"success":true,"message":"已注销「mac」","data":null}"#)
+        )
+        try await ok.revokeCurrentDevice(token: "mclaw_abc")
+        let request = try XCTUnwrap(StubURLProtocol.lastRequest)
+        XCTAssertEqual(request.httpMethod, "DELETE")
+        XCTAssertEqual(request.url?.path, "/api/v1/auth/devices/current")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer mclaw_abc")
+
+        // 失败要抛出服务端的原话，调用方记进日志
+        let rejected = DevicePairing(
+            nasURL: url,
+            session: stubSession(401, #"{"success":false,"message":"登录凭证无效或已被注销"}"#)
+        )
+        do {
+            try await rejected.revokeCurrentDevice(token: "mclaw_abc")
+            XCTFail("401 必须抛错")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "登录凭证无效或已被注销")
+        }
+    }
+
+    func testInstallationIDIsStable() {
+        // 每次配对都换一个标识的话，服务端认不出是同一台 Mac，设备列表会越积越多。
+        // 只测 installationID()：clear() 会去删真实钥匙串里的令牌，测试里不能碰
+        let name = "WorkerConfigurationTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+
+        let first = ConfigurationStore(defaults: defaults).installationID()
+        XCTAssertFalse(first.isEmpty)
+        XCTAssertEqual(ConfigurationStore(defaults: defaults).installationID(), first, "重启 App 后标识不能变")
     }
 
     func testPollMapsStatusCodesToDistinctOutcomes() async throws {
@@ -209,11 +281,17 @@ final class WorkerConfigurationTests: XCTestCase {
 final class StubURLProtocol: URLProtocol {
     nonisolated(unsafe) static var status = 200
     nonisolated(unsafe) static var body = Data()
+    /// 最近一次收到的请求与请求体（断言客户端发了什么）。
+    nonisolated(unsafe) static var lastRequest: URLRequest?
+    nonisolated(unsafe) static var lastBody: Data?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        Self.lastRequest = request
+        // 到了 URLProtocol 这一层，POST 的请求体通常只剩 httpBodyStream
+        Self.lastBody = request.httpBody ?? request.httpBodyStream.map(Self.readAll)
         let response = HTTPURLResponse(
             url: request.url!,
             statusCode: Self.status,
@@ -226,6 +304,19 @@ final class StubURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    private static func readAll(_ stream: InputStream) -> Data {
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return data
+    }
 }
 
 final class CapabilityProbeTests: XCTestCase {

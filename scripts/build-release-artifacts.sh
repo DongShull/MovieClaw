@@ -109,7 +109,7 @@ mkdir -p cli/internal/spec/data
 cp "$STAGE/backend/src/movieclaw_api/data/spec.json" cli/internal/spec/data/spec.json
 for arch in amd64 arm64; do
     ( cd cli && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" \
-        go build -trimpath -ldflags="-s -w" \
+        go build -trimpath -ldflags="-s -w -X main.version=$VERSION" \
         -o "$STAGE/backend/bin/mclaw-linux-$arch" ./cmd/mclaw )
 done
 # 同架构时冒烟一次：spec 坏了、命令树建不起来，在这里就断，而不是等用户更新完

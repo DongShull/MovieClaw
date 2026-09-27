@@ -276,6 +276,60 @@ func TestContextNameIsValidated(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// 安装标识：配对时上报，同一台机器重新配对由服务端替换旧令牌
+// ---------------------------------------------------------------------------
+
+func TestInstallationIDIsStableAndOwnerOnly(t *testing.T) {
+	// 每次配对都换一个标识的话，服务端认不出是同一台机器，设备列表会越积越多
+	home := isolate(t)
+	first, err := InstallationID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == "" {
+		t.Fatal("没有生成安装标识")
+	}
+	// logout 只删令牌，不能连带把标识也换掉
+	if err := SaveToken(testServer, "mclaw_abc"); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteToken(testServer); err != nil {
+		t.Fatal(err)
+	}
+	second, err := InstallationID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second != first {
+		t.Fatalf("安装标识变了：%q → %q", first, second)
+	}
+	info, err := os.Stat(filepath.Join(home, "installation-id"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := info.Mode().Perm(); mode&0o077 != 0 {
+		t.Fatalf("安装标识文件权限过宽：%s", mode)
+	}
+}
+
+func TestBrokenInstallationIDIsRegenerated(t *testing.T) {
+	// 文件被改坏（这里是只剩空白）时换一个新的，而不是把空串报给服务端
+	home := isolate(t)
+	writeFileMode(t, filepath.Join(home, "installation-id"), "  \n", 0o600)
+	id, err := InstallationID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(id) == "" {
+		t.Fatal("坏文件没有被重新生成")
+	}
+	again, err := InstallationID()
+	if err != nil || again != id {
+		t.Fatalf("重新生成的标识没有落盘：%q → %q（%v）", id, again, err)
+	}
+}
+
+// ---------------------------------------------------------------------------
 
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()

@@ -10,17 +10,24 @@ import Foundation
 ///   令牌通过 `deviceCode` 兑换，直接回到本进程，从不显示在任何屏幕上。
 ///
 /// 纯网络层，不碰 UI 也不碰钥匙串——状态机在 `SettingsWindowController`，
-/// 落盘在 `ConfigurationStore`。
+/// 落盘在 `ConfigurationStore`。配对的反面「注销自己」也在这里
+/// （``revokeCurrentDevice(token:timeout:)``，docs/design/login-devices.md §6）。
 struct DevicePairing {
     /// 一次接入请求的回执。`userCode` 给人看，`deviceCode` 只有本机持有。
     struct Grant: Equatable {
         let userCode: String
         let deviceCode: String
+        /// 批准页地址（不带配对码，要人在页面上手动输入）。
         let verificationURI: String
+        /// 带配对码的批准页地址：打开即显示这一条请求。老版本服务端没有这个字段。
+        let verificationURIComplete: String?
         /// 服务端要求的轮询间隔（秒）。不要比它更快。
         let interval: Int
         /// 配对码有效期（秒）。超时就得重新发起。
         let expiresIn: Int
+
+        /// 该给人打开的地址：优先带配对码的那条，省得再去页面上输一遍。
+        var pageToOpen: String { verificationURIComplete ?? verificationURI }
     }
 
     /// 一次轮询的结论。四种终态各自对应明确的下一步，不做含糊处理。
@@ -71,10 +78,20 @@ struct DevicePairing {
     }
 
     /// 发起接入请求。只声明自己是什么形态、叫什么名字——能做什么由批准者决定。
-    func authorize(clientName: String) async throws -> Grant {
+    ///
+    /// 另外报上安装标识、系统与版本（docs/design/login-devices.md §4）：同一台 Mac
+    /// 重新配对时，服务端据此替换旧凭证，而不是在「设置 → 设备」里越积越多；批准页
+    /// 和设备列表也能写清是哪台机器。老版本服务端不认识这几个字段，会直接忽略。
+    func authorize(clientName: String, installationID: String) async throws -> Grant {
         let (data, response) = try await send(
             path: "/api/v1/auth/device/authorize",
-            body: ["client_type": "worker", "client_name": clientName]
+            body: [
+                "client_type": "worker",
+                "client_name": clientName,
+                "installation_id": installationID,
+                "platform": BuildInfo.platform,
+                "client_version": BuildInfo.version,
+            ]
         )
         try ensureSuccess(response, data: data)
         let payload = try envelope(data)
@@ -85,13 +102,30 @@ struct DevicePairing {
         else {
             throw PairingError.badResponse("配对回执缺少必要字段")
         }
+        let complete = payload["verification_uri_complete"] as? String
         return Grant(
             userCode: userCode,
             deviceCode: deviceCode,
             verificationURI: verificationURI,
+            verificationURIComplete: complete?.isEmpty == false ? complete : nil,
             interval: payload["interval"] as? Int ?? 2,
             expiresIn: payload["expires_in"] as? Int ?? 300
         )
+    }
+
+    /// 在服务端注销这台 Mac 的凭证（`DELETE /api/v1/auth/devices/current`）。
+    ///
+    /// 「断开并重新配置」时尽力调一次：只删本机钥匙串的话，服务端那枚凭证依然有效，
+    /// 「设置 → 设备」里会一直挂着一台已经断开、却还能连上来的 Mac。超时只给几秒——
+    /// 服务器连不上也必须能断开，失败由调用方记日志后照常清本机。
+    func revokeCurrentDevice(token: String, timeout: TimeInterval = 5) async throws {
+        var request = URLRequest(url: nasURL.appendingPathComponent("api/v1/auth/devices/current"))
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = timeout
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request)
+        try ensureSuccess(response, data: data)
     }
 
     /// 轮询兑换。HTTP 状态码直接映射成四种结论，调用方不需要解析业务码。
