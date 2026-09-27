@@ -22,6 +22,7 @@ struct SubscriptionsView: View {
     @Environment(\.permissions) private var permissions
     @Environment(Router.self) private var router
     @Environment(AppModel.self) private var model
+    @Environment(\.pageWarmup) private var warmup
 
     @State private var failed = false
     /// 体检整体为 error 时的库错误数；nil = 不亮警示钮
@@ -87,13 +88,17 @@ struct SubscriptionsView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar { healthToolbar }
         .refreshable { await reload() }
-        .task { await reload() }
+        .task {
+            guard !warmup else { return }
+            await reload()
+        }
         .onAppear {
+            guard !warmup else { return }
             PerfTrace.pageAppeared("subscriptions")
             if dataComplete { PerfTrace.pageDataReady("subscriptions") }
         }
         .onChange(of: dataComplete) { _, complete in
-            if complete { PerfTrace.pageDataReady("subscriptions") }
+            if complete, !warmup { PerfTrace.pageDataReady("subscriptions") }
         }
         .task(id: tintSource(slides)) { await updateTint(slides) }
         #if DEBUG
@@ -107,7 +112,8 @@ struct SubscriptionsView: View {
         #endif
         .polling(every: 10) { if hasSubscriptions { await feed.refreshArrivals(api: api) } }
         .polling(every: 20) { if hasSubscriptions { await feed.refreshRecent(api: api) } }
-        .polling(every: 10, immediately: true) { await feed.refreshTasks(api: api, isAdmin: permissions.isAdmin) }
+        // 进页面时的那一次由 reload 里的 refreshAll 取，这里只管之后每 10 秒
+        .polling(every: 10) { await feed.refreshTasks(api: api, isAdmin: permissions.isAdmin) }
         .tracksSubscriptionIndex()
     }
 
@@ -214,12 +220,30 @@ struct SubscriptionsView: View {
 
     private var hasSubscriptions: Bool { !(all ?? []).isEmpty }
 
-    /// 整页数据都在（打点用，见 PerfTrace）：订阅清单 + 预告 / 刚刚入库 / 下载快照都跑完一轮
-    private var dataComplete: Bool { all != nil && loadedOnce }
+    /// 整页数据都在（打点用，见 PerfTrace）：订阅清单 + 预告 / 刚刚入库 / 下载快照，网络刷齐或来自快照
+    private var dataComplete: Bool {
+        guard let all else { return false }
+        return all.isEmpty ? loadedOnce : (loadedOnce || feed.loaded)
+    }
 
     private func reload() async {
         failed = false
         feed.adopt(owner: SubscriptionsHomeFeed.ownerKey(api: api, username: model.session?.username))
+        // 已知有订阅（快照 / 上一轮）时，订阅清单、预告 / 刚刚入库 / 下载快照、链路体检同时发：
+        // 三份首页数据本来就不依赖清单。原先先等清单（300 部时服务端要现算 100～300ms）再发另外三个
+        if hasSubscriptions {
+            let api = api, username = model.session?.username, isAdmin = permissions.isAdmin
+            let index = index, feed = feed
+            async let ok = index.refresh(api: api, owner: username)
+            async let health: Void = refreshHealth()
+            async let data: Void = feed.refreshAll(api: api, isAdmin: isAdmin)
+            let refreshed = await ok
+            failed = !refreshed && index.subscriptions == nil
+            PerfTrace.pageStage("subscriptions", "subscriptions")
+            _ = await (health, data)
+            loadedOnce = true
+            return
+        }
         let ok = await index.refresh(api: api, owner: model.session?.username)
         failed = !ok && index.subscriptions == nil
         PerfTrace.pageStage("subscriptions", "subscriptions")

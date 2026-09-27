@@ -2,7 +2,8 @@ import SwiftUI
 
 @main
 struct MovieClawApp: App {
-    /// 最先执行（存储属性按声明顺序初始化，早于下面的 AppModel）：打点记下 main 的时刻，并配好图片加载器
+    /// 最先执行（存储属性按声明顺序初始化，早于下面的 AppModel）：AppModel 在初始化里就可能用快照直接进
+    /// 主界面、开始把首屏图片解码进内存，图片加载器必须先配好
     private let bootstrap: Void = {
         PerfTrace.markMain()
         ImagePipelineSetup.configure()
@@ -50,9 +51,15 @@ struct RootView: View {
             }
         }
         .animation(.default, value: model.phase)
+        // 冷启动用会话快照直接进了主界面：身份在后台校验（见 AppModel.revalidate），不和首帧抢主线程
+        .task {
+            await FirstFrameGate.wait()
+            await model.revalidate()
+        }
         .onAppear {
             PerfTrace.record("root.appear")
             PerfTrace.afterCommit("root.firstFrame")
+            FirstFrameGate.observeNextCommit()
         }
         .onChange(of: model.session != nil) { _, ready in
             if ready { PerfTrace.record("session.ready") }

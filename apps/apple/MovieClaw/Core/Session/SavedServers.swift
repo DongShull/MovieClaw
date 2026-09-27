@@ -113,3 +113,38 @@ nonisolated struct SavedAccount: Identifiable, Hashable, Sendable {
 
     var id: String { "\(server.origin.absoluteString)#\(account.username)" }
 }
+
+/// 各账号上次的会话快照（`/auth/me` 的结果：昵称、角色、能力开关），冷启动秒开用。
+///
+/// 本机有当前账号的令牌、也有它上次的会话快照时，冷启动直接用快照进主界面，身份在后台校验
+/// （`AppModel.revalidate`）：不必先等「测服务器 + 问身份」两个来回才出界面。校验得到 401 照常回登录页。
+/// 退出、移除账号时一并删除。
+nonisolated enum SessionCache {
+    private static let key = "movieclaw.sessionCache"
+
+    private static func entry(_ server: ServerAddress, _ username: String) -> String {
+        "\(server.origin.absoluteString)#\(username.lowercased())"
+    }
+
+    static func load(server: ServerAddress, username: String) -> API.SessionView? {
+        guard let data = (UserDefaults.standard.dictionary(forKey: key) as? [String: Data])?[entry(server, username)] else { return nil }
+        return try? JSONDecoder().decode(API.SessionView.self, from: data)
+    }
+
+    static func save(_ session: API.SessionView, server: ServerAddress) {
+        guard let data = try? JSONEncoder().encode(session) else { return }
+        var all = (UserDefaults.standard.dictionary(forKey: key) as? [String: Data]) ?? [:]
+        all[entry(server, session.username)] = data
+        UserDefaults.standard.set(all, forKey: key)
+    }
+
+    static func remove(server: ServerAddress, username: String) {
+        var all = (UserDefaults.standard.dictionary(forKey: key) as? [String: Data]) ?? [:]
+        all[entry(server, username)] = nil
+        UserDefaults.standard.set(all, forKey: key)
+    }
+
+    static func clearAll() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}

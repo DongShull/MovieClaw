@@ -15,6 +15,7 @@ struct PollingModifier: ViewModifier {
     let immediately: Bool
     let action: () async -> Void
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.pageWarmup) private var warmup
     /// 离开过前台：回来时要补刷一次
     @State private var missedWhileInactive = false
 
@@ -27,6 +28,7 @@ struct PollingModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task(id: PollingKey(active: scenePhase == .active, seconds: seconds)) {
+                guard !warmup else { return }
                 guard scenePhase == .active else {
                     missedWhileInactive = true
                     return

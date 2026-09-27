@@ -26,6 +26,8 @@ struct MainTabView: View {
     @State private var landed = false
     /// 头像页签的图标（见 AvatarTabIcon）；nil = 还没画好，先用 SF Symbol 顶一下
     @State private var avatarIcon: UIImage?
+    /// 正在背后预热的页签（见 PageWarmup）
+    @State private var warmupTabs: [MainTab] = []
 
     var body: some View {
         let session = model.session
@@ -75,6 +77,7 @@ struct MainTabView: View {
             .accessibilityIdentifier("open-more")
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .background { PageWarmup(tabs: warmupTabs) }
         // 活动页签（红 > 绿 > 蓝，同网页）与头像页签（有待安装的更新）的状态点：
         // SwiftUI 的 .badge 只能红底文字，下到 UIKit 画小圆点
         .background(TabBarDotBridge(
@@ -83,6 +86,8 @@ struct MainTabView: View {
         ))
         // 头像位图：先出首字版（照片下载前不空着），照片到了再换；改昵称 / 换头像后重画
         .task(id: "\(session?.nickname ?? "")|\(session?.avatarUrl ?? "")|\(displayScale)") {
+            // 冷启动先让第一帧上屏（这时页签先用 SF Symbol 顶着），再画头像（见 FirstFrameGate）
+            await FirstFrameGate.wait()
             avatarIcon = AvatarTabIcon.render(nickname: session?.nickname, photo: nil, scale: displayScale)
             guard let url = api.image(session?.avatarUrl) else { return }
             let request = ImageRequest(url: url, processors: [.resize(size: CGSize(width: AvatarTabIcon.size, height: AvatarTabIcon.size), contentMode: .aspectFill)])
@@ -146,8 +151,47 @@ struct MainTabView: View {
         }
         .task(id: permissions.isAdmin) {
             guard permissions.isAdmin else { return }
+            await FirstFrameGate.wait()
             await badges.run(api: api)
         }
+        .task(id: session?.username) {
+            // 空闲预热：落地页（管理员是发现页）先显示完，空闲下来再处理还没打开的媒体库首页、订阅首页——
+            // 1. 页面预热：用本机快照在背后不可见地画一遍，消化「第一次上屏」的一次性开销（见 PageWarmup）；
+            // 2. 静默刷新：页面第一帧用的是快照，这里让快照在切过去之前就换成最新的，切过去后不会再换一遍内容；
+            // 3. 首屏图片解码进内存：第一次切过去不再先出占位底、再渐显（见 FirstScreenImages）。
+            // 刷新走常驻数据的连接池，不和当前页面抢连接
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled, let username = session?.username else { return }
+            let pending = [MainTab.library, .subscriptions].filter { tab in
+                tab != router.selectedTab && (tab == .library || permissions.canSubscribe)
+            }
+            // 一次只预热一个页签：每个在主线程上是一两百毫秒的一整块，分开做、中间留出空档，
+            // 不在用户正滑着落地页时连着卡两下
+            for tab in pending {
+                guard !Task.isCancelled, tab != router.selectedTab else { continue }
+                PerfTrace.record("warmup.begin", ["page": tab.rawValue])
+                warmupTabs = [tab]
+                PerfTrace.afterCommit("warmup.rendered", ["page": tab.rawValue])
+                try? await Task.sleep(for: .milliseconds(250))
+                warmupTabs = []
+                try? await Task.sleep(for: .milliseconds(400))
+            }
+            guard !Task.isCancelled else { return }
+
+            let quiet = APIClient(server: api.server, token: api.token, session: APIClient.liveSession)
+            if pending.contains(.library) {
+                await LibraryHomeStore.shared.prefetch(api: quiet, owner: LibraryHomePrefs.ownerKey(api: api, username: username))
+            }
+            if pending.contains(.subscriptions) {
+                SubscriptionsHomeFeed.shared.adopt(owner: SubscriptionsHomeFeed.ownerKey(api: api, username: username))
+                async let index: Void = SubscriptionIndex.shared.ensureLoaded(api: quiet, owner: username)
+                async let feed: Void = SubscriptionsHomeFeed.shared.refreshIfStale(api: quiet, isAdmin: permissions.isAdmin)
+                _ = await (index, feed)
+            }
+            SessionPrewarm.warmImages(for: pending.filter { $0 != router.selectedTab }, api: api)
+        }
+        // 预热中切了页签：马上拆掉预热的那份，不和真正要显示的页面抢主线程
+        .onChange(of: router.selectedTab) { if !warmupTabs.isEmpty { warmupTabs = [] } }
         .environment(router)
         .environment(feedback)
         .environment(badges)
@@ -236,8 +280,10 @@ enum TabIcon {
     }
 
     private static func render(_ name: String) -> UIImage {
-        // 系统标签栏会把图标自动换成实心款；自己画的位图要显式取 .fill（没有实心款的用原款）
-        let config = UIImage.SymbolConfiguration(pointSize: 200, weight: .medium)
+        // 系统标签栏会把图标自动换成实心款；自己画的位图要显式取 .fill（没有实心款的用原款）。
+        // 字号取成品边长的约 2.5 倍：3 倍屏上仍是缩小绘制、边缘干净；原先按 200pt 画，每个图标要画、扫
+        // 四五十万像素，冷启动首帧前五个图标合计约 40ms（模拟器实测）
+        let config = UIImage.SymbolConfiguration(pointSize: 64, weight: .medium)
         guard let symbol = UIImage(systemName: "\(name).fill", withConfiguration: config)
                 ?? UIImage(systemName: name, withConfiguration: config)
         else { return UIImage() }
@@ -524,5 +570,28 @@ struct TabBarDotBridge: UIViewRepresentable {
             if let found = findTabBarController(from: child) { return found }
         }
         return nil
+    }
+}
+
+/// 页面预热：还没打开过的媒体库首页、订阅首页，在背后不可见地画一遍再拆掉。
+///
+/// 为什么：一个页面在这次运行里第一次上屏特别重——SwiftUI 第一次实例化这批视图类型、做协议一致性查找、
+/// 排版文字，模拟器实测第一次切到订阅首页主线程要忙约 300ms（第二次只要约 60ms）。这笔一次性开销在
+/// 落地页空闲时先消化掉（同「我的」页的输入框预热 AgentComposerWarmup），第一次切过去就接近第二次的速度。
+/// 预热的那份页面带着 `\.pageWarmup`：不发请求、不轮询、不记打点，只是画出来。
+private struct PageWarmup: View {
+    let tabs: [MainTab]
+
+    var body: some View {
+        if !tabs.isEmpty {
+            ZStack {
+                if tabs.contains(.library) { LibraryHomeView() }
+                if tabs.contains(.subscriptions) { SubscriptionsView() }
+            }
+            .environment(\.pageWarmup, true)
+            .opacity(0)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
     }
 }

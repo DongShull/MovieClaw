@@ -69,6 +69,8 @@ struct DiscoverView: View {
         .toolbarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .task(id: feedKey) {
+            // 冷启动落在发现页时先把骨架送上屏，再发请求、排十几行海报（见 FirstFrameGate）
+            await FirstFrameGate.wait()
             await feed.loadIfNeeded(api: api)
         }
         .onAppear {

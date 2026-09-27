@@ -160,8 +160,13 @@ nonisolated struct APIClient: Sendable {
     }
 
     // MARK: - 请求
+    //
+    // 请求与解码一律在后台线程（`@concurrent`）：本工程开着「易上手并发」，不标的话非隔离的 async 函数
+    // 跟着调用方跑——页面在主线程发请求，响应就在主线程解码。订阅清单一次 274KB，冷启动一拨十几个响应
+    // 挤在首帧前后解码，模拟器实测主线程上光解码就占 30～60ms。
 
     /// 发请求并拆信封，返回 `data`。
+    @concurrent
     func send<T: Decodable & Sendable>(
         _ method: String = "GET",
         _ path: String,
@@ -175,6 +180,7 @@ nonisolated struct APIClient: Sendable {
     }
 
     /// 不拆信封（少数接口如 `/health` 直接返回对象）。
+    @concurrent
     func raw<T: Decodable & Sendable>(
         _ method: String = "GET",
         _ path: String,
@@ -202,6 +208,7 @@ nonisolated struct APIClient: Sendable {
     }
 
     /// multipart 上传（头像、字幕、种子文件等）。
+    @concurrent
     func upload<T: Decodable & Sendable>(
         _ path: String,
         fields: [String: String] = [:],

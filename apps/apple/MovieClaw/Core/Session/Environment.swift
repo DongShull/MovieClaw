@@ -32,3 +32,15 @@ extension EnvironmentValues {
         set { self[RouteQueryKey.self] = newValue }
     }
 }
+
+private struct PageWarmupKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// 页面正在背后预热（见 MainTabView 的 PageWarmup）：只画出来，不发请求、不轮询、不记打点
+    var pageWarmup: Bool {
+        get { self[PageWarmupKey.self] }
+        set { self[PageWarmupKey.self] = newValue }
+    }
+}

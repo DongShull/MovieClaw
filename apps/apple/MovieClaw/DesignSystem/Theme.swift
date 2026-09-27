@@ -85,14 +85,23 @@ enum Formatters {
 
     private static let iso = ISO8601DateFormatter()
 
-    /// 解析后端时间字符串（ISO8601，可能不带时区——后端库内是 UTC）
+    /// 解析后端时间字符串（ISO8601，可能不带时区——后端库内是 UTC）。
+    /// 结果按原串缓存：订阅首页排版、Hero 挑选对同一批时间串反复解析（一次整页几百次），
+    /// ISO8601DateFormatter 每次几十微秒、不带时区的还要连试四种写法
     static func date(_ raw: String?) -> Date? {
         guard let raw, !raw.isEmpty else { return nil }
-        if let d = isoWithFraction.date(from: raw) ?? iso.date(from: raw) { return d }
-        // 无时区标记按 UTC 解析
-        let withZ = raw.hasSuffix("Z") ? raw : raw + "Z"
-        return isoWithFraction.date(from: withZ) ?? iso.date(from: withZ)
+        if let cached = parsedDates[raw] { return cached }
+        let parsed = isoWithFraction.date(from: raw) ?? iso.date(from: raw) ?? {
+            // 无时区标记按 UTC 解析
+            let withZ = raw.hasSuffix("Z") ? raw : raw + "Z"
+            return isoWithFraction.date(from: withZ) ?? iso.date(from: withZ)
+        }()
+        if parsedDates.count >= 4096 { parsedDates.removeAll(keepingCapacity: true) }
+        parsedDates[raw] = parsed
+        return parsed
     }
+
+    private static var parsedDates: [String: Date?] = [:]
 
     /// 相对时间：「几秒前」「3 分钟前」「18 天前」「2 个月前」；空值返回空串（调用方各自给占位）。
     /// 口径即 Web `formatRelativeTime`（lib/time.ts → dayjs zh-cn `fromNow()`），见 `fromNow(_:now:)`。

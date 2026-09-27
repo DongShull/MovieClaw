@@ -22,6 +22,11 @@ import Observation
 ///
 /// 任意接口 401 经 `.apiUnauthorized` 通知把状态打回 `.needsLogin`，对应 Web 端全站的 401 跳登录页兜底；
 /// 只认**当前令牌**的 401——刚退出的旧令牌、切换账号时别的账号的请求返回的 401 与当前会话无关。
+///
+/// **冷启动秒开**：本机有当前账号的令牌和它上次的会话快照（`SessionCache`）时，`init` 里直接进 `.ready`，
+/// 第一帧就是主界面（页面数据来自各自的快照，见 `SessionPrewarm`）；身份在后台校验（`revalidate`）。
+/// 以前要先等「测服务器 + 问身份」两个来回才出界面，期间只有一个转圈。校验遇到 401 照常回登录页；
+/// 服务器连不上时留在主界面，各页面挂自己的「与后端通信失败，显示的是最近一次加载的数据」提示。
 @Observable
 final class AppModel {
     enum Phase: Equatable {
@@ -81,6 +86,8 @@ final class AppModel {
     }
 
     private var resumePoint: ResumePoint?
+    /// 冷启动用会话快照直接进了主界面，身份还没向服务器确认过
+    private var needsRevalidation = false
     /// 刚因 401 被打回登录页：主界面拆掉时据此决定要不要记下位置（主动退出、切换账号不记）
     private var expiredPendingCapture = false
 
@@ -92,6 +99,8 @@ final class AppModel {
         if ProcessInfo.processInfo.arguments.contains("--reset-state") {
             UserDefaults.standard.removeObject(forKey: Self.serverKey)
             SavedServers.clearAll()
+            SessionCache.clearAll()
+            PageSnapshots.removeAll()
             TokenVault.clearAll()
         }
         // 改用设备令牌之前的版本留下的会话 Cookie：不再使用，也不该在本机留着有效凭证
@@ -116,6 +125,11 @@ final class AppModel {
         if let server, let active = saved.first(where: { $0.address == server })?.activeAccount {
             token = TokenVault.token(server: server, username: active.username)
             AuthTokenRegistry.shared.setCurrent(token, server: server)
+            if token != nil, !Self.debugLaunchOverridesSession, let cached = SessionCache.load(server: server, username: active.username) {
+                phase = .ready(cached)
+                needsRevalidation = true
+                SessionPrewarm.start(server: server, session: cached, landing: SessionPrewarm.landingTab(for: cached))
+            }
         }
         unauthorizedObserver = NotificationCenter.default.addObserver(
             forName: .apiUnauthorized, object: nil, queue: .main
@@ -149,6 +163,25 @@ final class AppModel {
             return
         }
         await reconnect()
+    }
+
+    /// 冷启动用会话快照进了主界面之后，在后台向服务器确认身份（Web AuthGate 挂载时的 `/auth/me`）：
+    /// 拿到最新的昵称、角色、能力开关就更新；401 由 `.apiUnauthorized` 打回登录页；连不上时什么也不做
+    func revalidate() async {
+        guard needsRevalidation, let server, let token, case let .ready(current) = phase else { return }
+        needsRevalidation = false
+        guard let fresh = try? await APIClient(server: server, token: token).authMe(),
+              fresh.username == current.username, self.token == token else { return }
+        update(session: fresh)
+    }
+
+    /// 调试启动参数指定了服务器 / 账号时走原来的恢复路径（`restore`），不用会话快照抢先进入
+    private static var debugLaunchOverridesSession: Bool {
+        #if DEBUG
+        DebugLaunch.server != nil
+        #else
+        false
+        #endif
     }
 
     /// 连当前服务器、恢复它上面的会话：冷启动与「连不上」卡片的「重试」共用
@@ -268,6 +301,7 @@ final class AppModel {
             await Self.revokeDevice(APIClient(server: address, token: saved))
         }
         TokenVault.delete(server: address, username: username)
+        SessionPrewarm.forget(server: address, username: username)
         savedServers = SavedServers.removingAccount(savedServers, username, from: address)
         savedServers = SavedServers.pruned(savedServers, keeping: server)
         persist()
@@ -298,12 +332,15 @@ final class AppModel {
         return refreshed
     }
 
-    /// 改昵称、换头像后同步全局会话与本机快照
+    /// 改昵称、换头像后同步全局会话与本机快照。与当前会话完全一样时什么也不做：回到前台 / 冷启动的
+    /// 身份校验每次都会调到这里，照样赋值会让整个主界面按「会话变了」重算一遍
     func update(session: API.SessionView) {
+        guard session != self.session else { return }
         phase = .ready(session)
         if let server {
             savedServers = SavedServers.upserting(savedServers, server, account: SavedServers.snapshot(of: session, active: true))
             persist()
+            SessionCache.save(session, server: server)
         }
     }
 
@@ -318,6 +355,7 @@ final class AppModel {
         guard let server, let current = session else { return nil }
         if let token { await Self.revokeDevice(APIClient(server: server, token: token)) }
         TokenVault.delete(server: server, username: current.username)
+        SessionPrewarm.forget(server: server, username: current.username)
         forgetCurrentToken()
         savedServers = SavedServers.removingAccount(savedServers, current.username, from: server)
         persist()
@@ -343,6 +381,8 @@ final class AppModel {
             for client in targets { await Self.revokeDevice(client) }
         }
         TokenVault.clearAll()
+        SessionCache.clearAll()
+        PageSnapshots.removeAll()
         forgetCurrentToken()
         let emptied = savedServers.map { SavedServer(address: $0.address, accounts: [], lastUsed: $0.lastUsed) }
         savedServers = SavedServers.pruned(emptied, keeping: server)
@@ -374,6 +414,7 @@ final class AppModel {
         guard let server else { return }
         for account in savedServers.first(where: { $0.address == server })?.accounts ?? [] {
             TokenVault.delete(server: server, username: account.username)
+            SessionPrewarm.forget(server: server, username: account.username)
         }
         savedServers = SavedServers.replacingAccounts(savedServers, server, with: [])
         persist()
@@ -402,6 +443,8 @@ final class AppModel {
         list = SavedServers.upserting(list, address, account: SavedServers.snapshot(of: session, active: true))
         savedServers = SavedServers.pruned(list, keeping: address)
         persist()
+        SessionCache.save(session, server: address)
+        SessionPrewarm.start(server: address, session: session)
         phase = .ready(session)
     }
 

@@ -191,6 +191,8 @@ def cmd_run(ns: argparse.Namespace) -> None:
     out_dir = RESULTS / ns.label
     out_dir.mkdir(parents=True, exist_ok=True)
     tag = f"{ns.scenario}.{ns.client_cache}{('.' + ns.tag) if ns.tag else ''}"
+    # 同一标签多次运行（A/B 交替）时接着编号，不覆盖上一批
+    first = len(list(out_dir.glob(f"{tag}.*.jsonl")))
     for index in range(ns.warmup + ns.runs):
         simctl("terminate", DEVICE, BUNDLE, check=False)
         time.sleep(1.0)
@@ -199,7 +201,7 @@ def cmd_run(ns: argparse.Namespace) -> None:
             clear_client_caches()
         video = None
         if ns.video and index >= ns.warmup:
-            video_path = out_dir / f"{tag}.{index - ns.warmup}.mp4"
+            video_path = out_dir / f"{tag}.{first + index - ns.warmup}.mp4"
             video = subprocess.Popen(
                 [
                     "xcrun",
@@ -225,7 +227,7 @@ def cmd_run(ns: argparse.Namespace) -> None:
         if index < ns.warmup:
             print(f"  预热轮 {index + 1}：{len(events)} 条事件（不计入）")
             continue
-        run = index - ns.warmup
+        run = first + index - ns.warmup
         (out_dir / f"{tag}.{run}.jsonl").write_text(
             "\n".join(json.dumps(e, ensure_ascii=False) for e in events)
         )
