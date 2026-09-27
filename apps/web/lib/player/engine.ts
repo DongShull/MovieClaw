@@ -345,6 +345,9 @@ class DirectEngine implements PlaybackEngine {
     if (this.label === "native-hls" && startPositionS && startPositionS > 1) {
       video.src = streamUrl;
       this.onMetadataSeek = () => {
+        // 服务端的 VOD 列表带了 EXT-X-START（按续播点写）：元数据到手时已经停在起播点，
+        // 就不再跳——续播点压在分片边界上时，这一跳会去要前一段、把刚起转的转码拉回去重启
+        if (Math.abs(video.currentTime - startPositionS) < 0.5) return;
         video.currentTime = startPositionS;
       };
       video.addEventListener("loadedmetadata", this.onMetadataSeek, { once: true });

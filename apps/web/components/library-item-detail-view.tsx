@@ -31,7 +31,9 @@ import {
 import { useConfirm, useToast } from "@/components/feedback";
 import { Modal } from "@/components/modal";
 import { PosterImage } from "@/components/poster-image";
-import { playHref, rememberPlayerReturnPath } from "@/lib/player/play-links";
+import { markPlayIntent, playHref, rememberPlayerReturnPath } from "@/lib/player/play-links";
+import { preloadHlsEngine } from "@/lib/player/engine";
+import { getCapabilitySnapshot } from "@/lib/player/capability";
 import { ReidentifyDialog } from "@/components/reidentify-dialog";
 import { ShareDialog } from "@/components/share-dialog";
 import { Tooltip } from "@/components/tooltip";
@@ -152,13 +154,6 @@ export function LibraryItemDetailView({
   // 拍板后不立刻重拉详情——文件全改挂走时本页会 404 翻成兜底态、把弹窗
   // 连同"✓ 已改挂为《X》"的回执一起卸掉，分裂成多组时更是没法接着处理
   // 剩下的组。改成记一个脏标记，关窗时再刷新
-  // 播放键是 button 而不是 <Link>，Next 不会自动预取 /play 的路由包与 RSC
-  // 载荷；条目一加载完成就预取，点播放时整整省掉一跳（§6.10 起播链路）。
-  // 预取电影形态的地址即可：剧集地址只是多一段路径，JS 包完全相同。
-  useEffect(() => {
-    if (detail) router.prefetch(playHref(detail.media_item_id) as Route);
-  }, [router, detail]);
-
   const [reidentifyOpen, setReidentifyOpen] = useState(false);
   const [reidentifyDirty, setReidentifyDirty] = useState(false);
   // 元数据刷新的失败提示（原先与重识别共用一条横幅）
@@ -220,6 +215,32 @@ export function LibraryItemDetailView({
   const playUnitKey = playUnit
     ? `${playUnit.media_item_id}/${playUnit.season_number}/${playUnit.episode_number}`
     : null;
+
+  // 播放键是 button 而不是 <Link>，Next 不会自动预取 /play 的路由包与 RSC
+  // 载荷；条目一加载完成就预取，点播放时整整省掉一跳（§6.10 起播链路）。
+  // 预取**播放键实际要去的那个地址**：剧集的 /play/{id}/sXXeYY 与电影形态的
+  // /play/{id} 是两条路由缓存，只预取后者的话剧集点播放仍要现取一次 RSC 载荷，
+  // 那一跳期间条目页原地卡着没有反馈。
+  useEffect(() => {
+    if (!playUnit) return;
+    const season = playUnit.season_number ?? 0;
+    const episode = playUnit.episode_number ?? 0;
+    const episodic = season > 0 || episode > 0;
+    router.prefetch(
+      playHref(playUnit.media_item_id, episodic ? { season, episode } : undefined) as Route,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- playUnit 每次轮询都是新对象，按内容键跟随
+  }, [router, playUnitKey]);
+
+  // 播放器要用的两样东西趁用户看简介时备好：hls.js 分包（首访约 0.6MB）与本机解码
+  // 能力快照（首次要逐个问浏览器 34 次，结果缓存在 localStorage）。都是纯本地 / 静态
+  // 资源，不碰服务端和片子
+  useEffect(() => {
+    if (!detail) return;
+    preloadHlsEngine();
+    void getCapabilitySnapshot().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在条目首次加载时备一次
+  }, [detail?.media_item_id]);
   useEffect(() => {
     if (!playUnit) {
       setWatched(null);
@@ -880,6 +901,7 @@ export function LibraryItemDetailView({
                 // sessionStorage。读 location 而不是 useSearchParams()：
                 // 后者会把整页拖进「必须包 Suspense」的预渲染约束。
                 rememberPlayerReturnPath(window.location.pathname + window.location.search);
+                markPlayIntent();
                 router.push(
                   playHref(detail.media_item_id, {
                     season:
@@ -953,6 +975,7 @@ export function LibraryItemDetailView({
             resumeMs={watched && !watched.played ? watched.position_ms : null}
             onPlay={(chapter: LibraryChapter) => {
               rememberPlayerReturnPath(window.location.pathname + window.location.search);
+              markPlayIntent();
               router.push(
                 playHref(detail.media_item_id, {
                   season:
