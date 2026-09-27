@@ -19,12 +19,85 @@ final class ImmersiveHeroScroll {
     var offset: CGFloat = 0
 }
 
+// MARK: - 下拉拉伸
+
+extension View {
+    /// 下拉时拉伸顶部大图（同 Apple Music 专辑页 / 艺人页）：大图顶边被拉离屏幕顶边多少，
+    /// 就以底边为锚点等比放大多少，顶边始终贴住屏幕顶，不露出一截页面底色。
+    ///
+    /// - 用大图自己的位置算下拉量，而不是 `contentOffset`：刷新转圈期间系统把转圈的高度加进了
+    ///   contentInset，按 contentOffset + contentInsets 算是 0，内容却还被往下推着；
+    /// - 量的是离屏幕顶边（全局坐标）而不是离滚动视图顶边：各页 ScrollView 的布局框起点不一样
+    ///   （发现详情页从导航栏下沿算起，静止时大图在它的坐标里是 -122），屏幕顶边才是统一的基准。
+    ///   前提是页面全屏显示——这几页都只在主标签页的导航栈里推入，不会出现在弹层里；
+    /// - 用 `visualEffect` 只改渲染不改布局：滚动时不重算页面，布局尺寸（底边取色用的显示比例）也不变；
+    ///   等比放大而不是拉高边框，底边露出的画面不变，与下面页面底色的交界处对得上；
+    /// - 只处理下拉（大图顶边低于屏幕顶边），上滑时原样不动；
+    /// - 系统的刷新转圈画在滚动内容后面，原先露在底色那一截里，现在会被拉伸的大图盖住，
+    ///   所以同时把它提到内容上层（见 `RefreshControlAboveContent`）。
+    /// 只挂在静止时顶边贴住屏幕物理顶边的全出血大图上。
+    func stretchesOnPull() -> some View {
+        background { RefreshControlAboveContent().accessibilityHidden(true) }
+            .visualEffect { content, proxy in
+                let pull = max(0, proxy.frame(in: .global).minY)
+                return content.scaleEffect(1 + pull / max(1, proxy.size.height), anchor: .bottom)
+            }
+    }
+}
+
+/// 把所在纵向滚动视图的下拉刷新转圈（`.refreshable` 装上的 UIRefreshControl）提到滚动内容上层。
+///
+/// UIKit 把转圈插在滚动视图最底层，平时靠内容被拉下后露出的空白看见它；顶部大图下拉拉伸后
+/// 把这块空白铺满，转圈就被压在图下面，用户看不到「正在刷新」。这里沿父视图往上找到带刷新控件的
+/// 滚动视图（跳过轮播自己的横向分页滚动视图），调高转圈图层的 zPosition：只改绘制层级，
+/// 不改视图顺序，点击命中与系统的下拉手势都不受影响。
+/// 转圈落在剧照上，系统默认的半透明灰在亮画面（浪花、天空）上几乎看不见，改成白色加一圈淡阴影。
+private struct RefreshControlAboveContent: UIViewRepresentable {
+    func makeUIView(context: Context) -> Probe { Probe() }
+    func updateUIView(_ uiView: Probe, context: Context) {}
+
+    final class Probe: UIView {
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            guard window != nil else { return }
+            raise()
+            // `.refreshable` 的控件可能比这里晚一拍装上，下一轮再补一次
+            DispatchQueue.main.async { [weak self] in self?.raise() }
+        }
+
+        private func raise() {
+            var view = superview
+            while let current = view {
+                if let control = (current as? UIScrollView)?.refreshControl {
+                    control.layer.zPosition = 1
+                    control.tintColor = .white
+                    control.layer.shadowColor = UIColor.black.cgColor
+                    control.layer.shadowOpacity = 0.45
+                    control.layer.shadowRadius = 4
+                    control.layer.shadowOffset = .zero
+                    return
+                }
+                view = current.superview
+            }
+        }
+    }
+}
+
 /// 沉浸 Hero 的剧照层。`active` 为当前正在展示的这张（切到它时从头推近），
 /// `scrollOffset` 驱动视差（内容上滑 1 倍，画面只跟 0.6 倍）。
+///
+/// 下拉拉伸：剧照放大时要往上长出轮播页之外，而分页 TabView 会把页外的部分裁掉，
+/// 所以轮播整体向上多占 `pullReserve`（在屏幕顶边之外，平时看不见），剧照只占每页底部
+/// `height` 那一截，下拉时往上长进这块预留区（见 `stretchesOnPull`）。
 struct ImmersiveHeroBackdrop: View {
+    /// 轮播向屏幕顶边之外多占的高度：橡皮筋阻尼下手指拖满整屏也只拉下三百来点，留足余量
+    static let pullReserve: CGFloat = 480
+
     let url: URL?
     let active: Bool
     let scrollOffset: CGFloat
+    /// 剧照显示高度（即 Hero 高度）；所在的页比它高出 `pullReserve`，剧照贴页底
+    let height: CGFloat
 
     /// 慢速推近：切到这一张时从 1 开始，12 秒推到 1.1
     @State private var zoom: CGFloat = 1
@@ -56,6 +129,9 @@ struct ImmersiveHeroBackdrop: View {
             .overlay {
                 LinearGradient(colors: [.black.opacity(0.5), .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.26))
             }
+            .frame(height: height)
+            .stretchesOnPull()
+            .frame(maxHeight: .infinity, alignment: .bottom)
             .onChange(of: active, initial: true) { old, isActive in
                 // 页签切走再切回时，initial 这一次会随页面重新出现再调一遍（新旧值相同）。
                 // 那不是换张：推近接着走，从 1 重来会让画面猛地缩回去，还会撞上没走完的上一段（见 KenBurnsScale）

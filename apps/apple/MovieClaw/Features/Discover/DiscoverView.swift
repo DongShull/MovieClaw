@@ -382,7 +382,9 @@ struct DiscoverHero: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: DiscoverHero.height)
+        // 向屏幕顶边之外多占一截给下拉拉伸用（分页 TabView 会裁掉页外内容，见 ImmersiveHeroBackdrop），布局高度仍是 height
+        .frame(height: DiscoverHero.height + ImmersiveHeroBackdrop.pullReserve)
+        .padding(.top, -ImmersiveHeroBackdrop.pullReserve)
         .overlay(alignment: .bottomTrailing) {
             if items.count > 1 {
                 ImmersiveHeroIndicator(count: items.count, index: $index, fill: fill) { "切换到《\(items[$0].title)》" }
@@ -435,7 +437,7 @@ private struct DiscoverHeroSlide: View {
     var body: some View {
         let sub = SubscriptionIndex.shared.subscription(for: item)
         ZStack(alignment: .bottomLeading) {
-            ImmersiveHeroBackdrop(url: Self.imageURL(item, api: api), active: active, scrollOffset: scrollOffset)
+            ImmersiveHeroBackdrop(url: Self.imageURL(item, api: api), active: active, scrollOffset: scrollOffset, height: DiscoverHero.height)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("今日精选 · \(item.mediaType == "tv" ? "剧集" : "电影")")
@@ -541,6 +543,7 @@ struct DiscoverHeroSkeleton: View {
     var body: some View {
         DiscoverSkeletonBlock(cornerRadius: 0)
             .frame(height: DiscoverHero.height)
+            .stretchesOnPull()
             .accessibilityLabel("发现页加载中")
     }
 }

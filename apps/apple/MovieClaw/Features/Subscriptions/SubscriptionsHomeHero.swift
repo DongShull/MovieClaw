@@ -45,7 +45,9 @@ struct SubsHomeHero: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: Self.height)
+        // 向屏幕顶边之外多占一截给下拉拉伸用（分页 TabView 会裁掉页外内容，见 ImmersiveHeroBackdrop），布局高度仍是 height
+        .frame(height: Self.height + ImmersiveHeroBackdrop.pullReserve)
+        .padding(.top, -ImmersiveHeroBackdrop.pullReserve)
         .overlay(alignment: .bottom) {
             if slides.count > 1 {
                 indicator
@@ -77,6 +79,7 @@ struct SubsHomeHeroSkeleton: View {
     var body: some View {
         DiscoverSkeletonBlock(cornerRadius: 0)
             .frame(height: SubsHomeHero.height)
+            .stretchesOnPull()
             .accessibilityLabel("订阅首页加载中")
     }
 }
@@ -110,7 +113,7 @@ private struct SubsHomeHeroSlideView: View {
     }
 
     private var backdrop: some View {
-        ImmersiveHeroBackdrop(url: imageURL, active: active, scrollOffset: scrollOffset)
+        ImmersiveHeroBackdrop(url: imageURL, active: active, scrollOffset: scrollOffset, height: SubsHomeHero.height)
     }
 
     private var content: some View {
