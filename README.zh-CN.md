@@ -198,6 +198,9 @@ services:
     ports:
       # 左边是宿主端口，被占了就改左边（比如 "8096:3000"），右边保持 3000
       - "3000:3000"
+      # 可选：播放器局域网自动发现（Jellyfin 协议）。要用就去掉下一行的 #；
+      # 宿主上已经跑着 Jellyfin / Emby 时别打开，端口冲突会让容器起不来
+      # - "7359:7359/udp"
     volumes:
       - ./data:/app/data              # 运行数据，备份这个文件夹就够了
                                       # （含隐藏文件 .secret_key，备份工具别跳过点文件）
@@ -256,7 +259,7 @@ docker compose up -d
 
 > 只想试一条命令？
 > `docker run -d --name movieclaw --init -p 3000:3000 --restart unless-stopped -e TZ=Asia/Shanghai -v "$(pwd)/data:/app/data" -v /volume1/media:/media -v /volume1/downloads:/downloads movieclaw/movieclaw:latest`
-> 挂载路径的规则和上面完全一样。
+> 挂载路径的规则和上面完全一样。要用播放器局域网自动发现，再加一个 `-p 7359:7359/udp`。
 
 ### 日常升级：不用重拉镜像
 
@@ -279,7 +282,7 @@ MovieClaw 对外提供 Jellyfin 兼容的播放接口，第三方播放器**把�
 | Infuse / VidHub | **真机验证可用** | 以 Jellyfin 服务器身份连接，浏览、直连播放、进度同步，播放器侧零改动 |
 | Fileball / SenPlayer | 同一套接口 | 走的是同一条 Jellyfin 兼容链路，但没有逐台真机验证过 |
 | Emby / Jellyfin 官方 App | 不适用 | 它们连的是自己的服务端；MovieClaw 可以在入库后通知 Emby/Jellyfin 刷新 |
-| 局域网自动发现 | 部分 | 桥接网络下广播到不了容器，需 host 网络或手动填地址 |
+| 局域网自动发现 | 部分 | 需映射 `7359/udp`。桥接网络下广播不一定到得了容器，到了也要在"设置 → 网络 → 外部访问地址"填局域网地址（如 `http://192.168.1.10:3000`）；最稳是 host 网络，或播放器里手动填地址 |
 | 远程硬件转码 | macOS Apple Silicon | 菜单栏 App，走 VideoToolbox 硬件编码（一台常开的 Mac mini 就够）。协议开放，其他平台可自行扩展 |
 
 细节见 [jellyfin-compat.md](docs/design/jellyfin-compat.md)、[web-player.md](docs/design/web-player.md)、
@@ -530,4 +533,12 @@ Web 控制台 `http://127.0.0.1:3000`，API 文档 `http://127.0.0.1:8000/docs`�
 
 ## License
 
-[MIT](LICENSE)
+v0.27.0 之后发布的版本采用 [MovieClaw 许可证](LICENSE)：在 Apache License 2.0
+的基础上附加了非商业条件。
+
+- **非商业使用免费**：个人或家庭自托管、在亲友范围内共享、学习研究。
+- **商业使用须经书面授权**，包括以 SaaS 或托管服务形式对外提供、销售或预装进
+  NAS 等硬件、收费代部署，以及企业使用。
+
+v0.27.0 及之前的版本仍适用 MIT 许可证。商业授权请发送邮件至
+[service@movieclaw.io](mailto:service@movieclaw.io)。

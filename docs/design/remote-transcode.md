@@ -38,6 +38,18 @@ ffmpeg——它交完请求体就走，不等响应。媒体产物不会写入 W
 连接会让每次上传都重做 TCP 与 TLS 握手，而这些握手的往返恰好都落在起播和 seek 这些
 最怕延迟的时刻。
 
+**观众播放位置（`job.playback`，只为 Worker 面板显示）。** NAS 每 3 秒给任务所在的
+Worker 推一条 `{"type": "job.playback", "job_id", "position_ms", "viewer_paused",
+"duration_ms", "prepared_ms"}`（毫秒，片内时间；拿不到的字段省略）。观众位置取播放器
+自己的进度上报（活动页「正在播放」同一份数据），**不用最近请求的分片**——那是播放器的
+下载位置，会比画面快几十秒；上报约 10 秒一次，没暂停时按实时外推（最多 30 秒）。
+`duration_ms` / `prepared_ms` 只有 VOD 会话（有预生成分片计划）才有。只发给在 hello
+的 `capabilities` 里声明了 `"playback_progress": true` 的 Worker：旧版不认识这条消息，
+会每条记一行「忽略未知控制消息」。
+
+Worker 上报 `job.progress` 的 `out_time_ms` 是真正的毫秒。注意 ffmpeg `-progress` 输出
+里同名的 `out_time_ms` 单位其实是**微秒**（历史遗留），Worker 读的时候已换算。
+
 VOD 会话的 `live.m3u8` 是 ffmpeg 的内部进度列表，服务端对远程会话并不解析它（分片是否
 就绪以产物文件本身为准），因此 Worker 只保留最后一份、在任务收尾时补传一次备诊断，
 不再每写一个分片就回传一遍。非 VOD 会话的 `index.m3u8` 要直接发给浏览器、服务端起播
@@ -177,20 +189,145 @@ Worker 不自行决定转码质量参数，`ffmpeg_args` 由 NAS 的统一命令
 ```bash
 cd macos/MovieClawTranscoder
 scripts/package-app.sh
-open "dist/MovieClaw Transcoder.app"
+open "dist/MovieClaw 转码器.app"
 ```
 
 打开 App 后在「设置」中填写与服务端匹配的地址和 Token、Worker ID、最大并发数及
 ffmpeg 路径。Token 保存在 macOS Keychain，其他非敏感配置保存在 UserDefaults。完整
-安装、launchd、HTTP 内网和 Headless 流程见
+安装、开机自启动、HTTP 内网和 Headless 流程见
 [`macos/MovieClawTranscoder/README.md`](../../macos/MovieClawTranscoder/README.md)。
+
+### 5.1 Worker 容错
+
+转码器是常驻服务，目标是「出了事自己爬起来；爬不起来，就把原因和下一步摆在面板上」。
+分四层，每层只兜自己这一层。阈值都是纯逻辑（`FaultTolerance.swift`），有单测钉住边界。
+
+**进程层：菜单栏 App + 转码内核两个进程。** 连 NAS、管 ffmpeg 的 WorkerClient 跑在同一个
+可执行文件以 `--core` 启动的子进程里（`CoreRunner`），菜单栏 App 里的 `CoreSupervisor`
+看管它，内核出任何事菜单栏 App 都不受影响：
+
+- 崩溃（被信号杀掉、非约定的退出码）按 1、2、4…秒退避重启，最长 60 秒；10 分钟内第 5 次
+  崩溃就停手，面板给「重试」——那多半是环境坏了，无限重启只会刷屏、烧 CPU。
+- 卡死：内核每 10 秒报一次平安，这条消息要先经过 WorkerClient actor，actor 被同步调用
+  堵死就报不出来；35 秒收不到内核任何消息即 SIGKILL，按崩溃处理。
+- 内存失控：内核 footprint 超过 1 GB 且手上没有任务时重启一次（不计入崩溃）。
+- 按设计退出不重启：配置无效（退出码 64）、ffmpeg 不可用（65），重启多少次都一样。
+- 通道：内核 stdin 收指令、stdout 发事件，一行一个 JSON；令牌走管道，不进命令行参数和
+  环境变量。界面进程一退出管道就断，内核读到 EOF 自行收尾，不会留下没人管的内核。
+
+App 本身的崩溃由登录项兜：App 在 `~/Library/LaunchAgents` 放一份 launchd 配置，
+`KeepAlive.SuccessfulExit=false`，意外退出后 launchd 重新拉起（`ThrottleInterval` 10 秒）。
+用户点「退出」是退出码 0，不拉起；防多开的实例也以 0 退出，不会被当成崩溃反复拉。
+
+- **不用 SMAppService.agent**：它按注册时的 cdhash 把任务钉死（launchd 的 LWCR），App 是
+  ad-hoc 签名、每次构建 cdhash 都变，更新后 launchd 以 EX_CONFIG 拒绝拉起新版本，开机就
+  不再自启；重新注册要等系统后台处理完新版本（实测半分钟以上）才生效。传统 LaunchAgent
+  没有这层约束（macOS 27 实测）。有了 Developer ID 签名后可以换回来。
+- **手动打开时交班**：只有 launchd 拉起的进程受 KeepAlive 保护。手动打开的实例（更新后
+  重新打开之类）在读到连接密钥之后、启动内核之前，请 launchd 按配置另起一个
+  （`launchctl kickstart`），等它出现就退出；launchd 那个遇到正在交班的手动实例，会等它
+  退出再接班，而不是按防多开直接退出。靠 `XPC_SERVICE_NAME` 区分两者：launchd 设成配置
+  的 Label，手动打开的是 `application.<bundle id>.…`。5 秒内没等到就自己接着跑。
+  交班放在读到密钥之后，是因为 ad-hoc 签名每次更新都要在钥匙串里重新授权：授权弹窗得留在
+  用户亲手打开、正在最前面的实例里，launchd 在后台拉起的实例不一定能把模态弹窗摆到眼前
+  （macOS 14 起激活要「协商」）；选了「始终允许」后接班的实例不会再问。
+- 配置里写的是可执行文件的绝对路径，App 挪了位置下次打开时改写并重新装载。
+
+**任务层（内核内）。**
+
+- 卡死看门狗：起转 90 秒没有第一条进度、或之后 60 秒没有新进度，强制结束 ffmpeg，
+  `job.failed` 带上原因，NAS 照常重试或降档。被 NAS 暂停（`job.pause`）的任务不计时。
+- 连续失败熔断：5 分钟内 3 个任务都在 20 秒内失败，说明这台 Mac 出了问题——发
+  `worker.draining` 暂停接单，跑一遍 ffmpeg 能力探测；通过则 10 分钟后发 `worker.ready`
+  恢复，不通过就以 65 退出、面板提示换 ffmpeg。刚起转就被叫停（拖进度条）不计数；
+  转完或跑满 20 秒的任务说明 ffmpeg 是好的，清零。
+- 孤儿 ffmpeg：内核崩溃时它起的 ffmpeg 会被 launchd 收养继续跑（被暂停的永远挂着）。
+  新内核启动时清理，三个条件同时满足才杀：父进程是 1、可执行文件就是配置的 ffmpeg、
+  参数里有 `/transcode-worker/` 取源地址和 `-progress pipe:1`——用户自己跑的 ffmpeg 不误杀。
+
+**连接层（内核内）。**
+
+- 握手看门狗：发起连接 20 秒内没收到 `worker.accepted` 就断开重连。心跳与 45 秒静默
+  检测（§3）都在握手之后才开始；服务端握手一成功就发关闭帧时，URLSession 的 send /
+  receive 会一直挂着（Python websockets 库实测），没有这一层内核会永远停在「正在连接」。
+- 睡眠唤醒、网络恢复（NWPathMonitor）：退避中立刻重连；连着的发一个心跳，5 秒没有
+  回应就断开重连——睡眠后 TCP 多半已死，等 45 秒的静默检测 NAS 早判离线了。
+- NAS 拒绝按关闭理由分三类：凭证失效每 5 分钟重试一次（不停下：NAS 从备份恢复后凭证
+  可能重新有效；重新配对后内核带新凭证重启，不用等）；远程转码没开每分钟一次；其他
+  （协议版本不一致、HTTP 403 / 404）每分钟一次，原因原样摆出来。
+- **服务端拒绝必须先 accept 再 1008 关闭**。accept 之前 close，uvicorn 按 ASGI 规范只回
+  一个空包体的 HTTP 403，理由整句丢失，Worker 分不清凭证失效还是开关没开（Starlette 的
+  TestClient 不模拟这一点，测试直接检查 ASGI 消息顺序）。旧版服务端就是这样，Worker 把
+  裸 403 翻成「请确认开关已打开；已打开则重新配对」。
+
+**面板。** 需要用户知道的故障（`WorkerProblem`）每种一张卡片：发生了什么、App 在做
+什么、用户要不要做点什么；普通的断线重连不单独出卡片。面板底部显示「24 小时内自动恢复过
+N 次」和最近一次的原因。
+
+### 5.2 原盘与各种片源格式
+
+Mac 能硬解的编码、带的 Metal 滤镜因机器而异（AV1 要 M3 起），NAS 探测不到，只能信
+Worker 在 hello 的 `capabilities` 里的申报：
+
+| 字段 | 含义 | 没申报（旧版 Worker）时 |
+|---|---|---|
+| `disc_sources` | 能读原盘的 ffconcat 清单 | 原盘任务不派给它 |
+| `hw_decoders` | VideoToolbox 能硬解的片源编码（ffmpeg 编码名），Worker 用 `VTIsHardwareDecodeSupported` 逐个实测 | 只按 `h264`、`hevc` 算 |
+| `filters` | ffmpeg 带的 Metal 滤镜（`scale_vt`、`tonemap_videotoolbox`……） | 当它一个没有 |
+
+**原盘。** NAS 本机读盘用 concat 清单（`disc-playback.md` §3.4），远程 Worker 读的是
+同一份剪辑序列与 IN/OUT，只是每段换成 HTTP 地址：源地址是
+`/transcode-worker/sessions/{id}/source.ffconcat`，清单里每段写相对地址
+`clips/{i}?token=…`（按清单自己的地址解析，反向代理子路径也对得上），令牌沿用同一个。
+每段还逐个带上 `option rw_timeout / reconnect…`——命令行上的续读参数只作用于清单这一个
+输入，管不到清单里各段剪辑自己的 HTTP 连接。原盘任务只派给申报了 `disc_sources` 的
+Worker。
+
+**命令的三种形态**（`ffmpeg_args._videotoolbox_mode`）：
+
+1. **GPU 全链路**：片源编码在 `hw_decoders` 里、`scale_vt` 与（HDR 时）
+   `tonemap_videotoolbox` 都有、链上没有只有软件做得了的步骤（烧录、BT.2020 SDR 的色彩
+   空间转换）。硬解帧不下载回内存：`scale_vt` 缩放 →（HDR）`tonemap_videotoolbox`
+   → `h264_videotoolbox`。杜比视界由 `apply_dovi` 按元数据还原（DV Profile 5 也不偏色，
+   CPU 那条链做不到）。
+2. **CPU 软解**：片源编码不在 `hw_decoders` 里（VC-1、WMV、RealVideo、VP6，这台 Mac 上
+   还有 MPEG-2）。不发 `-hwaccel`，CPU 解码 + 软件滤镜，编码仍用 VideoToolbox。
+3. **原来的装法**：其余情况（烧录、没申报滤镜的旧版 Worker）——硬解后下载回内存走
+   软件滤镜。
+
+**实测踩过的 ffmpeg 坑**（jellyfin-ffmpeg 8.1，macOS 27）：
+
+- 解不了的编码硬要硬件帧（`-hwaccel_output_format videotoolbox_vld`）：硬解初始化失败
+  后退回软解，软件帧喂给 `hwdownload` 以 -22 失败（VC-1 原盘实测）。所以要逐编码判断。
+- ffmpeg 8 的 `-colorspace bt709` 参与格式协商：无色彩标签的硬件帧会被自动插一个接不上
+  的软件 scale 去转换，整条链失败。GPU 链路在 `scale_vt` 后用 `setparams` 给帧打上
+  BT.709 标签。
+- `tonemap_videotoolbox` 只收 10-bit：8-bit HLG（广电 4K 节目）报
+  「Unsupported input format depth: 8」。HDR 缩放时一律 `format=p010le`。
+- `h264_videotoolbox` 写 A53 隐藏字幕进 SEI 时出错（MPEG-2 源常带），一律 `-a53cc 0`。
+
+实测速度（M 系列 Mac，经 NAS HTTP 取源，1080p 输出，VOD 模式整条命令）：4K HDR10 原盘
+5.5×、多剪辑 4K HDR10 原盘 5.7×、杜比视界 P5 4.3×、8-bit HLG 5.8×、VP9 4K 6.0×、
+H.264 原盘 7.8×、VC-1 原盘 5.4×、MPEG-2 原盘 3.6×、WMV 约 20×、RealVideo 6.3×。
+CPU 版色调映射（tonemapx）在同一台 Mac 上是 2.6× 且占满 4 个核，NAS 上连 1× 都不到。
+
+**降档底线**：硬件档在执行时落空（Worker 刚断开、或它接不了这个任务）时，决策输入里的
+`hardware_available` 仍为 True，`_judge_video` 那道「HDR 要显卡」的闸拦不住。网页端
+（`_resolve_tier`）与 Jellyfin 端（转码会话规格）都在降到软件档时补了同一条：HDR 直接
+拒绝并提示，不让 NAS 用 CPU 做 4K 色调映射（真机：首帧 12.6 秒、33 秒卡 3 次）。
 
 ## 6. 已知限制与扩展方向
 
 - Worker 注册表和播放会话目前是单进程内存状态；NAS 多副本需要共享任务租约和产物存储。
 - 当前使用一个共享 Worker Token；多 Worker 精细撤销可升级为每 Worker 独立凭据或证书。
-- 当前重点覆盖 H.264 VideoToolbox。HEVC、HDR tone-map、硬件解码和其他平台后端需要
-  先完成能力声明、编码参数和样片矩阵验证。
+- 输出只有 H.264（8-bit、BT.709）。HEVC 输出、HDR 直通输出和其他平台后端需要先完成
+  能力声明、编码参数和样片矩阵验证。
+- 原盘只支持 BDMV 目录；ISO（蓝光与 DVD）、DVD 目录（VIDEO_TS）在 NAS 本机也还不能播
+  （`disc-playback.md` §2），另起任务。
+- Jellyfin 协议（Infuse）按码率转码时原盘仍直接拒绝、走原画：PlaybackInfo 对原盘不做
+  码率协商，要改协商与会话规格两处。
+- 隔行片源（1080i 蓝光、DVD）不做反交错；Worker 已申报 `yadif/bwdif_videotoolbox`，
+  缺的是探测层记录场序。
 - 标准视频、内嵌字幕和 HLS 网络输出保持无媒体临时文件路径；外部字幕硬烧或需要额外
   资源文件的复杂滤镜，暂不承诺 Worker 零媒体落盘。
 - Worker 到 NAS 的 DNS、证书、MTU、Wi-Fi 稳定性会直接影响 Range 读取和 PUT 上传。
