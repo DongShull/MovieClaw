@@ -166,19 +166,45 @@ nonisolated extension APIClient {
         return try await send("POST", "/auth/device/authorize", body: body)
     }
 
+    /// 原生 App 用账号密码登录，换取设备令牌（明文仅返回这一次）
+    /// `POST /auth/device/login`
+    func authDeviceLogin(body: API.DeviceLoginRequest) async throws -> API.DeviceLoginView {
+        return try await send("POST", "/auth/device/login", body: body)
+    }
+
     /// 设备轮询兑换令牌（匿名）
     /// `POST /auth/device/token`
     func authDeviceToken(body: API.DeviceTokenRequest) async throws -> API.DeviceTokenView? {
         return try await send("POST", "/auth/device/token", body: body)
     }
 
-    /// 列出待批准的设备接入请求
-    /// `GET /auth/devices/requests`
-    func authDevicesRequests() async throws -> [API.DeviceRequestView] {
-        return try await send("GET", "/auth/devices/requests")
+    /// 我的设备：登录着我的账号的浏览器、App、命令行、转码器与播放器
+    /// `GET /auth/devices`
+    func authDevicesList(all: Bool? = nil) async throws -> [API.LoginDeviceView] {
+        var query: [URLQueryItem] = []
+        if let all { query.append(URLQueryItem(name: "all", value: "\(all)")) }
+        return try await send("GET", "/auth/devices", query: query)
     }
 
-    /// 批准一台设备接入（此刻才签发令牌）
+    /// 注销当前这台设备（退出登录 / 断开配对）
+    /// `DELETE /auth/devices/current`
+    func authDevicesRevokeCurrent() async throws -> Void {
+        let _: API.JSONValue? = try await send("DELETE", "/auth/devices/current")
+    }
+
+    /// 当前这台设备（命令行 mclaw status 用）
+    /// `GET /auth/devices/current`
+    func authDevicesCurrent() async throws -> API.LoginDeviceView {
+        return try await send("GET", "/auth/devices/current")
+    }
+
+    /// 按配对码查看一条待批准的接入请求
+    /// `GET /auth/devices/requests/{user_code}`
+    func authDevicesRequest(userCode: String) async throws -> API.DeviceRequestView {
+        return try await send("GET", "/auth/devices/requests/\(userCode)")
+    }
+
+    /// 批准一台设备接入（此刻才签发令牌，令牌归属批准者）
     /// `POST /auth/devices/requests/{user_code}/approve`
     func authDevicesApprove(userCode: String) async throws -> Void {
         let _: API.JSONValue? = try await send("POST", "/auth/devices/requests/\(userCode)/approve")
@@ -188,6 +214,18 @@ nonisolated extension APIClient {
     /// `POST /auth/devices/requests/{user_code}/deny`
     func authDevicesDeny(userCode: String) async throws -> Void {
         let _: API.JSONValue? = try await send("POST", "/auth/devices/requests/\(userCode)/deny")
+    }
+
+    /// 注销一台设备（凭证立即失效，正在播放与转码的一并停止）
+    /// `DELETE /auth/devices/{device_id}`
+    func authDevicesRevoke(deviceId: String) async throws -> Void {
+        let _: API.JSONValue? = try await send("DELETE", "/auth/devices/\(deviceId)")
+    }
+
+    /// 给设备改名
+    /// `PATCH /auth/devices/{device_id}`
+    func authDevicesRename(deviceId: String, body: API.RenameDeviceRequest) async throws -> API.LoginDeviceView {
+        return try await send("PATCH", "/auth/devices/\(deviceId)", body: body)
     }
 
     /// 管理员登录
@@ -220,22 +258,10 @@ nonisolated extension APIClient {
         return try await send("PUT", "/auth/profile", body: body)
     }
 
-    /// 列出已创建的 CLI API 令牌（仅元信息，不含明文）
-    /// `GET /auth/tokens`
-    func authTokensList() async throws -> [API.ApiTokenView] {
-        return try await send("GET", "/auth/tokens")
-    }
-
-    /// 创建 CLI API 令牌（明文仅返回这一次，请立即保存）
+    /// 手工创建一枚令牌（明文仅返回这一次，请立即保存）
     /// `POST /auth/tokens`
     func authTokensCreate(body: API.ApiTokenCreateRequest) async throws -> API.ApiTokenCreatedView {
         return try await send("POST", "/auth/tokens", body: body)
-    }
-
-    /// 吊销一枚 CLI API 令牌（立即失效，不影响其他令牌）
-    /// `DELETE /auth/tokens/{token_id}`
-    func authTokensRevoke(tokenId: String) async throws -> Void {
-        let _: API.JSONValue? = try await send("DELETE", "/auth/tokens/\(tokenId)")
     }
 
     /// 接入飞书群机器人(粘贴 Webhook 地址,即绑即用)
@@ -1456,6 +1482,12 @@ nonisolated extension APIClient {
         return try await send("POST", "/members/\(memberId)/reset-password")
     }
 
+    /// 让成员在全部设备上下线（网页、App、命令行、播放器；账号本身不动）
+    /// `POST /members/{member_id}/sign-out`
+    func membersSignOut(memberId: Int) async throws -> API.MemberView {
+        return try await send("POST", "/members/\(memberId)/sign-out")
+    }
+
     /// 启用 / 停用成员（停用即时踢下线，数据全部保留）
     /// `PUT /members/{member_id}/status`
     func membersStatusSet(memberId: Int, body: API.MemberStatusRequest) async throws -> API.MemberView {
@@ -2355,4 +2387,6 @@ nonisolated extension APIClient {
 // - GET /api/v1/share/{slug}/images/proxy（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/spec（无响应模型：文件流/SSE 等，需手写）
 // - PUT /api/v1/transcode-worker/sessions/{session_id}/artifacts/{name}（无响应模型：文件流/SSE 等，需手写）
+// - GET /api/v1/transcode-worker/sessions/{session_id}/clips/{index}（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/transcode-worker/sessions/{session_id}/source（无响应模型：文件流/SSE 等，需手写）
+// - GET /api/v1/transcode-worker/sessions/{session_id}/source.ffconcat（无响应模型：文件流/SSE 等，需手写）

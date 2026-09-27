@@ -34,9 +34,9 @@ final class SettingsAUITests: XCTestCase {
                     _ = try? probe.request("DELETE", "/members/\(id)")
                 }
             }
-            for token in (try? probe.getArray("/auth/tokens")) ?? [] {
-                if let name = token["name"] as? String, name.hasPrefix("ios-test-"), let id = token["id"] as? String {
-                    _ = try? probe.request("DELETE", "/auth/tokens/\(id)")
+            for device in (try? probe.getArray("/auth/devices")) ?? [] {
+                if let name = device["name"] as? String, name.hasPrefix("ios-test-"), let id = device["id"] as? String {
+                    _ = try? probe.request("DELETE", "/auth/devices/\(id)")
                 }
             }
         }
@@ -274,26 +274,34 @@ final class SettingsAUITests: XCTestCase {
         let app = try launch(route: "/settings/devices")
         guard let probe else { return }
         let name = "ios-test-token-\(Int(Date().timeIntervalSince1970) % 1_000_000)"
-        XCTAssertTrue(app.staticTexts["已连接的设备"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.textFields["pairing-code"].waitForExistence(timeout: 20), "设备页顶部应有配对码输入框")
 
         tapSafely(app, app.buttons["token-create-open"], "创建令牌入口")
         let field = app.textFields["token-name"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
-        field.typeText(name)
-        tapSafely(app, app.buttons["token-create-submit"], "创建令牌")
-        XCTAssertTrue(app.buttons["token-created-dismiss"].waitForExistence(timeout: 20), "应显示一次性令牌卡")
+        // 名字输完直接按键盘「完成」提交：设备列表很长时，键盘收起后表单会被列表带回顶部，
+        // 用户最自然的做法也正是按「完成」
+        field.typeText("\(name)\n")
+        XCTAssertTrue(app.otherElements["token-created-card"].waitForExistence(timeout: 20), "应显示一次性令牌卡")
         XCTAssertTrue(app.staticTexts["已创建「\(name)」"].exists)
         snapshot("设备-令牌已创建")
-        tapSafely(app, app.buttons["token-created-dismiss"], "我已保存")
+        // 卡片下面的「我已保存，关闭」是列表的下一行，还没滚进视口时不在界面树里：往上推一点
+        let dismiss = app.buttons["token-created-dismiss"]
+        var pushes = 0
+        while !dismiss.exists, pushes < 4 {
+            app.swipeUp(velocity: .slow)
+            pushes += 1
+        }
+        tapSafely(app, dismiss, "我已保存")
         confirmAlert(app, titleContains: "关闭后就看不到这枚令牌了", button: "我已保存")
 
-        let revoke = app.buttons["device-revoke-\(name)"]
-        tapSafely(app, revoke, "吊销自建令牌")
-        confirmAlert(app, titleContains: name, button: "吊销")
+        tapSafely(app, app.buttons["device-menu-\(name)"], "设备菜单")
+        tapSafely(app, app.buttons["注销"], "注销自建令牌")
+        confirmAlert(app, titleContains: name, button: "注销")
         XCTAssertTrue(waitUntil(15) {
-            !((try? probe.getArray("/auth/tokens")) ?? []).contains { $0["name"] as? String == name }
-        }, "自建令牌应已吊销")
+            !((try? probe.getArray("/auth/devices")) ?? []).contains { $0["name"] as? String == name }
+        }, "自建令牌应已注销")
         snapshot("设备-已吊销")
     }
 

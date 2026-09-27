@@ -49,23 +49,26 @@ private nonisolated struct APIErrorBody: Decodable {
     let code: String?
 }
 
-/// 通知：任何业务接口返回 401（会话过期、被踢下线、密码被改）。`object` 是出事的那台服务器（`ServerAddress`）。
-/// 由 AppModel 监听后回到登录页，对应 Web 端 `redirectToLoginOn401`；只认当前服务器的 401。
+/// 通知：任何业务接口返回 401（令牌被注销、密码被改、账号停用）。`object` 是出事的那台服务器（`ServerAddress`），
+/// `userInfo["token"]` 是被拒的那枚令牌。由 AppModel 监听后回到登录页，对应 Web 端 `redirectToLoginOn401`；
+/// 只认当前令牌的 401。
 nonisolated extension Notification.Name {
     static let apiUnauthorized = Notification.Name("MovieClaw.apiUnauthorized")
 }
 
 /// MovieClaw 业务接口客户端。
 ///
-/// 认证方式与 Web 端完全相同：登录接口种下 HttpOnly 会话 Cookie，之后每个请求
-/// 由 URLSession 自动携带（共享 `HTTPCookieStorage`，持久化到磁盘，重启 App 不掉登录）。
-/// 这样多账号切换（`movieclaw_accounts` Cookie 账号袋）、会话吊销、改密强制下线
-/// 等行为与浏览器一模一样，后端无需为 App 另开一套令牌体系。
+/// 认证用**设备令牌**（docs/design/login-devices.md）：`POST /auth/device/login` 用账号密码换一枚
+/// 长期有效的令牌，存钥匙串（`TokenVault`），每个请求带 `Authorization: Bearer`。App 是服务端
+/// 「我的设备」里的一台，注销、改密下线都按设备生效；不再借用网页的会话 Cookie——URLSession
+/// 彻底不收发 Cookie，免得残留的旧 Cookie 抢在令牌前面被服务端认走。
 ///
 /// 路径约定：调用方传 `/auth/me` 这种以 `/` 开头、相对 `/api/v1` 的路径，
 /// 与 Web 端 `lib/api/*.ts` 里的写法逐字一致，方便对照移植。
 nonisolated struct APIClient: Sendable {
     let server: ServerAddress
+    /// 当前账号的设备令牌；为空表示未登录（只能调健康检查、初始化、登录这类公开接口）
+    let token: String?
     let session: URLSession
 
     /// 统一的 JSON 编解码器。不设 key 策略：生成的模型都显式写了 CodingKeys
@@ -73,12 +76,12 @@ nonisolated struct APIClient: Sendable {
     static let decoder = JSONDecoder()
     static let encoder = JSONEncoder()
 
-    /// App 全局共用的 URLSession：共享 Cookie 存储、接受并回写 Cookie。
+    /// App 全局共用的 URLSession：凭证只走 Authorization 头，不收发任何 Cookie。
     static let sharedSession: URLSession = {
         let config = URLSessionConfiguration.default
-        config.httpCookieStorage = .shared
-        config.httpShouldSetCookies = true
-        config.httpCookieAcceptPolicy = .always
+        config.httpCookieStorage = nil
+        config.httpShouldSetCookies = false
+        config.httpCookieAcceptPolicy = .never
         config.waitsForConnectivity = false
         config.timeoutIntervalForRequest = 60
         config.httpAdditionalHeaders = ["User-Agent": userAgent]
@@ -98,7 +101,7 @@ nonisolated struct APIClient: Sendable {
     }()
 
     /// 机型标识（iPhone18,4）；模拟器上取它模拟的机型
-    private static var machineModel: String {
+    static var machineModel: String {
         if let simulated = ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] { return simulated }
         var system = utsname()
         uname(&system)
@@ -107,9 +110,18 @@ nonisolated struct APIClient: Sendable {
         }
     }
 
-    init(server: ServerAddress, session: URLSession = APIClient.sharedSession) {
+    init(server: ServerAddress, token: String? = nil, session: URLSession = APIClient.sharedSession) {
         self.server = server
+        self.token = token
         self.session = session
+    }
+
+    /// 给请求补上设备令牌（调用方已显式设了 Authorization 的不覆盖）
+    func authorized(_ request: URLRequest) -> URLRequest {
+        guard let token, request.value(forHTTPHeaderField: "Authorization") == nil else { return request }
+        var request = request
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return request
     }
 
     // MARK: - 地址
@@ -203,7 +215,7 @@ nonisolated struct APIClient: Sendable {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await session.data(for: request)
+            (data, response) = try await session.data(for: authorized(request))
         } catch let error as URLError {
             switch error.code {
             case .timedOut: throw APIError.timeout
@@ -214,16 +226,13 @@ nonisolated struct APIClient: Sendable {
         guard let http = response as? HTTPURLResponse else {
             throw APIError.network("服务器响应异常")
         }
-        // 服务器改动了 Cookie（登录、切换账号、续期、退出）→ 同步备份到钥匙串
-        if http.value(forHTTPHeaderField: "Set-Cookie") != nil {
-            CookieVault.save(for: server)
-        }
         guard (200 ..< 300).contains(http.statusCode) else {
             let body = try? Self.decoder.decode(APIErrorBody.self, from: data)
             let message = body?.message ?? "请求失败（HTTP \(http.statusCode)）"
             if http.statusCode == 401, !Self.isAuthEndpoint(request.url) {
-                // 带上是哪台服务器：切换账号时会去问别的服务器，它们的 401 不能把当前会话踢下线
-                NotificationCenter.default.post(name: .apiUnauthorized, object: server)
+                // 带上是哪台服务器、用的哪枚令牌：切换账号时会去问别的服务器 / 别的账号，刚退出的旧令牌
+                // 也可能还有请求在路上——它们的 401 不能把当前会话踢下线
+                NotificationCenter.default.post(name: .apiUnauthorized, object: server, userInfo: token.map { ["token": $0] })
             }
             throw APIError.http(status: http.statusCode, message: message, code: body?.code)
         }
@@ -235,7 +244,8 @@ nonisolated struct APIClient: Sendable {
     /// - 访客分享 `/share/*`（含分享播放）：401 = 需要分享密码或密码错误（同 Web `/s/` 页不跳登录）。
     private static func isAuthEndpoint(_ url: URL?) -> Bool {
         guard let path = url?.path else { return false }
-        return path.hasSuffix("/auth/login") || path.hasSuffix("/auth/bootstrap") || path.contains("/api/v1/share/")
+        return path.hasSuffix("/auth/login") || path.hasSuffix("/auth/device/login")
+            || path.hasSuffix("/auth/bootstrap") || path.contains("/api/v1/share/")
     }
 
     static func networkMessage(_ error: URLError) -> String {

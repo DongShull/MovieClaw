@@ -6,7 +6,8 @@ import SwiftUI
 /// 四块内容与 Web 一一对应：
 /// - 账号总览卡：大头像（点按从相册选图 → 压到 512px JPEG → `POST /auth/avatar`）、昵称、身份徽章、用户名；
 /// - 账号信息：昵称原地编辑（≤32 字，`PUT /auth/profile`）、用户名只读；
-/// - 安全：修改密码（当前 / 新（≥8 位）/ 确认，`PUT /auth/password`，其它设备随即下线）；
+/// - 安全：修改密码（当前 / 新（≥8 位）/ 确认，`PUT /auth/password`）：用密码登录的其他设备随即下线，
+///   配对的命令行与转码器默认保留，可勾选一并注销（docs/design/login-devices.md「失效联动」）；
 /// - 观看历史：清空自己的全部观看记录（二次确认，`DELETE /playback/history?scope=all`）。
 ///
 /// 头像与昵称改完立即写回全局会话（`AppModel.update(session:)`），「更多」面板与头像按钮同步换新。
@@ -31,7 +32,10 @@ struct ProfileSettingsView: View {
     @State private var confirmPassword = ""
     @State private var passwordBusy = false
     @State private var passwordError: String?
-    @State private var passwordDone = false
+    @State private var passwordDone: String?
+    /// 这个账号配对的命令行 / 转码器 / 手工令牌有几台：有才显示「一并注销」的勾选项
+    @State private var pairedCount = 0
+    @State private var signOutPaired = false
     // 观看记录
     @State private var clearing = false
 
@@ -43,6 +47,7 @@ struct ProfileSettingsView: View {
                 securitySection
                 historySection
             }
+            .task { await loadPairedCount() }
             .scrollDismissesKeyboard(.interactively)
             .appBackground()
             .photosPicker(isPresented: $pickingAvatar, selection: $avatarItem, matching: .images)
@@ -174,12 +179,20 @@ struct ProfileSettingsView: View {
             SecureField("确认新密码", text: $confirmPassword)
                 .textContentType(.newPassword)
                 .accessibilityIdentifier("profile-confirm-password")
+            if pairedCount > 0 {
+                Toggle(isOn: $signOutPaired) {
+                    SettingsRowText(
+                        title: "同时注销命令行和转码器（\(pairedCount) 台）",
+                        detail: "转码器常年无人值守，改密码一般不需要停掉它；怀疑密码泄露时请勾上"
+                    )
+                }
+                .accessibilityIdentifier("profile-sign-out-paired")
+            }
             if let passwordError {
                 Text(passwordError).font(.footnote).foregroundStyle(Theme.danger)
             }
-            if passwordDone {
-                Text("密码已修改，其他设备的登录已全部失效；当前会话保持有效。")
-                    .font(.footnote).foregroundStyle(Theme.textMuted)
+            if let passwordDone {
+                Text(passwordDone).font(.footnote).foregroundStyle(Theme.textMuted)
             }
             HStack {
                 Spacer()
@@ -267,18 +280,30 @@ struct ProfileSettingsView: View {
         }
         passwordBusy = true
         passwordError = nil
-        passwordDone = false
+        passwordDone = nil
         defer { passwordBusy = false }
         do {
-            let session = try await api.authPasswordUpdate(body: .init(oldPassword: oldPassword, newPassword: newPassword))
+            let revokePaired = signOutPaired && pairedCount > 0
+            let session = try await api.authPasswordUpdate(
+                body: .init(oldPassword: oldPassword, newPassword: newPassword, signOutPaired: revokePaired)
+            )
             model.update(session: session)
             oldPassword = ""
             newPassword = ""
             confirmPassword = ""
-            passwordDone = true
+            signOutPaired = false
+            passwordDone = revokePaired
+                ? "密码已修改，其他设备的登录已全部失效，命令行与转码器也已注销；本机保持登录。"
+                : "密码已修改，用密码登录的其他设备已全部下线；本机保持登录。"
+            await loadPairedCount()
         } catch {
             passwordError = error.localizedDescription
         }
+    }
+
+    private func loadPairedCount() async {
+        guard let devices = try? await api.authDevicesList() else { return }
+        pairedCount = devices.filter { $0.family == "paired" }.count
     }
 
     /// 只删当前登录身份自己的记录；成功提示用后端返回的中文 message（同 Web）

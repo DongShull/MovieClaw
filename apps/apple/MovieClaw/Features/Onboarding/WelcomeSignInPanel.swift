@@ -60,7 +60,6 @@ struct WelcomeSignInPanel: View {
     @State private var password = ""
     @State private var confirm = ""
     /// 「30 天内记住我」默认不勾（同 Web 登录页；不勾时会话 7 天有效）
-    @State private var remember = false
     /// 判定为全新服务器时的地址。地址一改就不算数了——换了服务器得重新判断它是否已初始化
     @State private var setupAddress: String?
     @State private var busy = false
@@ -91,13 +90,6 @@ struct WelcomeSignInPanel: View {
             fields
 
             discoveryStatus
-
-            if !setup {
-                Toggle("30 天内记住我", isOn: $remember)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textMuted)
-                    .tint(Theme.accent)
-            }
 
             if let error {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
@@ -275,7 +267,7 @@ struct WelcomeSignInPanel: View {
         }
         switch purpose {
         case .signIn: return "服务器地址即在浏览器里打开 MovieClaw 时地址栏中的那一串。"
-        case .reauth: return "「\(prefill.username ?? "")」的登录已过期，请重新输入密码。"
+        case .reauth: return "「\(prefill.username ?? "")」的登录已失效，请重新输入密码。"
         case .addAccount: return "可以是这台服务器上的另一个账号；要登录别的服务器，改一下地址就行。"
         }
     }
@@ -350,7 +342,7 @@ struct WelcomeSignInPanel: View {
                 if setup {
                     try await model.createAdmin(on: server, username: name, password: password)
                     onSignedIn?()
-                } else if try await model.signIn(to: server, username: name, password: password, remember: remember) == .needsSetup {
+                } else if try await model.signIn(to: server, username: name, password: password) == .needsSetup {
                     setupAddress = typed
                     focus = .confirm
                 } else {

@@ -148,54 +148,35 @@ nonisolated extension API {
         }
     }
 
-    /// 创建 CLI API 令牌。
+    /// 网页手工创建令牌（给没有人能按批准的无人值守环境）。
     struct ApiTokenCreateRequest: Codable, Hashable, Sendable {
-        /// 令牌名字，如 'nas-cron'，便于识别与吊销
+        /// 令牌名字，如 'nas-cron'，便于识别与注销
         var name: String
+        /// full=与你相同的完全权限；transcode=只能转码（给命令行模式的转码器用）
+        var scope: String?
 
         enum CodingKeys: String, CodingKey {
             case name
+            case scope
         }
     }
 
     /// 创建成功的返回体：token 明文仅此一次，请立即保存。
     struct ApiTokenCreatedView: Codable, Hashable, Sendable {
+        /// 设备 id（在「设备」列表里注销时使用）
         var id: String
         var name: String
+        var scope: String
         var createdAt: String
-        /// 客户端形态：worker / cli / manual
-        var clientType: String
-        /// 最近一次使用时间；None 表示从未使用过
-        var lastUsedAt: String?
         /// 令牌明文；服务端只存哈希，之后无法再次查看
         var token: String
 
         enum CodingKeys: String, CodingKey {
             case id
             case name
+            case scope
             case createdAt = "created_at"
-            case clientType = "client_type"
-            case lastUsedAt = "last_used_at"
             case token
-        }
-    }
-
-    /// 令牌元信息（列表用；不含任何可用于认证的内容）。
-    struct ApiTokenView: Codable, Hashable, Sendable {
-        var id: String
-        var name: String
-        var createdAt: String
-        /// 客户端形态：worker / cli / manual
-        var clientType: String
-        /// 最近一次使用时间；None 表示从未使用过
-        var lastUsedAt: String?
-
-        enum CodingKeys: String, CodingKey {
-            case id
-            case name
-            case createdAt = "created_at"
-            case clientType = "client_type"
-            case lastUsedAt = "last_used_at"
         }
     }
 
@@ -729,10 +710,13 @@ nonisolated extension API {
         var oldPassword: String
         /// 新密码，至少 8 位
         var newPassword: String
+        /// 同时注销命令行、转码器与手工令牌。默认保留：它们常年无人值守，改个密码就停转码很难排查；怀疑密码泄露时应勾上
+        var signOutPaired: Bool?
 
         enum CodingKeys: String, CodingKey {
             case oldPassword = "old_password"
             case newPassword = "new_password"
+            case signOutPaired = "sign_out_paired"
         }
     }
 
@@ -1208,10 +1192,19 @@ nonisolated extension API {
         var clientType: String
         /// 设备名，批准页上给人看的，如 'Yi的Mac-mini'
         var clientName: String
+        /// 客户端安装标识：同一台机器重新配对时替换旧凭证，而不是越积越多
+        var installationId: String?
+        /// 系统与架构，如 'macOS 26.0 · arm64'
+        var platform: String?
+        /// 客户端版本
+        var clientVersion: String?
 
         enum CodingKeys: String, CodingKey {
             case clientType = "client_type"
             case clientName = "client_name"
+            case installationId = "installation_id"
+            case platform
+            case clientVersion = "client_version"
         }
     }
 
@@ -1221,8 +1214,10 @@ nonisolated extension API {
         var userCode: String
         /// 兑换凭据，仅客户端持有，不得展示给用户
         var deviceCode: String
-        /// 用户应当打开的网页地址
+        /// 批准页地址（不带配对码，用户需手动输入）
         var verificationUri: String
+        /// 带配对码的批准页地址：打开即显示这一条请求，客户端应优先打开它
+        var verificationUriComplete: String
         /// 建议的轮询间隔（秒），不要比这更快
         var interval: Int
         /// 配对码有效期（秒），超时需重新发起
@@ -1232,12 +1227,76 @@ nonisolated extension API {
             case userCode = "user_code"
             case deviceCode = "device_code"
             case verificationUri = "verification_uri"
+            case verificationUriComplete = "verification_uri_complete"
             case interval
             case expiresIn = "expires_in"
         }
     }
 
-    /// 待批准的接入请求（网页审批卡的数据源）。
+    /// 当前请求所用的登录设备（「当前设备」标记、``mclaw status`` 回显用）。
+    struct DeviceBrief: Codable, Hashable, Sendable {
+        var id: String
+        /// web / ios / tvos / android / cli / worker / manual
+        var kind: String
+        var name: String
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case kind
+            case name
+        }
+    }
+
+    /// 原生 App 登录时自报的设备信息。
+    struct DeviceClientInfo: Codable, Hashable, Sendable {
+        /// App 平台
+        var kind: String
+        /// App 安装标识（存在系统钥匙串）：同一台设备同一个人重新登录时替换旧凭证
+        var installationId: String
+        /// 设备名，如 'iPhone Air'；用户之后可改名
+        var name: String?
+        /// 系统与机型，如 'iOS 26.0 · iPhone18,4'
+        var platform: String?
+        /// App 版本
+        var clientVersion: String?
+
+        enum CodingKeys: String, CodingKey {
+            case kind
+            case installationId = "installation_id"
+            case name
+            case platform
+            case clientVersion = "client_version"
+        }
+    }
+
+    /// 原生 App 用账号密码登录，换一枚设备令牌。
+    struct DeviceLoginRequest: Codable, Hashable, Sendable {
+        var username: String
+        var password: String
+        var client: API.DeviceClientInfo
+
+        enum CodingKeys: String, CodingKey {
+            case username
+            case password
+            case client
+        }
+    }
+
+    /// App 登录成功：设备令牌（明文仅此一次）+ 这台设备 + 当前身份。
+    struct DeviceLoginView: Codable, Hashable, Sendable {
+        /// 设备令牌明文；存进系统钥匙串，服务端只存哈希
+        var token: String
+        var device: API.LoginDeviceView
+        var session: API.SessionView
+
+        enum CodingKeys: String, CodingKey {
+            case token
+            case device
+            case session
+        }
+    }
+
+    /// 一条待批准的接入请求（按配对码取，批准页的数据源）。
     struct DeviceRequestView: Codable, Hashable, Sendable {
         var userCode: String
         var clientType: String
@@ -1246,6 +1305,12 @@ nonisolated extension API {
         var sourceIp: String
         /// 剩余有效秒数
         var expiresIn: Int
+        /// 客户端自报的系统与架构
+        var platform: String?
+        /// 客户端自报的版本
+        var clientVersion: String?
+        /// 只有管理员能批准（转码器）；成员看到时应说明原因
+        var requiresAdmin: Bool
 
         enum CodingKeys: String, CodingKey {
             case userCode = "user_code"
@@ -1253,6 +1318,9 @@ nonisolated extension API {
             case clientName = "client_name"
             case sourceIp = "source_ip"
             case expiresIn = "expires_in"
+            case platform
+            case clientVersion = "client_version"
+            case requiresAdmin = "requires_admin"
         }
     }
 
@@ -1271,7 +1339,7 @@ nonisolated extension API {
         var token: String
         var clientName: String
         var clientType: String
-        /// 批准者身份，仅用于客户端回显「你现在是谁」
+        /// 批准者的用户名：这枚令牌就是他的身份
         var grantedBy: String
 
         enum CodingKeys: String, CodingKey {
@@ -4563,6 +4631,56 @@ nonisolated extension API {
         }
     }
 
+    /// 「我的设备」列表里的一台设备（登录设备或 Jellyfin 播放器）。
+    struct LoginDeviceView: Codable, Hashable, Sendable {
+        /// 设备 id：登录设备为 ld-<n>，Jellyfin 播放器为 jf-<n>
+        var id: String
+        /// web / ios / tvos / android / cli / worker / manual / jellyfin
+        var kind: String
+        /// 给人看的类型名：浏览器、iOS App、命令行、Infuse……
+        var kindLabel: String
+        /// login=用密码登录的（改密即下线）；paired=配对或手工创建的（改密默认保留）
+        var family: String
+        var name: String
+        /// full=与主人相同的权限；transcode=只能转码
+        var scope: String
+        var platform: String?
+        var clientVersion: String?
+        var createdAt: String
+        var lastSeenAt: String?
+        var lastSeenIp: String?
+        /// 网页会话的过期时间
+        var expiresAt: String?
+        /// 是不是发起本次请求的这台设备
+        var current: Bool
+        /// 能否改名（Jellyfin 播放器的名字由客户端上报，不能改）
+        var renamable: Bool
+        /// 主人：成员 id；0 = 超管
+        var ownerId: Int
+        var ownerUsername: String
+        var ownerNickname: String
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case kind
+            case kindLabel = "kind_label"
+            case family
+            case name
+            case scope
+            case platform
+            case clientVersion = "client_version"
+            case createdAt = "created_at"
+            case lastSeenAt = "last_seen_at"
+            case lastSeenIp = "last_seen_ip"
+            case expiresAt = "expires_at"
+            case current
+            case renamable
+            case ownerId = "owner_id"
+            case ownerUsername = "owner_username"
+            case ownerNickname = "owner_nickname"
+        }
+    }
+
     struct LoginRequest: Codable, Hashable, Sendable {
         var username: String
         var password: String
@@ -4994,6 +5112,8 @@ nonisolated extension API {
         /// 设了上限时未分级的作品是否可见
         var allowUnrated: Bool
         var createdAt: String
+        /// 登录着这个账号的设备数（网页、App、命令行、播放器）
+        var deviceCount: Int
 
         enum CodingKeys: String, CodingKey {
             case id
@@ -5012,6 +5132,7 @@ nonisolated extension API {
             case contentAgeLimit = "content_age_limit"
             case allowUnrated = "allow_unrated"
             case createdAt = "created_at"
+            case deviceCount = "device_count"
         }
     }
 
@@ -6909,6 +7030,15 @@ nonisolated extension API {
         }
     }
 
+    struct RenameDeviceRequest: Codable, Hashable, Sendable {
+        /// 新的设备名
+        var name: String
+
+        enum CodingKeys: String, CodingKey {
+            case name
+        }
+    }
+
     /// 豆瓣收敛歧义时的确认候选。
     struct ResolveCandidateView: Codable, Hashable, Sendable {
         var tmdbId: Int
@@ -7746,6 +7876,8 @@ nonisolated extension API {
         var role: String
         /// 能力开关快照；管理员恒为全开
         var capabilities: API.SessionCapabilities
+        /// 本次请求所用的登录设备；升级前签发的旧网页会话为空
+        var device: API.DeviceBrief?
 
         enum CodingKeys: String, CodingKey {
             case username
@@ -7753,6 +7885,7 @@ nonisolated extension API {
             case avatarUrl = "avatar_url"
             case role
             case capabilities
+            case device
         }
     }
 

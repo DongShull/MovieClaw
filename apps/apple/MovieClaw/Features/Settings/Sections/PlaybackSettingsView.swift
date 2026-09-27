@@ -26,8 +26,8 @@ struct PlaybackSettingsView: View {
     @State private var saveError: String?
     @State private var saved = false
     @State private var status: SettingsTranscodeWorkerStatus?
-    @State private var pendingWorkers: [API.DeviceRequestView] = []
-    @State private var authorizedWorkers: [API.ApiTokenView] = []
+    /// 已授权的转码器（配对来的 Worker 与「仅限转码」的手工令牌），用来列出没连上来的那几台
+    @State private var authorizedWorkers: [API.LoginDeviceView] = []
 
     /// 单个 HLS 产物上传上限固定 512 MiB（Worker 上传代理的实现上限，不是偏好，不给用户填）
     private static let artifactLimitBytes = 512 * 1024 * 1024
@@ -173,15 +173,6 @@ struct PlaybackSettingsView: View {
         }
 
         Section("Worker") {
-            if !pendingWorkers.isEmpty {
-                HStack(spacing: 10) {
-                    Text("有 \(pendingWorkers.count) 台 Worker 正在等待批准 \(Text(pendingWorkers.map(\.userCode).joined(separator: " · ")).font(.caption.monospaced()))")
-                        .font(.subheadline).foregroundStyle(Theme.warning)
-                    Spacer()
-                    Button("去审批") { router.push(.settingsSection(.devices)) }
-                        .buttonStyle(.glass).controlSize(.small)
-                }
-            }
             if !config.ready {
                 SettingsNotice(
                     text: !config.enabled
@@ -213,18 +204,18 @@ struct PlaybackSettingsView: View {
                             Spacer()
                             Text("未连接").font(.caption).foregroundStyle(Theme.textFaint)
                         }
-                        Text("已授权 · 最近活跃 \(SettingsTime.deviceRelative(device.lastUsedAt))\(config.ready ? " · Mac 没开机或没联网时属正常" : "")")
+                        Text("已授权 · 最近活跃 \(SettingsTime.deviceRelative(device.lastSeenAt))\(config.ready ? " · Mac 没开机或没联网时属正常" : "")")
                             .font(.caption).foregroundStyle(Theme.textFaint)
                     }
                 }
-                Button("在「设备」里查看授权或吊销") { router.push(.settingsSection(.devices)) }
+                Button("在「设备」里查看授权或注销") { router.push(.settingsSection(.devices)) }
                     .font(.caption)
             } else if config.ready {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("还没有 Worker 接入。在 Mac 上：").font(.subheadline).foregroundStyle(Theme.textMuted)
                     Text("1. 打开 MovieClaw Transcoder，点「在局域网中查找」或直接填 movieclaw 地址；")
                     Text("2. 点「连接并配对」，它会显示一段配对码；")
-                    Text("3. 回到「设置 → 设备」，核对配对码后批准。")
+                    Text("3. 回到「设置 → 设备」，输入配对码，核对无误后批准。")
                     Text("全程不需要在任何一边输入令牌——Worker 的凭证是批准时签发的，直接回到那台 Mac，不经过屏幕。")
                 }
                 .font(.caption).foregroundStyle(Theme.textFaint)
@@ -287,12 +278,8 @@ struct PlaybackSettingsView: View {
     private func pollStatus() async {
         status = try? await api.send("GET", "/transcode-worker/status", as: SettingsTranscodeWorkerStatus.self)
         do {
-            async let requests = api.authDevicesRequests()
-            async let devices = api.authTokensList()
-            pendingWorkers = try await requests.filter { $0.clientType == "worker" }
-            authorizedWorkers = try await devices.filter { $0.clientType == "worker" }
+            authorizedWorkers = try await api.authDevicesList(all: true).filter { $0.scope == "transcode" }
         } catch {
-            pendingWorkers = []
             authorizedWorkers = []
         }
     }

@@ -107,7 +107,8 @@ final class ShellParityUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["我的"].waitForExistence(timeout: 10), "从个人信息返回应直接回到「我的」")
     }
 
-    /// 登录表单：「记住我」默认不勾（同 Web；只打开页面，不提交任何登录）。App 登录在欢迎页的流光背景上，不铺网页背景图
+    /// 登录表单：服务器地址与账号在同一张表单里（只打开页面，不提交任何登录）。App 登录在欢迎页的流光背景上，
+    /// 不铺网页背景图；也没有「记住我」——App 换的是长期有效的设备令牌（docs/design/login-devices.md）
     @MainActor
     func testLoginPageMatchesWeb() throws {
         continueAfterFailure = false
@@ -117,9 +118,7 @@ final class ShellParityUITests: XCTestCase {
         tapSafely(app, app.buttons["welcome-start"], "启程")
         XCTAssertTrue(app.textFields["server-address"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["login-username"].exists, "服务器地址与账号应在同一张表单里")
-        let remember = app.switches["30 天内记住我"]
-        XCTAssertTrue(remember.exists)
-        XCTAssertEqual(remember.value as? String, "0", "「记住我」默认不勾（同 Web）")
+        XCTAssertFalse(app.switches["30 天内记住我"].exists, "App 登录长期有效，不该再有「记住我」")
         snapshot("登录页")
     }
 

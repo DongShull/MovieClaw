@@ -81,7 +81,7 @@ final class OnboardingUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 15), "登录后应进入主界面")
         snapshot("登录成功")
 
-        // 冷启动后应保持登录（Cookie 持久化）
+        // 冷启动后应保持登录（设备令牌存在钥匙串里）
         app.terminate()
         app.launchArguments = ["--ui-testing"]
         app.launch()

@@ -16,7 +16,7 @@ nonisolated extension APIClient {
         }
         var request = URLRequest(url: url(path, query: query))
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        guard let (data, response) = try? await session.data(for: request),
+        guard let (data, response) = try? await session.data(for: authorized(request)),
               let http = response as? HTTPURLResponse, !(200 ..< 300).contains(http.statusCode)
         else { return nil }
         let hint = (try? Self.decoder.decode(ErrorBody.self, from: data))?.details?.first?.hint

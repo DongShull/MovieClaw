@@ -2,16 +2,17 @@ import SwiftUI
 
 /// 切换账号（Web components/account-switcher-dialog.tsx，设计见 docs/design/account-switching.md）。
 ///
-/// 列出本机登录过的全部账号，**可以跨服务器**：每台服务器一个分组（只有一台时不显示服务器名），
-/// 每台上最多 5 个账号（后端 `movieclaw_accounts` Cookie 账号袋的上限）。
-/// - 点其他账号即切换，不用再输密码；换到另一台服务器上的账号也一样。那个账号的登录已过期时，
-///   打开登录卡片、预填服务器与用户名，只需输密码；
+/// 列出本机登录过的全部账号，**可以跨服务器**：每台服务器一个分组（只有一台时不显示服务器名）。
+/// 每个账号在本机是一枚设备令牌（docs/design/login-devices.md），切换就是换用它的令牌，没有账号数上限。
+/// - 点其他账号即切换，不用再输密码；换到另一台服务器上的账号也一样。那个账号的登录已失效
+///   （在「我的设备」里被注销、改了密码）时，打开登录卡片、预填服务器与用户名，只需输密码；
 /// - 行尾 × 移除（也可左滑）；
 /// - 底部「添加账号」打开和欢迎页同一张登录卡片：服务器预填当前这台、可以改，改了就是登录到另一台服务器；
 ///   「退出全部账号」退出本机所有服务器上的全部账号。
 ///
 /// 列表先用本机快照（`AppModel.savedServers`）立即画出来，再逐台向服务器刷新；取不到的那台照样列出，
-/// 标上「连不上」或「需要重新登录」。切换后 RootView 以「服务器 + 用户名」为 id 重建整棵界面树，不会串数据。
+/// 标上「连不上」；登录已失效的账号标上「需要重新登录」。切换后 RootView 以「服务器 + 用户名」为 id
+/// 重建整棵界面树，不会串数据。
 struct AccountSwitcherSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(Feedback.self) private var feedback
@@ -21,8 +22,6 @@ struct AccountSwitcherSheet: View {
     private enum Freshness {
         case loading
         case fresh
-        /// 那台服务器上当前账号过期了：列表是旧快照，点哪个都要重新输密码
-        case needsLogin
         case unreachable
     }
 
@@ -36,7 +35,6 @@ struct AccountSwitcherSheet: View {
     @State private var freshness: [URL: Freshness] = [:]
     @State private var busy = false
     @State private var card: CardRequest?
-    private static let maxAccounts = 5
 
     var body: some View {
         NavigationStack {
@@ -54,10 +52,6 @@ struct AccountSwitcherSheet: View {
                         }
                     } header: {
                         header(saved, first: index == 0)
-                    } footer: {
-                        if saved.accounts.count >= Self.maxAccounts {
-                            Text("这台服务器最多同时保存 \(Self.maxAccounts) 个账号，再添加会挤掉最久没用的那个")
-                        }
                     }
                 }
                 Section {
@@ -111,7 +105,6 @@ struct AccountSwitcherSheet: View {
                     Text(saved.address.hostLabel)
                     switch freshness[saved.id] {
                     case .unreachable: Text("· 连不上").foregroundStyle(Theme.warning)
-                    case .needsLogin: Text("· 需要重新登录").foregroundStyle(Theme.warning)
                     default: EmptyView()
                     }
                 }
@@ -129,13 +122,19 @@ struct AccountSwitcherSheet: View {
             } label: {
                 HStack(spacing: 12) {
                     AvatarBadge(session: nil, avatarUrl: account.avatarUrl, nickname: account.nickname, size: 40)
-                        // 头像地址是那台服务器上的相对路径：按那台服务器解析、带那台的 Cookie 去取
+                        // 头像地址是那台服务器上的相对路径：按那台服务器解析；地址里带着这个账号的标记，
+                        // 图片加载器据此用它自己的令牌去取（AvatarURL）
                         .environment(\.api, APIClient(server: saved.address))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(account.nickname).foregroundStyle(Theme.text)
                         Text("@\(account.username) · \(account.role == "admin" ? "超级管理员" : "成员")")
                             .font(.caption)
                             .foregroundStyle(Theme.textMuted)
+                        if !isCurrent, !model.hasToken(for: account.username, on: saved.address) {
+                            Text("登录已失效，点一下重新输入密码")
+                                .font(.caption)
+                                .foregroundStyle(Theme.warning)
+                        }
                     }
                     Spacer()
                     if isCurrent {
@@ -176,8 +175,6 @@ struct AccountSwitcherSheet: View {
                 do {
                     try await model.refreshAccounts(on: address)
                     freshness[address.origin] = .fresh
-                } catch let error as APIError where error.isUnauthorized {
-                    freshness[address.origin] = .needsLogin
                 } catch {
                     freshness[address.origin] = .unreachable
                 }
