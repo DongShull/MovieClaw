@@ -190,6 +190,21 @@ def test_transcoded_session_master_codecs_are_explicit():
     assert routes_playback._master_playlist_codecs(session) == "avc1.640029,mp4a.40.2"
 
 
+def test_startup_trace_is_logged_as_one_readable_line():
+    """App 首帧后报的起播分段：按时间先后排成一行，描述字段不混进计时点。"""
+    line = routes_playback._startup_summary(
+        {
+            "engine": "mpv", "tier": 0, "original": True, "start_ms": 524_267,
+            "media_item_id": 7180, "file_id": 24776,
+            "首帧": 540, "出现": 30, "会话": 160, "决策": 120,
+        }
+    )
+    assert line == (
+        "mpv 档 0 原文件 · 出现 30 → 决策 120 → 会话 160 → 首帧 540 毫秒"
+        "（条目 7180 · 文件 24776 · 起点 524 秒）"
+    )
+
+
 def test_master_codecs_are_omitted_when_source_audio_is_copied():
     session = SimpleNamespace(
         plan=PlaybackPlan(
@@ -411,6 +426,17 @@ def test_session_lifecycle_playlist_segment_ping_stop(client, tmp_path):
     # 停掉之后 playlist 与心跳都应 404
     assert client.get(data["stream_url"]).status_code == 404
     assert client.post(f"{_PB}/sessions/{session_id}/ping").status_code == 404
+
+
+def test_full_decode_client_gets_the_original_file_without_a_session(client, tmp_path):
+    """App 的 MPV 申报全解码（universal）：MKV 也直接给档 0 原文件地址，不建换封装会话、
+    不拉起 ffmpeg——原来要先起一路 remux（冷启动还要采样关键帧）再被客户端丢掉。"""
+    file_id = seed(client, tmp_path, container="mkv")
+    data = start_session(client, file_id, capability={**CAPABILITY, "universal": True})
+    assert data["decision"]["tier"] == 0
+    assert data["session_id"] is None
+    assert data["stream_url"].startswith(f"{_PB}/files/{file_id}/stream?token=")
+    assert client.get(data["stream_url"]).status_code == 200
 
 
 def _item_id_of(client: TestClient, file_id: int) -> int:

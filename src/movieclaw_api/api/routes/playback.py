@@ -1285,6 +1285,7 @@ async def get_session_playlist(
             init_name=None if is_mpegts(session.plan) else INIT_NAME,
             segment_name=segment_pattern(session.plan),
             query=f"?token={token}",
+            start_s=session.playlist_start_ms / 1000,
         )
         return Response(
             content=playlist,
@@ -1503,7 +1504,10 @@ async def get_session_segment(
         # 缓冲让它长期 0 字节——实测软转会话创建后 ~5 秒才落盘，比首个分片
         # 还晚。只等存在就会把 0 字节的 init 以 immutable 缓存喂给 AVPlayer，
         # 整个会话被毒缓存钉死。判完整：非空且两次采样大小不变（moov 一次
-        # 写入，落盘即稳定）。
+        # 写入，落盘即稳定）。已经有分片产出过（缓存命中的冷目录、跑过一轮
+        # 的会话）或是远程产物（先写临时文件再原子改名）时，非空就是完整的，
+        # 不必再为第二次采样白等 50 毫秒——这是 HLS 起播的必经一跳。
+        settled = bool(session.completed_segments) or session.remote
         deadline = time.monotonic() + 15.0
         last_size = -1
         while time.monotonic() < deadline:
@@ -1511,7 +1515,7 @@ async def get_session_segment(
                 break
             if target.exists():
                 size = target.stat().st_size
-                if size > 0 and size == last_size:
+                if size > 0 and (settled or size == last_size):
                     break
                 last_size = size
             await asyncio.sleep(0.05)
@@ -2320,15 +2324,58 @@ async def report_playback_client_log(
 
     iPhone 上没有可看的控制台，播放器在哪条路径上、MediaError 报了什么，
     只有让客户端主动报上来才能在服务端日志里与转码时间线对照排障。
+
+    ``startup`` 事件是起播分段计时（App 首帧上屏时报一次）：不是异常，按 INFO
+    记成一行「起播分段」，用户说「点了播放半天才出画」时直接看慢在哪一段。
     """
     import json as _json
 
-    logger.warning(
+    if payload.event == "startup":
+        logger.info("起播分段：%s", _startup_summary(payload.detail))
+        return ok({"logged": True})
+    # 纯信息性的调参记录（网页按码率调整回看缓冲）不是异常：起播时一连好几条，
+    # 记 WARNING 会让看日志的人以为出了问题
+    log = logger.info if payload.event in _INFO_CLIENT_EVENTS else logger.warning
+    log(
         "播放器客户端日志：%s %s",
         payload.event,
         _json.dumps(payload.detail, ensure_ascii=False, default=str)[:2000],
     )
     return ok({"logged": True})
+
+
+#: 按 INFO 记的客户端事件（信息性，不代表出了问题）
+_INFO_CLIENT_EVENTS = frozenset({"hls-back-buffer"})
+
+#: 起播分段里的描述字段；其余键都是「计时点名 → 距点播放的毫秒数」
+_STARTUP_META_KEYS = frozenset(
+    {"engine", "tier", "original", "start_ms", "media_item_id", "file_id"}
+)
+
+
+def _startup_summary(detail: dict) -> str:
+    """起播分段 → 一行可读文本：
+
+    ``mpv 档 0 原文件 · 出现 30 → 决策 120 → … → 首帧 540 毫秒``
+    ``（条目 7180 · 文件 24776 · 起点 524 秒）``
+    """
+    marks = sorted(
+        (
+            (name, value)
+            for name, value in detail.items()
+            if name not in _STARTUP_META_KEYS and isinstance(value, int | float)
+        ),
+        key=lambda pair: pair[1],
+    )
+    path = "原文件" if detail.get("original") else "服务端流"
+    start_ms = detail.get("start_ms")
+    start_s = round(start_ms / 1000) if isinstance(start_ms, int | float) else 0
+    return (
+        f"{detail.get('engine') or '未知引擎'} 档 {detail.get('tier')} {path} · "
+        + " → ".join(f"{name} {int(value)}" for name, value in marks)
+        + f" 毫秒（条目 {detail.get('media_item_id')} · 文件 {detail.get('file_id')}"
+        + f" · 起点 {start_s} 秒）"
+    )
 
 
 @router.post(

@@ -317,6 +317,7 @@ def decide_playback(
     # 2. 恒等快照（全解码播放器）：永远直连，与 jellyfin-compat.md 行为一致。
     #    例外：多剪辑原盘没有单个文件可直连，只能把主播放列表各段 copy 拼成
     #    HLS——仍然不重编码（disc-playback.md §2 硬边界 1）。
+    #    字幕清单照常给：App 的 MPV 直出原文件时，字幕菜单与叠加层都靠它。
     if capability.universal and media.disc_clips > 1:
         return PlaybackPlan(
             tier=PlaybackTier.REMUX,
@@ -326,7 +327,7 @@ def decide_playback(
                 action="copy", codec=media.video_codec, source_bit_depth=media.bit_depth
             ),
             audio=_copy_audio_plan(fmp4_copy_audio_track(media.audio_tracks, preferred_audio)),
-            subtitles=(),
+            subtitles=plan_subtitles(media),
             audio_tracks=media.audio_tracks,
             reason=(
                 f"原盘主片由 {media.disc_clips} 段剪辑拼接而成，"
@@ -334,15 +335,17 @@ def decide_playback(
             ),
         )
     if capability.universal:
+        # 全解码播放器在本机切音轨：计划里带上用户点选 / 记住的那条，客户端据此选轨
+        chosen = next((t for t in media.audio_tracks if t.ref == preferred_audio), None)
         return PlaybackPlan(
             tier=PlaybackTier.DIRECT_PLAY,
             file_id=media.file_id,
             container="mp4",
             video=VideoPlan(action="copy"),
             audio=_copy_audio_plan(
-                _preferred_audio(media.audio_tracks) if media.audio_tracks else None
+                chosen or (_preferred_audio(media.audio_tracks) if media.audio_tracks else None)
             ),
-            subtitles=(),
+            subtitles=plan_subtitles(media),
             audio_tracks=media.audio_tracks,
             reason="播放器自述具备完整解码能力，原文件直连播放",
         )

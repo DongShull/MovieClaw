@@ -297,4 +297,5 @@ def capability_from_request(payload) -> ClientCapability:  # noqa: ANN001
         mse=payload.mse,
         is_mobile=payload.is_mobile,
         native_hls=payload.native_hls,
+        universal=payload.universal,
     )

@@ -350,6 +350,11 @@ class ClientCapabilityIn(BaseModel):
     mse: str = "full"
     is_mobile: bool = False
     native_hls: bool = False
+    #: 全解码播放器自己拉原文件（App 里的 MPV）：决策直接给档 0 原文件直连，
+    #: 不逐项比对、不采样关键帧、不起 ffmpeg。只有多剪辑原盘（没有单个文件可拉）
+    #: 例外，照样拼成不转码的 HLS。用户限了画质或线路不够、需要服务端压码率时
+    #: 客户端不带它。
+    universal: bool = False
 
 
 class PlaybackDecideRequest(BaseModel):

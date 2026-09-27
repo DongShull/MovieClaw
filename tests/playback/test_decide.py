@@ -1011,6 +1011,27 @@ def test_real_degrade_still_marks_the_origin_tier():
     assert "已自动降档" in decision.reason
 
 
+def test_universal_capability_keeps_subtitles_and_the_chosen_audio_track():
+    """App 的 MPV 直出原文件：字幕菜单与叠加层靠计划里的字幕清单，本机切音轨靠计划里的
+    音轨引用——全解码分支也得带上它们，且认用户点选 / 记住的那条音轨。"""
+    subs = (
+        SubtitleTrack(ref="embedded:2", codec="subrip", language="chi", is_default=True),
+        SubtitleTrack(ref="embedded:3", codec="hdmv_pgs_subtitle", language="eng"),
+    )
+    profile = media(audio_tracks=(TRUEHD_71, CHI_DTS), subtitle_tracks=subs)
+    full = universal_capability()
+    decision = decide_playback(profile, full, NO_GPU, preferred_audio="embedded:2")
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY
+    assert [(s.track_ref, s.kind) for s in decision.subtitles] == [
+        ("embedded:2", "vtt"), ("embedded:3", "pgs"),
+    ]
+    assert decision.audio.track_ref == "embedded:2" and decision.audio.codec == "dts"
+    # 没点选（或点了不存在的轨）：用默认轨
+    decision = decide_playback(profile, full, NO_GPU, preferred_audio="embedded:9")
+    assert decision.audio.track_ref == "embedded:1"
+
+
 def test_universal_capability_remuxes_multi_clip_disc_but_direct_plays_single_clip():
     """原盘（disc-playback.md §3.4）：多剪辑主片没有单文件可直连，全解码播放器也只能
     走 concat copy 到 HLS——仍然不重编码；单剪辑原盘照旧档 0。"""

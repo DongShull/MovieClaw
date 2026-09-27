@@ -1503,6 +1503,23 @@ async def test_vod_start_does_not_wait_for_live_playlist(manager, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_vod_session_remembers_unaligned_start_for_playlist(manager, monkeypatch):
+    """转码从续播点所在的分片边界起转（start_ms 对齐到边界），但播放列表的
+    EXT-X-START 要的是客户端原本要的位置——对齐后的值会随 seek 重启改变。"""
+    install_fake(monkeypatch, NEVER_WRITES_PLAYLIST)
+    session = await manager.start(
+        make_plan(), source_path="/m/a.mkv", member_id=0, start_ms=13_250,
+        segment_plan=_boundaries(800),
+    )
+    try:
+        assert session.start_ms == 12_000
+        assert session.head_segment == 3
+        assert session.playlist_start_ms == 13_250
+    finally:
+        await manager.shutdown()
+
+
+@pytest.mark.asyncio
 async def test_vod_start_still_fails_fast_on_dead_process(manager, monkeypatch):
     """快速放行不放过「命令本身有错、进程秒退」——这类要立刻给带 stderr
     的明确报错，而不是让用户对着分片 404 循环猜。"""
