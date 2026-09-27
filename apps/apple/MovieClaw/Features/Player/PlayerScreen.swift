@@ -38,7 +38,7 @@ struct PlayerScreen: View {
                 #endif
                 return
             }
-            let created = PlaybackController(request: request, api: api)
+            let created = PlaybackController(request: request, api: api, requestedAt: router.playRequestedAt)
             controller = created
             router.activePlayback = created
             #if DEBUG
@@ -56,6 +56,16 @@ struct PlayerScreen: View {
             created.start()
             UIApplication.shared.isIdleTimerDisabled = true
             #if DEBUG
+            // 真机排查用：-mcAutoHoldSpeed <秒> 起播后到点自动长按 2 倍速 15 秒（验证倍速时的掉帧判定）
+            let autoHold = UserDefaults.standard.double(forKey: "mcAutoHoldSpeed")
+            if autoHold > 0 {
+                Task {
+                    try? await Task.sleep(for: .seconds(autoHold))
+                    _ = created.beginHoldSpeed()
+                    try? await Task.sleep(for: .seconds(15))
+                    created.endHoldSpeed()
+                }
+            }
             // 真机排查用：-mcAutoPiP <秒> 起播后到点自动点一次画中画（真机跑不了界面测试，靠它验证换引擎进画中画）
             let autoPiP = UserDefaults.standard.double(forKey: "mcAutoPiP")
             if autoPiP > 0 {

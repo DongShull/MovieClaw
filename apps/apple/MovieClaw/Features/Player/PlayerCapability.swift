@@ -15,10 +15,10 @@ enum PlayerCapability {
     static func avPlayer() -> API.ClientCapabilityIn {
         var video: [API.VideoSupportIn] = [
             .init(codec: "h264", maxHeight: 2160, smooth: true, powerEfficient: true),
-            .init(codec: "hevc", maxHeight: 2160, smooth: true, powerEfficient: VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC)),
+            .init(codec: "hevc", maxHeight: 2160, smooth: true, powerEfficient: hardwareHEVC),
         ]
         // AV1 只有 A17 Pro / M 系列之后才有硬解；软解 4K AV1 在手机上放不动，不报
-        if VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1) {
+        if hardwareAV1 {
             video.append(.init(codec: "av1", maxHeight: 2160, smooth: true, powerEfficient: true))
         }
         let audio: [API.AudioSupportIn] = [
@@ -42,10 +42,13 @@ enum PlayerCapability {
     }
 
     /// MPV 的能力：能解就报，不看硬解（FFmpeg 软解兜底）
-    /// - Parameter mobileLimited: 按「移动端原生 HLS」申报（1080p、AAC 双声道限制）。
-    ///   只在服务端拒绝/要同意时用来换一张取流凭据——服务端只在给出播放计划时才签发 token，
-    ///   而 MPV 拿到 token 后会直接拉原文件，计划本身用不上（见 PlaybackController.performRequest）。
-    static func mpv(mobileLimited: Bool = false) -> API.ClientCapabilityIn {
+    /// - Parameters:
+    ///   - mobileLimited: 按「移动端原生 HLS」申报（1080p、AAC 双声道限制）。
+    ///     只在服务端拒绝/要同意时用来换一张取流凭据——服务端只在给出播放计划时才签发 token，
+    ///     而 MPV 拿到 token 后会直接拉原文件，计划本身用不上（见 PlaybackController.performRequest）。
+    ///   - original: 这次打算直接拉原文件：申报为全解码播放器（`universal`），服务端直接给档 0 的
+    ///     原文件地址，不采样关键帧、不为一路用不上的换封装拉起 ffmpeg（NAS 实测冷启动白花 1.6 秒）
+    static func mpv(mobileLimited: Bool = false, original: Bool = false) -> API.ClientCapabilityIn {
         let video = ["h264", "hevc", "av1", "vp9", "vp8", "mpeg2video", "mpeg4", "vc1"].map {
             API.VideoSupportIn(codec: $0, maxHeight: 2160, smooth: true, powerEfficient: $0 == "h264" || $0 == "hevc")
         }
@@ -66,8 +69,22 @@ enum PlayerCapability {
             // MPV 不受这些约束，按「完整 MSE 的桌面客户端」申报，免得被无谓地降分辨率/降混
             mse: mobileLimited ? "none" : "full",
             isMobile: mobileLimited,
-            nativeHls: mobileLimited
+            nativeHls: mobileLimited,
+            universal: original
         )
+    }
+
+    /// 硬件解码能力在进程里只查一次，结果不会变。第一次查要加载 VideoToolbox、问一遍硬件，
+    /// 模拟器实测 60 毫秒——正好压在起播请求发出之前，所以 App 启动时就在后台查好（`prewarm`）
+    nonisolated private static let hardwareHEVC = VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC)
+    nonisolated private static let hardwareAV1 = VTIsHardwareDecodeSupported(kCMVideoCodecType_AV1)
+
+    /// App 启动时调用：在后台把硬件解码能力查好，第一次点播放不再现查
+    static func prewarm() {
+        Task.detached(priority: .utility) {
+            _ = hardwareHEVC
+            _ = hardwareAV1
+        }
     }
 
     /// 屏幕能不能显示 HDR（能力快照的 hdr_passthrough）；判 false 只是让服务端 tone-map

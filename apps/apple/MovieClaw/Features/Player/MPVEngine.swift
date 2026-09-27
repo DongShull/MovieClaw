@@ -47,9 +47,15 @@ final class MPVEngine: PlayerEngine {
     init(playsOriginalFile: Bool) throws {
         self.playsOriginalFile = playsOriginalFile
         #if DEBUG
-        // 开发期：-mcMPVBackend metal|openGL 强制渲染方式（验证模拟器上 MoltenVK 是否可用）
+        // 开发期：-mcMPVBackend metal|openGL 强制渲染方式（验证模拟器上 MoltenVK 是否可用）；
+        // -mcMPVOptions "键=值,键=值" 追加 mpv 选项（真机对比渲染参数对掉帧的影响）
         let forced = UserDefaults.standard.string(forKey: "mcMPVBackend").flatMap(MPVRenderBackend.init(rawValue:))
-        core = try MPVPlayer(backend: forced)
+        var extra: [String: String] = [:]
+        for pair in (UserDefaults.standard.string(forKey: "mcMPVOptions") ?? "").split(separator: ",") {
+            let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+            if parts.count == 2 { extra[parts[0]] = parts[1] }
+        }
+        core = try MPVPlayer(backend: forced, options: extra)
         #else
         core = try MPVPlayer()
         #endif
@@ -218,12 +224,15 @@ final class MPVEngine: PlayerEngine {
         switch event {
         case .fileLoaded:
             fileLoaded = true
+            emit(.milestone(.ready))
             if let pendingAudio { selectAudio(embeddedIndex: pendingAudio) }
             pendingAudio = nil
             if let pendingSubtitle { selectSubtitle(pendingSubtitle.option, url: pendingSubtitle.url) }
             pendingSubtitle = nil
         case .playbackRestart:
             seeking = false
+            // 装载后的第一次 playback-restart：起播点已定位、第一帧已解出送显
+            emit(.milestone(.firstFrame))
             reportState()
         case let .endFile(reason, error):
             if reason == "error" {
@@ -280,6 +289,11 @@ final class MPVEngine: PlayerEngine {
     }
 
     private func emit(_ event: EngineEvent) {
+        if case .milestone = event {
+            // 里程碑不参与三态去重，也不覆盖「上次报的状态」
+            onEvent?(event)
+            return
+        }
         switch (event, lastReported) {
         case (.playing, .playing?), (.paused, .paused?), (.buffering, .buffering?):
             return

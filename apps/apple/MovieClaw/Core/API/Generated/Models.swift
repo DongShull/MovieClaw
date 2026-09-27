@@ -840,6 +840,7 @@ nonisolated extension API {
         var mse: String?
         var isMobile: Bool?
         var nativeHls: Bool?
+        var universal: Bool?
 
         enum CodingKeys: String, CodingKey {
             case video
@@ -849,6 +850,7 @@ nonisolated extension API {
             case mse
             case isMobile = "is_mobile"
             case nativeHls = "native_hls"
+            case universal
         }
     }
 

@@ -69,8 +69,17 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
 
     // MARK: - 播放控制
 
+    /// 起播协商时预先建好、已经在读文件头 / 播放列表的资源（地址相同才用）
+    private var preparedAsset: AVURLAsset?
+
+    func prepare(_ asset: AVURLAsset) {
+        preparedAsset = asset
+    }
+
     func load(url: URL, start: Double, autoplay: Bool) {
-        let item = AVPlayerItem(url: url)
+        let prepared = preparedAsset.flatMap { $0.url == url ? $0 : nil }
+        preparedAsset = nil
+        let item = prepared.map { AVPlayerItem(asset: $0) } ?? AVPlayerItem(url: url)
         pendingStart = start
         self.autoplay = autoplay
         didPrepare = false
@@ -83,7 +92,18 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
         player.replaceCurrentItem(with: item)
         observeItem(item)
         onEvent?(.buffering)
+        // 流本身就从起播点开始（从头播，或服务端的 HLS 列表带了 EXT-X-START）：挂上就开播，不等 readyToPlay。
+        // 等就绪再调播放要走「就绪 → 回主线程 → 调播放 → 状态变更 → 再回主线程」一圈，模拟器实测约 200 毫秒；
+        // 首帧早已解出来了，画面却要多停这么久。只有原文件续播要先定位，照旧等就绪
+        startedEarly = autoplay && (start <= 0.5 || url.pathExtension == "m3u8")
+        // 起播这一段不等「预计不会卡」：第一帧一解出来就开始走。开着这个等待，AVPlayer 会先攒一截
+        // 缓冲才动（本机实测开始播放从 650~830 毫秒提前到 180~230 毫秒）；开始播放后再打开，播放中照旧防卡顿
+        player.automaticallyWaitsToMinimizeStalling = false
+        if startedEarly { player.playImmediately(atRate: desiredRate) }
     }
+
+    /// 本次加载已在挂上时开播（见 `load`），就绪时不再重复调播放
+    private var startedEarly = false
 
     func play() {
         if ended { ended = false }
@@ -162,6 +182,27 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
     /// 原文件直出不产生这类事件（实测一条都没有），走 `sampleBandwidthFromCounter`
     private func observeSegmentMetrics(_ item: AVPlayerItem) {
         metricsTask?.cancel()
+        #if DEBUG
+        // 开发期：AVPlayer 自己的起播明细（从开始加载到「够播」，期间每个列表 / 分片请求的起止），
+        // 看慢在网络、服务端供片还是 AVPlayer 内部（控制台 [AVStartup]）
+        Task {
+            let loadedAt = Date()
+            for try await event in item.metrics(forType: AVMetricPlayerItemInitialLikelyToKeepUpEvent.self) {
+                func rel(_ date: Date?) -> String { date.map { String(Int($0.timeIntervalSince(loadedAt) * 1000)) } ?? "-" }
+                var lines = ["[AVStartup] 够播用时 \(Int(event.timeTaken * 1000)) 毫秒"]
+                for playlist in event.playlistRequestEvents {
+                    let request = playlist.mediaResourceRequestEvent
+                    lines.append("  列表 \(request?.url?.lastPathComponent ?? "?") \(rel(request?.requestStartTime))→\(rel(request?.responseEndTime))")
+                }
+                for segment in event.mediaSegmentRequestEvents {
+                    let request = segment.mediaResourceRequestEvent
+                    lines.append("  分片 \(request?.url?.lastPathComponent ?? "?") \(rel(request?.requestStartTime))→\(rel(request?.responseEndTime)) \(request?.byteRange.length ?? 0) 字节")
+                }
+                print(lines.joined(separator: "\n"))
+                break
+            }
+        }
+        #endif
         metricsTask = Task { [weak self] in
             do {
                 for try await event in item.metrics(forType: AVMetricHLSMediaSegmentRequestEvent.self) {
@@ -291,6 +332,11 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
         observations.append(player.observe(\.isExternalPlaybackActive, options: [.new]) { @Sendable [weak self] _, _ in
             Task { @MainActor in self?.applySystemSubtitle() }
         })
+        // 第一帧真正可以上屏（起播分段计时的「首帧」）：timeControlStatus 变成 playing 时画面未必已经出来
+        observations.append(layerView.playerLayer.observe(\.isReadyForDisplay, options: [.new]) { @Sendable [weak self] layer, _ in
+            let ready = layer.isReadyForDisplay
+            Task { @MainActor in if ready { self?.onEvent?(.milestone(.firstFrame)) } }
+        })
     }
 
     private func observeItem(_ item: AVPlayerItem) {
@@ -322,13 +368,20 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
         case .readyToPlay:
             guard !didPrepare else { return }
             didPrepare = true
+            onEvent?(.milestone(.ready))
             applySystemSubtitle()
-            if pendingStart > 0.5 {
+            // HLS 列表带了 EXT-X-START（服务端按续播点写）：就绪时已经停在起播点，不用再跳——
+            // 再零容差 seek 一次，起播点压在分片边界上时会去要前一段、把刚起转的转码拉回去重启
+            let alreadyThere = abs(player.currentTime().seconds - pendingStart) < 0.25
+            if pendingStart > 0.5, !alreadyThere {
                 let target = CMTime(seconds: pendingStart, preferredTimescale: 600)
                 player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { @Sendable [weak self] _ in
-                    Task { @MainActor in self?.beginPlayback() }
+                    Task { @MainActor in
+                        self?.onEvent?(.milestone(.seeked))
+                        self?.beginPlayback()
+                    }
                 }
-            } else {
+            } else if !startedEarly {
                 beginPlayback()
             }
         case .failed:
@@ -346,6 +399,9 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
     private func timeControlChanged(_ status: AVPlayer.TimeControlStatus, reason: AVPlayer.WaitingReason?) {
         switch status {
         case .playing:
+            // 起播时关掉的防卡顿等待在这里打开，只开一次：播放中重复设置会让 AVPlayer 重新评估、
+            // 在「等待 / 播放」之间来回跳
+            if !player.automaticallyWaitsToMinimizeStalling { player.automaticallyWaitsToMinimizeStalling = true }
             onEvent?(.playing)
         case .paused:
             if !ended { onEvent?(.paused) }

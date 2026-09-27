@@ -13,6 +13,10 @@ struct FrameDropTracker {
     static let windowSamples = 10
     static let minFrames = 100
     static let ratio = 0.1
+    /// MPV 直出用更高的门槛：它按音频节奏严格出图，偶尔发热、复杂场景会成段丢「迟到帧」（4K 60 帧丢 10%
+    /// 还剩 54 帧，肉眼几乎看不出），而回落的代价是中断重开、画质降到 1080p 转码，远程转码 4K 60 帧还不一定
+    /// 供得上（真机实测回落后 8 秒没出片）。真放不动时（软解 4K 之类）掉帧都在 50% 以上，25% 照样兜得住
+    static let mpvRatio = 0.25
 
     private var history: [(dropped: Int, total: Int)] = []
 

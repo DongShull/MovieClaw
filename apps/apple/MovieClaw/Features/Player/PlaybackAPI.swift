@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import UIKit
 
@@ -48,9 +49,11 @@ struct PlaybackAPI {
     }
 
     // MARK: 决策与会话
+    //
+    // 这两个接口标成 nonisolated：起播协商（`negotiate`）要在后台一口气跑完，不能每一步都回主线程排队。
 
     /// 只问「该怎么放」，不起会话（自动引擎选择用它先探一次 AVPlayer 的档位）
-    func decide(_ body: API.PlaybackSessionRequest) async throws -> API.PlaybackDecisionView {
+    nonisolated func decide(_ body: API.PlaybackSessionRequest) async throws -> API.PlaybackDecisionView {
         let request = API.PlaybackDecideRequest(
             fileId: body.fileId, mediaItemId: body.mediaItemId, seasonNumber: body.seasonNumber,
             episodeNumber: body.episodeNumber, capability: body.capability, failedTiers: body.failedTiers,
@@ -61,11 +64,108 @@ struct PlaybackAPI {
         return try await api.playbackDecide(body: request)
     }
 
-    func startSession(_ body: API.PlaybackSessionRequest) async throws -> API.PlaybackSessionView {
+    nonisolated func startSession(_ body: API.PlaybackSessionRequest) async throws -> API.PlaybackSessionView {
         var body = body
         body.deviceId = deviceId
         if let shareSlug { return try await api.sharePlaybackSessionStart(slug: shareSlug, body: body) }
         return try await api.playbackSessionStart(body: body)
+    }
+
+    /// 起播协商用的引擎模式（由控制器按强制引擎、MPV 可用性、图形字幕偏好算好）
+    enum EngineMode: Sendable {
+        /// 先用 AVPlayer 的能力问一次决策，再按结果选引擎（规则见 `PlaybackController` 的类注释）
+        case auto
+        case system
+        case mpv
+    }
+
+    /// 起播协商的全部输入：控制器在主线程一次算好（能力快照要读屏幕与机型），之后整段在后台跑
+    struct NegotiationInputs: Sendable {
+        var mode: EngineMode
+        /// 按 AVPlayer 能力的请求体（也用于自动模式的决策）
+        var system: API.PlaybackSessionRequest
+        /// 按 MPV 能力的请求体
+        var mpv: API.PlaybackSessionRequest
+        /// 按「移动端原生 HLS」口径的 MPV 请求体：服务端拒绝 / 要同意时拿它换一张取流凭据
+        var mpvLimited: API.PlaybackSessionRequest
+        /// MPV 这次打算直接拉原文件（请求体里申报了全解码）
+        var mpvOriginal: Bool
+        /// 本来就要服务端压码率（用户限了画质 / 线路不够）：这时交给 AVPlayer 放 HLS
+        var needsServerTranscode: Bool
+    }
+
+    /// 起播协商的结果与各段完成时刻（起播分段计时用）
+    struct Negotiation: Sendable {
+        var useMPV: Bool
+        var askedOriginal: Bool
+        var session: API.PlaybackSessionView
+        var startedAt: ContinuousClock.Instant
+        var decidedAt: ContinuousClock.Instant?
+        var sessionAt: ContinuousClock.Instant
+        var retriedAt: ContinuousClock.Instant?
+        /// 给系统播放器预先建好、已经在加载的资源（见 `negotiate` 末尾）；MPV 或没给出计划时为 nil
+        var preparedAsset: AVURLAsset?
+    }
+
+    /// 起播协商：（自动模式先决策、选引擎）→ 开会话 →（MPV 被拒时按移动端口径再要一次计划）。
+    ///
+    /// 整段在后台执行器上跑完、中途不回主线程：播放器刚弹出时主线程忙着排版和转场，
+    /// 原来每个网络往返都要回主线程续跑，起播请求光是排队就要一两百毫秒（模拟器实测）。
+    @concurrent
+    nonisolated func negotiate(_ inputs: NegotiationInputs) async throws -> Negotiation {
+        let clock = ContinuousClock()
+        let startedAt = clock.now
+        var decidedAt: ContinuousClock.Instant?
+        let useMPV: Bool
+        switch inputs.mode {
+        case .system:
+            useMPV = false
+        case .mpv:
+            useMPV = true
+        case .auto:
+            let probe = try await decide(inputs.system)
+            decidedAt = clock.now
+            if probe.outcome == "plan", probe.video?.action != "transcode" {
+                // 直出或只换封装/转音频：系统播放器（画中画、隔空播放、系统字体字幕）
+                useMPV = false
+            } else if probe.outcome == "plan", inputs.needsServerTranscode {
+                // 用户自己限了画质 / 线路不够：本来就要服务端转码，交给 AVPlayer 放 HLS
+                useMPV = false
+            } else {
+                // 要为系统播放器重新编码画面（含图形字幕压制）、或被拒绝/要同意：MPV 在本机直接放原文件
+                useMPV = true
+            }
+        }
+        var session = try await startSession(useMPV ? inputs.mpv : inputs.system)
+        let sessionAt = clock.now
+        var retriedAt: ContinuousClock.Instant?
+        if useMPV, session.decision.outcome != "plan", !inputs.needsServerTranscode {
+            // 服务端按「浏览器口径」拒绝了（例如 4K 杜比视界没有显卡做色调映射）或要求同意软转，
+            // 但 MPV 自己就能解原片。服务端只在给出计划时签发取流 token，于是按移动端口径再要一次计划
+            let retry = try await startSession(inputs.mpvLimited)
+            if retry.decision.outcome == "plan" { session = retry }
+            retriedAt = clock.now
+        }
+        // 系统播放器要放的地址此刻已经确定：马上建好资源、开始读文件头 / 播放列表。
+        // 主线程这时多半还在忙播放器弹出的转场，挂引擎要再等几十毫秒——AVFoundation 先干起来
+        var preparedAsset: AVURLAsset?
+        if !useMPV, session.decision.outcome == "plan", let url = Self.systemPlayerURL(session, server: api.server) {
+            let asset = AVURLAsset(url: url)
+            Task { _ = try? await asset.load(.isPlayable) }
+            preparedAsset = asset
+        }
+        return Negotiation(
+            useMPV: useMPV, askedOriginal: useMPV && inputs.mpvOriginal, session: session,
+            startedAt: startedAt, decidedAt: decidedAt, sessionAt: sessionAt, retriedAt: retriedAt,
+            preparedAsset: preparedAsset
+        )
+    }
+
+    /// 系统播放器该吃的地址：VOD 会话吃 master 列表（里面的 WEBVTT 字幕组让画中画 / 隔空播放时由系统渲染字幕），
+    /// 其余（原文件直出、旧式会话列表）用 stream_url。与 `PlaybackController.handleSession` 的取址规则一致
+    nonisolated static func systemPlayerURL(_ session: API.PlaybackSessionView, server: ServerAddress) -> URL? {
+        if session.timeline == "file", let master = session.masterUrl { return server.resolve(master) }
+        return server.resolve(session.streamUrl)
     }
 
     /// 会话续命兼探活。三态必须区分（同 Web `pingPlaybackSession`）：

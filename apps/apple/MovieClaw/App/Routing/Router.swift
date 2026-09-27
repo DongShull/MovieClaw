@@ -221,8 +221,12 @@ final class Router {
     }
 
     func play(_ request: PlayRequest) {
+        playRequestedAt = .now
         player = request
     }
+
+    /// 最近一次点播放的时刻：起播分段计时从这里算起（含播放器弹出与视图搭建，见 `StartupTrace`）
+    @ObservationIgnored private(set) var playRequestedAt: ContinuousClock.Instant?
 
     /// 待起播的访客播放链接（`/s/{slug}/play/...`）：分享页读到影片（必要时先过密码）后取走并起播
     var pendingSharePlay: PlayRequest?

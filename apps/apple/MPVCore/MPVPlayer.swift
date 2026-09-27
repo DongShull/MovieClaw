@@ -105,6 +105,9 @@ public final class MPVPlayer {
             "user-agent": "MovieClaw-iOS (libmpv)",
             "audio-client-name": "MovieClaw",
             "hwdec": MPVRenderBackend.isSimulator ? "no" : "videotoolbox",
+            // 视频落后音频时解码器也跳帧（默认只在出图时丢）：长按 2 倍速放 4K 60 帧会被甩开，
+            // 回到原速后只靠出图丢帧追不回来（真机实测 8 秒后仍丢 75%），加上解码端跳帧 6 秒内追平
+            "framedrop": "decoder+vo",
         ]
         switch chosen {
         case .metal:
@@ -116,6 +119,12 @@ public final class MPVPlayer {
         }
         for (key, value) in options { base[key] = value }
         videoOutput = base["vo"] ?? "gpu-next"
+        // 画质档用 mpv 自带的 fast：双线性缩放、不抖动、不逐帧测 HDR 峰值亮度。默认档（lanczos + 线性光缩放 +
+        // 逐帧峰值检测）在手机上放 4K 60 帧 HDR 横屏时贴着 GPU 上限，一发热就成片掉帧——真机交替对比：
+        // 默认档 3 次全部掉帧回落，fast 档 2 次一路顺畅（60 秒只掉 4~26 帧）。手机屏幕上两档的画质几乎看不出差别。
+        // 先于其它选项设置，调用方仍可用 options 覆盖其中任何一项
+        mpv_set_option_string(mpv, "profile", options["profile"] ?? "fast")
+        base["profile"] = nil
 
         #if DEBUG
         mpv_request_log_messages(mpv, "warn")

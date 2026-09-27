@@ -88,6 +88,12 @@ nonisolated struct APIClient: Sendable {
     /// 活动相关请求在本机排队等连接近 1 秒，服务端处理只要 14～120ms。分开后两边互不挤占。
     static let liveSession = makeSession()
 
+    /// 播放器专用的 URLSession：起播协商（决策、开会话）、心跳、进度上报走这里，连接池同样独立。
+    /// 点播放时页面上可能正有一批慢请求（发现页的 TMDB 列表一次并发二十来个、每个一两秒）占满连接，
+    /// 起播请求排在它们后面就要多等几秒——模拟器冷启动直达播放页实测，决策请求在本机排队 8 秒，
+    /// 服务端处理只要 17 毫秒。
+    static let playbackSession = makeSession()
+
     private static func makeSession() -> URLSession {
         let config = URLSessionConfiguration.default
         config.httpCookieStorage = nil

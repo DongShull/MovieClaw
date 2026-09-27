@@ -35,6 +35,18 @@ enum EngineEvent {
     case failed(reason: String, cause: EngineFailureCause)
     /// 画中画进出
     case pictureInPicture(Bool)
+    /// 起播里程碑（只用于分段计时，见 `StartupTrace`）
+    case milestone(EngineMilestone)
+}
+
+/// 引擎内部的起播里程碑：控制器只看得到「开始播放」，慢在引擎哪一步要靠这几个点区分
+enum EngineMilestone: String {
+    /// 拿到了能开始定位与解码的东西：AVPlayer 的 readyToPlay（文件头 / 播放列表已读）、mpv 的 file-loaded
+    case ready
+    /// 起播点定位完成（续播 seek 落地）
+    case seeked
+    /// 第一帧上屏：AVPlayerLayer 的 isReadyForDisplay、mpv 装载后的第一次 playback-restart
+    case firstFrame
 }
 
 /// 引擎的实时读数（诊断面板「传输」与遥测用）

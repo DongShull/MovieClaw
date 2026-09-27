@@ -7,6 +7,7 @@ struct MovieClawApp: App {
 
     init() {
         ImagePipelineSetup.configure()
+        PlayerCapability.prewarm()
     }
 
     var body: some Scene {
