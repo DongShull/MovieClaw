@@ -2,57 +2,79 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  STALE_AFTER_DAYS,
   clientTypeLabel,
+  deviceGroupKey,
   envSnippet,
   grantBadge,
+  headlessArgs,
   grantSummary,
+  groupDevices,
   isLive,
+  isStale,
+  issuedVerb,
   manualGrantSummary,
+  normalizePairingCode,
   relativeTime,
   resolveServerAddress,
+  revokeConsequence,
 } from "../lib/devices-display.ts";
 
 const MINUTE = 60_000;
+const DAY = 24 * 60 * MINUTE;
 const NOW = Date.parse("2026-08-29T12:00:00Z");
 const ago = (ms) => new Date(NOW - ms).toISOString();
 
 test("权限说明说人话，不出现内部权限名", () => {
   for (const type of ["worker", "cli", "manual", "什么鬼"]) {
-    const { title, body } = grantSummary(type);
-    const text = `${title}${body}`;
-    for (const jargon of ["scope", "admin", "operate", "transcode", "token"]) {
-      assert.ok(!text.includes(jargon), `「将获得」出现了内部名词 ${jargon}：${text}`);
+    for (const role of ["admin", "member"]) {
+      const { title, body } = grantSummary(type, role);
+      const text = `${title}${body}`;
+      for (const jargon of ["scope", "admin", "operate", "transcode", "token"]) {
+        assert.ok(!text.includes(jargon), `「将获得」出现了内部名词 ${jargon}：${text}`);
+      }
     }
   }
 });
 
-test("转码 Worker 的说明必须点明它碰不到订阅与媒体库", () => {
+test("转码器的说明必须点明它碰不到订阅与媒体库", () => {
   const { title, body } = grantSummary("worker");
   assert.equal(title, "将获得：仅限转码");
   assert.ok(body.includes("订阅") && body.includes("媒体库"));
 });
 
-test("命令行的说明必须点破全权的具体后果", () => {
-  // v1 没有收窄手段，用户的知情就是唯一的闸（device-auth.md §4.5）：
+test("超管批准命令行：说明必须点破全权的具体后果", () => {
+  // 用户的知情就是唯一的闸（device-auth.md §4.5）：
   // 措辞退化成「完全权限」四个字就等于把闸拆了。
-  const { title, body } = grantSummary("cli");
+  const { title, body } = grantSummary("cli", "admin");
   assert.ok(title.includes("完全权限"));
   assert.ok(body.includes("删除媒体文件"), "必须写出最坏后果，而不是只说「完全权限」");
 });
 
-test("未知形态按最危险的一档解释", () => {
-  // 新形态还没接上前端时，宁可把警示说重也不能说轻
-  assert.deepEqual(grantSummary("未来的新客户端"), grantSummary("cli"));
-  assert.equal(grantBadge("未来的新客户端"), "完全权限");
+test("成员批准命令行：令牌只有成员自己的权限，不能照抄超管的说法", () => {
+  // 谁批准，令牌就是谁的（login-devices.md §4）
+  const { title, body } = grantSummary("cli", "member");
+  assert.ok(!title.includes("完全权限"), `成员的命令行不是完全权限：${title}`);
+  assert.ok(!body.includes("删除媒体文件"), "成员删不了媒体文件，写上去就是说错");
+  assert.ok(body.includes("以你的身份"));
+  assert.ok(body.includes("才批准"), "审批卡的收尾仍要落到「想清楚再批准」");
 });
 
-test("列表标注同样是实话", () => {
-  assert.equal(grantBadge("worker"), "仅转码");
-  assert.equal(grantBadge("cli"), "完全权限");
+test("未知形态、缺省身份都按最危险的一档解释", () => {
+  // 新形态还没接上前端时，宁可把警示说重也不能说轻
+  assert.deepEqual(grantSummary("未来的新客户端"), grantSummary("cli", "admin"));
+  assert.deepEqual(grantSummary("cli"), grantSummary("cli", "admin"));
+  assert.equal(grantBadge("未来的新 scope", 0), "完全权限");
+});
+
+test("列表标注同样是实话：成员的命令行不是完全权限", () => {
+  assert.equal(grantBadge("transcode", 0), "仅转码");
+  assert.equal(grantBadge("full", 0), "完全权限");
+  assert.equal(grantBadge("full", 7), "成员权限");
 });
 
 test("形态名称给人看，未知值不泄漏内部标识", () => {
-  assert.equal(clientTypeLabel("worker"), "转码 Worker");
+  assert.equal(clientTypeLabel("worker"), "转码器");
   assert.equal(clientTypeLabel("cli"), "命令行 / Agent");
   assert.equal(clientTypeLabel("manual"), "手工令牌");
   assert.equal(clientTypeLabel("weird"), "未知类型");
@@ -65,7 +87,7 @@ test("活跃时间按人的读法分档", () => {
   assert.equal(relativeTime(ago(12 * MINUTE), NOW), "12 分钟前");
   assert.equal(relativeTime(ago(59 * MINUTE), NOW), "59 分钟前");
   assert.equal(relativeTime(ago(3 * 60 * MINUTE), NOW), "3 小时前");
-  assert.equal(relativeTime(ago(3 * 24 * 60 * MINUTE), NOW), "3 天前");
+  assert.equal(relativeTime(ago(3 * DAY), NOW), "3 天前");
 });
 
 test("在线判定用 5 分钟阈值，与令牌活跃时间的落盘粒度匹配", () => {
@@ -75,17 +97,102 @@ test("在线判定用 5 分钟阈值，与令牌活跃时间的落盘粒度匹�
 });
 
 // ---------------------------------------------------------------------------
+// 配对码
+// ---------------------------------------------------------------------------
+
+test("配对码大小写不敏感，漏掉或写错连字符都能认", () => {
+  for (const raw of ["MCLW-7F3K", "mclw-7f3k", " mclw 7f3k ", "MCLW7F3K", "mclw－7f3k", "7f3k"]) {
+    assert.equal(normalizePairingCode(raw), "MCLW-7F3K", `没认出：${raw}`);
+  }
+});
+
+test("认不出的配对码返回 null，不替人猜", () => {
+  for (const raw of ["", "MCLW-7F3", "MCLW-7F3KX", "7F3", "MCLW-7F3@", "abc-7f3k"]) {
+    assert.equal(normalizePairingCode(raw), null, `不该认成配对码：${raw}`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 我的设备列表
+// ---------------------------------------------------------------------------
+
+test("设备按类型分组：人用的在前，程序代操作的其次，播放器最后", () => {
+  const devices = [
+    { id: "jf-1", kind: "jellyfin" },
+    { id: "ld-1", kind: "web" },
+    { id: "ld-2", kind: "cli" },
+    { id: "ld-3", kind: "ios" },
+    { id: "ld-4", kind: "worker" },
+    { id: "ld-5", kind: "manual" },
+    { id: "ld-6", kind: "web" },
+  ];
+  const groups = groupDevices(devices);
+  assert.deepEqual(
+    groups.map((g) => [g.label, g.devices.map((d) => d.id)]),
+    [
+      ["浏览器", ["ld-1", "ld-6"]],
+      ["App", ["ld-3"]],
+      ["命令行与转码器", ["ld-2", "ld-4", "ld-5"]],
+      ["播放器", ["jf-1"]],
+    ],
+  );
+});
+
+test("空组不出现；不认识的新类型与服务端同口径归入配对类", () => {
+  assert.deepEqual(
+    groupDevices([{ kind: "web" }]).map((g) => g.label),
+    ["浏览器"],
+  );
+  assert.equal(deviceGroupKey("android"), "app");
+  assert.equal(deviceGroupKey("tvos"), "app");
+  assert.equal(deviceGroupKey("未来的新客户端"), "paired");
+});
+
+test("超过 90 天没活跃才提示，没有活跃记录按签发时间算", () => {
+  assert.equal(STALE_AFTER_DAYS, 90);
+  const created = ago(400 * DAY);
+  assert.equal(isStale(ago(89 * DAY), created, NOW), false);
+  assert.equal(isStale(ago(91 * DAY), created, NOW), true);
+  assert.equal(isStale(null, ago(10 * DAY), NOW), false);
+  assert.equal(isStale(null, created, NOW), true);
+  assert.equal(isStale("不是时间", created, NOW), false);
+});
+
+test("签发时间的说法跟着凭证来源走", () => {
+  assert.equal(issuedVerb("web", "login"), "登录于");
+  assert.equal(issuedVerb("jellyfin", "login"), "登录于");
+  assert.equal(issuedVerb("cli", "paired"), "配对于");
+  assert.equal(issuedVerb("manual", "paired"), "创建于");
+});
+
+test("注销前说清之后要怎样才能再用", () => {
+  assert.ok(revokeConsequence("cli", "paired").includes("mclaw login"));
+  assert.ok(revokeConsequence("worker", "paired").includes("重新配对"));
+  assert.ok(revokeConsequence("manual", "paired").includes("重新创建"));
+  assert.ok(revokeConsequence("ios", "login").includes("重新输入密码"));
+  assert.ok(revokeConsequence("jellyfin", "login").includes("播放器里重新登录"));
+});
+
+// ---------------------------------------------------------------------------
 // 手工令牌：环境变量片段
 // ---------------------------------------------------------------------------
 
-test("手工令牌的权限说明与审批卡同权，且点破不过期与只能吊销", () => {
+test("手工令牌的权限说明与审批卡同权，且点破不过期与只能注销", () => {
   const { title, body } = manualGrantSummary();
   assert.equal(title, grantSummary("manual").title, "手工令牌不能显得比批准出来的权限小");
   assert.ok(body.includes("删除媒体文件"), "全权的含义必须点破到具体后果");
   assert.ok(body.includes("不会自动过期"));
-  assert.ok(body.includes("吊销"));
+  assert.ok(body.includes("注销"));
   // 这条路上没有「批准」这个动作，照抄审批卡的收尾会指向一个不存在的按钮
   assert.ok(!body.includes("才批准"), `手工创建的说明不该提批准：${body}`);
+});
+
+test("仅限转码的手工令牌与配对出来的转码器同一档说法", () => {
+  const { title, body } = manualGrantSummary("transcode");
+  assert.equal(title, grantSummary("worker").title);
+  assert.ok(body.includes("订阅") && body.includes("媒体库"));
+  assert.ok(!body.includes("删除媒体文件"), "仅限转码的令牌删不了媒体文件");
+  assert.ok(body.includes("不会自动过期"));
 });
 
 test("配过对外访问地址时直接用它，并去掉尾斜杠", () => {
@@ -111,4 +218,13 @@ test("环境变量片段是可直接粘贴的两行，地址在前令牌在后",
   for (const line of snippet.split("\n")) {
     assert.match(line, /^[A-Z_]+=\S+$/, `不是干净的 KEY=value：${line}`);
   }
+});
+
+test("仅限转码的令牌给的是转码器命令行模式的一行启动参数", () => {
+  // Headless 只认显式参数、不读环境变量；参数名与 macos/MovieClawTranscoder 的
+  // WorkerConfiguration.load 一致
+  const args = headlessArgs("http://192.168.1.10:3000", "mclaw_abc-123_x");
+  assert.equal(args, "--nas-url http://192.168.1.10:3000 --token mclaw_abc-123_x");
+  assert.ok(!args.includes("\n"), "只给一行，整行复制就能用");
+  assert.ok(!args.includes("MOVIECLAW_"), "转码器不读环境变量");
 });

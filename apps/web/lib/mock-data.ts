@@ -118,9 +118,9 @@ export interface SettingsSectionGroup {
 }
 
 /**
- * 分组标准统一为「回答用户什么问题」：账号（我是谁）→ 成员与设备（谁能进来）→
- * 资源与下载（内容怎么来）→ 媒体库（内容长什么样、怎么看）→ 通知与集成
- * （系统怎么告诉外界）→ 系统（运维）。文件到手之前的事归「资源与下载」，
+ * 分组标准统一为「回答用户什么问题」：账号（我是谁、我在哪些设备上登录着）→
+ * 成员（谁能进来）→ 资源与下载（内容怎么来）→ 媒体库（内容长什么样、怎么看）→
+ * 通知与集成（系统怎么告诉外界）→ 系统（运维）。文件到手之前的事归「资源与下载」，
  * 到手之后归「媒体库」，这条边界决定了刮削、播放的归属。
  */
 export const settingsSectionGroups: SettingsSectionGroup[] = [
@@ -140,20 +140,27 @@ export const settingsSectionGroups: SettingsSectionGroup[] = [
     ],
   },
   {
+    // 「设备」是每个人自己的登录设备（浏览器、App、命令行、转码器），属于
+    // 「我在哪些地方登录着」，所以跟个人信息放在一起、对成员同样开放
+    // （docs/design/login-devices.md §8）。
     label: "账号",
     items: [
       { id: "profile", label: "个人信息", description: "头像、昵称与登录密码", icon: UserIcon },
+      {
+        id: "devices",
+        label: "设备",
+        description: "登录着你的账号的浏览器、App、命令行与转码器",
+        icon: DeviceIcon,
+      },
       { id: "appearance", label: "外观", description: "首页背景与界面质感", icon: PaletteIcon },
     ],
   },
   {
-    // 成员与设备都是访问控制——一个管人、一个管命令行与转码 Worker。
     // 成员权限（能力开关 + 库/站点白名单）的写入口唯一在这里，库页面零改动
     // （docs/design/member-management.md §3.9.1）。
-    label: "成员与设备",
+    label: "成员",
     items: [
       { id: "members", label: "成员", description: "家庭成员账号、能力开关与可见范围", icon: ShieldIcon },
-      { id: "devices", label: "设备", description: "命令行与转码 Worker 的接入审批和吊销", icon: DeviceIcon },
     ],
   },
   {
@@ -207,11 +214,11 @@ export const settingsSections: SettingsSection[] = settingsSectionGroups.flatMap
 );
 
 /** 成员可见的设置分区（其余分区后端一律 403，前端不给入口）。 */
-const MEMBER_SECTION_IDS = new Set(["profile", "appearance"]);
+const MEMBER_SECTION_IDS = new Set(["profile", "devices", "appearance"]);
 
 /**
  * 按角色过滤设置分区分组：管理员全量；成员只剩「账号」组的个人分区
- * （概览呈现的是全局配置健康，属管理员视角，成员不可见）。
+ * （个人信息、自己的设备、外观；概览呈现的是全局配置健康，属管理员视角，成员不可见）。
  * 这只是界面裁剪——安全边界在后端的 require_admin / 守护测试。
  */
 export function settingsSectionGroupsFor(

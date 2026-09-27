@@ -43,6 +43,7 @@ import { useVisibleNavItems } from "@/components/sidebar";
 import { fileToCompressedJpeg, useBackdrop } from "@/lib/backdrop";
 import { BACKDROP, sidebarGlass } from "@/lib/glass";
 import { changePassword, updateProfile, uploadAvatar } from "@/lib/api/auth";
+import { listLoginDevices } from "@/lib/api/devices";
 import { clearPlaybackHistory } from "@/lib/api/playback";
 import { DEFAULT_UI_PREFS } from "@/lib/api/ui";
 import { HttpError } from "@/lib/http";
@@ -67,7 +68,7 @@ export interface SettingsSidebarProps {
 
 export function SettingsSidebar({ active, onSelect, onBack }: SettingsSidebarProps) {
   const { backdrop } = useBackdrop();
-  // 成员只看到「通用」组（个人信息/外观）；管理分区后端一律 403，前端不给入口
+  // 成员只看到「账号」组（个人信息/设备/外观）；管理分区后端一律 403，前端不给入口
   const { session } = useSession();
   const sectionGroups = settingsSectionGroupsFor(session.role);
   // 与工作台侧栏共用同一份用户偏好（透明度/明暗）；外观分区拖动滑杆时，
@@ -497,14 +498,32 @@ function NicknameRow() {
   );
 }
 
-/** 修改密码卡片：改密成功后其他设备的会话全部失效，本会话自动续期。 */
+/**
+ * 修改密码卡片（docs/design/login-devices.md「失效联动」）。
+ *
+ * 改密后用密码登录的其他设备（网页、App、播放器）全部下线，当前这台保留；
+ * 配对出来的命令行、转码器与手工令牌默认保留——转码器常年无人值守，改个密码
+ * 就停转码很难排查。怀疑密码泄露时，勾上「同时注销命令行和转码器」一并收回。
+ * 没有这类设备时不出现勾选项：没东西可注销，多一个选项只会让人犹豫。
+ */
 function ChangePasswordCard() {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  // 成功回执用后端的话：它会写明这次注销了几台
+  const [done, setDone] = useState<string | null>(null);
+  const [signOutPaired, setSignOutPaired] = useState(false);
+  // 配对类设备（命令行、转码器、手工令牌）的台数
+  const [pairedCount, setPairedCount] = useState(0);
+
+  useEffect(() => {
+    // 拿不到就按 0 台处理、不显示勾选项：这是附属信息，不该挡住改密
+    void listLoginDevices()
+      .then((devices) => setPairedCount(devices.filter((d) => d.family === "paired").length))
+      .catch(() => undefined);
+  }, []);
 
   const submit = async () => {
     if (newPassword.length < 8) {
@@ -517,13 +536,16 @@ function ChangePasswordCard() {
     }
     setBusy(true);
     setError(null);
-    setDone(false);
+    setDone(null);
+    const withPaired = pairedCount > 0 && signOutPaired;
     try {
-      await changePassword(oldPassword, newPassword);
+      const message = await changePassword(oldPassword, newPassword, withPaired);
       setOldPassword("");
       setNewPassword("");
       setConfirm("");
-      setDone(true);
+      setSignOutPaired(false);
+      if (withPaired) setPairedCount(0);
+      setDone(message);
     } catch (err) {
       setError(err instanceof HttpError ? err.message : "网络异常，请稍后重试");
     } finally {
@@ -554,12 +576,26 @@ function ChangePasswordCard() {
       {field("当前密码", oldPassword, setOldPassword, "current-password")}
       {field("新密码（至少 8 位）", newPassword, setNewPassword, "new-password")}
       {field("确认新密码", confirm, setConfirm, "new-password")}
-      {error && <p className="text-sub text-[var(--danger)]">{error}</p>}
-      {done && (
-        <p className="text-sub text-[var(--text-muted)]">
-          密码已修改，其他设备的登录已全部失效；当前会话保持有效。
-        </p>
+      {pairedCount > 0 && (
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={signOutPaired}
+            onChange={(e) => setSignOutPaired(e.target.checked)}
+            className="mt-1 size-4 shrink-0 accent-[var(--accent)]"
+          />
+          <span className="min-w-0">
+            <span className="block text-sub text-[var(--text)]">
+              同时注销命令行和转码器（{pairedCount} 台）
+            </span>
+            <span className="mt-0.5 block text-caption leading-5 text-[var(--text-faint)]">
+              转码器常年无人值守，改密一般不需要停掉它；怀疑密码泄露时请勾上。
+            </span>
+          </span>
+        </label>
       )}
+      {error && <p className="text-sub text-[var(--danger)]">{error}</p>}
+      {done && <p className="text-sub text-[var(--text-muted)]">{done}</p>}
       <div className="flex justify-end">
         <button
           type="button"

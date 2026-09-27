@@ -1,15 +1,16 @@
 /**
- * 「设备」分区的展示口径（docs/design/device-auth.md §7）。
+ * 「设备」分区的展示口径（docs/design/device-auth.md §7、docs/design/login-devices.md）。
  *
  * 单独成文件而不是留在组件里，是因为这里的措辞是**安全设计的一部分**：
- * v1 除转码 Worker 外的令牌都是完全权限，用户批准时看到的那行「将获得」
- * 就是唯一的一道人工闸（§4.5）。措辞退化成含糊的技术名词，闸就没了——
- * 所以它需要被测试锁住，而不是散落在 JSX 里随手改。
+ * 用户批准时看到的那行「将获得」就是唯一的一道人工闸。措辞退化成含糊的
+ * 技术名词，闸就没了——所以它需要被测试锁住，而不是散落在 JSX 里随手改。
  */
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** 客户端形态 → 给人看的说法。内部值不上屏。 */
 const CLIENT_TYPE_LABEL: Record<string, string> = {
-  worker: "转码 Worker",
+  worker: "转码器",
   cli: "命令行 / Agent",
   manual: "手工令牌",
 };
@@ -23,17 +24,31 @@ export interface GrantSummary {
   body: string;
 }
 
+/** 看这一页的人是超管还是成员：「将获得」要按批准者本人的身份说。 */
+export type ViewerRole = "admin" | "member";
+
 /**
- * 批准前的权限说明。两条硬要求：
+ * 批准前的权限说明。三条硬要求：
  * - 说人话，不出现 scope 之类的内部名词；
- * - 命令行那条必须把全权的含义点破到具体后果（删除媒体文件），
- *   因为 v1 没有别的收窄手段。
+ * - 谁批准，令牌就是谁的（login-devices.md §4）。超管批出来的命令行是完全
+ *   权限，必须把含义点破到具体后果（删除媒体文件）；成员批出来的只有成员
+ *   自己的权限，照抄超管那段就是把后果说错——用户迟早发现这行字不可信，
+ *   闸也就没了；
+ * - 不认识的形态按最危险的一档解释；role 缺省也按超管，同样是往重里说。
  */
-export function grantSummary(type: string): GrantSummary {
+export function grantSummary(type: string, role: ViewerRole = "admin"): GrantSummary {
   if (type === "worker") {
     return {
       title: "将获得：仅限转码",
       body: "这台机器不能查看或修改你的订阅、媒体库和设置。",
+    };
+  }
+  if (role === "member") {
+    return {
+      title: "将获得：与你相同的权限",
+      body:
+        "这台机器上的程序将能以你的身份做你在网页上能做的一切，管理员给你开放的能力它都有。" +
+        "只在你清楚这台机器上正在运行什么程序时才批准。",
     };
   }
   return {
@@ -45,24 +60,151 @@ export function grantSummary(type: string): GrantSummary {
 }
 
 /**
- * 手工创建令牌前的权限说明。
+ * 手工创建令牌前的权限说明（只有超管能创建）。
  *
  * 与审批卡同权，但不能直接复用 `grantSummary`：那段话的收尾是「才批准」，
  * 而手工创建这条路上根本没有批准这个动作——真正要点破的是另外两件事，
- * 令牌不会自动过期，以及它一旦发出去就只能靠吊销收回。
+ * 令牌不会自动过期，以及它一旦发出去就只能靠注销收回。
+ *
+ * scope=transcode 给命令行模式（Headless）的转码器用：碰不到订阅、媒体库和
+ * 设置，与配对出来的转码器同一档。
  */
-export function manualGrantSummary(): GrantSummary {
+export function manualGrantSummary(scope: "full" | "transcode" = "full"): GrantSummary {
+  if (scope === "transcode") {
+    return {
+      title: "将获得：仅限转码",
+      body:
+        "持有这枚令牌的程序只能领取和执行转码任务，不能查看或修改你的订阅、媒体库和设置。" +
+        "令牌不会自动过期，只能在这里注销。",
+    };
+  }
   return {
     title: "将获得：与你相同的完全权限",
     body:
       "持有这枚令牌的程序将能做你在网页上能做的一切，包括删除媒体文件。" +
-      "令牌不会自动过期，只能在这里吊销——只把它放进你自己掌握的机器。",
+      "令牌不会自动过期，只能在这里注销——只把它放进你自己掌握的机器。",
   };
 }
 
-/** 已连接列表里的权限标注。同样是实话，不是内部权限名。 */
-export function grantBadge(type: string): string {
-  return type === "worker" ? "仅转码" : "完全权限";
+/**
+ * 设备列表里配对类设备（命令行、转码器、手工令牌）的权限标注，同样是实话：
+ * 只能转码的写「仅转码」；其余按主人说——超管的就是完全权限，成员的只有
+ * 成员自己的权限（谁批准令牌就是谁的），一律写「完全权限」就说错了。
+ * 不认识的 scope 按最危险的一档解释。
+ */
+export function grantBadge(scope: string, ownerId: number): string {
+  if (scope === "transcode") return "仅转码";
+  return ownerId === 0 ? "完全权限" : "成员权限";
+}
+
+// ---------------------------------------------------------------------------
+// 配对码
+// ---------------------------------------------------------------------------
+
+/** 配对码的固定前缀（服务端 `_new_user_code`：`MCLW-` + 4 位） */
+const PAIRING_PREFIX = "MCLW";
+
+/**
+ * 把手输的配对码规范成服务端的写法 `MCLW-XXXX`；认不出返回 null。
+ *
+ * 大小写不敏感；允许漏掉连字符、用空格或全角横线代替，也允许只输后 4 位——
+ * 人照着屏幕抄码时这几种都常见，没必要让他为格式重来一遍。只做格式归一，
+ * **不纠正易混字符**（0/O、1/I）：服务端码表本就剔除了它们，替人猜一个字
+ * 等于可能替他批准了别人的请求，宁可让他再核对一次。
+ */
+export function normalizePairingCode(raw: string): string | null {
+  const compact = raw.toUpperCase().replace(/[\s\-_－—–]+/g, "");
+  const body =
+    compact.length === PAIRING_PREFIX.length + 4 && compact.startsWith(PAIRING_PREFIX)
+      ? compact.slice(PAIRING_PREFIX.length)
+      : compact;
+  if (!/^[A-Z0-9]{4}$/.test(body)) return null;
+  return `${PAIRING_PREFIX}-${body}`;
+}
+
+// ---------------------------------------------------------------------------
+// 我的设备列表
+// ---------------------------------------------------------------------------
+
+export interface DeviceGroup<T> {
+  key: string;
+  label: string;
+  devices: T[];
+}
+
+/**
+ * 分组顺序：人直接用的（浏览器、App）在前，程序代为操作的（命令行、转码器、
+ * 手工令牌）其次，Jellyfin 播放器最后。组内保持服务端顺序（当前设备置顶，
+ * 其余按最近活跃）。
+ */
+const DEVICE_GROUPS: { key: string; label: string }[] = [
+  { key: "browser", label: "浏览器" },
+  { key: "app", label: "App" },
+  { key: "paired", label: "命令行与转码器" },
+  { key: "player", label: "播放器" },
+];
+
+/**
+ * 设备类型 → 所在分组。不认识的新类型归「命令行与转码器」：服务端对未知
+ * 类型同样按「程序代为操作、配对类」处理（login_devices.spec_of），前端跟它
+ * 保持同一口径，而不是凭空多出一个「其他」组。
+ */
+export function deviceGroupKey(kind: string): string {
+  if (kind === "web") return "browser";
+  if (kind === "ios" || kind === "tvos" || kind === "android") return "app";
+  if (kind === "jellyfin") return "player";
+  return "paired";
+}
+
+/** 按类型分组，空组不出现。 */
+export function groupDevices<T extends { kind: string }>(devices: T[]): DeviceGroup<T>[] {
+  return DEVICE_GROUPS.map((group) => ({
+    ...group,
+    devices: devices.filter((device) => deviceGroupKey(device.kind) === group.key),
+  })).filter((group) => group.devices.length > 0);
+}
+
+/**
+ * 多久没活跃算「可能已经不用了」。只是界面上的一行轻提示——服务端不会因此让
+ * 凭证失效（login-devices.md §5「长期不用」），要不要注销由人决定。
+ */
+export const STALE_AFTER_DAYS = 90;
+
+/** 最近活跃（没有就按签发时间）超过 STALE_AFTER_DAYS 天。 */
+export function isStale(
+  lastSeenAt: string | null,
+  createdAt: string,
+  now: number = Date.now(),
+): boolean {
+  const then = Date.parse(lastSeenAt ?? createdAt);
+  return !Number.isNaN(then) && now - then > STALE_AFTER_DAYS * DAY_MS;
+}
+
+/** 凭证怎么来的就怎么说：手工令牌「创建于」、配对的「配对于」、密码换来的「登录于」。 */
+export function issuedVerb(kind: string, family: string): string {
+  if (kind === "manual") return "创建于";
+  return family === "paired" ? "配对于" : "登录于";
+}
+
+/**
+ * 注销前的后果说明：按类型说清「注销之后要怎样才能再用」——这才是人决定
+ * 按不按下去时真正想知道的。
+ */
+export function revokeConsequence(kind: string, family: string): string {
+  switch (kind) {
+    case "cli":
+      return "这台机器上的命令行会立即失去访问权限，要再用得重新运行 mclaw login 配对。";
+    case "worker":
+      return "这台转码器会立即断开，正在进行的转码一并停止；要再用得在转码器里重新配对。";
+    case "manual":
+      return "持有这枚令牌的程序会立即失去访问权限。令牌无法恢复，只能重新创建。";
+    case "jellyfin":
+      return "这个播放器会立即退出登录，正在进行的播放一并停止；要再用得在播放器里重新登录。";
+    default:
+      return family === "paired"
+        ? "这台设备会立即失去访问权限，要再用得重新配对。"
+        : "这台设备会立即退出登录，正在进行的播放一并停止；要再用得重新输入密码登录。";
+  }
 }
 
 /**
@@ -125,4 +267,17 @@ export function resolveServerAddress(externalUrl: string, origin: string): Serve
  */
 export function envSnippet(server: string, token: string): string {
   return `MOVIECLAW_SERVER=${server}\nMOVIECLAW_TOKEN=${token}`;
+}
+
+/**
+ * 「仅限转码」手工令牌给命令行模式（Headless）转码器的一行启动参数。
+ *
+ * 不给环境变量：Headless 只认显式命令行参数、不读环境变量
+ * （macos/MovieClawTranscoder 的 README「Headless 排障模式」与 Models.swift 的
+ * `WorkerConfiguration.load`），照抄两行 MOVIECLAW_* 它根本连不上。参数名以那边
+ * 为准；--worker-id、--ffmpeg 等可选参数不在这里替人决定。令牌是 URL 安全字符
+ * （`mclaw_` + base64url），地址是裸 URL，都不含需要 shell 转义的字符，不加引号。
+ */
+export function headlessArgs(server: string, token: string): string {
+  return `--nas-url ${server} --token ${token}`;
 }

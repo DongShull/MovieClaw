@@ -154,15 +154,26 @@ export function uploadAvatar(file: Blob): Promise<SessionView> {
   );
 }
 
-/** 修改管理员密码：其余设备的会话全部强制下线，本会话自动续期。 */
-export function changePassword(
+/**
+ * 修改自己的密码（超管与成员同一个入口），返回后端的回执文案（会写明注销了几台）。
+ *
+ * 失效范围（docs/design/login-devices.md「失效联动」）：用密码登录的其他设备
+ * （网页、App、播放器）全部下线，当前这台保留；配对 / 手工创建的（命令行、
+ * 转码器、手工令牌）默认保留——转码器常年无人值守，改个密码就停转码很难排查，
+ * signOutPaired=true 时才一并注销。
+ */
+export async function changePassword(
   oldPassword: string,
   newPassword: string,
-): Promise<SessionView> {
-  return unwrap(
-    request<ApiEnvelope<SessionView>>("/auth/password", {
-      method: "PUT",
-      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  signOutPaired = false,
+): Promise<string> {
+  const response = await request<ApiEnvelope<SessionView>>("/auth/password", {
+    method: "PUT",
+    body: JSON.stringify({
+      old_password: oldPassword,
+      new_password: newPassword,
+      sign_out_paired: signOutPaired,
     }),
-  );
+  });
+  return response.message;
 }
