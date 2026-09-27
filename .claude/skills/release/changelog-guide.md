@@ -11,8 +11,12 @@ Obsidian、Vercel、Telegram、flomo、滴答清单、Bear），括号里是出�
 
 ## 一、先盘点，再取舍
 
-1. **盘点（保证不漏）**：`git log --first-parent 上一tag..HEAD --oneline`，以合并 PR
-   为单位过一遍区间内全部变更，拿不准的再看 diff。盘点结果只是素材，不是正文。
+1. **盘点（保证不漏）**：`git log --first-parent 上一个正式版tag..HEAD --oneline`
+   （跳过 beta/rc；给已发布的版本补写时把 `HEAD` 换成本版 tag），以合并 PR 为单位
+   过一遍区间内全部变更，拿不准的再看 diff。盘点结果只是素材，不是正文。
+   **以上一个正式版为基准**：本周期内引入、又在本周期内修掉的问题（例如新功能刚合入
+   就修的回归），用户从没遇到过，不写。判断方法：对照上一个正式版 tag 的代码，问题
+   在那时存不存在。
 2. **取舍（保证好读）**：挑 1～3 件本版最值得说的事当亮点，其余压成一行或一句带过；
    重构、CI、测试、文档这类用户感知不到的改动不写。完整清单交给文末的 compare 链接
    ——所有被调研的产品都是「精选叙事 + 完整清单另放」两层，没有一家把全部修复摊在
@@ -40,6 +44,8 @@ Obsidian、Vercel、Telegram、flomo、滴答清单、Bear），括号里是出�
 
 - **好处短语**：一句说明，必要时带入口。
 
+（两类合计不超过 4 条时合成一节「其他新功能与改进」，多了再拆成两节）
+
 ### 修好了
 
 - 在哪、做什么时、出现的什么问题，现在不会了。
@@ -47,7 +53,7 @@ Obsidian、Vercel、Telegram、flomo、滴答清单、Bear），括号里是出�
 
 ### 升级须知
 
-- 数据库迁移与回退、已知限制、功能下线。
+- 数据库迁移与回退（只在本版有迁移时写）、全局性的已知限制、功能下线与替代入口。
 
 感谢 @someone 的贡献。完整改动见 [vA.B.C → vX.Y.Z](https://github.com/movieclaw/movieclaw/compare/vA.B.C...vX.Y.Z)。
 ```
@@ -72,27 +78,35 @@ Obsidian、Vercel、Telegram、flomo、滴答清单、Bear），括号里是出�
      Notion「Get started at Settings → …」，Infuse 专写「How to use transcoding」）。
      自动生效的就明说「升级后自动生效，不用设置」（HA「nothing changes and there is
      nothing you need to do」）——这句话本身就是在降低升级顾虑。
-   - 入口路径要对照前端代码核实真实的菜单名，别凭印象写。
+   - 入口路径要对照前端代码核实真实的菜单名，别凭印象写：设置分区名以
+     `apps/web/lib/mock-data.ts` 为准；多套主题下路径不同时，按默认主题（银玻璃）写；
+     顺带确认成员账号能不能看到这个入口，只有管理员能用的要注明「管理员」。
 
 4. **标题讲好处或用户问题，不讲功能名**。
    ✅「在外面用 Infuse 看片，调低画质真的有用了」（HA「How full is your network storage?」，
    Things「Repeating To-Dos, Refined」，滴答「书写更简洁：……」）
    ❌「Jellyfin 客户端调低画质时真的会转码」
+   例外：主角本身就是用户会在界面上看到的名字（如「Netflix 主题」），标题里要出现
+   这个名字，否则用户对不上号——把它和好处写在一起即可（「一键换成 Netflix 的样子」）。
 
 5. **修复写用户能认出来的症状，不写原因**：「在哪、做什么时、出了什么问题」，让遇到过的
    人一眼认出「就是我那个」。（Raycast「Fixed failing requests retrying in the background
    indefinitely during provider outages」，flomo「【修复】点击 Agent 推送返回对话时，
    页面反复跳转的问题。」）只单列用户大概率遇到过的，其余并成「以及 N 处细节修复」。
    ❌「修复若干问题」「优化产品体验」（微信、小红书的反例：什么都没说）
+   **放「修好了」还是「体验改进」**：用户会说「坏了」的（报错、打不开、显示不出、
+   点了没反应）放「修好了」；原本能用、只是不够好的（慢、糊、不顺手）放「体验改进」。
 
 6. **需要用户动手的事：越危险越靠前，每条都能照做**。写清要执行的命令或菜单路径、
    不做会怎样。（Jellyfin 大版本把升级须知放在最顶部的 TL;DR 编号清单，
    Immich 大版本前置 How to update 并给出命令，Telegram 写全菜单路径）
    需要更新 Docker 镜像 / Mac Worker 放开头提示框；不需要时也写一行 ✅，
    自托管用户最怕的就是「这次要不要动容器」。
+   数据库迁移只在**有迁移时**写回退提示；没有迁移时不写，也不要替用户担保
+   「回退不用恢复备份」——兼容性判断出错的代价由用户承担。
 
-7. **坦白边界**：已知限制、还没做完的、要下线的，放「升级须知」或亮点段末尾，
-   一句话说清。坦白反而增加信任。（Cursor「Rollouts does not merge or roll back on its
+7. **坦白边界**：已知限制、还没做完的、要下线的，一句话说清。只和某个亮点有关的，
+   放在那个亮点段末尾（读者正读到这里）；影响全局的放「升级须知」。坦白反而增加信任。（Cursor「Rollouts does not merge or roll back on its
    own today.」，Infuse 的段末 Note，Dia「Retiring Memory」，Raycast「While there are no
    major new features…」）
 
@@ -100,8 +114,9 @@ Obsidian、Vercel、Telegram、flomo、滴答清单、Bear），括号里是出�
    即可，省掉「本版亮点」节。（Raycast v2.4、Bear 3.0 都坦白说明本版没有大功能）
 
 9. **致谢外部贡献者**：区间内有核心维护者以外的人合入 PR，就在文末点名
-   「感谢 @xxx 的贡献」（GitHub 用户名看 PR 作者，或 `git log` 里
-   `…@users.noreply.github.com` 前的名字）。开源项目靠这个留住贡献者。
+   「感谢 @xxx 的贡献」。**以 GitHub 上 PR 的作者为准**；`git log --format='%an <%ae>'`
+   只用来找线索（`…@users.noreply.github.com` 前的名字通常就是用户名，但用真实邮箱
+   提交的外部贡献者会漏掉），拿不到 PR 信息时宁可只写能确认的人。开源项目靠这个留住贡献者。
    （HA 每条带「Thanks, @xxx!」，Immich 列 New Contributors，Dia「Shipped by Alexandra」）
 
 10. **语气**：用「我们 / 你」，平实、具体。人格化点到为止——主题标题、一句结语可以有
@@ -120,7 +135,8 @@ Obsidian、Vercel、Telegram、flomo、滴答清单、Bear），括号里是出�
 
 ## 五、篇幅与自检
 
-- 50 行以内（含空行）；亮点之外的条目各不超过一行。
+- 50 行以内（含空行）；亮点之外的条目各不超过一行——指 Markdown 源码一行、约 40 个
+  汉字，不用分号硬塞第二件事。
 - 写完只读第一屏：能不能让人想更新？知不知道要不要动手？
 - 念给一个不写代码的朋友听：有没有哪句需要解释？每个亮点他知不知道去哪儿试？
 
