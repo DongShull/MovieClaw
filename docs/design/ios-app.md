@@ -102,6 +102,7 @@ PlayerScreen（控制层 UI、手势、字幕叠加、选轨、诊断）
   等转码的时间不算），原文件与 MPV 用加载速度读数，都取最近 12 秒（至少最近 3 次）里最快的一次——AVPlayer
   会自己放慢读取，按平均算会被拖低，还会比加载速度小。算法与本机限速实测见 `PlayerEngine.swift` 的
   `LoadingSpeedMeter` / `BandwidthMeter`。
+- 起播链路与流畅度（2026-09-27 秒开优化）：后台一口气完成决策与开会话、MPV 直出申报全解码拿档 0、HLS 列表带 EXT-X-START、AVPlayer 起播不等缓冲、mpv 用 fast 画质档等，改法与实测数字见 [playback-startup.md](playback-startup.md)；起播慢先看 NAS 日志里的「起播分段」一行。
 - LGPL 合规：MPVKit 动态库形式链接；关于页列出 libmpv/FFmpeg 许可与源码地址。
 - MPV 真机渲染走 Metal（MoltenVK + gpu-next）：黑底容器铺满播放区，渲染面按视频比例居中摆放，
   横竖屏切换时渲染面随系统旋转动画等比缩放，全程不变形、不黑屏，不重建视频输出。依赖 libmpv 的两个补丁
