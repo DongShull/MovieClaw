@@ -15,7 +15,8 @@ import SwiftUI
 ///     输入关键词后列表给出「在其他范围搜索」，点一行就换到那个范围搜（并记住）；
 /// - 输入了关键词，列表顶上给一行「搜索“…”」（下注当前范围），收起键盘后也能一点就搜；
 /// - 最近搜索（`GET /search/history`）：系统列表行（主标题 + 一行说明），同关键词的多条记录归成一组：
-///   主行是最近一条（写它的范围与时间），其余范围缩进列在下面，始终展开、没有折叠箭头——
+///   主行是最近一条（写它的范围与时间），其余范围列在下面、图标列换成「↳」连接符，组内不画分隔线、
+///   只在组与组之间画，一眼看出是一组；始终展开、没有折叠箭头——
 ///   箭头（展开）和整行（打开）挤在同一行会误触（真机反馈），每行只做一件事：点哪行就回放哪条记录。
 ///   输入即过滤；左滑主行删整组（多条时先确认）、左滑缩进行删单条，段头「清空」；有快照直接看快照；
 /// - 模式与分类记在本机（同 Web localStorage 的 `movieclaw.search-palette-state`）；
@@ -333,19 +334,22 @@ struct SearchHomeView: View {
         }
     }
 
-    /// 一组同关键词的记录：主行是最近一条（带时钟图标，左滑删整组）；同词的其余范围缩进跟在下面
-    /// （不带图标、标题写范围，左滑删这一条）。每条记录只出现一次，点哪行就回放哪条
+    /// 一组同关键词的记录：主行是最近一条（带时钟图标，左滑删整组）；同词的其余范围跟在下面
+    /// （图标列是「↳」连接符、标题写范围，左滑删这一条）。每条记录只出现一次，点哪行就回放哪条。
+    /// 组内的分隔线全部隐藏、只留组的最后一行底线，线就成了组与组的边界
     @ViewBuilder
     private func groupRow(_ group: HistoryGroup) -> some View {
         let latest = group.items[0]
-        historyButton(item: latest, title: group.keyword, subtitle: "\(scopeLabel(latest)) · \(detailLine(latest))", showsIcon: true)
+        let lastID = group.items.last?.id
+        historyButton(item: latest, title: group.keyword, subtitle: "\(scopeLabel(latest)) · \(detailLine(latest))", isChild: false)
+            .listRowSeparator(group.items.count > 1 ? .hidden : .automatic, edges: .bottom)
             .swipeActions {
                 deleteAction(label: "删除搜索历史组：\(group.keyword)") { Task { await removeGroup(group) } }
             }
         ForEach(group.items.dropFirst(), id: \.id) { item in
-            historyButton(item: item, title: scopeLabel(item), subtitle: detailLine(item), showsIcon: false)
-                // 缩进到主行文字那一列，看得出同属一个关键词
-                .padding(.leading, 40)
+            historyButton(item: item, title: scopeLabel(item), subtitle: detailLine(item), isChild: true)
+                .listRowSeparator(.hidden, edges: .top)
+                .listRowSeparator(item.id == lastID ? .automatic : .hidden, edges: .bottom)
                 .swipeActions {
                     deleteAction(label: "删除搜索历史：\(item.keyword)（\(item.vertical == "titles" ? "影视" : item.label ?? "资源全部")）") {
                         removeOne(item.id)
@@ -355,17 +359,17 @@ struct SearchHomeView: View {
     }
 
     /// 历史行：主标题 + 一行灰色说明（范围 · 多久之前 · 快照），整行可点；图标列与范围行对齐
-    private func historyButton(item: API.SearchHistoryItem, title: String, subtitle: String, showsIcon: Bool) -> some View {
+    /// `isChild`：组内的其余范围，图标列换成「↳」连接符（纯装饰、不可点），挂在主行时钟图标下面
+    private func historyButton(item: API.SearchHistoryItem, title: String, subtitle: String, isChild: Bool) -> some View {
         Button {
             pick(item)
         } label: {
             HStack(spacing: 14) {
-                if showsIcon {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.body)
-                        .foregroundStyle(Theme.textFaint)
-                        .frame(width: 26)
-                }
+                Image(systemName: isChild ? "arrow.turn.down.right" : "clock.arrow.circlepath")
+                    .font(isChild ? .footnote.weight(.semibold) : .body)
+                    .foregroundStyle(Theme.textFaint)
+                    .frame(width: 26)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.body)
