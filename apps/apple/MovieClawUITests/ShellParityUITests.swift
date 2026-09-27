@@ -114,7 +114,7 @@ final class ShellParityUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--reset-state", "--ui-testing"]
         app.launch()
-        tapSafely(app, app.buttons["welcome-start"], "启程")
+        tapSafely(app, app.buttons["welcome-start"], "连接服务器")
         XCTAssertTrue(app.textFields["server-address"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["login-username"].exists, "服务器地址与账号应在同一张表单里")
         let remember = app.switches["30 天内记住我"]

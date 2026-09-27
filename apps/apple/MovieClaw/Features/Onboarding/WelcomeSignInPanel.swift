@@ -13,7 +13,9 @@ import SwiftUI
 struct WelcomeSignInPanel: View {
     /// 这张卡片是干什么的：决定标题与说明
     enum Purpose: Equatable {
-        /// 首次登录，或账号全部退出后
+        /// 第一次使用：本机还没连过任何服务器（首页按钮「连接服务器」）
+        case connect
+        /// 连过服务器、账号全部退出后再登录（首页按钮「登录」）
         case signIn
         /// 登录过期，重新输密码（用户名已预填）
         case reauth
@@ -49,10 +51,14 @@ struct WelcomeSignInPanel: View {
     @Binding var editing: Bool
     let purpose: Purpose
     let prefill: Prefill
+    /// 卡片出现后是否直接弹键盘：用户点按钮打开的才弹，页面自己出现的（冷启动发现登录过期）不抢焦点
+    var autoFocus = true
     /// 「切换到其他账号」：别的服务器上还有登录中的账号时才给
     var onSwitchAccount: (() -> Void)?
     /// 登录 / 创建成功之后（添加账号的卡片用它关掉自己：登的若正是当前账号，主界面不会重建）
     var onSignedIn: (() -> Void)?
+    /// 右上角 ×：收起卡片（回首页，或关掉添加账号）
+    var onClose: (() -> Void)?
 
     @Environment(AppModel.self) private var model
     @State private var address = ""
@@ -72,14 +78,20 @@ struct WelcomeSignInPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.welcomeSerif(size: 22))
-                    .foregroundStyle(Theme.text)
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.textMuted)
-                    .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title)
+                        .font(.welcomeSerif(size: 22))
+                        .foregroundStyle(Theme.text)
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                if let onClose {
+                    closeButton(onClose)
+                }
             }
 
             if !setup, purpose != .addAccount, let launchError = model.launchError {
@@ -260,9 +272,26 @@ struct WelcomeSignInPanel: View {
             && (!setup || !confirm.isEmpty)
     }
 
+    /// 右上角 ×：卡片本身已是液态玻璃，按钮不再叠一层玻璃（玻璃套玻璃发糊），用内嵌底色的小圆
+    private func closeButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Theme.textMuted)
+                .frame(width: 30, height: 30)
+                .background(Theme.surfaceInset, in: .circle)
+                .overlay(Circle().strokeBorder(Theme.line))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("关闭")
+        .accessibilityIdentifier("welcome-close")
+    }
+
     private var title: String {
         if setup { return "初始化这台服务器" }
         switch purpose {
+        case .connect: return "连接服务器"
         case .signIn: return "登录 MovieClaw"
         case .reauth: return "重新登录"
         case .addAccount: return "添加账号"
@@ -274,7 +303,8 @@ struct WelcomeSignInPanel: View {
             return "这是一台全新的服务器。将用下面的账号创建超级管理员——它是本站唯一的管理身份，此流程仅在首次部署时出现。"
         }
         switch purpose {
-        case .signIn: return "服务器地址即在浏览器里打开 MovieClaw 时地址栏中的那一串。"
+        case .connect: return "服务器地址即在浏览器里打开 MovieClaw 时地址栏中的那一串。"
+        case .signIn: return "服务器地址沿用上次的；要登录别的服务器，改一下地址就行。"
         case .reauth: return "「\(prefill.username ?? "")」的登录已过期，请重新输入密码。"
         case .addAccount: return "可以是这台服务器上的另一个账号；要登录别的服务器，改一下地址就行。"
         }
@@ -295,6 +325,7 @@ struct WelcomeSignInPanel: View {
         }
         // 冷启动时查到这台服务器是全新的：直接是初始化的样子
         if model.phase == .needsSetup, prefill.server == model.server { setupAddress = address }
+        guard autoFocus else { return }
         // 等卡片升起的动画走完再弹键盘，否则两段动画挤在一起会卡顿
         Task {
             try? await Task.sleep(for: .milliseconds(700))

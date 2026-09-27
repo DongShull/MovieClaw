@@ -1,6 +1,6 @@
 import XCTest
 
-/// 首次启动流程的端到端验收：片头 →「启程」→ 地址与账号一张表填完 → 登录 → 进入主界面。
+/// 首次启动流程的端到端验收：首页 →「连接服务器」→ 地址与账号一张表填完 → 登录 → 进入主界面。
 ///
 /// 依赖一台真实运行的 MovieClaw（默认本机 dev 环境 http://localhost:3000）。
 /// 通过环境变量覆盖（xcodebuild 需加 TEST_RUNNER_ 前缀传入）：
@@ -11,7 +11,7 @@ final class OnboardingUITests: XCTestCase {
     private var username: String { env["MC_TEST_USERNAME"] ?? "admin" }
     private var password: String { env["MC_TEST_PASSWORD"] ?? "mclaw-dev-2026" }
 
-    /// 全新安装启动，看完片头点「启程」，停在登录表单
+    /// 全新安装启动，停在首页（不弹键盘），点「连接服务器」，停在登录表单
     @MainActor
     private func launchFresh() -> XCUIApplication {
         continueAfterFailure = false
@@ -19,7 +19,9 @@ final class OnboardingUITests: XCTestCase {
         app.launchArguments = ["--reset-state", "--ui-testing"]
         app.launch()
         let start = app.buttons["welcome-start"]
-        XCTAssertTrue(start.waitForExistence(timeout: 10), "首次打开应先放片头")
+        XCTAssertTrue(start.waitForExistence(timeout: 10), "首次打开应先停在首页")
+        XCTAssertEqual(start.label, "连接服务器")
+        XCTAssertFalse(app.keyboards.firstMatch.exists, "首页不应弹键盘")
         snapshot("片头")
         start.tap()
         return app
