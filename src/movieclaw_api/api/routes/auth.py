@@ -214,9 +214,18 @@ async def _remember_login(
 
     普通登录与"添加账号"在后端没有区别——会话过期后重新登录，袋子里其余账号
     照样保留，这正是用户期望的行为。
+
+    被挤出袋子的令牌（同一个账号在这个浏览器里又登录了一次、或超过上限被淘汰的
+    最久未用账号）在服务端一并作废：浏览器里已经没有它了，留着只会在「我的设备」
+    里多出一行再也用不到、却仍然有效的会话。
     """
     _set_session_cookie(response, token, max_age)
-    accounts = auth_service.merge_saved_account(await _saved_accounts(request), token, principal)
+    before = await _saved_accounts(request)
+    accounts = auth_service.merge_saved_account(before, token, principal)
+    kept = {saved.token for saved in accounts}
+    for saved in before:
+        if saved.token not in kept:
+            await login_devices.revoke_token(saved.token)
     await _set_accounts_cookie(response, accounts)
 
 

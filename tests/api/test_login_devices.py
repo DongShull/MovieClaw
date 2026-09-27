@@ -393,3 +393,19 @@ def test_app_playback_is_revocable_from_the_activity_page(client: TestClient) ->
     assert resp.status_code == 200, resp.text
     assert "iPhone Air" in resp.json()["message"]
     assert _as(client, data["token"]).get(f"{_AUTH}/me").status_code == 401
+
+
+def test_logging_in_again_in_the_same_browser_retires_the_old_session(client: TestClient) -> None:
+    """同一个浏览器里同一个账号又登录了一次：被换下来的旧会话在服务端一并作废，
+    「我的设备」里不会多出一行再也用不到、却仍然有效的会话。"""
+    client.cookies.clear()
+    client.post(f"{_AUTH}/login", json=_ADMIN)
+    first = client.cookies.get("movieclaw_session")
+    client.post(f"{_AUTH}/login", json=_ADMIN)
+    second = client.cookies.get("movieclaw_session")
+    assert first != second
+    stale = TestClient(client.app)
+    stale.cookies.set("movieclaw_session", first)
+    assert stale.get(f"{_AUTH}/me").status_code == 401
+    webs = [d for d in client.get(f"{_AUTH}/devices").json()["data"] if d["kind"] == "web"]
+    assert len(webs) == 2  # 建号那次（bootstrap）的会话 + 现在这一枚
