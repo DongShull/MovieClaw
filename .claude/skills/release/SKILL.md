@@ -56,22 +56,20 @@ description: 发布 movieclaw 新版本。当用户要求发版、发布新版�
 5. changelog：写 docs/changelog/vX.Y.Z.md 合入 main。changelog 先于发版
    合入（推荐，可与发版 PR 同 PR）时，release.yml 建 Release 会直接用它
    当 body；后合入也没关系，release-notes.yml 会自动同步为 Release body
-   （应用内更新界面原文展示）。
-   **撰写规则（保证不漏、不流水账）**：
-   - 检索范围用 `git log --first-parent 上一tag..HEAD --oneline`，
-     以合并 PR 为单位枚举区间内全部变更（含直接推 main 的提交），
-     一条不落地过目；拿不准的条目再看该 PR 的具体 diff
-   - 内容按「新功能 / 改进 / 修复」分组，写用户视角的中文（用户能感知
-     什么变了、要不要做什么），纯内部重构/CI/文档类改动可合并一句带过
-     或省略
-   - runtime bump 的版本必须在 changelog 显著位置写明「需要更新
-     Docker 镜像」及原因
+   （应用内更新界面原文展示）。撰写规范见 `changelog-guide.md`。
 6. 验证：到 GitHub Release 页确认三个产物齐全、body 是 changelog 而非
    自动生成的 PR 清单；有条件的话在一个 Docker 部署实例上走一遍
    「设置 → 应用」端到端更新
 ```
 
-### 3. 预发布（beta/rc）
+### 3. changelog 怎么写
+
+**动笔前必读 `changelog-guide.md`**（本目录下）。一句话概括：changelog 是写给自部署
+用户的产品更新说明，不是变更清单——先用 `git log` 盘点保证不漏，再挑 1～3 个亮点
+按「痛点 → 现在 → 入口」写，修复只写用户能认出的症状，其余交给文末的 compare 链接。
+样板见 `docs/changelog/v0.27.0.md`。
+
+### 4. 预发布（beta/rc）
 
 tag 带预发布段（如 `v0.3.0-beta.1`）时，release.yml 会自动标记 GitHub
 prerelease，应用内更新的检查逻辑会跳过它——beta 不会被推给全量用户。
@@ -167,5 +165,6 @@ ffmpeg 版本，发版前按下表逐项过一遍。
       `.sig`），人工只需确认 release 工作流全绿、Release 已从 draft 转正；
       worker-macos 作业红了 → Worker zip 缺失，重跑该作业补传
 - [ ] changelog 已写入 `docs/changelog/vX.Y.Z.md` 并合入 main（release-notes.yml
-      自动同步为 Release body，应用内更新界面会原文展示给用户）
+      自动同步为 Release body，应用内更新界面会原文展示给用户），并按
+      `changelog-guide.md` 自检过第一屏
 - [ ] 改动了播放/转码 → 第五节的硬件矩阵人工验收已过（CI 覆盖不到）
