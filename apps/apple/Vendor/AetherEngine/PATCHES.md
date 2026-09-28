@@ -48,6 +48,7 @@
 | P31 | `Decoder/SoftwareVideoDecoder.swift` | 追落点时少干活：离落点超过 1 秒的包让解码器跳过不被参考的帧（`AVDISCARD_NONREF`），离落点超过 0.25 秒解出的帧不再去隔行、直接丢 | 目标之前的帧一帧都不显示，原来却全解、全去隔行（上传 GPU、按场出两帧），DVD 追 23 秒内容用了 3 秒 |
 | P32 | `Demuxer/SourceByteCache.swift` | 片源字节缓存（P22）的共享实例改为在后台串行队列上写盘、记账与超预算淘汰：`write` 把数据交给队列就返回（积压超过 64 MB 的新写入不缓存）；淘汰只在记账时持锁，打洞放在锁外。`AetherEngine.sourceByteCacheWritesInBackground` 可关（真机新旧对照用）；测试自建的实例仍同步 | 真机（iPhone Air）实测缓冲外跳转后，读取器把第一块数据写进缓存要 1.2～2.6 秒（跳到几个 GB 之外，稀疏文件第一次在远处落盘很慢），取数线程一直等着：UHD 原盘 +600 秒跳转 3.8 秒里有 2.6 秒是它（播放体验打点定位，docs/design/playback-qoe.md） |
 | P33 | `Video/HLSVideoEngine.swift`、`Video/HLSVideoEngine+SegmentPlanning.swift`、`Demuxer/SourceByteCache.swift` | 点播换封装的分片目标时长 4 → 2 秒（`AetherEngine.vodSegmentTargetSeconds`，宿主可改，夹在 1～6 秒）；宿主按比例放大前后窗口段数，缓冲时长不变。直播标准档、量不出关键帧间隔的均匀切分仍按上游 4 秒（步长短于 GOP 会切出没有关键帧的空段）；长 GOP 的片子仍按关键帧间隔切 | AVPlayer 要等一整段产出、送达才开画：续播 / 缓冲外跳转落点那一段 4 秒 UHD 有 26～50 MB，光产出就 0.5～0.7 秒；提前开播（P28）后第二段跟不上，首帧后约 0.8 秒卡一下。真机 6 部 × 2 轮交替对照（与 P32 同批）：首帧中位 / p90 1494 / 1755 → 1305 / 1420 毫秒，缓冲外跳转 706 / 1425 → 580 / 984，开播后卡顿 2 次 → 0 |
+| P34 | `Demuxer/Demuxer.swift` | MP4 / MKV 里第二条起的 TrueHD（容器已声明采样率与声道）在 find_stream_info 期间同 P12 暂当附件、探测完放回；第一条照常探。`AetherEngine.parkSecondaryTrueHDDuringProbe` 可关（真机新旧对照用） | 探测只差「采样格式」一项，要解出一帧才有；《变形金刚4》第二条（中文）TrueHD 解不出，探测读满 50 MB 预算、0.76 秒。TrueHD 一律经音频桥接，桥接自己开解码器、按解出的帧配重采样。真机验证切到这条音轨照常出声；对照结果见 docs/design/playback-qoe.md §9.3 |
 
 （P6 已并入 P5：按主播放列表名选主片是目录读取协议的一个字段。）
 

@@ -186,6 +186,11 @@ public final class AetherPlayback {
         set { AetherEngine.vodSegmentTargetSeconds = newValue }
     }
 
+    /// 探测流时是否跳过第二条起的 TrueHD（引擎补丁 P34，默认开；真机新旧对照时关掉）
+    public static func setParkSecondaryTrueHD(_ on: Bool) {
+        AetherEngine.parkSecondaryTrueHDDuringProbe = on
+    }
+
     /// 片源字节缓存写盘是否放后台队列（引擎补丁 P32，默认开；真机新旧对照时关掉）
     public static func setByteCacheWritesInBackground(_ on: Bool) {
         AetherEngine.sourceByteCacheWritesInBackground = on

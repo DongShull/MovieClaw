@@ -98,6 +98,8 @@ final class NativeEngine: NSObject, PlayerEngine {
         AetherPlayback.logsCues = UserDefaults.standard.bool(forKey: "mcAetherCues")
         // -mcSyncByteCache YES：片源字节缓存改回在取数线程上同步写盘（引擎补丁 P32 之前的行为，真机新旧对照用）
         AetherPlayback.setByteCacheWritesInBackground(!UserDefaults.standard.bool(forKey: "mcSyncByteCache"))
+        // -mcProbeAllTrueHD YES：探测流时第二条起的 TrueHD 也照常探（引擎补丁 P34 之前的行为，真机新旧对照用）
+        AetherPlayback.setParkSecondaryTrueHD(!UserDefaults.standard.bool(forKey: "mcProbeAllTrueHD"))
         // -mcSegmentSeconds <秒>：点播分片目标时长（引擎补丁 P33，默认 2；真机对照用），窗口段数在装载时按比例折算
         let segmentSeconds = UserDefaults.standard.double(forKey: "mcSegmentSeconds")
         if segmentSeconds > 0 { AetherPlayback.segmentTargetSeconds = segmentSeconds }

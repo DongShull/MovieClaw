@@ -965,8 +965,9 @@ public final class Demuxer: @unchecked Sendable {
     /// 尺寸、字幕包又稀疏，探测于是一直读到预算上限（50 MB）。真机实测带 PGS 的片子起播里「探测流」一项 0.6～1.1 秒，
     /// 同样是 DTS 转码、不带 PGS 的《九门》只要 0.00 秒；蓝光原盘几乎都带 PGS。引擎画 PGS 时画布尺寸取自画面
     /// （旁路读字幕的解复用器本来就不跑 find_stream_info），用不上这里探出来的尺寸
-    private func parkUnsizedPGS(_ ctx: UnsafeMutablePointer<AVFormatContext>) -> [(index: Int, type: AVMediaType)] {
-        var parked: [(index: Int, type: AVMediaType)] = []
+    private func parkUnsizedPGS(_ ctx: UnsafeMutablePointer<AVFormatContext>) -> [(index: Int, type: AVMediaType, placeholderCodec: Bool)] {
+        var parked: [(index: Int, type: AVMediaType, placeholderCodec: Bool)] = []
+        var sawTrueHD = false
         let formatName = ctx.pointee.iformat.map { String(cString: $0.pointee.name) } ?? ""
         let declaresCodecs = formatName.hasPrefix("mov,") || formatName.hasPrefix("matroska")
         for i in 0..<Int(ctx.pointee.nb_streams) {
@@ -981,23 +982,31 @@ public final class Demuxer: @unchecked Sendable {
             // MP4 / MKV 由容器声明编码，认不出就是真没有解码器（国产 4K 剧的 Audio Vivid「av3a」5.1.4 音轨）：
             // 同样判「参数不全」拖满探测预算，真机《交锋》探测 1.5 秒。TS / PS 的未知流可能靠嗅探认出来，不动
             let unknownAudio = declaresCodecs && type == AVMEDIA_TYPE_AUDIO && codecpar.pointee.codec_id == AV_CODEC_ID_NONE
-            guard unsizedPGS || unknownData || unknownAudio else { continue }
+            // [MovieClaw P34] 第二条起的 TrueHD：容器已声明采样率与声道，探测只差「采样格式」一项，要解出一帧才有；
+            // 解不出来（真机《变形金刚4》第二条 TrueHD）就读满 50 MB 预算，探测 0.76 秒。TrueHD 一律经音频桥接，
+            // 桥接自己开解码器、按解出的帧配重采样，用不上探出来的采样格式。第一条照常探（全景声等判定不受影响）
+            let isTrueHD = declaresCodecs && type == AVMEDIA_TYPE_AUDIO && codecpar.pointee.codec_id == AV_CODEC_ID_TRUEHD
+                && codecpar.pointee.sample_rate > 0 && codecpar.pointee.ch_layout.nb_channels > 0
+            let secondaryTrueHD = isTrueHD && sawTrueHD && AetherEngine.parkSecondaryTrueHDDuringProbe
+            if isTrueHD { sawTrueHD = true }
+            guard unsizedPGS || unknownData || unknownAudio || secondaryTrueHD else { continue }
             codecpar.pointee.codec_type = AVMEDIA_TYPE_ATTACHMENT
             // 编码号为 NONE 的流不论什么类型都判「参数不全」（unknown codec），探测期间给个占位的二进制数据编码号
             if unknownData || unknownAudio { codecpar.pointee.codec_id = AV_CODEC_ID_BIN_DATA }
-            parked.append((i, type))
+            parked.append((i, type, unknownData || unknownAudio))
         }
         if !parked.isEmpty {
-            EngineLog.emit("[Demuxer] [MovieClaw P12] \(parked.count) PGS / unknown data / unknown audio stream(s) held out of find_stream_info", category: .demux)
+            EngineLog.emit("[Demuxer] [MovieClaw P12/P34] \(parked.count) PGS / unknown data / unknown audio / secondary TrueHD stream(s) held out of find_stream_info", category: .demux)
         }
         return parked
     }
 
-    private func unparkUnsizedPGS(_ ctx: UnsafeMutablePointer<AVFormatContext>, _ parked: [(index: Int, type: AVMediaType)]) {
-        for (i, type) in parked where i < Int(ctx.pointee.nb_streams) {
+    private func unparkUnsizedPGS(_ ctx: UnsafeMutablePointer<AVFormatContext>,
+                                  _ parked: [(index: Int, type: AVMediaType, placeholderCodec: Bool)]) {
+        for (i, type, placeholderCodec) in parked where i < Int(ctx.pointee.nb_streams) {
             guard let codecpar = ctx.pointee.streams[i]?.pointee.codecpar else { continue }
             codecpar.pointee.codec_type = type
-            if type != AVMEDIA_TYPE_SUBTITLE { codecpar.pointee.codec_id = AV_CODEC_ID_NONE }
+            if placeholderCodec { codecpar.pointee.codec_id = AV_CODEC_ID_NONE }
         }
     }
 

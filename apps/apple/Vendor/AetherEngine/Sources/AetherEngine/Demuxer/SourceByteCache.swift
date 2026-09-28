@@ -427,6 +427,9 @@ extension AetherEngine {
         didSet { vodSegmentTargetSeconds = Swift.min(6, Swift.max(1, vodSegmentTargetSeconds)) }
     }
 
+    /// [MovieClaw P34] 探测流时把第二条起的 TrueHD 暂当附件（默认开，见 `Demuxer.parkUnsizedPGS`）。宿主做新旧对照时可关
+    nonisolated(unsafe) public static var parkSecondaryTrueHDDuringProbe = true
+
     /// [MovieClaw P32] 片源字节缓存的写盘与淘汰是否放在后台串行队列（默认开）。宿主在真机上做新旧对照时可关掉
     public static var sourceByteCacheWritesInBackground: Bool {
         get { SourceByteCache.shared.asynchronous }
