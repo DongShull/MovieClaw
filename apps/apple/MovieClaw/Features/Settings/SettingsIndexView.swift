@@ -8,7 +8,7 @@ struct SettingsIndexView: View {
     var body: some View {
         List {
             ForEach(SettingsSection.groups, id: \.title) { group in
-                let items = group.items.filter { permissions.isAdmin || $0.memberVisible }
+                let items = group.items.filter { $0.availableInApp && (permissions.isAdmin || $0.memberVisible) }
                 if !items.isEmpty {
                     Section {
                         ForEach(items) { section in

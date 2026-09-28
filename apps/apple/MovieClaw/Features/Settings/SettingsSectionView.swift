@@ -16,6 +16,15 @@ struct SettingsSectionView: View {
 
     @ViewBuilder
     private func content(_ section: SettingsSection) -> some View {
+        if section.availableInApp {
+            sectionView(section)
+        } else {
+            WebManagedSectionView(section: section)
+        }
+    }
+
+    @ViewBuilder
+    private func sectionView(_ section: SettingsSection) -> some View {
         switch section {
         case .overview: OverviewSettingsView()
         case .profile: ProfileSettingsView()
@@ -36,5 +45,26 @@ struct SettingsSectionView: View {
         case .network: NetworkSettingsView()
         case .logs: LogsSettingsView()
         }
+    }
+}
+
+/// 商店版不在 App 里提供的分区（见 AppEdition）：说明去网页端管理，并给出直达网页对应分区的按钮。
+/// 其他页面里「去站点设置」「去下载器设置」之类的跳转都落到这里，不会打开被隐藏的配置页。
+private struct WebManagedSectionView: View {
+    let section: SettingsSection
+    @Environment(\.api) private var api
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(section.title, systemImage: section.systemImage)
+        } description: {
+            Text("这一项请在网页端的「设置 → \(section.title)」里管理。")
+        } actions: {
+            Link(destination: api.server.origin.appending(path: "settings/\(section.rawValue)")) {
+                Label("在浏览器中打开", systemImage: "safari")
+            }
+            .buttonStyle(.bordered)
+        }
+        .appBackground()
     }
 }
