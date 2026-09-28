@@ -171,6 +171,12 @@ enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
     /// 成员能看到「个人信息」与「设备」（自己的设备），其余分区仅超级管理员可见
     var memberVisible: Bool { self == .profile || self == .devices }
 
+    /// 商店版不提供的分区（资源与下载的配置，改在网页端管理，见 AppEdition）。
+    /// 设置首页不列出；其他页面写死的跳转与深链照常解析，分区页显示「请在网页端管理」
+    var availableInApp: Bool {
+        !(AppEdition.isStore && [.subscription, .sites, .downloaders, .importWatch].contains(self))
+    }
+
     /// 分组（空标题的组不渲染组头）。「个人信息」不列在设置目录里：「我的」页顶部的头像卡
     /// 就是它的入口（2026-09-27 用户要求去掉重复入口），分区本身与 /settings/profile 深链照旧可用
     static let groups: [(title: String, items: [SettingsSection])] = [

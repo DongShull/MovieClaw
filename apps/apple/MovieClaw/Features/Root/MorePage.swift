@@ -101,6 +101,14 @@ struct MorePage: View {
                     }
                     .accessibilityIdentifier("more-update")
                 }
+                // 版本、开源许可与数据来源声明（上架必需，人人可见）。不放在列表末尾：
+                // 管理员的末尾是按需续取的会话列表，放那里就滑不到了
+                NavigationLink {
+                    AboutView()
+                } label: {
+                    Label("关于 MovieClaw", systemImage: "info.circle")
+                }
+                .accessibilityIdentifier("more-about")
             }
 
             Section("账号") {
