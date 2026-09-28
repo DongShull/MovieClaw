@@ -163,18 +163,19 @@ async def favorite_items(
     if not page:
         return [], total
 
-    by_library: dict[int, list[int]] = {}
-    for item_id, library_id in page:
-        by_library.setdefault(library_id, []).append(item_id)
-    views = {}
-    for library_id, ids in by_library.items():
-        for view in await _aggregate_wall_views(session, library_id, ids, ids):
-            views[view.media_item_id] = view
+    # 一次聚合整页：每部只算它落点库里的文件（landing_pairs），与逐库各聚合
+    # 一次结果相同，但不必按库循环、把整串聚合查询跑上库的个数那么多遍
+    ids = [item_id for item_id, _library_id in page]
+    views = {
+        view.media_item_id: view
+        for view in await _aggregate_wall_views(
+            session, None, ids, ids, landing_pairs=list(page)
+        )
+    }
 
     result: list[FavoriteItemView] = []
-    # 落点库不用再传一次：``by_library`` 就是按它分的组，``_aggregate_wall_views``
-    # 拿到的 library_id 与它同一个值，视图里已经带着了（跨库合集落地后
-    # LibraryItemView 才有这一列，此前这里是唯一给得出落点的地方）
+    # 落点库不用再传一次：聚合只取了落点库里的文件，视图里的 library_id 就是它
+    # （跨库合集落地后 LibraryItemView 才有这一列，此前这里是唯一给得出落点的地方）
     for item_id, _landing_library_id in page:
         view = views.get(item_id)
         if view is None:

@@ -34,7 +34,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import func, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -56,6 +56,10 @@ from movieclaw_media.models import MediaKind
 #: 没看完的；给它一个地平线，代价是"比这 200 部都更久以前看的那一部半截片"
 #: 不再出现在首页——它本来也已经不是"接下来"了。
 _ANCHOR_SCAN = 200
+
+#: 按批取库存与观看状态时每批至少几个锚点（每批取 limit 的两倍，留出整部看完、
+#: 文件不在位这些出不了卡的锚点的余量；limit 很小时也不至于一批只取一两部）
+_ANCHOR_BATCH_MIN = 20
 
 #: 季集单元的排序键。``(季, 集)`` 字典序，与库存行、角标口径同一套
 Unit = tuple[int, int]
@@ -216,25 +220,35 @@ async def up_next_items(
     anchors = await _anchors(session, member_id)
     if not anchors:
         return []
-    item_ids = [a.media_item_id for a in anchors]
-    units_by_item = await _in_place_units(session, item_ids, visible_library_ids)
-    states = await _states(session, member_id, item_ids)
 
     # —— 一条规则：锚点起第一个没看完、且文件在位的单元 ——
+    # 锚点按最近播放排好了序，卡片凑够 limit 张就停：库存与观看状态按批取，
+    # 不为用不到的锚点把整部剧的文件行和观看行都读出来（一次全取是几千行，
+    # 冷启动并发时逐行取数正是拖慢其它请求的大头）
     picks: list[tuple[_Anchor, Unit, int, int]] = []  # (锚点, 展示单元, 落点库, 后面还剩几个)
-    for anchor in anchors:
-        available = units_by_item.get(anchor.media_item_id)
-        if not available:
-            continue
-        pending = sorted(
-            unit
-            for unit in available
-            if unit >= anchor.unit and not states.get((anchor.media_item_id, unit), (False, 0))[0]
-        )
-        if not pending:
-            continue
-        display = pending[0]
-        picks.append((anchor, display, available[display], len(pending) - 1))
+    states: dict[tuple[int, Unit], tuple[bool, int]] = {}
+    batch_size = max(limit * 2, _ANCHOR_BATCH_MIN)
+    for start in range(0, len(anchors), batch_size):
+        batch = anchors[start : start + batch_size]
+        item_ids = [a.media_item_id for a in batch]
+        units_by_item = await _in_place_units(session, item_ids, visible_library_ids)
+        states.update(await _states(session, member_id, item_ids))
+        for anchor in batch:
+            available = units_by_item.get(anchor.media_item_id)
+            if not available:
+                continue
+            pending = sorted(
+                unit
+                for unit in available
+                if unit >= anchor.unit
+                and not states.get((anchor.media_item_id, unit), (False, 0))[0]
+            )
+            if not pending:
+                continue
+            display = pending[0]
+            picks.append((anchor, display, available[display], len(pending) - 1))
+            if len(picks) >= limit:
+                break
         if len(picks) >= limit:
             break
     if not picks:
@@ -272,8 +286,9 @@ async def _hydrate(
     archive = {row[0].id: row for row in rows}
 
     # 分集档案与真实时长各批一次：展示单元散落在不同作品的不同季集上，
-    # 逐张卡片查一次就是 N 次往返
-    wanted = {(anchor.media_item_id, unit) for anchor, unit, _, _ in picks}
+    # 逐张卡片查一次就是 N 次往返；按 (作品, 季, 集) 精确取，不把整部剧的
+    # 分集与文件都读出来再在内存里筛
+    wanted = [(anchor.media_item_id, unit[0], unit[1]) for anchor, unit, _, _ in picks]
     episodes = {
         (int(i), (int(s), int(e))): (name, runtime, still_file, still_path)
         for i, s, e, name, runtime, still_file, still_path in (
@@ -286,10 +301,15 @@ async def _hydrate(
                     MediaEpisode.runtime_minutes,
                     MediaEpisode.still_file,
                     MediaEpisode.still_path,
-                ).where(MediaEpisode.media_item_id.in_(item_ids))  # type: ignore[attr-defined]
+                ).where(
+                    tuple_(
+                        MediaEpisode.media_item_id,
+                        MediaEpisode.season_number,
+                        MediaEpisode.episode_number,
+                    ).in_(wanted)
+                )
             )
         ).all()
-        if (int(i), (int(s), int(e))) in wanted
     }
     durations = {
         (int(i), (int(s), int(e))): int(d or 0)
@@ -302,7 +322,11 @@ async def _hydrate(
                     func.max(LibraryFile.duration_seconds),
                 )
                 .where(
-                    LibraryFile.media_item_id.in_(item_ids),  # type: ignore[attr-defined]
+                    tuple_(
+                        LibraryFile.media_item_id,
+                        LibraryFile.season_number,
+                        LibraryFile.episode_number,
+                    ).in_(wanted),
                     LibraryFile.in_place(),
                 )
                 .group_by(

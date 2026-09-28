@@ -5,7 +5,7 @@ from collections.abc import Iterable, Sequence
 from datetime import datetime
 from typing import NamedTuple
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, distinct, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -251,6 +251,33 @@ class LibraryFileRepository:
         for media_item_id, season_number, episode_number in result.all():
             owned.setdefault(media_item_id, set()).add((season_number, episode_number))
         return owned
+
+    async def owned_counts_by_season_many(
+        self, media_item_ids: list[int]
+    ) -> dict[int, dict[int, int]]:
+        """``owned_units_many`` 的计数版：{条目: {季号: 在位集数}}，口径完全一致
+        （跨库、只算在位、同一集多个文件算一集）。
+
+        给只要每季集数的列表页用：数据库分组计数，不把每一集读成元组再数。
+        """
+        if not media_item_ids:
+            return {}
+        result = await self._session.execute(
+            select(
+                LibraryFile.media_item_id,
+                LibraryFile.season_number,
+                func.count(distinct(LibraryFile.episode_number)),
+            )
+            .where(
+                LibraryFile.media_item_id.in_(media_item_ids),  # type: ignore[attr-defined]
+                LibraryFile.in_place(),
+            )
+            .group_by(LibraryFile.media_item_id, LibraryFile.season_number)
+        )
+        counts: dict[int, dict[int, int]] = {}
+        for media_item_id, season_number, count in result.all():
+            counts.setdefault(media_item_id, {})[season_number] = count
+        return counts
 
     # -- 写入 --------------------------------------------------------------
 

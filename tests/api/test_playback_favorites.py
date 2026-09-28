@@ -165,6 +165,50 @@ def test_series_level_favorite_has_no_season(client, tmp_path):
     assert (item["favorite_season_number"], item["favorite_episode_number"]) == (None, None)
 
 
+async def _add_second_copy(tmp_path: Path, item_id: int) -> int:
+    """给一部片在另一个库里再放一个在位文件（4K 版），返回那个库的 id。"""
+    root = tmp_path / "uhd"
+    root.mkdir(exist_ok=True)
+    path = root / f"uhd-{item_id}.mkv"
+    path.write_bytes(b"FAKE" * 64)
+    async with get_database().session() as session:
+        uhd = await LibraryRepository(session).create(
+            name=f"4K 库{item_id}", kind="movie", root_paths=[str(root)]
+        )
+        assert uhd.id
+        session.add(
+            LibraryFile(
+                library_id=uhd.id,
+                media_item_id=item_id,
+                file_path=str(path),
+                size_bytes=path.stat().st_size,
+                source=FileSource.SCANNED,
+                state=FileState.IN_PLACE,
+                duration_seconds=600,
+            )
+        )
+        await session.commit()
+        return uhd.id
+
+
+def test_cross_library_favorite_counts_only_its_landing_library(client, tmp_path):
+    """整页一次聚合时，每格仍只算落点库里的文件：散在两个库的片不能把另一个库
+    的文件也数进来（与单库海报墙上这张卡的库存概况一致）。"""
+    ids = seed(client, tmp_path)
+    client.portal.call(partial(_add_second_copy, tmp_path, ids["movie_a"]))  # type: ignore[attr-defined]
+    web_favorite(client, media_item_id=ids["movie_a"])
+    web_favorite(client, media_item_id=ids["show"])
+
+    items = {item["media_item_id"]: item for item in favorites(client)["items"]}
+    movie = items[ids["movie_a"]]
+    assert movie["library_id"] == ids["movies_library"]
+    assert movie["file_count"] == 1
+    assert movie["total_size_bytes"] == 64
+    show = items[ids["show"]]
+    assert show["library_id"] == ids["shows_library"]
+    assert show["file_count"] == 3
+
+
 def test_limit_truncates_items_but_total_is_full(client, tmp_path):
     ids = seed(client, tmp_path)
     for key in ("movie_a", "movie_b", "show"):

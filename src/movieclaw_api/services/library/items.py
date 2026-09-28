@@ -39,7 +39,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path, PurePath
 from typing import Any, Literal, NamedTuple
 
-from sqlalchemy import BigInteger, Integer, and_, func, not_, nullslast, or_, true
+from sqlalchemy import BigInteger, Integer, and_, func, not_, nullslast, or_, true, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -1775,6 +1775,7 @@ async def _aggregate_wall_views(
     ordered_ids: list[int],
     *,
     library_ids: set[int] | None = None,
+    landing_pairs: list[tuple[int, int]] | None = None,
 ) -> list[LibraryItemView]:
     """把一批条目在某个库内的台账行聚合成海报墙视图，按 ``ordered_ids`` 排列。
 
@@ -1784,6 +1785,11 @@ async def _aggregate_wall_views(
     ``library_id=None`` 是**跨库合集**那一支：同一部片可能散在两个库，这时
     "几个文件、占多大"问的是它总共，而不是某一个库里。``library_ids`` 把范围
     收在观看者可见的库上——不给的话跨库聚合会把不可见库里的文件也算进来。
+
+    ``landing_pairs``（配 ``library_id=None``）是「每部片各有自己的落点库」的
+    一批：[(条目, 库)]，每部只聚合它落点库里的文件，结果与逐库各调一次完全
+    相同（视图的落点库就是文件行的库）。收藏行跨库，用它一次聚合完，不必
+    按库循环、每个库把下面这一串查询各跑一遍。
     """
     from movieclaw_db.repositories.library_file_repo import LibraryFileRepository
     from movieclaw_db.repositories.media_repo import MediaItemRepository
@@ -1814,9 +1820,15 @@ async def _aggregate_wall_views(
                     LibraryFile.library_id == library_id
                     if library_id is not None
                     else (
-                        LibraryFile.library_id.in_(library_ids)  # type: ignore[union-attr]
-                        if library_ids is not None
-                        else true()
+                        tuple_(LibraryFile.media_item_id, LibraryFile.library_id).in_(
+                            landing_pairs
+                        )
+                        if landing_pairs is not None
+                        else (
+                            LibraryFile.library_id.in_(library_ids)  # type: ignore[union-attr]
+                            if library_ids is not None
+                            else true()
+                        )
                     )
                 ),
                 LibraryFile.media_item_id.in_(in_page),  # type: ignore[union-attr]
