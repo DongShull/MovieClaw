@@ -13,7 +13,7 @@
       ```bash
       mkdir -p ~/workspace && cd ~/workspace
       git clone https://github.com/movieclaw/movieclaw.git && cd movieclaw
-      git checkout feat/ios-release     # 合入 feat/ios-app 之后改用 feat/ios-app
+      git checkout feat/ios-app
       ```
 - [ ] 建本机签名配置（已被 .gitignore 忽略）：
       ```bash
@@ -38,7 +38,7 @@
       套装 ID `io.movieclaw.app`、SKU `movieclaw-ios`
 - [ ] App 信息：
   - [ ] 隐私政策网址 `https://github.com/movieclaw/movieclaw/blob/main/docs/privacy-policy.md`
-        （合入 main 前临时用 `…/blob/feat/ios-release/docs/privacy-policy.md`）
+        （合入 main 前临时用 `…/blob/feat/ios-app/docs/privacy-policy.md`）
   - [ ] 技术支持网址 `https://github.com/movieclaw/movieclaw/issues`
   - [ ] 类别「娱乐」，价格免费
   - [ ] App 隐私问卷：**不收集数据**
