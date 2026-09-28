@@ -124,6 +124,22 @@ struct SourceByteCacheTests {
         cache.purgeAll()
     }
 
+    /// P32：共享实例的写盘在后台队列上做，写完即返回；落盘后照样读得到、超预算照样淘汰
+    @Test func backgroundWritesLandAndEvict() {
+        let block = Int(SourceByteCache.blockSize)
+        let cache = SourceByteCache(budgetBytes: Int64(block) * 4, asynchronous: true)
+        let key = "async"
+        for index in 0 ..< 6 {
+            cache.write(key: key, offset: Int64(block * index), data: bytes(block, seed: UInt8(index)))
+        }
+        cache.drain()
+        #expect(cache.cachedBytes <= Int64(block) * 4)
+        // 最新写的那块还在
+        #expect(read(cache, key, at: Int64(block * 5), max: block) == bytes(block, seed: 5))
+        // 最早的已被淘汰
+        #expect(read(cache, key, at: 0, max: block).isEmpty)
+    }
+
     @Test func keysBindPerURL() {
         // 每个地址各自登记到自己的键上（原盘目录每个文件一个）
         let cache = SourceByteCache(budgetBytes: 64 << 20)

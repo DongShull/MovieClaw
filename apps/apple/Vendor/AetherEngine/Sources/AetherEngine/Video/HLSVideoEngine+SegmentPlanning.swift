@@ -134,7 +134,7 @@ extension HLSVideoEngine {
             // keeps holes, which is why the budget is logged with the plan rather than hidden.
             return Swift.max(targetSegmentDuration, seconds)
         default:
-            return targetSegmentDuration
+            return upstreamSegmentTargetSeconds   // [MovieClaw P33] 间隔未知不按 2 秒切
         }
     }
 

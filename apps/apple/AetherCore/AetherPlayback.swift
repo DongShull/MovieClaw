@@ -180,6 +180,17 @@ public final class AetherPlayback {
         }
     }
 
+    /// 点播换封装的分片目标时长（秒，引擎补丁 P33，默认 2）。宿主按它把窗口段数折回同样的缓冲时长
+    public static var segmentTargetSeconds: Double {
+        get { AetherEngine.vodSegmentTargetSeconds }
+        set { AetherEngine.vodSegmentTargetSeconds = newValue }
+    }
+
+    /// 片源字节缓存写盘是否放后台队列（引擎补丁 P32，默认开；真机新旧对照时关掉）
+    public static func setByteCacheWritesInBackground(_ on: Bool) {
+        AetherEngine.sourceByteCacheWritesInBackground = on
+    }
+
     /// 引擎日志最近的若干行（最多 `maxBytes` 字节，从新往旧截），播放失败时随记录上报
     public static func recentEngineLog(maxBytes: Int = 32 * 1024) -> String { logRing.snapshot(maxBytes: maxBytes) }
 

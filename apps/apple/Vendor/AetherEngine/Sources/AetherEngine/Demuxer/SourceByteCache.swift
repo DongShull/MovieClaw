@@ -29,9 +29,17 @@ import Foundation
 /// 的块记最近使用，超了先丢最久没用的块（在稀疏文件上打洞，空间立刻还回去），丢到预算的九成为止，块丢光的片源
 /// 整条删掉。关掉播放器不清：退出再进同一部片、断线重连换了引擎实例，续播点附近都直接从本机起播；App 下次启动时
 /// 由 `sweep` 清掉上次留下的文件。
+///
+/// ## [MovieClaw P32] 写盘与淘汰在后台串行队列上做
+/// 读取器收到网络数据后调 `write`，原来是当场 `pwrite` 进稀疏文件、超预算时当场逐块打洞，全程持锁、占着取数线程。
+/// 真机实测（2026-09-29，iPhone Air）：缓冲外跳转后第一次写缓存要 1.2～2.6 秒——跳到几个 GB 之外，稀疏文件第一次在远处
+/// 落盘很慢——这段时间取数线程一直等着，跳转因此多等 1～2.6 秒（UHD 原盘 +600 秒跳转 3.8 秒里的 2.6 秒）。
+/// 缓存只是加速，写晚一点不影响对错，所以共享实例改成：`write` 只把数据交给后台串行队列就返回；落盘、记账、超预算淘汰都在
+/// 队列上做，而且淘汰只在记账时持锁（从账上删掉），打洞放在锁外。读者看不到还没落盘的块，照常走网络；被淘汰的块先从账上删
+/// 再打洞，同一队列上后来的写入排在打洞之后，不会被误清。积压超过 `maxPendingBytes` 时新写入直接不缓存，内存不会堆起来。
 final class SourceByteCache: @unchecked Sendable {
 
-    static let shared = SourceByteCache()
+    static let shared = SourceByteCache(asynchronous: true)
 
     /// 记账与淘汰的粒度。每块只记一段连续覆盖（网络数据按顺序到，够用；零散写入不连续时以新的为准）
     static let blockSize: Int64 = 1 << 20
@@ -77,8 +85,26 @@ final class SourceByteCache: @unchecked Sendable {
     /// 测试给定的预算；nil = 按可用空间算（`budgetLocked`）
     private let fixedBudget: Int64?
 
-    init(budgetBytes: Int64? = nil) {
+    /// [MovieClaw P32] 写盘与淘汰放到后台串行队列（共享实例默认开；测试自建的实例默认同步，写完即可读）。
+    /// 宿主可在装载前关掉（真机新旧对照用）
+    var asynchronous: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _asynchronous }
+        set { lock.lock(); _asynchronous = newValue; lock.unlock() }
+    }
+    private var _asynchronous: Bool
+    private let ioQueue = DispatchQueue(label: "aether.source-byte-cache.io", qos: .utility)
+    /// 已交给后台队列、还没落盘的字节
+    private var pendingBytes = 0
+    static let maxPendingBytes = 64 << 20
+
+    init(budgetBytes: Int64? = nil, asynchronous: Bool = false) {
         self.fixedBudget = budgetBytes
+        self._asynchronous = asynchronous
+    }
+
+    /// 等后台队列上已交出的写入都落完盘（测试用）
+    func drain() {
+        ioQueue.sync {}
     }
     #if DEBUG
     /// 开发期统计：累计写入 / 从缓存供出的字节，每 5 秒打一行（核对换轨、回跳到底省了多少）
@@ -118,29 +144,75 @@ final class SourceByteCache: @unchecked Sendable {
 
     // MARK: 读写
 
-    /// 网络收到的一块，按它在文件里的偏移记下
+    /// 网络收到的一块，按它在文件里的偏移记下。共享实例（P32）交给后台队列就返回，不在调用方线程上等磁盘
     func write(key: String, offset: Int64, data: Data) {
         guard !data.isEmpty, offset >= 0 else { return }
-        lock.lock(); defer { lock.unlock() }
-        guard !disabled, let entry = entryLocked(key) else { return }
-        let written = data.withUnsafeBytes { raw -> Int in
-            guard let base = raw.baseAddress else { return -1 }
-            return pwrite(entry.fd, base, data.count, off_t(offset))
-        }
-        guard written == data.count else {
-            // 多半是磁盘满了：这份作废，本进程不再缓存
-            EngineLog.emit("[SourceByteCache] [MovieClaw P22] write failed (errno=\(errno)); caching off",
-                           category: .demux)
-            disabled = true
-            dropLocked(key)
+        lock.lock()
+        guard _asynchronous else {
+            defer { lock.unlock() }
+            guard !disabled, let entry = entryLocked(key) else { return }
+            let written = Self.pwriteAll(entry.fd, data, offset)
+            guard written else {
+                failWriteLocked(key)
+                return
+            }
+            recordWriteLocked(entry: entry, offset: offset, count: data.count)
+            let holes = evictOverBudgetLocked()
+            Self.punch(holes)
             return
         }
+        guard !disabled, pendingBytes + data.count <= Self.maxPendingBytes, let entry = entryLocked(key) else {
+            lock.unlock()
+            return
+        }
+        pendingBytes += data.count
+        lock.unlock()
+        ioQueue.async { [self] in
+            let written = Self.pwriteAll(entry.fd, data, offset)
+            lock.lock()
+            pendingBytes -= data.count
+            // 落盘期间这份被作废了（源站文件换了、播放器清了缓存）：不再记账
+            guard entries[key] === entry else {
+                lock.unlock()
+                return
+            }
+            guard written else {
+                failWriteLocked(key)
+                lock.unlock()
+                return
+            }
+            recordWriteLocked(entry: entry, offset: offset, count: data.count)
+            let holes = evictOverBudgetLocked()
+            lock.unlock()
+            // 打洞在锁外：块已从账上删掉，读者不会再读它们；同一队列上后来的写入排在这之后
+            Self.punch(holes)
+        }
+    }
+
+    private static func pwriteAll(_ fd: Int32, _ data: Data, _ offset: Int64) -> Bool {
+        let written = data.withUnsafeBytes { raw -> Int in
+            guard let base = raw.baseAddress else { return -1 }
+            return pwrite(fd, base, data.count, off_t(offset))
+        }
+        return written == data.count
+    }
+
+    /// 写失败（多半是磁盘满了）：这份作废，本进程不再缓存。调用方持锁
+    private func failWriteLocked(_ key: String) {
+        EngineLog.emit("[SourceByteCache] [MovieClaw P22] write failed (errno=\(errno)); caching off",
+                       category: .demux)
+        disabled = true
+        dropLocked(key)
+    }
+
+    /// 记账：这一段已经落盘。调用方持锁
+    private func recordWriteLocked(entry: Entry, offset: Int64, count dataCount: Int) {
         useClock += 1
         #if DEBUG
-        debugTallyLocked(written: Int64(data.count))
+        debugTallyLocked(written: Int64(dataCount))
         #endif
         var cursor = offset
-        let end = offset + Int64(data.count)
+        let end = offset + Int64(dataCount)
         while cursor < end {
             let index = cursor / Self.blockSize
             let blockEnd = min(end, (index + 1) * Self.blockSize)
@@ -157,7 +229,6 @@ final class SourceByteCache: @unchecked Sendable {
             totalBytes += (entry.blocks[index].map { $0.hi - $0.lo } ?? 0) - before
             cursor = blockEnd
         }
-        enforceBudgetLocked()
     }
 
     /// 从 `offset` 起有多少连续缓存就读多少（至多 `maxLen`），返回读到的字节数；0 = 没有
@@ -302,10 +373,31 @@ final class SourceByteCache: @unchecked Sendable {
         return budget
     }
 
-    /// 超了预算：按最近使用从旧到新丢块，丢到预算的九成（成批丢，免得每写一块都扫一遍）
-    private func enforceBudgetLocked() {
+    /// 要打的洞：哪个文件（持着 Entry 保证文件还开着）、从哪到哪
+    private typealias Hole = (entry: Entry, offset: Int64)
+
+    /// 在文件上打洞，把空间还给系统。不持锁（P32：块已从账上删掉）
+    private static func punch(_ holes: [Hole]) {
+        guard !holes.isEmpty else { return }
+        #if DEBUG
+        let started = DispatchTime.now()
+        #endif
+        for hole in holes {
+            var range = fpunchhole_t(fp_flags: 0, reserved: 0, fp_offset: off_t(hole.offset), fp_length: off_t(blockSize))
+            _ = fcntl(hole.entry.fd, F_PUNCHHOLE, &range)
+        }
+        #if DEBUG
+        let ms = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1e6
+        EngineLog.emit("[SourceByteCache] [MovieClaw P32] 超预算淘汰：打洞 \(holes.count) 次，耗时 \(Int(ms))ms", category: .demux)
+        #endif
+    }
+
+    /// 超了预算：按最近使用从旧到新丢块，丢到预算的九成（成批丢，免得每写一块都扫一遍）。
+    /// 只在账上删、返回要打的洞，由调用方在锁外打（P32）
+    private func evictOverBudgetLocked() -> [Hole] {
         let budget = budgetLocked()
-        guard totalBytes > budget else { return }
+        guard totalBytes > budget else { return [] }
+        var holes: [Hole] = []
         var candidates: [(key: String, index: Int64, lastUse: UInt64)] = []
         for (key, entry) in entries {
             for (index, block) in entry.blocks { candidates.append((key, index, block.lastUse)) }
@@ -317,14 +409,27 @@ final class SourceByteCache: @unchecked Sendable {
                 continue
             }
             totalBytes -= block.hi - block.lo
-            var hole = fpunchhole_t(fp_flags: 0, reserved: 0,
-                                    fp_offset: off_t(candidate.index * Self.blockSize),
-                                    fp_length: off_t(Self.blockSize))
-            _ = fcntl(entry.fd, F_PUNCHHOLE, &hole)
+            holes.append((entry, candidate.index * Self.blockSize))
         }
         // 块丢光的片源整条删（关文件、删文件），免得看过的片子多了文件句柄越攒越多
         for (key, entry) in entries where entry.blocks.isEmpty {
             entries.removeValue(forKey: key)
         }
+        return holes
+    }
+}
+
+extension AetherEngine {
+    /// [MovieClaw P33] 点播换封装的分片目标时长（秒，默认 2，上游 4）。AVPlayer 要等一整段产出、送达才开画，
+    /// 分片越短，起播与缓冲外跳转要先产出、先攒的数据越少。宿主可在装载前改，并按比例放大前后窗口的段数
+    /// （窗口按段计，缓冲的时长不变）。夹在 1～6 秒；长 GOP 的片子分片仍按关键帧间隔切，不会短于它
+    nonisolated(unsafe) public static var vodSegmentTargetSeconds: Double = 2.0 {
+        didSet { vodSegmentTargetSeconds = Swift.min(6, Swift.max(1, vodSegmentTargetSeconds)) }
+    }
+
+    /// [MovieClaw P32] 片源字节缓存的写盘与淘汰是否放在后台串行队列（默认开）。宿主在真机上做新旧对照时可关掉
+    public static var sourceByteCacheWritesInBackground: Bool {
+        get { SourceByteCache.shared.asynchronous }
+        set { SourceByteCache.shared.asynchronous = newValue }
     }
 }

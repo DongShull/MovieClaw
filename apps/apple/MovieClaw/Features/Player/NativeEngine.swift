@@ -96,6 +96,11 @@ final class NativeEngine: NSObject, PlayerEngine {
         AetherPlayback.installLogHandler(mirror: UserDefaults.standard.bool(forKey: "mcAetherLog"))
         // -mcAetherCues YES：把文字字幕与 ASS 定位打到控制台
         AetherPlayback.logsCues = UserDefaults.standard.bool(forKey: "mcAetherCues")
+        // -mcSyncByteCache YES：片源字节缓存改回在取数线程上同步写盘（引擎补丁 P32 之前的行为，真机新旧对照用）
+        AetherPlayback.setByteCacheWritesInBackground(!UserDefaults.standard.bool(forKey: "mcSyncByteCache"))
+        // -mcSegmentSeconds <秒>：点播分片目标时长（引擎补丁 P33，默认 2；真机对照用），窗口段数在装载时按比例折算
+        let segmentSeconds = UserDefaults.standard.double(forKey: "mcSegmentSeconds")
+        if segmentSeconds > 0 { AetherPlayback.segmentTargetSeconds = segmentSeconds }
         #else
         AetherPlayback.installLogHandler(mirror: false)
         #endif
@@ -159,12 +164,23 @@ final class NativeEngine: NSObject, PlayerEngine {
         #endif
         // 带上 App 的 User-Agent：服务端按它把这条流登记成「MovieClaw iOS」而不是浏览器
         loadIssued = true
+        // 窗口按段计、存储计划按 4 秒一段定的：分片更短（P33 默认 2 秒）时按比例放大段数，缓冲的时长不变
+        let scale = Self.segmentWindowScale
+        let forward = storagePlan.forwardSegments ?? (scale > 1 ? 10 : nil)
+        let backward = storagePlan.backwardSegments ?? (scale > 1 ? 20 : nil)
         core.load(source: source, start: start > 0.5 ? start : nil, autoplay: autoplay,
                   headers: ["User-Agent": APIClient.userAgent], audioOrdinal: loadAudioOrdinal,
                   externalSubtitles: pendingExternalSubtitles,
                   sourceCacheKey: storagePlan.sourceCache ? sourceCacheKey : nil,
-                  forwardSegments: storagePlan.forwardSegments, backwardSegments: storagePlan.backwardSegments)
+                  forwardSegments: forward.map { Int((Double($0) * scale).rounded()) },
+                  backwardSegments: backward.map { Int((Double($0) * scale).rounded()) })
         emit(.buffering)
+    }
+
+    /// 分片目标时长相对 4 秒的倍数（窗口段数按它放大）。后方窗口引擎最多 20 段，2 秒分片时即 40 秒
+    private static var segmentWindowScale: Double {
+        let seconds = AetherPlayback.segmentTargetSeconds
+        return seconds > 0 && seconds < 4 ? 4 / seconds : 1
     }
 
     /// 恢复播放一律解除「暂停下载」：忘了解除就会在没有前向缓冲的状态下播放

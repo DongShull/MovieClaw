@@ -804,9 +804,14 @@ public final class HLSVideoEngine: @unchecked Sendable {
     private var hasReportedHDR10Plus = false
     private let hdr10PlusLock = NSLock()
 
-    /// Target segment duration (4 s). Apple spec recommends 6 s; 4 s cuts ~370 ms first-segment
+    /// Target segment duration. Apple spec recommends 6 s; 4 s cuts ~370 ms first-segment
     /// latency on a 24 fps 1440p LAN source and stays within the spec's 2-6 s range.
-    static let targetSegmentDuration: Double = 4.0
+    /// [MovieClaw P33] 点播改为 2 秒（`AetherEngine.vodSegmentTargetSeconds`，宿主可在装载前改）；直播仍按 4 秒切
+    static var targetSegmentDuration: Double { AetherEngine.vodSegmentTargetSeconds }
+
+    /// [MovieClaw P33] 上游的 4 秒。直播标准档、量不出关键帧间隔的均匀切分仍用它：
+    /// 步长短于 GOP 会切出没有关键帧的空段（#358），间隔未知时不冒这个险
+    static let upstreamSegmentTargetSeconds: Double = 4.0
 
     /// [MovieClaw patch P3] Cut target for segment 0 only. AVPlayer cannot start before the first
     /// segment is fully produced and served, so its size is start latency: on an 87 Mbit/s UHD remux
@@ -824,7 +829,7 @@ public final class HLSVideoEngine: @unchecked Sendable {
     /// Resolve a host `LiveJoinProfile` to the live segment cut target.
     static func liveCutTargetSeconds(for profile: LiveJoinProfile) -> Double {
         switch profile {
-        case .standard: return targetSegmentDuration
+        case .standard: return upstreamSegmentTargetSeconds   // [MovieClaw P33]
         case .fastZap: return fastZapLiveCutTargetSeconds
         }
     }
@@ -1400,7 +1405,7 @@ public final class HLSVideoEngine: @unchecked Sendable {
                     // soften don't bite this path: the append playlist gives zero-duration holes no
                     // URI and its EXTINF is real by construction.
                     spacing = .unknown
-                    stride = Self.targetSegmentDuration
+                    stride = Self.upstreamSegmentTargetSeconds   // [MovieClaw P33]
                 } else {
                     spacing = measureKeyframeSpacing(
                         demuxer: dem,
