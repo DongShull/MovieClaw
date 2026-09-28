@@ -305,12 +305,20 @@ final class MP4SegmentMuxer {
             },
             onFragmentBytes: { ptr, count in
                 guard !counter.writeFailed, counter.fd >= 0 else { return }
+                // [MovieClaw P25] 测试钩子：模拟播放中存储被写满
+                if AetherEngine.storageFullSimulated {
+                    SegmentCache.markStorageExhausted()
+                    counter.writeFailed = true
+                    return
+                }
                 var written = 0
                 while written < count {
                     let n = write(counter.fd, ptr.advanced(by: written), count - written)
                     if n < 0 {
                         let err = errno
                         if err == EINTR { continue }
+                        // [MovieClaw P25] 写满了：记下来，泵失败时报「存储已满」而不是笼统的封装失败
+                        if err == ENOSPC { SegmentCache.markStorageExhausted() }
                         counter.writeFailed = true
                         return
                     }

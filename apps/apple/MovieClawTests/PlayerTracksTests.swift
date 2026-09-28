@@ -69,6 +69,21 @@ struct PlayerTracksTests {
         #expect(options[1].isDefault)
     }
 
+    @Test func defaultAudioSkipsUnplayableTracks() {
+        // 不经用户选择时会放的轨，同服务端 _preferred_audio：标了默认的菁彩声放不了，退到第一条放得了的
+        let vivid = AudioOption.plan([
+            API.AudioTrackView(ref: "embedded:0", codec: nil, channels: 10, language: "chi", isDefault: true),
+            API.AudioTrackView(ref: "embedded:1", codec: "eac3", channels: 6, language: "chi", isDefault: false),
+        ])
+        #expect(AudioOption.defaultRef(in: vivid) == "embedded:1")
+        // 容器没标默认轨（蓝光 m2ts 就不标）：第一条
+        let unflagged = AudioOption.plan([
+            API.AudioTrackView(ref: "embedded:0", codec: "truehd", channels: 8, language: "eng", isDefault: false),
+            API.AudioTrackView(ref: "embedded:1", codec: "ac3", channels: 6, language: "chi", isDefault: false),
+        ])
+        #expect(AudioOption.defaultRef(in: unflagged) == "embedded:0")
+    }
+
     @Test func unrecognizedAudioCodecIsGreyedOut() {
         // 《交锋》：第 0 条是菁彩声（av3a，服务端探测编码为空），其余能放——它置灰写明原因，其余照常
         let options = AudioOption.plan([

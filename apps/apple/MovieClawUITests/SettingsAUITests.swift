@@ -325,12 +325,6 @@ final class SettingsAUITests: XCTestCase {
             XCTAssertTrue(waitUntil(15) { (try? probe.getObject("/playback/policy"))?[key] as? Bool == original }, "\(key) 应已恢复")
         }
 
-        // 播放引擎（本机偏好）：切到 MPV 再切回自动
-        let engine = app.segmentedControls["playback-engine"]
-        tapSafely(app, engine.buttons["MPV"], "MPV")
-        XCTAssertTrue(engine.buttons["MPV"].isSelected)
-        tapSafely(app, engine.buttons["自动"], "自动")
-
         // 远程转码：只看，不保存
         XCTAssertTrue(reveal(app, app.switches["remote-transcode-enabled"]).exists)
         snapshot("播放-远程转码")

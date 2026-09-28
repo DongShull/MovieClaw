@@ -18,12 +18,6 @@ packages:
   Nuke:
     url: https://github.com/kean/Nuke
     from: "13.0.0"
-  # libmpv 播放引擎（LGPL 构建）：MKV/HEVC/TrueHD/DTS 直出、ASS/PGS 由 libass 渲染。
-  # 用仓库内的精简版 MPVKit（Vendor/MPVKit）：只含 LGPL 产品，libmpv 打了尺寸自检补丁
-  # （旋转屏幕时 mpv 下一帧即按新尺寸出图），其余二进制仍引用上游 1.0.0 发布包。
-  # 绝不能换成 `MPVKit-GPL`（GPL 会传染整个 App 的许可）。
-  MPVKit:
-    path: Vendor/MPVKit
   # 自研引擎的内核（LGPL-3.0 + App Store 例外）：FFmpeg 解封装、就地换封装成 HLS 交给 AVPlayer，
   # AVPlayer 解不了的编码走 FFmpeg 软解 + 系统显示层。设计见 docs/design/player-engine.md。
   # 用仓库内的 Vendor/AetherEngine（上游 7.19.0 + 起播优化补丁，清单见其 PATCHES.md），
@@ -61,12 +55,10 @@ targets:
         product: Nuke
       - package: Nuke
         product: NukeUI
-      # libmpv 经 MPVCore 动态框架间接引入（LGPL 合规，见下方 MPVCore 目标的说明）
-      - target: MPVCore
       # 自研引擎经 AetherCore 动态框架间接引入（见下方 AetherCore 目标的说明）
       - target: AetherCore
       # AetherCore 运行时要加载的 AetherLib* 动态框架：框架目标不会替 App 把它们嵌进包里，由 App 嵌入。
-      # App 自己的代码不调 FFmpeg，链接它们不影响符号绑定（mpv 的 FFmpeg 在 MPVCore 内部已静态解析）
+      # App 自己的代码不调 FFmpeg，链接它们不影响符号绑定
       - package: FFmpegBuild
         product: AetherFFmpegBuild
     info:
@@ -108,31 +100,11 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO
-  # libmpv / FFmpeg 的动态框架边界。
-  # MPVKit 发布的是静态 xcframework，直接链进 App 等于把 LGPL 库静态链接进主程序；
-  # 收进这个动态框架后，用户可以用自行编译的同名框架替换（LGPL 2.1 §6）。
-  # App 只 import MPVCore，不得直接依赖 MPVKit。
-  MPVCore:
-    type: framework
-    platform: iOS
-    sources:
-      - path: MPVCore
-        type: syncedFolder
-    dependencies:
-      - package: MPVKit
-        product: MPVKit
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: $(MC_BUNDLE_ID_PREFIX).mpvcore
-        GENERATE_INFOPLIST_FILE: YES
-        SKIP_INSTALL: YES
-        # OpenGL ES / GLKit 在 iOS 上已标记废弃，但仍是模拟器上唯一可用的 mpv 渲染路径
-        GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS: NO
   # 自研引擎（AetherEngine）的动态框架边界。
-  # 为什么不直接链进 App：同一个 App 里还有 mpv（MPVCore 里静态打着一份 FFmpeg），
-  # AetherEngine 调 avcodec_* 时由链接顺序决定绑到哪一份，绑错了症状像引擎 bug（上游文档「One FFmpeg」）。
-  # 收进独立动态框架后，它的 FFmpeg 引用在这个框架链接时就绑定到自带的 AetherLib* 框架，与 mpv 互不干扰；
-  # 同时也是 LGPL 组件的替换边界。App 只 import AetherCore，不得直接依赖 AetherEngine。
+  # 为什么不直接链进 App：这是 LGPL 组件的替换边界（用户可以用自行编译的同名框架替换）；
+  # 它的 FFmpeg 引用也在这个框架链接时就绑定到自带的 AetherLib* 框架——一个进程里有两份 FFmpeg 时
+  # （2026-09-28 移除 MPV 之前，mpv 还静态打着一份），avcodec_* 绑到哪一份由链接顺序决定，
+  # 绑错了症状像引擎 bug（上游文档「One FFmpeg」）。App 只 import AetherCore，不得直接依赖 AetherEngine。
   AetherCore:
     type: framework
     platform: iOS

@@ -604,6 +604,11 @@ public struct LoadOptions: Sendable, Equatable {
     /// `audioSourceStreamIndex`（换轨、重建时恢复当前轨）照旧优先；序号越界时不起作用。默认 nil
     public var audioTrackOrdinal: Int? = nil
 
+    /// [MovieClaw P22] 片源字节缓存的键（见 `SourceByteCache`）：同一个片源在这一场里每个字节只下一次——
+    /// 换音轨、回前台的整场重建，往回跳的重产，都从本机拿已下过的字节。取流地址每次带新令牌，所以由宿主
+    /// 给一个稳定的键（MovieClaw 用「文件 id + 大小」）；nil = 不缓存（上游行为）。只作用于 URL 片源
+    public var sourceCacheKey: String? = nil
+
     /// Whether `play()` may move a behind-live playhead by itself. Default `true`, which is the historical
     /// behaviour (AE#444).
     ///
@@ -795,6 +800,10 @@ public struct LoadOptions: Sendable, Equatable {
     /// remote server directly.
     public var forwardBufferSegments: Int?
 
+    /// [MovieClaw P25] 分片缓存的后方窗口（段数），nil = 默认 20。存储紧张时由宿主和 `forwardBufferSegments`
+    /// 一起收小，让自研引擎在剩余空间不多时照样能放（最少 2 段，见 `HLSVideoEngine.clampedBackwardWindow`）
+    public var backwardBufferSegments: Int?
+
     /// Autostart at load completion. Default `true`: every load path ends in `host.play()` and a
     /// `.playing` state (current behavior, byte-identical). Set `false` to mount PAUSED: a host that
     /// holds a pause at mount (synchronized-start lobby that loads several devices and starts them on
@@ -917,6 +926,7 @@ public struct LoadOptions: Sendable, Equatable {
         preferredSubtitleLanguages: [String] = [],
         externalSubtitles: [ExternalSubtitleTrack] = [],
         forwardBufferSegments: Int? = nil,
+        backwardBufferSegments: Int? = nil,
         autoplay: Bool = true,
         teletextPage: Int? = nil,
         audioDelaySeconds: Double = 0,
@@ -960,6 +970,7 @@ public struct LoadOptions: Sendable, Equatable {
         self.preferredSubtitleLanguages = preferredSubtitleLanguages
         self.externalSubtitles = externalSubtitles
         self.forwardBufferSegments = forwardBufferSegments
+        self.backwardBufferSegments = backwardBufferSegments
         self.autoplay = autoplay
         self.teletextPage = teletextPage
         self.audioDelaySeconds = audioDelaySeconds

@@ -89,36 +89,42 @@ struct DiscoverView: View {
     @ViewBuilder
     private func content(_ feed: DiscoverFeed) -> some View {
         let immersive = feed.declaresHero && feed.hero?.isEmpty != true
+        // 冷启动落在这里时第一帧先画骨架（轻），开闸后下一帧再画快照 / 数据：
+        // 首帧不被整页内容拖晚，完整页面紧跟着就到（见 FirstFrameGate）
+        let skeleton = feed.layout == nil || !FirstFrameGate.state.opened
         ScrollView {
-            // 懒加载：二十来行里首屏只看得见两三行，原先的 VStack 一上来就把每一行连同可见的海报卡全建出来
-            LazyVStack(alignment: .leading, spacing: 28) {
-                // 冷启动落在这里时第一帧先画骨架（轻），开闸后下一帧再画快照 / 数据：
-                // 首帧不被整页内容拖晚，完整页面紧跟着就到（见 FirstFrameGate）
-                if feed.layout == nil || !FirstFrameGate.state.opened {
+            // 大图不进懒加载容器（同订阅首页，用普通 VStack）：它向屏幕顶边之外伸出一截、带负的顶部留白，轮播指示器
+            // 又一直在刷新；放在 LazyVStack 里，懒加载反复估算校正行位置，真机上大图会跟着上下浮动一点
+            VStack(alignment: .leading, spacing: 28) {
+                if skeleton {
                     DiscoverHeroSkeleton()
-                    DiscoverRowSkeleton(title: " ")
-                    DiscoverRowSkeleton(title: " ")
-                } else {
-                    if feed.declaresHero {
-                        if let hero = feed.hero {
-                            if !hero.isEmpty { DiscoverHeroHost(items: hero, scroll: scroll, index: $heroIndex) }
-                        } else {
-                            DiscoverHeroSkeleton()
+                } else if feed.declaresHero {
+                    if let hero = feed.hero {
+                        if !hero.isEmpty { DiscoverHeroHost(items: hero, scroll: scroll, index: $heroIndex) }
+                    } else {
+                        DiscoverHeroSkeleton()
+                    }
+                }
+                // 懒加载：二十来行里首屏只看得见两三行，一上来就把每一行连同可见的海报卡全建出来太慢
+                LazyVStack(alignment: .leading, spacing: 28) {
+                    if skeleton {
+                        DiscoverRowSkeleton(title: " ")
+                        DiscoverRowSkeleton(title: " ")
+                    } else {
+                        ForEach(feed.rowSections, id: \.collectionRef) { section in
+                            row(section, feed: feed)
                         }
-                    }
-                    ForEach(feed.rowSections, id: \.collectionRef) { section in
-                        row(section, feed: feed)
-                    }
-                    if currentType == "movie", source == "tmdb" {
-                        DiscoverRegionFooter {
-                            // 院线地区改了：「正在热映 / 即将上映」随地区而变，清掉全部缓存重拉
-                            store.invalidateAll()
-                            await feed.reload(api: api)
+                        if currentType == "movie", source == "tmdb" {
+                            DiscoverRegionFooter {
+                                // 院线地区改了：「正在热映 / 即将上映」随地区而变，清掉全部缓存重拉
+                                store.invalidateAll()
+                                await feed.reload(api: api)
+                            }
                         }
                     }
                 }
             }
-            .padding(.top, immersive || feed.layout == nil || !FirstFrameGate.state.opened ? -topInset : 8)
+            .padding(.top, immersive || skeleton ? -topInset : 8)
             .padding(.bottom, 32)
         }
         // 沉浸 Hero 从状态栏与顶栏底下穿过：关掉顶部滚动边缘雾化，由 Hero 自带的顶部压暗保证控件可读
@@ -421,8 +427,10 @@ struct DiscoverHero: View {
 
     var body: some View {
         TabView(selection: $index) {
-            ForEach(items.indices, id: \.self) { i in
-                DiscoverHeroSlide(item: items[i], active: i == index, scrollOffset: scrollOffset, fade: fade)
+            // 按条目认页（同订阅首页）：先画快照、再换成新数据时，同一下标换了一张图，
+            // 按下标认会把上一张没走完的推近状态带到新图上
+            ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                DiscoverHeroSlide(item: item, active: i == index, scrollOffset: scrollOffset, fade: fade)
                     .tag(i)
             }
         }

@@ -12,6 +12,10 @@ enum SessionPrewarm {
         let owner = PageSnapshots.owner(server: server, username: username)
         let api = APIClient(server: server)
         let canSubscribe = Permissions(session: session).canSubscribe
+        // 播放器按网络环境记画质：服务器配的是域名时先在后台查好地址，第一次播放就判得出在家还是在外面
+        PlaybackNetwork.prewarm(server: server)
+        // 暂停时要不要连下载也停按网络是否计费定：先开始监听，第一次播放时已经有结果
+        _ = NetworkCost.shared
         DiscoverSnapshots.adopt(owner: owner, synchronously: landing == .discover)
         var reads = [LibraryHomeStore.shared.adopt(owner: owner, synchronously: landing == .library)]
         if canSubscribe {

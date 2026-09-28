@@ -114,6 +114,19 @@ struct MainTabView: View {
                 try? await Task.sleep(for: .seconds(delay))
             }
             router.open(webPath: path)
+            // -mcRouteReopenAfter <秒>：到点关掉播放器、2 秒后原样再打开（验证退出再进同一部片的起播与流量）
+            let reopenAfter = UserDefaults.standard.double(forKey: "mcRouteReopenAfter")
+            if reopenAfter > 0 {
+                try? await Task.sleep(for: .seconds(reopenAfter))
+                let request = router.player
+                router.player = nil
+                FileHandle.standardError.write(Data("[AutoTest] 关闭播放器\n".utf8))
+                try? await Task.sleep(for: .seconds(2))
+                if let request {
+                    FileHandle.standardError.write(Data("[AutoTest] 重新打开播放器\n".utf8))
+                    router.play(request)
+                }
+            }
         }
         .task {
             // 开发期：-mcPerfScript 按时刻依次切页签（量切页耗时，见 PerfTrace）

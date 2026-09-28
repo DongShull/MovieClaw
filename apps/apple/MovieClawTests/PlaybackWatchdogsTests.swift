@@ -32,10 +32,10 @@ struct PlaybackWatchdogsTests {
         var verdicts: [StallWatch.Verdict] = []
         // 先正常播几秒（真正播起来过），然后卡住不动、前方缓冲 10 秒
         for second in 0 ..< 3 {
-            verdicts.append(watch.sample(time: Double(second), bufferedAhead: 10, paused: false, ended: false, seeking: false, starveLimit: 45))
+            verdicts.append(watch.sample(time: Double(second), bufferedAhead: 10, paused: false, ended: false, seeking: false, receiving: true, deadLimit: 45))
         }
         for _ in 0 ..< 20 {
-            verdicts.append(watch.sample(time: 2, bufferedAhead: 10, paused: false, ended: false, seeking: false, starveLimit: 45))
+            verdicts.append(watch.sample(time: 2, bufferedAhead: 10, paused: false, ended: false, seeking: false, receiving: true, deadLimit: 45))
         }
         let index = try! #require(verdicts.firstIndex(of: .decodeStalled))
         // 判死之前恰好推了两把；推满两把后 8 秒判死：3 + 3 + 8
@@ -43,25 +43,47 @@ struct PlaybackWatchdogsTests {
         #expect(index - 2 == 3 + 3 + 8)
     }
 
-    @Test func stallStarvedUsesDirectLimit() {
+    @Test func stallSlowLinkNeverFails() {
+        // 缓冲见底但字节一直在进来（线路比码率慢）：等多久都不报失败——不换引擎、不自动降码率（《哪吒》现场）
         var watch = StallWatch()
-        var starvedAt: Int?
-        for second in 1 ... 50 {
-            if watch.sample(time: 0, bufferedAhead: 0.5, paused: false, ended: false, seeking: false, starveLimit: StallWatch.directStarveSeconds) == .starved {
-                starvedAt = second
-                break
-            }
+        for _ in 1 ... 600 {
+            let verdict = watch.sample(time: 0, bufferedAhead: 0.5, paused: false, ended: false, seeking: false,
+                                       receiving: true, deadLimit: StallWatch.directDeadSeconds)
+            #expect(verdict == .ok)
         }
-        #expect(starvedAt == StallWatch.directStarveSeconds)
-        #expect(StallWatch.reason(.starved, starveLimit: 15).hasPrefix("等待取流超过 15 秒"))
-        #expect(StallWatch.reason(.starved, starveLimit: 45).hasPrefix("等待服务端供流超过 45 秒"))
+    }
+
+    @Test func stallDeadAfterSilentSeconds() {
+        // 缓冲见底且连续没有字节：原文件直出 15 秒判断线，服务端流 45 秒
+        for limit in [StallWatch.directDeadSeconds, StallWatch.serverDeadSeconds] {
+            var watch = StallWatch()
+            var deadAt: Int?
+            for second in 1 ... 60 {
+                if watch.sample(time: 0, bufferedAhead: 0.5, paused: false, ended: false, seeking: false,
+                                receiving: false, deadLimit: limit) == .dead {
+                    deadAt = second
+                    break
+                }
+            }
+            #expect(deadAt == limit)
+        }
+        // 中途来过一次字节：重新计时
+        var watch = StallWatch()
+        var verdicts: [StallWatch.Verdict] = []
+        for second in 1 ... 25 {
+            verdicts.append(watch.sample(time: 0, bufferedAhead: 0.5, paused: false, ended: false, seeking: false,
+                                         receiving: second == 10, deadLimit: 15))
+        }
+        #expect(verdicts.firstIndex(of: .dead) == 24)  // 第 10 秒收到字节，之后再静默 15 秒
+        #expect(StallWatch.reason(.dead, deadLimit: 15).hasPrefix("连续 15 秒没有收到数据"))
+        #expect(StallWatch.reason(.dead, deadLimit: 45).hasPrefix("连续 45 秒没有收到服务端的数据"))
     }
 
     @Test func stallIgnoresPausedAndSeeking() {
         var watch = StallWatch()
         for _ in 0 ..< 60 {
-            #expect(watch.sample(time: 5, bufferedAhead: 0, paused: true, ended: false, seeking: false, starveLimit: 15) == .ok)
-            #expect(watch.sample(time: 5, bufferedAhead: 0, paused: false, ended: false, seeking: true, starveLimit: 15) == .ok)
+            #expect(watch.sample(time: 5, bufferedAhead: 0, paused: true, ended: false, seeking: false, receiving: false, deadLimit: 15) == .ok)
+            #expect(watch.sample(time: 5, bufferedAhead: 0, paused: false, ended: false, seeking: true, receiving: false, deadLimit: 15) == .ok)
         }
     }
 

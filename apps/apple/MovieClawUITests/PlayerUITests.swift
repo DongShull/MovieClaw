@@ -2,7 +2,7 @@ import XCTest
 
 /// 播放器端到端验收：打开播放器 → 出画且进度前进 → 暂停 → 退出，再到后端核对续播点已记录。
 ///
-/// 两种引擎各跑一遍：系统播放器（AVPlayer，挑一部 MP4 原文件直出）与 MPV（挑一部 MKV，libmpv 直出原文件）。
+/// MP4 与 MKV 各跑一遍（都由自研引擎直出原文件）。
 /// 片子由测试在服务器上现找（先按容器挑，找不到就跳过），不写死条目 id。
 /// 测完把这部片的续播点恢复成测试前的值，尽量不改动服务器上的真实观看记录。
 /// 安全约束：每次点控件前都断言它 isHittable（被遮住就让用例失败，绝不按坐标误点下层）；
@@ -26,52 +26,38 @@ final class PlayerUITests: XCTestCase {
 
     // MARK: - 用例
 
+    /// 正式版只有一个播放器：自研引擎（放不了才按兜底阶梯回落），MP4 与 MKV 各测一遍
     @MainActor
-    func testSystemPlayerPlaysMP4AndRecordsResume() throws {
+    func testPlaysMP4AndRecordsResume() throws {
         let (item, duration) = try XCTUnwrap(try findMovie(container: "mp4"), "服务器上没有找到 MP4 电影")
         startSeconds = duration / 10
-        try runPlayback(item: item, engine: "system", expectEngine: "系统播放器（AVPlayer）", shotPrefix: "avplayer")
+        try runPlayback(item: item, shotPrefix: "native-mp4")
     }
 
     @MainActor
-    func testMPVPlaysMKVAndRecordsResume() throws {
+    func testPlaysMKVAndRecordsResume() throws {
         let (item, duration) = try XCTUnwrap(try findMovie(container: "mkv"), "服务器上没有找到 MKV 电影")
         startSeconds = duration / 10
-        try runPlayback(item: item, engine: "mpv", expectEngine: "MPV（libmpv）", shotPrefix: "mpv")
+        try runPlayback(item: item, shotPrefix: "native-mkv")
     }
 
     /// 中央三键（后退 10 秒 / 播放暂停 / 前进 10 秒）：在播且控制层可见时必须存在、可点（对等审计 P-1）。
-    /// 两种引擎各测一遍；不开诊断面板（与普通观看一致），开播到退出控制在 30 秒内。
+    /// 不开诊断面板（与普通观看一致），开播到退出控制在 30 秒内。
     @MainActor
-    func testCenterControlsWithSystemPlayer() throws {
+    func testCenterControls() throws {
         let (item, duration) = try XCTUnwrap(try findMovie(container: "mp4"), "服务器上没有找到 MP4 电影")
         startSeconds = duration / 10
-        try runCenterControls(item: item, engine: "system", shotPrefix: "center-avplayer")
-    }
-
-    /// MPV 在模拟器上走 OpenGL ES、主线程逐帧绘制，XCUITest 每步都慢到跨过控制层 4 秒自动收起，
-    /// 所以这一条用 Debug 开关把控制层钉住（`-mcPlayerPinChrome`，随诊断面板一起打开；判别式不变：控制层可见时中央键必须在）。
-    /// 可用 MC_TEST_MPV_ITEM 指定一部码率低些的 MKV（片子由测试现找时取第一部单文件 MKV）
-    @MainActor
-    func testCenterControlsWithMPV() throws {
-        if let raw = env["MC_TEST_MPV_ITEM"], let item = Int(raw) {
-            startSeconds = 600
-            try runCenterControls(item: item, engine: "mpv", shotPrefix: "center-mpv", pinChrome: true)
-            return
-        }
-        let (item, duration) = try XCTUnwrap(try findMovie(container: "mkv"), "服务器上没有找到 MKV 电影")
-        startSeconds = duration / 10
-        try runCenterControls(item: item, engine: "mpv", shotPrefix: "center-mpv", pinChrome: true)
+        try runCenterControls(item: item, shotPrefix: "center")
     }
 
     @MainActor
-    private func runCenterControls(item: Int, engine: String, shotPrefix: String, pinChrome: Bool = false) throws {
+    private func runCenterControls(item: Int, shotPrefix: String, pinChrome: Bool = false) throws {
         continueAfterFailure = false
         let before = try resume(item)
         // 用例中途失败也要恢复续播点（continueAfterFailure=false 时 defer 不一定执行）
         addTeardownBlock { [self] in try? restoreResume(item, positionMs: before) }
-        let app = launch(item: item, engine: engine, diagnostics: pinChrome)
-        XCTAssertTrue(waitForPosition(app, atLeast: startSeconds + 1, timeout: 20), "进度没有前进（引擎 \(engine)）")
+        let app = launch(item: item, diagnostics: pinChrome)
+        XCTAssertTrue(waitForPosition(app, atLeast: startSeconds + 1, timeout: 20), "进度没有前进")
 
         // 判别式：控制层可见（底栏时间在）时，中央三键必须同时在。
         // 控制层 4 秒无操作会自己收起，所以用**一次快照**同时查时间与三键（query.count 只取一次界面树），
@@ -114,7 +100,7 @@ final class PlayerUITests: XCTestCase {
         let before = try resume(item)
         defer { try? restoreResume(item, positionMs: before) }
         // 打开诊断面板并用 Debug 开关钉住控制条，免得「刚确认按钮在、点下去时已隐藏」的竞态
-        let app = launch(item: item, engine: "system", diagnostics: true)
+        let app = launch(item: item, diagnostics: true)
         XCTAssertTrue(waitForPosition(app, atLeast: startSeconds + 2, timeout: 90), "进度没有前进")
 
         tapControl(app, "player-横屏")
@@ -155,9 +141,6 @@ final class PlayerUITests: XCTestCase {
         app.launchArguments = [
             "-mcServer", server, "-mcUser", username, "-mcPass", password,
             "-mcRoute", String(format: "/play/%d/s01e%02d?t=%d", show, current, startSeconds),
-            // 用系统播放器：模拟器上 MPV 走 OpenGL ES 在主线程逐帧绘制，软解高码率时主线程一直忙，
-            // XCUITest 每一步都要等「App 空闲」而被拖到超时；这条用例测的是切集逻辑，与引擎无关
-            "-movieclaw.player.engine", "system",
         ]
         app.launch()
         XCTAssertTrue(app.descendants(matching: .any)["player-upnext"].waitForExistence(timeout: 60), "片尾没有出现「即将播放」卡片")
@@ -180,12 +163,11 @@ final class PlayerUITests: XCTestCase {
     }
 
     @MainActor
-    private func launch(item: Int, engine: String, diagnostics: Bool) -> XCUIApplication {
+    private func launch(item: Int, diagnostics: Bool) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-mcServer", server, "-mcUser", username, "-mcPass", password,
             "-mcRoute", "/play/\(item)/s00e00?t=\(startSeconds)",
-            "-movieclaw.player.engine", engine,
             "-mcPlayerDiagnostics", diagnostics ? "YES" : "NO",
             // 诊断面板本身不再钉住控制层（同 Web chrome.ts），测试另用 Debug 开关钉住，免得每步都跨过 4 秒自动收起
             "-mcPlayerPinChrome", diagnostics ? "YES" : "NO",
@@ -198,19 +180,19 @@ final class PlayerUITests: XCTestCase {
     // MARK: - 流程
 
     @MainActor
-    private func runPlayback(item: Int, engine: String, expectEngine: String, shotPrefix: String) throws {
+    private func runPlayback(item: Int, shotPrefix: String) throws {
         continueAfterFailure = false
         let before = try resume(item)
         defer { try? restoreResume(item, positionMs: before) }
 
-        let app = launch(item: item, engine: engine, diagnostics: true)
-        // 诊断面板里的引擎行：确认真的是这个引擎在放
-        let engineLabel = app.staticTexts[expectEngine]
-        XCTAssertTrue(engineLabel.waitForExistence(timeout: 40), "引擎不是 \(expectEngine)")
+        let app = launch(item: item, diagnostics: true)
+        // 诊断面板里的引擎行：确认是自研引擎在放，没有回落
+        let engineLabel = app.staticTexts["自研引擎（AetherEngine）"]
+        XCTAssertTrue(engineLabel.waitForExistence(timeout: 40), "不是自研引擎在放（回落了？）")
 
         // 出画且进度前进：播放头越过起播点 3 秒
         let advanced = waitForPosition(app, atLeast: startSeconds + 3, timeout: 90)
-        XCTAssertTrue(advanced, "进度没有前进（引擎 \(engine)）")
+        XCTAssertTrue(advanced, "进度没有前进")
         shot(app, "\(shotPrefix)-playing")
 
         // 暂停
@@ -228,11 +210,11 @@ final class PlayerUITests: XCTestCase {
         shot(app, "\(shotPrefix)-subtitles")
         // 点在「⋯」键的角上而不是图标正中：真机手指落点不准，只有图标笔画可点时这里会点空（真机反馈的根因）
         tapControl(app, "player-设置", at: CGVector(dx: 0.15, dy: 0.2))
-        XCTAssertTrue(app.buttons["engine-\(engine)"].waitForExistence(timeout: 5), "设置菜单没有打开（点按钮边缘应同样生效）")
+        XCTAssertTrue(app.buttons["quality-自动"].waitForExistence(timeout: 5), "设置菜单没有打开（点按钮边缘应同样生效）")
         shot(app, "\(shotPrefix)-settings")
         // 点画面空白处收起菜单
         tapEmptyArea(app, dx: 0.95, dy: 0.55)
-        XCTAssertTrue(app.buttons["engine-\(engine)"].waitForNonExistence(timeout: 3), "点画面应收起菜单")
+        XCTAssertTrue(app.buttons["quality-自动"].waitForNonExistence(timeout: 3), "点画面应收起菜单")
 
         // 退出
         tapControl(app, "player-close")

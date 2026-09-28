@@ -4,8 +4,8 @@ import UIKit
 
 /// 系统播放器引擎：AVPlayer 放服务端给的 MP4 直出地址或 HLS（fMP4）播放列表。
 ///
-/// 为什么还要它（而不是全交给 MPV）：画中画、隔空播放（AirPlay 视频）、杜比视界与全景声透传
-/// 只有 AVPlayer 能做；这些是 iPhone 上看片的日常刚需。它吃不下的容器/编码由服务端转封装或转码。
+/// 为什么还要它（原文件都交给自研引擎之后）：它是服务端流的播放器——限了画质要转码、本机存储不够放分片、
+/// 自研引擎解不了这个文件时，都由服务端转封装 / 转码成 HLS，再由它来放。
 ///
 /// 字幕：画面内由 SwiftUI 叠加层渲染（`SubtitleOverlay`，样式可调）；图形字幕（PGS）走服务端烧录。
 /// 叠加层进不了画中画小窗和隔空播放的电视，所以放 VOD 转码流时吃服务端的 master 列表（带 WEBVTT 字幕组），
@@ -19,9 +19,6 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
     private let layerView = PlayerLayerView()
     private var pipController: AVPictureInPictureController?
     private var observations: [NSKeyValueObservation] = []
-    /// 等画面就绪再进画中画（从 MPV 换过来时）
-    private var pipPossibleObservation: NSKeyValueObservation?
-    private var wantsPictureInPicture = false
     private var timeObserver: Any?
     private var notificationTokens: [NSObjectProtocol] = []
 
@@ -36,7 +33,7 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
     private var loadingMeter = LoadingSpeedMeter()
     /// 诊断面板「带宽」与申报给服务端的 downlink_bps（口径见 `BandwidthMeter`）
     private var bandwidthMeter = BandwidthMeter()
-    /// 原文件直出没有分片事件：带宽样本就是加载速度读数（同 MPV），每秒记一个
+    /// 原文件直出没有分片事件：带宽样本就是加载速度读数，每秒记一个
     private var lastLoadingSample: TimeInterval?
     /// 收到过 HLS 分片请求事件：带宽只认它，不再用字节计数推算
     private var segmentMetricsSeen = false
@@ -107,7 +104,13 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
 
     func play() {
         if ended { ended = false }
+        setPrefetchSuspended(false)
         player.playImmediately(atRate: desiredRate)
+    }
+
+    /// 计费网络上暂停时把预读压到 1 秒：AVPlayer 停在已缓冲的地方，不再往前拉服务端分片；0 = 系统自适应（平时）
+    func setPrefetchSuspended(_ suspended: Bool) {
+        player.currentItem?.preferredForwardBufferDuration = suspended ? 1 : 0
     }
 
     func pause() { player.pause() }
@@ -277,27 +280,6 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
         }
     }
 
-    /// 画面就绪（`isPictureInPicturePossible`）后自动进画中画：MPV 播放中点画中画、换成系统播放器时用
-    func startPictureInPictureWhenPossible() {
-        guard let pipController, !pipController.isPictureInPictureActive else { return }
-        if pipController.isPictureInPicturePossible {
-            pipController.startPictureInPicture()
-            return
-        }
-        wantsPictureInPicture = true
-        pipPossibleObservation = pipController.observe(\.isPictureInPicturePossible, options: [.new]) { @Sendable [weak self] _, change in
-            let possible = change.newValue ?? false
-            Task { @MainActor in self?.pictureInPicturePossibleChanged(possible) }
-        }
-    }
-
-    private func pictureInPicturePossibleChanged(_ possible: Bool) {
-        guard possible, wantsPictureInPicture, let pipController, !pipController.isPictureInPictureActive else { return }
-        wantsPictureInPicture = false
-        pipPossibleObservation = nil
-        pipController.startPictureInPicture()
-    }
-
     /// 后台：不在画中画时把播放器从图层上摘下来，否则系统会连声音一起暂停
     func setBackgrounded(_ background: Bool) {
         guard !isPictureInPictureActive else { return }
@@ -310,7 +292,6 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
         if let timeObserver { player.removeTimeObserver(timeObserver) }
         timeObserver = nil
         observations.removeAll()
-        pipPossibleObservation = nil
         notificationTokens.forEach(NotificationCenter.default.removeObserver)
         notificationTokens.removeAll()
         pipController?.stopPictureInPicture()

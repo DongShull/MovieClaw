@@ -911,7 +911,8 @@ public final class HLSVideoEngine: @unchecked Sendable {
         sequentialOrigin: Bool = false,
         heldSourceConnection: Bool = false,
         declaredDurationSeconds: Double? = nil,
-        forwardBufferSegments: Int? = nil
+        forwardBufferSegments: Int? = nil,
+        backwardBufferSegments: Int? = nil
     ) {
         self.sourceURL = url
         self.sourceHTTPHeaders = sourceHTTPHeaders
@@ -968,14 +969,92 @@ public final class HLSVideoEngine: @unchecked Sendable {
         self.sourceReopenableByURL = sourceReopenableByURL
         self.customSourceReopenFactory = customSourceReopenFactory
         self.companionAudioReader = companionAudioReader
-        self.forwardWindowSegments = Self.clampedForwardWindow(forwardBufferSegments)
+        self._forwardWindowSegments = Self.clampedForwardWindow(forwardBufferSegments)
+        self.backwardWindowSegments = Self.clampedBackwardWindow(backwardBufferSegments)
+    }
+
+    /// [MovieClaw P25] 分片缓存的后方窗口（段数）。默认 20 段（AVPlayer 换音频交接时会回头重取 7～10 段，
+    /// 窗口太小会连环重启生产者），宿主在存储紧张时可以收小（`LoadOptions.backwardBufferSegments`），
+    /// 代价是回头重取要重新生产。至少留 2 段
+    let backwardWindowSegments: Int
+
+    static func clampedBackwardWindow(_ requested: Int?) -> Int {
+        guard let requested else { return 20 }
+        return min(20, max(2, requested))
     }
 
     /// Session forward-buffer window in segments. Drives BOTH the producer's race-ahead
     /// (`HLSSegmentProducer.bufferAheadSegments`) and the cache's forward window
     /// (`SegmentCache.forwardWindow`); the two MUST stay identical (a drift is exactly what stalls
     /// AVPlayer, see `SegmentCache`). From `LoadOptions.forwardBufferSegments`; nil -> historical 10.
-    let forwardWindowSegments: Int
+    /// [MovieClaw P20] 可在运行中放大（`setForwardWindowSegments`），经独立的锁读写
+    /// （建生产者时可能正持有 restartLock，不能复用它）
+    var forwardWindowSegments: Int {
+        forwardWindowLock.lock(); defer { forwardWindowLock.unlock() }
+        return _forwardWindowSegments
+    }
+    private var _forwardWindowSegments: Int
+    private let forwardWindowLock = NSLock()
+
+    /// [MovieClaw P20] 运行中调整前向窗口：当前生产者、会话缓存、之后因跳转重建的生产者都按新值。
+    ///
+    /// 磁盘仍受开播时算好的留存预算约束（`PrefetchDiskBudget`：默认 min(2 GiB, 剩余空间 1/4)），
+    /// 高码率片子窗口装不满时由磁盘停泊兜底，不会把手机存储写满
+    func setForwardWindowSegments(_ requested: Int) {
+        let segments = Self.clampedForwardWindow(requested)
+        forwardWindowLock.lock()
+        let unchanged = _forwardWindowSegments == segments
+        _forwardWindowSegments = segments
+        forwardWindowLock.unlock()
+        guard !unchanged else { return }
+        let subsystems = subsystemSnapshot()
+        subsystems.producer?.setBufferAheadSegments(producerBufferAheadSegments)   // 暂停下载时仍为 0（P23）
+        subsystems.cache?.setForwardWindow(segments)
+        EngineLog.emit(
+            "[HLSVideoEngine] [MovieClaw P20] forwardWindow -> \(segments) seg "
+            + "(retention budget \(retentionBudgetBytes / (1 << 20)) MiB still bounds the disk)",
+            category: .session
+        )
+    }
+
+    /// [MovieClaw P23] 宿主要求暂停下载（蜂窝网 / 低数据模式下用户按了暂停）：生产者的前向窗口压到 0，
+    /// 只产 AVPlayer 真来要的段（暂停时它最多再要一两段），不再往前读；恢复时还原窗口，停泊中的泵按 P20 的
+    /// 重算立即放行。因跳转新建的生产者也按这个状态起步
+    private var prefetchSuspended = false
+
+    func setPrefetchSuspended(_ suspended: Bool) {
+        forwardWindowLock.lock()
+        let changed = prefetchSuspended != suspended
+        prefetchSuspended = suspended
+        let window = _forwardWindowSegments
+        forwardWindowLock.unlock()
+        guard changed else { return }
+        subsystemSnapshot().producer?.setBufferAheadSegments(suspended ? 0 : window)
+        EngineLog.emit("[HLSVideoEngine] [MovieClaw P23] prefetch \(suspended ? "suspended" : "resumed (window \(window) seg)")",
+                       category: .session)
+    }
+
+    /// 新建生产者用的前向段数：暂停下载时为 0
+    private var producerBufferAheadSegments: Int {
+        forwardWindowLock.lock(); defer { forwardWindowLock.unlock() }
+        return prefetchSuspended ? 0 : _forwardWindowSegments
+    }
+
+    /// [MovieClaw P20] 按「多少秒内容」设前向窗口：用本场分段计划的平均段长换算成段数。
+    /// 段长随片源的关键帧间隔走，长 GOP 的片子一段有 8～10 秒，按固定段数会多攒好几倍。返回生效的段数
+    @discardableResult
+    func setForwardWindowDuration(_ seconds: Double) -> Int {
+        let averageSegmentSeconds: Double = {
+            restartLock.lock()
+            defer { restartLock.unlock() }
+            guard let first = segmentPlan.first, let last = segmentPlan.last else { return 4 }
+            let span = last.startSeconds + last.durationSeconds - first.startSeconds
+            return span > 0 ? span / Double(segmentPlan.count) : 4
+        }()
+        let segments = Self.clampedForwardWindow(Int((seconds / max(0.5, averageSegmentSeconds)).rounded(.up)))
+        setForwardWindowSegments(segments)
+        return segments
+    }
 
     /// Session retention budget resolved in `start()`; also bounds the producer's race-ahead on disk
     /// (#207, see `PrefetchDiskBudget`). Live resolves the same budget, so the DVR history the
@@ -1465,21 +1544,15 @@ public final class HLSVideoEngine: @unchecked Sendable {
 
         // volumeAvailableCapacityForImportantUsage is unavailable on tvOS; the plain capacity key
         // exists on every platform and is close enough for the quarter-of-free-space clamp.
-        #if os(tvOS)
-        let availableBytes = (try? URL(fileURLWithPath: NSTemporaryDirectory())
-            .resourceValues(forKeys: [.volumeAvailableCapacityKey]))?
-            .volumeAvailableCapacity.map(Int64.init)
-        #else
-        let availableBytes = (try? URL(fileURLWithPath: NSTemporaryDirectory())
-            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
-            .volumeAvailableCapacityForImportantUsage
-        #endif
+        // [MovieClaw P25] 经统一入口读（测试可覆盖；tvOS 没有「重要用途可用」，入口里按普通可用读）
+        let availableBytes = AetherEngine.temporaryVolumeAvailableBytes(importantUsage: true)
         let capRelaxed = Self.retentionCapRelaxed(forwardWindowSegments: forwardWindowSegments)
         let retentionBudget = Self.sessionRetentionBudgetBytes(volumeAvailableBytes: availableBytes,
                                                                capRelaxed: capRelaxed)
         self.retentionBudgetBytes = retentionBudget
         let segmentCache = SegmentCache(
             forwardWindow: forwardWindowSegments,
+            backwardWindow: backwardWindowSegments,   // [MovieClaw P25]
             retentionBudgetBytes: retentionBudget,
             onResidentSetChanged: { [weak self] in self?.noteResidentSetChanged() }
         )
@@ -1487,7 +1560,7 @@ public final class HLSVideoEngine: @unchecked Sendable {
         EngineLog.emit(
             "[HLSVideoEngine] segment retention budget: \(retentionBudget / (1 << 20)) MiB "
             + "(volumeAvailable=\(availableBytes.map { "\($0 / (1 << 20)) MiB" } ?? "unknown"), "
-            + "forwardWindow=\(forwardWindowSegments) seg"
+            + "forwardWindow=\(forwardWindowSegments) seg, backwardWindow=\(backwardWindowSegments) seg"
             + (capRelaxed ? ", opt-in prefetch: default cap relaxed" : "") + ")",
             category: .session
         )
@@ -2635,7 +2708,7 @@ public final class HLSVideoEngine: @unchecked Sendable {
             foldsSequentialTimeline: sequentialOriginPinsProducerToZero,
             packedSideAudioStartPts: packedSideAudioStartPts,
             packedSideAudioFallbackDurationPts: packedSideAudioFallbackDurationPts,
-            bufferAheadSegments: forwardWindowSegments,
+            bufferAheadSegments: producerBufferAheadSegments,   // [MovieClaw P23] 暂停下载时为 0
             prefetchDiskBudgetBytes: retentionBudgetBytes,
             // AE#222: nil until a pump proved this source cuts its first segment before any audio packet
             // arrives; from then on every producer of the session muxes moov from this frame.

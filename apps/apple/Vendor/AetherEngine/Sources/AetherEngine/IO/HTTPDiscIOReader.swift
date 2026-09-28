@@ -30,6 +30,8 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
     private let totalSize: Int64
     /// Warmed bytes (#647), read before the network. Immutable, so a fork shares them without a copy.
     private let residentSpans: [ResidentSpan]
+    /// [MovieClaw P22] 片源字节缓存的键（宿主登记过这个地址才有）：换音轨重建、往回跳、字幕旁路读过的字节从本机拿
+    private let byteCacheKey: String?
 
     private let lock = NSLock()
     private var position: Int64 = 0
@@ -97,9 +99,12 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
         self.session = URLSession(
             configuration: config, delegate: EngineTLS.sessionDelegate, delegateQueue: nil)
         self.residentSpans = residentSpans.filter { !$0.isEmpty }
+        let byteCacheKey = SourceByteCache.shared.key(for: url)
+        self.byteCacheKey = byteCacheKey
 
         if let knownSize, knownSize > 0 {
             self.totalSize = knownSize
+            if let byteCacheKey { SourceByteCache.shared.noteContentLength(key: byteCacheKey, length: knownSize) }
             return
         }
         guard let size = Self.probeSize(
@@ -110,6 +115,7 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
             return nil
         }
         self.totalSize = size
+        if let byteCacheKey { SourceByteCache.shared.noteContentLength(key: byteCacheKey, length: size) }
     }
 
     /// #647: take what a host warmed for this URL, under the rule `AVIOReader` adopts by (#551).
@@ -194,6 +200,16 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
             bufferStart = block.start
             buffer = block.data
         }
+        if position < bufferStart || position >= bufferStart + Int64(buffer.count), let byteCacheKey {
+            // [MovieClaw P22] 本场已经下过的字节从本机拿（换音轨重建、往回跳、字幕旁路）
+            let cached = SourceByteCache.shared.read(key: byteCacheKey, offset: position, into: out,
+                                                     maxLen: min(Int(n), Int(totalSize - position)))
+            if cached > 0 {
+                position += Int64(cached)
+                lastFetchEnd = position
+                return Int32(cached)
+            }
+        }
         if position < bufferStart || position >= bufferStart + Int64(buffer.count) {
             currentChunkSize = Self.nextChunkSize(
                 position: position, lastFetchEnd: lastFetchEnd,
@@ -210,6 +226,9 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
             #endif
             guard want > 0, let data = fetchWithRetry(offset: position, length: want), !data.isEmpty else {
                 return -1
+            }
+            if let byteCacheKey {   // [MovieClaw P22]
+                SourceByteCache.shared.write(key: byteCacheKey, offset: position, data: data)
             }
             stashCurrentBuffer()  // [MovieClaw P15]
             bufferStart = position

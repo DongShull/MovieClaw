@@ -7,12 +7,13 @@ import UIKit
 /// 为什么要它（docs/design/player-engine.md）：服务端（NAS）大多性能弱，终端越来越强，所以原文件在本机处理——
 /// FFmpeg 读 NAS 上的原文件、就地换封装成 HLS 分片，经本机回环地址交给 AVPlayer。
 /// 解码、杜比视界、全景声、HDR 色调映射、画中画都由系统完成：MKV / 原盘也能拿到系统播放器的全部能力，
-/// NAS 只吐字节、不起 ffmpeg；也不像 MPV 那样自己上屏（MoltenVK + 着色器，4K HDR 功耗高、发热掉帧）。
-/// AVPlayer 解不了的编码（VP9、VC-1、MPEG-2……）由引擎内部换到 FFmpeg 软解 + 系统显示层，对这里透明。
+/// NAS 只吐字节、不起 ffmpeg；也不用自己上屏（自绘着色器在 4K HDR 下功耗高、发热掉帧）。
+/// AVPlayer 解不了的编码（VP9、VC-1、MPEG-2……）由引擎内部换到 FFmpeg 软解（本机 CPU）+ 系统显示层，
+/// 对这里透明；硬件解码器报「解不了」（杜比视界 P5 之类）也会转软解（引擎补丁 P24）。
 ///
 /// 与控制器的分工：
 /// - 只放原文件直出（服务端档 0 地址）；要服务端转码的情况仍交给系统播放器引擎放 HLS；
-/// - 失败时如实上报，由控制器按兜底阶梯回落到 MPV → 服务端 HLS；
+/// - 失败时如实上报，由控制器回落到服务端 HLS（系统播放器）；
 /// - 图形字幕（PGS 等）由引擎给出位图、在 AetherCore 里按画面摆放；文字字幕仍走 SwiftUI 叠加层。
 /// 自研引擎要装载的光盘源（控制器据会话组装；只有 NativeEngine 直接接触 AetherCore 的类型）
 enum NativeDiscSource {
@@ -41,7 +42,7 @@ final class NativeEngine: NSObject, PlayerEngine {
     private var lastReported: EngineEvent?
     /// 顶栏「↓」的实时加载速度：对引擎从 NAS 累计拉到的字节做差分（口径同 `LoadingSpeedMeter`）
     private var loadingMeter = LoadingSpeedMeter()
-    /// 诊断面板「带宽」与 downlink_bps：没有逐请求计时，样本是每秒一个的加载速度读数（同 MPV）
+    /// 诊断面板「带宽」与 downlink_bps：没有逐请求计时，样本是每秒一个的加载速度读数
     private var bandwidthMeter = BandwidthMeter()
     private var lastBandwidthSample: TimeInterval?
 
@@ -53,6 +54,10 @@ final class NativeEngine: NSObject, PlayerEngine {
     private var loadAudioOrdinal: Int?
     /// 已经向引擎发出装载（之后再交代的起播音轨只能等首帧后重载着换）
     private var loadIssued = false
+    /// 片源字节缓存的键（控制器装载前给，见 `PlaybackController.sourceCacheKey`）：同一个文件在 App 这次运行里每个字节只下一次
+    var sourceCacheKey: String?
+    /// 落盘计划（控制器装载前按剩余空间给，见 `NativeStoragePlan`）：存储紧张时收小分片窗口、不开片源字节缓存
+    var storagePlan = NativeStoragePlan.normal
     /// 装载时交给引擎的外挂字幕（按引用记顺序：引擎里 isExternal 的轨按 id 排序与之一一对应）
     private var externalSubtitleRefs: [String] = []
     private var pendingExternalSubtitles: [AetherPlayback.ExternalSubtitle] = []
@@ -103,20 +108,6 @@ final class NativeEngine: NSObject, PlayerEngine {
         DispatchQueue.global(qos: .utility).async { AetherPlayback.sweepStaleCaches() }
     }
 
-    /// 引擎调校项。开发期可用启动参数逐项 A/B（量起播与 CPU 用）：
-    /// `-mcAetherFastStart NO`、`-mcAetherLossless YES`、`-mcAetherProbeKB <KB>`、`-mcAetherProbeMs <毫秒>`
-    static var tuning: AetherPlayback.Tuning {
-        var tuning = AetherPlayback.Tuning()
-        #if DEBUG
-        let defaults = UserDefaults.standard
-        if defaults.object(forKey: "mcAetherFastStart") != nil { tuning.startsImmediately = defaults.bool(forKey: "mcAetherFastStart") }
-        if defaults.object(forKey: "mcAetherLossless") != nil { tuning.losslessAudio = defaults.bool(forKey: "mcAetherLossless") }
-        if defaults.integer(forKey: "mcAetherProbeKB") > 0 { tuning.probeBytes = Int64(defaults.integer(forKey: "mcAetherProbeKB")) * 1024 }
-        if defaults.integer(forKey: "mcAetherProbeMs") > 0 { tuning.probeMicroseconds = Int64(defaults.integer(forKey: "mcAetherProbeMs")) * 1000 }
-        #endif
-        return tuning
-    }
-
     // MARK: - 播放控制
 
     func load(url: URL, start: Double, autoplay: Bool) {
@@ -155,12 +146,21 @@ final class NativeEngine: NSObject, PlayerEngine {
         // 带上 App 的 User-Agent：服务端按它把这条流登记成「MovieClaw iOS」而不是浏览器
         loadIssued = true
         core.load(source: source, start: start > 0.5 ? start : nil, autoplay: autoplay,
-                  headers: ["User-Agent": APIClient.userAgent], tuning: Self.tuning, audioOrdinal: loadAudioOrdinal,
-                  externalSubtitles: pendingExternalSubtitles)
+                  headers: ["User-Agent": APIClient.userAgent], audioOrdinal: loadAudioOrdinal,
+                  externalSubtitles: pendingExternalSubtitles,
+                  sourceCacheKey: storagePlan.sourceCache ? sourceCacheKey : nil,
+                  forwardSegments: storagePlan.forwardSegments, backwardSegments: storagePlan.backwardSegments)
         emit(.buffering)
     }
 
-    func play() { core.play() }
+    /// 恢复播放一律解除「暂停下载」：忘了解除就会在没有前向缓冲的状态下播放
+    func play() {
+        core.setPrefetchSuspended(false)
+        core.play()
+    }
+
+    /// 暂停下载 / 恢复（引擎补丁 P23）：计费网络上用户按了暂停时由控制器调
+    func setPrefetchSuspended(_ suspended: Bool) { core.setPrefetchSuspended(suspended) }
     func pause() { core.pause() }
 
     /// 引擎的定位本身就是精确的（主力通路由 AVPlayer 按帧落点），exact 不区分
@@ -205,7 +205,8 @@ final class NativeEngine: NSObject, PlayerEngine {
     // MARK: - 音轨
 
     /// 引擎在当前位置重载一次即可换轨，不用重开服务端会话
-    var canSwitchAudioInPlace: Bool { true }
+    /// 服务端 HLS 里只有选中的那一条音轨：换轨要重开会话
+    var canSwitchAudioInPlace: Bool { playsOriginalFile }
 
     /// 起播音轨：不是用户明确要的轨时，只在语言不同才换。
     ///
@@ -224,6 +225,26 @@ final class NativeEngine: NSObject, PlayerEngine {
         pendingAudioExplicit = explicit
         selectAudio(embeddedIndex: embeddedIndex)
     }
+
+    /// 线路跟不上片子码率（真卡过）之后调：前向缓冲从默认 10 段（约 40 秒）放大到 3 分钟内容，暂停就能多攒。
+    /// 3 分钟是用户定的（2026-09-28）：再长，暂停攒满后不看了白下的流量太多（76 Mbit/s 的原片 3 分钟约 1.7 GB）。
+    /// 磁盘仍受引擎的留存预算约束（min(2 GiB, 剩余空间 1/4)）。同一个引擎实例只放大一次
+    #if DEBUG
+    /// 故障注入（开发期）：假装临时目录只剩这么多字节，见 -mcFakeFreeBytes
+    static func setTestVolumeAvailableBytes(_ bytes: Int64?) { AetherPlayback.setTestVolumeAvailableBytes(bytes) }
+    /// 故障注入（开发期）：接下来这么多秒里写分片一律按「存储已满」失败，见 -mcStorageFullAfter
+    static func simulateStorageFull(forSeconds seconds: Double) { AetherPlayback.simulateStorageFull(forSeconds: seconds) }
+    #endif
+
+    func growForwardBuffer() {
+        // 存储紧张时窗口是按剩余空间收小的，不再放大
+        guard !forwardBufferGrown, storagePlan.canGrowForward else { return }
+        forwardBufferGrown = true
+        core.setForwardBufferDuration(Self.grownForwardBufferSeconds)
+    }
+
+    static let grownForwardBufferSeconds: Double = 180
+    private var forwardBufferGrown = false
 
     func selectAudio(embeddedIndex: Int) {
         guard firstFrameShown else { pendingAudio = embeddedIndex; return }
@@ -370,8 +391,11 @@ final class NativeEngine: NSObject, PlayerEngine {
         pipController = controller
     }
 
-    /// 前后台由引擎自己跟随 App 生命周期处理（后台只留声音、画中画时保持管线），这里无事可做
-    func setBackgrounded(_ background: Bool) {}
+    /// 前后台大多由引擎自己跟随 App 生命周期处理（后台只留声音、画中画时保持管线）。只有一件要宿主做：
+    /// 暂停着在后台超过 15 秒，引擎会拆掉视频管线省电（上游 #127），回前台要在原位置重建，否则点播放只会一直转圈
+    func setBackgrounded(_ background: Bool) {
+        if !background { core.rebuildAfterBackgroundTeardown() }
+    }
 
     func destroy() {
         onEvent = nil
@@ -398,7 +422,13 @@ final class NativeEngine: NSObject, PlayerEngine {
         let message = failure.message.hasPrefix("Device storage is full")
             ? "手机存储空间不足，视频分片写不进缓存，请清理存储后重试"
             : failure.message
-        emit(.failed(reason: "自研引擎无法播放（\(message)）", cause: failure.isNetwork ? .network : .decode))
+        let cause: EngineFailureCause = switch failure.category {
+        case .network: .network
+        case .sourceMissing: .sourceMissing
+        case .storageFull: .storageFull
+        case let .decode(final): final ? .decodeFinal : .decode
+        }
+        emit(.failed(reason: "自研引擎无法播放（\(message)）", cause: cause))
     }
 
     private func tracksChanged() {

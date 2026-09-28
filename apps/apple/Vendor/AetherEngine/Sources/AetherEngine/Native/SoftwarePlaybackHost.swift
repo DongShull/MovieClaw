@@ -122,6 +122,21 @@ final class SoftwarePlaybackHost {
     nonisolated let seekClockHoldState = SeekClockHoldState()
     private var demuxer: Demuxer?
     private var vodPacketReadAhead: SoftwarePacketReadAhead?
+    /// [MovieClaw P23] 宿主要求暂停下载：读前停在已读到的地方；之后新建的读前（跳转重建）照样停着
+    private var prefetchSuspended = false
+
+    func setPrefetchSuspended(_ suspended: Bool) {
+        prefetchSuspended = suspended
+        vodPacketReadAhead?.setPrefetchSuspended(suspended)
+    }
+
+    /// [MovieClaw P20] 线路跟不上时放大读前（秒）；之后新建的读前（跳转重建）也按这个
+    private var forwardSecondsOverride: Double?
+
+    func setForwardBufferSeconds(_ seconds: Double) {
+        forwardSecondsOverride = seconds
+        vodPacketReadAhead?.setForwardSeconds(seconds)
+    }
 
     /// The same public buffered-position axis as the live and native hosts, but backed by
     /// actual compressed A/V packet coverage. nil when no continuous cache span contains the clock.
@@ -975,9 +990,8 @@ final class SoftwarePlaybackHost {
             let initialSourceClock = initialClockTime.seconds
             let videoReorderDepth = Self.presentationReorderDepth(codecID: vCodecID)
             let cacheResult = await Task.detached(priority: .utility) { () throws -> SoftwarePacketReadAhead? in
-                let temp = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-                let available = (try? temp.resourceValues(forKeys: [.volumeAvailableCapacityKey]))?
-                    .volumeAvailableCapacity.map(Int64.init)
+                // [MovieClaw P25] 经统一入口读（测试可覆盖）
+                let available = AetherEngine.temporaryVolumeAvailableBytes(importantUsage: false)
                 let segments = HLSVideoEngine.clampedForwardWindow(forwardBufferSegments)
                 let bytes = HLSVideoEngine.sessionRetentionBudgetBytes(
                     volumeAvailableBytes: available,
@@ -1007,6 +1021,8 @@ final class SoftwarePlaybackHost {
             }
             guard !stopRequested else { readAhead?.close(); return }
             vodPacketReadAhead = readAhead
+            readAhead?.setPrefetchSuspended(prefetchSuspended)   // [MovieClaw P23]
+            if let forwardSecondsOverride { readAhead?.setForwardSeconds(forwardSecondsOverride) }   // [MovieClaw P20]
             readAhead?.start()
         }
 

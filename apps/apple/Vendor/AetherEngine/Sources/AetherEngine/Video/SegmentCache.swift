@@ -47,7 +47,8 @@ final class SegmentCache: @unchecked Sendable {
     private let condition = NSCondition()
     private let onResidentSetChanged: (@Sendable () -> Void)?
 
-    private let forwardWindow: Int
+    // [MovieClaw P20] 可在运行中放大（`setForwardWindow`），读写都在 condition 里
+    private var forwardWindow: Int
     /// 20 covers Continuous-Audio handover refetches (~7-10 segments backward); smaller values
     /// cascaded into restart chains that reset the FLAC bridge PTS and caused audible glitches.
     private let backwardWindow: Int
@@ -326,6 +327,12 @@ final class SegmentCache: @unchecked Sendable {
             } else {
                 EngineLog.emit("[SegmentCache] write failed seg-\(index): \(error)",
                                category: .session)
+                // [MovieClaw P25] 与建目录失败同样记下「存储已满」
+                let nsError = error as NSError
+                if (nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileWriteOutOfSpaceError)
+                    || (nsError.domain == NSPOSIXErrorDomain && nsError.code == Int(ENOSPC)) {
+                    Self.markStorageExhausted()
+                }
                 writeOK = false
             }
         }
@@ -561,6 +568,14 @@ final class SegmentCache: @unchecked Sendable {
             if !condition.wait(until: deadline) { break }
         }
         return initSegment
+    }
+
+    /// [MovieClaw P20] 运行中调整前向窗口：之后的修剪按新窗口保留；广播一次，让停泊中的泵立即按新窗口重算
+    func setForwardWindow(_ segments: Int) {
+        condition.lock()
+        forwardWindow = segments
+        condition.broadcast()
+        condition.unlock()
     }
 
     /// Pump-side backpressure: one-shot wait for target or any broadcast. Returns true if target met.

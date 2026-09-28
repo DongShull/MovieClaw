@@ -316,6 +316,46 @@ struct PlayerHUD<Content: View>: View {
     }
 }
 
+/// 反复卡顿时的换低画质提议（`QualitySuggestion`）：不打断播放的一张玻璃卡，写明实测速度与这一版要的速度，
+/// 换不换由用户定——也可以暂停攒一会缓冲接着看原画
+struct PlayerQualityOfferView: View {
+    let offer: QualitySuggestion.Offer
+    let accept: () -> Void
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("网速跟不上当前画质")
+                .font(.subheadline.weight(.semibold))
+            Text(detail)
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.8))
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 10) {
+                Button(action: dismiss) { Text("继续当前画质") }
+                    .buttonStyle(.glass)
+                Button(action: accept) { Text("改用 \(offer.maxHeight)p") }
+                    .discoverProminentButton()
+                    .accessibilityIdentifier("quality-offer-accept")
+            }
+            .font(.subheadline)
+        }
+        .foregroundStyle(.white)
+        .padding(16)
+        .frame(maxWidth: 420, alignment: .leading)
+        .glassEffect(PlayerGlass.panel, in: .rect(cornerRadius: 22))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("quality-offer")
+    }
+
+    private var detail: String {
+        let measured = PlaybackController.formatBandwidth(offer.measuredBps) ?? "很慢"
+        let required = PlaybackController.formatBandwidth(offer.requiredBps) ?? "更快"
+        return "实测约 \(measured)，这一版需要约 \(required)。可以暂停攒一会缓冲再看，"
+            + "或改用 \(offer.maxHeight)p（服务端转码，画质会降低）。"
+    }
+}
+
 /// 调节条（亮度 / 音量）
 struct LevelBar: View {
     let value: Double

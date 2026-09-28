@@ -751,7 +751,19 @@ final class HLSSegmentProducer: @unchecked Sendable {
     /// 10; 4K HEVC ~10 MB/seg = 200 MB old buffer); now per session from `LoadOptions.forwardBufferSegments`
     /// via `HLSVideoEngine.forwardWindowSegments`. MUST equal the SegmentCache's forwardWindow so the muxer
     /// never writes past the cache's forward edge (a drift is exactly what stalls AVPlayer).
-    private let bufferAheadSegments: Int
+    /// [MovieClaw P20] 可在运行中放大（`setBufferAheadSegments`）：泵线程读、宿主线程写，经锁
+    private var bufferAheadSegments: Int {
+        bufferAheadLock.lock(); defer { bufferAheadLock.unlock() }
+        return _bufferAheadSegments
+    }
+    private var _bufferAheadSegments: Int
+    private let bufferAheadLock = NSLock()
+
+    /// [MovieClaw P20] 与 `SegmentCache.setForwardWindow` 成对调用（先这里、后缓存，缓存的广播唤醒停泊中的泵）
+    func setBufferAheadSegments(_ segments: Int) {
+        bufferAheadLock.lock(); defer { bufferAheadLock.unlock() }
+        _bufferAheadSegments = segments
+    }
 
     /// #207: byte bound for an opt-in whole-source window. The segment ceiling is only a sanity bound,
     /// so the race-ahead parks once it has filled the session retention budget (`PrefetchDiskBudget`).
@@ -1437,7 +1449,7 @@ final class HLSSegmentProducer: @unchecked Sendable {
         self.audioMoovPrimeKnownUnobtainable = audioMoovPrimeKnownUnobtainable
         self.capturesAudioPrimeFrames =
             audio.map { MP4SegmentMuxer.audioNeedsParsedPacketForMoov($0.codecpar.pointee.codec_id) } ?? false
-        self.bufferAheadSegments = bufferAheadSegments
+        self._bufferAheadSegments = bufferAheadSegments
         self.prefetchDiskBudgetBytes = prefetchDiskBudgetBytes
         self.demuxer = demuxer
         self.sideAudioDemuxer = sideAudioDemuxer
@@ -1767,6 +1779,8 @@ final class HLSSegmentProducer: @unchecked Sendable {
     /// it) is distinguishable from healthy backpressure (cacheTarget climbing toward target). VOD only; live keeps
     /// its own watchdogs.
     private func awaitBackpressureRelease(target: Int, head: Int, context: String) -> Bool {
+        // [MovieClaw P20] 两处调用的 target 都是 head - bufferAheadSegments；停泊期间宿主放大了窗口就按新值重算
+        var target = target
         // Already broken on this session (e.g. a teardown-flush ensureMuxer call): stay broken, don't re-park.
         if isBackpressureWedgeBroken() { return false }
         // #240: parked means the forward buffer is full and the link is free. Released here rather
@@ -1791,6 +1805,8 @@ final class HLSSegmentProducer: @unchecked Sendable {
             initialRenderedPosition: playbackPositionProvider?()
         )
         while !checkShouldStop() {
+            // [MovieClaw P20] 只往低处调：窗口放大即放行，缩小不在停泊中途生效
+            target = min(target, head - bufferAheadSegments)
             if cache.awaitFetchHighWater(reaching: target, timeout: 1.0) {
                 retunePumpQoS()
                 if parked >= Self.backpressureWedgeLogThresholdSeconds {

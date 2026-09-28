@@ -155,6 +155,13 @@ struct AudioOption: Identifiable, Hashable {
 
     var embeddedIndex: Int? { ref.hasPrefix("embedded:") ? Int(ref.dropFirst("embedded:".count)) : nil }
 
+    /// 不经用户选择时会放的轨（同服务端 `_preferred_audio`）：放得了的轨里标了默认的，没有就第一条
+    static func defaultRef(in options: [AudioOption]) -> String? {
+        let playable = options.filter { $0.unavailableReason == nil }
+        let pool = playable.isEmpty ? options : playable
+        return (pool.first(where: \.isDefault) ?? pool.first)?.ref
+    }
+
     static func plan(_ tracks: [API.AudioTrackView]) -> [AudioOption] {
         guard tracks.count >= 2 else { return [] }
         let anyRecognized = tracks.contains { !unrecognized($0.codec) }
@@ -176,7 +183,7 @@ struct AudioOption: Identifiable, Hashable {
         }
     }
 
-    /// 探测认不出编码的轨（服务端记为空、引擎报 none）：自研引擎、MPV、服务端转码用的 FFmpeg 都没有它的解码器。
+    /// 探测认不出编码的轨（服务端记为空、引擎报 none）：自研引擎、服务端转码用的 FFmpeg 都没有它的解码器。
     /// 真机见于国产 4K 剧的菁彩声（Audio Vivid，样本入口 av3a，5.1.4）。整片都认不出时（没探测过）不下这个结论
     private static func unrecognized(_ codec: String?) -> Bool {
         guard let codec = codec?.lowercased(), !codec.isEmpty else { return true }

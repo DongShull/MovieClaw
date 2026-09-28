@@ -1679,6 +1679,7 @@ public final class AetherEngine: ObservableObject {
             }
             residentPlaylistRanges = []
             residentRanges = []
+            if prefetchSuspendedRequested { session.setPrefetchSuspended(true) }   // [MovieClaw P23] 重建后照样停着
             // Ask for the first snapshot instead of reading it here: this didSet runs on the main actor
             // right after `start()`, so a synchronous read would take the session's restart lock and the
             // cache's condition on main while the producer is already storing into both (AE#422).
@@ -1776,7 +1777,10 @@ public final class AetherEngine: ObservableObject {
 
     /// SW decode host (dav1d/libavcodec) for codecs AVPlayer can't handle (AV1 on tvOS, VP9, MPEG-2, VC-1).
     /// Non-nil between load and stop when the source routed SW.
-    var softwareHost: SoftwarePlaybackHost?
+    var softwareHost: SoftwarePlaybackHost? {
+        // [MovieClaw P23] 重建后照样停着
+        didSet { if prefetchSuspendedRequested { softwareHost?.setPrefetchSuspended(true) } }
+    }
 
     /// Combine subscriptions mirroring softwareHost's @Published. Cancelled in stopInternal.
     var softwareCancellables: Set<AnyCancellable> = []
@@ -2072,6 +2076,9 @@ public final class AetherEngine: ObservableObject {
     /// would be lost at the next audio-track switch or background return.
     func setLoadedAudioDelay(_ seconds: Double) { loadedOptions.audioDelaySeconds = seconds }
 
+    /// [MovieClaw P20] 运行中放大的前向缓冲也写回载入选项：换音轨、回前台这类原地重建按它重放，不退回 10 段
+    func setLoadedForwardBufferSegments(_ segments: Int) { loadedOptions.forwardBufferSegments = segments }
+
     /// AE#464 round 2: the fourth narrow write, and the one that makes a session-preserving reload
     /// preserve the session's transport. `autoplay` describes a MOUNT, and a rebuild is not a mount;
     /// writing the session's own transport state here is what both reload branches then replay,
@@ -2192,6 +2199,13 @@ public final class AetherEngine: ObservableObject {
     /// cursors/pending persist across deselect/reselect (no re-recognition of covered regions)
     /// and reset only on load/stop.
     var subtitleOCRArmedOrdinal: Int?
+    /// [MovieClaw P21] 进画中画才启动文字识别时，识别出一段后「取消再选中」一次原生字幕轨，冲掉系统
+    /// 在识别之前拉走并缓存的空字幕窗口（见 `scheduleNativeOCRCacheBust`）
+    var nativeOCRCacheBustTask: Task<Void, Never>?
+    /// [MovieClaw P23] 宿主要求的暂停下载状态（见 `setPrefetchSuspended`），会话重建后重新落到新会话
+    var prefetchSuspendedRequested = false
+    /// [MovieClaw P23] AVPlayer 直连服务端流时暂停前的预读时长，恢复时还原
+    var suspendedRemoteForwardBuffer: TimeInterval?
     var subtitleOCRWorkerTask: Task<Void, Never>?
     var subtitleOCRBatchInFlight = false
     var subtitleOCRSidecarFillTask: Task<Void, Never>?
@@ -3690,6 +3704,8 @@ public final class AetherEngine: ObservableObject {
         audioSourceStreamIndex: Int32? = nil,
         discTitleID: Int? = nil
     ) async throws -> SourceProbe? {
+        // [MovieClaw P22] 本次地址登记到宿主给的稳定键上：探测、播放、重建、字幕旁路打开这个地址都落到同一份字节缓存
+        if case .url(let url) = source { SourceByteCache.shared.bind(url: url, key: options.sourceCacheKey) }
         let attempt = LoadAttempt()
         defer { if let gen = attempt.generation { waitingLoadGenerations.remove(gen) } }
         do {

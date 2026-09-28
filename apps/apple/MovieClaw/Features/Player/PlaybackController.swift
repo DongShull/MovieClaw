@@ -10,15 +10,15 @@ import SwiftUI
 /// （用户又换了参数/退出了），就把刚拉起的会话当场掐掉，绝不让它变成占着转码名额的孤儿。
 ///
 /// ## 引擎选择（全自动，用户不选；docs/design/player-engine.md §3 兜底阶梯）
-/// 默认走自研引擎直出原文件：App 内换封装进系统播放器，画中画、杜比视界、全景声都由系统负责，NAS 只供字节。
-/// 阶梯逐级往下，每一级失败本单元就不再试它：
-/// 1. 自研引擎（原文件直出）；
-/// 2. MPV 直出原文件；
-/// 3. 服务端 HLS + 系统播放器（NAS / Mac Worker 换封装或转码）；
-/// 4. 中文报错。
-/// 要服务端压码率时（用户限了画质、线路装不下原片）直接到第 3 级，沿用原先的做法：先按 AVPlayer 的能力问一次决策
-/// （`/decide`，不起会话）再开服务端会话。开发期可用启动参数强制某个引擎（`-movieclaw.player.engine system|mpv|native`）。
-/// MPV 与自研引擎的软件通路没有画中画：播放中点画中画，就在当前位置换成系统播放器、就绪后自动进画中画。
+/// 自研引擎解决本机能解决的一切（2026-09-28 用户拍板，MPV 已整个移除）：直出原文件，App 内换封装进系统播放器，
+/// 画中画、杜比视界、全景声都由系统负责，NAS 只供字节；硬解不了的编码由引擎自己在本机软解。
+/// 阶梯只有两级，力保不降级（2026-09-28 用户要求，见 `FailurePolicy`）：网络慢、断线不换引擎（等片源回来原地重开），
+/// 片源不在了直接说明，存储写满收小缓冲重开，一时的问题原位重开一次，确定解不了才走第 2 级：
+/// 1. 自研引擎（原文件直出，硬解 → 引擎自己软解）；
+/// 2. 服务端 HLS + 系统播放器（NAS / Mac Worker 换封装或转码）：逐级降档，最后中文报错。
+/// 用户限了画质、且片源比上限高时直接走第 2 级（服务端压码率）。手机存储快满不再换播放器，按剩余空间收小
+/// 分片窗口（`NativeStoragePlan`）。
+/// 画质、音轨、字幕按片记（`QualityMemory` 与服务端观看状态）。没有引擎选项、也没有强制引擎的开关。
 ///
 /// ## 时间轴
 /// 引擎只认「流时间」。文件时间 = `originMs` + 流时间：原文件直出与 VOD 播放列表（timeline=file）
@@ -71,19 +71,21 @@ final class PlaybackController {
     // MARK: 引擎
 
     private(set) var engine: (any PlayerEngine)?
-    /// 当前会话在服务端的 id（MPV 直出原文件时会立即释放服务端会话，此时为 nil）
+    /// 当前会话在服务端的 id（自研引擎直出原文件时会立即释放服务端会话，此时为 nil）
     private(set) var activeSessionId: String?
     private(set) var playsOriginalFile = false
     private(set) var originMs = 0
-    /// 本单元内 MPV 已失败过：不再尝试，直接走系统播放器
-    private var mpvFailed = false
-    /// 自研引擎本单元放失败过：回落 MPV（开发期 `-movieclaw.player.engine native` 时才会用到自研引擎）
+    /// 自研引擎本单元解不了（连引擎自己的软解、原位重开都不行）：改走服务端流。只有「解不了」才设它，
+    /// 网络问题从不设（`FailurePolicy`）
     private var nativeFailed = false
-    /// 本单元内 MPV 直出原文件失败过（例如多剪辑原盘没有单一原文件）：下次让 MPV 放服务端 HLS
-    private var mpvDirectFailed = false
-    /// 已因线路不够降到转码档（自动模式下这时交给 AVPlayer 放 HLS）
-    private var bandwidthDegraded = false
-    private var bandwidthRestarted = false
+    /// 自研引擎一时出问题时先原位重开的额度（`NativeRetryBudget`）
+    private var nativeRetries = NativeRetryBudget()
+    /// 存储写满后重开：本单元往后都用最小的分片窗口、不开片源字节缓存（`NativeStoragePlan.minimal`）
+    private var forceMinimalStorage = false
+    /// 探片源取不取得到用的地址（原文件 / 镜像的取流地址，原盘目录里第一个文件），见 `SourceProbe`
+    private var sourceProbeURL: URL?
+    /// 正在处理上一次失败（探片源、等片源回来）：这期间引擎再报的失败、看门狗再判的都不再处理，新请求发出时清掉
+    private var failureInFlight = false
     /// 用户是否想要播放（程序性暂停——换流、换轨——不改它）
     private(set) var wantsPlay = true
     /// 心跳发现会话没了、但用户正暂停着：等他点播放再重开
@@ -94,6 +96,9 @@ final class PlaybackController {
     private(set) var subtitles = SubtitleTracks()
     private(set) var selectedSubtitle: String?
     private var subtitleTouched = false
+    /// 用户按暂停时正卡着（在转圈）：那是想攒缓冲，暂停期间照常下载（见 `applyPausedPrefetchPolicy`）
+    private var pausedWhileStalled = false
+    private var networkCostObserver: NSObjectProtocol?
     /// 起播时记着的字幕（续播记忆 / 分享页本地记忆）：清单里一时没有这条（光盘镜像要等引擎读出轨）时，补轨后再认
     private var rememberedSubtitle: String?
     private var requestedSubtitle: String?
@@ -106,9 +111,14 @@ final class PlaybackController {
             engine?.applySubtitleStyle(subtitleStyle)
         }
     }
-    private(set) var quality = PlayerPreferences.quality
-    /// 开发期强制引擎（启动参数 `-movieclaw.player.engine system|mpv`），正式版恒为 nil
-    private let engineOverride = EngineOverride.current
+    /// 画质上限（nil = 自动）：按这部片、当前网络环境记（`QualityMemory`）
+    private(set) var quality: Int?
+    /// 画质是这次打开时从记忆里取的、用户还没动过：开播提示要点明
+    private var qualityFromMemory = false
+    /// 开播提示「已沿用上次的选择」只在打开播放器后第一次出画时判一次（自动连播下一集不再提示）
+    private var memoryNoticeChecked = false
+    /// 播放时的网络环境（在家直连 / 在外面），画质记忆按它分开
+    let network: PlaybackNetwork
 
     // MARK: 实时读数
 
@@ -122,6 +132,8 @@ final class PlaybackController {
     private(set) var speedLabel: String?
     private(set) var pipActive = false
     private(set) var notice: String?
+    /// 反复卡顿时的换低画质提议（`QualitySuggestion`）：界面给一张不打断播放的卡，换不换由用户定
+    private(set) var qualityOffer: QualitySuggestion.Offer?
     private(set) var holdSpeedActive = false
     /// 倍速刚结束的追赶宽限期：这之前不判直通掉帧（见 `endHoldSpeed`）
     private var frameDropGraceUntil: Date?
@@ -145,6 +157,8 @@ final class PlaybackController {
     private var tappedAt: ContinuousClock.Instant?
     /// 卡顿归因 / 掉帧看门狗（每秒一个样本，见 PlaybackWatchdogs.swift）
     private var stallWatch = StallWatch()
+    private var qualitySuggestion = QualitySuggestion()
+    private var qualityOfferTask: Task<Void, Never>?
     private var frameDrops = FrameDropTracker()
     /// 同档网络重开的次数上限（见 NetworkRestartBudget）
     private var networkRestarts = NetworkRestartBudget()
@@ -160,12 +174,6 @@ final class PlaybackController {
     /// 拖动跟随：上一次真的跟过去的时刻与排队中的后沿落地
     private var lastScrubFollowAt = Date.distantPast
     private var scrubFollowTask: Task<Void, Never>?
-    /// 本单元改用 MPV：选了图形字幕（PGS，MPV 在本机画）或系统播放器在不重编码的档位放不出来
-    private var preferMPV = false
-    /// 本单元为了画中画改用系统播放器（MPV 没有画中画），不再自动换回 MPV
-    private var systemForPiP = false
-    /// 换成系统播放器后，画面一就绪就自动进画中画
-    private var pendingPiP = false
     private var startTask: Task<Void, Never>?
     /// 在后台跑的起播协商（决策 → 开会话），见 `PlaybackAPI.negotiate`
     private var negotiationTask: Task<PlaybackAPI.Negotiation, Error>?
@@ -190,6 +198,10 @@ final class PlaybackController {
         scope = PlaybackAPI(api: playbackAPI, shareSlug: request.shareSlug)
         unit = PlaybackUnit(mediaItemId: request.mediaItemId, season: request.season ?? 0, episode: request.episode ?? 0)
         startMsOverride = request.startSeconds.map { Int($0 * 1000) }
+        network = PlaybackNetwork.current(server: api.server)
+        // 分享访客不记（进度都只记本机、按分享隔离），其余按「这部片 + 网络环境」取上次的画质
+        quality = request.shareSlug == nil ? QualityMemory.quality(mediaItemId: request.mediaItemId, network: network) : nil
+        qualityFromMemory = quality != nil
     }
 
     // MARK: - 生命周期
@@ -212,6 +224,12 @@ final class PlaybackController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.reportTermination() }
         }
+        // 暂停期间网络变了（出门从 Wi-Fi 换到蜂窝、开关低数据模式）：按新网络重判要不要停下载
+        networkCostObserver = NotificationCenter.default.addObserver(
+            forName: .networkCostChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applyPausedPrefetchPolicy() }
+        }
         startTickLoop()
     }
 
@@ -229,6 +247,8 @@ final class PlaybackController {
         engine = nil
         nowPlaying.detach()
         if let terminationObserver { NotificationCenter.default.removeObserver(terminationObserver) }
+        if let networkCostObserver { NotificationCenter.default.removeObserver(networkCostObserver) }
+        networkCostObserver = nil
         terminationObserver = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
@@ -282,10 +302,12 @@ final class PlaybackController {
         durationMs = nil
         bufferedEndMs = nil
         nextDismissed = false
-        mpvFailed = false
+        qualitySuggestion = QualitySuggestion()
+        dismissQualityOffer()
         nativeFailed = false
-        mpvDirectFailed = false
-        bandwidthDegraded = false
+        nativeRetries.reset()
+        forceMinimalStorage = false
+        sourceProbeURL = nil
         failedTiers = []
         failureCount = 0
         networkRestarts.reset()
@@ -301,9 +323,6 @@ final class PlaybackController {
             trace.begin(at: tappedAt)
             self.tappedAt = nil
         }
-        preferMPV = false
-        systemForPiP = false
-        pendingPiP = false
         resetWatchdogs()
         // `startSeconds` 只覆盖进入播放器的第一个单元；其余交给服务端按观看状态定起点
         var start: Int? = overrideConsumed ? nil : startMsOverride
@@ -388,6 +407,7 @@ final class PlaybackController {
     /// 去后端要一个能播的地址。phase：deciding（新请求）/ sessionStarting（换会话）/ degrading（降档）
     private func request(startMs: Int?, phase next: Phase) {
         attempt += 1
+        failureInFlight = false
         let myAttempt = attempt
         phase = next
         errorMessage = nil
@@ -415,7 +435,7 @@ final class PlaybackController {
         PlaybackUnit(mediaItemId: request.mediaItemId, season: request.season ?? 0, episode: request.episode ?? 0)
     }
 
-    private func sessionBody(capability: API.ClientCapabilityIn, startMs: Int?, forMPV: Bool) -> API.PlaybackSessionRequest {
+    private func sessionBody(capability: API.ClientCapabilityIn, startMs: Int?, forNative: Bool) -> API.PlaybackSessionRequest {
         API.PlaybackSessionRequest(
             // 指定版本只对进入播放器的那个单元有效：切到别的集还带着它，会去请求上一集的文件
             fileId: unit == initialUnit ? request.fileId : nil,
@@ -425,42 +445,21 @@ final class PlaybackController {
             capability: capability,
             failedTiers: failedTiers.isEmpty ? nil : failedTiers,
             audioTrack: requestedAudio,
-            // MPV 自己渲染图形字幕，永远不需要服务端烧录；显式传 off 挡住记忆轨触发的烧录
-            subtitleTrack: forMPV ? "off" : requestedSubtitle,
+            // 自研引擎自己画图形字幕，永远不需要服务端烧录；显式传 off 挡住记忆轨触发的烧录
+            subtitleTrack: forNative ? "off" : requestedSubtitle,
             maxHeight: quality,
             downlinkBps: lastDownlinkBps.map { Int($0) },
             startMs: startMs
         )
     }
 
-    /// MPV 在这台设备上能不能用（本单元失败过、或为了画中画换成了系统播放器，就不再试）
-    private var mpvAvailable: Bool { !mpvFailed && !systemForPiP && engineOverride != .system }
-
-    /// 起播协商的输入（选引擎的规则见类注释；各请求体与能力快照都在主线程算好）
+    /// 起播协商的输入（选引擎的规则见类注释；各请求体与能力快照都在主线程算好）：
+    /// 自研引擎能放就用它（申报全解码，服务端直接给档 0 原文件地址、不起 ffmpeg），否则服务端流交给系统播放器
     private func negotiationInputs(startMs: Int?) -> PlaybackAPI.NegotiationInputs {
-        let mode: PlaybackAPI.EngineMode
-        if wantsNative {
-            // 自研引擎直出原文件：与 MPV 直出同一套请求（申报全解码，服务端直接给档 0 原文件地址、不起 ffmpeg）
-            mode = .mpv
-        } else if engineOverride == .mpv || engineOverride == .native || (engineOverride == nil && nativeFailed) {
-            // 开发期强制 MPV，或自研引擎在本单元放不了：兜底阶梯第二级 MPV 直出（MPV 也失败过才到服务端 HLS）
-            mode = mpvFailed ? .system : .mpv
-        } else if !mpvAvailable {
-            mode = .system
-        } else if preferMPV {
-            mode = .mpv
-        } else {
-            mode = .auto
-        }
-        // MPV 打算直接拉原文件时申报全解码：服务端直接给原文件地址，不白建换封装会话
-        let original = mpvWantsOriginal
-        return PlaybackAPI.NegotiationInputs(
-            mode: mode,
-            system: sessionBody(capability: PlayerCapability.avPlayer(), startMs: startMs, forMPV: false),
-            mpv: sessionBody(capability: PlayerCapability.mpv(original: original, readsDiscs: wantsNative), startMs: startMs, forMPV: true),
-            mpvLimited: sessionBody(capability: PlayerCapability.mpv(mobileLimited: true), startMs: startMs, forMPV: true),
-            mpvOriginal: original,
-            needsServerTranscode: quality != nil || bandwidthDegraded
+        PlaybackAPI.NegotiationInputs(
+            mode: wantsNative ? .native : .system,
+            native: sessionBody(capability: PlayerCapability.native(), startMs: startMs, forNative: true),
+            system: sessionBody(capability: PlayerCapability.avPlayer(), startMs: startMs, forNative: false)
         )
     }
 
@@ -478,12 +477,10 @@ final class PlaybackController {
                 return
             }
             trace.mark("开始请求", at: result.startedAt)
-            if let decidedAt = result.decidedAt { trace.mark("决策", at: decidedAt) }
             trace.mark("会话", at: result.sessionAt)
-            if let retriedAt = result.retriedAt { trace.mark("会话重试", at: retriedAt) }
             await handleSession(
-                session, useMPV: result.useMPV, requestedStartMs: startMs,
-                askedOriginal: result.askedOriginal, preparedAsset: result.preparedAsset
+                session, useNative: result.useNative, requestedStartMs: startMs,
+                preparedAsset: result.preparedAsset
             )
         } catch is CancellationError {
         } catch {
@@ -512,8 +509,8 @@ final class PlaybackController {
     }
 
     private func handleSession(
-        _ session: API.PlaybackSessionView, useMPV: Bool, requestedStartMs: Int?,
-        askedOriginal: Bool = false, preparedAsset: AVURLAsset? = nil
+        _ session: API.PlaybackSessionView, useNative: Bool, requestedStartMs: Int?,
+        preparedAsset: AVURLAsset? = nil
     ) async {
         let decision = session.decision
         switch decision.outcome {
@@ -559,27 +556,28 @@ final class PlaybackController {
         // 3. 决定地址与时间轴
         var url: URL?
         var original = false
-        // 申报了全解码却拿到非档 0 的计划：服务端没有单个原文件可拉（多剪辑原盘），照它给的 HLS 放
-        let noSingleFile = askedOriginal && decision.tier != 0
-        // 光盘直推（docs/design/disc-direct-play.md）：只有自研引擎申报了读光盘，服务端才会带这个标记
-        let discKind = wantsNative ? decision.disc : nil
-        if useMPV, !noSingleFile, discKind == "folder" {
+        // 申报了全解码却拿到非档 0 的计划：服务端没有单个原文件可拉（多剪辑原盘之类），照它给的 HLS 放
+        let noSingleFile = useNative && decision.tier != 0
+        // 光盘直推（docs/design/disc-direct-play.md）：自研引擎申报了读光盘，服务端才会带这个标记
+        let discKind = useNative ? decision.disc : nil
+        if useNative, !noSingleFile, discKind == "folder" {
             // 原盘目录直推：地址是目录清单，引擎按清单逐个文件取字节，服务端不起任何进程
             url = scope.streamURL(session.streamUrl)
             original = true
             activeSessionId = nil
-        } else if useMPV, !noSingleFile, mpvShouldPlayOriginal(session), let token = PlaybackAPI.token(in: session.streamUrl) {
-            // MPV 直出原文件：服务端为 remux/音频转码起的会话用不上，立刻释放
+        } else if useNative, !noSingleFile, let token = PlaybackAPI.token(in: session.streamUrl) {
+            // 自研引擎直出原文件：服务端为 remux/音频转码起的会话用不上，立刻释放
             url = scope.streamURL("/api/v1/playback/files/\(fileId)/stream?token=\(token)")
             original = true
             if let sid = session.sessionId { let scope = self.scope; Task { await scope.stop(sid) } }
             activeSessionId = nil
-        } else if !useMPV {
-            // AVPlayer 放 VOD 吃 master 列表（WEBVTT 字幕组让画中画 / 隔空播放时由系统渲染字幕），其余用 stream_url
-            url = PlaybackAPI.systemPlayerURL(session, server: scope.api.server)
+        } else if useNative {
+            // 自研引擎放服务端 HLS（没有单个原文件可拉时）：引擎自带直放远程 HLS 的通路
+            url = scope.streamURL(session.streamUrl)
             activeSessionId = session.sessionId
         } else {
-            url = scope.streamURL(session.streamUrl)
+            // 系统播放器放 VOD 吃 master 列表（WEBVTT 字幕组让画中画 / 隔空播放时由系统渲染字幕），其余用 stream_url
+            url = PlaybackAPI.systemPlayerURL(session, server: scope.api.server)
             activeSessionId = session.sessionId
         }
         guard let url else {
@@ -612,15 +610,6 @@ final class PlaybackController {
             selectedSubtitle = subtitles.initialSelection(remembered: remembered)
         }
 
-        if !useMPV, shouldSwitchToMPV(forSubtitle: selectedSubtitle) {
-            // 续播记忆 / 默认轨是图形字幕：直接换 MPV 在本机画，不让服务端整片重新编码去压字幕
-            preferMPV = true
-            if let sid = session.sessionId { let scope = self.scope; Task { await scope.stop(sid) } }
-            activeSessionId = nil
-            request(startMs: positionMs, phase: .sessionStarting)
-            return
-        }
-
         // 原盘目录：挂引擎之前先把目录清单拉下来——引擎要靠它按剪辑逐个文件取字节
         var discFiles: [NativeDiscFile]?
         if discKind == "folder" {
@@ -629,6 +618,18 @@ final class PlaybackController {
                 discFiles = try await discFolderFiles(fileId: fileId, listing: url)
             } catch {
                 guard requestedAt == attempt, !closed else { return }
+                // 清单是向服务器要的：连不上是网络问题（隔几秒重开，不换播放器），404 是文件不在了，其余才算本机放不了
+                if Self.isTransient(error), let delay = reconnectBackoff.nextDelay() {
+                    flash("连接中断，正在重连…")
+                    try? await Task.sleep(for: .seconds(delay))
+                    guard requestedAt == attempt, !closed else { return }
+                    request(startMs: positionMs, phase: .sessionStarting)
+                    return
+                }
+                if case let .http(status, _, _) = error as? APIError, status == 404 {
+                    failSourceMissing()
+                    return
+                }
                 nativeFallback(reason: "原盘目录清单读取失败：\(error.localizedDescription)")
                 return
             }
@@ -645,19 +646,15 @@ final class PlaybackController {
 
         // 5. 挂引擎
         trace.mark("建引擎")
+        // 起播要缓冲是正常的：换低画质的提示从这里重新给 10 秒宽限
+        qualitySuggestion.restartGrace()
         let newEngine: any PlayerEngine
-        if useMPV, original, wantsNative {
+        if useNative {
+            // 自研引擎：直出原文件，或服务端 HLS（没有单个原文件可拉时，引擎按 AVPlayer 直连放）
             do {
-                newEngine = try NativeEngine(playsOriginalFile: true)
+                newEngine = try NativeEngine(playsOriginalFile: original)
             } catch {
                 nativeFallback(reason: error.localizedDescription)
-                return
-            }
-        } else if useMPV {
-            do {
-                newEngine = try MPVEngine(playsOriginalFile: original)
-            } catch {
-                mpvFallback(reason: error.localizedDescription)
                 return
             }
         } else {
@@ -679,20 +676,40 @@ final class PlaybackController {
         // 起播音轨：用户这次选过、或记着的轨不是容器默认轨（说明是用户以前换过的）→ 必须照办；
         // 否则只是默认挑选，引擎可以按实际更合适的同语言轨放（服务端每次都会把放过的轨记下来，记着 ≠ 用户选过）
         var initialAudio: (index: Int, explicit: Bool)?
-        if original, let index = decision.audio?.trackRef.flatMap({ AudioOption(ref: $0, label: "", isDefault: false).embeddedIndex }) {
+        // 光盘镜像与 DVD 目录的轨以引擎读到的为准（见 adoptEngineTracks）：服务端决策里的音轨序号对不上引擎的
+        let engineOwnsDiscTracks = discKind == "image" || (discKind == "folder" && session.source?.container == "dvd")
+        if original, !engineOwnsDiscTracks,
+           let index = decision.audio?.trackRef.flatMap({ AudioOption(ref: $0, label: "", isDefault: false).embeddedIndex }) {
             let remembered = session.watch?.audioTrack
             // 容器没标默认轨（蓝光原盘的 m2ts 就不标）时，服务端默认挑第一条
             let containerDefault = audioOptions.first(where: \.isDefault)?.ref ?? audioOptions.first?.ref
             let explicit = requestedAudio != nil || (remembered != nil && remembered != containerDefault)
             initialAudio = (index, explicit)
-        } else if original, discKind == "image",
+        } else if original, engineOwnsDiscTracks,
                   let index = (requestedAudio ?? session.watch?.audioTrack).flatMap({ AudioOption(ref: $0, label: "", isDefault: false).embeddedIndex }) {
-            // 光盘镜像：服务端读不了盘内结构、决策里没有音轨；这次选过或记着的轨（同样是第 N 条）照样交给引擎
+            // 光盘镜像 / DVD 目录：服务端读不了盘内结构；这次选过或记着的轨（引擎的第 N 条）照样交给引擎
             initialAudio = (index, true)
         }
         if let initialAudio, newEngine is NativeEngine {
             // 自研引擎要在装载前交代：明确要的轨由引擎按序号直接起播，免得首帧后再重载一次
             newEngine.selectInitialAudio(embeddedIndex: initialAudio.index, explicit: initialAudio.explicit)
+        }
+        if let native = newEngine as? NativeEngine, original {
+            native.sourceCacheKey = Self.sourceCacheKey(fileId: fileId, size: session.source?.sizeBytes)
+            native.storagePlan = NativeStoragePlan.make(
+                freeBytes: NativeStoragePlan.temporaryFreeBytes,
+                bitrateBps: session.source?.bitRate.map(Double.init),
+                forceMinimal: forceMinimalStorage
+            )
+            sourceProbeURL = discFiles?.first?.url ?? url
+            #if DEBUG
+            // 开发期：-mcFakeFreeBytes 同时交给引擎（分片留存预算、片源缓存预算按它算），复现「手机存储快满」
+            let fake = UserDefaults.standard.integer(forKey: "mcFakeFreeBytes")
+            NativeEngine.setTestVolumeAvailableBytes(fake > 0 ? Int64(fake) : nil)
+            print("[StoragePlan] 可用 \(NativeStoragePlan.temporaryFreeBytes.map { "\($0 >> 20) MB" } ?? "未知") → \(native.storagePlan)")
+            #endif
+        } else {
+            sourceProbeURL = nil
         }
         if let native = newEngine as? NativeEngine {
             // 外挂字幕交给引擎画：取服务端的原文件（编码归一成 UTF-8、不转格式），ASS 定位保留，画中画也有字幕
@@ -711,33 +728,26 @@ final class PlaybackController {
         if let initialAudio, !(newEngine is NativeEngine) {
             newEngine.selectInitialAudio(embeddedIndex: initialAudio.index, explicit: initialAudio.explicit)
         }
-        if pendingPiP, let avPlayer = newEngine as? AVPlayerEngine {
-            // 为画中画换成了系统播放器：画面一就绪就进画中画
-            pendingPiP = false
-            avPlayer.startPictureInPictureWhenPossible()
-        }
         applySubtitleToEngine()
         applySystemSubtitle()
         phase = .buffering
         deadSession = false
-        bandwidthRestarted = false
         startPingLoop()
         loadTrickplay(fileId: fileId, token: PlaybackAPI.token(in: session.streamUrl))
         restartDiagnosticsPolling()
         nowPlaying.update(controller: self)
     }
 
-    /// 开会话前的预判：MPV 这次打算直接拉原文件（没限画质、线路够、本单元原文件没失败过）。
-    /// 与 `mpvShouldPlayOriginal` 同一口径，只是限了画质时不预判——那要看源分辨率，交给服务端按常规能力定
-    private var mpvWantsOriginal: Bool { !mpvDirectFailed && !bandwidthDegraded && quality == nil }
+    /// 画质上限真的在限：片源比上限高（还不知道片源多高时按在限算）。上限不低于片源等于没限，照样由自研引擎直出原文件
+    private var qualityLimited: Bool {
+        guard let quality else { return false }
+        return (Self.height(of: session?.source?.resolution) ?? .max) > quality
+    }
 
-    /// MPV 该不该直接拉原文件。MPV 什么编码都能解，服务端判的「要转码」多半只是替浏览器/AVPlayer 着想
-    /// （杜比视界色调映射、编码不支持……），这些情况 MPV 直出更好、NAS 也省一路转码。
-    /// 只有「码率必须降下来」时才真的需要服务端转码：用户手动限了画质且源超过上限，或线路装不下原片。
-    private func mpvShouldPlayOriginal(_ session: API.PlaybackSessionView) -> Bool {
-        guard !mpvDirectFailed, !bandwidthDegraded else { return false }
-        if let quality, let height = Self.height(of: session.source?.resolution), height > quality { return false }
-        return true
+    /// 片源字节缓存的键（内置引擎补丁 P22）：取流地址每次都带新令牌，用「文件 id + 大小」认同一个文件——
+    /// 断线重连、换引擎实例都换了地址，缓存照样接得上；文件在 NAS 上被换掉时大小一变，就是另一份缓存
+    static func sourceCacheKey(fileId: Int, size: Int?) -> String {
+        "file-\(fileId)-\(size ?? 0)"
     }
 
     /// 「2160p」「1080i」→ 2160 / 1080
@@ -745,7 +755,15 @@ final class PlaybackController {
         resolution.flatMap { Int($0.filter(\.isNumber)) }
     }
 
+    /// 片源不在了（服务端对原文件回 404）：换什么播放器都一样，直接说明
+    private func failSourceMissing() {
+        fail("服务器上找不到这个文件", suggestion: "文件可能被移动、删除，或存放它的磁盘没有挂上。检查后点「重试」。")
+    }
+
     private func fail(_ message: String, suggestion: String?) {
+        #if DEBUG
+        print("[PlayerError] \(message)｜\(suggestion ?? "-")")
+        #endif
         engine?.pause()
         phase = .error
         errorMessage = message
@@ -765,74 +783,35 @@ final class PlaybackController {
     }
 
     /// 这次该不该用自研引擎：默认就用，它是兜底阶梯的第一级（docs/design/player-engine.md §3）。
-    /// 不用的情况：开发期强制了系统播放器 / MPV；本单元失败过；要服务端压码率（限了画质、线路装不下原片）；
-    /// 为画中画换成了系统播放器（软件通路没有画中画）
+    /// 不用的情况只有两种：本单元确定在本机解不了（网络问题从不算）；用户限了画质（服务端转码）。
+    /// 手机存储快满不再换播放器：按剩余空间收小分片窗口（`NativeStoragePlan`，2026-09-27 真机可用 197 MB 时
+    /// 《他是谁》起播失败即此，原来的做法是低于 512 MB 直接走服务端流）
     private var wantsNative: Bool {
-        (engineOverride == nil || engineOverride == .native) && !nativeFailed && !systemForPiP
-            && quality == nil && !bandwidthDegraded && Self.hasRoomForNativeSegments
+        !nativeFailed && !qualityLimited
     }
 
-    /// 自研引擎要把本机换封装出来的分片写进临时目录（按可用空间留缓冲预算）。手机存储快满时连分片目录都建不出来，
-    /// 第一个分片就失败、重试三次才回落，报错还是误导人的「音频无法封装」（2026-09-27 真机：可用 197 MB 时
-    /// 《他是谁》起播失败，真因是 NSCocoaErrorDomain 640 空间不足）。可用空间低于这个值就直接交给 MPV——
-    /// 它边读边放、不落盘
-    static let nativeMinFreeBytes: Int64 = 512 * 1024 * 1024
-
-    static var hasRoomForNativeSegments: Bool {
-        let values = try? URL(fileURLWithPath: NSTemporaryDirectory())
-            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        guard let free = values?.volumeAvailableCapacityForImportantUsage else { return true }
-        return free >= nativeMinFreeBytes
-    }
-
-    /// 自研引擎放不了：本单元按兜底阶梯改走 MPV 直出（再失败才到服务端 HLS + 系统播放器）
+    /// 自研引擎在本机放不了（连引擎自己的软解也不行）：本单元改走服务端 HLS + 系统播放器
     private func nativeFallback(reason: String) {
+        #if DEBUG
+        print("[EngineFallback] 自研引擎 → 服务端流：\(reason)")
+        // 引擎测试不许起服务端转码（转码器上会留下记录）：-mcNoServerFallback YES 时停在错误页
+        if UserDefaults.standard.bool(forKey: "mcNoServerFallback") {
+            fail("自研引擎放不了：\(reason)", suggestion: "测试开关 -mcNoServerFallback 拦下了改走服务端流")
+            return
+        }
+        #endif
         nativeFailed = true
         scope.clientLog("engine-fallback", [
             "from": .string("native"), "reason": .string(reason),
             "media_item_id": .int(unit.mediaItemId),
         ])
-        flash("自研引擎播放失败，已改用 MPV")
+        flash("本机解不了这个文件，改由服务端转换后播放")
         request(startMs: positionMs, phase: .sessionStarting)
     }
 
-    /// MPV 不可用 / 放不了：本单元改走服务端 HLS + 系统播放器
-    private func mpvFallback(reason: String) {
-        mpvFailed = true
-        scope.clientLog("engine-fallback", [
-            "from": .string("mpv"), "reason": .string(reason),
-            "media_item_id": .int(unit.mediaItemId),
-        ])
-        flash("MPV 播放失败，已改用系统播放器")
-        request(startMs: positionMs, phase: .sessionStarting)
-    }
-
-    /// 换下旧引擎（切集、换会话、回落）。MPV 收尾时会把整个 App 的音频会话关掉（见 MPVEngine.destroy(tornDown:)），
-    /// 收尾完成后要把会话重新激活，并把被连带暂停的新引擎补一下播放
+    /// 换下旧引擎（切集、换会话、回落）
     private func retire(_ old: (any PlayerEngine)?) {
-        guard let old else { return }
-        guard old.kind == .mpv else {
-            old.destroy()
-            return
-        }
-        old.destroy(tornDown: { [weak self] in self?.recoverAudioAfterMPVTeardown() })
-    }
-
-    private func recoverAudioAfterMPVTeardown() {
-        guard !closed else { return }
-        Task { [weak self] in
-            await Task.detached { Self.activateAudioSession() }.value
-            // 新引擎被暂停的通知可能晚于收尾回调到达：当场看一次，隔一秒再补看一次
-            for attempt in 0 ..< 2 {
-                if attempt > 0 { try? await Task.sleep(for: .seconds(1)) }
-                // 只补「已经播起来、被连带暂停」的：还在起播定位中的引擎自己会按 autoplay 开播，提前 play 会从头放
-                guard let self, !self.closed, self.wantsPlay, self.phase == .playing,
-                      let engine = self.engine, engine.kind != .mpv, engine.isPaused else { continue }
-                self.scope.clientLog("audio-session-recovered", ["engine": .string(engine.kind.rawValue)])
-                engine.play()
-                return
-            }
-        }
+        old?.destroy()
     }
 
     // MARK: - 用户操作：重试 / 同意
@@ -842,6 +821,7 @@ final class PlaybackController {
         failureCount = 0
         networkRestarts.reset()
         reconnectBackoff.reset()
+        nativeRetries.reset()
         request(startMs: positionMs, phase: .deciding)
     }
 
@@ -882,6 +862,27 @@ final class PlaybackController {
             reconnectBackoff.reset()
             if qoe.ttffMs == nil, let requestedAt = qoe.requestedAt {
                 qoe.ttffMs = Int(Date().timeIntervalSince(requestedAt) * 1000)
+            }
+            if !memoryNoticeChecked {
+                // 出画这一刻提示（转圈时提示会被忽略）
+                memoryNoticeChecked = true
+                if let notice = rememberedChoiceNotice() {
+                    flash(notice)
+                    #if DEBUG
+                    print("[MemoryNotice] \(notice)")
+                    #endif
+                }
+                #if DEBUG
+                // 开发期：-mcFakeQualityOffer <秒> 出画 N 秒后弹一张换画质提议卡，截图验界面用（不点就不会真的转码）
+                let fakeOfferDelay = UserDefaults.standard.integer(forKey: "mcFakeQualityOffer")
+                if fakeOfferDelay > 0 {
+                    Task { [weak self] in
+                        try? await Task.sleep(for: .seconds(fakeOfferDelay))
+                        self?.qualityOffer = .init(measuredBps: 54_000_000, requiredBps: 76_000_000, maxHeight: 1080)
+                        print("[QualityOffer] 模拟提议已弹出")
+                    }
+                }
+                #endif
             }
             if !trace.has("播放") {
                 trace.mark("播放")
@@ -930,7 +931,7 @@ final class PlaybackController {
         case .ended:
             guard [.buffering, .playing].contains(phase) else { return }
             if prematureEnd.shouldResume(positionMs: positionMs, durationMs: durationMs) {
-                // 离片尾还远就报播完：取流断了（mpv 直出遇上服务端重启就会这样），从当前位置重开，
+                // 离片尾还远就报播完：取流断了（直出遇上服务端重启就可能这样），从当前位置重开，
                 // 不进「已播完」——否则弹出「即将播放下一集」并把进度报成停在半路
                 scope.clientLog("premature-end", [
                     "engine": .string(engine?.kind.rawValue ?? ""), "position_ms": .int(positionMs),
@@ -941,12 +942,12 @@ final class PlaybackController {
             }
             phase = .ended
             paused = true
-            // 引擎报「播完」不一定真到了片尾（MPV 断流也会报 eof）：离片尾 5 秒内才吸附到片长，
+            // 引擎报「播完」不一定真到了片尾（断流也可能报 eof）：离片尾 5 秒内才吸附到片长，
             // 否则按真实位置上报——片长会让服务端直接标「已看」
             if let durationMs, durationMs - positionMs <= 5000 { positionMs = durationMs }
             if reportedStart { sendProgress(paused: true) }
         case let .failed(reason, cause):
-            engineFailed(reason: reason, cause: cause)
+            engineReportedFailure(reason: reason, cause: cause)
         case let .pictureInPicture(active):
             pipActive = active
         case .tracksChanged:
@@ -980,101 +981,131 @@ final class PlaybackController {
         scope.clientLog("startup", detail)
     }
 
-    /// 实测带宽低于这条流的码率：缺粮是线路不够，不是断线
-    private func linkSlowerThanStream() -> Bool {
-        let stats = engine?.stats()
-        guard let downlink = stats?.downlinkBps, downlink > 0,
-              let bitrate = stats?.bitrateBps ?? session?.source?.bitRate.map(Double.init), bitrate > 0 else { return false }
-        return downlink < bitrate
+    /// 引擎报的失败。自研引擎直出原文件时报「解不了」，先探一下片源取不取得到：起播那一刻断线、超时，
+    /// 引擎只知道「打不开」（故障注入实测：取流被拒 6 秒就被当成解不了、改走了服务端流）；404 是文件不在了
+    private func engineReportedFailure(reason: String, cause: EngineFailureCause) {
+        guard !failureInFlight, [.buffering, .playing, .ended].contains(phase), session != nil else { return }
+        guard engine?.kind == .native, playsOriginalFile, cause == .decode || cause == .decodeFinal,
+              let probeURL = sourceProbeURL else {
+            engineFailed(reason: reason, cause: cause)
+            return
+        }
+        failureInFlight = true
+        let failedAttempt = attempt
+        Task { [weak self] in
+            let verdict = await SourceProbe.check(probeURL)
+            guard let self, failedAttempt == self.attempt, !self.closed else { return }
+            self.failureInFlight = false
+            switch verdict {
+            case .reachable:
+                self.engineFailed(reason: reason, cause: cause)
+            case .missing:
+                self.engineFailed(reason: reason, cause: .sourceMissing)
+            case let .unreachable(why):
+                self.engineFailed(reason: "取不到片源（\(why)）：\(reason)", cause: .network)
+            }
+        }
     }
 
-    /// 播放链路失败：MPV → 回落系统播放器；AVPlayer → 按带宽重开 / 越级转码 / 逐级降档（同 Web）
+    /// 播放链路失败：按 `FailurePolicy` 走——网络问题等片源回来原地重开，一时的问题原位重开，
+    /// 确定解不了才换播放器 / 降档；线路慢不会走到这里
     private func engineFailed(reason: String, cause: EngineFailureCause) {
-        guard [.buffering, .playing, .ended].contains(phase), let session else { return }
+        guard !failureInFlight, [.buffering, .playing, .ended].contains(phase), let session else { return }
         scope.clientLog("playback-error", [
             "engine": .string(engine?.kind.rawValue ?? ""), "reason": .string(reason),
             "tier": session.decision.tier.map { .int($0) } ?? .null,
         ])
-        if cause == .starved, playsOriginalFile, !linkSlowerThanStream(), networkRestarts.allowRestart() {
-            // 直出原文件断粮十几秒、又没有「线路比码率慢」的实测证据：是连接断了（服务端重启、Wi-Fi 切换），
-            // 不是这个引擎放不了——换引擎、改拉服务端流都于事无补（服务端是同一台），同引擎原地重开。
-            // 服务端还没起来时重开请求按退避重试（ReconnectBackoff）；线路确实太慢的照旧走下面的回落 / 降档
+        let nativeOriginal = engine?.kind == .native && playsOriginalFile
+        let response = FailurePolicy.decide(FailurePolicy.Input(
+            engine: engine?.kind ?? .avPlayer,
+            cause: cause,
+            playsOriginalFile: playsOriginalFile,
+            restartAllowed: cause == .network && networkRestarts.allowRestart(),
+            // 额度只在真要用时才扣
+            nativeRetryAllowed: nativeOriginal && (cause == .decode || cause == .storageFull) && nativeRetries.allowRetry()
+        ))
+        #if DEBUG
+        print("[EngineFailed] engine=\(engine?.kind.rawValue ?? "-") cause=\(cause) original=\(playsOriginalFile) → \(response)｜\(reason)")
+        #endif
+        switch response {
+        case .reconnect:
+            // 断线、token 过期、服务端重启：同引擎、同片源原地重开（新会话 = 新 token）。原文件直出先等片源取得到
+            // （awaitSourceThenReconnect）；服务端还没起来时重开请求本身会失败，按退避重试（ReconnectBackoff），见 performRequest
             scope.clientLog("network-restart", ["reason": .string(reason), "attempt": .int(networkRestarts.consecutive)])
+            if nativeOriginal, let probeURL = sourceProbeURL {
+                awaitSourceThenReconnect(reason: reason, probeURL: probeURL)
+            } else {
+                request(startMs: positionMs, phase: .sessionStarting)
+            }
+        case .retryNative:
+            scope.clientLog("native-retry", ["reason": .string(reason)])
+            flash("播放出了点问题，正在原位重开")
             request(startMs: positionMs, phase: .sessionStarting)
-            return
-        }
-        if engine?.kind == .native {
-            if cause == .network, networkRestarts.allowRestart() {
-                // 取流失败（断线、token 过期）：同一引擎原地重开（新会话 = 新 token），不回落
-                scope.clientLog("network-restart", ["reason": .string(reason), "attempt": .int(networkRestarts.consecutive)])
-                request(startMs: positionMs, phase: .sessionStarting)
-                return
-            }
-            nativeFallback(reason: reason)
-            return
-        }
-        if engine?.kind == .mpv {
-            if playsOriginalFile, session.sessionId != nil || session.decision.tier != 0, !mpvDirectFailed {
-                // 原文件拉不下来（原盘多剪辑、网盘直链失效……）：先让 MPV 改放服务端 HLS 再试一次
-                mpvDirectFailed = true
-                scope.clientLog("engine-fallback", ["from": .string("mpv-direct"), "reason": .string(reason)])
-                request(startMs: positionMs, phase: .sessionStarting)
-                return
-            }
-            mpvFallback(reason: reason)
-            return
-        }
-        if cause == .network {
-            if networkRestarts.allowRestart() {
-                // 取流持续失败（断线、token 过期、服务端中断）：同档原地重开（新会话 = 新 token），不降档；
-                // 真断网时重开请求本身会失败，落到错误页（同 Web onNetworkDead）
-                scope.clientLog("network-restart", ["reason": .string(reason), "attempt": .int(networkRestarts.consecutive)])
-                request(startMs: positionMs, phase: .sessionStarting)
-                return
-            }
-            // 连续重开都没能出画：「网络」归因多半不对，按这一档放不了继续往下走（降档或报错）
+        case .retryNativeLowStorage:
+            scope.clientLog("native-retry", ["reason": .string(reason), "low_storage": .bool(true)])
+            forceMinimalStorage = true
+            flash("手机存储空间不足，已减小缓存后继续播放")
+            request(startMs: positionMs, phase: .sessionStarting)
+        case .failSourceMissing:
+            scope.clientLog("source-missing", ["reason": .string(reason)])
+            failSourceMissing()
+        case .failNetwork:
             scope.clientLog("network-restart-exhausted", ["reason": .string(reason)])
-        }
-        if engine?.kind == .avPlayer, cause == .decode, session.decision.video?.action != "transcode", mpvAvailable, !preferMPV {
-            // 系统播放器在不重编码的档位放不出来（封装/编码细节不认）：交给 MPV 在本机直接放原文件，
-            // 比让服务端降到转码档省事得多
-            preferMPV = true
-            scope.clientLog("engine-fallback", ["from": .string("avplayer"), "reason": .string(reason)])
-            flash("系统播放器放不了这个文件，已改用 MPV")
-            request(startMs: positionMs, phase: .sessionStarting)
-            return
-        }
-        let stats = engine?.stats()
-        let downlink = stats?.downlinkBps
-        let bitrate = stats?.bitrateBps ?? session.source?.bitRate.map(Double.init)
-        let videoAction = session.decision.video?.action
-        if cause == .starved, let downlink, let bitrate, downlink > 0, bitrate > 0, downlink < bitrate {
-            lastDownlinkBps = downlink
-            if videoAction == "transcode", !bandwidthRestarted {
-                // 已在转码且线路不够：带着实测带宽同档重开（服务端按它压码率），每会话一次
-                bandwidthRestarted = true
-                scope.clientLog("bandwidth-restart", ["downlink_bps": .int(Int(downlink)), "bitrate_bps": .int(Int(bitrate))])
-                request(startMs: positionMs, phase: .sessionStarting)
-                return
+            fail("连接中断，重连了几次都没成功（\(reason)）", suggestion: "检查网络后点「重试」，会从刚才的位置接着放。")
+        case .fallbackToServerStream:
+            nativeFallback(reason: reason)
+        case .stepDownTier:
+            if cause == .network {
+                // 服务端流连续重开都没能出画：「网络」归因多半不对，按这一档放不了往下走
+                scope.clientLog("network-restart-exhausted", ["reason": .string(reason)])
             }
-            if videoAction == "copy" {
-                // 视频直通而线路装不下源码率：三个直通档一并标掉，直接开转码会话
-                bandwidthDegraded = true
-                failedTiers = Array(Set(failedTiers + [0, 1, 2])).sorted()
-                scope.clientLog("bandwidth-degrade", [
-                    "tier": session.decision.tier.map { .int($0) } ?? .null,
-                    "downlink_bps": .int(Int(downlink)), "bitrate_bps": .int(Int(bitrate)),
-                ])
-                flash("线路带宽装不下原片码率，改用转码降码率播放")
-                request(startMs: positionMs, phase: .degrading)
-                return
+            stepDownTier(reason: reason, session: session)
+        }
+    }
+
+    /// 原文件直出断了：等片源取得到再原位重开（每次重开都是新会话、新取流令牌）。片源一直取不到就按
+    /// 2、4、8、15、15、15 秒的间隔再探（约 1 分钟），还不行落错误页让用户重试——换服务端流要一样的线路
+    private func awaitSourceThenReconnect(reason: String, probeURL: URL) {
+        failureInFlight = true
+        let myAttempt = attempt
+        phase = .sessionStarting
+        flash("连接中断，正在重连…")
+        Task { [weak self] in
+            var backoff = ReconnectBackoff()
+            while true {
+                let verdict = await SourceProbe.check(probeURL)
+                guard let self, myAttempt == self.attempt, !self.closed else { return }
+                switch verdict {
+                case .reachable:
+                    self.request(startMs: self.positionMs, phase: .sessionStarting)
+                    return
+                case .missing:
+                    self.failureInFlight = false
+                    self.failSourceMissing()
+                    return
+                case let .unreachable(why):
+                    guard let delay = backoff.nextDelay() else {
+                        self.failureInFlight = false
+                        self.scope.clientLog("network-restart-exhausted", ["reason": .string(why)])
+                        self.fail("连接中断，重连了几次都没成功（\(why)）", suggestion: "检查网络后点「重试」，会从刚才的位置接着放。")
+                        return
+                    }
+                    #if DEBUG
+                    print("[SourceProbe] 取不到片源（\(why)），\(Int(delay)) 秒后再试")
+                    #endif
+                    try? await Task.sleep(for: .seconds(delay))
+                    guard myAttempt == self.attempt, !self.closed else { return }
+                }
             }
         }
+    }
+
+    /// 服务端这一档放不了：逐级降档；连败两次说明「逐级试」的假设不成立，兜底档以下全标失败一步到位
+    private func stepDownTier(reason: String, session: API.PlaybackSessionView) {
         guard let tier = session.decision.tier else {
             fail(reason, suggestion: nil)
             return
         }
-        // 逐级降档；连败两次说明「逐级试」的假设不成立，兜底档以下全标失败一步到位
         var accumulated = Set(failedTiers)
         accumulated.insert(tier)
         if failureCount + 1 >= 2 { (0 ..< 4).forEach { accumulated.insert($0) } }
@@ -1099,6 +1130,8 @@ final class PlaybackController {
         }
         if engine.isPaused {
             wantsPlay = true
+            // 用户暂停攒过缓冲再接着看：卡顿提示从恢复这一刻重新计
+            qualitySuggestion.restartGrace()
             if deadSession {
                 // 会话在暂停期间被回收了：从当前位置重开
                 request(startMs: positionMs, phase: .sessionStarting)
@@ -1107,8 +1140,19 @@ final class PlaybackController {
             engine.play()
         } else {
             wantsPlay = false
+            // 卡着的时候按暂停，多半是想攒缓冲：照常往前下（线路慢时前向缓冲已放大到 3 分钟，见 P20）
+            pausedWhileStalled = phase == .buffering
             engine.pause()
+            applyPausedPrefetchPolicy()
         }
+    }
+
+    /// 暂停时要不要连下载也停（2026-09-28 用户拍板：按网络类型决定）：计费网络（蜂窝、个人热点、低数据模式）上停，
+    /// 暂停着不看了就不会白下；Wi-Fi 上照常攒到前向窗口，不花钱，恢复后更稳；卡着时按的暂停照常下。
+    /// 恢复播放时 `NativeEngine.play()` 一律解除。暂停期间网络变了（出门从 Wi-Fi 换到蜂窝）再判一次
+    private func applyPausedPrefetchPolicy() {
+        guard !wantsPlay, let engine else { return }
+        engine.setPrefetchSuspended(!pausedWhileStalled && NetworkCost.shared.isMetered)
     }
 
     func play() { if engine?.isPaused == true { togglePlay() } }
@@ -1146,6 +1190,7 @@ final class PlaybackController {
         positionMs = target
         if phase == .ended { phase = .buffering }
         seekStartedAt = Date()
+        qualitySuggestion.restartGrace()
         stallWatch.reset()
         frameDrops.reset()
         engine.seek(to: Double(target - originMs) / 1000, exact: exact)
@@ -1213,37 +1258,18 @@ final class PlaybackController {
 
     // MARK: 画中画
 
-    /// 画中画按钮显不显示：设备支持画中画就一直有。自研引擎主力通路原地进出；MPV 与自研引擎的软件通路
-    /// （VP9 / VC-1 / MPEG-2 这类，引擎自己没有画中画）点它会换成系统播放器再进画中画
-    var pictureInPictureAvailable: Bool {
-        guard let engine else { return false }
-        if engine.supportsPictureInPicture { return true }
-        // 只有 MPV 要换系统播放器（服务端流）才能进画中画。自研引擎两条通路都在本机进画中画，
-        // 显示层还没就绪时等它就绪，不为画中画改拉服务端流（那会让 NAS 起转码）
-        return engine.kind == .mpv && engineOverride != .mpv
-            && AVPictureInPictureController.isPictureInPictureSupported()
-    }
+    /// 画中画按钮显不显示：自研引擎两条通路（主力通路的 AVPlayerLayer、软件通路的显示层）与系统播放器都原地进出；
+    /// 显示层还没就绪时先不显示，等它就绪，不为画中画改拉服务端流（那会让 NAS 起转码）
+    var pictureInPictureAvailable: Bool { engine?.supportsPictureInPicture ?? false }
 
     func togglePictureInPicture() {
-        guard let engine else { return }
-        if engine.supportsPictureInPicture {
-            engine.togglePictureInPicture()
-            return
-        }
-        guard pictureInPictureAvailable, !pendingPiP else { return }
-        // MPV 没有画中画：在当前位置换成系统播放器（服务端换封装），就绪后自动进画中画。
-        // 字幕按当前选择申请；图形字幕要压制而服务端没开软件转码时，由同意分支自动关掉字幕、不弹窗打断
-        systemForPiP = true
-        pendingPiP = true
-        requestedSubtitle = selectedSubtitle ?? "off"
-        wantsPlay = true
-        flash("正在切换到系统播放器以开启画中画…")
-        request(startMs: positionMs, phase: .sessionStarting)
+        guard let engine, engine.supportsPictureInPicture else { return }
+        engine.togglePictureInPicture()
     }
 
     // MARK: - 音轨 / 字幕 / 画质 / 引擎
 
-    /// 换音轨：MPV 直出原文件时原地切换；否则带着当前位置重开会话（音轨在开会话时就定死了）
+    /// 换音轨：自研引擎直出原文件时原地切换；否则带着当前位置重开会话（服务端流的音轨在开会话时就定死了）
     func selectAudio(_ ref: String) {
         requestedAudio = ref
         if let engine, engine.canSwitchAudioInPlace, let index = AudioOption(ref: ref, label: "", isDefault: false).embeddedIndex {
@@ -1268,38 +1294,28 @@ final class PlaybackController {
         selectedSubtitle.flatMap { ref in subtitles.options.first { $0.ref == ref } }
     }
 
-    /// 当前字幕由引擎自己画：只有 MPV 画图形字幕（PGS）这一种。
-    /// 文字字幕（SRT/ASS）两个引擎都交给叠加层用系统字体画——iOS 上 libass 用不了系统中文字体，
-    /// mpv 自己画会变成方框或干脆不出字（模拟器与真机实测），样式设置也与系统播放器不一致
+    /// 当前字幕由引擎自己画：自研引擎画它读到的内封轨与交给它的外挂字幕（见 `NativeEngine.rendersSubtitle`）；
+    /// 系统播放器只放服务端流，文字字幕由叠加层用系统字体画，图形字幕由服务端压制进画面
     var engineRendersSubtitles: Bool {
         guard let engine, let option = selectedOption else { return false }
         return engine.rendersSubtitle(option)
     }
 
-    /// 选图形字幕要服务端压制进画面（系统播放器、且不能换 MPV 时），菜单里提前说明代价
-    var graphicSubtitlesBurnIn: Bool { engine?.kind == .avPlayer && !mpvAvailable }
+    /// 选图形字幕要服务端压制进画面（系统播放器放服务端流时），菜单里提前说明代价
+    var graphicSubtitlesBurnIn: Bool { engine?.kind == .avPlayer }
 
     func selectSubtitle(_ ref: String?) {
         subtitleTouched = true
         selectedSubtitle = ref
         let target = ref.flatMap { ref in subtitles.options.first { $0.ref == ref } }
-        if engine?.kind == .mpv || engine?.kind == .native {
-            // MPV / 自研引擎：图形字幕交给引擎画，文字字幕由叠加层画（在 applySubtitleToEngine 里分流）
+        if engine?.kind == .native {
+            // 自研引擎：字幕交给引擎画（在 applySubtitleToEngine 里分流）
             applySubtitleToEngine()
             if burnedSubtitle != nil {
-                // MPV 在放烧录过的转码流：撤下烧录
+                // 自研引擎在放烧录过的服务端流：撤下烧录
                 requestedSubtitle = "off"
                 request(startMs: positionMs, phase: .sessionStarting)
             }
-            if reportedStart { sendProgress(paused: paused) }
-            return
-        }
-        if shouldSwitchToMPV(forSubtitle: ref) {
-            // 系统播放器上选了图形字幕：换 MPV 在本机画（不让服务端整片重新编码去压字幕）
-            preferMPV = true
-            requestedSubtitle = ref
-            wantsPlay = true
-            request(startMs: positionMs, phase: .sessionStarting)
             if reportedStart { sendProgress(paused: paused) }
             return
         }
@@ -1315,13 +1331,6 @@ final class PlaybackController {
         requestedSubtitle = ref ?? "off"
         wantsPlay = true
         request(startMs: positionMs, phase: .sessionStarting)
-    }
-
-    /// 当前是系统播放器、选中的是图形字幕（PGS）、MPV 可用 → 该换 MPV
-    private func shouldSwitchToMPV(forSubtitle ref: String?) -> Bool {
-        guard mpvAvailable, !preferMPV, engine?.kind != .mpv, engine?.kind != .native,
-              let ref, let option = subtitles.options.first(where: { $0.ref == ref }) else { return false }
-        return option.kind == "pgs"
     }
 
     /// 把当前字幕对应到 master 字幕组的下标，交给 AVPlayer 在画中画 / 隔空播放时由系统渲染。
@@ -1346,7 +1355,7 @@ final class PlaybackController {
         return scope.streamURL(option.path + "&format=vtt")
     }
 
-    /// 把引擎自己画的字幕（MPV 的图形字幕）交给引擎；其余一律让引擎关掉字幕、由叠加层画
+    /// 把引擎自己画的字幕交给引擎；其余一律让引擎关掉字幕、由叠加层画
     private func applySubtitleToEngine() {
         guard let engine else { return }
         let own = selectedOption.flatMap { engine.rendersSubtitle($0) ? $0 : nil }
@@ -1365,8 +1374,10 @@ final class PlaybackController {
     private func adoptEngineTracks() {
         guard let native = engine as? NativeEngine else { return }
         // 光盘镜像：服务端的清单只是它对整个镜像的猜测（实测《聪明的一休》DVD 镜像把菜单 VOB 里的音轨也算上，
-        // 报 3 条音轨，主片其实只有 1 条），以引擎读到的主片轨为准
+        // 报 3 条音轨，主片其实只有 1 条），以引擎读到的主片轨为准。DVD 目录同理：服务端不读 IFO，
+        // 探测结果与引擎按 IFO 选出的正片标题未必是同一组 VOB
         let discImage = session?.decision.disc == "image"
+            || (session?.decision.disc == "folder" && session?.source?.container == "dvd")
         var changed = subtitles.adoptEngineSubtitles(native.embeddedSubtitleTracks, replacingEmbedded: discImage)
         if changed, !subtitleTouched, selectedSubtitle == nil, burnedSubtitle == nil,
            let pick = subtitles.initialSelection(remembered: rememberedSubtitle) {
@@ -1399,7 +1410,13 @@ final class PlaybackController {
     }
 
     func selectQuality(_ maxHeight: Int?) {
-        PlayerPreferences.quality = maxHeight
+        qualityFromMemory = false
+        if scope.shareSlug == nil {
+            // 上限不低于片源等于没限：记成「自动」，下次打开照样由自研引擎直出原文件
+            let sourceHeight = Self.height(of: session?.source?.resolution) ?? .max
+            let limiting = maxHeight.flatMap { $0 < sourceHeight ? $0 : nil }
+            QualityMemory.remember(limiting, mediaItemId: unit.mediaItemId, network: network)
+        }
         guard maxHeight != quality else { return }
         quality = maxHeight
         // 语义是上限：视频直通且源不超所选档就不用动
@@ -1412,6 +1429,62 @@ final class PlaybackController {
         request(startMs: positionMs, phase: .deciding)
     }
 
+    /// 每秒一次，只在用户正常观看时喂（暂停、拖动、后台都不算）；条件满足就给一次提议
+    private func feedQualitySuggestion(engine: any PlayerEngine, stats: EngineStats) {
+        guard wantsPlay, !backgrounded, seekStartedAt == nil, [.buffering, .playing].contains(phase), session != nil else { return }
+        qualitySuggestion.tick(stalled: phase == .buffering, loadingBps: stats.loadingBps)
+        let bitrate = stats.bitrateBps ?? session?.source?.bitRate.map(Double.init)
+        // 真卡住了、而且这一秒的加载速度确实比片子码率慢（线路跟不上，不是一时抖动）：放大自研引擎的前向缓冲，
+        // 之后暂停就能一直攒（引擎补丁 P20）。线路够快时不放大，免得在蜂窝网上白白多下几个 G
+        if phase == .buffering, let native = engine as? NativeEngine, let bitrate,
+           let speed = stats.loadingBps, speed > 0, speed < bitrate * QualitySuggestion.linkMargin {
+            native.growForwardBuffer()
+        }
+        guard qualityOffer == nil, !qualitySuggestion.offered else { return }
+        let sourceHeight = Self.height(of: session?.source?.resolution)
+        let currentHeight = quality.map { cap in sourceHeight.map { min($0, cap) } ?? cap } ?? sourceHeight
+        guard let offer = qualitySuggestion.offer(streamBitrate: bitrate, currentHeight: currentHeight) else { return }
+        scope.clientLog("quality-suggestion", [
+            "measured_bps": .int(Int(offer.measuredBps)), "required_bps": .int(Int(offer.requiredBps)),
+            "suggested_height": .int(offer.maxHeight), "engine": .string(engine.kind.rawValue),
+        ])
+        qualityOffer = offer
+        // 20 秒没理会就收起（本单元不再提）：它只是个建议，不该一直挡着画面
+        qualityOfferTask?.cancel()
+        qualityOfferTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(20))
+            guard !Task.isCancelled else { return }
+            self?.qualityOffer = nil
+        }
+    }
+
+    #if DEBUG
+    /// 开发期：暂停攒缓冲演练（PlayerScreen 的 -mcBufferDrill）不等真卡顿，直接放大前向缓冲
+    func debugGrowForwardBuffer() { (engine as? NativeEngine)?.growForwardBuffer() }
+
+    /// 开发期：模拟一次断线重连（PlayerScreen 的 -mcAutoReconnect）：新会话、新令牌、新的引擎实例，
+    /// 验证片源字节缓存跨引擎实例接得上
+    func debugReconnect() {
+        scope.clientLog("network-restart", ["reason": .string("debug"), "attempt": .int(0)])
+        request(startMs: positionMs, phase: .sessionStarting)
+    }
+    #endif
+
+    /// 接受提议：改用推荐的画质（服务端转码）
+    func acceptQualityOffer() {
+        guard let offer = qualityOffer else { return }
+        scope.clientLog("quality-suggestion-accepted", ["suggested_height": .int(offer.maxHeight)])
+        dismissQualityOffer()
+        selectQuality(offer.maxHeight)
+    }
+
+    /// 继续当前画质（或自动收起）
+    func dismissQualityOffer() {
+        qualityOfferTask?.cancel()
+        qualityOfferTask = nil
+        qualityOffer = nil
+    }
+
     // MARK: - 前后台
 
     func setBackgrounded(_ background: Bool) {
@@ -1420,6 +1493,7 @@ final class PlaybackController {
         if background, reportedStart { sendProgress(paused: engine?.isPaused) }
         // 后台时引擎主动丢帧 / 不出画，回来先清窗口，免得误判卡顿与掉帧
         resetWatchdogs()
+        if !background { qualitySuggestion.restartGrace() }
         engine?.setBackgrounded(background)
         if !background, let activeSessionId {
             // 回前台先探一次活：后台期间心跳可能被系统挂起、会话已被回收
@@ -1554,10 +1628,11 @@ final class PlaybackController {
         speedLabel = Self.formatLoadingSpeed(stats.loadingBps)
         // 带宽估计另记：申报给服务端的 downlink_bps 要的是线路能力，缓冲满了也保持上次实测值
         if let downlink = stats.downlinkBps { lastDownlinkBps = downlink }
-        // 不做「线路速度低于片源码率」的预警（网页有，App 去掉，用户决定）：下载速度读数会误报——
-        // MPV 预读缓存填满后暂停下载，读数掉到接近 0；临时抖一下也会触发，而播放本身并没有卡。
-        // 真卡住时由看门狗判「断粮」并自动转码降码率（engineFailed → bandwidthDegraded），不靠提醒用户
+        // 不拿「加载速度低于码率」直接预警（网页有，App 去掉，用户决定）：缓冲攒满后引擎暂停下载，读数掉到接近 0，
+        // 临时抖一下也会触发，而播放本身并没有卡。线路慢也不自动转码（2026-09-28 用户拍板）：只缓冲，
+        // 反复真卡住时才提示一次换低画质（见 QualitySuggestion），换不换由用户定
         runWatchdogs(engine: engine, stats: stats)
+        feedQualitySuggestion(engine: engine, stats: stats)
         nowPlaying.updatePosition(controller: self)
         #if DEBUG
         // 开发期：每 10 秒一行设备体征（引擎能耗对比用，口径见 DeviceVitals）
@@ -1570,6 +1645,8 @@ final class PlaybackController {
 
     #if DEBUG
     private var vitalsTick = 0
+    /// -mcFakeStallAfter 期间看门狗看到的「定住的」播放头
+    private var debugFrozenTime: Double?
     #endif
 
     private func resetWatchdogs() {
@@ -1577,18 +1654,29 @@ final class PlaybackController {
         frameDrops.reset()
     }
 
-    /// 每秒一次：卡顿归因（解码卡死 / 缺粮）与直通掉帧。命中就走既有的失败回路（降档 / 带宽重开 / MPV 回落）
+    /// 每秒一次：卡顿归因（解码卡死 / 连接断了；线路慢不算失败）与直通掉帧。命中就走 `engineFailed` 的兜底规则
     private func runWatchdogs(engine: any PlayerEngine, stats: EngineStats) {
-        guard session != nil, [.buffering, .playing].contains(phase), !backgrounded else { return }
-        if let grace = engine.watchdogGraceUntil, grace > Date() {
-            // 引擎在做自身维护（重建视频输出）：清空窗口，宽限期过后重新开始采样
-            resetWatchdogs()
-            return
+        guard session != nil, [.buffering, .playing].contains(phase), !backgrounded, !failureInFlight else { return }
+        let deadLimit = playsOriginalFile ? StallWatch.directDeadSeconds : StallWatch.serverDeadSeconds
+        var watchedTime = engine.currentTime
+        var ahead = max(0, (engine.bufferedEnd ?? engine.currentTime) - engine.currentTime)
+        #if DEBUG
+        // 开发期故障注入：-mcFakeStallAfter "<开播后秒>,<持续秒>" 让看门狗看到「缓冲够却不走」，验证解码卡死后的
+        // 原位重开（真实的引擎楞住在模拟器上造不出来）
+        let fakeStall = (UserDefaults.standard.string(forKey: "mcFakeStallAfter") ?? "").split(separator: ",").compactMap { Double($0) }
+        if fakeStall.count == 2, let since = qoe.requestedAt,
+           (fakeStall[0] ..< fakeStall[0] + fakeStall[1]).contains(Date().timeIntervalSince(since)) {
+            if debugFrozenTime == nil { print("[AutoTest] 模拟画面卡住 \(Int(fakeStall[1])) 秒") }
+            watchedTime = debugFrozenTime ?? watchedTime
+            debugFrozenTime = watchedTime
+            ahead = max(ahead, 5)
+        } else {
+            debugFrozenTime = nil
         }
-        let starveLimit = playsOriginalFile ? StallWatch.directStarveSeconds : StallWatch.starveSeconds
-        let ahead = max(0, (engine.bufferedEnd ?? engine.currentTime) - engine.currentTime)
-        switch stallWatch.sample(time: engine.currentTime, bufferedAhead: ahead, paused: engine.isPaused,
-                                 ended: phase == .ended, seeking: seekStartedAt != nil, starveLimit: starveLimit) {
+        #endif
+        switch stallWatch.sample(time: watchedTime, bufferedAhead: ahead, paused: engine.isPaused,
+                                 ended: phase == .ended, seeking: seekStartedAt != nil,
+                                 receiving: (stats.loadingBps ?? 0) > 0, deadLimit: deadLimit) {
         case .ok:
             break
         case .nudge:
@@ -1596,16 +1684,16 @@ final class PlaybackController {
             engine.seek(to: engine.currentTime + StallWatch.nudgeStep, exact: true)
             engine.play()
         case .decodeStalled:
-            engineFailed(reason: StallWatch.reason(.decodeStalled, starveLimit: starveLimit), cause: .decode)
+            engineFailed(reason: StallWatch.reason(.decodeStalled, deadLimit: deadLimit), cause: .decode)
             return
-        case .starved:
-            engineFailed(reason: StallWatch.reason(.starved, starveLimit: starveLimit), cause: .starved)
+        case .dead:
+            engineFailed(reason: StallWatch.reason(.dead, deadLimit: deadLimit), cause: .network)
             return
         }
         // 掉帧只在视频直通时判：转码档已经是 h264，再掉帧说明连转码产物都放不动，继续降档只会更糟
         let copying = playsOriginalFile || session?.decision.video?.action == "copy"
         #if DEBUG
-        // 开发期：每 5 秒打一行帧统计（真机对比 mpv 渲染参数时从控制台读，不用人看画面）
+        // 开发期：每 5 秒打一行帧统计（真机无人值守验证时从控制台读，不用人看画面）
         if phase == .playing, UserDefaults.standard.bool(forKey: "mcFrameStatsEverySecond") || Int(engine.currentTime) % 5 == 0 {
             let loading = stats.loadingBps.map { String(format: "%.0fMbps", $0 / 1_000_000) } ?? "-"
             print("[FrameStats] \(engine.kind.rawValue) t=\(Int(engine.currentTime)) 掉帧=\(stats.droppedFrames ?? -1) 帧=\(stats.totalFrames ?? -1) 缓冲=\(Int(stats.bufferedSeconds))s 加载=\(loading) \(stats.details.joined(separator: " | "))")
@@ -1619,8 +1707,7 @@ final class PlaybackController {
         // 「直通放不动」——真机实测一按倍速 3 秒就被判掉帧、白白换成了服务端转码
         guard copying, phase == .playing, !engine.isPaused, seekStartedAt == nil, !holdSpeedActive,
               let dropped = stats.droppedFrames, let total = stats.totalFrames else { return }
-        let limit = engine.kind == .mpv ? FrameDropTracker.mpvRatio : FrameDropTracker.ratio
-        if let ratio = frameDrops.sample(dropped: dropped, total: total), ratio >= limit {
+        if let ratio = frameDrops.sample(dropped: dropped, total: total), ratio >= FrameDropTracker.ratio {
             frameDrops.reset()
             engineFailed(reason: "直通播放持续掉帧（\(Int((ratio * 100).rounded()))%），正在换转码重试", cause: .decode)
         }
@@ -1684,6 +1771,32 @@ final class PlaybackController {
     }
 
     // MARK: - 提示
+
+    /// 这次沿用了哪些**不是默认**的记忆（画质、音轨、字幕），拼成开播提示；都是默认的返回 nil。
+    ///
+    /// 服务端每次进度上报都会把正在放的轨记下来，「记着」不等于「用户选过」：记着的和默认挑选一致就不提
+    private func rememberedChoiceNotice() -> String? {
+        guard let session else { return nil }
+        // 画质是上限：源本来就不超过这一档，限了等于没限，不提
+        let qualityLimit = qualityFromMemory && qualityLimited ? quality : nil
+        var audio: String?
+        if requestedAudio == nil, let remembered = session.watch?.audioTrack, remembered == currentAudio,
+           remembered != AudioOption.defaultRef(in: audioOptions),
+           let option = audioOptions.first(where: { $0.ref == remembered }) {
+            audio = RememberedChoices.shortLabel(option.label, among: audioOptions.map(\.label))
+        }
+        var subtitle: String?
+        if !subtitleTouched, burnedSubtitle == nil, rememberedSubtitle != nil,
+           selectedSubtitle != subtitles.initialSelection(remembered: nil) {
+            if let ref = selectedSubtitle {
+                subtitle = subtitles.options.first { $0.ref == ref }
+                    .map { RememberedChoices.shortLabel($0.label, among: subtitles.options.map(\.label)) }
+            } else {
+                subtitle = "关闭"
+            }
+        }
+        return RememberedChoices.notice(quality: qualityLimit, network: network, audio: audio, subtitle: subtitle)
+    }
 
     func flash(_ message: String) {
         notice = message

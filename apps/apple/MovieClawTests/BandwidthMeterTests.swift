@@ -63,7 +63,7 @@ struct BandwidthMeterTests {
 
     @Test func loadingReadingsFeedTheSameMeterAndBoundItFromBelow() {
         var meter = BandwidthMeter()
-        // 原文件 / MPV 的样本是每秒一个的加载速度读数：下载开头结尾那格偏低不影响，带宽永远不小于刚读到的加载速度
+        // 原文件直出的样本是每秒一个的加载速度读数：下载开头结尾那格偏低不影响，带宽永远不小于刚读到的加载速度
         for (second, ratio) in [0.4, 1.0, 1.02, 0.97, 0.3].enumerated() {
             meter.push(bps: Self.oneMBps * ratio, at: Double(second))
             #expect((meter.bps ?? 0) >= Self.oneMBps * ratio)

@@ -9,7 +9,7 @@
 |---|---|---|
 | 技术栈 | SwiftUI 全原生，iOS 26+ | 液态玻璃标签栏/工具栏/浮层系统自带；网页 PWA 的画中画、全屏、字幕等受 WebKit 所限 |
 | 范围 | Web 手机端全部功能原生重写（不内嵌网页） | 用户决定 |
-| 播放 | Swiftfin 式多引擎：AVPlayer + libmpv（MPVKit，LGPL 构建） | 用户决定；AVPlayer 管画中画/AirPlay/杜比视界，mpv 管 MKV/ASS/PGS 直出 |
+| 播放 | 自研引擎（AetherEngine）放原文件，系统播放器（AVPlayer）放服务端流 | 用户决定（2026-09-28）：本机能解决的一切都由自研引擎解决——原文件在本机换封装进 AVPlayer，画中画 / AirPlay / 杜比视界都是系统的，硬解不了的编码在本机软解；MPV 已移除，理由见 [player-engine.md](player-engine.md) §3.6 |
 | 认证 | 设备令牌（`POST /auth/device/login` 用账号密码换，存钥匙串，`Authorization: Bearer`），见 login-devices.md | 长期有效不再满 30 天重登；这台手机是「我的设备」里的一台，可单独注销；多账号完全在本机 |
 | 接口层 | 脚本生成（`apps/apple/scripts/gen_api.py`） | 340 个接口、459 个模型手写不可维护 |
 | 工程 | XcodeGen（`project.yml`，同步文件夹） | 不提交 .pbxproj，并行加文件不冲突 |
@@ -21,7 +21,7 @@
 ## 2. 目录
 
 原生 App 按平台生态放在 `apps/` 下，与 `apps/web`、`apps/extension` 并列：`apps/apple/` 是一个 Xcode 工程，
-现在只有 iPhone/iPad 目标，将来的 Apple TV（tvOS）版作为同一工程的另一个目标，共用接口层、播放器与 MPV
+现在只有 iPhone/iPad 目标，将来的 Apple TV（tvOS）版作为同一工程的另一个目标，共用接口层与播放器
 （届时工程内再拆 `Shared/`、`iOS/`、`tvOS/`）；将来的 Android 版放 `apps/android/`（一个 Gradle 工程，手机与
 Android TV 两个模块）。各平台共用 Bundle ID / 包名 `io.movieclaw.app`，请求标识为 `MovieClaw-<iOS|tvOS|Android>/<版本>`，
 活动页据此显示「MovieClaw iOS / Apple TV / Android」。`pnpm-workspace.yaml` 因此只列 JS 项目、不用 `apps/*` 通配。
@@ -81,7 +81,7 @@ apps/apple/
 ### 3.3 文件归属（并行开发的硬规则）
 - 只改自己模块目录 `Features/<模块>/` 下的文件；需要新的通用组件放 `DesignSystem/<模块前缀>*.swift` 新文件。
 - 不改：`Core/API/Generated/`、`App/Routing/`、其它模块目录、已有 DesignSystem 文件。确需改动写进交付说明，由集成方处理。
-- 播放器模块可改 `project.yml` 的 packages（引入 MPVKit）。
+- 播放器模块可改 `project.yml` 的 packages（播放引擎的依赖）。
 
 ## 4. 播放器架构（多引擎）
 
@@ -89,30 +89,26 @@ apps/apple/
 PlayerScreen（控制层 UI、手势、字幕叠加、选轨、诊断）
   └─ PlaybackController（会话协议：/playback/sessions、ping 15s、progress 10s、降档重试、下一集）
        └─ PlayerEngine 协议
-            ├─ AVPlayerEngine   HLS / MP4 直出；画中画、AirPlay、杜比视界、全景声、系统字幕
-            └─ MPVEngine        libmpv（MPVKit LGPL）：MKV/HEVC/TrueHD/DTS 直出，ASS/PGS 由 libass 渲染
+            ├─ NativeEngine     自研引擎（AetherEngine）：原文件在本机换封装进 AVPlayer，杜比视界 / 全景声 / 原盘 / 镜像直推
+            └─ AVPlayerEngine   服务端 HLS（转码 / 换封装）：自研引擎解不了、用户限了画质、或本机存储不够放分片
 ```
-- 引擎选择全自动，用户不选（2026-09-26 用户决定，同 Infuse）：系统播放器优先——服务端能直出或只换封装/转音频
-  （画面不重编码）就用 AVPlayer，画中画、隔空播放、系统字体字幕都可用；只有选了图形字幕（PGS）、或服务端要为
-  AVPlayer 重新编码画面时才用 MPV 在本机直接放原文件。AVPlayer 在不重编码的档位放不出来时自动改用 MPV；MPV 失败回落服务端 HLS + AVPlayer。
-- 字幕：文字字幕（SRT/ASS）两个引擎都由 SwiftUI 叠加层用系统字体画（iOS 上 libass 用不了系统中文字体，会画成方框）；
-  MPV 只画图形字幕。MPV 播放中点画中画：在当前位置换成系统播放器，就绪后自动进画中画。
-- 开发期可用启动参数 `-movieclaw.player.engine system|mpv` 强制引擎、`-mcSubtitle <轨>` 指定起播字幕、`-mcAutoPiP <秒>` 自动点画中画。
+- 引擎选择全自动，用户不选（2026-09-26 用户决定，同 Infuse；2026-09-28 起自研引擎是本机唯一的播放器，MPV 已移除）：只有「解不了」才沿
+  兜底阶梯换引擎；网络慢、断线都不换引擎、不自动降码率（反复卡顿时提示一次，换不换画质由用户定）；画质、音轨、字幕按片记，
+  非默认的在下次打开时提示几秒。规则见 [player-engine.md](player-engine.md) §3。
+- 字幕：自研引擎直出时，内封与外挂字幕都由引擎给出字幕数据、App 按画面矩形摆放（文字用系统字体）；系统播放器放服务端流时，
+  文字字幕由 SwiftUI 叠加层画，图形字幕由服务端烧录。画中画两种播放器都在本机完成（自研引擎用它自带的画中画源）。
+- 开发期可用启动参数 `-mcSubtitle <轨>` 指定起播字幕、`-mcAutoPiP <秒>` 自动点画中画（引擎不能强制：正式版只有自研引擎，放不了才按兜底阶梯回落）。
 - 会话参数（capability、failed_tiers、audio/subtitle track、max_height、downlink_bps）按引擎能力申报。
 - 顶栏右侧与起播/缓冲转圈下方那行「↓ 速度」是**实时加载速度**（2026-09-27 用户定，Web 同时改成同一口径，
   见 player-feel.md G3 的改动说明）：在下载就报实际下载速度，没在下载（缓冲满了）就是「0 KB/s」。
   诊断面板的「带宽」是线路能跑多快，也是申报给服务端的 downlink_bps：HLS 按 AVMetrics 逐片计时（首字节→末字节，
-  等转码的时间不算），原文件与 MPV 用加载速度读数，都取最近 12 秒（至少最近 3 次）里最快的一次——AVPlayer
+  等转码的时间不算），原文件直出用加载速度读数，都取最近 12 秒（至少最近 3 次）里最快的一次——AVPlayer
   会自己放慢读取，按平均算会被拖低，还会比加载速度小。算法与本机限速实测见 `PlayerEngine.swift` 的
   `LoadingSpeedMeter` / `BandwidthMeter`。
-- 起播链路与流畅度（2026-09-27 秒开优化）：后台一口气完成决策与开会话、MPV 直出申报全解码拿档 0、HLS 列表带 EXT-X-START、AVPlayer 起播不等缓冲、mpv 用 fast 画质档等，改法与实测数字见 [playback-startup.md](playback-startup.md)；起播慢先看 NAS 日志里的「起播分段」一行。
-- LGPL 合规：MPVKit 动态库形式链接；关于页列出 libmpv/FFmpeg 许可与源码地址。
-- 自研引擎（阶段 0 实验，`feat/ios-player-engine`）：`NativeEngine` 经 AetherCore 动态框架接入 AetherEngine，本机把原文件换封装成 HLS 交给 AVPlayer；开发期 `-movieclaw.player.engine native` 启用，失败回落 MPV。方向、兜底阶梯与验证清单见 [player-engine.md](player-engine.md)。
-- MPV 真机渲染走 Metal（MoltenVK + gpu-next）：黑底容器铺满播放区，渲染面按视频比例居中摆放，
-  横竖屏切换时渲染面随系统旋转动画等比缩放，全程不变形、不黑屏，不重建视频输出。依赖 libmpv 的两个补丁
-  （`Vendor/MPVKit/patches/`：渲染面尺寸一变就重排、每帧以交换链实际尺寸为准）。构建产物 `Libmpv.xcframework`
-  直接入库，平时无需构建；改补丁或升级 mpv 时用 `scripts/build-libmpv.sh` 重建并提交，
-  设计细节见 `MPVCore/MPVRenderViews.swift` 的注释。
+- 起播链路与流畅度（2026-09-27 秒开优化）：后台一口气完成决策与开会话、自研引擎申报全解码拿档 0、HLS 列表带 EXT-X-START、AVPlayer 起播不等缓冲等，改法与实测数字见 [playback-startup.md](playback-startup.md)；起播慢先看 NAS 日志里的「起播分段」一行。
+- LGPL 合规：AetherEngine 与它自带的 FFmpeg 都以动态框架随包（`AetherCore.framework`、`AetherLib*`）；关于页列出
+  AetherEngine / FFmpeg 的许可与源码地址（上架前补）。
+- 自研引擎（默认且唯一的播放器，`feat/ios-player-engine`）：`NativeEngine` 经 AetherCore 动态框架接入 AetherEngine，本机把原文件换封装成 HLS 交给 AVPlayer；本机解不了（硬解、引擎自己软解都不行）才改走服务端 HLS。方向、兜底阶梯与验证清单见 [player-engine.md](player-engine.md)。
 
 ## 5. 验收方法
 

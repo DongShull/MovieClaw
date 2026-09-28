@@ -4,7 +4,7 @@
 //     DEVELOPMENT_TEAM = 你的团队 ID
 // 真机安装时自动签名就会用它；没有这个文件时只能编译模拟器版本（模拟器不需要签名）。
 //
-// Bundle ID 前缀：App 与各 target 的 Bundle ID 都是「前缀 + 固定后缀」（.app / .mpvcore / …）。
+// Bundle ID 前缀：App 与各 target 的 Bundle ID 都是「前缀 + 固定后缀」（.app / .MovieClawTests / …）。
 // Bundle ID 在 Apple 全球唯一，用别的开发者账号签名（自己装真机、发自己的 TestFlight）时
 // 不能也用 io.movieclaw，在 Signing.local.xcconfig 里再写一行覆盖即可：
 //     MC_BUNDLE_ID_PREFIX = com.example.movieclaw

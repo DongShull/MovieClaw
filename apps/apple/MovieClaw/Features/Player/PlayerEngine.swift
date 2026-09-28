@@ -2,29 +2,34 @@ import UIKit
 
 /// 实际在跑的播放引擎。
 enum EngineKind: String {
-    /// AVPlayer：HLS / MP4；画中画、隔空播放、杜比视界、全景声
+    /// 系统播放器：放服务端流（用户限了画质、或自研引擎在本机解不了时）
     case avPlayer = "avplayer"
-    /// libmpv（MPVKit LGPL 构建）：MKV/HEVC/TrueHD/DTS 直出，ASS/PGS 由 libass 渲染
-    case mpv
-    /// 自研引擎（AetherEngine）：本机把原文件换封装成 HLS 交给 AVPlayer，杜比视界、全景声、画中画都由系统完成
+    /// 自研引擎（AetherEngine）：直读原文件，本机换封装成 HLS 交给 AVPlayer（杜比视界、全景声、画中画都由系统完成），
+    /// 硬解不了的编码由引擎自己软解
     case native
 
     var label: String {
         switch self {
         case .avPlayer: "系统播放器（AVPlayer）"
-        case .mpv: "MPV（libmpv）"
         case .native: "自研引擎（AetherEngine）"
         }
     }
 }
 
-/// 引擎失败的归因（对应 Web engine.ts 的 cause）：缺粮与解码卡死的处置完全不同——
-/// 缺粮可能是带宽不够（该压码率），解码卡死才是这一档放不了（该降档）。
-enum EngineFailureCause {
-    case starved
+/// 引擎失败的归因：网络问题只原地重开，解不了才换引擎 / 降档（规则见 `FailurePolicy`）。
+/// 线路慢不是失败，看门狗不报（见 `StallWatch`）。
+enum EngineFailureCause: Equatable {
+    /// 解不了，但可能是一时的：引擎楞住、有数据却不出画、持续掉帧、中途出错——自研引擎先原位重开一次，
+    /// 再失败才改走服务端流（`FailurePolicy`）
     case decode
-    /// 取流失败（断线、超时、token 过期、服务端中断）：这一档没毛病，同档原地重开，不降档
+    /// 确定解不了：硬件解码器拒绝且本机软解也接不住、片源格式本机不认——重开也一样，直接改走服务端流
+    case decodeFinal
+    /// 取流失败（断线、超时、token 过期、服务端中断）：这一档没毛病，等片源取得到了原地重开，不换播放器、不降档
     case network
+    /// 片源不在了（服务端对原文件回 404）：换什么播放器都一样，直接说明
+    case sourceMissing
+    /// 手机存储写满、切好的分片写不进去：收小缓冲原位重开（内置引擎补丁 P25）
+    case storageFull
 }
 
 /// 引擎 → 控制器的事件。时间类读数不走事件，由控制器按需读 `currentTime` 等属性。
@@ -46,11 +51,11 @@ enum EngineEvent {
 
 /// 引擎内部的起播里程碑：控制器只看得到「开始播放」，慢在引擎哪一步要靠这几个点区分
 enum EngineMilestone: String {
-    /// 拿到了能开始定位与解码的东西：AVPlayer 的 readyToPlay（文件头 / 播放列表已读）、mpv 的 file-loaded
+    /// 拿到了能开始定位与解码的东西：AVPlayer 的 readyToPlay（文件头 / 播放列表已读）
     case ready
     /// 起播点定位完成（续播 seek 落地）
     case seeked
-    /// 第一帧上屏：AVPlayerLayer 的 isReadyForDisplay、mpv 装载后的第一次 playback-restart
+    /// 第一帧上屏：AVPlayerLayer 的 isReadyForDisplay
     case firstFrame
 }
 
@@ -73,7 +78,7 @@ struct EngineStats {
     var details: [String] = []
 }
 
-/// 实时加载速度计（AVPlayer 用；MPV 直接读 libmpv 的 cache-speed，同一口径）。
+/// 实时加载速度计（系统播放器用；自研引擎对它从 NAS 累计拉到的字节做差分，同一口径）。
 ///
 /// 口径（2026-09-27 用户定）：播放器上那行「↓」只报网络此刻在加载多快——在下载就是实际下载速度，
 /// 没在下载（缓冲满了、暂停后缓冲够了）就是 0。这是下载器与国内视频 App「网速」的常规口径；
@@ -83,7 +88,7 @@ struct EngineStats {
 /// - 为什么是 2 秒不是 1 秒：这个计数不是逐包更新，HLS 下会攒一会儿再一次记上几百 KB～1MB，
 ///   1 秒窗口会把这一坨算进同一秒，读数忽高忽低。本机限速实验（1MB/s、6 秒分片）对照服务器实际传输：
 ///   原始计数用 1 秒窗口平均误差 0.20MB/s，2 秒窗口 0.10MB/s；换成本类接真引擎端到端复测，
-///   HLS 平均误差 0.02MB/s、原文件直出 0.03MB/s，真实空闲的每一秒都读 0（MPV 的 cache-speed 同法复测 0.04MB/s）。
+///   HLS 平均误差 0.02MB/s、原文件直出 0.03MB/s，真实空闲的每一秒都读 0。
 /// - 起播第一坨：访问日志等第一片下完才建条目，第一片的字节是一次性出现的。这一次用日志里的传输时长当分母
 ///   （正好是这坨字节在路上花的时间），否则会报出两倍速度；之后不能再用它——HLS 的传输时长按整片结算，
 ///   字节却是实时涨的，两者对不上。
@@ -143,14 +148,14 @@ struct LoadingSpeedMeter {
 /// 样本来源（见各引擎）：
 /// - AVPlayer 放 HLS：AVMetrics 的分片请求事件，逐片「首字节到达 → 末字节到达」，服务端等转码的那几秒落在
 ///   首字节之前、天然不算进去（同 Web 的 Resource Timing）；读自缓存的分片丢掉。
-/// - AVPlayer 放原文件、MPV：没有逐请求计时，样本就是每秒一个的加载速度读数，带宽即最近 12 秒的最高加载速度——
+/// - AVPlayer 放原文件、自研引擎：没有逐请求计时，样本就是每秒一个的加载速度读数，带宽即最近 12 秒的最高加载速度——
 ///   这样带宽天然不会比顶栏的加载速度小。下载开头结尾那个读数窗口只下了一部分，读数偏低，取最高值时不受影响。
 ///   不直接拿相邻两次读取的字节差：AVPlayer 的计数一格 128～256KB，0.5 秒的区间一取最高就虚高四成；
-///   加载速度本身是 2 秒窗口（MPV 是 libmpv 的 1 秒窗口），平滑得多。
+///   加载速度本身是 2 秒窗口，平滑得多。
 ///   访问日志的 observedBitrate 是整段播放的平均，同样会被慢读拖低（实测掉到 0.56，此后加载速度一回升就比它大），
 ///   只在起播头几秒还没有样本时顶一下。
 ///
-/// 本机限速实验（1MB/s，真引擎端到端）：HLS 0.98～1.01MB/s；原文件 AVPlayer 0.95～1.14、MPV 起播后 0.99～1.06；
+/// 本机限速实验（1MB/s，真引擎端到端）：HLS 0.98～1.01MB/s；原文件 AVPlayer 0.95～1.14；
 /// 服务端每片先挂 3 秒（模拟等转码）时，加载速度照实掉下来，带宽仍贴着线路。
 struct BandwidthMeter {
     static let window: TimeInterval = 12
@@ -172,7 +177,7 @@ struct BandwidthMeter {
         push(bps: bytes * 8 / transfer, at: now)
     }
 
-    /// 记一个加载速度读数（原文件、MPV）。只在新样本到来时淘汰旧样本——停下来不取时读数保持不变
+    /// 记一个加载速度读数（原文件、自研引擎）。只在新样本到来时淘汰旧样本——停下来不取时读数保持不变
     mutating func push(bps: Double, at now: TimeInterval) {
         guard bps > 0, bps.isFinite else { return }
         samples.append((now, bps))
@@ -214,17 +219,14 @@ protocol PlayerEngine: AnyObject {
     var isPaused: Bool { get }
     var videoSize: CGSize { get }
     func stats() -> EngineStats
-    /// 引擎在做自身的维护动作（MPV 旋转后重建视频输出）：到这个时间点之前看门狗不判卡顿/掉帧
-    var watchdogGraceUntil: Date? { get }
 
-    /// 能否原地换音轨（MPV 直出原文件时可以；HLS/AVPlayer 下要重开会话）
+    /// 能否原地换音轨（自研引擎直出原文件时可以；服务端流下要重开会话）
     var canSwitchAudioInPlace: Bool { get }
     func selectAudio(embeddedIndex: Int)
     /// 起播时的音轨：explicit = 用户这次选过、或服务端记着用户上次选的轨；否则只是服务端的默认挑选
     func selectInitialAudio(embeddedIndex: Int, explicit: Bool)
 
-    /// 这类字幕（kind：vtt / ass / pgs）由引擎自己画；否则由 SwiftUI 叠加层用系统字体画。
-    /// 目前只有 MPV 画图形字幕（PGS）；文字字幕两个引擎都走叠加层
+    /// 这类字幕（kind：vtt / ass / pgs）由引擎自己画；否则由 SwiftUI 叠加层用系统字体画
     func rendersSubtitle(kind: String) -> Bool
     /// 这条轨由引擎自己画吗（默认按类型判断；自研引擎的内封轨一律自己画，见 NativeEngine）
     func rendersSubtitle(_ option: SubtitleOption) -> Bool
@@ -238,18 +240,12 @@ protocol PlayerEngine: AnyObject {
 
     /// App 前后台切换（后台只留声音）
     func setBackgrounded(_ background: Bool)
+    /// 暂停下载 / 恢复：计费网络（蜂窝、个人热点、低数据模式）上用户按了暂停时控制器调，恢复播放时各引擎自己解除
+    func setPrefetchSuspended(_ suspended: Bool)
     func destroy()
-    /// 释放引擎，并在它彻底收尾（后台线程全部退出）后于主线程调用 `tornDown`。
-    /// 只有 MPV 真正异步收尾（见 MPVEngine.destroy(tornDown:)），其余引擎释放完立刻回调
-    func destroy(tornDown: @escaping @MainActor @Sendable () -> Void)
 }
 
 extension PlayerEngine {
-    var watchdogGraceUntil: Date? { nil }
-    func destroy(tornDown: @escaping @MainActor @Sendable () -> Void) {
-        destroy()
-        tornDown()
-    }
     func selectInitialAudio(embeddedIndex: Int, explicit: Bool) { selectAudio(embeddedIndex: embeddedIndex) }
     func rendersSubtitle(_ option: SubtitleOption) -> Bool { rendersSubtitle(kind: option.kind) }
 }

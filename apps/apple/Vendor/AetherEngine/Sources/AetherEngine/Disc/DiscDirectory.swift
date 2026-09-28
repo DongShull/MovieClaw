@@ -191,6 +191,43 @@ final class MultiFileConcatIOReader: IOReader, @unchecked Sendable {
 }
 
 extension DiscReader {
+    /// [MovieClaw P26] DVD 目录（VIDEO_TS 文件夹）：与读 DVD 镜像同一套（`dvdTitleSet` 选标题、`dvdCellTimeline`
+    /// 折叠 cell 时间轴），只换字节来源——镜像是一段段扇区区间，目录是一个个文件。标题集的 VOB 按分段顺序首尾
+    /// 相接，与镜像里连续的扇区是同一段字节，所以 cell 表与时间表里的偏移原样可用。
+    /// 原来目录分支只认蓝光：服务端把 DVD 目录当「原文件」给，取的是个文件夹，一律 404、App 只好降级
+    static func wrapDVDFolder(_ folder: DiscDirectoryReader, selectTitleID: Int?) -> DiscInfo? {
+        // 目录里只有 VIDEO_TS 这一层；镜像的文件记录带扇区号，目录没有扇区，借同一个记录类型分组、按长度拼接
+        let entries = folder.discFiles.filter { $0.path.uppercased().hasPrefix("VIDEO_TS/") }
+        var pathByName: [String: (path: String, size: Int64)] = [:]
+        let files = entries.map { entry -> DiscFile in
+            let name = String(entry.path.split(separator: "/").last ?? "")
+            pathByName[name.uppercased()] = entry
+            return DiscFile(name: name, startSector: 0, length: Int(entry.size))
+        }
+        // IFO 是 KB 级的小文件；与读播放列表同一个 8 MB 上限，防畸形清单撑爆内存
+        let maxInfoBytes: Int64 = 8 * 1024 * 1024
+        let readFile: (DiscFile) -> [UInt8] = { file in
+            guard let entry = pathByName[file.name.uppercased()], entry.size > 0, entry.size <= maxInfoBytes,
+                  let reader = folder.openDiscFile(entry.path) else { return [] }
+            defer { reader.close() }
+            return readAll(reader, [(offset: 0, length: entry.size)])
+        }
+        guard let set = dvdTitleSet(files: files, selectTitleID: selectTitleID, readFile: readFile) else {
+            EngineLog.emit("[disc] DVD folder: no VTS_NN_P.VOB title set among \(entries.count) VIDEO_TS entries", category: .demux)
+            return nil
+        }
+        let segments = set.vobs.compactMap { vob -> MultiFileConcatIOReader.Segment? in
+            pathByName[vob.name.uppercased()].map { .init(path: $0.path, size: $0.size) }
+        }
+        guard !segments.isEmpty else { return nil }
+        let (cellTimeline, timeMap) = set.selectedIFO.map(dvdCellTimeline) ?? ([], nil)
+        EngineLog.emit("[disc] [MovieClaw P26] DVD folder recognized: \(set.titles.count) title(s), selected \(set.selectedIndex) "
+                       + "VOBs=\(segments.map(\.path)) bytes=\(segments.reduce(0) { $0 + $1.size })", category: .demux)
+        return DiscInfo(reader: MultiFileConcatIOReader(segments: segments, opener: { folder.openDiscFile($0) }),
+                        formatHint: "mpeg", titles: set.titles, selectedTitleIndex: set.selectedIndex,
+                        clipTimeline: cellTimeline, dvdTimeMap: timeMap)
+    }
+
     /// [MovieClaw P5] 原盘目录：读播放列表、选主片，把主片各剪辑文件首尾相接成一条虚拟 TS 流，
     /// 并按剪辑给出时间轴折叠（与 `wrapBluRay` 同一套 ClipSpan）。
     static func wrapBluRayFolder(_ folder: DiscDirectoryReader, selectTitleID: Int?) -> DiscInfo? {

@@ -936,8 +936,10 @@ final class NativeAVPlayerHost {
     /// offer was made, in which case nothing is surfaced here and the engine rebuilds the session.
     private func offerToSoftwarePath(_ desc: String, item: AVPlayerItem, position: Double) -> Bool {
         let nsError = item.error as NSError?
+        // [MovieClaw P24] 「无法解码」外层是 AVFoundation 域、判决在底层 CoreMedia：一样交给引擎自己的解码器
+        let domain = SoftwarePathEscalation.effectiveErrorDomain(nsError)
         guard SoftwarePathEscalation.shouldEscalate(
-            errorDomain: nsError?.domain,
+            errorDomain: domain,
             availability: softwarePathAvailability?()
         ) else { return false }
         let at = position.isFinite ? String(format: "%.2f", position) + "s" : "an unreadable position"
@@ -948,7 +950,7 @@ final class NativeAVPlayerHost {
             category: .engine
         )
         pendingSoftwarePathEscalation = SoftwarePathEscalation.Request(
-            domain: nsError?.domain ?? "",
+            domain: domain ?? "",
             code: nsError?.code ?? 0,
             message: desc,
             positionSeconds: position.isFinite ? max(0, position) : 0

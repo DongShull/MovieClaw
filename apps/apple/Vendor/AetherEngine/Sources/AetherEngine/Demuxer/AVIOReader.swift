@@ -42,6 +42,11 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
 
     private let url: URL
     private let extraHeaders: [String: String]
+    /// [MovieClaw P22] 本片源在字节缓存里的键（主机装载时登记过才有；只用于点播的持久连接播放路径）
+    private let byteCacheKey: String?
+    /// [MovieClaw P22] 这次打开接管的是字节缓存里的文件头（不是主机预热的）：打开阶段不发请求，
+    /// 读到缓存没有的位置才按那个位置连源站
+    private var warmFromByteCache = false
     /// #450: connections the BOUNDED pool may hold to one host. A throttle, and it is allowed to be
     /// one: every request on that pool ends (a 4 MB detour block, a size probe, the tail prefetch),
     /// so a request that waits here waits for one that is finishing.
@@ -1046,6 +1051,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         self.url = url
         self.label = label
         self.extraHeaders = extraHeaders
+        self.byteCacheKey = prefetchEnabled && !isLive ? SourceByteCache.shared.key(for: url) : nil
         self.chunkSize = chunkSize
         self.prefetchEnabled = prefetchEnabled
         self.isLive = isLive
@@ -1161,7 +1167,9 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             let gotData: Bool
             let openPrefix: [UInt8]
             if let warm {
-                if warmFrontier < warm.contentLength {
+                // [MovieClaw P22] 接管的是字节缓存：解析马上要跳到续播点 / 索引，那里多半也在缓存里，
+                // 这时在文件头后面开连接只会白下；读到缓存没有的位置时读取循环会按那个位置连
+                if warmFrontier < warm.contentLength, !warmFromByteCache {
                     startPersistentConnection(at: warmFrontier, boundedTo: boundedInitialFetch)
                 }
                 // The open has its first bytes in hand, so there is nothing to wait for. Waiting
@@ -1992,6 +2000,16 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
                 && !connFirstDataSeen
             if activeTransfer == nil, !connEndedByBackpressure, !windowCanServe, !endedInError {
                 let target = position
+                // [MovieClaw P22] 本来要为这个位置发请求：字节缓存里有就从本机给
+                let cached = serveFromByteCache(into: buf.advanced(by: totalRead),
+                                                maxLen: requestSize - totalRead, at: target)
+                if cached > 0 {
+                    position = target + Int64(cached)
+                    winCond.broadcast()
+                    winCond.unlock()
+                    totalRead += cached
+                    continue
+                }
                 winCond.unlock()
                 timedReconnect(seek: true, at: target)
                 continue
@@ -2001,6 +2019,14 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
 
             if curPosition < winStart {
                 winCond.unlock()
+                // [MovieClaw P22] 回跳先查字节缓存（MP4 解析在索引与数据间来回跳、往回拖动）：命中不必取 4 MB 零散块
+                let cachedBack = serveFromByteCache(into: buf.advanced(by: totalRead),
+                                                    maxLen: requestSize - totalRead, at: curPosition)
+                if cachedBack > 0 {
+                    winCond.lock(); position = curPosition + Int64(cachedBack); winCond.broadcast(); winCond.unlock()
+                    totalRead += cachedBack
+                    continue
+                }
                 // Backward random-access read (MP4 parse ping-pong, or a large backward scrub).
                 // Serve via the pooled detour cache so the anchored streaming connection is NOT
                 // torn down (the reconnect storm + origin 429, AetherEngine#69).
@@ -2149,6 +2175,14 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
 
             if curPosition > frontier + Int64(Self.seekKeepForwardLimit) {
                 winCond.unlock()
+                // [MovieClaw P22] 远跳先查字节缓存：命中就从本机给，读到缓存尽头时再走下面的重连
+                let cachedAhead = serveFromByteCache(into: buf.advanced(by: totalRead),
+                                                     maxLen: requestSize - totalRead, at: curPosition)
+                if cachedAhead > 0 {
+                    winCond.lock(); position = curPosition + Int64(cachedAhead); winCond.broadcast(); winCond.unlock()
+                    totalRead += cachedAhead
+                    continue
+                }
                 // Far-forward seek. Serve from the detour cache ONLY if the block is already
                 // resident (e.g. the moov region the parser revisits); a genuine forward scrub
                 // misses and re-anchors the streaming window there, never chunk-serving forever.
@@ -2477,6 +2511,9 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             // the short body once; the next read of this block re-fetches.
             if fetched.count == blockLen, !isFullyClosed {
                 detourCache.insert(blockStart / Int64(Self.detourBlockSize), fetched)
+                if let byteCacheKey {   // [MovieClaw P22]
+                    SourceByteCache.shared.write(key: byteCacheKey, offset: blockStart, data: fetched)
+                }
                 #if DEBUG
                 EngineLog.emit("[AVIOReader] detour fill block=\(blockStart / Int64(Self.detourBlockSize)) offset=\(blockStart) size=\(fetched.count) (resident=\(detourCache.residentCount))", category: .demux)
                 #endif
@@ -2575,7 +2612,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     /// the store would hold megabytes for a source that is now playing.
     private func adoptPrewarmedSource() -> PrewarmedSource? {
         guard !isLive else { return nil }
-        guard let warm = SourcePrewarmStore.shared.take(for: url) else { return nil }
+        guard let warm = SourcePrewarmStore.shared.take(for: url) ?? byteCacheWarm() else { return nil }
         // The head is the one span an open cannot do without, and it is only usable where it says
         // it starts: at zero, which is where the parse begins.
         guard warm.head.start == 0, !warm.head.isEmpty, warm.contentLength > 0 else { return nil }
@@ -2609,6 +2646,33 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             + "the data connection starts at \(warm.head.end) (#551)",
             category: .demux)
         return warm
+    }
+
+    /// [MovieClaw P22] 字节缓存里有这个片源的大小和文件头：拼成预热数据交给 `adoptPrewarmedSource` 接管
+    /// （文件尾也在缓存里就一起），换音轨 / 回前台的重建打开时一个请求都不发
+    private func byteCacheWarm() -> PrewarmedSource? {
+        let cache = SourceByteCache.shared
+        guard let key = byteCacheKey, let length = cache.contentLength(key: key), length > 0 else { return nil }
+        let headLength = Int(min(Int64(Self.headSpanMaxBytes), cache.contiguousEnd(key: key, from: 0), length))
+        guard headLength >= Self.tailPrefetchBytes || Int64(headLength) == length,
+              let head = cache.copy(key: key, offset: 0, length: headLength) else { return nil }
+        let tailLength = Int(min(Int64(Self.tailPrefetchBytes), length))
+        let tail = cache.copy(key: key, offset: length - Int64(tailLength), length: tailLength)
+            .map { ResidentSpan(start: length - Int64(tailLength), data: $0) }
+        warmFromByteCache = true
+        EngineLog.emit(
+            "[AVIOReader] \(label) [MovieClaw P22] reopening from the byte cache: head=\(headLength)B "
+            + "tail=\(tail?.data.count ?? 0)B of \(length)B, no request until a read misses",
+            category: .demux)
+        return PrewarmedSource(head: ResidentSpan(start: 0, data: head), tail: tail, contentLength: length,
+                               requestHeaders: extraHeaders, resolvedURL: nil)
+    }
+
+    /// [MovieClaw P22] 读取位置在字节缓存里：从本机给，不找源站要。只在「本来要为这个位置新发请求」的
+    /// 分支上调（没有连接、远跳、回跳）；连接正在送的那段不碰，免得和在途的数据重复
+    private func serveFromByteCache(into buf: UnsafeMutablePointer<UInt8>, maxLen: Int, at offset: Int64) -> Int {
+        guard let key = byteCacheKey else { return 0 }
+        return SourceByteCache.shared.read(key: key, offset: offset, into: buf, maxLen: maxLen)
     }
 
     /// Fire-and-forget suffix fetch for the last `tailPrefetchBytes` of the source, running
@@ -2696,6 +2760,9 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             if case .span(let start, let data) = outcome {
                 SuffixRangeSupport.shared.noteServed(url)
                 self.addBytesFetched(data.count)
+                if let key = self.byteCacheKey {   // [MovieClaw P22]
+                    SourceByteCache.shared.write(key: key, offset: start, data: data)
+                }
                 EngineLog.emit(
                     "[AVIOReader] \(self.label) tail prefetch \(installed ? "installed" : "dropped") "
                     + "\(data.count)B at \(start) after \(Int(elapsedMs))ms",
@@ -3200,6 +3267,8 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             }
         }
         let base = window.count
+        // [MovieClaw P22] 这一块在文件里的偏移：解锁后写进字节缓存
+        let byteCacheOffset = winStart + Int64(base)
         window.append(data)
         // #281 retest: retain the head of the file for the open phase, as it arrives. It cannot be
         // copied later out of the window, because `trimWindowLocked` drops it as the parse reads
@@ -3249,6 +3318,9 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             winCond.broadcast()
         }
         winCond.unlock()
+        if let byteCacheKey {
+            SourceByteCache.shared.write(key: byteCacheKey, offset: byteCacheOffset, data: data)
+        }
         if let overDeliveredTransfer {
             EngineLog.emit(
                 "[AVIOReader] \(label) gen=\(generation) origin delivered past the requested range "
@@ -3351,6 +3423,11 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             tailSpan = nil
             fileSize = 0
             adoptedWarmSize = nil
+        }
+        if generation == connGeneration, !isLive, let byteCacheKey,
+           let total = Self.sizeFromResponse(http, requestedOffset: requestedOffset) {
+            // [MovieClaw P22] 与字节缓存记的大小对不上：源站上的文件换过了，缓存整份作废
+            SourceByteCache.shared.noteContentLength(key: byteCacheKey, length: total)
         }
         if generation == connGeneration, !isLive, fileSize <= 0,
            let total = Self.sizeFromResponse(http, requestedOffset: requestedOffset) {

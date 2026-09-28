@@ -3,13 +3,13 @@ import AVFoundation
 import Combine
 import UIKit
 
-/// AetherEngine 的封装，是 App 与这个 LGPL 组件之间**唯一**的边界（同 MPVCore 之于 libmpv）。
+/// AetherEngine 的封装，是 App 与这个 LGPL 组件之间**唯一**的边界。
 ///
 /// ## 为什么单独做成动态框架（AetherCore.framework）
-/// 1. **一个进程里两份 FFmpeg**：mpv 兜底链路把 FFmpeg 静态打在 MPVCore 里，AetherEngine 自带另一份
-///    （`AetherLib*` 动态框架）。AetherEngine 调 `avcodec_*` 时绑到哪一份由链接决定，绑错了症状像引擎 bug。
-///    收进本框架后，它的 FFmpeg 引用在本框架链接时就绑定到 `AetherLib*`，与 MPVCore 互不相干。
-/// 2. **LGPL 替换边界**：用户可以用自己编译的同名框架替换。
+/// 1. **LGPL 替换边界**：用户可以用自己编译的同名框架替换。
+/// 2. **FFmpeg 符号绑定**：AetherEngine 的 FFmpeg 引用在本框架链接时就绑定到自带的 `AetherLib*` 动态框架。
+///    一个进程里有两份 FFmpeg 时（2026-09-28 移除 MPV 之前，mpv 还静态打着一份），`avcodec_*` 绑到哪一份
+///    由链接决定，绑错了症状像引擎 bug；日后再引入别的 FFmpeg 使用方也不会串。
 /// 因此 App 只 import AetherCore、从不直接 import AetherEngine，这层边界不能破。
 ///
 /// ## 这个引擎做什么
@@ -29,12 +29,25 @@ public final class AetherPlayback {
         case loading, playing, paused, buffering, ended
     }
 
-    /// 失败的归因：取流类（断线、令牌失效、服务端拒绝）原地重开就好；其余视为这条通路放不了
+    /// 失败的归因。宿主据此决定下一步：取流类原地重开、存储满了收小缓冲重开、片源不在了直接说明，
+    /// 只有「解不了」才考虑换播放器（而且一时的问题先原位重开一次）
+    public enum FailureCategory: Sendable, Equatable {
+        /// 取流失败：断线、令牌失效、服务端 5xx、限流、VOD 源中途断掉
+        case network
+        /// 服务端对原文件回 404：文件不在了，换什么播放器都一样
+        case sourceMissing
+        /// 手机存储写满，切好的分片写不进去（内置引擎补丁 P25）
+        case storageFull
+        /// 解不了。final = 确定解不了（硬件解码器拒绝且本机软解也接不住、杜比视界 P5 在软件通路上表示不了、
+        /// 片源格式本机不认），原位重开也没用；否则可能是一时的（引擎楞住、中途出错）
+        case decode(final: Bool)
+    }
+
     public struct Failure: Sendable {
         public let message: String
         /// 引擎的稳定错误分类（`PlaybackErrorKind.rawValue`），日志与埋点用
         public let kind: String
-        public let isNetwork: Bool
+        public let category: FailureCategory
     }
 
     /// 一条音轨 / 字幕轨（id 是容器里的流序号，外挂轨从 100000 起）
@@ -47,19 +60,6 @@ public final class AetherPlayback {
         public let channels: Int
         public let isExternal: Bool
         public let isDefault: Bool
-    }
-
-    /// 起播与音频的调校项（默认值即线上值；开发期可用启动参数逐项 A/B，见 NativeEngine）
-    public struct Tuning: Sendable, Equatable {
-        /// 点播起播时缓冲已够 1.5 秒就不再等 AVPlayer 的码率估计，一次性提前开播（内置引擎补丁 P2）
-        public var startsImmediately = true
-        /// 无损音轨（TrueHD / DTS-HD 等）本机解码后重编成 FLAC（无损，最多 7.1）而不是 EAC3 5.1
-        public var losslessAudio = false
-        /// 打开源时的探测预算（字节 / 微秒）；nil 用引擎默认（50 MB / 60 秒）
-        public var probeBytes: Int64?
-        public var probeMicroseconds: Int64?
-
-        public init() {}
     }
 
     /// 诊断与看门狗用的读数快照（1 秒刷新一次的引擎遥测 + 当前状态）
@@ -90,6 +90,9 @@ public final class AetherPlayback {
     private var loadTask: Task<Void, Never>?
     private var lastPhase: Phase?
     private var destroyed = false
+    /// 最近一次装载的片源（后台拆除后判断还有没有东西可以重建）
+    private var lastSource: Source?
+    private var rebuildInFlight = false
     /// 字幕的时间轴微调（秒，正数 = 延后），与 App 叠加层同一口径
     private var subtitleDelay: Double = 0
 
@@ -150,8 +153,8 @@ public final class AetherPlayback {
 
     /// 装载并（按需）起播。start 为源文件时间秒数；headers 附在每一次取源请求上
     /// （App 用它带上自己的 User-Agent，服务端的活动页据此认出「MovieClaw iOS」）
-    public func load(url: URL, start: Double?, autoplay: Bool, headers: [String: String] = [:], tuning: Tuning = Tuning()) {
-        load(source: .file(url), start: start, autoplay: autoplay, headers: headers, tuning: tuning)
+    public func load(url: URL, start: Double?, autoplay: Bool, headers: [String: String] = [:]) {
+        load(source: .file(url), start: start, autoplay: autoplay, headers: headers)
     }
 
     /// 外挂字幕文件：装载时交给引擎，由引擎下载、解码、画（ASS 的定位照样生效），画中画时也能换成原生字幕轨
@@ -170,18 +173,27 @@ public final class AetherPlayback {
 
     /// audioOrdinal：起播就放第几条音轨（容器里音轨的顺序，从 0 数；内置引擎补丁 P11）。nil = 引擎自己挑。
     /// externalSubtitles：外挂字幕按给出的顺序登记，`subtitleTracks` 里 isExternal 的轨按 id 排序与之一一对应
-    public func load(source: Source, start: Double?, autoplay: Bool, headers: [String: String] = [:], tuning: Tuning = Tuning(),
-                     audioOrdinal: Int? = nil, externalSubtitles: [ExternalSubtitle] = []) {
+    /// sourceCacheKey：片源字节缓存的键（内置引擎补丁 P22）——同一个文件在这一场里每个字节只下一次，
+    /// 换音轨、回前台的整场重建与往回跳都从本机拿已下过的字节。取流地址每次带新令牌，所以要给稳定的键
+    /// forwardSegments / backwardSegments：分片缓存的前后窗口（段数，nil = 引擎默认 10 / 20）。存储紧张时由宿主
+    /// 按剩余空间收小，自研引擎照样能放（内置引擎补丁 P25）
+    public func load(source: Source, start: Double?, autoplay: Bool, headers: [String: String] = [:],
+                     audioOrdinal: Int? = nil, externalSubtitles: [ExternalSubtitle] = [],
+                     sourceCacheKey: String? = nil, forwardSegments: Int? = nil, backwardSegments: Int? = nil) {
         loadTask?.cancel()
         lastPhase = nil
         subtitleView.cues = []
+        lastSource = source
         var options = LoadOptions()
+        options.sourceCacheKey = sourceCacheKey
+        options.forwardBufferSegments = forwardSegments
+        options.backwardBufferSegments = backwardSegments
         options.autoplay = autoplay
         options.httpHeaders = headers
-        options.vodStartsImmediately = tuning.startsImmediately
-        options.audioBridgeMode = tuning.losslessAudio ? .lossless : .surroundCompat
-        options.probesize = tuning.probeBytes
-        options.maxAnalyzeDuration = tuning.probeMicroseconds
+        // 点播起播时缓冲已够 1.5 秒就不再等 AVPlayer 的码率估计，一次性提前开播（内置引擎补丁 P2）
+        options.vodStartsImmediately = true
+        // 需要本机重编的音轨（DTS、TrueHD、PCM、MP2 等）：多声道编成 E-AC-3（AirPods / 功放按环绕声放），双声道编成 FLAC（无损）
+        options.audioBridgeMode = .surroundCompat
         options.audioTrackOrdinal = audioOrdinal
         options.externalSubtitles = externalSubtitles.map {
             ExternalSubtitleTrack(url: $0.url, language: $0.language, formatHint: $0.format)
@@ -199,6 +211,10 @@ public final class AetherPlayback {
             components?.fragment = Demuxer.discImageFragment
             mediaSource = .url(components?.url ?? url)
         case let .discFolder(files, playlist):
+            // 原盘目录每个文件一个取流地址：逐个登记到「片源键/文件路径」上，换音轨、往回跳都复用已下过的字节
+            if let sourceCacheKey {
+                for file in files { AetherEngine.bindSourceCacheKey(url: file.url, key: "\(sourceCacheKey)/\(file.path)") }
+            }
             let reader = HTTPDiscDirectoryReader(
                 files: files.map { HTTPDiscDirectoryReader.File(path: $0.path, size: $0.size, url: $0.url) },
                 preferredPlaylist: playlist,
@@ -215,13 +231,56 @@ public final class AetherPlayback {
                 // 装载失败时引擎同时发布 .error 状态，由状态订阅统一上报；这里兜住没有发布状态的情况
                 guard let self, !self.destroyed, !Task.isCancelled else { return }
                 if case .error = engine.playbackPhase { return }
-                self.report(Failure(message: error.localizedDescription, kind: "loadThrew", isNetwork: false))
+                self.report(Failure(message: error.localizedDescription, kind: "loadThrew", category: .decode(final: false)))
             }
         }
     }
 
-    public func play() { engine.play() }
+    public func play() {
+        // 会话在后台被拆掉了（见 `rebuildAfterBackgroundTeardown`）而回前台时没来得及重建：原位置重建并起播
+        if tornDownInBackground {
+            rebuild(autoplay: true)
+            return
+        }
+        engine.play()
+    }
+
     public func pause() { engine.pause() }
+
+    /// 回前台时调。引擎在后台暂停超过宽限期（上游 #127，15 秒）会拆掉整条视频管线省电，上游约定由宿主在原位置
+    /// 重建——不重建的话点播放只会一直转圈，要等 App 的看门狗判「连接断了」整场重连（15 秒以上）。
+    /// 重建后保持暂停，画面停在原处；片源字节缓存（引擎补丁 P22）还在，重建不用重下
+    public func rebuildAfterBackgroundTeardown() {
+        guard tornDownInBackground else { return }
+        rebuild(autoplay: false)
+    }
+
+    /// 管线已被后台拆除：引擎处于暂停、却没有任何通路（诊断里显示「未装载」）
+    private var tornDownInBackground: Bool {
+        !destroyed && lastSource != nil && engine.videoRoute == .none && engine.state == .paused
+    }
+
+    private func rebuild(autoplay: Bool) {
+        guard !rebuildInFlight else { return }
+        rebuildInFlight = true
+        let engine = self.engine
+        Task { [weak self] in
+            do {
+                try await engine.reloadAtCurrentPosition { $0.autoplay = autoplay }
+                // 被后台拆掉的会话重建时引擎仍按最初装载的「起播」来（实测 autoplay=false 也会把速率设成 1），
+                // 回前台要停在原处：重建一返回就补一次暂停，赶在真正出声之前
+                if !autoplay { engine.pause() }
+            } catch {
+                // 同装载失败：引擎发布了 .error 就由状态订阅上报，这里只兜没发布的情况
+                var engineReported = false
+                if case .error = engine.playbackPhase { engineReported = true }
+                if let self, !self.destroyed, !Task.isCancelled, !engineReported {
+                    self.report(Failure(message: error.localizedDescription, kind: "rebuildThrew", category: .decode(final: false)))
+                }
+            }
+            self?.rebuildInFlight = false
+        }
+    }
 
     public func seek(to seconds: Double) {
         let engine = self.engine
@@ -229,6 +288,13 @@ public final class AetherPlayback {
     }
 
     public func setRate(_ rate: Float) { engine.setRate(rate) }
+
+    /// 放大前向缓冲到「多少秒内容」：线路跟不上片子码率时，让暂停能多攒（引擎补丁 P20）
+    public func setForwardBufferDuration(_ seconds: Double) { engine.setForwardBufferDuration(seconds) }
+
+    /// 暂停下载 / 恢复（内置引擎补丁 P23）：计费网络上用户按了暂停时停，恢复播放时解除
+    public func setPrefetchSuspended(_ suspended: Bool) { engine.setPrefetchSuspended(suspended) }
+
 
     // MARK: - 读数
 
@@ -479,7 +545,13 @@ public final class AetherPlayback {
             emit(.ended)
         case let .error(message):
             let info = engine.errorInfo
-            report(Failure(message: message, kind: info?.kind.rawValue ?? "unknown", isNetwork: Self.isNetwork(info)))
+            let category = Self.category(of: info)
+            #if DEBUG
+            // 故障注入测试据此核对引擎把失败归成了哪一类
+            print("[AetherFailure] kind=\(info?.kind.rawValue ?? "unknown") domain=\(info?.underlyingDomain ?? "-") "
+                  + "code=\(info?.underlyingCode.map(String.init) ?? "-") category=\(category) message=\(message)")
+            #endif
+            report(Failure(message: message, kind: info?.kind.rawValue ?? "unknown", category: category))
         }
     }
 
@@ -493,14 +565,51 @@ public final class AetherPlayback {
         onFailure?(failure)
     }
 
-    /// 取流类失败：源拒绝（令牌过期、5xx）、限流、VOD 源中途断掉——换张新令牌原地重开可能就好了。
-    /// 404 不算：文件不在或服务端不提供这种直出（例如 ISO），重开多少次都一样，该直接走兜底
-    private static func isNetwork(_ info: PlaybackErrorInfo?) -> Bool {
-        guard let info else { return false }
-        if info.kind == .sourceRefused { return info.underlyingCode != 404 }
-        // vodSourceFailed 带 -22（EINVAL）是「源音频封装不进 fMP4」，不是断线：重开多少次都一样
-        if info.kind == .vodSourceFailed { return info.underlyingCode != -22 }
-        return info.kind == .sourceRateLimited
+    /// 引擎错误 → 归因。引擎在起播那一刻遇到断线、超时，只知道「打不开」（sourceOpenFailed），分不出是网络
+    /// 还是格式不认——这一类归成「确定解不了」，由宿主先探一下片源取不取得到再定（取不到就是网络问题）
+    static func category(of info: PlaybackErrorInfo?) -> FailureCategory {
+        guard let info else { return .decode(final: false) }
+        switch info.kind {
+        case .storageExhausted:
+            return .storageFull
+        case .sourceRefused:
+            // 令牌过期（401 / 403）、服务端 5xx：换张新令牌原地重开；404 是文件不在了
+            return info.underlyingCode == 404 ? .sourceMissing : .network
+        case .sourceRateLimited, .sourceCertificateRejected:
+            return .network
+        case .vodSourceFailed:
+            // 带 -22（EINVAL）是「源音频封装不进 fMP4」，不是断线；可能是一时的（例如存储刚写满），先重开一次
+            return info.underlyingCode == -22 ? .decode(final: false) : .network
+        case .dolbyVisionRequiresHardware, .sourceOpenFailed, .customSourceProbeFailed:
+            return .decode(final: true)
+        case .nativeItemFailed:
+            // AVPlayer 的解码判决：硬件解不了且引擎已试过本机软解（补丁 P24）也接不住，重开一样
+            return isDecodeVerdict(domain: info.underlyingDomain, code: info.underlyingCode)
+                ? .decode(final: true) : .decode(final: false)
+        default:
+            return .decode(final: false)
+        }
+    }
+
+    private static func isDecodeVerdict(domain: String?, code: Int?) -> Bool {
+        guard let domain, let code else { return false }
+        switch domain {
+        case AVFoundationErrorDomain: return [-11833, -11821].contains(code)   // 找不到解码器、解码失败
+        case "CoreMediaErrorDomain": return [-12906, -12909, -11833].contains(code)
+        default: return false
+        }
+    }
+
+    // MARK: - 测试钩子（故障注入）
+
+    /// 假装临时目录只剩这么多字节（nil = 读真实值），复现「手机存储快满」（内置引擎补丁 P25）
+    public static func setTestVolumeAvailableBytes(_ bytes: Int64?) {
+        AetherEngine.volumeAvailableBytesOverrideForTesting = bytes
+    }
+
+    /// 接下来这么多秒里写分片一律按「存储已满」失败，复现「播放中存储被写满」
+    public static func simulateStorageFull(forSeconds seconds: Double) {
+        AetherEngine.simulateStorageFullUntilUptimeForTesting = ProcessInfo.processInfo.systemUptime + seconds
     }
 
     // MARK: - 字幕

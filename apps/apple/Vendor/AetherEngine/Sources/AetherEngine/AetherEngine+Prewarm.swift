@@ -80,5 +80,12 @@ public extension AetherEngine {
     nonisolated static func sweepStaleSessionCaches() {
         SegmentCache.sweepStaleSessions()
         _ = SoftwarePacketDiskFIFO.sweepStaleSessionDirs(parentDirectory: FileManager.default.temporaryDirectory)
+        SourceByteCache.sweep()   // [MovieClaw P22] 片源字节缓存只在 App 这次运行里有效，启动时清掉上次的
+    }
+
+    /// [MovieClaw P22] 自定义片源（原盘目录）里每个文件的地址登记到稳定的键上：`load(source: .url)` 由
+    /// `LoadOptions.sourceCacheKey` 自动登记，宿主自己拼的读取器（每个文件一个取流地址）要逐个登记
+    nonisolated static func bindSourceCacheKey(url: URL, key: String) {
+        SourceByteCache.shared.bind(url: url, key: key)
     }
 }

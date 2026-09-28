@@ -80,7 +80,6 @@ struct PlayerTopBar: View {
                 HStack(spacing: 0) {
                     AirPlayButton()
                         .frame(width: PlayerLayout.button, height: PlayerLayout.button)
-                    // MPV 播放时也显示：点了会换成系统播放器再进画中画（见 PlaybackController.togglePictureInPicture）
                     if controller.pictureInPictureAvailable {
                         PlayerIconButton(
                             systemImage: controller.pipActive ? "pip.exit" : "pip.enter",

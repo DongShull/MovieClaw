@@ -44,6 +44,38 @@ struct PlayerScreen: View {
             #if DEBUG
             // 开发期：-mcPlayerDiagnostics YES 起播即打开诊断面板（截图核对用）
             if UserDefaults.standard.bool(forKey: "mcPlayerDiagnostics") { created.diagnosticsOpen = true }
+            // -mcBufferDrill "<暂停于秒>,<暂停秒数>,<1=先放大前向缓冲>"：暂停攒缓冲演练（验证引擎补丁 P20，
+            // 配 -mcFrameStatsEverySecond YES 看恢复播放那一刻的「缓冲=」秒数）
+            let drill = (UserDefaults.standard.string(forKey: "mcBufferDrill") ?? "").split(separator: ",").compactMap { Double($0) }
+            if drill.count == 3 {
+                Task {
+                    try? await Task.sleep(for: .seconds(drill[0]))
+                    if drill[2] == 1 { created.debugGrowForwardBuffer() }
+                    created.togglePlay()
+                    Self.autoTestLog("暂停攒缓冲 \(Int(drill[1])) 秒\(drill[2] == 1 ? "（已放大前向缓冲）" : "")")
+                    try? await Task.sleep(for: .seconds(drill[1]))
+                    created.togglePlay()
+                    Self.autoTestLog("恢复播放")
+                }
+            }
+            // -mcAutoReconnect <秒>：到点模拟一次断线重连（新会话、新引擎实例），验证片源字节缓存接得上
+            let autoReconnect = UserDefaults.standard.double(forKey: "mcAutoReconnect")
+            if autoReconnect > 0 {
+                Task {
+                    try? await Task.sleep(for: .seconds(autoReconnect))
+                    Self.autoTestLog("模拟断线重连")
+                    created.debugReconnect()
+                }
+            }
+            // -mcStorageFullAfter "<秒>,<持续秒数>"：到点让引擎写分片一律按「存储已满」失败（验证存储写满后收小缓冲原位重开）
+            let storageFull = (UserDefaults.standard.string(forKey: "mcStorageFullAfter") ?? "").split(separator: ",").compactMap { Double($0) }
+            if storageFull.count == 2 {
+                Task {
+                    try? await Task.sleep(for: .seconds(storageFull[0]))
+                    Self.autoTestLog("模拟存储写满 \(Int(storageFull[1])) 秒")
+                    NativeEngine.simulateStorageFull(forSeconds: storageFull[1])
+                }
+            }
             // -mcAutoNextAfter 秒数：到点自动切下一集（排查切集问题用）
             let autoNext = UserDefaults.standard.double(forKey: "mcAutoNextAfter")
             if autoNext > 0 {
@@ -76,7 +108,7 @@ struct PlayerScreen: View {
                     for at in autoPiPTimes.sorted() {
                         try? await Task.sleep(for: .seconds(at - elapsed))
                         elapsed = at
-                        FileHandle.standardError.write(Data("[AutoTest] 画中画切换（第 \(Int(at)) 秒）\n".utf8))
+                        Self.autoTestLog("画中画切换（第 \(Int(at)) 秒）")
                         created.togglePictureInPicture()
                     }
                 }
@@ -89,7 +121,7 @@ struct PlayerScreen: View {
                     for (at, ref) in subtitleSteps {
                         try? await Task.sleep(for: .seconds(at - elapsed))
                         elapsed = at
-                        FileHandle.standardError.write(Data("[AutoTest] 换字幕 → \(ref)\n".utf8))
+                        Self.autoTestLog("换字幕 → \(ref)")
                         created.selectSubtitle(ref == "off" ? nil : ref)
                     }
                 }
@@ -104,7 +136,7 @@ struct PlayerScreen: View {
                     for (at, ref) in audioSteps {
                         try? await Task.sleep(for: .seconds(at - elapsed))
                         elapsed = at
-                        FileHandle.standardError.write(Data("[AutoTest] 换音轨 → \(ref)\n".utf8))
+                        Self.autoTestLog("换音轨 → \(ref)")
                         created.selectAudio(ref)
                     }
                 }
@@ -119,7 +151,7 @@ struct PlayerScreen: View {
                         guard let value = Double(spec) else { continue }
                         let relative = spec.hasPrefix("+") || spec.hasPrefix("-")
                         let targetMs = relative ? created.positionMs + Int(value * 1000) : Int(value * 1000)
-                        FileHandle.standardError.write(Data("[AutoTest] 跳转 → \(targetMs / 1000) 秒\n".utf8))
+                        Self.autoTestLog("跳转 → \(targetMs / 1000) 秒")
                         created.seek(toFileMs: targetMs)
                     }
                 }
@@ -171,6 +203,14 @@ struct PlayerScreen: View {
 
     #if DEBUG
     /// 自动测试步骤 "<秒>:<引用>[,<秒>:<引用>…]"（引用本身可含冒号，如 embedded:1），按时间排好
+    /// 自动测试动作的日志：带墙钟（对齐 nettop 的每秒流量）和系统开机时长（对齐引擎日志算耗时）
+    private static func autoTestLog(_ message: String) {
+        let wall = Date().formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)
+            .secondFraction(.fractional(3)))
+        let uptime = String(format: "%.3f", ProcessInfo.processInfo.systemUptime)
+        FileHandle.standardError.write(Data("[AutoTest \(wall) up=\(uptime)] \(message)\n".utf8))
+    }
+
     private static func autoTestSteps(_ key: String) -> [(Double, String)] {
         (UserDefaults.standard.string(forKey: key) ?? "").split(separator: ",").compactMap { step in
             guard let colon = step.firstIndex(of: ":"), let at = Double(step[..<colon]) else { return nil }
@@ -277,6 +317,16 @@ private struct PlayerContent: View {
                     .transition(.opacity)
                 }
 
+                if let offer = controller.qualityOffer, !locked {
+                    VStack {
+                        PlayerQualityOfferView(offer: offer, accept: controller.acceptQualityOffer, dismiss: controller.dismissQualityOffer)
+                            .padding(.horizontal, 16)
+                            .padding(.top, hudTop(landscape: landscape))
+                        Spacer()
+                    }
+                    .transition(.opacity)
+                }
+
                 if controller.phase == .error, let message = controller.errorMessage {
                     PlayerErrorView(message: message, suggestion: controller.errorSuggestion, retry: controller.retry, exit: exit)
                 }
@@ -291,6 +341,7 @@ private struct PlayerContent: View {
             }
             .animation(.easeInOut(duration: 0.25), value: chromeVisible)
             .animation(.easeInOut(duration: 0.2), value: controller.notice)
+            .animation(.easeInOut(duration: 0.25), value: controller.qualityOffer)
         }
         .task(id: autoHideKey) {
             // 控制条 4 秒无操作自动隐藏；必须常显的情况（暂停、菜单、拖动、等用户拍板）直接钉住（同 Web chromeMustStayVisible）

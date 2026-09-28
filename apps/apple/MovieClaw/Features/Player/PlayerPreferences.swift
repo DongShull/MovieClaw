@@ -1,24 +1,5 @@
 import Foundation
 
-/// 开发期强制某个播放引擎（启动参数 `-movieclaw.player.engine system|mpv|native`），排查问题与 UI 测试用。
-/// 默认（不强制）就是自研引擎（docs/design/player-engine.md），失败时按兜底阶梯回落 MPV → 服务端 HLS；
-/// 强制 native 与默认相同，强制 system / mpv 则跳过自研引擎。
-///
-/// 正式版没有引擎选项：用户不关心用的是哪个引擎，只关心画中画、字幕、格式能不能用（见 PlaybackController 选引擎）。
-/// 只认启动参数、不读本机存档——以前版本在设置里存过的「系统播放器 / MPV」选择一律作废。
-enum EngineOverride: String {
-    case system, mpv, native
-
-    static var current: EngineOverride? {
-        #if DEBUG
-        let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
-        return (arguments["movieclaw.player.engine"] as? String).flatMap(EngineOverride.init)
-        #else
-        return nil
-        #endif
-    }
-}
-
 /// 字幕外观（对应 Web `lib/player/subtitles.ts` 的 SubtitleStyle）。
 /// 时间轴偏移刻意不持久化：它是逐文件的修正，跨片带着只会错（同 Web）。
 struct SubtitleStyle: Equatable, Codable {
@@ -55,18 +36,6 @@ struct SubtitleStyle: Equatable, Codable {
 /// 播放器的本机偏好。键名带 `movieclaw.player.` 前缀，与 Web localStorage 的键同名同义。
 enum PlayerPreferences {
     private static let defaults = UserDefaults.standard
-
-    /// 画质上限（max_height）；nil = 自动
-    static var quality: Int? {
-        get {
-            let value = defaults.integer(forKey: "movieclaw.player.quality")
-            return QualityOption.all.contains { $0.maxHeight == value && value > 0 } ? value : nil
-        }
-        set {
-            if let newValue { defaults.set(newValue, forKey: "movieclaw.player.quality") }
-            else { defaults.removeObject(forKey: "movieclaw.player.quality") }
-        }
-    }
 
     static var subtitleStyle: SubtitleStyle {
         get {
@@ -141,3 +110,68 @@ enum ShareLocalProgress {
         }
     }
 }
+
+/// 画质按影片、按网络环境记（2026-09-28 用户拍板）：在外面给《哪吒》选了 1080p，回到家打开还是原画；
+/// 每部片各记各的，剧集整部剧共用一份（按条目 id）。只存限了画质的选择，选回「自动」就删掉这一条。
+/// 原来画质是全局一个值：路上选一次 720p，之后所有片子、回到家也都在转码。
+enum QualityMemory {
+    private static let key = "movieclaw.player.quality-by-title"
+    /// 最多记这么多条，超出按最久没用的先丢
+    static let limit = 300
+
+    private static func entryKey(_ mediaItemId: Int, _ network: PlaybackNetwork) -> String {
+        "\(network.rawValue):\(mediaItemId)"
+    }
+
+    /// [条目键: [画质上限, 记下的时刻]]
+    private static var entries: [String: [Double]] {
+        get { UserDefaults.standard.dictionary(forKey: key) as? [String: [Double]] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
+
+    static func quality(mediaItemId: Int, network: PlaybackNetwork) -> Int? {
+        guard let height = entries[entryKey(mediaItemId, network)]?.first.map(Int.init),
+              QualityOption.all.contains(where: { $0.maxHeight == height }) else { return nil }
+        return height
+    }
+
+    static func remember(_ maxHeight: Int?, mediaItemId: Int, network: PlaybackNetwork) {
+        var all = entries
+        let key = entryKey(mediaItemId, network)
+        if let maxHeight {
+            all[key] = [Double(maxHeight), Date().timeIntervalSince1970]
+            if all.count > limit {
+                let oldest = all.sorted { ($0.value.last ?? 0) < ($1.value.last ?? 0) }.prefix(all.count - limit)
+                oldest.forEach { all.removeValue(forKey: $0.key) }
+            }
+        } else {
+            all.removeValue(forKey: key)
+        }
+        entries = all
+    }
+}
+
+/// 开播提示「已沿用上次的选择」（2026-09-28 用户拍板）：画质、音轨、字幕都按片记，
+/// 下次打开这部片时，只有**不是默认**的选择才提示几秒——免得对着 720p 的画面、日语音轨纳闷「怎么是这样」，
+/// 默认的就不打扰。
+enum RememberedChoices {
+    /// 各项传 nil = 这一项是默认（或这次没沿用记忆），不提
+    static func notice(quality: Int?, network: PlaybackNetwork, audio: String?, subtitle: String?) -> String? {
+        var parts: [String] = []
+        if let quality {
+            // 画质按网络环境分开记：点明是哪个环境下的选择，回到家看到原画不会以为记忆失灵
+            parts.append(network.label.map { "画质 \(quality)p（\($0)）" } ?? "画质 \(quality)p")
+        }
+        if let audio { parts.append("音轨 \(audio)") }
+        if let subtitle { parts.append("字幕 \(subtitle)") }
+        return parts.isEmpty ? nil : "已沿用上次的选择：" + parts.joined(separator: "，")
+    }
+
+    /// 菜单标签（「日语 · AC3 · 5.1」「简体中文 · 文本」）在提示里只留语言；同语言有好几条时留全称才分得清
+    static func shortLabel(_ label: String, among labels: [String]) -> String {
+        let name = { (text: String) in text.components(separatedBy: " · ").first ?? text }
+        let short = name(label)
+        return labels.filter { name($0) == short }.count > 1 ? label : short
+    }
+}
+

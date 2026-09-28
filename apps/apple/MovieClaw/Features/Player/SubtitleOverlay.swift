@@ -10,7 +10,7 @@ struct SubtitleCue: Equatable {
 /// WebVTT 解析（服务端已把 SRT/ASS 统一转成 VTT）。
 ///
 /// 富文本标签一律剥掉（同 Web `plainCueText`）：字幕文件是用户丢进媒体库的任意文本，
-/// 斜体这点观感不值得引入一个富文本解析器；要完整排版的 ASS 走 MPV 引擎（libass 原样渲染）。
+/// 斜体这点观感不值得引入一个富文本解析器（自研引擎直出时 ASS 由引擎按定位画，这里只管服务端流的叠加层）。
 /// cue 设置（line/position）也忽略——位置由播放器的「字幕位置」统一控制，与网页一致。
 enum WebVTT {
     static func parse(_ raw: String) -> [SubtitleCue] {

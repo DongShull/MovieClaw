@@ -1,4 +1,3 @@
-import MPVCore
 import SwiftUI
 
 /// 播放诊断面板（对应 Web `components/player/diagnostics-panel.tsx`，信息层次对标 Emby 的播放信息）。
@@ -84,7 +83,7 @@ struct PlayerDiagnosticsPanel: View {
         Section(title: "流媒体") {
             SourceLine([(source?.container ?? decision.container ?? "未知").uppercased(), mbps(source?.bitRate)].compactMap { $0 }.joined(separator: " · "))
             if controller.playsOriginalFile, decision.tier != 0 {
-                ActionLine("原文件直出（MPV 本机解码；服务端判定为\(Self.tierLabels[decision.tier ?? -1] ?? "未知档位")）")
+                ActionLine("原文件直出（自研引擎本机解码；服务端判定为\(Self.tierLabels[decision.tier ?? -1] ?? "未知档位")）")
             } else {
                 ActionLine(decision.tier == 0 ? "原文件直出" : "HLS · fMP4（\(Self.tierLabels[decision.tier ?? -1] ?? "未知档位")）")
             }
@@ -197,12 +196,6 @@ struct PlayerDiagnosticsPanel: View {
         Text(decision.reason)
             .foregroundStyle(.white.opacity(0.6))
             .padding(.top, 4)
-        if controller.engine?.kind == .mpv {
-            let versions = MPVPlayer.versionInfo
-            Text("组件许可：\(versions.mpv) · FFmpeg \(versions.ffmpeg)。\(MPVPlayer.licenseNotice)")
-                .foregroundStyle(.white.opacity(0.45))
-                .padding(.top, 2)
-        }
     }
 
     private func mbps(_ bps: Int?) -> String? {

@@ -4,12 +4,13 @@
 > 前置阅读：[web-player.md](web-player.md) §6.10（起播链路）、[ios-app.md](ios-app.md) §4（多引擎）、
 > [player-pipeline-optimization.md](player-pipeline-optimization.md)。本文只记这一轮「秒开」优化的
 > 测量手段、找到的问题、改法与实测数字，不重复那几份文档已经写过的东西。
+> 2026-09-28 起 App 已移除 MPV，原文件直出由自研引擎完成（[player-engine.md](player-engine.md)）；下文与 MPV 相关的条目只作历史记录。
 
 ## 0. 目标与口径
 
 用户的要求：点了播放就立即播放，体感对齐 Infuse。口径统一为**从点下播放键算起**：
 
-- **首帧**：第一帧画面可以上屏（AVPlayer 的 `isReadyForDisplay`、mpv 装载后第一次 `playback-restart`）；
+- **首帧**：第一帧画面可以上屏（AVPlayer 的 `isReadyForDisplay`；自研引擎报首帧）；
 - **播放**：画面开始动（引擎报 playing）。
 
 以前只有一个 ttff（从控制器发请求算到 playing），不含播放器弹出与音频会话，也看不出慢在哪一段。
@@ -22,8 +23,7 @@
   开发期同时打控制台 `[StartupTrace]`。**用户说「这部片起播慢」时先看这一行。**
 - 开发期的辅助（仅 Debug 包）：`[AVStartup]` 打印 AVPlayer 自己的起播明细
   （`AVMetricPlayerItemInitialLikelyToKeepUpEvent`，每个列表 / 分片请求的起止）；`[FrameStats]`
-  每 5 秒一行帧统计（`-mcFrameStatsEverySecond YES` 改每秒）；`-mcMPVOptions "键=值,…"` 追加 mpv 选项；
-  `-mcRouteDelay <秒>` 让 `-mcRoute` 等落地页冷启动请求跑完再开（排除连接池拥挤）；
+  每 5 秒一行帧统计（`-mcFrameStatsEverySecond YES` 改每秒）；`-mcRouteDelay <秒>` 让 `-mcRoute` 等落地页冷启动请求跑完再开（排除连接池拥挤）；
   `-mcAutoHoldSpeed <秒>` 到点自动长按 2 倍速 15 秒。
 - 服务端既有：「播放会话就绪：档 · 决策 · 准备 · ffmpeg · 共」「首片供给…距会话创建」「分片就绪…等待」。
 - 片库级统计：`playback_metric` 表的 ttff 按引擎 × 档位分组（本轮起点：AVPlayer 档 0 中位 4.6 秒、p90 10 秒）。

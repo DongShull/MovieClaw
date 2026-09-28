@@ -13,10 +13,6 @@ struct FrameDropTracker {
     static let windowSamples = 10
     static let minFrames = 100
     static let ratio = 0.1
-    /// MPV 直出用更高的门槛：它按音频节奏严格出图，偶尔发热、复杂场景会成段丢「迟到帧」（4K 60 帧丢 10%
-    /// 还剩 54 帧，肉眼几乎看不出），而回落的代价是中断重开、画质降到 1080p 转码，远程转码 4K 60 帧还不一定
-    /// 供得上（真机实测回落后 8 秒没出片）。真放不动时（软解 4K 之类）掉帧都在 50% 以上，25% 照样兜得住
-    static let mpvRatio = 0.25
 
     private var history: [(dropped: Int, total: Int)] = []
 
@@ -37,20 +33,22 @@ struct FrameDropTracker {
     mutating func reset() { history.removeAll() }
 }
 
-/// 卡顿归因看门狗（对应 Web `lib/player/stall.ts` + `engine.ts` 的 watchStall，常量逐一照搬）。
+/// 卡顿归因看门狗（起源于 Web `lib/player/stall.ts` + `engine.ts` 的 watchStall）。
 ///
-/// 只看「播放头不动」会把两件处置完全相反的事混为一谈：
+/// 只看「播放头不动」会把处置完全不同的几件事混为一谈：
 /// - **解码卡死**：缓冲里明明还有 ≥3 秒却不走——先原地推两把（AVPlayer 会在换流 + seek 后楞住，
-///   微调一下就能踢活），推不动 8 秒判失败走降档；
-/// - **缺粮**：前方缓冲见底，多半是追上了转码器，正常现象，给足 45 秒；
-///   原文件直出没有转码器可等，十几秒一个字节不到只能是线路不够或断了，15 秒就判。
+///   微调一下就能踢活），推不动 8 秒判「解不了」，走兜底阶梯（`FailurePolicy`）；
+/// - **线路慢**：前方缓冲见底，但字节还在进来——这不是失败，一直等（转圈下显示实时加载速度，用户可以暂停攒缓冲）。
+///   原来等 15 秒就判「缺粮」，进而换引擎 / 自动转码，2026-09-28《哪吒》在外网因此被一路降到系统播放器；
+/// - **连接断了**：缓冲见底且连续十几秒一个字节都没收到——报 `.dead`，同引擎原地重开。
+///   原文件直出 15 秒；服务端流（转码器赶片时本来就会一阵阵没有字节）给足 45 秒。
 ///
 /// 每秒喂一次；暂停、结束、定位中、播放头前进都不算停顿。
 struct StallWatch {
     static let decodeStallSeconds = 8
     static let decodeStallMinBuffer = 3.0
-    static let starveSeconds = 45
-    static let directStarveSeconds = 15
+    static let serverDeadSeconds = 45
+    static let directDeadSeconds = 15
     static let nudgeAtSeconds = 3
     static let maxNudges = 2
     static let nudgeStep = 0.1
@@ -60,18 +58,24 @@ struct StallWatch {
         /// 推一把：跳到当前位置 + 0.1 秒重新触发解码管线
         case nudge
         case decodeStalled
-        case starved
+        /// 缓冲见底且持续没有字节：连接断了
+        case dead
     }
 
     private var lastTime: Double?
     private var stalledFor = 0
+    /// 缓冲见底期间连续没收到字节的秒数
+    private var silentFor = 0
     private var nudges = 0
     private var sinceNudge = 99
     private var everAdvanced = false
 
     mutating func reset() { self = StallWatch() }
 
-    mutating func sample(time: Double, bufferedAhead: Double, paused: Bool, ended: Bool, seeking: Bool, starveLimit: Int) -> Verdict {
+    /// - receiving: 这一秒有没有从源收到字节（引擎加载速度读数 > 0）
+    /// - deadLimit: 缓冲见底后连续多少秒没字节算断线（`directDeadSeconds` / `serverDeadSeconds`）
+    mutating func sample(time: Double, bufferedAhead: Double, paused: Bool, ended: Bool, seeking: Bool,
+                         receiving: Bool, deadLimit: Int) -> Verdict {
         let advanced = lastTime.map { time > $0 } ?? false
         // 「真正播起来过」只认小步前进：起播定位、用户拖动是一次大跳，不算
         if advanced, !seeking, let lastTime, time - lastTime < 5 { everAdvanced = true }
@@ -79,12 +83,14 @@ struct StallWatch {
         sinceNudge += 1
         if paused || ended || seeking || advanced {
             stalledFor = 0
+            silentFor = 0
             // 只有远离上次推动的真实前进才算恢复——推动自己造成的播放头变化不作数
             if advanced, sinceNudge > 3 { nudges = 0 }
             return .ok
         }
         stalledFor += 1
         if bufferedAhead >= Self.decodeStallMinBuffer {
+            silentFor = 0
             if stalledFor >= Self.decodeStallSeconds {
                 stalledFor = 0
                 nudges = 0
@@ -99,22 +105,25 @@ struct StallWatch {
             }
             return .ok
         }
-        if stalledFor >= starveLimit {
+        // 缓冲见底：只看字节还在不在进来。在进来就是线路慢，不算失败
+        silentFor = receiving ? 0 : silentFor + 1
+        if silentFor >= deadLimit {
             stalledFor = 0
+            silentFor = 0
             nudges = 0
-            return .starved
+            return .dead
         }
         return .ok
     }
 
-    /// 判定 → 给用户看的中文原因（同 Web stallReason，「浏览器」换成「播放器」）
-    static func reason(_ verdict: Verdict, starveLimit: Int) -> String {
+    /// 判定 → 给用户看的中文原因
+    static func reason(_ verdict: Verdict, deadLimit: Int) -> String {
         if verdict == .decodeStalled {
             return "播放停滞超过 \(decodeStallSeconds) 秒，这一档的码流播放器吃不下"
         }
-        return starveLimit < starveSeconds
-            ? "等待取流超过 \(starveLimit) 秒——线路装不下这部片的码率，或连接已中断"
-            : "等待服务端供流超过 \(starveLimit) 秒——转码速度跟不上播放，或转码已中断"
+        return deadLimit < serverDeadSeconds
+            ? "连续 \(deadLimit) 秒没有收到数据——连接可能中断了"
+            : "连续 \(deadLimit) 秒没有收到服务端的数据——转码可能中断了"
     }
 }
 
@@ -168,7 +177,7 @@ struct NetworkRestartBudget {
 
 /// 引擎报「播完」时离片尾还远：是取流断了，不是真播完，不能弹「即将播放下一集」。
 ///
-/// 典型现场（2026-09-27 真机）：mpv 直出放到一半，服务端重启约 20 秒，反向代理回 502，mpv 重连失败就把
+/// 典型现场（2026-09-27 真机，当时的 MPV 播放器）：直出放到一半，服务端重启约 20 秒，反向代理回 502，重连失败就把
 /// 断流当成文件结尾，放完缓存后报 eof，播放器随即弹出「即将播放下一集」、紧跟着换到下一集。
 /// 这种「播完」一律从当前位置重开（新会话、新 token），观众只看到一次短暂的缓冲。
 ///
