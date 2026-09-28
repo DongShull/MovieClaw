@@ -136,6 +136,11 @@ final class PlaybackRecord {
     private var stallOpen: (startedAt: ContinuousClock.Instant, atMs: Int, cause: String)?
     private var lastPlayheadMs: Int?
     private var lastAdvanceAt: ContinuousClock.Instant?
+    /// 跳转落地、播放头还没重新走起来：从落地算起 `resumeGrace` 内不判卡顿。软件通路的播放时间每 250 毫秒才发布一次、
+    /// 这里也每 250 毫秒采一次，外加时钟放开后音频预滚约 0.3 秒，画面照常在出、播放头却要 0.6～0.8 秒才看得出在走，
+    /// 按 0.5 秒线会误报（真机 22 部全量里软件通路每批 2～3 次，全是这个）。宽限过了还不走，从落地那一刻起算卡顿
+    private var awaitingResumeSince: ContinuousClock.Instant?
+    static let resumeGrace: Duration = .milliseconds(1500)
     private var freezeOpen: (startedAt: ContinuousClock.Instant, atMs: Int)?
     private var lastFrameCount: Int?
     private var lastFramePlayheadMs: Int?
@@ -344,6 +349,7 @@ final class PlaybackRecord {
         let spent = ms(since: open.startedAt)
         seeks[open.index].ms = spent
         seeks[open.index].outcome = outcome
+        if outcome == "landed" { awaitingResumeSince = now() }
         event("seek_\(outcome)", "跳转 #\(seeks[open.index].seq) \(outcome) \(spent) 毫秒")
         #if DEBUG
         let seek = seeks[open.index]
@@ -392,11 +398,19 @@ final class PlaybackRecord {
         guard active, openSeek == nil, openSwitch == nil else {
             closeStall()
             lastAdvanceAt = now
+            if active == false { awaitingResumeSince = nil }
             return
         }
         if let last = lastPlayheadMs, positionMs != last {
             closeStall()
             lastAdvanceAt = now
+            awaitingResumeSince = nil
+            return
+        }
+        if let landedAt = awaitingResumeSince {
+            guard now - landedAt >= Self.resumeGrace else { return }
+            awaitingResumeSince = nil
+            stallOpen = (landedAt, elapsedMs(landedAt), cause())
             return
         }
         guard stallOpen == nil, let since = lastAdvanceAt, now - since >= .milliseconds(500) else { return }

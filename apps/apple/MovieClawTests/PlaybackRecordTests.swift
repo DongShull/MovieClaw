@@ -163,6 +163,42 @@ struct PlaybackRecordTests {
         #expect(record.rebufferCount == 0)
     }
 
+    @Test func playheadWarmingUpAfterASeekLandsIsNotAStall() {
+        // 软件通路：落点画面到了，播放时间 250 毫秒发布一次、时钟放开后音频预滚，播放头 0.75 秒后才看得出在走
+        let clock = FakeClock()
+        let record = makeRecord(clock)
+        record.noteFirstFrame()
+        record.beginSeek(source: .button, fromMs: 1000, toMs: 300_000, buffered: false, paused: false, restart: false)
+        clock.advance(250)
+        record.samplePlayhead(300_000, active: true) { "network" }
+        clock.advance(1100)
+        _ = record.seekPresented()
+        for _ in 0 ..< 3 {
+            clock.advance(250)
+            record.samplePlayhead(300_000, active: true) { "network" }
+        }
+        clock.advance(250)
+        record.samplePlayhead(300_250, active: true) { "network" }
+        #expect(record.rebufferCount == 0)
+    }
+
+    @Test func aPictureStuckAfterTheSeekLandsCountsFromTheLanding() {
+        let clock = FakeClock()
+        let record = makeRecord(clock)
+        record.noteFirstFrame()
+        record.beginSeek(source: .button, fromMs: 1000, toMs: 300_000, buffered: false, paused: false, restart: false)
+        clock.advance(500)
+        _ = record.seekPresented()
+        for _ in 0 ..< 10 {          // 落地后 2.5 秒不走：过了 1.5 秒宽限，从落地起算
+            clock.advance(250)
+            record.samplePlayhead(300_000, active: true) { "network" }
+        }
+        clock.advance(250)
+        record.samplePlayhead(300_250, active: true) { "network" }
+        #expect(record.rebufferCount == 1)
+        #expect(record.rebufferMs == 2750)
+    }
+
     @Test func stuckSwitchesAndSeeksTimeOutAndStopBlockingStallDetection() throws {
         let clock = FakeClock()
         let record = makeRecord(clock)
