@@ -1,7 +1,8 @@
 import Foundation
 
 /// 开发期强制某个播放引擎（启动参数 `-movieclaw.player.engine system|mpv|native`），排查问题与 UI 测试用。
-/// native 是自研引擎（docs/design/player-engine.md），失败时照常回落 MPV → 服务端 HLS。
+/// 默认（不强制）就是自研引擎（docs/design/player-engine.md），失败时按兜底阶梯回落 MPV → 服务端 HLS；
+/// 强制 native 与默认相同，强制 system / mpv 则跳过自研引擎。
 ///
 /// 正式版没有引擎选项：用户不关心用的是哪个引擎，只关心画中画、字幕、格式能不能用（见 PlaybackController 选引擎）。
 /// 只认启动参数、不读本机存档——以前版本在设置里存过的「系统播放器 / MPV」选择一律作废。

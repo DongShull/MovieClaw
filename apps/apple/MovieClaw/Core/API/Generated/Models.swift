@@ -841,6 +841,8 @@ nonisolated extension API {
         var isMobile: Bool?
         var nativeHls: Bool?
         var universal: Bool?
+        var discImage: Bool?
+        var discFolder: Bool?
 
         enum CodingKeys: String, CodingKey {
             case video
@@ -851,6 +853,8 @@ nonisolated extension API {
             case isMobile = "is_mobile"
             case nativeHls = "native_hls"
             case universal
+            case discImage = "disc_image"
+            case discFolder = "disc_folder"
         }
     }
 
@@ -5975,6 +5979,8 @@ nonisolated extension API {
         var audioTracks: [API.AudioTrackView]
         var subtitles: [API.SubtitlePlanView]
         var degradedFrom: Int?
+        var disc: String?
+        var discPlaylist: String?
         var costHint: String?
         var canSelfEnable: Bool?
         var settingNamespace: String?
@@ -5992,6 +5998,8 @@ nonisolated extension API {
             case audioTracks = "audio_tracks"
             case subtitles
             case degradedFrom = "degraded_from"
+            case disc
+            case discPlaylist = "disc_playlist"
             case costHint = "cost_hint"
             case canSelfEnable = "can_self_enable"
             case settingNamespace = "setting_namespace"
@@ -6103,6 +6111,30 @@ nonisolated extension API {
             case pauseReasons = "pause_reasons"
             case cacheHit = "cache_hit"
             case cachedSegments = "cached_segments"
+        }
+    }
+
+    /// 原盘目录里可直推的一个文件（disc-direct-play.md §2.3）。
+    struct PlaybackDiscFileView: Codable, Hashable, Sendable {
+        var path: String
+        var size: Int
+        var url: String
+
+        enum CodingKeys: String, CodingKey {
+            case path
+            case size
+            case url
+        }
+    }
+
+    /// 原盘目录清单：自研引擎据此在本机解析播放列表、拼接剪辑，服务端只按文件供字节。
+    struct PlaybackDiscListingView: Codable, Hashable, Sendable {
+        var files: [API.PlaybackDiscFileView]
+        var playlist: String?
+
+        enum CodingKeys: String, CodingKey {
+            case files
+            case playlist
         }
     }
 

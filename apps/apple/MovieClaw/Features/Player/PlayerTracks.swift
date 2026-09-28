@@ -82,6 +82,60 @@ struct SubtitleTracks: Equatable {
         return "未知语言"
     }
 
+    /// 把自研引擎读到、清单里还没有的内封字幕轨补进来（光盘镜像的全部轨，DVB / ARIB / VobSub 这类服务端不提供的轨）。
+    /// 引擎自己读容器、自己画内封字幕，所以这些轨不需要服务端地址。内封轨按编号排在前、外挂轨在后（同服务端口径）。
+    /// replacingEmbedded：服务端的内封轨清单不可信（光盘镜像），整份换成引擎读到的。返回清单是否变了
+    mutating func adoptEngineSubtitles(_ tracks: [NativeEngine.EmbeddedTrack], replacingEmbedded: Bool = false) -> Bool {
+        var added = false
+        if replacingEmbedded {
+            let before = options.count + unavailable.count
+            options.removeAll { $0.embeddedIndex != nil && $0.path.isEmpty == false }
+            unavailable.removeAll { $0.ref.hasPrefix("embedded:") }
+            added = options.count + unavailable.count != before
+        }
+        for (index, track) in tracks.enumerated() {
+            let ref = "embedded:\(index)"
+            guard !options.contains(where: { $0.ref == ref }) else { continue }
+            // 引擎从画面里读出的隐藏字幕（CEA-608，美剧常见）没有语言标记，直接叫它的名字
+            let name = track.codec == "eia_608" ? "隐藏字幕（CC）" : (LanguageLabel.of(track.language) ?? "内封轨 \(index)")
+            if let reason = Self.undecodableReasons[track.codec] {
+                // 引擎里没有这种字幕的解码器（编码名退回成描述名）：置灰给原因，而不是给一个选了不出字的选项
+                if !unavailable.contains(where: { $0.ref == ref }) {
+                    unavailable.append(.init(ref: ref, label: name, reason: reason))
+                    added = true
+                }
+                continue
+            }
+            unavailable.removeAll { $0.ref == ref }
+            let kind = Self.engineKind(track.codec)
+            options.append(SubtitleOption(
+                ref: ref, label: "\(name) · \(Self.kindLabels[kind] ?? kind)", kind: kind, path: "",
+                language: track.language, isDefault: track.isDefault, isAI: false
+            ))
+            added = true
+        }
+        guard added else { return false }
+        let embedded = options.filter { $0.embeddedIndex != nil }.sorted { ($0.embeddedIndex ?? 0) < ($1.embeddedIndex ?? 0) }
+        options = embedded + options.filter { $0.embeddedIndex == nil }
+        return true
+    }
+
+    /// 引擎解不了的字幕（FFmpeg 没编进这些解码器，引擎报的是编码描述名）
+    private static let undecodableReasons = [
+        "arib_caption": "暂不支持 ARIB 字幕（日本电视台的字幕格式）",
+        "dvb_teletext": "暂不支持图文电视（Teletext）字幕",
+    ]
+
+    /// 引擎报的编码名归到菜单的三类：图形（位图字幕）、特效（ASS）、其余都算文本。
+    /// 引擎报的是解码器名（pgssub / dvdsub / dvbsub），没有解码器时才是编码描述名（hdmv_pgs_subtitle……），两种都认
+    private static func engineKind(_ codec: String) -> String {
+        switch codec {
+        case "pgssub", "dvdsub", "dvbsub", "xsub", "hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle", "dvb_teletext": "pgs"
+        case "ass", "ssa": "ass"
+        default: "vtt"
+        }
+    }
+
     /// 选哪条轨：优先上次记住的（"off" = 用户明确关掉，必须尊重），其次服务端裁决的默认轨；都没有就不自动开。
     func initialSelection(remembered: String?) -> String? {
         if remembered == "off" { return nil }
@@ -95,24 +149,55 @@ struct AudioOption: Identifiable, Hashable {
     let ref: String
     let label: String
     let isDefault: Bool
+    /// 放不了的原因：菜单里置灰并写明，不给选（同字幕的「不可用」）
+    var unavailableReason: String?
     var id: String { ref }
 
     var embeddedIndex: Int? { ref.hasPrefix("embedded:") ? Int(ref.dropFirst("embedded:".count)) : nil }
 
     static func plan(_ tracks: [API.AudioTrackView]) -> [AudioOption] {
         guard tracks.count >= 2 else { return [] }
-        return tracks.map { AudioOption(ref: $0.ref, label: label($0), isDefault: $0.isDefault) }
+        let anyRecognized = tracks.contains { !unrecognized($0.codec) }
+        return tracks.map {
+            AudioOption(ref: $0.ref, label: label($0), isDefault: $0.isDefault,
+                        unavailableReason: anyRecognized && unrecognized($0.codec) ? unrecognizedReason : nil)
+        }
     }
+
+    /// 服务端一条音轨都没给（光盘镜像：盘内结构它读不了）时，整份用自研引擎读到的内封音轨
+    static func engineOptions(_ tracks: [NativeEngine.EmbeddedTrack]) -> [AudioOption] {
+        guard tracks.count >= 2 else { return [] }
+        let anyRecognized = tracks.contains { !unrecognized($0.codec) }
+        return tracks.enumerated().map { index, track in
+            let ref = "embedded:\(index)"
+            return AudioOption(ref: ref, label: label(ref: ref, language: track.language, codec: track.codec,
+                                                      channels: track.channels), isDefault: track.isDefault,
+                               unavailableReason: anyRecognized && unrecognized(track.codec) ? unrecognizedReason : nil)
+        }
+    }
+
+    /// 探测认不出编码的轨（服务端记为空、引擎报 none）：自研引擎、MPV、服务端转码用的 FFmpeg 都没有它的解码器。
+    /// 真机见于国产 4K 剧的菁彩声（Audio Vivid，样本入口 av3a，5.1.4）。整片都认不出时（没探测过）不下这个结论
+    private static func unrecognized(_ codec: String?) -> Bool {
+        guard let codec = codec?.lowercased(), !codec.isEmpty else { return true }
+        return codec == "none" || codec == "unknown"
+    }
+
+    static let unrecognizedReason = "音频编码无法识别（常见于菁彩声 Audio Vivid），没有可用的解码器"
 
     private static let channelLabels = [1: "单声道", 2: "立体声", 6: "5.1", 8: "7.1"]
 
-    /// 语言 · 编码 · 声道（语言放最前：用户找的是「国语还是日语」）
     static func label(_ track: API.AudioTrackView) -> String {
-        let name = LanguageLabel.of(track.language)
-            ?? (track.ref.hasPrefix("embedded:") ? "音轨 \(track.ref.dropFirst("embedded:".count))" : "未知音轨")
+        label(ref: track.ref, language: track.language, codec: track.codec, channels: track.channels)
+    }
+
+    /// 语言 · 编码 · 声道（语言放最前：用户找的是「国语还是日语」）
+    private static func label(ref: String, language: String?, codec: String?, channels: Int?) -> String {
+        let name = LanguageLabel.of(language)
+            ?? (ref.hasPrefix("embedded:") ? "音轨 \(ref.dropFirst("embedded:".count))" : "未知音轨")
         var rest: [String] = []
-        if let codec = track.codec, !codec.isEmpty { rest.append(codec.uppercased()) }
-        if let channels = track.channels, channels > 0 { rest.append(channelLabels[channels] ?? "\(channels) 声道") }
+        if let codec, !codec.isEmpty { rest.append(codec.uppercased()) }
+        if let channels, channels > 0 { rest.append(channelLabels[channels] ?? "\(channels) 声道") }
         return rest.isEmpty ? name : ([name] + rest).joined(separator: " · ")
     }
 }

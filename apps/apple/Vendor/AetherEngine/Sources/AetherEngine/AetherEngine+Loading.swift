@@ -1741,6 +1741,7 @@ extension AetherEngine {
                       isLive: isLive,
                       // AE#440: the join tail, opt-in. The host itself gates this on `isLive`.
                       liveJoinStartsImmediately: loadedOptions.liveJoinStartsImmediately,
+                      vodStartsImmediately: loadedOptions.vodStartsImmediately,   // [MovieClaw patch P2]
                       // AE#520: the session knows whether the bitstream it stream-copied carries JOC;
                       // the HDMI route cannot, because Atmos passthrough and a stereo LPCM route
                       // report the same two channels.
@@ -2371,7 +2372,7 @@ extension AetherEngine {
                 playbackBackend = .software
                 activeAudioTrackIndex = audioStreamIndex.map { Int($0) }
                 activeVideoDecoder = Self.videoDecoderLabel(
-                    codecID: preservedVideoCodec, isSoftware: true
+                    codecID: preservedVideoCodec, isSoftware: !(softwareHost?.decodesVideoInHardware ?? false)
                 )
                 // AE#462: the rebuilt host's own resolved index (see the load site).
                 activeAudioDecoder = Self.softwareAudioDecoderLabel(

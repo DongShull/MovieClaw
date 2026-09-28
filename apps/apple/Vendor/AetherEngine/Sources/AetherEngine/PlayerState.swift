@@ -590,6 +590,20 @@ public struct LoadOptions: Sendable, Equatable {
     /// AVPlayer's own policy for the join.
     public var liveJoinStartsImmediately: Bool = true
 
+    /// [MovieClaw patch P2] The AE#440 one-shot for VOD starts: when AVPlayer holds a VOD start in
+    /// `ToMinimizeStalls` over a proven, non-empty buffer of at least
+    /// `minimumLiveJoinBufferAhead` seconds, cut the hold short once with `playImmediately`.
+    /// The loopback producer runs far ahead of 1x, so the rate estimate AVPlayer waits on only
+    /// delays a start whose cushion is already there (0.2 to 0.6 s on device). Same four guards as
+    /// the live lever; default `false`.
+    public var vodStartsImmediately: Bool = false
+
+    /// [MovieClaw patch P11] 起播音轨按「第几条音轨」指定（容器里音轨的顺序，从 0 数）：探测完换成流下标，
+    /// 首帧就是这条轨，不用起播后再 `selectAudioTrack` 重载一次（真机蓝光镜像为此起播 2.5 → 4.2 秒）。
+    /// 宿主记着的是与服务端同口径的 embedded:N，事先不知道流下标，所以按序号给。显式的
+    /// `audioSourceStreamIndex`（换轨、重建时恢复当前轨）照旧优先；序号越界时不起作用。默认 nil
+    public var audioTrackOrdinal: Int? = nil
+
     /// Whether `play()` may move a behind-live playhead by itself. Default `true`, which is the historical
     /// behaviour (AE#444).
     ///

@@ -338,7 +338,8 @@ def test_direct_play_releases_the_db_connection_before_streaming(client, tmp_pat
     """直出流开始发字节时，这个请求已经不占数据库连接。
 
     直出播放器按 Range 长连接续拉，一条流能挂几十分钟；FastAPI 的 yield 依赖要等响应发完才收尾，
-    若取流期间一直占着连接，十几条并发流就会耗尽连接池，整个服务的接口一起超时（2026-09-27 NAS 实测）。
+    若取流期间一直占着连接，十几条并发流就会耗尽连接池，整个服务的接口一起超时
+    （2026-09-27 NAS 实测）。
     """
     file_id = seed(client, tmp_path, container="mp4")
     url = start_session(client, file_id)["stream_url"]
@@ -1471,6 +1472,99 @@ def _mpls_bytes(*items: tuple[str, int, int]) -> bytes:
         body += len(core).to_bytes(2, "big") + core
     header = bytearray(b"MPLS0100" + (20).to_bytes(4, "big") + b"\0" * 8)
     return bytes(header + len(body).to_bytes(4, "big") + body)
+
+
+_DISC_NATIVE = {**CAPABILITY, "universal": True, "disc_image": True, "disc_folder": True}
+
+
+def test_disc_capable_player_gets_the_folder_listing_and_clip_bytes(client, tmp_path):
+    """多剪辑原盘对能读目录的播放器（自研引擎）目录直推：会话给目录清单地址与主播放列表名，
+    清单里每个文件自带取流地址，按 Range 出字节——不建会话、不起 ffmpeg（disc-direct-play.md）。"""
+    file_id = client.portal.call(partial(_seed_disc, tmp_path))
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    assert data["decision"]["tier"] == 0 and data["session_id"] is None
+    assert data["decision"]["disc"] == "folder"
+    assert data["decision"]["disc_playlist"] == "00001.mpls"
+    assert data["stream_url"].startswith(f"{_PB}/files/{file_id}/disc?token=")
+
+    # 引擎的读取器不带登录凭据，只凭地址里的签名 token（与原文件直出同一个公开取流区）
+    client.cookies.clear()
+    listing = client.get(data["stream_url"])
+    assert listing.status_code == 200, listing.text
+    body = listing.json()["data"]
+    assert body["playlist"] == "00001.mpls"
+    files = {f["path"]: f for f in body["files"]}
+    assert set(files) == {
+        "BDMV/PLAYLIST/00001.mpls",
+        "BDMV/CLIPINF/00001.clpi",
+        "BDMV/CLIPINF/00002.clpi",
+        "BDMV/STREAM/00001.m2ts",
+        "BDMV/STREAM/00002.m2ts",
+    }
+    clip = files["BDMV/STREAM/00001.m2ts"]
+    assert clip["size"] == 256
+    part = client.get(clip["url"], headers={"Range": "bytes=0-3"})
+    assert part.status_code == 206 and part.content == b"M2TS"
+
+
+def test_disc_folder_only_serves_whitelisted_files_of_this_disc(client, tmp_path):
+    """目录取流是路径穿越的防线：只认白名单里、清单中真实存在的文件；别的文件的令牌不通用。"""
+    file_id = client.portal.call(partial(_seed_disc, tmp_path))
+    other_id = client.portal.call(partial(_seed_disc, tmp_path))
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    token = data["stream_url"].split("token=", 1)[1]
+    base = f"{_PB}/files/{file_id}/disc"
+    bad = (
+        "BDMV/STREAM/..%2FPLAYLIST/00001.mpls",
+        "BDMV/META/DL/bdmt_eng.xml",
+        "BDMV/STREAM/99999.m2ts",
+    )
+    for rel in bad:
+        assert client.get(f"{base}/{rel}?token={token}").status_code == 404, rel
+    assert client.get(f"{_PB}/files/{other_id}/disc?token={token}").status_code == 404
+    assert client.get(f"{base}/BDMV/STREAM/00001.m2ts?token=forged").status_code == 404
+
+
+def test_disc_with_upper_case_stream_names_is_served(client, tmp_path):
+    """扩展名是 .M2TS 的盘：区分大小写的 NAS 上按小写拼路径就是 404。清单保留盘上的真实名字，
+    取文件大小写不敏感；单剪辑直出与 concat 用的剪辑路径也按实际目录项解析。"""
+    from movieclaw_api.services.playback.disc_source import disc_source_for_file
+
+    file_id = client.portal.call(partial(_seed_disc, tmp_path))
+
+    async def _rename():
+        async with get_database().session() as session:
+            row = await session.get(LibraryFile, file_id)
+            stream = Path(row.file_path) / "BDMV" / "STREAM"
+            for clip in ("00001", "00002"):
+                (stream / f"{clip}.m2ts").rename(stream / f"{clip}.M2TS")
+            return row
+
+    row = client.portal.call(_rename)
+    names = [c.path.name for c in disc_source_for_file(row).clips]
+    assert names == ["00001.M2TS", "00002.M2TS"]
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    paths = [f["path"] for f in client.get(data["stream_url"]).json()["data"]["files"]]
+    assert "BDMV/STREAM/00001.M2TS" in paths
+    token = data["stream_url"].split("token=", 1)[1]
+    response = client.get(f"{_PB}/files/{file_id}/disc/BDMV/STREAM/00001.m2ts?token={token}")
+    assert response.status_code == 200 and response.content == b"M2TS" * 64
+
+
+def test_iso_is_streamed_as_raw_bytes_and_explained_to_browsers(client, tmp_path):
+    """ISO：全解码播放器拿到原字节直推（引擎用 bytes=0-0 取总长），申报了能读镜像的标 disc=image；
+    指望服务端换封装的浏览器拿到明确的「放不了」，而不是开会话后 404。"""
+    file_id = seed(client, tmp_path, container="iso", codec=None)
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    assert data["decision"]["tier"] == 0 and data["decision"]["disc"] == "image"
+    assert data["stream_url"].startswith(f"{_PB}/files/{file_id}/stream?token=")
+    head = client.get(data["stream_url"], headers={"Range": "bytes=0-0"})
+    assert head.status_code == 206
+    assert head.headers["content-range"] == "bytes 0-0/1024"
+
+    browser = start_session(client, file_id)
+    assert browser["decision"]["outcome"] == "rejected"
+    assert "ISO" in browser["decision"]["reason"]
 
 
 async def _seed_disc(tmp_path: Path) -> int:

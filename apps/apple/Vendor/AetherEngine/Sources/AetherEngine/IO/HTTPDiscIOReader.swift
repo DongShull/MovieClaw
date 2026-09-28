@@ -39,6 +39,14 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
     private var lastFetchEnd: Int64 = -1
     /// Current adaptive read-ahead window; grows on sequential refills, resets on a seek.
     private var currentChunkSize: Int
+    #if DEBUG
+    private var debugFetchCount = 0
+    #endif
+    /// [MovieClaw P15] 最近用过的小块（≤ 1 MB），按 LRU 留 8 块。开盘解析盘内结构时，目录 / 文件项与文件数据分在两处、
+    /// 每次只读一个扇区地来回跳，单缓冲每跳一次就整块重取：实测蓝光镜像《怦然心动》识别阶段 26 次请求里 20 次是这样来回重取的
+    private var recentBlocks: [(start: Int64, data: [UInt8])] = []
+    private static let recentBlockLimit = 8
+    private static let recentBlockMaxBytes = 1024 * 1024
     /// `cancelled` has its own lock: `read` holds `lock` across the (slow) fetch, and the fetch's
     /// retry loop must poll `cancelled` without re-entering the non-reentrant `lock`, and `cancel()`
     /// must be able to set it from another thread while a read is in flight.
@@ -178,6 +186,14 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
             return Int32(toCopy)
         }
 
+        if position < bufferStart || position >= bufferStart + Int64(buffer.count),
+           let hit = recentBlocks.firstIndex(where: { position >= $0.start && position < $0.start + Int64($0.data.count) }) {
+            // [MovieClaw P15] 刚用过的小块里就有：换成当前缓冲，不发请求（光盘内容不会变）
+            let block = recentBlocks.remove(at: hit)
+            stashCurrentBuffer()
+            bufferStart = block.start
+            buffer = block.data
+        }
         if position < bufferStart || position >= bufferStart + Int64(buffer.count) {
             currentChunkSize = Self.nextChunkSize(
                 position: position, lastFetchEnd: lastFetchEnd,
@@ -185,9 +201,17 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
             // Stop at the next warmed span: its bytes are already here.
             let limit = residentSpans.lazy.map(\.start).filter { $0 > self.position }.min() ?? totalSize
             let want = Int(min(Int64(currentChunkSize), limit - position))
+            #if DEBUG
+            // [MovieClaw] 排查用：开盘阶段的前 64 次取数（识别光盘结构时的请求形态）
+            if debugFetchCount < 64 {
+                debugFetchCount += 1
+                EngineLog.emit("[HTTPDiscIOReader] fetch#\(debugFetchCount) offset=\(position) len=\(want)", category: .demux)
+            }
+            #endif
             guard want > 0, let data = fetchWithRetry(offset: position, length: want), !data.isEmpty else {
                 return -1
             }
+            stashCurrentBuffer()  // [MovieClaw P15]
             bufferStart = position
             buffer = [UInt8](data)
             lastFetchEnd = position + Int64(buffer.count)
@@ -202,6 +226,14 @@ final class HTTPDiscIOReader: IOReader, @unchecked Sendable {
         }
         position += Int64(toCopy)
         return Int32(toCopy)
+    }
+
+    /// [MovieClaw P15] 当前缓冲是小块时收进最近块（调用方持有 lock）；播放期的大块（按顺序读、窗口涨到几 MB）不留
+    private func stashCurrentBuffer() {
+        guard bufferStart >= 0, !buffer.isEmpty, buffer.count <= Self.recentBlockMaxBytes else { return }
+        recentBlocks.removeAll { $0.start == bufferStart }
+        recentBlocks.append((bufferStart, buffer))
+        if recentBlocks.count > Self.recentBlockLimit { recentBlocks.removeFirst() }
     }
 
     func seek(offset: Int64, whence: Int32) -> Int64 {

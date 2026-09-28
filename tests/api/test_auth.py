@@ -289,6 +289,10 @@ _PUBLIC_ALLOWLIST = {
     ("GET", "/api/v1/playback/sessions/{session_id}/sub{index}.m3u8"),
     ("GET", "/api/v1/playback/sessions/{session_id}/{name}"),
     ("GET", "/api/v1/playback/files/{file_id}/stream"),
+    # 原盘目录直推（disc-direct-play.md）：App 的自研引擎按文件取字节，与原文件直出一样
+    # 只凭查询参数里的签名 token，引擎的读取器不带登录凭据
+    ("GET", "/api/v1/playback/files/{file_id}/disc"),
+    ("GET", "/api/v1/playback/files/{file_id}/disc/{relative_path}"),
     ("GET", "/api/v1/playback/files/{file_id}/subtitles"),
     ("GET", "/api/v1/playback/files/{file_id}/fonts"),
     ("GET", "/api/v1/playback/files/{file_id}/fonts/{name}"),
@@ -367,6 +371,7 @@ def fill_path_params(path: str) -> str:
         .replace("{session_id}", "test-session")
         .replace("{day}", "2026-01-01")
         .replace("{path}", "1/poster.jpg")
+        .replace("{relative_path}", "BDMV/PLAYLIST/00001.mpls")
         .replace("{challenge_id}", "test-challenge")
         .replace("{account_id}", "test-bot")
         .replace("{channel}", "weixin")

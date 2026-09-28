@@ -203,12 +203,20 @@ struct PlaybackAPI {
 
     // MARK: 进度
 
+    #if DEBUG
+    /// 真机测试用：-mcNoProgress YES 时不上报观看进度——测试播放不写续播点、不进「继续观看」，也不上活动页
+    private static var progressDisabled: Bool { UserDefaults.standard.bool(forKey: "mcNoProgress") }
+    #endif
+
     /// 上报观看进度（start / progress / stop 同一入口）。
     /// 分享访客：位置记本机；服务端只收一份「谁在播」的心跳给活动页，靠响应里的 ended_by_admin 退出。
     /// 请求包在后台任务里：切后台、暂停、退出时发出的上报不会因为 App 被挂起而丢在半路。
     @discardableResult
     func progress(_ unit: PlaybackUnit, event: String, positionMs: Int?, durationMs: Int? = nil, paused: Bool? = nil,
                   audio: String?, subtitle: String?) async -> API.PlaybackStateView? {
+        #if DEBUG
+        if Self.progressDisabled { return nil }
+        #endif
         let body = progressBody(unit, event: event, positionMs: positionMs, paused: paused, audio: audio, subtitle: subtitle)
         let background = UIApplication.shared.beginBackgroundTask(withName: "playback-progress")
         defer { if background != .invalid { UIApplication.shared.endBackgroundTask(background) } }
@@ -221,6 +229,9 @@ struct PlaybackAPI {
 
     /// App 即将被结束：同步补发一次 stop，最多等 1.5 秒（异步任务在进程退出前跑不完）
     func stopBeforeTermination(_ unit: PlaybackUnit, positionMs: Int, durationMs: Int?, audio: String?, subtitle: String?) {
+        #if DEBUG
+        if Self.progressDisabled { return }
+        #endif
         let body = progressBody(unit, event: "stop", positionMs: positionMs, paused: nil, audio: audio, subtitle: subtitle)
         let path: String
         if let shareSlug {

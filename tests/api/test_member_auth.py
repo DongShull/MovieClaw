@@ -623,6 +623,9 @@ _MEMBER_ALLOWLIST = {
     ("GET", "/api/v1/playback/sessions/{session_id}/sub{index}.m3u8"),
     ("GET", "/api/v1/playback/sessions/{session_id}/{name}"),
     ("GET", "/api/v1/playback/files/{file_id}/stream"),
+    # 原盘目录直推（disc-direct-play.md）：只凭签名 token，与原文件直出同属公开取流区
+    ("GET", "/api/v1/playback/files/{file_id}/disc"),
+    ("GET", "/api/v1/playback/files/{file_id}/disc/{relative_path}"),
     ("GET", "/api/v1/playback/files/{file_id}/subtitles"),
     ("GET", "/api/v1/playback/files/{file_id}/fonts"),
     ("GET", "/api/v1/playback/files/{file_id}/fonts/{name}"),
@@ -705,6 +708,7 @@ _PATH_DUMMIES = {
     "{index}": "0",
     "{day}": "2026-01-01",
     "{path}": "1/poster.jpg",
+    "{relative_path}": "BDMV/PLAYLIST/00001.mpls",
     "{challenge_id}": "test-challenge",
     "{account_id}": "test-bot",
     "{channel}": "weixin",

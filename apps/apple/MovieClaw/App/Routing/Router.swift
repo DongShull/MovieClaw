@@ -71,6 +71,12 @@ extension PlayRequest {
         if let t = components.queryItems?.first(where: { $0.name == "t" })?.value, t.wholeMatch(of: /\d+/) != nil, let seconds = Double(t) {
             startSeconds = seconds
         }
+        #if DEBUG
+        // 开发期语料测试：`?file=<文件 id>` 指定版本——同一条目有多个版本时，服务端挑的未必是要测的那个
+        if let raw = components.queryItems?.first(where: { $0.name == "file" })?.value, let id = Int(raw), id > 0 {
+            fileId = id
+        }
+        #endif
     }
 }
 

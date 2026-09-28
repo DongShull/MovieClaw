@@ -102,12 +102,18 @@ async def decide_for_files(
         # 的 EP_map 而不是 ffprobe——目录探不了，m2ts 本体通读不起
         disc = disc_source_for_file(file) if file.is_disc() else None
         disc_clips = len(disc.clips) if disc is not None else 0
-        profile = media_profile_from_file(file, disc_clips=disc_clips)
+        disc_playlist = disc.playlist_name if disc is not None else None
+        profile = media_profile_from_file(
+            file, disc_clips=disc_clips, disc_playlist=disc_playlist
+        )
         interval = None
         if disc is not None:
             interval = await asyncio.to_thread(disc.keyframe_interval_s)
             profile = media_profile_from_file(
-                file, keyframe_interval_s=interval, disc_clips=disc_clips
+                file,
+                keyframe_interval_s=interval,
+                disc_clips=disc_clips,
+                disc_playlist=disc_playlist,
             )
         elif needs_keyframe_probe(
             profile,
@@ -269,6 +275,8 @@ def to_view(decision: PlaybackDecision) -> PlaybackDecisionView:
                 int(decision.degraded_from) if decision.degraded_from is not None else None
             ),
             reason=decision.reason,
+            disc=decision.disc,
+            disc_playlist=decision.disc_playlist,
         )
     if isinstance(decision, ConsentRequired):
         return PlaybackDecisionView(
@@ -298,4 +306,6 @@ def capability_from_request(payload) -> ClientCapability:  # noqa: ANN001
         is_mobile=payload.is_mobile,
         native_hls=payload.native_hls,
         universal=payload.universal,
+        disc_image=payload.disc_image,
+        disc_folder=payload.disc_folder,
     )

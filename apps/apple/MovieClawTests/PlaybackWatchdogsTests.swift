@@ -105,4 +105,46 @@ struct PlaybackWatchdogsTests {
         budget.reset()
         #expect(budget.consecutive == 0)
     }
+
+    @Test func prematureEndResumesOnlyFarFromTheEnd() {
+        // 45 分钟的片放到 12 分钟报播完：断流，从当前位置重开
+        var guardian = PrematureEndGuard()
+        let midway = guardian.shouldResume(positionMs: 731_000, durationMs: 2_700_000)
+        #expect(midway)
+        // 片尾 30 秒内报播完：真播完（片尾字幕、时长略有出入）
+        var nearEnd = PrematureEndGuard()
+        let atCredits = nearEnd.shouldResume(positionMs: 2_680_000, durationMs: 2_700_000)
+        #expect(!atCredits)
+        // 不知道片长：没法判断，按播完处理
+        var unknown = PrematureEndGuard()
+        let noDuration = unknown.shouldResume(positionMs: 731_000, durationMs: nil)
+        #expect(!noDuration)
+    }
+
+    @Test func prematureEndGivesUpWhenItEndsAgainAtTheSameSpot() {
+        var guardian = PrematureEndGuard()
+        let first = guardian.shouldResume(positionMs: 731_000, durationMs: 2_700_000)
+        // 重开后原地附近又报播完：片长写错了，这里就是真结尾，不再重开
+        let again = guardian.shouldResume(positionMs: 735_000, durationMs: 2_700_000)
+        // 往后又放了一大段才再断：照常重开
+        let later = guardian.shouldResume(positionMs: 1_500_000, durationMs: 2_700_000)
+        #expect(first && !again && later)
+        // 换单元后从头计
+        guardian.reset()
+        let afterReset = guardian.shouldResume(positionMs: 1_500_000, durationMs: 2_700_000)
+        #expect(afterReset)
+    }
+
+    @Test func reconnectBackoffSpansAboutAMinuteThenGivesUp() {
+        var backoff = ReconnectBackoff()
+        var delays: [Double] = []
+        while let delay = backoff.nextDelay() { delays.append(delay) }
+        // 覆盖一次服务端重启（停机二三十秒）还有富余，但不会无限转圈
+        let total = delays.reduce(0, +)
+        #expect(total >= 45 && total <= 90)
+        #expect(delays == delays.sorted())
+        backoff.reset()
+        let firstAgain = backoff.nextDelay()
+        #expect(firstAgain == delays.first)
+    }
 }

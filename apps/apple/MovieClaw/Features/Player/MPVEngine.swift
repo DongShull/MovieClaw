@@ -218,6 +218,15 @@ final class MPVEngine: PlayerEngine {
         core.destroy()
     }
 
+    /// mpv 在自己的线程上异步收尾，收尾时它的 iOS 音频输出会把整个 App 的音频会话关掉
+    /// （ao_audiounit 的 uninit 调 `setActive:NO`）。这一下常落在下一个引擎已经起播之后：
+    /// 系统播放器 / 自研引擎被连带暂停，画面停住（2026-09-27 真机：MPV 回落到系统播放器后停在原地不动）。
+    /// 控制器借 `tornDown` 在收尾完成后重新激活音频会话
+    func destroy(tornDown: @escaping @MainActor @Sendable () -> Void) {
+        onEvent = nil
+        core.destroy(completion: tornDown)
+    }
+
     // MARK: - 事件
 
     private func handle(_ event: MPVEvent) {

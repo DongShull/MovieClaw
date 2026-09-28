@@ -156,12 +156,25 @@ struct AudioMenu: View {
     var body: some View {
         PlayerMenuPanel(title: "音轨") {
             ForEach(controller.audioOptions) { option in
-                PlayerMenuRow(
-                    title: option.label,
-                    active: option.ref == controller.currentAudio || (controller.currentAudio == nil && option.isDefault)
-                ) {
-                    controller.selectAudio(option.ref)
-                    close()
+                if let reason = option.unavailableReason {
+                    // 放不了的轨置灰并写明原因（样式同字幕菜单的「不可用」）
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(option.label).lineLimit(1)
+                        Text(reason).font(.caption)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.35))
+                    .padding(.leading, MenuMetrics.titleLeading)
+                    .padding(.trailing, MenuMetrics.edge)
+                    .padding(.vertical, 6)
+                } else {
+                    PlayerMenuRow(
+                        title: option.label,
+                        active: option.ref == controller.currentAudio || (controller.currentAudio == nil && option.isDefault)
+                    ) {
+                        controller.selectAudio(option.ref)
+                        close()
+                    }
                 }
             }
             if controller.audioSwitchRestarts {

@@ -347,6 +347,10 @@ def _apply_transcode_negotiation(
     """
     if not negotiation.enable_transcoding:
         return
+    if (f.container or "") == "iso":
+        # 光盘镜像服务端读不了盘内结构、ffmpeg 也打不开，转码无从谈起：只按原字节直连，
+        # 由 Infuse 这类自己认镜像的播放器放（disc-direct-play.md §2.2）
+        return
     direct_ok = direct_play_allowed(f.bit_rate, negotiation)
     requested_index = negotiation.audio_stream_index
     audio_ref = audio_track_for_index(f, requested_index) if requested_index is not None else None
@@ -581,9 +585,10 @@ async def video_stream(
     media_type = container_mime_type(
         container or request.query_params.get("container") or f.container or path.suffix
     )
-    if f.is_disc():
+    if f.is_disc() and (f.container or "") != "iso":
         # 原盘（disc-playback.md §3.3）：单剪辑主片直接按 m2ts 供流；多剪辑
-        # 没有单文件，客户端应按 PlaybackInfo 给的 TranscodingUrl 走 HLS
+        # 没有单文件，客户端应按 PlaybackInfo 给的 TranscodingUrl 走 HLS。
+        # ISO 不进这个分支：原字节直推，盘内结构由播放器自己读（disc-direct-play.md）
         disc = disc_source_for_file(f)
         clip = disc.single_clip if disc is not None else None
         if clip is None:

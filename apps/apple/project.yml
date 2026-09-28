@@ -7,6 +7,9 @@
 name: MovieClaw
 options:
   bundleIdPrefix: io.movieclaw
+  # 界面全是中文（源码里的文案就是中文）：系统在 App 里画的文字按 App 声明的本地化选语言，
+  # 只声明 en 时画中画占位「This video is playing in picture in picture.」、搜索框的取消键等一律是英文
+  developmentLanguage: zh-Hans
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -23,10 +26,10 @@ packages:
     path: Vendor/MPVKit
   # 自研引擎的内核（LGPL-3.0 + App Store 例外）：FFmpeg 解封装、就地换封装成 HLS 交给 AVPlayer，
   # AVPlayer 解不了的编码走 FFmpeg 软解 + 系统显示层。设计见 docs/design/player-engine.md。
-  # 钉死版本：上游几乎每天发版，升级前要用语料回归（见设计文档「质量体系」）。
+  # 用仓库内的 Vendor/AetherEngine（上游 7.19.0 + 起播优化补丁，清单见其 PATCHES.md），
+  # 补丁逐个提给上游，合并后回到直接引用上游版本。升级前要用语料回归（见设计文档「质量体系」）。
   AetherEngine:
-    url: https://github.com/superuser404notfound/AetherEngine
-    exactVersion: "7.19.0"
+    path: Vendor/AetherEngine
   # AetherEngine 自带的 FFmpeg（AetherLib* 动态框架，LGPL-2.1，无 GPL 组件）。
   # 单独声明是为了让 App 目标把这些动态框架嵌进包里（见 MovieClaw 目标的依赖说明）；
   # 版本必须与 AetherEngine 当前版本要求的一致，升级 AetherEngine 时一起改。
@@ -70,6 +73,9 @@ targets:
       path: MovieClaw/Info.plist
       properties:
         CFBundleDisplayName: MovieClaw
+        # 系统界面（画中画、系统菜单、权限弹窗的按钮）跟着说中文，见 options.developmentLanguage
+        CFBundleLocalizations:
+          - zh-Hans
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}

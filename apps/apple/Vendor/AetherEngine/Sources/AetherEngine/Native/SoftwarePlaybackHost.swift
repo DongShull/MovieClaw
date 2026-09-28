@@ -114,8 +114,12 @@ final class SoftwarePlaybackHost {
     private let renderer: SampleBufferRenderer
     /// Swapped per codec at load(): SoftwareVideoDecoder for AV1/VP9, HardwareVideoDecoder for HEVC. Protocol keeps the demux loop codec-agnostic.
     private var videoDecoder: any VideoDecodingPipeline
+    /// [MovieClaw P14] 视频由 VideoToolbox 硬解（HEVC / VP9 走 `HardwareVideoDecoder`），诊断标签据此写 HW / SW
+    var decodesVideoInHardware: Bool { videoDecoder is HardwareVideoDecoder }
     private var audioDecoder: AudioDecoder?
     private var audioOutput: AudioOutput?
+    /// [MovieClaw P17] 跳转后等落点那一帧交到显示层再走时钟（见文件末尾的扩展）
+    nonisolated let seekClockHoldState = SeekClockHoldState()
     private var demuxer: Demuxer?
     private var vodPacketReadAhead: SoftwarePacketReadAhead?
 
@@ -808,6 +812,11 @@ final class SoftwarePlaybackHost {
                 "[SWHost] selected HardwareVideoDecoder (VT HEVC) for codec_id=\(codecpar.pointee.codec_id.rawValue)",
                 category: .swPlayback
             )
+        } else if let codecpar = vStream.pointee.codecpar, HardwareVideoDecoder.decodesVP9InHardware(codecpar) {
+            // [MovieClaw P14] VP9 走 VideoToolbox 硬解（iOS 26.2 起登记补充解码器后可用），4K 软解太费电
+            videoDecoder.close()
+            videoDecoder = HardwareVideoDecoder()
+            EngineLog.emit("[SWHost] [MovieClaw P14] selected HardwareVideoDecoder (VT VP9)", category: .swPlayback)
         } else if !(videoDecoder is SoftwareVideoDecoder) {
             videoDecoder.close()
             videoDecoder = SoftwareVideoDecoder()
@@ -840,6 +849,7 @@ final class SoftwarePlaybackHost {
             guard self.decodeGeneration == self.seekGeneration else { return }
             // Decoder callback is off-main; SampleBufferRenderer is internally locked.
             self.renderer.enqueue(pixelBuffer: pixelBuffer, pts: pts, hdr10PlusData: hdr10PlusData)
+            self.releaseSeekClockHold(generation: self.decodeGeneration, afterFrame: true)  // [MovieClaw P17]
             // First-frame milestone: demux reached a video packet + decoder produced a pixel buffer.
             if self.bumpFramesEnqueued() == 0 {
                 self.noteFirstFrameEnqueuedForDisplayFallback()
@@ -1114,6 +1124,7 @@ final class SoftwarePlaybackHost {
     }
 
     func pause() {
+        cancelSeekClockHold()  // [MovieClaw P17] 跳转后还没走的时钟不能在暂停之后又被放开
         // Un-anchored clock: only latch the pause; the loops park on isPlaying (#107).
         if clockArmed {
             audioOutput?.pause()
@@ -1379,7 +1390,9 @@ final class SoftwarePlaybackHost {
         // pause (kept playing) or, from the other side, anchored at rate 0 under a running loop.
         if inFlightSeekResumeIntent {
             // Anchor clock at seek target: clock at .zero + PTS=seekTarget would stall rendering for seekTarget seconds (FigVideoQueueRemote -12080).
-            audioOutput?.seekClock(to: targetTime, rate: lastRate)
+            // [MovieClaw P17] 先停在落点（速率 0），落点那一帧交到显示层再走（见 `armSeekClockHold`）
+            audioOutput?.seekClock(to: targetTime, rate: 0)
+            armSeekClockHold(generation: generation)
             isPlaying = true
         } else {
             // Paused seek: anchor at target with rate 0 so play() resumes from the seek position (without this, scrubs freeze or drop all samples).
@@ -1809,6 +1822,11 @@ final class SoftwarePlaybackHost {
 
         let diag = demuxDiag
         let readAhead = vodPacketReadAhead
+        // [MovieClaw P17] 起播锚时钟时等这一代解出的第一帧交到显示层再走
+        let armStartupClockHold: @Sendable (AudioOutput) -> Void = { [weak self] output in
+            guard let self else { return }
+            self.armClockHold(output: output, generation: self.decodeGeneration)
+        }
         demuxQueue.async {
             Self.runDemuxLoop(
                 demuxer: dem,
@@ -1822,6 +1840,7 @@ final class SoftwarePlaybackHost {
                 condition: condition,
                 initialClockTime: initialClock,
                 currentRate: currentRate,
+                armClockHold: armStartupClockHold,
                 diag: diag,
                 ring: ring,
                 videoTimeBaseSeconds: vTbSec,
@@ -2331,6 +2350,7 @@ final class SoftwarePlaybackHost {
         condition: NSCondition,
         initialClockTime: CMTime,
         currentRate: @Sendable () -> Float,
+        armClockHold: (@Sendable (AudioOutput) -> Void)? = nil,
         diag: SWPlaybackDiagState? = nil,
         ring: PacketRingBuffer?,
         videoTimeBaseSeconds: Double,
@@ -2905,8 +2925,17 @@ final class SoftwarePlaybackHost {
                     let resolution = SWClockAnchorPolicy.resolve(
                         initialSeconds: initialClockTime.seconds,
                         firstSampleSeconds: firstPts.isValid ? firstPts.seconds : Double.nan)
-                    armClock(aOut, resolution: resolution, initialClockTime: initialClockTime,
-                             rate: currentRate(), onClockAnchored: onClockAnchored)
+                    // [MovieClaw P17] 起播同样先停在锚点、等第一帧交到显示层再走：音频先解好就开走，画面还在起步
+                    // （1080i 去交错），前 0.2 秒掉 11 帧。暂停起播（速率 0）照旧
+                    let rate = currentRate()
+                    if rate > 0, let armClockHold {
+                        armClock(aOut, resolution: resolution, initialClockTime: initialClockTime,
+                                 rate: 0, onClockAnchored: onClockAnchored)
+                        armClockHold(aOut)
+                    } else {
+                        armClock(aOut, resolution: resolution, initialClockTime: initialClockTime,
+                                 rate: rate, onClockAnchored: onClockAnchored)
+                    }
                     markClockArmed()
                 }
             } else if subtitleStreamIndices.contains(streamIdx), let sink = subtitleTapSink() {
@@ -3208,5 +3237,67 @@ extension SoftwarePlaybackHost: LiveRecordingHost {
             duration: packet.pointee.duration,
             isKeyframe: (packet.pointee.flags & AV_PKT_FLAG_KEY) != 0
         )
+    }
+}
+
+// MARK: - [MovieClaw P17] 跳转后等落点那一帧交到显示层再走时钟
+//
+// 跳转落地原来立刻按原速率走时钟，可解码器还在从前一个关键帧往目标解，落点之后的前十几帧一出来就已迟到、
+// 被显示层丢掉（DVD 7 帧、AVI 11 帧、VP9 4 帧），跳转后画面停半秒再跳。改成时钟先停在落点，落点之后第 5 次送帧
+// （渲染器的重排缓冲攒够 4 帧才放出第一帧，这一次落点那一帧才真正交到显示层）再按当前速率走；兜底 0.6 秒，
+// 解码卡住时也不会一直停着。暂停会取消等待，免得暂停之后又被放开
+extension SoftwarePlaybackHost {
+    struct SeekClockHold {
+        let generation: UInt64
+        let output: AudioOutput
+        var frames: Int
+    }
+    nonisolated static let seekClockHoldFrames = 5
+    nonisolated static let seekClockHoldTimeout: TimeInterval = 0.6
+
+    func armSeekClockHold(generation: UInt64) {
+        guard let output = audioOutput else { return }
+        armClockHold(output: output, generation: generation)
+    }
+
+    /// 起播时读包线程也用它（时钟已按速率 0 锚好，等这一代解出的帧交到显示层）
+    nonisolated func armClockHold(output: AudioOutput, generation: UInt64) {
+        seekClockHoldState.set(SeekClockHold(generation: generation, output: output, frames: 0))
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + Self.seekClockHoldTimeout) { [weak self] in
+            self?.releaseSeekClockHold(generation: generation, afterFrame: false)
+        }
+    }
+
+    /// 解码回调线程每送一帧调一次（afterFrame），够数放开；兜底计时到了也放开
+    nonisolated func releaseSeekClockHold(generation: UInt64, afterFrame: Bool) {
+        guard let hold = seekClockHoldState.take(generation: generation, afterFrame: afterFrame,
+                                                 needed: Self.seekClockHoldFrames) else { return }
+        hold.output.setRate(lastRate)
+    }
+
+    func cancelSeekClockHold() {
+        seekClockHoldState.set(nil)
+    }
+}
+
+/// [MovieClaw P17] 跳转后等帧的状态：主线程布置、解码回调线程计数与放开，一把锁保护
+final class SeekClockHoldState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var hold: SoftwarePlaybackHost.SeekClockHold?
+
+    func set(_ value: SoftwarePlaybackHost.SeekClockHold?) {
+        lock.lock(); hold = value; lock.unlock()
+    }
+
+    /// 这一代跳转的等待：计一帧（或兜底），该放开时取走并返回它，否则返回 nil
+    func take(generation: UInt64, afterFrame: Bool, needed: Int) -> SoftwarePlaybackHost.SeekClockHold? {
+        lock.lock(); defer { lock.unlock() }
+        guard var current = hold, current.generation == generation else { return nil }
+        if afterFrame {
+            current.frames += 1
+            guard current.frames >= needed else { hold = current; return nil }
+        }
+        hold = nil
+        return current
     }
 }

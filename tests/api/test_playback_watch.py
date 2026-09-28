@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.services.auth import reset_auth_state
@@ -349,6 +350,42 @@ def test_session_reuses_remembered_audio_track(client, tmp_path):
     data = start_session(client, item_id)
     assert data["watch"]["audio_track"] == "embedded:0"
     assert data["decision"]["audio"]["track_ref"] == "embedded:0"
+
+
+async def _give_second_audio_track(item_id: int) -> None:
+    """给种子文件补一条非默认音轨（同为 AAC，免得牵出转码），用来区分「记住的轨」与「默认轨」。"""
+    async with get_database().session() as session:
+        file = (
+            await session.execute(select(LibraryFile).where(LibraryFile.media_item_id == item_id))
+        ).scalar_one()
+        file.audio_streams = [
+            {"codec": "aac", "channels": 2, "default": True},
+            {"codec": "aac", "channels": 2, "default": False},
+        ]
+        await session.commit()
+
+
+def test_decide_applies_remembered_tracks_like_session_start(client, tmp_path):
+    """decide 与开会话同一口径套用观看记忆（上次的音轨 / 字幕），显式指定的照旧优先。
+
+    否则探测和真开会话判出两种计划：App 的自动选引擎按探测结果先开系统播放器
+    会话，真开出来却是转码档（记住的 PGS 字幕要整片压制），再改走 MPV，白白
+    拉起又掐掉一路转码（2026-09-27 NAS 实测）。
+    """
+    _, item_id = seed(client, tmp_path)
+    client.portal.call(partial(_give_second_audio_track, item_id))  # type: ignore[attr-defined]
+    report(client, item_id, event="start", audio_track="embedded:1")
+
+    def decide(**extra) -> dict:
+        resp = client.post(
+            f"{_PB}/decide",
+            json={"media_item_id": item_id, "capability": _CAPABILITY, **extra},
+        )
+        assert resp.status_code == 200, resp.text
+        return resp.json()["data"]
+
+    assert decide()["audio"]["track_ref"] == "embedded:1"
+    assert decide(audio_track="embedded:0")["audio"]["track_ref"] == "embedded:0"
 
 
 # ---------------------------------------------------------------------------

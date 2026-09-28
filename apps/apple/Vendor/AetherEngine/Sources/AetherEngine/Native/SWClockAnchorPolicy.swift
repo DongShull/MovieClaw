@@ -25,8 +25,11 @@ enum SWClockAnchorPolicy {
     static func resolve(initialSeconds: Double,
                         firstSampleSeconds: Double,
                         toleranceSeconds: Double = SWClockAnchorPolicy.toleranceSeconds) -> Resolution {
+        // [MovieClaw P13] 只有首个样本「晚于」起播点才算中途加入。早于起播点是粗粒度定位落在了前面（DVD 时间表
+        // 16 秒一格、长 GOP 的关键帧），时钟仍锚在起播点、之前的帧跳过；原来一律按首个样本锚，《聪明的一休》
+        // 续播落在 12 秒前，画面要等时钟真的走到起播点才出，起播 8.9 秒
         guard firstSampleSeconds.isFinite,
-              abs(firstSampleSeconds - initialSeconds) > toleranceSeconds else {
+              firstSampleSeconds - initialSeconds > toleranceSeconds else {
             return Resolution(anchorSeconds: initialSeconds, sessionZeroSeconds: 0)
         }
         return Resolution(anchorSeconds: firstSampleSeconds,

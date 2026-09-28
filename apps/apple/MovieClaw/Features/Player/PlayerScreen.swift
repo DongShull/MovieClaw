@@ -66,31 +66,62 @@ struct PlayerScreen: View {
                     created.endHoldSpeed()
                 }
             }
-            // 真机排查用：-mcAutoPiP <秒> 起播后到点自动点一次画中画（真机跑不了界面测试，靠它验证换引擎进画中画）
-            let autoPiP = UserDefaults.standard.double(forKey: "mcAutoPiP")
-            if autoPiP > 0 {
+            // 真机排查用：-mcAutoPiP <秒>[,<秒>…] 起播后到点自动点画中画（真机跑不了界面测试，靠它验证进出画中画）；
+            // 给多个时间点就依次切换：第一次进、第二次出……
+            let autoPiPTimes = (UserDefaults.standard.string(forKey: "mcAutoPiP") ?? "")
+                .split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }.filter { $0 > 0 }
+            if !autoPiPTimes.isEmpty {
                 Task {
-                    try? await Task.sleep(for: .seconds(autoPiP))
-                    created.togglePictureInPicture()
+                    var elapsed = 0.0
+                    for at in autoPiPTimes.sorted() {
+                        try? await Task.sleep(for: .seconds(at - elapsed))
+                        elapsed = at
+                        FileHandle.standardError.write(Data("[AutoTest] 画中画切换（第 \(Int(at)) 秒）\n".utf8))
+                        created.togglePictureInPicture()
+                    }
                 }
             }
-            // 引擎验证用：-mcAutoAudio "<秒>:<音轨引用>" 到点自动换音轨；-mcAutoSeek "<秒>:<目标秒>" 到点自动跳转
-            // （量换轨、跳转耗时，见 docs/design/player-engine.md 第 6 节）
-            if let spec = UserDefaults.standard.string(forKey: "mcAutoAudio"), let colon = spec.firstIndex(of: ":"),
-               let after = Double(spec[..<colon]) {
-                let ref = String(spec[spec.index(after: colon)...])
+            // 引擎验证用：-mcAutoSubtitle "<秒>:<字幕引用|off>[,<秒>:<字幕引用|off>…]" 到点依次切字幕
+            let subtitleSteps = Self.autoTestSteps("mcAutoSubtitle")
+            if !subtitleSteps.isEmpty {
                 Task {
-                    try? await Task.sleep(for: .seconds(after))
-                    FileHandle.standardError.write(Data("[AutoTest] 换音轨 → \(ref)\n".utf8))
-                    created.selectAudio(ref)
+                    var elapsed = 0.0
+                    for (at, ref) in subtitleSteps {
+                        try? await Task.sleep(for: .seconds(at - elapsed))
+                        elapsed = at
+                        FileHandle.standardError.write(Data("[AutoTest] 换字幕 → \(ref)\n".utf8))
+                        created.selectSubtitle(ref == "off" ? nil : ref)
+                    }
                 }
             }
-            if let spec = UserDefaults.standard.string(forKey: "mcAutoSeek"), let colon = spec.firstIndex(of: ":"),
-               let after = Double(spec[..<colon]), let target = Double(spec[spec.index(after: colon)...]) {
+            // 引擎验证用：-mcAutoAudio "<秒>:<音轨引用>[,…]" 到点依次换音轨；
+            // -mcAutoSeek "<秒>:<目标>[,…]" 到点依次跳转，目标是片内秒数，带 +/- 则相对当前位置（量缓冲内外的跳转耗时，
+            // 落地打 [SeekTrace]；见 docs/design/player-engine.md 第 6 节）
+            let audioSteps = Self.autoTestSteps("mcAutoAudio")
+            if !audioSteps.isEmpty {
                 Task {
-                    try? await Task.sleep(for: .seconds(after))
-                    FileHandle.standardError.write(Data("[AutoTest] 跳转 → \(Int(target)) 秒\n".utf8))
-                    created.seek(toFileMs: Int(target * 1000))
+                    var elapsed = 0.0
+                    for (at, ref) in audioSteps {
+                        try? await Task.sleep(for: .seconds(at - elapsed))
+                        elapsed = at
+                        FileHandle.standardError.write(Data("[AutoTest] 换音轨 → \(ref)\n".utf8))
+                        created.selectAudio(ref)
+                    }
+                }
+            }
+            let seekSteps = Self.autoTestSteps("mcAutoSeek")
+            if !seekSteps.isEmpty {
+                Task {
+                    var elapsed = 0.0
+                    for (at, spec) in seekSteps {
+                        try? await Task.sleep(for: .seconds(at - elapsed))
+                        elapsed = at
+                        guard let value = Double(spec) else { continue }
+                        let relative = spec.hasPrefix("+") || spec.hasPrefix("-")
+                        let targetMs = relative ? created.positionMs + Int(value * 1000) : Int(value * 1000)
+                        FileHandle.standardError.write(Data("[AutoTest] 跳转 → \(targetMs / 1000) 秒\n".utf8))
+                        created.seek(toFileMs: targetMs)
+                    }
                 }
             }
             // 真机排查用：-mcAutoLandscape <秒> 起播后自动切横屏；
@@ -137,6 +168,17 @@ struct PlayerScreen: View {
         exit()
         router.open(.settingsSection(.playback))
     }
+
+    #if DEBUG
+    /// 自动测试步骤 "<秒>:<引用>[,<秒>:<引用>…]"（引用本身可含冒号，如 embedded:1），按时间排好
+    private static func autoTestSteps(_ key: String) -> [(Double, String)] {
+        (UserDefaults.standard.string(forKey: key) ?? "").split(separator: ",").compactMap { step in
+            guard let colon = step.firstIndex(of: ":"), let at = Double(step[..<colon]) else { return nil }
+            return (at, String(step[step.index(after: colon)...]))
+        }
+        .sorted { $0.0 < $1.0 }
+    }
+    #endif
 }
 
 /// 播放器画面与控制层

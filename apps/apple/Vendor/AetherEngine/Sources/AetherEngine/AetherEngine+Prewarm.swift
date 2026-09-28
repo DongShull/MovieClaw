@@ -72,3 +72,13 @@ public extension AetherEngine {
         SourcePrewarmStore.shared.clear()
     }
 }
+
+// MARK: - [MovieClaw P16] 死会话缓存清扫
+public extension AetherEngine {
+    /// 清掉被杀掉的会话留下的分片（主力通路）与包缓存（软件通路）。两种缓存建新会话时各自顺手清一遍，
+    /// 但只清同类：一直走主力通路的用户，软件通路的残留要等下一次放 VP9 / DVD 才会清。App 启动时调一次，放后台线程
+    nonisolated static func sweepStaleSessionCaches() {
+        SegmentCache.sweepStaleSessions()
+        _ = SoftwarePacketDiskFIFO.sweepStaleSessionDirs(parentDirectory: FileManager.default.temporaryDirectory)
+    }
+}

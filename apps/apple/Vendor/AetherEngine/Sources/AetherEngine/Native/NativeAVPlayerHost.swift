@@ -396,6 +396,8 @@ final class NativeAVPlayerHost {
         /// AE#440: may the join's stall-avoidance hold be cut short once the cushion is proven. Live-only,
         /// and armed per load.
         var liveJoinStartsImmediately: Bool = false
+        /// [MovieClaw patch P2] The same one-shot for a VOD start.
+        var vodStartsImmediately: Bool = false
         /// 4 s matches the loopback segment cadence; the remote-HLS bypass passes 0 (system adaptive),
         /// where 4 s forced a 3-4 s black screen on bandwidth-limited Jellyfin live transcodes.
         var forwardBufferDuration: Double = 4.0
@@ -459,7 +461,8 @@ final class NativeAVPlayerHost {
         self.isLiveSession = contract.isLive
         // AE#440: per load, and only ever armed for a live session. The player is reused across loads,
         // so an override left armed from a live zap would meet the next VOD title's cold start.
-        self.liveJoinStartsImmediately = contract.isLive && contract.liveJoinStartsImmediately
+        self.liveJoinStartsImmediately = (contract.isLive && contract.liveJoinStartsImmediately)
+            || (!contract.isLive && contract.vodStartsImmediately)   // [MovieClaw patch P2]
         self.liveJoinImmediateStartSpent = false
         self.liveJoinImmediateStartProbeInFlight = false
         self.liveJoinThinBufferLogged = false

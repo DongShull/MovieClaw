@@ -38,6 +38,8 @@ enum EngineEvent {
     case failed(reason: String, cause: EngineFailureCause)
     /// 画中画进出
     case pictureInPicture(Bool)
+    /// 引擎读到的轨道列表出来了 / 变了（只有自研引擎报：服务端看不到的轨由它补进菜单，见 `PlaybackController.adoptEngineTracks`）
+    case tracksChanged
     /// 起播里程碑（只用于分段计时，见 `StartupTrace`）
     case milestone(EngineMilestone)
 }
@@ -218,10 +220,14 @@ protocol PlayerEngine: AnyObject {
     /// 能否原地换音轨（MPV 直出原文件时可以；HLS/AVPlayer 下要重开会话）
     var canSwitchAudioInPlace: Bool { get }
     func selectAudio(embeddedIndex: Int)
+    /// 起播时的音轨：explicit = 用户这次选过、或服务端记着用户上次选的轨；否则只是服务端的默认挑选
+    func selectInitialAudio(embeddedIndex: Int, explicit: Bool)
 
     /// 这类字幕（kind：vtt / ass / pgs）由引擎自己画；否则由 SwiftUI 叠加层用系统字体画。
     /// 目前只有 MPV 画图形字幕（PGS）；文字字幕两个引擎都走叠加层
     func rendersSubtitle(kind: String) -> Bool
+    /// 这条轨由引擎自己画吗（默认按类型判断；自研引擎的内封轨一律自己画，见 NativeEngine）
+    func rendersSubtitle(_ option: SubtitleOption) -> Bool
     /// 选字幕：embeddedIndex 非空且直出原文件时直接选内封轨，否则挂服务端地址
     func selectSubtitle(_ option: SubtitleOption?, url: URL?)
     func applySubtitleStyle(_ style: SubtitleStyle)
@@ -233,8 +239,17 @@ protocol PlayerEngine: AnyObject {
     /// App 前后台切换（后台只留声音）
     func setBackgrounded(_ background: Bool)
     func destroy()
+    /// 释放引擎，并在它彻底收尾（后台线程全部退出）后于主线程调用 `tornDown`。
+    /// 只有 MPV 真正异步收尾（见 MPVEngine.destroy(tornDown:)），其余引擎释放完立刻回调
+    func destroy(tornDown: @escaping @MainActor @Sendable () -> Void)
 }
 
 extension PlayerEngine {
     var watchdogGraceUntil: Date? { nil }
+    func destroy(tornDown: @escaping @MainActor @Sendable () -> Void) {
+        destroy()
+        tornDown()
+    }
+    func selectInitialAudio(embeddedIndex: Int, explicit: Bool) { selectAudio(embeddedIndex: embeddedIndex) }
+    func rendersSubtitle(_ option: SubtitleOption) -> Bool { rendersSubtitle(kind: option.kind) }
 }

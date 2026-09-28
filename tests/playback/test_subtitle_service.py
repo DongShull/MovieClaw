@@ -109,6 +109,42 @@ def test_serve_big5_normalized_to_utf8(tmp_path: Path) -> None:
     assert "繁體中文字幕測試" in content.decode("utf-8")
 
 
+def test_serve_big5_with_injected_utf8_line(tmp_path: Path) -> None:
+    """Big5 字幕里夹着字幕站插的一行 UTF-8 推广语（NAS 上《权力的游戏》S01E09 即此）。
+
+    整份用哪种编码都严格解不开，原先整份退回 UTF-8 宽容解码、满屏「�」；
+    现在推广语照 UTF-8、其余按 Big5，两边都对。
+    """
+    body = "1\r\n00:00:01,000 --> 00:00:02,000\r\n你又來看我了\r\n\r\n"
+    body += "2\r\n00:00:03,000 --> 00:00:04,000\r\n你是我最後一個朋友了吧\r\n\r\n"
+    ad = "3\r\n00:00:05,000 --> 00:00:06,000\r\n想在此處做廣告？聯繫 www.OpenSubtitles.org\r\n\r\n"
+    sub = tmp_path / "Show.S01E09.zh-cn.srt"
+    sub.write_bytes(body.encode("big5") + ad.encode("utf-8"))
+    content, _ = serve_subtitle(SubtitleRef(path=sub, format="srt"), None)
+    text = content.decode("utf-8")
+    assert "你是我最後一個朋友了吧" in text
+    assert "想在此處做廣告？聯繫 www.OpenSubtitles.org" in text
+    assert "\ufffd" not in text
+
+
+def test_serve_gbk_with_a_stray_byte(tmp_path: Path) -> None:
+    """GBK 里一个坏字节只坏那一个字，不再让整份文件判成「编码无法确定」。"""
+    cue = "1\n00:00:01,000 --> 00:00:02,000\n他们说这个世界上没有什么是不可能的\n\n"
+    good = cue.encode("gbk")
+    sub = tmp_path / "Movie.chs.srt"
+    sub.write_bytes(good + b"2\n00:00:03,000 --> 00:00:04,000\n\xff\xff\n\n")
+    content, _ = serve_subtitle(SubtitleRef(path=sub, format="srt"), None)
+    assert "他们说这个世界上没有什么是不可能的" in content.decode("utf-8")
+
+
+def test_serve_utf16_with_bom(tmp_path: Path) -> None:
+    """UTF-16（满篇 \\x00）不按行拆，整份交给探测器。"""
+    sub = tmp_path / "Movie.chs.srt"
+    sub.write_bytes(SRT.encode("utf-16"))
+    content, _ = serve_subtitle(SubtitleRef(path=sub, format="srt"), None)
+    assert "简体中文字幕测试" in content.decode("utf-8")
+
+
 def test_serve_srt_to_vtt(tmp_path: Path) -> None:
     sub = tmp_path / "Movie.srt"
     sub.write_text(SRT, encoding="utf-8")
@@ -134,6 +170,27 @@ def test_serve_ass_passthrough_but_no_cross_conversion(tmp_path: Path) -> None:
     # 白名单外的组合仍要拒绝（ass→vtt 已为画中画放行，见 _CONVERTIBLE）
     with pytest.raises(SubtitleServeError):
         serve_subtitle(SubtitleRef(path=ass, format="ass"), "srt")
+
+
+def test_serve_ssa_to_vtt(tmp_path: Path) -> None:
+    """SSA（ASS 的前身）与 ASS 一样可以降级成 VTT 纯文本（外挂 .ssa 原来 404）。"""
+    ssa = tmp_path / "Movie.zh-cn.ssa"
+    ssa.write_text(
+        "[Script Info]\nScriptType: v4.00\n\n[V4 Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+        "TertiaryColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, "
+        "Alignment, MarginL, MarginR, MarginV, AlphaLevel, Encoding\n"
+        "Style: Default,Arial,20,16777215,65535,65535,-2147483640,"
+        "-1,0,1,3,0,2,30,30,30,0,0\n\n[Events]\n"
+        "Format: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+        "Dialogue: Marked=0,0:00:01.00,0:00:02.50,Default,,0000,0000,0000,,你好\n",
+        encoding="utf-8",
+    )
+    content, mime = serve_subtitle(SubtitleRef(path=ssa, format="ssa"), "vtt")
+    text = content.decode("utf-8")
+    assert mime == "text/vtt"
+    assert "00:00:01.000 --> 00:00:02.500" in text
+    assert "你好" in text
 
 
 def test_serve_empty_format_means_source_format(tmp_path: Path) -> None:

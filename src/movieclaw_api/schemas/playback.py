@@ -355,6 +355,12 @@ class ClientCapabilityIn(BaseModel):
     #: 例外，照样拼成不转码的 HLS。用户限了画质或线路不够、需要服务端压码率时
     #: 客户端不带它。
     universal: bool = False
+    #: 能在本机读光盘镜像（蓝光 UDF / DVD ISO9660）：ISO 给档 0 原字节直推。
+    #: 只有 App 的自研引擎申报（disc-direct-play.md）
+    disc_image: bool = False
+    #: 能经目录取流接口读原盘目录：多剪辑原盘给档 0 目录直推（会话的 ``stream_url``
+    #: 是目录清单地址，决策带主播放列表名），NAS 不起 ffmpeg
+    disc_folder: bool = False
 
 
 class PlaybackDecideRequest(BaseModel):
@@ -450,6 +456,11 @@ class PlaybackDecisionView(BaseModel):
     audio_tracks: list[AudioTrackView] = []
     subtitles: list[SubtitlePlanView] = []
     degraded_from: int | None = None
+    #: 光盘直推的形态（disc-direct-play.md）："image" = ISO 原字节（``stream_url`` 即原文件）、
+    #: "folder" = 原盘目录按文件直推（``stream_url`` 是目录清单）；普通文件为 None
+    disc: str | None = None
+    #: 目录直推时服务端选中的主播放列表文件名（如 ``00800.mpls``），播放器按名字选主片
+    disc_playlist: str | None = None
 
     # outcome == "consent"
     cost_hint: str | None = None
@@ -563,6 +574,24 @@ class PlaybackChapterMarkView(BaseModel):
 
     start_ms: int
     title: str | None = None
+
+
+class PlaybackDiscFileView(BaseModel):
+    """原盘目录里可直推的一个文件（disc-direct-play.md §2.3）。"""
+
+    #: 相对原盘根目录的路径，保留盘上实际的大小写（如 ``BDMV/STREAM/00001.M2TS``）
+    path: str
+    size: int
+    #: 按 Range 取这个文件的地址，已带签名 token
+    url: str
+
+
+class PlaybackDiscListingView(BaseModel):
+    """原盘目录清单：自研引擎据此在本机解析播放列表、拼接剪辑，服务端只按文件供字节。"""
+
+    files: list[PlaybackDiscFileView]
+    #: 服务端选中的主播放列表文件名（诱饵判定与台账时长同一口径）；读不出时为 None
+    playlist: str | None = None
 
 
 class PlaybackSessionView(BaseModel):

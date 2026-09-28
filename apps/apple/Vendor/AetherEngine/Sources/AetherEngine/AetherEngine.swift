@@ -4287,9 +4287,14 @@ public final class AetherEngine: ObservableObject {
         // On probe failure (probedAudioTracks empty) the override can't be validated, so honor it
         // verbatim and let the reopened session re-validate it: an explicit audioSourceStreamIndex
         // still wins (the contract), matching pre-#72 behavior where the raw override was passed through.
+        // [MovieClaw patch P11] 宿主按序号指定的起播音轨换成流下标，排在显式流下标之后
+        let ordinalAudio: Int32? = options.audioTrackOrdinal.flatMap { ordinal in
+            let ordered = probedAudioTracks.sorted { $0.id < $1.id }
+            return ordered.indices.contains(ordinal) ? Int32(ordered[ordinal].id) : nil
+        }
         let selectedAudio = Self.selectAudioIndex(
             tracks: probedAudioTracks,
-            override: audioSourceStreamIndex,
+            override: audioSourceStreamIndex ?? ordinalAudio,
             preferredLanguages: options.preferredAudioLanguages
         ) ?? (probeOpened ? nil : audioSourceStreamIndex)
         let resolvedInitialAudio = selectedAudio ?? probedDefaultAudioIndex
@@ -4782,7 +4787,7 @@ public final class AetherEngine: ObservableObject {
                     )
                 }
                 activeVideoDecoder = Self.videoDecoderLabel(
-                    codecID: detectedCodecID, isSoftware: true
+                    codecID: detectedCodecID, isSoftware: !(softwareHost?.decodesVideoInHardware ?? false)
                 )
                 // AE#462: the host's own resolved index, not the engine's pick. The pick says which
                 // track was ASKED for; only the host knows whether a decoder opened for it, and this

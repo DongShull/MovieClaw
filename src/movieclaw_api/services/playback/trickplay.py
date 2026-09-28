@@ -30,6 +30,7 @@ import math
 import shutil
 import subprocess
 import uuid
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,6 +59,24 @@ _INDEX_NAME = "index.json"
 
 #: 正在生成的文件 id，避免同一部片被并发触发多次生成。
 _in_flight: set[int] = set()
+
+#: 全局同时只跑一个生成任务。生成要在 NAS 的 CPU 上通读整片、软解关键帧（4K HEVC 尤其重），
+#: 只按单部片去重时，连着开播几部片（或家里几个人同时看）就会同时拉起一串 ffmpeg，把 CPU
+#: 打满、拖垮全站接口（2026-09-27：真机语料连播几十部，8 个并发任务，开会话等了 160 秒、
+#: 数据库连接池耗尽全站 500）。其余任务排队，缩略图晚一些出来不影响播放。
+_GENERATE_CONCURRENCY = 1
+#: 按事件循环各一把信号量：asyncio 原语会绑定首次使用它的循环
+_generate_gates: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _generate_gate() -> asyncio.Semaphore:
+    loop = asyncio.get_running_loop()
+    gate = _generate_gates.get(loop)
+    if gate is None:
+        gate = _generate_gates[loop] = asyncio.Semaphore(_GENERATE_CONCURRENCY)
+    return gate
 
 
 @dataclass(frozen=True)
@@ -220,7 +239,10 @@ def schedule(file: LibraryFile, *, delay_s: float = 0) -> None:
                 return
             if delay_s > 0:
                 await asyncio.sleep(delay_s)
-            await asyncio.to_thread(generate, file)
+            async with _generate_gate():
+                # 排队期间别的触发点可能已经生成过
+                if load_index(file_id) is None:
+                    await asyncio.to_thread(generate, file)
         except Exception:  # noqa: BLE001 — 缩略图失败绝不能影响播放
             logger.warning("缩略图生成失败：file_id=%s", file_id, exc_info=True)
         finally:

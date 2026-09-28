@@ -14,6 +14,21 @@ import UIKit
 /// - 只放原文件直出（服务端档 0 地址）；要服务端转码的情况仍交给系统播放器引擎放 HLS；
 /// - 失败时如实上报，由控制器按兜底阶梯回落到 MPV → 服务端 HLS；
 /// - 图形字幕（PGS 等）由引擎给出位图、在 AetherCore 里按画面摆放；文字字幕仍走 SwiftUI 叠加层。
+/// 自研引擎要装载的光盘源（控制器据会话组装；只有 NativeEngine 直接接触 AetherCore 的类型）
+enum NativeDiscSource {
+    /// 光盘镜像的原字节地址（ISO）
+    case image(URL)
+    /// 原盘目录：文件清单 + 服务端选中的主播放列表名
+    case folder(files: [NativeDiscFile], playlist: String?)
+}
+
+/// 原盘目录里的一个文件：相对原盘根目录的路径、字节数、按 Range 取字节的地址（已带取流令牌）
+struct NativeDiscFile {
+    let path: String
+    let size: Int64
+    let url: URL
+}
+
 @MainActor
 final class NativeEngine: NSObject, PlayerEngine {
     let kind = EngineKind.native
@@ -32,10 +47,21 @@ final class NativeEngine: NSObject, PlayerEngine {
 
     /// 轨道列表出来之前就选定的轨：列表出来后补上（音轨要等首帧后再换，起播中途重载会拖慢出画）
     private var pendingAudio: Int?
+    /// 起播音轨是不是用户明确要的（见 `selectInitialAudio`）
+    private var pendingAudioExplicit = true
+    /// 装载前就交代了的明确起播音轨（第几条内封音轨）：交给引擎按序号起播，首帧就是它
+    private var loadAudioOrdinal: Int?
+    /// 已经向引擎发出装载（之后再交代的起播音轨只能等首帧后重载着换）
+    private var loadIssued = false
+    /// 装载时交给引擎的外挂字幕（按引用记顺序：引擎里 isExternal 的轨按 id 排序与之一一对应）
+    private var externalSubtitleRefs: [String] = []
+    private var pendingExternalSubtitles: [AetherPlayback.ExternalSubtitle] = []
     private var pendingSubtitle: SubtitleOption?
     private var hasPendingSubtitle = false
     private var tracksKnown = false
     private var firstFrameShown = false
+    /// 引擎报「在播」时首帧还没上屏（见 handle(_:)）
+    private var playingBeforeFirstFrame = false
 
     #if DEBUG
     /// 开发期：状态变化打到控制台并标上距装载的毫秒数（量起播、跳转、换轨耗时）
@@ -43,7 +69,10 @@ final class NativeEngine: NSObject, PlayerEngine {
     #endif
 
     private var pipController: AVPictureInPictureController?
-    private weak var pipLayer: AVPlayerLayer?
+    /// 画中画控制器绑的是哪一层（主力通路的 AVPlayerLayer / 软件通路的显示层）：换了层才重建控制器
+    private weak var pipLayer: CALayer?
+    /// 软件通路的画中画源（控制器是「采样缓冲」式时非空，小窗的时间与播放控制都问它）
+    private var softwarePiP: AetherPlayback.SoftwarePictureInPicture?
     private(set) var isPictureInPictureActive = false
 
     init(playsOriginalFile: Bool) throws {
@@ -51,9 +80,12 @@ final class NativeEngine: NSObject, PlayerEngine {
         #if DEBUG
         // 开发期：-mcAetherLog YES 把引擎日志打到控制台（模拟器排查用）
         AetherPlayback.mirrorEngineLog(UserDefaults.standard.bool(forKey: "mcAetherLog"))
+        // -mcAetherCues YES：把文字字幕与 ASS 定位打到控制台
+        AetherPlayback.logsCues = UserDefaults.standard.bool(forKey: "mcAetherCues")
         #endif
         core = try AetherPlayback()
         super.init()
+        Self.sweepStaleCachesOnce()
         core.onPhase = { [weak self] phase in self?.handle(phase) }
         core.onFailure = { [weak self] failure in self?.handle(failure) }
         core.onTracksChanged = { [weak self] in self?.tracksChanged() }
@@ -62,21 +94,69 @@ final class NativeEngine: NSObject, PlayerEngine {
 
     var view: UIView { core.view }
 
+    /// 本次启动第一次建自研引擎时清一遍死会话的缓存（被杀掉的播放会话会在临时目录留下 GB 级分片，
+    /// 真机一夜的测试攒到 15 GB、把手机写满）
+    private static var sweptStaleCaches = false
+    private static func sweepStaleCachesOnce() {
+        guard !sweptStaleCaches else { return }
+        sweptStaleCaches = true
+        DispatchQueue.global(qos: .utility).async { AetherPlayback.sweepStaleCaches() }
+    }
+
+    /// 引擎调校项。开发期可用启动参数逐项 A/B（量起播与 CPU 用）：
+    /// `-mcAetherFastStart NO`、`-mcAetherLossless YES`、`-mcAetherProbeKB <KB>`、`-mcAetherProbeMs <毫秒>`
+    static var tuning: AetherPlayback.Tuning {
+        var tuning = AetherPlayback.Tuning()
+        #if DEBUG
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: "mcAetherFastStart") != nil { tuning.startsImmediately = defaults.bool(forKey: "mcAetherFastStart") }
+        if defaults.object(forKey: "mcAetherLossless") != nil { tuning.losslessAudio = defaults.bool(forKey: "mcAetherLossless") }
+        if defaults.integer(forKey: "mcAetherProbeKB") > 0 { tuning.probeBytes = Int64(defaults.integer(forKey: "mcAetherProbeKB")) * 1024 }
+        if defaults.integer(forKey: "mcAetherProbeMs") > 0 { tuning.probeMicroseconds = Int64(defaults.integer(forKey: "mcAetherProbeMs")) * 1000 }
+        #endif
+        return tuning
+    }
+
     // MARK: - 播放控制
 
     func load(url: URL, start: Double, autoplay: Bool) {
+        load(source: .file(url), start: start, autoplay: autoplay)
+    }
+
+    /// 装载光盘（docs/design/disc-direct-play.md）：镜像给原字节地址，原盘目录给文件清单与主播放列表名，
+    /// 盘内结构都由引擎在本机解析，服务端只按 Range 供字节
+    func load(disc: NativeDiscSource, start: Double, autoplay: Bool) {
+        switch disc {
+        case let .image(url):
+            load(source: .discImage(url), start: start, autoplay: autoplay)
+        case let .folder(files, playlist):
+            let mapped = files.map { AetherPlayback.DiscFile(path: $0.path, size: $0.size, url: $0.url) }
+            load(source: .discFolder(files: mapped, playlist: playlist), start: start, autoplay: autoplay)
+        }
+    }
+
+    private func load(source: AetherPlayback.Source, start: Double, autoplay: Bool) {
         lastReported = nil
         tracksKnown = false
         firstFrameShown = false
+        playingBeforeFirstFrame = false
         loadingMeter.reset()
         bandwidthMeter.reset()
         lastBandwidthSample = nil
-        if let token = PlaybackAPI.token(in: url.absoluteString) { AetherPlayback.redact(token) }
+        let tokenURL: URL? = switch source {
+        case let .file(url), let .discImage(url): url
+        case let .discFolder(files, _): files.first?.url
+        }
+        if let tokenURL, let token = PlaybackAPI.token(in: tokenURL.absoluteString) { AetherPlayback.redact(token) }
         #if DEBUG
         loadedAt = .now
+        FileHandle.standardError.write(Data("[NativeEngine \(String(format: "%.3f", ProcessInfo.processInfo.systemUptime))] 装载 start=\(start)\n".utf8))
         #endif
         // 带上 App 的 User-Agent：服务端按它把这条流登记成「MovieClaw iOS」而不是浏览器
-        core.load(url: url, start: start > 0.5 ? start : nil, autoplay: autoplay, headers: ["User-Agent": APIClient.userAgent])
+        loadIssued = true
+        core.load(source: source, start: start > 0.5 ? start : nil, autoplay: autoplay,
+                  headers: ["User-Agent": APIClient.userAgent], tuning: Self.tuning, audioOrdinal: loadAudioOrdinal,
+                  externalSubtitles: pendingExternalSubtitles)
         emit(.buffering)
     }
 
@@ -127,6 +207,24 @@ final class NativeEngine: NSObject, PlayerEngine {
     /// 引擎在当前位置重载一次即可换轨，不用重开服务端会话
     var canSwitchAudioInPlace: Bool { true }
 
+    /// 起播音轨：不是用户明确要的轨时，只在语言不同才换。
+    ///
+    /// 引擎装载时自己挑一条音轨（FFmpeg 的 best stream），和服务端的默认挑选常常不是同一条：
+    /// 原盘里 TrueHD 与它内嵌的 AC-3 核心被拆成两路，引擎挑 AC-3 核心、服务端挑 TrueHD。
+    /// 同语言的两条轨对用户几乎没区别（默认都是 5.1 杜比），为这点差别在首帧后重载一次要多黑屏
+    /// 0.5～1 秒、原盘要多花好几秒（真机《疾速追杀4》起播 14 秒里一半是这次重载），不值得。
+    ///
+    /// 用户明确要的轨（这次选过、或记着上次换过的）要在装载前交代：引擎探测完按序号直接起播这条轨，
+    /// 不必首帧后再重载一次（真机蓝光镜像起播 2.5 → 4.2 秒就是这一次重载）。
+    func selectInitialAudio(embeddedIndex: Int, explicit: Bool) {
+        if explicit, !loadIssued {
+            loadAudioOrdinal = embeddedIndex
+            return
+        }
+        pendingAudioExplicit = explicit
+        selectAudio(embeddedIndex: embeddedIndex)
+    }
+
     func selectAudio(embeddedIndex: Int) {
         guard firstFrameShown else { pendingAudio = embeddedIndex; return }
         let audio = core.audioTracks.filter { !$0.isExternal }.sorted { $0.id < $1.id }
@@ -135,9 +233,60 @@ final class NativeEngine: NSObject, PlayerEngine {
         if core.activeAudioTrackID != target { core.selectAudioTrack(id: target) }
     }
 
+    // MARK: - 引擎读到的轨（服务端清单缺轨时补菜单用）
+
+    /// 引擎读到的一条内封轨：菜单标签与默认挑选要用的几样
+    struct EmbeddedTrack {
+        let language: String?
+        /// 解码器名（小写，如 ac3、pgssub、dvbsub）；没有解码器时是编码描述名（如 arib_caption）
+        let codec: String
+        let channels: Int
+        let isDefault: Bool
+    }
+
+    /// 内封音轨，按流顺序排：第 N 条 = embedded:N（与服务端探测的编号口径一致）
+    var embeddedAudioTracks: [EmbeddedTrack] { Self.embedded(core.audioTracks) }
+
+    /// 内封字幕轨，按流顺序排：第 N 条 = embedded:N
+    var embeddedSubtitleTracks: [EmbeddedTrack] { Self.embedded(core.subtitleTracks) }
+
+    /// 正在放的是第几条内封音轨
+    var activeEmbeddedAudioIndex: Int? {
+        core.audioTracks.filter { !$0.isExternal }.sorted { $0.id < $1.id }.firstIndex { $0.id == core.activeAudioTrackID }
+    }
+
+    private static func embedded(_ tracks: [AetherPlayback.Track]) -> [EmbeddedTrack] {
+        tracks.filter { !$0.isExternal }.sorted { $0.id < $1.id }
+            .map { EmbeddedTrack(language: $0.language, codec: $0.codec, channels: $0.channels, isDefault: $0.isDefault) }
+    }
+
     // MARK: - 字幕（引擎画图形字幕，文字字幕交给叠加层）
 
     func rendersSubtitle(kind: String) -> Bool { kind == "pgs" }
+
+    /// 内封轨（文字与图形）都由引擎画：字幕从播放的读取流里顺带收集，选轨即刻出字。
+    /// 走服务端的话，内封文字轨要 NAS 通读整个容器抽出来（大文件几十秒、还会拖慢 NAS），这正是「服务端弱」要避开的。
+    /// 装载时交给引擎的外挂文字字幕也由引擎画（服务端只给编码归一成 UTF-8 的原文件，不转格式）：
+    /// ASS / SSA 的定位与分层照样生效，画中画时还能换成原生字幕轨
+    func rendersSubtitle(_ option: SubtitleOption) -> Bool {
+        option.embeddedIndex != nil || option.kind == "pgs" || externalSubtitleRefs.contains(option.ref)
+    }
+
+    /// 装载前交代外挂字幕（引用、取原文件的地址、语言）：由引擎下载、解码、画
+    func prepareExternalSubtitles(_ subtitles: [(ref: String, url: URL, language: String?)]) {
+        guard !loadIssued else { return }
+        var refs: [String] = []
+        var declared: [AetherPlayback.ExternalSubtitle] = []
+        for subtitle in subtitles {
+            // 引用是 external:<文件名>，格式看文件名的扩展名；引擎认不得的格式（位图 .sup 等）不交，仍走叠加层
+            let format = (subtitle.ref as NSString).pathExtension.lowercased()
+            guard ["srt", "ass", "ssa", "vtt"].contains(format) else { continue }
+            refs.append(subtitle.ref)
+            declared.append(.init(url: subtitle.url, language: subtitle.language, format: format))
+        }
+        externalSubtitleRefs = refs
+        pendingExternalSubtitles = declared
+    }
 
     func selectSubtitle(_ option: SubtitleOption?, url: URL?) {
         guard let option else {
@@ -159,17 +308,30 @@ final class NativeEngine: NSObject, PlayerEngine {
                 return
             }
         }
+        // 外挂轨按装载时登记的顺序对位
+        if let index = externalSubtitleRefs.firstIndex(of: option.ref) {
+            let external = core.subtitleTracks.filter(\.isExternal).sorted { $0.id < $1.id }
+            if index < external.count {
+                core.selectSubtitleTrack(id: external[index].id)
+                return
+            }
+        }
         core.clearSubtitle()
     }
 
     func applySubtitleStyle(_ style: SubtitleStyle) {
         core.setSubtitleDelay(style.offsetSeconds)
+        core.setTextStyle(.init(
+            fontScale: style.fontScale, bottomPercent: style.bottomPercent,
+            outline: style.outline, background: style.background
+        ))
     }
 
     // MARK: - 画中画 / 前后台
 
     var supportsPictureInPicture: Bool {
-        AVPictureInPictureController.isPictureInPictureSupported() && core.pictureInPictureLayer != nil
+        AVPictureInPictureController.isPictureInPictureSupported()
+            && (core.pictureInPictureLayer != nil || core.softwarePictureInPicture != nil)
     }
 
     func togglePictureInPicture() {
@@ -182,16 +344,30 @@ final class NativeEngine: NSObject, PlayerEngine {
         }
     }
 
-    /// 画中画控制器绑在引擎的 AVPlayerLayer 上：换引擎、换会话都不需要，原地进出小窗
+    /// 画中画控制器绑在引擎的显示层上：换引擎、换会话都不需要，原地进出小窗。
+    /// 主力通路绑 AVPlayerLayer；软件通路（VP9、MPEG-2、VC-1……）绑采样缓冲显示层，小窗的时间与播放控制
+    /// 由引擎回答（`AVPictureInPictureSampleBufferPlaybackDelegate`）——两条通路的画中画都在本机完成，
+    /// 不用为画中画换成服务端转码
     private func preparePictureInPicture() {
-        guard AVPictureInPictureController.isPictureInPictureSupported(), let layer = core.pictureInPictureLayer else { return }
-        if pipController != nil, pipLayer === layer { return }
+        guard AVPictureInPictureController.isPictureInPictureSupported() else { return }
+        let controller: AVPictureInPictureController?
+        if let layer = core.pictureInPictureLayer {
+            if pipController != nil, pipLayer === layer { return }
+            controller = AVPictureInPictureController(playerLayer: layer)
+            softwarePiP = nil
+            pipLayer = layer
+        } else if let software = core.softwarePictureInPicture {
+            if pipController != nil, pipLayer === software.layer { return }
+            controller = AVPictureInPictureController(contentSource: .init(sampleBufferDisplayLayer: software.layer, playbackDelegate: self))
+            softwarePiP = software
+            pipLayer = software.layer
+        } else {
+            return
+        }
         pipController?.delegate = nil
-        let controller = AVPictureInPictureController(playerLayer: layer)
         controller?.canStartPictureInPictureAutomaticallyFromInline = true
         controller?.delegate = self
         pipController = controller
-        pipLayer = layer
     }
 
     /// 前后台由引擎自己跟随 App 生命周期处理（后台只留声音、画中画时保持管线），这里无事可做
@@ -209,30 +385,57 @@ final class NativeEngine: NSObject, PlayerEngine {
     private func handle(_ phase: AetherPlayback.Phase) {
         switch phase {
         case .loading, .buffering: emit(.buffering)
-        case .playing: emit(.playing)
+        case .playing:
+            // 软件通路上时钟先转、画面后到：首帧上屏之前一直报缓冲，转圈不提前收起、起播计时也按首帧算
+            if firstFrameShown { emit(.playing) } else { playingBeforeFirstFrame = true }
         case .paused: emit(.paused)
         case .ended: emit(.ended)
         }
     }
 
     private func handle(_ failure: AetherPlayback.Failure) {
-        emit(.failed(reason: "自研引擎无法播放（\(failure.message)）", cause: failure.isNetwork ? .network : .decode))
+        // 引擎的报错是英文；用户看得懂的几种先翻成中文
+        let message = failure.message.hasPrefix("Device storage is full")
+            ? "手机存储空间不足，视频分片写不进缓存，请清理存储后重试"
+            : failure.message
+        emit(.failed(reason: "自研引擎无法播放（\(message)）", cause: failure.isNetwork ? .network : .decode))
     }
 
     private func tracksChanged() {
         tracksKnown = !core.audioTracks.isEmpty || !core.subtitleTracks.isEmpty
-        guard tracksKnown, hasPendingSubtitle else { return }
-        hasPendingSubtitle = false
-        selectSubtitle(pendingSubtitle, url: nil)
+        guard tracksKnown else { return }
+        if hasPendingSubtitle {
+            hasPendingSubtitle = false
+            selectSubtitle(pendingSubtitle, url: nil)
+        }
+        onEvent?(.tracksChanged)
     }
 
     private func firstFrameReady() {
         firstFrameShown = true
+        if playingBeforeFirstFrame {
+            playingBeforeFirstFrame = false
+            emit(.playing)
+        }
         preparePictureInPicture()
         if let pendingAudio {
             self.pendingAudio = nil
-            selectAudio(embeddedIndex: pendingAudio)
+            let explicit = pendingAudioExplicit
+            pendingAudioExplicit = true
+            if explicit || audioLanguageDiffers(fromEmbedded: pendingAudio) {
+                selectAudio(embeddedIndex: pendingAudio)
+            }
         }
+    }
+
+    /// 服务端挑的第 N 条内封音轨与引擎正在放的轨语言是否不同（任一方没有语言标记时视为相同，信引擎的挑选）
+    private func audioLanguageDiffers(fromEmbedded index: Int) -> Bool {
+        let audio = core.audioTracks.filter { !$0.isExternal }.sorted { $0.id < $1.id }
+        guard index < audio.count, let active = audio.first(where: { $0.id == core.activeAudioTrackID }) else { return false }
+        let wanted = audio[index]
+        guard wanted.id != active.id, let want = wanted.language?.lowercased(), let have = active.language?.lowercased(),
+              !want.isEmpty, !have.isEmpty, want != "und", have != "und" else { return false }
+        return want != have
     }
 
     private func emit(_ event: EngineEvent) {
@@ -241,9 +444,12 @@ final class NativeEngine: NSObject, PlayerEngine {
             return
         default:
             lastReported = event
+            // 软件通路的小窗自己不知道播放状态：状态变了要让它重新来问（播放/暂停键、进度条）
+            if softwarePiP != nil { pipController?.invalidatePlaybackState() }
             #if DEBUG
             let elapsed = Int((ContinuousClock.now - loadedAt) / .milliseconds(1))
-            FileHandle.standardError.write(Data("[NativeEngine] \(event) 距装载 \(elapsed) 毫秒 t=\(String(format: "%.2f", currentTime))\n".utf8))
+            let stamp = String(format: "%.3f", ProcessInfo.processInfo.systemUptime)
+            FileHandle.standardError.write(Data("[NativeEngine \(stamp)] \(event) 距装载 \(elapsed) 毫秒 t=\(String(format: "%.2f", currentTime))\n".utf8))
             #endif
             onEvent?(event)
         }
@@ -253,6 +459,9 @@ final class NativeEngine: NSObject, PlayerEngine {
 extension NativeEngine: AVPictureInPictureControllerDelegate {
     nonisolated func pictureInPictureControllerWillStartPictureInPicture(_ controller: AVPictureInPictureController) {
         MainActor.assumeIsolated {
+            #if DEBUG
+            FileHandle.standardError.write(Data("[PiP] 进入画中画 t=\(String(format: "%.2f", currentTime))\n".utf8))
+            #endif
             isPictureInPictureActive = true
             core.setPictureInPictureActive(true)
             onEvent?(.pictureInPicture(true))
@@ -261,6 +470,9 @@ extension NativeEngine: AVPictureInPictureControllerDelegate {
 
     nonisolated func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
         MainActor.assumeIsolated {
+            #if DEBUG
+            FileHandle.standardError.write(Data("[PiP] 退出画中画 t=\(String(format: "%.2f", currentTime))\n".utf8))
+            #endif
             isPictureInPictureActive = false
             core.setPictureInPictureActive(false)
             onEvent?(.pictureInPicture(false))
@@ -269,8 +481,41 @@ extension NativeEngine: AVPictureInPictureControllerDelegate {
 
     nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, failedToStartPictureInPictureWithError error: any Error) {
         MainActor.assumeIsolated {
+            #if DEBUG
+            FileHandle.standardError.write(Data("[PiP] 画中画启动失败：\(error.localizedDescription)\n".utf8))
+            #endif
             isPictureInPictureActive = false
             core.setPictureInPictureActive(false)
         }
+    }
+}
+
+/// 软件通路画中画的播放方：小窗问可播范围、是否暂停，按播放/暂停与快进快退键时回调这里，一律转给引擎。
+/// 系统在主线程回调（以防万一不在主线程时同步切回主线程再答）
+extension NativeEngine: AVPictureInPictureSampleBufferPlaybackDelegate {
+    nonisolated private func onMain<T: Sendable>(_ body: @MainActor () -> T) -> T {
+        if Thread.isMainThread { return MainActor.assumeIsolated(body) }
+        return DispatchQueue.main.sync { MainActor.assumeIsolated(body) }
+    }
+
+    nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, setPlaying playing: Bool) {
+        onMain { softwarePiP?.setPlaying(playing) }
+    }
+
+    nonisolated func pictureInPictureControllerTimeRangeForPlayback(_ controller: AVPictureInPictureController) -> CMTimeRange {
+        onMain { softwarePiP?.timeRange() ?? CMTimeRange(start: .negativeInfinity, duration: .positiveInfinity) }
+    }
+
+    nonisolated func pictureInPictureControllerIsPlaybackPaused(_ controller: AVPictureInPictureController) -> Bool {
+        onMain { softwarePiP?.isPaused ?? true }
+    }
+
+    nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController,
+                                                didTransitionToRenderSize newRenderSize: CMVideoDimensions) {}
+
+    nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, skipByInterval skipInterval: CMTime,
+                                                completion completionHandler: @escaping () -> Void) {
+        onMain { softwarePiP?.skip(by: skipInterval.seconds) }
+        completionHandler()
     }
 }

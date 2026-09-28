@@ -9,6 +9,21 @@ import Foundation
 // Thread-safe: all mutable state is guarded by `condition` (NSCondition), so it is safe to share
 // across the producer/provider threads and capture in @Sendable closures.
 final class SegmentCache: @unchecked Sendable {
+    // [MovieClaw P8] 最近一次建分片目录时磁盘已满（时间戳，秒）：VOD 泵因此失败时换成说人话的报错
+    nonisolated(unsafe) private static var storageExhaustedAt: TimeInterval = 0
+    private static let storageLock = NSLock()
+
+    static func markStorageExhausted() {
+        storageLock.lock(); defer { storageLock.unlock() }
+        storageExhaustedAt = ProcessInfo.processInfo.systemUptime
+    }
+
+    /// 最近 2 分钟内出现过「存储空间不足」
+    static var storageRecentlyExhausted: Bool {
+        storageLock.lock(); defer { storageLock.unlock() }
+        return storageExhaustedAt > 0 && ProcessInfo.processInfo.systemUptime - storageExhaustedAt < 120
+    }
+
 
     /// AE#412: where a stored segment's first random-access point sits, as an offset from the
     /// segment's ADVERTISED start (its plan boundary). An offset, not an absolute time, so it is
@@ -134,6 +149,13 @@ final class SegmentCache: @unchecked Sendable {
         } catch {
             EngineLog.emit("[SegmentCache] session dir create failed at \(sessionDir.path): \(error)",
                            category: .session)
+            // [MovieClaw P8] 记下「空间不足」：后面分片一个都写不进去，最终的报错要说清是存储满了，
+            // 而不是笼统的「音频无法封装」
+            let nsError = error as NSError
+            if (nsError.domain == NSCocoaErrorDomain && nsError.code == NSFileWriteOutOfSpaceError)
+                || (nsError.domain == NSPOSIXErrorDomain && nsError.code == Int(ENOSPC)) {
+                Self.markStorageExhausted()
+            }
         }
 
         // Before the sweep, so a sibling constructed in the same breath cannot read this session
@@ -187,6 +209,13 @@ final class SegmentCache: @unchecked Sendable {
         return true
     }
 
+    /// [MovieClaw P16] 不建会话、只清死会话留下的分片目录（App 启动时调一次）
+    static func sweepStaleSessions() {
+        let baseDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("aether-segments", isDirectory: true)
+        sweepStaleSessionDirs(baseDir: baseDir, currentSession: "")
+    }
+
     private static func sweepStaleSessionDirs(baseDir: URL, currentSession: String) {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(at: baseDir,
@@ -195,8 +224,17 @@ final class SegmentCache: @unchecked Sendable {
             return
         }
         let cutoff = Date().addingTimeInterval(-3600)
+        // [MovieClaw P16] 有存活标记的目录不必等一小时：锁没人拿着就是死会话（进程死了内核会放掉 flock），立刻清。
+        // 原来一律等满一小时，被杀掉的会话每个都留下最多一个保留预算（2 GB）的分片：真机一小时里被结束十来次，
+        // App 占用长到 16 GB、把手机写满，4K 片子因此起播失败。留 10 秒余量，躲开「标记已建、锁还没拿到」的一瞬间
+        let markerCutoff = Date().addingTimeInterval(-10)
         for entry in entries where entry.lastPathComponent != currentSession {
             let created = (try? entry.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+            if fm.fileExists(atPath: entry.appendingPathComponent(liveMarkerName).path) {
+                guard created == nil || created! < markerCutoff, !isSessionDirLive(entry) else { continue }
+                try? fm.removeItem(at: entry)
+                continue
+            }
             guard created == nil || created! < cutoff else { continue }
             // AE#451: age says how long it has been there, not whether anyone is still using it.
             if isSessionDirLive(entry) {

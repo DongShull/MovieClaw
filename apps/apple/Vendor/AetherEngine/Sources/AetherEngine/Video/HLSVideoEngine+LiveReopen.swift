@@ -693,6 +693,11 @@ extension HLSVideoEngine {
                                         kind: .audioBridgeProducedNoOutput)
                 return
             }
+            // [MovieClaw P8] 分片目录因磁盘已满建不出来时，泵失败与音频无关：报存储不足，宿主据此换播放器
+            if SegmentCache.storageRecentlyExhausted {
+                surfaceVODSourceFailure(FFmpegErr.einval, "Device storage is full: video segments cannot be cached")
+                return
+            }
             surfaceVODSourceFailure(FFmpegErr.einval, "Source audio cannot be muxed")
             return
         }

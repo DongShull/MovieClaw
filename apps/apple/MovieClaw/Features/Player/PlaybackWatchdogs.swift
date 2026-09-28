@@ -165,3 +165,50 @@ struct NetworkRestartBudget {
     /// 换单元 / 用户手动重试：从头计
     mutating func reset() { consecutive = 0 }
 }
+
+/// 引擎报「播完」时离片尾还远：是取流断了，不是真播完，不能弹「即将播放下一集」。
+///
+/// 典型现场（2026-09-27 真机）：mpv 直出放到一半，服务端重启约 20 秒，反向代理回 502，mpv 重连失败就把
+/// 断流当成文件结尾，放完缓存后报 eof，播放器随即弹出「即将播放下一集」、紧跟着换到下一集。
+/// 这种「播完」一律从当前位置重开（新会话、新 token），观众只看到一次短暂的缓冲。
+///
+/// 片长信息本身可能不准（个别文件容器里写的时长偏长）：重开后在原地附近又报播完，就认定真到了结尾，
+/// 不在片尾反复重开。
+struct PrematureEndGuard {
+    /// 离片尾超过这么远才算「没播完」；也是「原地附近」的判定半径
+    static let marginMs = 30000
+
+    private var resumedAtMs: Int?
+
+    /// 该当作断流、从当前位置重开时返回 true（并记下重开点）；真播完返回 false
+    mutating func shouldResume(positionMs: Int, durationMs: Int?) -> Bool {
+        guard let durationMs, durationMs - positionMs > Self.marginMs else { return false }
+        if let resumedAtMs, abs(positionMs - resumedAtMs) < Self.marginMs { return false }
+        resumedAtMs = positionMs
+        return true
+    }
+
+    /// 换单元：从头计
+    mutating func reset() { resumedAtMs = nil }
+}
+
+/// 播放中重开（断线、服务端重启）时服务端暂时连不上：退避自动重试，累计约 1 分钟仍连不上才落到错误页。
+///
+/// 服务端重启（应用内更新、重新部署）要停机二三十秒；引擎自己的断线重连扛不住更久的停机时，控制器会原地重开，
+/// 这一刻服务端多半还没起来——不重试就直接报错，观众得自己点「重试」，而服务端几秒后其实就回来了。
+/// 只在「已经播起来过」的单元上用；起播就连不上照旧立刻报错（多半是地址或网络本身不对）。
+struct ReconnectBackoff {
+    static let delays: [Double] = [2, 4, 8, 15, 15, 15]
+
+    private var index = 0
+
+    /// 下一次重试前等多少秒；用完返回 nil
+    mutating func nextDelay() -> Double? {
+        guard index < Self.delays.count else { return nil }
+        defer { index += 1 }
+        return Self.delays[index]
+    }
+
+    /// 重新播起来了 / 换单元 / 用户手动重试：从头计
+    mutating func reset() { index = 0 }
+}

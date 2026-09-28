@@ -63,13 +63,22 @@ extension HLSVideoEngine {
     ///
     /// Coverage is the span between keyframes, never reaching to EOF, so a dense index that stops early
     /// (the trailing-gap-not-counted case) is unaffected: its span already exceeds one segment.
-    /// An index failing either witness is routed to the uniform-stride fallback.
+    ///
+    /// [MovieClaw P18] A third witness, **tail**: the span must also reach to within `maxTrailingGapSeconds` of the
+    /// source duration. An index that stops early by minutes is not "dense but short", it is a partial scan:
+    /// an MKV whose Cues are missing or point past EOF (an incomplete download) leaves only what the capped
+    /// prewarm walked, and the keyframe planner then emits a last segment from the final scanned keyframe to
+    /// the end of the title (device, 2026-09-28: 205 s → 5933 s), which the producer can never finish and
+    /// AVPlayer waits on forever. 60 s tolerates a long final GOP or a container duration padded by a
+    /// trailing audio / subtitle track.
+    /// An index failing any witness is routed to the uniform-stride fallback.
     static func keyframeIndexIsTrustworthy(
         keyframes: [Int64],
         videoTimeBase: AVRational,
         sourceDurationSeconds: Double,
         maxTrustedGapSeconds: Double = Swift.max(HLSVideoEngine.targetSegmentDuration * 4, 30),
-        minCoverageSeconds: Double = HLSVideoEngine.targetSegmentDuration
+        minCoverageSeconds: Double = HLSVideoEngine.targetSegmentDuration,
+        maxTrailingGapSeconds: Double = 60
     ) -> Bool {
         guard keyframes.count >= 2,
               sourceDurationSeconds > 0,
@@ -78,6 +87,7 @@ extension HLSVideoEngine {
         let sorted = keyframes.sorted()
         let coverageSeconds = Double(sorted[sorted.count - 1] - sorted[0]) * tb
         guard coverageSeconds >= minCoverageSeconds else { return false }
+        guard sourceDurationSeconds - coverageSeconds <= maxTrailingGapSeconds else { return false }  // [MovieClaw P18]
         var largestGapSeconds = 0.0
         for i in 1..<sorted.count {
             let gapSeconds = Double(sorted[i] - sorted[i - 1]) * tb
@@ -194,19 +204,22 @@ extension HLSVideoEngine {
         videoTimeBase: AVRational,
         sourceDurationSeconds: Double,
         startPts0: Int64 = 0,
-        strideSeconds: Double = HLSVideoEngine.targetSegmentDuration
+        strideSeconds: Double = HLSVideoEngine.targetSegmentDuration,
+        firstSegmentSeconds: Double? = nil   // [MovieClaw patch P3]
     ) -> [Segment] {
         guard sourceDurationSeconds > 0 else { return [] }
         let stride = strideSeconds.isFinite && strideSeconds > 0 ? strideSeconds : Self.targetSegmentDuration
-        let count = max(1, Int(ceil(sourceDurationSeconds / stride)))
+        // [MovieClaw patch P3] segment 0 spans [0, first), segment i >= 1 spans [first + (i-1)*stride, first + i*stride)
+        let first = firstSegmentSeconds.flatMap { $0.isFinite && $0 > 0 ? Swift.min($0, stride) : nil } ?? stride
+        let count = sourceDurationSeconds <= first ? 1 : 1 + Int(ceil((sourceDurationSeconds - first) / stride))
         let tb = Double(videoTimeBase.num) / Double(videoTimeBase.den)
         guard tb > 0 else { return [] }
 
         var plan: [Segment] = []
         plan.reserveCapacity(count)
         for i in 0..<count {
-            let startSeconds = Double(i) * stride
-            let endSeconds = min(sourceDurationSeconds, Double(i + 1) * stride)
+            let startSeconds = i == 0 ? 0 : first + Double(i - 1) * stride
+            let endSeconds = min(sourceDurationSeconds, first + Double(i) * stride)
             let startPts = startPts0 + Int64(startSeconds / tb)
             let endPts = startPts0 + Int64(endSeconds / tb)
             plan.append(Segment(
@@ -302,6 +315,7 @@ extension HLSVideoEngine {
         let tb = Double(videoTimeBase.num) / Double(videoTimeBase.den)
         guard tb > 0 else { return [] }
         let target = Self.targetSegmentDuration
+        let firstTarget = Self.firstSegmentTargetDuration   // [MovieClaw patch P3]
 
         let sorted = keyframes.sorted()
         let startPts0 = sorted[0]
@@ -313,7 +327,8 @@ extension HLSVideoEngine {
         while i < sorted.count {
             let segStartPts = sorted[i]
             let segStartSeconds = Double(segStartPts - startPts0) * tb
-            let thresholdSeconds = Double(segIdx + 1) * target
+            // [MovieClaw patch P3] absolute thresholds F, F+T, F+2T, ... (upstream: (N+1)*T)
+            let thresholdSeconds = firstTarget + Double(segIdx) * target
 
             var j = i + 1
             while j < sorted.count {

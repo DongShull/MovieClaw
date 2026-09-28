@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path as PathLib
-from typing import Annotated, Literal
+from typing import Annotated, Literal, TypeVar
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Header, Path, Query, Request, Response
@@ -38,6 +39,8 @@ from movieclaw_api.schemas.playback import (
     PlaybackDecideRequest,
     PlaybackDecisionView,
     PlaybackDiagnosticsView,
+    PlaybackDiscFileView,
+    PlaybackDiscListingView,
     PlaybackFontsView,
     PlaybackHistoryClearView,
     PlaybackHistoryView,
@@ -133,7 +136,7 @@ from movieclaw_api.services.playback_up_next import up_next_items
 from movieclaw_api.settings import PlaybackPolicySetting
 from movieclaw_api.settings.store import get_setting_store
 from movieclaw_db.engine import get_database, get_session
-from movieclaw_db.models import LibraryFile, MediaItem, PlaybackMetric
+from movieclaw_db.models import LibraryFile, MediaItem, PlaybackMetric, PlaybackState
 from movieclaw_db.models.base import utcnow
 from movieclaw_db.repositories.media_repo import MediaItemRepository
 from movieclaw_playback import activity
@@ -720,12 +723,43 @@ async def decide_playback_route(
     """
     _remember_capability(payload, principal, user_agent)
     # 决策接口与开会话接口必须共享同一组参数转发和可见性规则；否则客户端
-    # 在切换音轨/字幕/清晰度时会看到与实际起播不同的计划。
+    # 在切换音轨/字幕/清晰度时会看到与实际起播不同的计划。观看记忆（上次的
+    # 音轨 / 字幕）也按开会话的口径套上：App 的自动选引擎拿这里的结果决定开
+    # 哪种会话，探测说「直出」、真开会话却因记住的 PGS 字幕整片压制，就会白白
+    # 拉起又掐掉一路转码（2026-09-27 NAS 实测）。
+    wants_memory = payload.audio_track is None or payload.subtitle_track is None
+    if payload.media_item_id is not None and wants_memory:
+        member_id = principal.member_id if principal.member_id is not None else 0
+        unit = (payload.media_item_id, payload.season_number, payload.episode_number)
+        states = await playback_state.get_states(
+            session, [payload.media_item_id], member_id=member_id
+        )
+        payload = _with_watch_memory(payload, states.get(unit))
     decision = await _decide(payload, principal, session)
 
     if decision is None:
         raise NotFoundException("没有找到可播放的文件")
     return ok(playback_plan.to_view(decision))
+
+
+_RequestT = TypeVar("_RequestT", bound=PlaybackDecideRequest)
+
+
+def _with_watch_memory(request: _RequestT, watch_row: PlaybackState | None) -> _RequestT:
+    """没指定音轨 / 字幕时沿用上次的选择（decide 与开会话同一口径）。
+
+    轨在这次选中的文件里不存在时 decide 会自动回退默认轨（换版本文件轨序会变，
+    这是既有覆盖）。字幕记忆里只有 PGS 会改变视频策略（继续烧录），文本轨 / "off"
+    在 decide 里是 no-op。
+    """
+    if watch_row is None:
+        return request
+    update: dict[str, str] = {}
+    if request.audio_track is None and watch_row.audio_track:
+        update["audio_track"] = watch_row.audio_track
+    if request.subtitle_track is None and watch_row.subtitle_track:
+        update["subtitle_track"] = watch_row.subtitle_track
+    return request.model_copy(update=update) if update else request
 
 
 # ---------------------------------------------------------------------------
@@ -909,14 +943,7 @@ async def start_playback_session(
             audio_track=watch_row.audio_track if watch_row else None,
             subtitle_track=watch_row.subtitle_track if watch_row else None,
         )
-        if payload.audio_track is None and watch_row and watch_row.audio_track:
-            # 上次听的哪条轨接着用。轨在这次选中的文件里不存在时 decide 会
-            # 自动回退默认轨（换版本文件轨序会变，这是既有覆盖）。
-            payload = payload.model_copy(update={"audio_track": watch_row.audio_track})
-        if payload.subtitle_track is None and watch_row and watch_row.subtitle_track:
-            # 字幕记忆同款：上次选的 PGS 轨会自动继续烧录，文本轨/"off" 在
-            # decide 里是 no-op（只有 PGS 改变视频策略）。
-            payload = payload.model_copy(update={"subtitle_track": watch_row.subtitle_track})
+        payload = _with_watch_memory(payload, watch_row)
     resolved_start_ms = payload.start_ms
     if resolved_start_ms is None:
         # 看完的重播从头开始——续播到最后三十秒等于点开就是片尾
@@ -988,7 +1015,12 @@ async def start_playback_session(
         return ok(
             PlaybackSessionView(
                 decision=view,
-                stream_url=f"/api/v1/playback/files/{file.id}/stream?token={token}",
+                # 目录直推（disc-direct-play.md）：地址是目录清单，引擎按清单逐个文件取字节
+                stream_url=(
+                    f"/api/v1/playback/files/{file.id}/disc?token={token}"
+                    if view.disc == "folder"
+                    else f"/api/v1/playback/files/{file.id}/stream?token={token}"
+                ),
                 # 直出没有会话时间轴，续播位置由前端 seek 到 watch.position_ms
                 start_ms=resolved_start_ms,
                 subtitle_urls=subtitle_urls,
@@ -1613,19 +1645,35 @@ async def stream_library_file(
         return RedirectResponse(remote, status_code=302)
     path = PathLib(file.file_path)
     media_type = container_mime_type(file.container)
-    if file.is_disc():
-        # 原盘只有单剪辑主片才有「原文件」可直出（disc-playback.md §3.3）；
-        # 多剪辑在决策层已被导向 remux，不会走到这里
+    if file.is_disc() and (file.container or "") != "iso":
+        # 原盘目录只有单剪辑主片才有「原文件」可直出（disc-playback.md §3.3）。多剪辑由
+        # 能读目录的播放器走目录直推（下面的 /disc 接口），其余客户端在决策层已被导向
+        # remux，不会走到这里。ISO 不进这个分支：原样出原字节，盘内结构由播放器自己读
+        # （disc-direct-play.md §2.3）
         disc = disc_source_for_file(file)
         clip = disc.single_clip if disc is not None else None
         if clip is None:
-            raise NotFoundException("原盘主片由多段剪辑组成，不能按单文件直出")
+            raise NotFoundException("原盘主片由多段剪辑组成（或是 DVD 目录），不能按单文件直出")
         path = clip.path
         media_type = container_mime_type("m2ts")
     if not path.exists():
         raise NotFoundException("文件已不在磁盘上")
     # hev1 标签的 HEVC MP4 在 Safari 上直出必败，流里把标签改成 hvc1（#430）
     byte_patches = await direct_play_byte_patches(path, file.container, file.video_codec)
+    return _metered_file_response(request, grant, file, path, media_type, byte_patches=byte_patches)
+
+
+def _metered_file_response(
+    request: Request,
+    grant,
+    file: LibraryFile,
+    path: PathLib,
+    media_type: str,
+    *,
+    byte_patches=None,
+    size_bytes: int | None = None,
+) -> Response:
+    """按 Range 出一个磁盘文件，并登记到设备流与活动页（原文件直出与原盘目录直推共用）。"""
     if not grant.device_id or file.media_item_id is None:
         # 升级前签出的旧地址没有设备标识，不计量；未识别文件没有播放单元可记
         return DisconnectAwareFileResponse(path, media_type=media_type, byte_patches=byte_patches)
@@ -1641,7 +1689,7 @@ async def stream_library_file(
         unit=(file.media_item_id, file.season_number, file.episode_number),
         file_id=file.id,
         file_name=path.name,
-        size_bytes=file.size_bytes or 0,
+        size_bytes=size_bytes if size_bytes is not None else (file.size_bytes or 0),
         client=playback_watch.web_client_info(
             device_id=device_id, user_agent=request.headers.get("user-agent")
         ),
@@ -1659,6 +1707,149 @@ async def stream_library_file(
         on_close=_close,
         byte_patches=byte_patches,
     )
+
+
+#: 目录直推只放行光盘结构里播放要用的文件（disc-direct-play.md §2.3）。**这是路径穿越的防线**：
+#: 请求里的相对路径必须整段命中白名单、且是列目录时真实存在的文件，绝不拿它去拼磁盘路径
+_DISC_FILE_PATTERNS = (
+    re.compile(r"BDMV/(?:index|MovieObject)\.bdmv", re.IGNORECASE),
+    re.compile(r"BDMV/PLAYLIST/\d{5}\.mpls", re.IGNORECASE),
+    re.compile(r"BDMV/CLIPINF/\d{5}\.clpi", re.IGNORECASE),
+    re.compile(r"BDMV/STREAM/\d{5}\.m2ts", re.IGNORECASE),
+)
+#: 目录清单短缓存：引擎读剪辑是一连串 Range 请求，每次都在网络挂载上重列几层目录不值得
+_DISC_TREE_TTL_S = 30.0
+_disc_tree_cache: dict[str, tuple[float, dict[str, tuple[str, PathLib, int]]]] = {}
+
+
+def _child_dir(parent: PathLib, name: str) -> PathLib | None:
+    """按名字（大小写不敏感）找子目录：制作工具有的写 ``BDMV/STREAM``，有的写 ``bdmv/stream``。"""
+    try:
+        with os.scandir(parent) as entries:
+            for entry in entries:
+                if entry.name.upper() == name and entry.is_dir():
+                    return PathLib(entry.path)
+    except OSError:
+        return None
+    return None
+
+
+def _disc_tree(disc_dir: PathLib) -> dict[str, tuple[str, PathLib, int]]:
+    """原盘目录里可直推的文件：大写的相对路径 → (盘上实际的相对路径, 绝对路径, 字节数)。
+
+    只看 ``BDMV`` 与它下面的 PLAYLIST / CLIPINF / STREAM 三层，不递归别处；读不到的层当作空。
+    """
+    key = str(disc_dir)
+    cached = _disc_tree_cache.get(key)
+    now = time.monotonic()
+    if cached is not None and now - cached[0] < _DISC_TREE_TTL_S:
+        return cached[1]
+    found: dict[str, tuple[str, PathLib, int]] = {}
+    bdmv = _child_dir(disc_dir, "BDMV")
+    if bdmv is not None:
+        layers = [(bdmv, bdmv.name)]
+        for name in ("PLAYLIST", "CLIPINF", "STREAM"):
+            child = _child_dir(bdmv, name)
+            if child is not None:
+                layers.append((child, f"{bdmv.name}/{child.name}"))
+        for directory, rel_dir in layers:
+            try:
+                with os.scandir(directory) as entries:
+                    for entry in entries:
+                        rel = f"{rel_dir}/{entry.name}"
+                        if not any(p.fullmatch(rel) for p in _DISC_FILE_PATTERNS):
+                            continue
+                        try:
+                            if entry.is_file():
+                                size = entry.stat().st_size
+                                found[rel.upper()] = (rel, PathLib(entry.path), size)
+                        except OSError:
+                            continue
+            except OSError:
+                continue
+    _disc_tree_cache[key] = (now, found)
+    return found
+
+
+async def _disc_file_owner(file_id: int, token: str, session: AsyncSession):
+    """目录直推两个接口共用的校验：token、拒绝窗口、台账行（只认原盘目录）。"""
+    grant = await verify_stream_token(token, file_id=file_id)
+    if grant is None:
+        raise NotFoundException("播放地址无效或已过期")
+    if grant.device_id and activity.device_ended(grant.device_id):
+        raise NotFoundException("播放已被管理员结束")
+    file = await session.get(LibraryFile, file_id)
+    if file is None:
+        raise NotFoundException("文件不存在")
+    # 与原文件直出同理：读完台账立刻还连接，往下只用已读出的列
+    await session.close()
+    if (file.container or "") != "bluray":
+        raise NotFoundException("不是蓝光原盘目录，没有可直推的目录清单")
+    return grant, file
+
+
+@stream_router.get(
+    "/files/{file_id}/disc",
+    response_model=ApiResponse[PlaybackDiscListingView],
+    summary="原盘目录清单（目录直推）",
+    operation_id="playback.file.disc.list",
+    openapi_extra={"x-cli-hidden": True},
+)
+async def list_disc_files(
+    file_id: Annotated[int, Path(ge=1)],
+    token: Annotated[str, Query(min_length=1)],
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[PlaybackDiscListingView]:
+    """列出原盘目录里播放要用的文件（disc-direct-play.md §2.3）。
+
+    App 的自研引擎拿它在本机解析 MPLS、选主片、把多个剪辑拼成一条流、折叠时间轴；
+    服务端不起任何进程，只按文件供字节——多剪辑原盘因此不再让 NAS 起 ffmpeg 换封装。
+    """
+    _grant, file = await _disc_file_owner(file_id, token, session)
+    disc_dir = PathLib(file.file_path)
+    tree = await asyncio.to_thread(_disc_tree, disc_dir)
+    if not tree:
+        raise NotFoundException("原盘目录不可读，请检查 BDMV 是否完整")
+    disc = await asyncio.to_thread(disc_source_for_file, file)
+    files = [
+        PlaybackDiscFileView(
+            path=rel,
+            size=size,
+            url=f"/api/v1/playback/files/{file_id}/disc/{quote(rel, safe='/')}?token={token}",
+        )
+        for rel, _path, size in sorted(tree.values())
+    ]
+    return ok(PlaybackDiscListingView(files=files, playlist=disc.playlist_name if disc else None))
+
+
+@stream_router.get(
+    "/files/{file_id}/disc/{relative_path:path}",
+    summary="原盘目录里的单个文件（目录直推，按 Range）",
+    operation_id="playback.file.disc.file",
+    openapi_extra={"x-cli-hidden": True},
+)
+async def stream_disc_file(
+    file_id: Annotated[int, Path(ge=1)],
+    relative_path: str,
+    request: Request,
+    token: Annotated[str, Query(min_length=1)],
+    session: AsyncSession = Depends(get_session),
+):
+    """按 Range 出原盘目录里的一个文件：路径必须命中白名单、且是目录清单里真实存在的文件。"""
+    grant, file = await _disc_file_owner(file_id, token, session)
+    if not any(p.fullmatch(relative_path) for p in _DISC_FILE_PATTERNS):
+        raise NotFoundException("原盘目录里没有这个文件")
+    tree = await asyncio.to_thread(_disc_tree, PathLib(file.file_path))
+    entry = tree.get(relative_path.upper())
+    if entry is None:
+        raise NotFoundException("原盘目录里没有这个文件")
+    _rel, path, size = entry
+    media_type = (
+        container_mime_type("m2ts")
+        if path.suffix.lower() == ".m2ts"
+        else "application/octet-stream"
+    )
+    return _metered_file_response(request, grant, file, path, media_type, size_bytes=size)
 
 
 async def _extract_subtitle_until_disconnect(request: Request, file: LibraryFile, index: int):

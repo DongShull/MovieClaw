@@ -808,6 +808,13 @@ public final class HLSVideoEngine: @unchecked Sendable {
     /// latency on a 24 fps 1440p LAN source and stays within the spec's 2-6 s range.
     static let targetSegmentDuration: Double = 4.0
 
+    /// [MovieClaw patch P3] Cut target for segment 0 only. AVPlayer cannot start before the first
+    /// segment is fully produced and served, so its size is start latency: on an 87 Mbit/s UHD remux
+    /// a 4 s segment 0 is 43 MB, measured at 0.84 s of producer wait from a NAS on device. A ~1 s
+    /// first segment brings that to about a quarter; every later boundary keeps the 4 s cadence
+    /// (thresholds F, F+T, F+2T, ... stay absolute, as the planner requires).
+    static let firstSegmentTargetDuration: Double = 1.0
+
     /// Live cut target under `LiveJoinProfile.fastZap` (AE#195): cut at every keyframe past 0.5 s, so
     /// segments quantize to the source GOP and the served TARGETDURATION (whose 3 x holdback gates the
     /// first live manifest, AE#189) is driven by `ceil(max EXTINF)` instead of the
@@ -1205,7 +1212,17 @@ public final class HLSVideoEngine: @unchecked Sendable {
             //    #268: a segmented time-seekable source (HLS VOD ingest) has no index libavformat could
             //    load, and each reposition refetches a segment, so prewarming would buy the same
             //    uniform-stride plan for the price of two segment downloads at every session start.
-            if !Self.cuePrewarmMayRun(hasSegmentedReader: dem.timeSeekableReader != nil,
+            if dem.containerFormatName == "mpegts" {
+                // [MovieClaw patch P1] MPEG-TS / M2TS carry no container index, so the mid-file seek
+                // loads nothing: the plan falls back to uniform stride either way (see
+                // `keyframeIndexIsTrustworthy`). On a Blu-ray m2ts served from a NAS the seek alone
+                // measured 1.9 s of dead startup time, paid twice when an audio switch reloads.
+                EngineLog.emit("[HLSVideoEngine] cue prewarm: skipped for MPEG-TS (no container index to load) [MovieClaw P1]")
+            } else if dem.indexlessMatroska {
+                // [MovieClaw P18] 文件头说这个 MKV 没有可用的 Cues（没写，或下载不完整、指针在文件尾之外）：往片中间跳
+                // 加载不到任何索引，只会线性读到预热上限（真机 10 秒），分片计划照样退回均匀切分
+                EngineLog.emit("[HLSVideoEngine] cue prewarm: skipped, the MKV has no usable Cues index (the seek would be a linear scan) [MovieClaw P18]")
+            } else if !Self.cuePrewarmMayRun(hasSegmentedReader: dem.timeSeekableReader != nil,
                                       isSourceSeekable: dem.isSourceSeekable) {
                 EngineLog.emit(
                     dem.timeSeekableReader != nil
@@ -1314,11 +1331,20 @@ public final class HLSVideoEngine: @unchecked Sendable {
                     )
                     stride = Self.uniformStrideSeconds(spacing: spacing)
                 }
+                // [MovieClaw patch P3] The short first window still has to contain a keyframe, so it
+                // never goes below the measured IRAP spacing (#358's reason for the stride floor).
+                let firstWindow: Double
+                if case .measured(let seconds) = spacing, seconds.isFinite, seconds > 0 {
+                    firstWindow = Swift.min(stride, Swift.max(Self.firstSegmentTargetDuration, seconds))
+                } else {
+                    firstWindow = stride
+                }
                 plan = Self.buildUniformSegmentPlan(
                     videoTimeBase: videoTimeBase,
                     sourceDurationSeconds: durationSeconds,
                     startPts0: anchorPts,
-                    strideSeconds: stride
+                    strideSeconds: stride,
+                    firstSegmentSeconds: firstWindow
                 )
                 self.firstKeyframePts = anchorPts
                 self.firstKeyframeSeconds = Double(anchorPts) * Double(videoTimeBase.num) / Double(videoTimeBase.den)

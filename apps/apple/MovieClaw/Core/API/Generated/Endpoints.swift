@@ -1573,6 +1573,14 @@ nonisolated extension APIClient {
         return try await send("GET", "/playback/favorites/gallery", query: query)
     }
 
+    /// 原盘目录清单（目录直推）
+    /// `GET /playback/files/{file_id}/disc`
+    func playbackFileDiscList(fileId: Int, token: String) async throws -> API.PlaybackDiscListingView {
+        var query: [URLQueryItem] = []
+        query.append(URLQueryItem(name: "token", value: "\(token)"))
+        return try await send("GET", "/playback/files/\(fileId)/disc", query: query)
+    }
+
     /// 内嵌字体清单
     /// `GET /playback/files/{file_id}/fonts`
     func playbackFileFonts(fileId: Int, token: String) async throws -> API.PlaybackFontsView {
@@ -2369,6 +2377,7 @@ nonisolated extension APIClient {
 // - POST /api/v1/libraries/{library_id}/cover（multipart 表单上传，需手写）
 // - GET /api/v1/libraries/{library_id}/items/{media_item_id}/artwork（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/members/{member_id}/avatar（无响应模型：文件流/SSE 等，需手写）
+// - GET /api/v1/playback/files/{file_id}/disc/{relative_path:path}（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/playback/files/{file_id}/fonts/{name}（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/playback/files/{file_id}/stream（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/playback/files/{file_id}/subtitles（无响应模型：文件流/SSE 等，需手写）
@@ -2388,5 +2397,6 @@ nonisolated extension APIClient {
 // - GET /api/v1/spec（无响应模型：文件流/SSE 等，需手写）
 // - PUT /api/v1/transcode-worker/sessions/{session_id}/artifacts/{name}（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/transcode-worker/sessions/{session_id}/clips/{index}（无响应模型：文件流/SSE 等，需手写）
+// - GET /api/v1/transcode-worker/sessions/{session_id}/poster（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/transcode-worker/sessions/{session_id}/source（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/transcode-worker/sessions/{session_id}/source.ffconcat（无响应模型：文件流/SSE 等，需手写）

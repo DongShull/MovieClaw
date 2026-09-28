@@ -102,6 +102,11 @@ public final class MPVPlayer {
             "demuxer-max-bytes": "150MiB",
             "demuxer-max-back-bytes": "50MiB",
             "network-timeout": "30",
+            // 断线续传：mpv 默认只在「连接提前断开」时重连、最多等约 11 秒，且重连撞上 502 当场放弃——
+            // 2026-09-27 真机：服务端重启约 20 秒，反向代理先回 502，mpv 一次重连失败就把断流当成播完。
+            // 放宽到能扛过一次服务重启（0+1+3+7+15 ≈ 26 秒），连接被拒与 5xx（后端重启时代理回的 502/503）
+            // 也重连；4xx 不重连（token 失效、管理员结束播放，交给控制器重开或退出）
+            "stream-lavf-o": "reconnect_on_network_error=1,reconnect_on_http_error=5xx,reconnect_delay_max=15",
             "user-agent": "MovieClaw-iOS (libmpv)",
             "audio-client-name": "MovieClaw",
             "hwdec": MPVRenderBackend.isSimulator ? "no" : "videotoolbox",
@@ -430,7 +435,9 @@ public final class MPVPlayer {
     // MARK: - 销毁
 
     /// 释放 libmpv。调用后对象不可再用；渲染视图会在 mpv 线程全部退出后才释放。
-    public func destroy() {
+    /// `completion` 在 mpv 彻底收尾后于主线程调用——注意收尾过程中 mpv 的 iOS 音频输出会把整个 App 的
+    /// 音频会话关掉（ao_audiounit 的 uninit 调 `setActive:NO`），调用方要据此决定是否重新激活
+    public func destroy(completion: (@MainActor @Sendable () -> Void)? = nil) {
         onEvent = nil
         handle.sink = nil
         fallbackTask?.cancel()
@@ -443,6 +450,7 @@ public final class MPVPlayer {
         handle.destroy {
             // 在 mpv 线程全部退出后再放掉渲染视图（Metal 层被 vo 引用着）
             _ = keepAlive
+            MainActor.assumeIsolated { completion?() }
         }
     }
 

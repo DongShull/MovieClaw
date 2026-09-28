@@ -48,7 +48,9 @@ enum PlayerCapability {
     ///     而 MPV 拿到 token 后会直接拉原文件，计划本身用不上（见 PlaybackController.performRequest）。
     ///   - original: 这次打算直接拉原文件：申报为全解码播放器（`universal`），服务端直接给档 0 的
     ///     原文件地址，不采样关键帧、不为一路用不上的换封装拉起 ffmpeg（NAS 实测冷启动白花 1.6 秒）
-    static func mpv(mobileLimited: Bool = false, original: Bool = false) -> API.ClientCapabilityIn {
+    ///   - readsDiscs: 自研引擎在本机读光盘：ISO 给原字节、多剪辑原盘给目录直推（docs/design/disc-direct-play.md）。
+    ///     MPV 不带 libbluray / libdvdnav，不申报
+    static func mpv(mobileLimited: Bool = false, original: Bool = false, readsDiscs: Bool = false) -> API.ClientCapabilityIn {
         let video = ["h264", "hevc", "av1", "vp9", "vp8", "mpeg2video", "mpeg4", "vc1"].map {
             API.VideoSupportIn(codec: $0, maxHeight: 2160, smooth: true, powerEfficient: $0 == "h264" || $0 == "hevc")
         }
@@ -70,7 +72,9 @@ enum PlayerCapability {
             mse: mobileLimited ? "none" : "full",
             isMobile: mobileLimited,
             nativeHls: mobileLimited,
-            universal: original
+            universal: original,
+            discImage: original && readsDiscs,
+            discFolder: original && readsDiscs
         )
     }
 
