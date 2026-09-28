@@ -128,13 +128,13 @@ async def test_undisturbed_play(db):
         "seeks": [
             {"ms": 250, "buffered": True, "outcome": "landed"},
             {"ms": 900, "buffered": False, "outcome": "landed"},
-            {"ms": 5000, "buffered": False, "outcome": "superseded"},
+            {"ms": 200, "buffered": False, "outcome": "superseded"},
         ],
         "interruptions": [{"kind": "rebuffer", "ms": 300}, {"kind": "reconnect", "ms": 4000}],
     }))
     assert row.undisturbed is True
     assert (row.seek_in_count, row.seek_in_max_ms) == (1, 250)
-    # 被取代的跳转只计数，不算耗时
+    # 很快被取代的跳转（拖动中）只计数，不算进分位
     assert (row.seek_out_count, row.seek_out_max_ms) == (1, 900)
     # 0.3 秒的卡顿、撑住了的重连都不是用户看得见的中断
     assert row.interrupt_count == 0
@@ -158,6 +158,22 @@ async def test_each_disturbance_breaks_the_north_star(db, fields, detail, reason
     row = await finish(db, report(**fields, detail=detail))
     assert row.undisturbed is False
     assert reason in row.detail["judgement"]["reasons"]
+
+
+async def test_a_long_wait_counts_even_if_the_seek_never_landed(db):
+    """等了 10 秒还没出画、用户放弃又跳了一次：只看落地的跳转会漏掉最糟的这一次。"""
+    row = await finish(db, report(detail={"seeks": [
+        {"ms": 10_554, "buffered": False, "outcome": "superseded"},
+        {"ms": 300, "buffered": False, "outcome": "landed"},
+    ]}))
+    assert row.seek_out_max_ms == 300
+    assert "seek_slow" in row.detail["judgement"]["reasons"]
+    # 拖进度条时一连串很快被取代的跳转不算
+    quick = await finish(db, report("a2", detail={"seeks": [
+        {"ms": 120, "buffered": True, "outcome": "superseded"},
+        {"ms": 200, "buffered": True, "outcome": "landed"},
+    ]}))
+    assert quick.undisturbed is True
 
 
 def test_loss_rules_measure_against_what_the_device_can_present():

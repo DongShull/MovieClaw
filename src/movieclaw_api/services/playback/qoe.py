@@ -319,8 +319,12 @@ def interruption_count(interruptions: list[dict[str, Any]]) -> int:
     return count
 
 
-def disturb_reasons(row: PlaybackMetric) -> list[str]:
-    """这次播放打扰了用户的原因；空列表 = 无打扰（playback-qoe.md §1.1）。"""
+def disturb_reasons(row: PlaybackMetric, *, longest_seek_wait_ms: int = 0) -> list[str]:
+    """这次播放打扰了用户的原因；空列表 = 无打扰（playback-qoe.md §1.1）。
+
+    ``longest_seek_wait_ms`` 是用户在任何一次跳转上等过的最长时间，**不只算落地的**：等了 10 秒
+    还没出画、用户放弃又跳了一次（被取代）、或者干脆退出（离开时还没落地），都是最糟的跳转体验，
+    只看落地的会漏掉它们。"""
     reasons: list[str] = []
     if row.outcome in {"failed", "exit_before_start"}:
         reasons.append("no_picture" if row.outcome == "exit_before_start" else "failed")
@@ -328,7 +332,7 @@ def disturb_reasons(row: PlaybackMetric) -> list[str]:
         reasons.append("abnormal_exit")
     if row.first_frame_ms is not None and row.first_frame_ms > STARTUP_DISTURB_MS:
         reasons.append("startup_slow")
-    seek_max = max(row.seek_in_max_ms or 0, row.seek_out_max_ms or 0)
+    seek_max = max(row.seek_in_max_ms or 0, row.seek_out_max_ms or 0, longest_seek_wait_ms)
     if seek_max > SEEK_DISTURB_MS:
         reasons.append("seek_slow")
     if row.interrupt_count > 0:
@@ -506,7 +510,12 @@ async def finish_attempt(
     row.misguess_count = sum(1 for b in behaviors if b.get("misguess"))
     losses = avoidable_losses(detail.get("delivery"))
     row.avoidable_loss = None if losses is None else bool(losses)
-    reasons = disturb_reasons(row)
+    waited = [
+        _int(s.get("ms")) or 0
+        for s in seeks
+        if s.get("outcome") in {"landed", "superseded", "abandoned", "failed", "timeout"}
+    ]
+    reasons = disturb_reasons(row, longest_seek_wait_ms=max(waited, default=0))
     row.undisturbed = not reasons
     detail["judgement"] = {"losses": losses, "reasons": reasons}
     row.detail = detail

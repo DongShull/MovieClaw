@@ -408,6 +408,8 @@ def test_direct_play_requests_are_tallied_into_the_attempt(client, tmp_path):
     serve = row.detail["server"]["serve"]
     assert serve["requests"] == 2
     assert serve["bytes"] == 32
+    # 正常发完的响应不是「中途断开」（服务器发完后也会给一条 http.disconnect）
+    assert serve["disconnects"] == 0
 
     stats = client.get(f"{_PB}/stats/qoe", params={"days": 7}).json()["data"]
     assert stats["overall"]["attempts"] == 1

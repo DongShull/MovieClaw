@@ -174,6 +174,16 @@ struct PlayerScreen: View {
                     }
                 }
             }
+            // -mcAutoCloseAfter <秒>：到点像用户点返回一样退出播放器，播放记录照常收尾上报（docs/design/playback-qoe.md）。
+            // 实验脚本随后再结束 App：直接杀掉 App 会留下「正在播放」标记，下次启动被补报成异常退出
+            let autoClose = UserDefaults.standard.double(forKey: "mcAutoCloseAfter")
+            if autoClose > 0 {
+                Task {
+                    try? await Task.sleep(for: .seconds(autoClose))
+                    Self.autoTestLog("自动退出播放器")
+                    exit()
+                }
+            }
             // 真机排查用：-mcAutoLandscape <秒> 起播后自动切横屏；
             // 再加 -mcAutoRotate <次数> 则之后每 3 秒横竖交替，共转这么多次（测旋转耗时）
             let autoLandscape = UserDefaults.standard.double(forKey: "mcAutoLandscape")

@@ -853,16 +853,16 @@ final class PlaybackController {
 
     /// 自研引擎在本机放不了（连引擎自己的软解也不行）：本单元改走服务端 HLS + 系统播放器
     private func nativeFallback(reason: String) {
+        record?.noteFallback(reason: reason)
         #if DEBUG
         print("[EngineFallback] 自研引擎 → 服务端流：\(reason)")
         // 引擎测试不许起服务端转码（转码器上会留下记录）：-mcNoServerFallback YES 时停在错误页
         if UserDefaults.standard.bool(forKey: "mcNoServerFallback") {
-            fail("自研引擎放不了：\(reason)", suggestion: "测试开关 -mcNoServerFallback 拦下了改走服务端流")
+            fail("自研引擎放不了：\(reason)", suggestion: "测试开关 -mcNoServerFallback 拦下了改走服务端流", category: "decode")
             return
         }
         #endif
         nativeFailed = true
-        record?.noteFallback(reason: reason)
         log("engine-fallback", [
             "from": .string("native"), "reason": .string(reason),
             "media_item_id": .int(unit.mediaItemId),

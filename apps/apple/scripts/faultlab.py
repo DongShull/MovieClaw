@@ -275,16 +275,21 @@ async def run(name):
     with open(f"{OUT}/{name}.proxy.log", "w") as proxy_log, \
             open(f"{OUT}/{name}.log", "w") as app_log:
         current = Run(proxy_log)
-        fired = await drive(spec, route, app_log)
+        fired = await drive(name, spec, route, app_log)
     return summarize(name, spec["expect"], fired)
 
 
-async def drive(spec, route, app_log):
-    """起 App、按时间表注入故障，直到场景时长用完"""
+async def drive(name, spec, route, app_log):
+    """起 App、按时间表注入故障，直到场景时长用完。
+
+    播放打上实验室标签（-mcLab faultlab:<场景>，统计默认排除），结束前几秒自动退出播放器，
+    播放记录照常收尾上报，再结束 App——直接杀掉会留下「正在播放」标记，
+    下次启动被补报成异常退出（docs/design/playback-qoe.md §2）"""
     server = await asyncio.start_server(handle, *LISTEN)
     args = ["-mcAetherLog", "YES", "-mcNoProgress", "YES", "-mcNoServerFallback", "YES",
             "-mcFrameStatsEverySecond", "YES", "-mcStreamProxy", f"http://{LISTEN[0]}:{LISTEN[1]}",
-            "-mcRoute", route, "-mcRouteDelay", "2", *spec["extra"]]
+            "-mcRoute", route, "-mcRouteDelay", "2", "-mcLab", f"faultlab:{name}",
+            "-mcAutoCloseAfter", str(max(10, spec["secs"] - 12)), *spec["extra"]]
     proc = await asyncio.create_subprocess_exec(
         "xcrun", "simctl", "launch", "--console-pty", "--terminate-running-process",
         SIM, APP_ID, *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
@@ -332,6 +337,8 @@ async def drive(spec, route, app_log):
         sampler.cancel()
         app_log.write(f"[FaultLab] 临时目录峰值 分片 {peak['segments'] >> 10} MB"
                       f" 片源缓存 {peak['bytecache'] >> 10} MB\n")
+    # 播放器已自动退出：给播放记录的上报留几秒
+    await asyncio.sleep(3)
     await quiet("xcrun", "simctl", "terminate", SIM, APP_ID)
     with contextlib.suppress(ProcessLookupError):
         proc.kill()

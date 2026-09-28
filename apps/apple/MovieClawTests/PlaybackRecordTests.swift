@@ -163,6 +163,37 @@ struct PlaybackRecordTests {
         #expect(record.rebufferCount == 0)
     }
 
+    @Test func stuckSwitchesAndSeeksTimeOutAndStopBlockingStallDetection() throws {
+        let clock = FakeClock()
+        let record = makeRecord(clock)
+        record.noteFirstFrame()
+        record.beginSwitch(kind: "audio", from: "embedded:0", to: "embedded:1")   // 结束事件丢了
+        record.beginSeek(source: .button, fromMs: 0, toMs: 10_000, buffered: false, paused: false, restart: false)
+        for _ in 0 ..< 130 {          // 32.5 秒
+            clock.advance(250)
+            record.samplePlayhead(10_000, active: true) { "network" }
+        }
+        #expect(!record.seekInFlight)
+        let seeks = try #require(try detail(payload(record))["seeks"] as? [[String: Any]])
+        #expect(seeks.first?["outcome"] as? String == "timeout")
+        // 两者作废 / 超时之后，播放头再不走就算卡顿了
+        #expect(record.rebufferCount == 0)
+        clock.advance(250)
+        record.samplePlayhead(10_250, active: true) { "network" }
+        #expect(record.rebufferCount == 1)
+    }
+
+    @Test func aReconnectStillOpenAtExitIsRecorded() throws {
+        let clock = FakeClock()
+        let record = makeRecord(clock)
+        record.noteFirstFrame()
+        record.beginReconnect(reason: "连续 15 秒没有收到数据")
+        clock.advance(60_000)                 // 一直没接回来，最后落到错误页
+        let interruptions = try #require(try detail(payload(record, outcome: .failed))["interruptions"] as? [[String: Any]])
+        let reconnect = try #require(interruptions.first { $0["kind"] as? String == "reconnect" })
+        #expect(reconnect["ms"] as? Int == 60_000)
+    }
+
     @Test func frozenPictureWhileTheClockRuns() {
         let clock = FakeClock()
         let record = makeRecord(clock)

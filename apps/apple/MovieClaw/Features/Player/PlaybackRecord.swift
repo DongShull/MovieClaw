@@ -327,6 +327,7 @@ final class PlaybackRecord {
         seeks.append(Seek(seq: seekSeq, source: source.rawValue, fromMs: fromMs, toMs: toMs, buffered: buffered,
                           paused: paused, restart: restart, atMs: elapsedMs(start), ms: nil, outcome: "pending"))
         openSeek = (seeks.count - 1, start)
+        event("seek", "跳转 #\(seekSeq) \(fromMs / 1000) → \(toMs / 1000) 秒（\(source.rawValue)\(buffered ? "·缓冲内" : "")\(restart ? "·换会话" : "")）")
     }
 
     var seekInFlight: Bool { openSeek != nil }
@@ -343,6 +344,7 @@ final class PlaybackRecord {
         let spent = ms(since: open.startedAt)
         seeks[open.index].ms = spent
         seeks[open.index].outcome = outcome
+        event("seek_\(outcome)", "跳转 #\(seeks[open.index].seq) \(outcome) \(spent) 毫秒")
         #if DEBUG
         let seek = seeks[open.index]
         if outcome == "landed" {
@@ -360,13 +362,16 @@ final class PlaybackRecord {
         guard switches.count < Self.maxItems else { return }
         switches.append(Switch(kind: kind, from: from, to: to, atMs: elapsedMs(), ms: nil))
         openSwitch = (switches.count - 1, now())
+        event("switch", "\(kind) \(from ?? "-") → \(to ?? "-")")
     }
 
     /// 结束当前的换轨计时（新轨出声 / 新画面出来）；`immediate` = 不用重载，即刻生效
     func closeSwitch(immediate: Bool = false) {
         guard let open = openSwitch else { return }
         openSwitch = nil
-        switches[open.index].ms = immediate ? 0 : ms(since: open.startedAt)
+        let spent = immediate ? 0 : ms(since: open.startedAt)
+        switches[open.index].ms = spent
+        event("switch_done", "\(switches[open.index].kind) 生效 \(spent) 毫秒")
     }
 
     // MARK: - 稳：卡顿 / 冻帧 / 重连 / 错误
@@ -375,6 +380,15 @@ final class PlaybackRecord {
     func samplePlayhead(_ positionMs: Int, active: Bool, cause: () -> String) {
         let now = self.now()
         defer { lastPlayheadMs = positionMs }
+        // 保险：迟迟等不到结果的换轨（15 秒）作废、跳转（30 秒）记为超时——结束事件万一丢了，
+        // 不能让它们一直挡着卡顿检测
+        if let open = openSwitch, now - open.startedAt > .seconds(15) {
+            openSwitch = nil
+            event("switch_timeout", "\(switches[open.index].kind) 15 秒没等到生效，作废")
+        }
+        if let open = openSeek, now - open.startedAt > .seconds(30) {
+            closeSeek(outcome: "timeout")
+        }
         guard active, openSeek == nil, openSwitch == nil else {
             closeStall()
             lastAdvanceAt = now
@@ -588,6 +602,11 @@ final class PlaybackRecord {
         }
         if let open = freezeOpen {
             detail.interruptions.append(Interruption(kind: "freeze", atMs: open.atMs, ms: ms(since: open.startedAt)))
+        }
+        if let open = reconnectOpen {
+            // 重连到离开都没接回来（最后落到错误页、或用户等不及退出了）
+            detail.interruptions.append(Interruption(kind: "reconnect", atMs: open.atMs, ms: ms(since: open.startedAt),
+                                                     detail: open.reason))
         }
         if let open = openSeek {
             detail.seeks[open.index].ms = ms(since: open.startedAt)
