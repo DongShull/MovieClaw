@@ -15,6 +15,7 @@ import { OverflowText } from "@/components/overflow-text";
 import {
   EmptyAction,
   EmptyState,
+  formatWatched,
   HiddenCountRow,
   PlaybackHistoryList,
   STATS_PERIODS,
@@ -33,9 +34,11 @@ import {
   type MediaActivityTarget,
 } from "@/lib/api/playback";
 import { loadActivityScope, saveActivityScope } from "@/lib/activity-scope";
+import { deliveryColor, deliveryDetail, shortDeviceLabel } from "@/lib/activity-overview";
 import { formatBytes } from "@/lib/format";
 import { imageUrl } from "@/lib/image-proxy";
 import { WATCH_VIEW_LABELS, type WatchViewName } from "@/lib/task-center";
+import { useTheme } from "@/lib/ui-prefs";
 import { useVisiblePolling } from "@/lib/use-visible-polling";
 
 /** 实时会话的轮询节奏：比下载快照（10s）稍快，速率读数才跟得上直觉。 */
@@ -310,6 +313,7 @@ function DeviceActionsMenu({
   onEnd,
   onRevoke,
   busy,
+  header,
 }: {
   deviceId: string;
   deviceLabel: string;
@@ -318,6 +322,8 @@ function DeviceActionsMenu({
   /** 「注销此设备」：升级前的旧网页会话与分享访客没有可注销的凭据，没传就不提供 */
   onRevoke?: (deviceId: string, label: string) => void;
   busy: boolean;
+  /** 菜单顶部的说明（银玻璃正在播放行：「为什么是硬件转码」） */
+  header?: { title: string; body: string } | null;
 }) {
   const items = [
     ...(onEnd ? [{ id: "end", label: "结束播放", onSelect: () => onEnd(deviceId, label) }] : []),
@@ -333,7 +339,14 @@ function DeviceActionsMenu({
       : []),
   ];
   if (items.length === 0) return null;
-  return <TaskActionsMenu ariaLabel={`「${label}」的设备操作`} disabled={busy} items={items} />;
+  return (
+    <TaskActionsMenu
+      ariaLabel={`「${label}」的设备操作`}
+      disabled={busy}
+      items={items}
+      header={header}
+    />
+  );
 }
 
 function StatusBadge({ paused }: { paused: boolean }) {
@@ -358,17 +371,129 @@ function StatusBadge({ paused }: { paused: boolean }) {
   );
 }
 
-function SessionCard({
-  session,
-  onEnd,
-  onRevoke,
-  busy,
-}: {
+/** 正在播放卡片的公共入参（银玻璃与 Netflix 两版同一套） */
+interface SessionCardProps {
   session: ActivePlaybackSession;
   onEnd: (deviceId: string, label: string) => void;
   onRevoke: (deviceId: string, label: string) => void;
   busy: boolean;
-}) {
+}
+
+/**
+ * 正在播放（银玻璃）。按「在看什么 → 谁在哪看 → 怎么在播 → 看到哪」分层，每层一行、不挤不截，
+ * 与原生 App 的 ActivityPlaybackSessionRow（NowPlayingRows.swift）同一版式：
+ *
+ *     [海报]  抓特务 2026                              ⋯
+ *             yee · Web · Safari · iPhone
+ *             [远程转码] ▶ 播放中 · 59%       ↓ 2.1 MB/s
+ *             1080p · H.264 · 8 Mbps · 远程 Worker「studio」· Apple 芯片
+ *             ━━━━━━━━━━━━━━░░░░░░░░
+ *             1:23:16                     还剩 57 分钟
+ *
+ * - 播放方式小标来自服务端 `delivery`，颜色按对服务器的负担递进（lib/activity-overview.ts）；
+ *   转码时下一行露出输出规格与在哪转，「为什么转码」放在 ⋯ 菜单顶部；
+ * - 设备名去掉「MovieClaw 」前缀，客户端版本号不上行（排障用，一行放不下时最先被截断的正是
+ *   有用的设备名）；传输只留一个实时速率或「网盘直链」，已传输总量、连接数属于排障细节；
+ * - 进度条下左右两端是已看到的时刻与剩余时长，比「1:23:16 / 2:21:06」更好读。
+ *
+ * `variant="row"`：活动总览（手机）里作为分组列表的一行，去掉卡片描边与底色。
+ * Netflix 主题仍用 NfSessionCard，版式不动。
+ */
+export function SessionCard({
+  session,
+  onEnd,
+  onRevoke,
+  busy,
+  variant = "card",
+}: SessionCardProps & { variant?: "card" | "row" }) {
+  const media = session.media;
+  const percent = session.progress_percent;
+  const device = deviceLabel(session.client, session.device_name);
+  const delivery = session.delivery ?? null;
+  const detail = delivery ? deliveryDetail(delivery) : null;
+  const tone = delivery ? deliveryColor(delivery) : null;
+  const position = session.position_ms;
+  const duration = session.duration_ms;
+  return (
+    <ActivityCard variant={variant}>
+      <ActivityPoster media={media} className="h-[70px] w-12" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-start justify-between gap-2.5">
+          <ActivityTitle media={media} />
+          <DeviceActionsMenu
+            deviceId={session.device_id}
+            deviceLabel={device}
+            onEnd={onEnd}
+            onRevoke={session.revocable ? onRevoke : undefined}
+            busy={busy}
+            header={
+              delivery?.reason
+                ? { title: `为什么是${delivery.label}`, body: delivery.reason }
+                : null
+            }
+          />
+        </div>
+        <MetaLine parts={[session.member_name, shortDeviceLabel(device)]} />
+        <div className="tnum flex min-w-0 items-center gap-1.5 whitespace-nowrap text-caption">
+          {delivery && tone && (
+            <span
+              aria-label={`播放方式：${delivery.label}`}
+              className="shrink-0 rounded-full px-1.5 py-px font-semibold"
+              style={{ color: tone, backgroundColor: `color-mix(in srgb, ${tone} 16%, transparent)` }}
+            >
+              {delivery.label}
+            </span>
+          )}
+          <span
+            className={`flex shrink-0 items-center gap-1 font-medium ${
+              session.paused ? "text-white/55" : "text-[var(--ok)]"
+            }`}
+          >
+            {!session.paused && <PlayIcon className="size-2.5" />}
+            {session.paused ? "已暂停" : "播放中"}
+          </span>
+          {percent != null && <span className="text-white/55">· {percent}%</span>}
+          <span className="ml-auto min-w-0 truncate pl-2">
+            {session.play_method !== "local" ? (
+              <span className="text-white/35">网盘直链</span>
+            ) : session.rate_bytes_per_second != null && session.rate_bytes_per_second > 0 ? (
+              <span className="font-medium text-[var(--info)]">
+                ↓ {formatRate(session.rate_bytes_per_second)}
+              </span>
+            ) : null}
+          </span>
+        </div>
+        {detail && (
+          <OverflowText lines={2} className="text-caption leading-5 text-white/35">
+            {detail}
+          </OverflowText>
+        )}
+        {percent != null && (
+          <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.08]">
+            <div
+              className="h-full rounded-full transition-[width] duration-700"
+              style={{
+                width: `${Math.min(100, Math.max(1, percent))}%`,
+                backgroundColor: session.paused ? "rgba(255,255,255,0.35)" : "var(--info)",
+              }}
+            />
+          </div>
+        )}
+        {position != null && (
+          <p className="tnum flex items-center justify-between gap-2 text-caption text-white/35">
+            <span>{formatPlayClock(position)}</span>
+            {duration != null && duration > position && (
+              <span>还剩 {formatWatched(duration - position)}</span>
+            )}
+          </p>
+        )}
+      </div>
+    </ActivityCard>
+  );
+}
+
+/** 正在播放（Netflix 主题）：原有版式，不随银玻璃改版。 */
+function NfSessionCard({ session, onEnd, onRevoke, busy }: SessionCardProps) {
   const media = session.media;
   const percent = session.progress_percent;
   const specParts = [
@@ -449,16 +574,25 @@ function ActivityCard({
   children,
   percent,
   muted = false,
+  variant = "card",
 }: {
   children: React.ReactNode;
   percent?: number | null;
   muted?: boolean;
+  /** row：活动总览（银玻璃手机）分组列表里的一行，描边与底色交给分组容器 */
+  variant?: "card" | "row";
 }) {
   return (
     // solid-card：Netflix 换皮钩子（同任务中心卡面），银玻璃下无基样式零变化；
     // 卡内白透小件（进度轨 bg-white/[0.06]）无同值 token，按「银玻璃工具类
     // 原样保留」约定不动，落在 #181818 实底上即近官方卡面灰
-    <div className="solid-card relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03]">
+    <div
+      className={
+        variant === "row"
+          ? "relative overflow-hidden"
+          : "solid-card relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03]"
+      }
+    >
       <div className="flex gap-3.5 p-3.5 pb-4 max-md:gap-3 max-md:p-3 max-md:pb-3.5">
         {children}
       </div>
@@ -508,18 +642,21 @@ function ClockLine({
   );
 }
 
-function DownloadCard({
+export function DownloadCard({
   download,
   onRevoke,
   busy,
+  variant = "card",
 }: {
   download: ActiveFileDownload;
   onRevoke: (deviceId: string, label: string) => void;
   busy: boolean;
+  /** row：活动总览（银玻璃手机）分组列表里的一行 */
+  variant?: "card" | "row";
 }) {
   const media = download.media;
   return (
-    <ActivityCard percent={download.progress_percent}>
+    <ActivityCard percent={download.progress_percent} variant={variant}>
       <ActivityPoster media={media} className="h-24 w-16 max-md:h-[76px] max-md:w-[52px]" />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-2.5">
@@ -663,10 +800,8 @@ export function MediaActivityPanel({
   view: WatchViewName;
   onViewChange: (view: WatchViewName) => void;
 }) {
-  const toast = useToast();
-  const [pendingRevoke, setPendingRevoke] = useState<RevokeTarget | null>(null);
-  const [pendingEnd, setPendingEnd] = useState<RevokeTarget | null>(null);
-  const [revoking, setRevoking] = useState<string | null>(null);
+  const isNf = useTheme().structural;
+  const devices = useDeviceActions(refresh);
   const [memberId, setMemberId] = useState<number | null>(null);
   const [days, setDays] = useState(30);
   const [members, setMembers] = useState<MemberView[]>([]);
@@ -690,40 +825,8 @@ export function MediaActivityPanel({
     [members],
   );
 
-  const requestRevoke = useCallback((deviceId: string, label: string) => {
-    setPendingRevoke({ deviceId, label });
-  }, []);
-  const requestEnd = useCallback((deviceId: string, label: string) => {
-    setPendingEnd({ deviceId, label });
-  }, []);
-
-  async function confirmEnd(target: RevokeTarget) {
-    if (revoking != null) return;
-    setRevoking(target.deviceId);
-    try {
-      toast.success(await endDevicePlayback(target.deviceId));
-      setPendingEnd(null);
-      refresh();
-    } catch (caught) {
-      toast.error((caught as Error).message || "结束播放失败");
-    } finally {
-      setRevoking(null);
-    }
-  }
-
-  async function confirmRevoke(target: RevokeTarget) {
-    if (revoking != null) return;
-    setRevoking(target.deviceId);
-    try {
-      toast.success(await revokePlaybackDevice(target.deviceId));
-      setPendingRevoke(null);
-      refresh();
-    } catch (caught) {
-      toast.error((caught as Error).message || "注销设备失败");
-    } finally {
-      setRevoking(null);
-    }
-  }
+  // 银玻璃用新版正在播放卡（播放方式小标、剩余时长），Netflix 主题保持原版式
+  const Session = isNf ? NfSessionCard : SessionCard;
 
   const scopeFilter = (
     <FilterMenu label="范围" value={scope} options={SCOPE_OPTIONS} onChange={setScope} />
@@ -773,12 +876,12 @@ export function MediaActivityPanel({
           ) : (
             <div className="space-y-2.5">
               {snapshot.sessions.map((session) => (
-                <SessionCard
-                  key={`${session.device_id}-${session.media.media_item_id}-${session.media.season_number}-${session.media.episode_number}`}
+                <Session
+                  key={sessionKey(session)}
                   session={session}
-                  onEnd={requestEnd}
-                  onRevoke={requestRevoke}
-                  busy={revoking != null}
+                  onEnd={devices.requestEnd}
+                  onRevoke={devices.requestRevoke}
+                  busy={devices.busy}
                 />
               ))}
               {snapshot.hidden_session_count > 0 && (
@@ -808,8 +911,8 @@ export function MediaActivityPanel({
                   <DownloadCard
                     key={`${download.device_id}-${download.file_name}`}
                     download={download}
-                    onRevoke={requestRevoke}
-                    busy={revoking != null}
+                    onRevoke={devices.requestRevoke}
+                    busy={devices.busy}
                   />
                 ))}
                 {snapshot.hidden_download_count > 0 && (
@@ -853,6 +956,54 @@ export function MediaActivityPanel({
         </div>
       )}
 
+      {devices.dialogs}
+    </div>
+  );
+}
+
+/** 正在播放卡片的稳定 key：同一台设备换集会换一张卡 */
+export function sessionKey(session: ActivePlaybackSession): string {
+  return `${session.device_id}-${session.media.media_item_id}-${session.media.season_number}-${session.media.episode_number}`;
+}
+
+/**
+ * 设备操作（结束播放 / 注销此设备）的确认与提交：观看视角面板与活动总览共用。
+ * 返回请求函数与要挂进页面的确认框节点；写操作成功后调用 `refresh` 立即校准快照。
+ */
+export function useDeviceActions(refresh: () => void) {
+  const toast = useToast();
+  const [pendingRevoke, setPendingRevoke] = useState<RevokeTarget | null>(null);
+  const [pendingEnd, setPendingEnd] = useState<RevokeTarget | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
+
+  const requestRevoke = useCallback((deviceId: string, label: string) => {
+    setPendingRevoke({ deviceId, label });
+  }, []);
+  const requestEnd = useCallback((deviceId: string, label: string) => {
+    setPendingEnd({ deviceId, label });
+  }, []);
+
+  async function confirm(
+    target: RevokeTarget,
+    action: (deviceId: string) => Promise<string>,
+    close: () => void,
+    fallback: string,
+  ) {
+    if (revoking != null) return;
+    setRevoking(target.deviceId);
+    try {
+      toast.success(await action(target.deviceId));
+      close();
+      refresh();
+    } catch (caught) {
+      toast.error((caught as Error).message || fallback);
+    } finally {
+      setRevoking(null);
+    }
+  }
+
+  const dialogs = (
+    <>
       {pendingEnd && (
         <EndPlaybackDialog
           target={pendingEnd}
@@ -860,7 +1011,9 @@ export function MediaActivityPanel({
           onClose={() => {
             if (revoking == null) setPendingEnd(null);
           }}
-          onConfirm={() => void confirmEnd(pendingEnd)}
+          onConfirm={() =>
+            void confirm(pendingEnd, endDevicePlayback, () => setPendingEnd(null), "结束播放失败")
+          }
         />
       )}
       {pendingRevoke && (
@@ -870,11 +1023,20 @@ export function MediaActivityPanel({
           onClose={() => {
             if (revoking == null) setPendingRevoke(null);
           }}
-          onConfirm={() => void confirmRevoke(pendingRevoke)}
+          onConfirm={() =>
+            void confirm(
+              pendingRevoke,
+              revokePlaybackDevice,
+              () => setPendingRevoke(null),
+              "注销设备失败",
+            )
+          }
         />
       )}
-    </div>
+    </>
   );
+
+  return { requestEnd, requestRevoke, busy: revoking != null, dialogs };
 }
 
 /** 结束播放确认：动作可逆（设备再点播放即可），但会打断别人正在看的东西，值得问一句。 */

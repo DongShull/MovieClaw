@@ -42,12 +42,6 @@ export interface PageChromeValue {
   /** 全局搜索入口：移动端由 PageNav 代为呈现（外壳那条已经撤掉） */
   onSearch: PageSearchHandler;
   /**
-   * 发起新会话：跳 /new 整页（银玻璃手机上是一张与会话页同构的空会话页，
-   * 见 components/new-task.tsx；原底部撰写面板 2026-09-24 退役）。原「唤起 /
-   * 收起移动端抽屉」两个入口随抽屉侧栏退役一并移除（docs/design/web-themes-mobile/04）。
-   */
-  openCompose: () => void;
-  /**
    * 把页面级控件挂进移动端全局顶栏那一行，返回撤销函数。
    *
    * 给的是**没有 PageNav 的顶层页面**（发现页那种侧栏一级入口）：它们不该有返回键，
@@ -59,15 +53,6 @@ export interface PageChromeValue {
    */
   setTopBarActions: (node: ReactNode) => () => void;
   /**
-   * 把页面级的视图切换挂到液态玻璃底栏的「底部附件」位（iOS 26 tab bar
-   * bottom accessory：相册的「年 / 月 / 全部」）——展开时是浮在底栏上方的一条
-   * 胶囊，底栏随滚动收起成圆钮后它下沉到圆钮与搜索圆钮之间。银玻璃手机专用；
-   * 内容用 glass-tab-bar 导出的 AccessorySegmented。返回撤销函数，effect 里用。
-   */
-  setTabBarAccessory: (node: ReactNode) => () => void;
-  /** 当前挂着的底部附件（底栏消费；页面不用读） */
-  tabBarAccessory?: ReactNode;
-  /**
    * 把页面标题挂进移动端全局顶栏、顶替品牌字标的位置，返回撤销函数。
    *
    * 给沉浸类顶层页面（如 Agent 会话）：窄屏上字标传达不了任何新信息（用户
@@ -78,8 +63,37 @@ export interface PageChromeValue {
    * 标题左侧给一颗返回键——能回就按浏览历史回、回不了就落到这里给的地址
    * （lib/back-navigation.ts）。手机上底栏在这类页面是收起的，没有它就出不去。
    */
-  setTopBarTitle: (title: string, options?: { backHref?: Route }) => () => void;
+  setTopBarTitle: (title: string, options?: TopBarTitleOptions) => () => void;
+  /**
+   * 把任意节点挂到移动端全局顶栏的左侧（标题位），返回撤销函数。
+   *
+   * 给标题本身就是控件的顶层页（银玻璃发现页：大字「电影 / 剧集」+ 数据源小字 + ⌄，
+   * 点开是类型 / 数据源菜单，对齐原生 App 的标题菜单）。与 setTopBarTitle 同时存在时
+   * 以本节点为准。同样在 effect 里调用、节点用稳定依赖构造。
+   */
+  setTopBarLeading: (node: ReactNode) => () => void;
 }
+
+/** setTopBarTitle 的附加选项 */
+export interface TopBarTitleOptions {
+  /** 标题页的返回落点（见 setTopBarTitle 注释） */
+  backHref?: Route;
+  /**
+   * 大字标题（银玻璃手机）：标签根页（媒体库 / 订阅 / 活动）按 iOS 标签根页规范，
+   * 左上角一行粗体大字，与原生 App 的 `.toolbarTitleDisplayMode(.inlineLarge)` 同形态；
+   * 缺省是深层页（会话页）用的正文字号小标题。
+   */
+  large?: boolean;
+  /**
+   * 不显示右上角的全局搜索键：AI 会话页右上角只放会话菜单（同原生 App），
+   * 新会话页右上角什么都不放。
+   */
+  hideSearch?: boolean;
+}
+
+/** 顶栏大字标题的字形（银玻璃手机），发现页的标题菜单与各页大标题共用一份 */
+export const TOP_BAR_LARGE_TITLE_CLASS =
+  "min-w-0 truncate text-[28px] font-bold leading-none tracking-[-0.02em] text-[var(--text)]";
 
 const PageChromeContext = createContext<PageChromeValue | null>(null);
 

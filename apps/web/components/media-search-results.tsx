@@ -7,6 +7,8 @@ import { PosterCardVisual } from "@/components/poster-card";
 import type { MediaSearchItem } from "@/lib/api/discover";
 import { getTitleSearchHistoryResults, searchTitles } from "@/lib/api/search";
 import { formatRelativeTime } from "@/lib/time";
+import { useTheme } from "@/lib/ui-prefs";
+import { useIsMobile } from "@/lib/use-media-query";
 import { useScrollRestoration } from "@/lib/use-scroll-restoration";
 
 /**
@@ -42,6 +44,9 @@ export function MediaSearchResults({
   onSwitchToTorrent?: () => void;
 }) {
   const scrollRef = useScrollRestoration(`search:media:${keyword}:${snapshotId ?? "live"}`);
+  // 银玻璃手机端不重复关键词大标题：结果页顶栏的关键词胶囊已写着（同原生 App）
+  const isNf = useTheme().structural;
+  const hideKeyword = useIsMobile() && !isNf;
   // 每个来源各自三态：null = 加载中；[] = 无结果；error 非空 = 该分区失败
   const [douban, setDouban] = useState<MediaSearchItem[] | null>(null);
   const [doubanError, setDoubanError] = useState<string | null>(null);
@@ -110,9 +115,11 @@ export function MediaSearchResults({
       {/* 状态行：与站点资源垂直的头部同构（关键词 + 快照提示） */}
       <header className={`shrink-0 pb-3 pt-4 page-inset max-md:pt-3`}>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-          <h1 className="text-on-image text-title-lg font-semibold tracking-[-0.01em] text-white">
-            “{keyword}”
-          </h1>
+          {!hideKeyword && (
+            <h1 className="text-on-image text-title-lg font-semibold tracking-[-0.01em] text-white">
+              “{keyword}”
+            </h1>
+          )}
 
           {/* 快照提示：药丸 + 重新搜索（与站点资源垂直同款视觉） */}
           {snapshotAt && (

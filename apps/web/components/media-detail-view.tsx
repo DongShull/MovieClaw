@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 
@@ -23,6 +23,7 @@ import { HScroller } from "@/components/h-scroller";
 import { Modal } from "@/components/modal";
 import { ImageLightbox, type LightboxAction } from "@/components/image-lightbox";
 import { MediaRow } from "@/components/media-row";
+import { PageNav } from "@/components/page-nav";
 import { PosterImage } from "@/components/poster-image";
 import { SubscribeDialog, type SubscribeTarget } from "@/components/subscribe-dialog";
 import {
@@ -40,6 +41,7 @@ import { useDoubanAppHref } from "@/lib/douban-app-link";
 import { upgradedTmdbOriginalUrl } from "@/lib/image-proxy";
 import { useResolvedTheme } from "@/themes/registry";
 import { useWantsOriginalImage } from "@/lib/image-resolution";
+import { useHeroEdgeColor } from "@/lib/hero-edge-color";
 import { getMediaSeed } from "@/lib/media-detail";
 import { useTapGuard } from "@/lib/use-tap-guard";
 import { usePageTitle } from "@/lib/use-page-title";
@@ -242,6 +244,16 @@ export function MediaDetailView({
   const { slots } = useResolvedTheme();
   const DetailNav = slots.detailNav;
   const showMobileHero = isMobile && mobileHeroSrc !== "";
+  // 银玻璃手机（对齐原生 App 的 MediaDetailView）：
+  //   - 整页底色取大图露出部分的底边色，Hero 底部渐变到同一个颜色（lib/hero-edge-color.ts）；
+  //   - 顶栏的小标题与雾层等剧照上的大标题滚出视野才出现（PageNav 的 revealAfter）。
+  // Netflix 维持纯黑底与原顶栏。
+  const silverHero = showMobileHero && !isNf;
+  const [heroEl, setHeroEl] = useState<HTMLDivElement | null>(null);
+  const [titleEl, setTitleEl] = useState<HTMLHeadingElement | null>(null);
+  const edgeColor = useHeroEdgeColor(silverHero ? mobileHeroSrc : undefined, heroEl);
+  // 银玻璃手机操作键：34px 高、最小宽 120px（同原生 App 的 HeroActionButton）
+  const actionSize = isNf ? "" : "max-md:h-[34px] max-md:min-w-[120px] max-md:justify-center max-md:px-4";
 
   // 滚动退场：详情页下滚时剧照不是被机械地推出屏幕，而是随滚动进度渐暗 +
   // 模糊（Netflix 海报墙的观感）。进度写到根节点 CSS 变量 --nf-hero-recede
@@ -364,13 +376,18 @@ export function MediaDetailView({
       className={`detail-ambient scroll-thin scroll-safe relative isolate h-full overflow-y-auto rounded-2xl max-md:rounded-none ${
         showMobileHero ? "detail-ambient--hero" : ""
       }`}
+      style={silverHero && edgeColor ? ({ "--detail-page-color": edgeColor } as CSSProperties) : undefined}
     >
       {/* 桌面没有任何 Hero 图层：全站背景此刻就是本片剧照（沉浸覆盖 + 本页
           豁免全局蒙版，见 app-shell 的 isHome），大图直出、零边界；
           .detail-ambient 在滚动容器上铺「透明 → 纯黑」的渐变板托住下方内容
           （见 globals.css，Netflix 主题另有左侧渐变遮罩护住标题区）。
           手机上竖屏放不下横版剧照，改由下面的页内 Hero 呈现。 */}
-      <DetailNav title={item.title} fallback={navFallback} onBack={back} />
+      {isNf ? (
+        <DetailNav title={item.title} fallback={navFallback} onBack={back} />
+      ) : (
+        <PageNav title={item.title} fallback={navFallback} revealAfter={titleEl} />
+      )}
       {/* 背景轮换：Netflix 桌面且剧照多于一张时，按序叠变（见组件说明）。
           首帧传主 backdrop 原图——与覆盖层当前显示的是同一张照片，轮换层
           淡入接管时没有构图/内容跳变。 */}
@@ -390,11 +407,16 @@ export function MediaDetailView({
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 z-0 overflow-hidden"
+          ref={setHeroEl}
           style={{ height: mobileHeroHeight }}
         >
           <img src={mobileHeroSrc} alt="" decoding="async" className="size-full object-cover object-center" />
           <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/45 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-b from-transparent via-black/55 to-black" />
+          {silverHero ? (
+            <div className="detail-hero-fade absolute inset-x-0 bottom-0 h-[260px]" />
+          ) : (
+            <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-b from-transparent via-black/55 to-black" />
+          )}
         </div>
       )}
 
@@ -425,7 +447,7 @@ export function MediaDetailView({
         <div className="min-w-0 max-w-5xl pb-1">
           {/* break-words：未识别条目的标题就是文件名（Some.Movie.2023.2160p…），
               整串无空格，不允许断词就会横向撑开整页 */}
-          <h1 className="text-on-image break-words text-[42px] font-bold leading-[1.1] tracking-[-0.02em] text-white max-md:text-[28px]">
+          <h1 ref={setTitleEl} className="text-on-image break-words text-[42px] font-bold leading-[1.1] tracking-[-0.02em] text-white max-md:text-[28px]">
             {item.title}
           </h1>
 
@@ -514,7 +536,7 @@ export function MediaDetailView({
                 <button
                   type="button"
                   onClick={openSubscribe}
-                  className="btn-glass flex h-10 items-center gap-2 bg-white/10 px-5 text-ui font-medium backdrop-blur-md transition hover:bg-white/15"
+                  className={`btn-glass flex h-10 items-center gap-2 bg-white/10 px-5 text-ui font-medium backdrop-blur-md transition hover:bg-white/15 ${actionSize}`}
                 >
                   <CheckIcon
                     className="size-4"
@@ -526,7 +548,7 @@ export function MediaDetailView({
                 <button
                   type="button"
                   onClick={openSubscribe}
-                  className="btn-accent flex h-10 items-center gap-2 rounded-full px-5 text-ui font-semibold"
+                  className={`btn-accent flex h-10 items-center gap-2 rounded-full px-5 text-ui font-semibold ${actionSize}`}
                 >
                   <BellIcon className="size-4" />
                   订阅追踪
@@ -535,7 +557,7 @@ export function MediaDetailView({
               {/* 搜索资源：不订阅、只想手动找种子下一次的直达口（此前只能回 ⌘K 重打片名） */}
               {showSearchButton && <Link
                 href={`/search?q=${encodeURIComponent(item.title)}` as Route}
-                className="btn-glass flex h-10 items-center gap-2 bg-white/10 px-5 text-ui font-medium backdrop-blur-md transition hover:bg-white/15"
+                className={`btn-glass flex h-10 items-center gap-2 bg-white/10 px-5 text-ui font-medium backdrop-blur-md transition hover:bg-white/15 ${actionSize}`}
               >
                 <SearchIcon className="size-4" />
                 搜索资源
@@ -647,6 +669,8 @@ export function MediaDetailView({
  * 异步回填或页内切换作品时恢复折叠并重新测量，避免沿用上一部影片的状态。
  */
 function ExpandablePlot({ text }: { text: string }) {
+  // 银玻璃的「展开全文」用 accent 色（同原生 App），Netflix 维持灰字
+  const isNf = useTheme().structural;
   const paragraphRef = useRef<HTMLParagraphElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
@@ -689,7 +713,9 @@ function ExpandablePlot({ text }: { text: string }) {
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
-          className="mt-1.5 inline-flex items-center gap-1 text-sub font-medium text-white/55 transition hover:text-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-2)]"
+          className={`mt-1.5 inline-flex items-center gap-1 text-sub font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-2)] ${
+            isNf ? "text-white/55 hover:text-white/85" : "text-[var(--accent)] hover:text-white"
+          }`}
         >
           {expanded ? "收起" : "展开全文"}
           <ChevronRightIcon
@@ -760,11 +786,13 @@ function TrailerCard({
   onPlay: () => void;
 }) {
   const tapGuard = useTapGuard(onPlay);
+  const isNf = useTheme().structural;
   return (
     <button
       type="button"
       {...tapGuard}
-      className="group/trailer w-[264px] shrink-0 text-left max-md:w-[208px]"
+      // 手机卡宽：银玻璃 240（同原生 App），Netflix 维持 208
+      className={`group/trailer w-[264px] shrink-0 text-left ${isNf ? "max-md:w-[208px]" : "max-md:w-[240px]"}`}
     >
       <div className="relative aspect-video overflow-hidden rounded-xl bg-[var(--poster-placeholder)] ring-1 ring-white/[0.08] transition-all duration-300 ease-out group-hover/trailer:-translate-y-1 group-hover/trailer:shadow-[0_16px_40px_rgba(0,0,0,0.55)] group-hover/trailer:ring-white/30">
         {/* YouTube 封面是 4:3（上下带黑边），object-cover 裁进 16:9 恰好只剩画面 */}

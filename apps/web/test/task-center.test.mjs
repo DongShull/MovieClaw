@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  activityPageFromQuery,
   activityScopeFromQuery,
   taskCenterViewFromQuery,
 } from "../lib/task-center.ts";
@@ -33,4 +34,20 @@ test("带任务状态的深链进入任务视角", () => {
 test("重复查询参数取第一个值，不被数组绕过", () => {
   assert.equal(activityScopeFromQuery(["attention", "media"]), "tasks");
   assert.equal(taskCenterViewFromQuery(["attention", "active"]), "attention");
+});
+
+test("手机总览的二级页只认 active / history / plays / stats / boost，其余落在总览", () => {
+  assert.equal(activityPageFromQuery("plays"), "plays");
+  assert.equal(activityPageFromQuery("boost"), "boost");
+  assert.equal(activityPageFromQuery("history"), "history");
+  // 需要处理与正在播放就在总览最上面，不另开页
+  assert.equal(activityPageFromQuery("attention"), null);
+  assert.equal(activityPageFromQuery("playing"), null);
+  assert.equal(activityPageFromQuery(undefined), null);
+  assert.equal(activityPageFromQuery(["stats", "plays"]), "stats");
+});
+
+test("刷流二级页的深链在两段版式里落到任务视角的进行中", () => {
+  assert.equal(activityScopeFromQuery("boost"), "tasks");
+  assert.equal(taskCenterViewFromQuery("boost"), "active");
 });

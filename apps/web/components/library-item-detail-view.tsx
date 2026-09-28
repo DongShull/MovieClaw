@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Children, Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AddToCollectionDialog } from "@/components/add-to-collection-dialog";
+import { useHeroEdgeColor } from "@/lib/hero-edge-color";
 import { ArtworkPickerDialog } from "@/components/artwork-picker-dialog";
 import { BrandLoader } from "@/components/brand-loader";
 import { CastRow } from "@/components/cast-row";
@@ -401,6 +402,11 @@ export function LibraryItemDetailView({
   // （只有 219px 高）多一倍画面，又不像铺满整屏那样只剩中间一条
   const mobileHeroHeight = "min(115vw, 62svh)";
   const showMobileHero = isMobile && mobileHeroSrc !== "";
+  // 银玻璃手机：整页底色取大图露出部分的底边色，Hero 底部渐变到同一个颜色
+  // （lib/hero-edge-color.ts，与影片详情页、原生 App 同一套）；Netflix 维持纯黑
+  const silverHero = showMobileHero && !isNf;
+  const [heroEl, setHeroEl] = useState<HTMLDivElement | null>(null);
+  const edgeColor = useHeroEdgeColor(silverHero ? mobileHeroSrc : undefined, heroEl);
 
   // 待回收行的恢复 / 立即清理（library-file-recycle.md §7）。
   // 恢复是可逆动作直接执行；清理真删磁盘，做种保护形态额外讲清断种风险
@@ -739,6 +745,7 @@ export function LibraryItemDetailView({
       className={`detail-ambient scroll-thin scroll-safe relative isolate h-full overflow-y-auto rounded-2xl max-md:rounded-none ${
         showMobileHero ? "detail-ambient--hero" : ""
       }`}
+      style={silverHero && edgeColor ? ({ "--detail-page-color": edgeColor } as CSSProperties) : undefined}
     >
       {/* 没有任何 Hero 图层：全站背景此刻就是本片剧照（沉浸覆盖 + 本页豁免
           全局蒙版，见 app-shell 的 isHome），大图直出、零边界；.detail-ambient
@@ -754,11 +761,16 @@ export function LibraryItemDetailView({
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 z-0 overflow-hidden"
+          ref={setHeroEl}
           style={{ height: mobileHeroHeight }}
         >
           <img src={mobileHeroSrc} alt="" decoding="async" className="size-full object-cover object-center" />
           <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/45 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-b from-transparent via-black/55 to-black" />
+          {silverHero ? (
+            <div className="detail-hero-fade absolute inset-x-0 bottom-0 h-[260px]" />
+          ) : (
+            <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-b from-transparent via-black/55 to-black" />
+          )}
         </div>
       )}
 

@@ -59,7 +59,7 @@ const UiPrefsContext = createContext<UiPrefsContextValue | null>(null);
  */
 const THEME_BROWSER_CHROME: Record<string, string> = {
   netflix: "#000000",
-  [DEFAULT_THEME_ID]: "#0a0b10",
+  [DEFAULT_THEME_ID]: "#000000",
 };
 
 /**
