@@ -6692,7 +6692,10 @@ public final class AetherEngine: ObservableObject {
         // the title's content start; that base differs by backend (native re-times onto a 0-based playlist
         // shifted by playlistShiftSeconds; the software path's raw clock begins at the container start,
         // sourceStartSeconds). Add it so the seek lands on the chapter, not the base seconds early.
-        let base = (playbackBackend == .software) ? sourceStartSeconds : playlistShiftSeconds
+        // [MovieClaw P35] 软件通路已把起点折进 session zero 的部分不能再加一遍
+        let base = (playbackBackend == .software)
+            ? max(0, sourceStartSeconds - (softwareHost?.sessionZeroSeconds ?? 0))
+            : playlistShiftSeconds
         let target = chapter.startSeconds + base
         EngineLog.emit(
             "[AetherEngine] selectChapter: seeking to chapter \(id) @ title-relative "

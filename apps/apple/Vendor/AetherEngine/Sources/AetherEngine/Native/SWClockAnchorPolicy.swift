@@ -36,6 +36,18 @@ enum SWClockAnchorPolicy {
                           sessionZeroSeconds: max(0, firstSampleSeconds - initialSeconds))
     }
 
+    /// [MovieClaw P35] 点播片源在装载时就定下的 session zero：容器起点明显不为 0（超过容差）时取起点，否则 0。
+    ///
+    /// 软件通路原来只在首个样本「晚于」起播点时才得出 session zero（给直播中途加入用）。时间戳从几百秒起的
+    /// 点播片源（《戴珍珠耳环》VC-1 原盘 raw 从 600 秒起），从头播时首样本 600 对起播点 0 会触发、时间轴对；
+    /// 续播到 600 时首样本 600 对起播点 600 不触发，于是整条时间轴按 raw 发布：续播点差 600 秒，
+    /// 跳到 600 秒之前落在第一个包之前、时钟等不到画面，永远卡住（真机每批必现）。主力通路按 AE#270
+    /// 以容器起点为 0，这里对齐同一口径。容差内的小起点（DVD、B 帧 MP4）照旧按 raw，行为不变。
+    static func vodSessionZero(sourceOriginSeconds: Double, isLive: Bool) -> Double {
+        guard !isLive, sourceOriginSeconds.isFinite, sourceOriginSeconds > toleranceSeconds else { return 0 }
+        return sourceOriginSeconds
+    }
+
     /// Converts a session-axis position into the source axis.
     ///
     /// The host publishes positions session-relative (`raw - sessionZero`), but the

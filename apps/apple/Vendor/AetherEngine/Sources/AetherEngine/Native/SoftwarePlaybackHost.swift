@@ -411,6 +411,13 @@ final class SoftwarePlaybackHost {
         set { feedLock.lock(); _clockSessionZero = newValue; feedLock.unlock() }
     }
 
+    /// [MovieClaw P35] 装载时按容器起点预设的 session zero（`SWClockAnchorPolicy.vodSessionZero`），
+    /// 首样本重锚时在它之上累加。只在 load 里写。
+    nonisolated(unsafe) private var vodPresetSessionZero: Double = 0
+
+    /// 当前 session zero：引擎把「源时间轴」上的量（光盘章节基准）换到发布时间轴时减去它
+    var sessionZeroSeconds: Double { clockSessionZero }
+
     /// Bumped at every seek; demux loop re-checks around blocking readPacket to discard stale pre-seek packets that would clear the skip threshold (visible fast-forward burst).
     nonisolated(unsafe) private var _seekGeneration: UInt64 = 0
     nonisolated private var seekGeneration: UInt64 {
@@ -956,23 +963,33 @@ final class SoftwarePlaybackHost {
 
         // Reset the live feeder state for the new session.
         resetFeederState()
+        // [MovieClaw P35] 容器起点明显不为 0 的点播片源：起播点是从 0 算的内容时间，换到源时间轴再定位与锚时钟
+        let presetZero = SWClockAnchorPolicy.vodSessionZero(
+            sourceOriginSeconds: dem.resolvedSourceStartOrigin, isLive: isLive)
+        vodPresetSessionZero = presetZero
+        clockSessionZero = presetZero
+        if presetZero > 0 {
+            EngineLog.emit("[SWHost] [MovieClaw P35] 片源起点 \(String(format: "%.3f", presetZero))s 预设为 session zero",
+                           category: .swPlayback)
+        }
 
         if let start = startPosition, start > 0 {
+            let sourceStart = start + presetZero
             // #254: same off-main, deadline-bounded reposition the transport seek uses. A resume into a
             // remote source that has to scan for its landing would otherwise block the main thread here.
-            _ = await dem.seekBounded(to: start, timeout: Self.seekBudgetSeconds, on: seekQueue)
+            _ = await dem.seekBounded(to: sourceStart, timeout: Self.seekBudgetSeconds, on: seekQueue)
             // This is load()'s only suspension point, so it is also the only place a stop() can land
             // mid-load. Arming the clock and publishing isReady on a session already torn down would
             // hand the engine a host it has stopped.
             guard !stopRequested else { return }
             // Mirror seek() skip-PTS + clock alignment so demux drops pre-keyframe frames and synchronizer starts at the resume offset.
-            let startTime = CMTime(seconds: start, preferredTimescale: 90000)
+            let startTime = CMTime(seconds: sourceStart, preferredTimescale: 90000)
             videoDecoder.skipUntilPTS = startTime
             renderer.setSkipThreshold(startTime)
             initialClockTime = startTime
             currentTime = start
         } else {
-            initialClockTime = .zero
+            initialClockTime = presetZero > 0 ? CMTime(seconds: presetZero, preferredTimescale: 90000) : .zero
         }
 
         // A local path is left on the direct loop: the spool exists to avoid a second trip to a
@@ -1766,7 +1783,9 @@ final class SoftwarePlaybackHost {
         // #107: the demux loop reports the resolved session-zero offset when it re-anchors
         // the clock at a deviating first-sample PTS (mid-stream-joined source).
         let onClockAnchored: @Sendable (Double) -> Void = { [weak self] zero in
-            self?.clockSessionZero = zero
+            guard let self else { return }
+            // [MovieClaw P35] 锚点已含预设的起点，重锚得出的偏差叠在它上面
+            self.clockSessionZero = self.vodPresetSessionZero + zero
         }
 
         if liveSession, let ring {
