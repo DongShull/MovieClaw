@@ -86,6 +86,8 @@ struct PlaybackRoutingTests {
         #expect(low.backwardSegments == 2)
         // 1080p 有 2 GB：默认窗口只占一小半，照常
         #expect(NativeStoragePlan.make(freeBytes: 2 * gib, bitrateBps: 8_000_000) == .normal)
+        // 台账码率离谱（光盘镜像片长记成 4 秒，算出 6.5 Gbit/s）：按不知道码率算，空间够就照常
+        #expect(NativeStoragePlan.make(freeBytes: 12 * gib, bitrateBps: 6_480_594_006) == .normal)
         // 存储写满后重开：强制最小
         #expect(NativeStoragePlan.make(freeBytes: 64 * gib, bitrateBps: 8_000_000, forceMinimal: true) == .minimal)
     }

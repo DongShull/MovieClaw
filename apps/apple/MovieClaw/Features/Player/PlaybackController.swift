@@ -16,8 +16,8 @@ import SwiftUI
 /// 片源不在了直接说明，存储写满收小缓冲重开，一时的问题原位重开一次，确定解不了才走第 2 级：
 /// 1. 自研引擎（原文件直出，硬解 → 引擎自己软解）；
 /// 2. 服务端 HLS + 系统播放器（NAS / Mac Worker 换封装或转码）：逐级降档，最后中文报错。
-/// 用户限了画质、且片源比上限高时直接走第 2 级（服务端压码率）。手机存储快满不再换播放器，按剩余空间收小
-/// 分片窗口（`NativeStoragePlan`）。
+/// 用户限了画质、且片源比上限高时由服务端压码率，转出的 HLS 仍由自研引擎直连放（`serverStreamOnNative`）。
+/// 手机存储快满不再换播放器，按剩余空间收小分片窗口（`NativeStoragePlan`）。
 /// 画质、音轨、字幕按片记（`QualityMemory` 与服务端观看状态）。没有引擎选项、也没有强制引擎的开关。
 ///
 /// ## 时间轴
@@ -454,14 +454,21 @@ final class PlaybackController {
     }
 
     /// 起播协商的输入（选引擎的规则见类注释；各请求体与能力快照都在主线程算好）：
-    /// 自研引擎能放就用它（申报全解码，服务端直接给档 0 原文件地址、不起 ffmpeg），否则服务端流交给系统播放器
+    /// 自研引擎能放原文件就申报全解码（服务端直接给档 0 原文件地址、不起 ffmpeg）；限了画质时按系统播放器的能力
+    /// 申报，让服务端按上限转码。服务端流交给谁放见 `serverStreamOnNative`
     private func negotiationInputs(startMs: Int?) -> PlaybackAPI.NegotiationInputs {
         PlaybackAPI.NegotiationInputs(
             mode: wantsNative ? .native : .system,
             native: sessionBody(capability: PlayerCapability.native(), startMs: startMs, forNative: true),
-            system: sessionBody(capability: PlayerCapability.avPlayer(), startMs: startMs, forNative: false)
+            system: sessionBody(capability: PlayerCapability.avPlayer(), startMs: startMs, forNative: false),
+            prepareSystemAsset: !serverStreamOnNative
         )
     }
+
+    /// 服务端流也由自研引擎放（2026-09-28 用户拍板）：用户主动限画质时，服务端按上限转码出的 HLS 交给自研引擎
+    /// 直连（引擎的 remoteBypass 通路，AVPlayer 直接取服务端 HLS），画中画、诊断、暂停策略与直出原文件同一套，
+    /// 体验一致。只有自研引擎本单元已确定解不了（`nativeFailed`）时，才换系统播放器放服务端流
+    private var serverStreamOnNative: Bool { !nativeFailed }
 
     private func performRequest(_ negotiation: Task<PlaybackAPI.Negotiation, Error>, startMs: Int?, attempt myAttempt: Int) async {
         do {
@@ -571,8 +578,9 @@ final class PlaybackController {
             original = true
             if let sid = session.sessionId { let scope = self.scope; Task { await scope.stop(sid) } }
             activeSessionId = nil
-        } else if useNative {
-            // 自研引擎放服务端 HLS（没有单个原文件可拉时）：引擎自带直放远程 HLS 的通路
+        } else if useNative || serverStreamOnNative {
+            // 自研引擎放服务端流：没有单个原文件可拉时，或用户限了画质（服务端转码）。引擎自带直放远程 HLS 的通路；
+            // 吃不带字幕组的 stream_url：文字字幕由叠加层画，免得 AVPlayer 再画一份
             url = scope.streamURL(session.streamUrl)
             activeSessionId = session.sessionId
         } else {
@@ -649,8 +657,8 @@ final class PlaybackController {
         // 起播要缓冲是正常的：换低画质的提示从这里重新给 10 秒宽限
         qualitySuggestion.restartGrace()
         let newEngine: any PlayerEngine
-        if useNative {
-            // 自研引擎：直出原文件，或服务端 HLS（没有单个原文件可拉时，引擎按 AVPlayer 直连放）
+        if useNative || serverStreamOnNative {
+            // 自研引擎：直出原文件，或服务端流（没有单个原文件可拉、用户限了画质时，引擎按 AVPlayer 直连放）
             do {
                 newEngine = try NativeEngine(playsOriginalFile: original)
             } catch {
@@ -711,7 +719,7 @@ final class PlaybackController {
         } else {
             sourceProbeURL = nil
         }
-        if let native = newEngine as? NativeEngine {
+        if let native = newEngine as? NativeEngine, original {
             // 外挂字幕交给引擎画：取服务端的原文件（编码归一成 UTF-8、不转格式），ASS 定位保留，画中画也有字幕
             native.prepareExternalSubtitles(subtitles.options.filter { !$0.path.isEmpty && $0.ref.hasPrefix("external:") }
                 .compactMap { option in scope.streamURL(option.path).map { (ref: option.ref, url: $0, language: option.language) } })
@@ -1301,15 +1309,15 @@ final class PlaybackController {
         return engine.rendersSubtitle(option)
     }
 
-    /// 选图形字幕要服务端压制进画面（系统播放器放服务端流时），菜单里提前说明代价
-    var graphicSubtitlesBurnIn: Bool { engine?.kind == .avPlayer }
+    /// 选图形字幕要服务端压制进画面（放服务端流时，不论哪个引擎），菜单里提前说明代价
+    var graphicSubtitlesBurnIn: Bool { engine?.kind == .avPlayer || (engine != nil && !playsOriginalFile) }
 
     func selectSubtitle(_ ref: String?) {
         subtitleTouched = true
         selectedSubtitle = ref
         let target = ref.flatMap { ref in subtitles.options.first { $0.ref == ref } }
-        if engine?.kind == .native {
-            // 自研引擎：字幕交给引擎画（在 applySubtitleToEngine 里分流）
+        if engine?.kind == .native, playsOriginalFile {
+            // 自研引擎直出原文件：字幕交给引擎画（在 applySubtitleToEngine 里分流）
             applySubtitleToEngine()
             if burnedSubtitle != nil {
                 // 自研引擎在放烧录过的服务端流：撤下烧录

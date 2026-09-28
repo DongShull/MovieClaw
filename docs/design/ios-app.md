@@ -90,7 +90,7 @@ PlayerScreen（控制层 UI、手势、字幕叠加、选轨、诊断）
   └─ PlaybackController（会话协议：/playback/sessions、ping 15s、progress 10s、降档重试、下一集）
        └─ PlayerEngine 协议
             ├─ NativeEngine     自研引擎（AetherEngine）：原文件在本机换封装进 AVPlayer，杜比视界 / 全景声 / 原盘 / 镜像直推
-            └─ AVPlayerEngine   服务端 HLS（转码 / 换封装）：自研引擎解不了、用户限了画质、或本机存储不够放分片
+            └─ AVPlayerEngine   服务端 HLS（转码 / 换封装）：只在自研引擎确定解不了时用；用户限了画质的服务端流也由自研引擎直连放
 ```
 - 引擎选择全自动，用户不选（2026-09-26 用户决定，同 Infuse；2026-09-28 起自研引擎是本机唯一的播放器，MPV 已移除）：只有「解不了」才沿
   兜底阶梯换引擎；网络慢、断线都不换引擎、不自动降码率（反复卡顿时提示一次，换不换画质由用户定）；画质、音轨、字幕按片记，

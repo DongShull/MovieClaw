@@ -69,6 +69,8 @@ public final class AetherPlayback {
         /// 从源（NAS）累计拉到的字节，算加载速度与带宽用
         public let sourceBytesFetched: Int64?
         public let droppedFrames: Int?
+        /// 已播放的总帧数（按已播时长 × 帧率估）：只有直连服务端 HLS 时给得出，掉帧比例看门狗据此判断
+        public let totalFrames: Int?
         public let averageBitrateBps: Double?
         public let videoBitrateBps: Double?
         /// 给人看的细节行（解码器、画面格式、音频交付方式……）
@@ -301,7 +303,21 @@ public final class AetherPlayback {
     public var currentTime: Double { engine.currentTime }
     public var duration: Double? { engine.duration > 0 ? engine.duration : nil }
     /// 已缓冲到的源文件时间
-    public var bufferedPosition: Double { engine.bufferedPosition }
+    public var bufferedPosition: Double {
+        // 直连服务端 HLS：分片由 AVPlayer 自己取，引擎的缓冲读数不涨，改看 AVPlayer 已加载到哪
+        // （含当前播放点的那一段的终点；与 currentTime 同是播放项时间）
+        if engine.videoRoute == .remoteBypass, let item = engine.currentAVPlayerItem {
+            let now = item.currentTime().seconds
+            for value in item.loadedTimeRanges {
+                let range = value.timeRangeValue
+                let start = range.start.seconds
+                let end = CMTimeAdd(range.start, range.duration).seconds
+                if start <= now + 0.5, end >= now { return end }
+            }
+            return 0
+        }
+        return engine.bufferedPosition
+    }
     public var isPaused: Bool {
         switch engine.state {
         case .paused, .idle, .ended: true
@@ -326,14 +342,33 @@ public final class AetherPlayback {
         details.append("画面 \(formatLabel)")
         if let decoder = engine.activeAudioDecoder { details.append("音频 \(decoder)") }
         details.append("音频交付 \(Self.deliveryLabel(engine.audioDelivery))")
-        return Readouts(
+        var readouts = Readouts(
             route: engine.videoRoute.rawValue,
             sourceBytesFetched: telemetry?.demuxerBytesFetched,
             droppedFrames: telemetry?.droppedFrameCount,
+            totalFrames: nil,
             averageBitrateBps: telemetry?.averageBitrateMbps.map { $0 * 1_000_000 },
             videoBitrateBps: engine.sourceVideoBitrate > 0 ? Double(engine.sourceVideoBitrate) : nil,
             details: details
         )
+        // 直连服务端 HLS：字节由 AVPlayer 自己取，引擎的计数不涨，读数改从 AVPlayer 的访问日志来
+        // （与系统播放器同一口径），加载速度、带宽、掉帧才有数
+        if engine.videoRoute == .remoteBypass, let item = engine.currentAVPlayerItem,
+           let events = item.accessLog()?.events, !events.isEmpty {
+            let fps = item.tracks.compactMap { $0.currentVideoFrameRate > 0 ? Double($0.currentVideoFrameRate) : nil }.first
+            let watched = events.reduce(0.0) { $0 + max(0, $1.durationWatched) }
+            let indicated = events.last.map(\.indicatedBitrate).flatMap { $0 > 0 ? $0 : nil }
+            readouts = Readouts(
+                route: readouts.route,
+                sourceBytesFetched: events.reduce(0) { $0 + max(0, $1.numberOfBytesTransferred) },
+                droppedFrames: events.reduce(0) { $0 + max(0, $1.numberOfDroppedVideoFrames) },
+                totalFrames: fps.map { Int(watched * $0) },
+                averageBitrateBps: readouts.averageBitrateBps,
+                videoBitrateBps: indicated ?? readouts.videoBitrateBps,
+                details: readouts.details
+            )
+        }
+        return readouts
     }
 
     private var formatLabel: String {

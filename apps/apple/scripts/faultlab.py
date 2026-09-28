@@ -230,8 +230,9 @@ SCENARIOS = {
     "storage-300m": scenario("mkv", 70, "play", tmp=True,
                              extra=["-mcFakeFreeBytes", str(300 * MIB)]),
     # 播放中写满：短暂写满（收小缓冲重开后就好）与一直写满（重开后又满，最后改走服务端流）
-    "storage-full-brief": scenario("mkv", 90, "play", extra=["-mcStorageFullAfter", "20,4"]),
-    "storage-full-long": scenario("mkv", 120, "fallback", extra=["-mcStorageFullAfter", "20,90"]),
+    # 要走主力通路（换封装写分片）的片源：模拟器上普通 MKV 多走软件通路、不写分片，用原盘
+    "storage-full-brief": scenario("disc", 100, "play", extra=["-mcStorageFullAfter", "25,4"]),
+    "storage-full-long": scenario("disc", 130, "fallback", extra=["-mcStorageFullAfter", "25,100"]),
     # 画面卡住（看门狗判解码卡死）：一时卡住（原位重开一次就好）与反复卡住（才改走服务端流）
     "stall-brief": scenario("mkv", 80, "play", extra=["-mcFakeStallAfter", "20,20"]),
     "stall-long": scenario("mkv", 110, "fallback", extra=["-mcFakeStallAfter", "20,70"]),
@@ -240,6 +241,8 @@ SCENARIOS = {
     "disc-mid-cut": scenario("disc", 100, "play", cut_then("refuse", None, 20)),
     "iso-open-refuse": scenario("iso", 50, "play", [armed("refuse", None, 6)]),
     "iso-mid-cut": scenario("iso", 80, "play", cut_then("refuse", None, 20)),
+    # 限画质（会让服务端起转码）：切 720p 后服务端流由自研引擎直连放，再切回自动回到直出原文件
+    "quality-switch": scenario("mkv", 80, "play", extra=["-mcAutoQuality", "15:720,50:0"]),
     "baseline": scenario("mkv", 35, "play"),
 }
 
@@ -264,6 +267,9 @@ async def run(name):
     # 上一轮的 App 进程要先退干净，否则这次可能起不来
     await quiet("xcrun", "simctl", "terminate", SIM, APP_ID)
     await asyncio.sleep(2)
+    if spec["tmp"]:
+        # 量占用前清掉上一轮留下的缓存（分片、片源字节缓存都只是缓存），否则峰值里混着别的场景的
+        await clear_caches()
     state.__init__()
     os.makedirs(OUT, exist_ok=True)
     with open(f"{OUT}/{name}.proxy.log", "w") as proxy_log, \
@@ -333,11 +339,21 @@ async def drive(spec, route, app_log):
     return fired
 
 
-async def sample_tmp(peak):
-    """每 2 秒量一次 App 临时目录里分片缓存与片源字节缓存的实际占用（du 计真实块数，KB）"""
+async def app_tmp():
     proc = await asyncio.create_subprocess_exec(
         "xcrun", "simctl", "get_app_container", SIM, APP_ID, "data", stdout=asyncio.subprocess.PIPE)
-    base = (await proc.stdout.read()).decode().strip() + "/tmp"
+    return (await proc.stdout.read()).decode().strip() + "/tmp"
+
+
+async def clear_caches():
+    base = await app_tmp()
+    for sub in ("aether-segments", "aether-bytecache"):
+        await quiet("rm", "-rf", f"{base}/{sub}")
+
+
+async def sample_tmp(peak):
+    """每 2 秒量一次 App 临时目录里分片缓存与片源字节缓存的实际占用（du 计真实块数，KB）"""
+    base = await app_tmp()
     while True:
         for key, sub in (("segments", "aether-segments"), ("bytecache", "aether-bytecache")):
             du = await asyncio.create_subprocess_exec(

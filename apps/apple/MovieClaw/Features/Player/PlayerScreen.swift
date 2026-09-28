@@ -76,6 +76,24 @@ struct PlayerScreen: View {
                     NativeEngine.simulateStorageFull(forSeconds: storageFull[1])
                 }
             }
+            // -mcAutoQuality "秒:高度[,秒:高度…]"：到点自动切画质（0 = 自动），验证限画质时自研引擎直连服务端流
+            let autoQuality = (UserDefaults.standard.string(forKey: "mcAutoQuality") ?? "").split(separator: ",")
+                .compactMap { pair -> (Double, Int)? in
+                    let parts = pair.split(separator: ":")
+                    guard parts.count == 2, let at = Double(parts[0]), let height = Int(parts[1]) else { return nil }
+                    return (at, height)
+                }
+            if !autoQuality.isEmpty {
+                Task {
+                    var elapsed = 0.0
+                    for (at, height) in autoQuality {
+                        try? await Task.sleep(for: .seconds(max(0, at - elapsed)))
+                        elapsed = at
+                        Self.autoTestLog("切画质 \(height == 0 ? "自动" : "\(height)p")")
+                        created.selectQuality(height == 0 ? nil : height)
+                    }
+                }
+            }
             // -mcAutoNextAfter 秒数：到点自动切下一集（排查切集问题用）
             let autoNext = UserDefaults.standard.double(forKey: "mcAutoNextAfter")
             if autoNext > 0 {

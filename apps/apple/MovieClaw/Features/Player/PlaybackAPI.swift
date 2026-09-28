@@ -74,6 +74,8 @@ struct PlaybackAPI {
         var native: API.PlaybackSessionRequest
         /// 系统播放器（服务端流）的请求体：按 AVPlayer 的能力申报
         var system: API.PlaybackSessionRequest
+        /// 服务端流由系统播放器放时才提前建资源；交给自研引擎放就不必
+        var prepareSystemAsset = true
     }
 
     /// 起播协商的结果与各段完成时刻（起播分段计时用）
@@ -100,7 +102,8 @@ struct PlaybackAPI {
         // 系统播放器要放的地址此刻已经确定：马上建好资源、开始读文件头 / 播放列表。
         // 主线程这时多半还在忙播放器弹出的转场，挂引擎要再等几十毫秒——AVFoundation 先干起来
         var preparedAsset: AVURLAsset?
-        if !useNative, session.decision.outcome == "plan", let url = Self.systemPlayerURL(session, server: api.server) {
+        if !useNative, inputs.prepareSystemAsset, session.decision.outcome == "plan",
+           let url = Self.systemPlayerURL(session, server: api.server) {
             let asset = AVURLAsset(url: url)
             Task { _ = try? await asset.load(.isPlayable) }
             preparedAsset = asset

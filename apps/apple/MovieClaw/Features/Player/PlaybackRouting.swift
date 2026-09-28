@@ -16,7 +16,7 @@ import Network
 /// 3. **不是「解不了」的失败都不换播放器**：片源不在了（404）直接说明；手机存储写满就收小缓冲原位重开
 ///    （引擎补丁 P25）；一时的问题（引擎楞住、中途出错、持续掉帧）先原位重开一次（`NativeRetryBudget`）。
 /// 4. **只有确定「本机解不了」才改走服务端流**：自研引擎（硬解 → 引擎自己软解 → 原位重开一次）→ 服务端 HLS
-///    交给系统播放器 → 逐级降档 → 报错。服务端流另一个用途是用户自己限了画质（那时直接走它，不经过这里）。
+///    交给系统播放器 → 逐级降档 → 报错。用户自己限了画质时服务端压码率，转出的 HLS 仍由自研引擎直连放（不经过这里）。
 enum FailurePolicy {
     struct Input: Equatable {
         var engine: EngineKind
@@ -104,9 +104,12 @@ struct NativeStoragePlan: Equatable {
     /// 存储写满后重开用：只留引擎允许的最小窗口
     static let minimal = NativeStoragePlan(forwardSegments: 2, backwardSegments: 2, sourceCache: false, canGrowForward: false)
 
-    /// 一段按 8 秒估（长 GOP 的片子一段就是一个关键帧间隔）；不知道码率按 UHD 原盘的 80 Mbit/s
+    /// 一段按 8 秒估（长 GOP 的片子一段就是一个关键帧间隔）；不知道码率按 UHD 原盘的 80 Mbit/s。
+    /// 台账码率超过 200 Mbit/s 不可信（UHD 蓝光上限约 128）：光盘镜像的片长常被记成几秒，码率算出几 Gbit/s，
+    /// 实测会把窗口误收到最小
     static func segmentBytes(bitrateBps: Double?) -> Double {
-        max(Double(1 << 20), (bitrateBps ?? 80_000_000) / 8 * 8)
+        let bitrate = bitrateBps.flatMap { $0 > 0 && $0 <= 200_000_000 ? $0 : nil } ?? 80_000_000
+        return max(Double(1 << 20), bitrate / 8 * 8)
     }
 
     static func make(freeBytes: Int64?, bitrateBps: Double?, forceMinimal: Bool = false) -> NativeStoragePlan {

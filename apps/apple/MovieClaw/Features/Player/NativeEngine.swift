@@ -194,8 +194,9 @@ final class NativeEngine: NSObject, PlayerEngine {
             loadingBps: loading,
             bitrateBps: readouts.videoBitrateBps ?? readouts.averageBitrateBps,
             droppedFrames: readouts.droppedFrames,
-            // 系统播放器不给总帧数：掉帧比例看门狗在这个引擎上不启用，卡顿看门狗照常
-            totalFrames: nil,
+            // 直出原文件时引擎不给总帧数，掉帧比例看门狗不启用（掉帧不是换播放器的理由）；直连服务端流时
+            // 从 AVPlayer 访问日志估，持续掉帧就按「这一档放不动」降档，与原来系统播放器放服务端流一致
+            totalFrames: readouts.totalFrames,
             bufferedSeconds: max(0, (bufferedEnd ?? time) - time),
             currentTimeSeconds: time,
             details: details
@@ -283,14 +284,15 @@ final class NativeEngine: NSObject, PlayerEngine {
 
     // MARK: - 字幕（引擎画图形字幕，文字字幕交给叠加层）
 
-    func rendersSubtitle(kind: String) -> Bool { kind == "pgs" }
+    func rendersSubtitle(kind: String) -> Bool { playsOriginalFile && kind == "pgs" }
 
-    /// 内封轨（文字与图形）都由引擎画：字幕从播放的读取流里顺带收集，选轨即刻出字。
+    /// 直出原文件时内封轨（文字与图形）都由引擎画：字幕从播放的读取流里顺带收集，选轨即刻出字。
     /// 走服务端的话，内封文字轨要 NAS 通读整个容器抽出来（大文件几十秒、还会拖慢 NAS），这正是「服务端弱」要避开的。
     /// 装载时交给引擎的外挂文字字幕也由引擎画（服务端只给编码归一成 UTF-8 的原文件，不转格式）：
-    /// ASS / SSA 的定位与分层照样生效，画中画时还能换成原生字幕轨
+    /// ASS / SSA 的定位与分层照样生效，画中画时还能换成原生字幕轨。
+    /// 放服务端流（用户限了画质）时引擎不拆包、读不到内封轨：文字字幕由叠加层画，图形字幕由服务端压制进画面
     func rendersSubtitle(_ option: SubtitleOption) -> Bool {
-        option.embeddedIndex != nil || option.kind == "pgs" || externalSubtitleRefs.contains(option.ref)
+        playsOriginalFile && (option.embeddedIndex != nil || option.kind == "pgs" || externalSubtitleRefs.contains(option.ref))
     }
 
     /// 装载前交代外挂字幕（引用、取原文件的地址、语言）：由引擎下载、解码、画
