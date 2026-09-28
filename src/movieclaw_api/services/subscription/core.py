@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from statistics import median
 from types import EllipsisType
+from typing import Any
 
 from sqlalchemy import and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -165,14 +166,17 @@ def _focus_day_rows(
 
 
 def _median_pipeline_minutes(
-    rows: list[WantedItem],
+    rows: list[Any],
     *,
     start_field: str,
     end_field: str,
     fallback: int,
     maximum: timedelta,
 ) -> int:
-    """从已完成工单取中位耗时；异常长链路不参与首页的日内时间估算。"""
+    """从已完成工单取中位耗时；异常长链路不参与首页的日内时间估算。
+
+    ``rows`` 是工单或只带时间戳列的查询行，按属性名取两端时间。
+    """
     durations: list[float] = []
     for row in rows:
         start = getattr(row, start_field)
@@ -1183,9 +1187,22 @@ class SubscriptionService:
         counts = await self._repo.count_wanted_by_status(
             [s.id for s in subscriptions if s.id is not None]
         )
+        # 条目一次批量取：逐条 session.get 是 N+1，几百部订阅就是几百次往返，
+        # 订阅页、今日入库等几个接口各跑一遍，冷启动并发时互相排队
+        item_ids = {sub.media_item_id for sub in subscriptions}
+        items = {
+            item.id: item
+            for item in (
+                await self._session.execute(
+                    select(MediaItem).where(MediaItem.id.in_(item_ids))  # type: ignore[union-attr]
+                )
+            ).scalars()
+        }
         rows: list[tuple[Subscription, MediaItem, dict[str, int]]] = []
         for sub in subscriptions:
-            item = await self._media_repo_get(sub.media_item_id)
+            item = items.get(sub.media_item_id)
+            if item is None:  # 外键保证下理论不可达，口径同 _media_repo_get
+                raise NotFoundException("订阅关联的媒体条目不存在")
             rows.append((sub, item, counts.get(sub.id or -1, {})))
         return rows
 
@@ -1218,7 +1235,13 @@ class SubscriptionService:
         subscriptions = {
             sub.id: (sub, media) for sub, media, _counts in visible if sub.id is not None
         }
-        wanted_rows = await self._repo.list_wanted_many(list(subscriptions), in_scope_only=True)
+        # 候选只可能来自这三种状态；已入库工单是表里的大头，只为算链路中位耗时
+        # 单独取四列时间戳，不整行建 ORM 对象（整行读是这个接口最重的一步）
+        wanted_rows = await self._repo.list_wanted_many(
+            list(subscriptions),
+            in_scope_only=True,
+            statuses=(WantedStatus.WANTED, WantedStatus.GRABBED, WantedStatus.DOWNLOADED),
+        )
         next_probe_by_wanted = await next_forecast_probe_times_by_wanted(
             self._session,
             wanted_items=[row for row in wanted_rows if row.status == WantedStatus.WANTED],
@@ -1226,21 +1249,27 @@ class SubscriptionService:
         by_subscription: dict[int, list[WantedItem]] = {}
         for wanted in wanted_rows:
             by_subscription.setdefault(wanted.subscription_id, []).append(wanted)
+        timings_by_subscription: dict[int, list[Any]] = {}
+        for timing in await self._repo.imported_timings_many(list(by_subscription)):
+            timings_by_subscription.setdefault(timing.subscription_id, []).append(timing)
 
         today = publish_calendar_date(utcnow())
         horizon = today + timedelta(days=_UPCOMING_WINDOW_DAYS)
         candidates: list[TodayArrivalCandidate] = []
         for subscription_id, (subscription, media) in subscriptions.items():
-            rows = by_subscription.get(subscription_id, [])
+            rows = by_subscription.get(subscription_id)
+            if not rows:
+                continue
+            timings = timings_by_subscription.get(subscription_id, [])
             release_to_import = _median_pipeline_minutes(
-                rows,
+                timings,
                 start_field="grabbed_at",
                 end_field="imported_at",
                 fallback=_DEFAULT_RELEASE_TO_IMPORT_MINUTES,
                 maximum=timedelta(days=7),
             )
             download_to_import = _median_pipeline_minutes(
-                rows,
+                timings,
                 start_field="downloaded_at",
                 end_field="imported_at",
                 fallback=_DEFAULT_DOWNLOAD_TO_IMPORT_MINUTES,

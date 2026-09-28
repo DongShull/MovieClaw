@@ -141,7 +141,7 @@ async def _prepare_resolved_target(
             SeasonOverview.from_row(
                 row,
                 aired_count=aired_by_season.get(row.season_number, 0),
-                owned_units=owned,
+                owned_count=sum(1 for season, _episode in owned if season == row.season_number),
             )
             for row in seasons
         ],
@@ -380,20 +380,23 @@ async def list_subscriptions(
         {item.id for _sub, item, _counts in rows if item.kind == "tv" and item.id is not None}
     )
     media_repo = MediaItemRepository(session)
+    # 只要每季的集数：数据库里分组计数，不把每一集读成元组再逐季数一遍
     seasons_by_item = await media_repo.list_seasons_many(tv_item_ids)
-    aired_by_item = await media_repo.aired_units_many(tv_item_ids, include_specials=True)
-    owned_by_item = await LibraryFileRepository(session).owned_units_many(tv_item_ids)
+    aired_by_item = await media_repo.aired_counts_by_season_many(
+        tv_item_ids, include_specials=True
+    )
+    owned_by_item = await LibraryFileRepository(session).owned_counts_by_season_many(tv_item_ids)
 
     views: list[SubscriptionView] = []
     for sub, item, counts in rows:
         item_id = item.id or -1
-        aired = aired_by_item.get(item_id, set())
-        owned = owned_by_item.get(item_id, set())
+        aired = aired_by_item.get(item_id, {})
+        owned = owned_by_item.get(item_id, {})
         collection = [
             SeasonOverview.from_row(
                 season,
-                aired_count=sum(1 for unit in aired if unit[0] == season.season_number),
-                owned_units=owned,
+                aired_count=aired.get(season.season_number, 0),
+                owned_count=owned.get(season.season_number, 0),
             )
             for season in seasons_by_item.get(item_id, [])
         ]
