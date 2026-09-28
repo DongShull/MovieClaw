@@ -35,6 +35,7 @@ from movieclaw_api.services.library.scan import scan_library
 from movieclaw_db.engine import dispose_db, get_database, init_db
 from movieclaw_db.migrations import run_migrations
 from movieclaw_db.models import Library, LibraryFile
+from movieclaw_db.repositories.library_file_repo import LibraryFileRepository
 from movieclaw_db.repositories.library_repo import LibraryRepository
 from movieclaw_media.tmdb import TmdbClient
 
@@ -383,6 +384,75 @@ async def test_scoped_scan_falls_back_when_entry_vanished(db, tmp_path) -> None:
     assert {p for p, r in rows.items() if r.missing_since is not None} == {
         str(e1000 / "影片1000.1080p.mkv"),
         str(e1001 / "影片1001.1080p.mkv"),
+    }
+
+
+def _spy_ledger_loads(monkeypatch) -> tuple[list[int], list[str]]:
+    """记录扫描装配了哪些台账行：整库装载的次数、按路径装载到的行。"""
+    whole: list[int] = []
+    hydrated: list[str] = []
+    real_whole = LibraryFileRepository.list_by_library
+    real_by_paths = LibraryFileRepository.list_by_paths
+
+    async def spy_whole(self, library_id):
+        whole.append(library_id)
+        return await real_whole(self, library_id)
+
+    async def spy_by_paths(self, library_id, paths):
+        rows = await real_by_paths(self, library_id, paths)
+        hydrated.extend(row.file_path for row in rows)
+        return rows
+
+    monkeypatch.setattr(LibraryFileRepository, "list_by_library", spy_whole)
+    monkeypatch.setattr(LibraryFileRepository, "list_by_paths", spy_by_paths)
+    return whole, hydrated
+
+
+async def test_scoped_scan_hydrates_only_in_scope_ledger_rows(db, tmp_path, monkeypatch) -> None:
+    """效果守卫：范围扫描只装配范围内的台账行，不再把整库台账装成 ORM 对象。
+
+    整库几万行、每行好几个 JSON 列，装配一次要在事件循环里连续卡近一秒（NAS 上
+    数秒）；监听事件触发的扫描只看得见一两个条目目录，用不到其余的行。
+    """
+    root = tmp_path / "movies"
+    for i in range(12):
+        _movie_entry(root, 1000 + i)
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="电影库", kind="movie", root_paths=[str(root)]
+        )
+    await scan_library(library.id)
+
+    fresh = _movie_entry(root, 1100)
+    whole, hydrated = _spy_ledger_loads(monkeypatch)
+    await scan_library(library.id, backfill_existing_specs=False, scope_paths={str(fresh)})
+    monkeypatch.undo()
+
+    assert whole == [], "范围扫描不应装载整库台账"
+    assert all(path.startswith(f"{fresh}/") for path in hydrated), hydrated
+    assert str(fresh / "影片1100.1080p.mkv") in await _rows(db, library.id)
+
+
+async def test_incremental_reconcile_hydrates_only_changed_dirs(db, tmp_path, monkeypatch) -> None:
+    """效果守卫：定期对账（目录 mtime 增量）只装配变过的目录里的台账行，丢失照常标记。"""
+    root = tmp_path / "movies"
+    entries = [_movie_entry(root, 1000 + i) for i in range(12)]
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="电影库", kind="movie", root_paths=[str(root)]
+        )
+    await scan_library(library.id)  # 手动扫描：整库遍历并落目录快照
+
+    (entries[0] / "影片1000.1080p.mkv").unlink()
+    whole, hydrated = _spy_ledger_loads(monkeypatch)
+    await scan_library(library.id, backfill_existing_specs=False)
+    monkeypatch.undo()
+
+    assert whole == [], "增量对账不应装载整库台账"
+    assert not any(path.startswith(f"{entries[5]}/") for path in hydrated), hydrated
+    rows = await _rows(db, library.id)
+    assert {p for p, r in rows.items() if r.missing_since is not None} == {
+        str(entries[0] / "影片1000.1080p.mkv")
     }
 
 

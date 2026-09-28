@@ -84,8 +84,8 @@ export const THEMES: ThemeMeta[] = [
     id: "silver",
     label: "银玻璃",
     description: "液态玻璃 · 冷银高光的控制台质感（默认）",
-    preview: { bg: "#10131c", accent: "#cdd6e6" },
-    themeColor: "#0a0b10",
+    preview: { bg: "#111113", accent: "#cdd6e6" },
+    themeColor: "#000000",
     structural: false,
     chrome: {
       mobileTopBarHeight: 52,

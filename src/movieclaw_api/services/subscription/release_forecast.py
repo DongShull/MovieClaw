@@ -8,6 +8,13 @@
 首版不用机器学习，只使用同季较早单集的发布时间：把历史单集按目标播出日期平移，
 再取加权中位数。一个样本即可从 E2 开始给出宽窗口，样本增多后用滚动回测误差
 收紧窗口；误差过大则标记 volatile，仅展示而不额外刷站。
+
+开销口径：重算的工作量只与「这部剧的相关种子」成正比，与索引总量无关。每部剧
+先在 SQLite 里按别名子串预筛（site_torrent.match_text + 覆盖索引，扫描在 C 层
+完成、不占 Python 解释器），只把几十行可能相关的种子交给匹配内核细查；同步收尾
+还会先看本轮新种里有没有这部剧的单集观测，没有就不重算（见 refresh_release_forecasts）。
+此前每轮把近 90 天几万行种子全部读进 Python 逐行解析、匹配，NAS 上一轮 9–15 秒，
+放进线程也照样和接口抢解释器锁，撞上时起播相关接口慢 10–100 倍。
 """
 
 from __future__ import annotations
@@ -20,7 +27,7 @@ from datetime import UTC, date, datetime, timedelta
 from statistics import median
 from typing import Any
 
-from sqlalchemy import Row
+from sqlalchemy import Row, func, or_, union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 from sqlmodel import select
@@ -45,14 +52,13 @@ from movieclaw_db.models import (
     utcnow,
 )
 from movieclaw_matcher import MediaIdentity, TorrentCandidate, match_identity
+from movieclaw_matcher.identity import alias_needles
 
 logger = logging.getLogger("movieclaw_api.subscription.release_forecast")
 
 FORECAST_VERSION = 1
 FORECAST_MIN_INTERVAL = timedelta(minutes=15)
 _OBSERVATION_LOOKBACK = timedelta(days=90)
-# 种子索引分批取回的批大小（见 _load_recent_candidates）
-_LOAD_CHUNK = 500
 _MAX_HISTORY_EPISODES = 4
 _MAX_WINDOW = timedelta(hours=12)
 _EARLY_RELEASE_TOLERANCE = timedelta(days=2)
@@ -185,65 +191,93 @@ _CANDIDATE_COLUMNS = (
 )
 
 
-async def _load_recent_candidates(
-    session: AsyncSession, *, now: datetime
-) -> list[tuple[Row, TorrentCandidate]]:
-    """一次读取并解析近期种子，供本轮全部活跃剧集复用。"""
-    statement = select(*_CANDIDATE_COLUMNS).where(
-        SiteTorrent.publish_time.is_not(None),  # type: ignore[union-attr]
-        SiteTorrent.publish_time >= now - _OBSERVATION_LOOKBACK,
-    )
-    # 分批取回而不是一次 .all()：几万行的装配只能在事件循环线程上做（会话不能跨
-    # 线程），一口气取回会把整个循环卡住好几秒；分批之后每批之间都把控制权还给
-    # 事件循环，其他请求最多只等一批的工夫（实测一次性取回卡 2 秒多，分批后不到 0.2 秒）
-    rows: list[Row] = []
-    result = await session.stream(statement.execution_options(yield_per=_LOAD_CHUNK))
-    async for partition in result.partitions(_LOAD_CHUNK):
-        rows.extend(partition)
-
-    def _parse() -> tuple[list[tuple[Row, TorrentCandidate]], int]:
-        parsed: list[tuple[Row, TorrentCandidate]] = []
-        invalid = 0
-        for row in rows:
-            try:
-                candidate = to_candidate(row)
-            except ValueError:
-                invalid += 1
-                continue
-            if candidate is not None:
-                parsed.append((row, candidate))
-        return parsed, invalid
-
-    # 逐行 pydantic 校验是纯 CPU：站点同步了几个月的索引有几万行，放在事件循环
-    # 里跑会把同一时刻的所有 HTTP 请求一起卡住。行已经读进内存、列都已加载，
-    # 线程里只做只读属性访问，不碰会话
-    candidates, invalid_attrs = await asyncio.to_thread(_parse)
-    if invalid_attrs:
-        logger.warning(
-            "生成资源发布时间预测时跳过 %s 条属性格式异常的种子索引，请检查富化数据",
-            invalid_attrs,
-        )
-    return candidates
-
-
-def _observations_for_item(
-    *,
-    item: MediaItem,
-    episodes: list[MediaEpisode],
-    candidates: list[tuple[Row, TorrentCandidate]],
-    season_titles: tuple[str, ...] = (),
-) -> list[_ObservedRelease]:
-    """从 site_torrent 提取本条目的明确单集观测；整季包与多集包不参与训练。"""
-    season_numbers = tuple(sorted({episode.season_number for episode in episodes}))
-    identity = MediaIdentity(
+def _identity_for(
+    item: MediaItem, episodes: list[MediaEpisode], season_titles: tuple[str, ...]
+) -> MediaIdentity:
+    """条目在匹配内核视角下的身份（季号取自本条目的全部单集）。"""
+    return MediaIdentity(
         kind=item.kind,
         year=item.year,
         aliases=tuple(item.aliases),
         imdb_id=item.imdb_id,
         douban_id=item.douban_id,
-        season_numbers=season_numbers,
+        season_numbers=tuple(sorted({episode.season_number for episode in episodes})),
         season_titles=season_titles,
     )
+
+
+def _candidate_ids(identity: MediaIdentity, *, since: datetime, after_id: int | None):
+    """可能属于该条目的种子行 id（SQL 子查询），是 match_identity 命中的必要条件。
+
+    - 别名子串：走覆盖索引 (publish_time, match_text)，扫描在 SQLite 的 C 层完成、
+      不占 Python 解释器；任何别名能命中的行，归一化后的别名一定是它 match_text
+      的子串（口径见 movieclaw_matcher.identity 的「派生数据缓存与必要条件预筛」）；
+    - match_text 为 NULL 的行（旧版本写入、尚未计算）一律纳入细查，不会漏；
+    - 外部 ID 相等是另一条独立的命中路径，单独查出后取并集。
+
+    ``after_id`` 只看这个 id 之后新入库的行（同步收尾的"按变化触发"）。
+    """
+    window = [
+        SiteTorrent.publish_time.is_not(None),  # type: ignore[union-attr]
+        SiteTorrent.publish_time >= since,
+    ]
+    if after_id is not None:
+        window.append(SiteTorrent.id > after_id)  # type: ignore[operator]
+    maybe_alias = [SiteTorrent.match_text.is_(None)] + [  # type: ignore[union-attr]
+        func.instr(SiteTorrent.match_text, needle) > 0 for needle in alias_needles(identity)
+    ]
+    selects = [select(SiteTorrent.id).where(*window, or_(*maybe_alias))]
+    if identity.imdb_id:
+        selects.append(
+            select(SiteTorrent.id).where(*window, SiteTorrent.imdb_id == identity.imdb_id)
+        )
+    if identity.douban_id:
+        selects.append(
+            select(SiteTorrent.id).where(*window, SiteTorrent.douban_id == identity.douban_id)
+        )
+    return union(*selects) if len(selects) > 1 else selects[0]
+
+
+async def _load_item_candidates(
+    session: AsyncSession,
+    identity: MediaIdentity,
+    *,
+    since: datetime,
+    after_id: int | None = None,
+) -> list[tuple[Row, TorrentCandidate]]:
+    """读取并解析可能属于该条目的种子（预筛后通常只有几十行，直接在这里解析）。"""
+    rows = (
+        await session.execute(
+            select(*_CANDIDATE_COLUMNS).where(
+                SiteTorrent.id.in_(_candidate_ids(identity, since=since, after_id=after_id))  # type: ignore[union-attr]
+            )
+        )
+    ).all()
+    parsed: list[tuple[Row, TorrentCandidate]] = []
+    invalid = 0
+    for row in rows:
+        try:
+            candidate = to_candidate(row)
+        except ValueError:
+            invalid += 1
+            continue
+        if candidate is not None:
+            parsed.append((row, candidate))
+    if invalid:
+        logger.warning(
+            "生成资源发布时间预测时跳过 %s 条属性格式异常的种子索引，请检查富化数据",
+            invalid,
+        )
+    return parsed
+
+
+def _observations_for_item(
+    *,
+    identity: MediaIdentity,
+    episodes: list[MediaEpisode],
+    candidates: list[tuple[Row, TorrentCandidate]],
+) -> list[_ObservedRelease]:
+    """从 site_torrent 提取本条目的明确单集观测；整季包与多集包不参与训练。"""
     air_dates = {
         (episode.season_number, episode.episode_number): episode.air_date
         for episode in episodes
@@ -279,7 +313,11 @@ def _observations_for_item(
         )
         key = (season_number, episode_number, row.site_id)
         previous = earliest.get(key)
-        if previous is None or observation.publish_time < previous.publish_time:
+        # 同一时刻发了多个种子时取 id 最小的一条：结论不依赖 SQL 的返回顺序
+        if previous is None or (observation.publish_time, observation.torrent_row_id) < (
+            previous.publish_time,
+            previous.torrent_row_id,
+        ):
             earliest[key] = observation
 
     return list(earliest.values())
@@ -422,7 +460,10 @@ def _build_forecast(
 
 
 async def refresh_release_forecasts(
-    session: AsyncSession, *, media_item_ids: set[int] | None = None
+    session: AsyncSession,
+    *,
+    media_item_ids: set[int] | None = None,
+    new_since_id: int | None = None,
 ) -> int:
     """刷新活跃剧集订阅范围内的单集预测快照，返回实际变化的工单数。
 
@@ -430,6 +471,11 @@ async def refresh_release_forecasts(
     新探测。``in_scope`` 已表达用户是否订阅该集，自动续订只影响未来范围扩张，
     不得影响现有范围的预测与探测。已过期工单的旧快照无需删除，调度读取时会按
     窗口截止时间忽略。
+
+    ``new_since_id``（同步收尾用）：只重算「这个 id 之后新入库的种子里出现了本剧
+    单集观测」的条目。预测只取决于观测，新种没带来观测就不可能改变结论；别名、
+    季名、种子补 ID、重新富化、观测滑出 90 天这些不经过新种的变化，由每小时兜底
+    的全量刷新与各自的单条目触发覆盖（与此前「一小时内反映」的时效相同）。
     """
     statement = (
         select(WantedItem, Subscription)
@@ -462,7 +508,7 @@ async def refresh_release_forecasts(
     if not grouped:
         return 0
     changed = 0
-    candidates = await _load_recent_candidates(session, now=now)
+    since = now - _OBSERVATION_LOOKBACK
     for media_item_id, wanted_items in grouped.items():
         item = await session.get(MediaItem, media_item_id)
         if item is None:
@@ -476,13 +522,19 @@ async def refresh_release_forecasts(
             .scalars()
             .all()
         )
-        # 身份匹配同样是纯 CPU（每个候选跑一遍 match_identity），与解析同理进线程
-        observations = await asyncio.to_thread(
-            _observations_for_item,
-            item=item,
+        identity = _identity_for(item, episodes, await load_season_titles(session, media_item_id))
+        if new_since_id is not None and not _observations_for_item(
+            identity=identity,
             episodes=episodes,
-            candidates=candidates,
-            season_titles=await load_season_titles(session, media_item_id),
+            candidates=await _load_item_candidates(
+                session, identity, since=since, after_id=new_since_id
+            ),
+        ):
+            continue  # 本轮新种里没有这部剧的单集观测：预测不可能变化
+        observations = _observations_for_item(
+            identity=identity,
+            episodes=episodes,
+            candidates=await _load_item_candidates(session, identity, since=since),
         )
         for wanted in wanted_items:
             forecast = _build_forecast(wanted=wanted, observations=observations, now=now)
@@ -516,7 +568,7 @@ _queued_ids: set[int] = set()
 # 正在执行的条目。与 _queued_ids 一起回答「这个条目的预测是不是还在路上」，
 # 详情页据此决定要不要稍后再取一次（见 forecast_refresh_pending）
 _running_ids: set[int] = set()
-# 串行执行：每次刷新都要把整个索引解析一遍，两份并行只会让事件循环更挤，不会更快
+# 串行执行：同一时刻只跑一份刷新，写入不互相覆盖；排队中的同条目触发合并进一次
 _refresh_lock = asyncio.Lock()
 
 
@@ -562,9 +614,9 @@ def refresh_release_forecasts_soon(media_item_ids: set[int]) -> None:
     """把预测刷新挪出请求路径（订阅创建/调整/恢复共用的唯一触发点）。
 
     预测快照是可重算的派生值，晚几秒落库对功能没有影响：首页预告在快照缺席时
-    按播出日期兜底，站点探测计划也只在到点时才读取它。而同步刷新要把近 90 天的
-    全部种子索引读出来逐行解析、匹配，索引一大就是秒级——用户点一下「订阅」
-    没有理由等这个。请求会话在响应后即关闭，所以这里必须自开会话。
+    按播出日期兜底，站点探测计划也只在到点时才读取它。而刷新要读条目、单集与
+    种子索引并逐条细查——用户点一下「订阅」没有理由等这个。请求会话在响应后
+    即关闭，所以这里必须自开会话。
     没有运行中的事件循环时（如同步脚本）静默跳过，交给定时任务兜底。
     """
     try:

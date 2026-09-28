@@ -1,4 +1,4 @@
-import { request } from "@/lib/http";
+import { HttpError, request } from "@/lib/http";
 import type { MediaType } from "@/lib/media-types";
 
 /** 后端统一响应信封（见 movieclaw_api.schemas.response.ApiResponse） */
@@ -29,6 +29,10 @@ export interface SubscriptionMedia {
   original_title: string;
   year: number | null;
   poster_url: string | null;
+  /** 宽幅剧照（TMDB w1280，沉浸场景可升 original）；老版本服务端没有这个字段 */
+  backdrop_url?: string | null;
+  /** 片名 Logo（透明底 PNG）；没有时前端显示文字片名。老版本服务端没有这个字段 */
+  logo_url?: string | null;
   status: string | null;
 }
 
@@ -482,17 +486,77 @@ export function listSubscriptions(
 
 /**
  * 最近一次可能入库的订阅内容；预计耗时已按各订阅历史校准。
- * 今天没有安排时后端自动回退到一周内最近的那一天（``days_ahead`` > 0）。
+ *
+ * - ``focus``（默认）：只回最近有安排的那一天——今天没有安排时后端自动回退到
+ *   一周内最近的那一天（``days_ahead`` > 0），Netflix 布局的预告行用它；
+ * - ``week``：整周按日期原样返回，银玻璃订阅首页的 Hero 与「日程」日期条用它。
+ *   老版本服务端不认这个参数，照旧回 focus 的结果（日程只剩一天，不报错）。
  */
 export function listTodaySubscriptionArrivals(
   init?: RequestInit,
+  window: "focus" | "week" = "focus",
 ): Promise<TodaySubscriptionArrival[]> {
+  const query = window === "week" ? "?window=week" : "";
   return unwrap(
     request<ApiEnvelope<TodaySubscriptionArrival[]>>(
-      "/subscriptions/today-arrivals",
+      `/subscriptions/today-arrivals${query}`,
       init,
     ),
   );
+}
+
+/** 「刚刚入库」一批里的一个季集单元（电影是哨兵 0/0） */
+export interface RecentSubscriptionArrivalUnit {
+  season_number: number;
+  episode_number: number;
+}
+
+/**
+ * 订阅首页「刚刚入库」的一张卡（见 schemas.subscription.RecentArrivalView）：
+ * 一部作品最近入库、当前账号还没看完的那一批；整批看完即不再返回。
+ */
+export interface RecentSubscriptionArrival {
+  subscription_id: number;
+  media: SubscriptionMedia;
+  /** 播放入口：这一批里第一个没看完的单元；电影 = 0 */
+  season_number: number;
+  episode_number: number;
+  /** 播放入口那一集的集名；电影或缺档案为空 */
+  episode_name: string | null;
+  /** 播放入口那一集的剧照；可能是相对地址（本地刮削资产），要经 imageUrl() 解析 */
+  still_url: string | null;
+  /** 这一批里还没看完、文件在位的全部单元（季集正序，第一个即播放入口） */
+  units: RecentSubscriptionArrivalUnit[];
+  /** 播放入口看了一半时的进度（1~99）；没看过为空 */
+  progress_percent: number | null;
+  /** 这一批最近一次整理入库的时间 */
+  imported_at: string;
+}
+
+/**
+ * 订阅首页「刚刚入库」：最近 ``days`` 天入库、当前账号还没看完的作品（一部一张）。
+ * 老版本服务端没有这个接口时静默当空——这一行直接不出现，不算错误。老服务端会把
+ * 这个路径当成 ``/subscriptions/{id}`` 去解析，回的是 422（id 不是整数）而不是 404，两种都认。
+ */
+export async function listRecentSubscriptionArrivals(
+  options: { days?: number; limit?: number } = {},
+  init?: RequestInit,
+): Promise<RecentSubscriptionArrival[]> {
+  const params = new URLSearchParams();
+  if (options.days != null) params.set("days", String(options.days));
+  if (options.limit != null) params.set("limit", String(options.limit));
+  const query = params.size ? `?${params}` : "";
+  try {
+    return await unwrap(
+      request<ApiEnvelope<RecentSubscriptionArrival[]>>(
+        `/subscriptions/recent-arrivals${query}`,
+        init,
+      ),
+    );
+  } catch (error) {
+    if (error instanceof HttpError && (error.status === 404 || error.status === 422)) return [];
+    throw error;
+  }
 }
 
 /** 订阅详情（含工单明细）。 */

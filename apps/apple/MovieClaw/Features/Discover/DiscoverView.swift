@@ -19,6 +19,7 @@ struct DiscoverView: View {
 
     @Environment(\.api) private var api
     @Environment(Router.self) private var router
+    @Environment(\.pageWarmup) private var warmup
 
     @State private var mediaType: String?
     @State private var source = "tmdb"
@@ -69,7 +70,18 @@ struct DiscoverView: View {
         .toolbarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .task(id: feedKey) {
+            guard !warmup else { return }
+            // 冷启动落在发现页时先把第一帧（快照或骨架）送上屏，再发请求（见 FirstFrameGate）
+            await FirstFrameGate.wait()
             await feed.loadIfNeeded(api: api)
+        }
+        .onAppear {
+            guard !warmup else { return }
+            PerfTrace.pageAppeared("discover")
+            if feed.perfComplete, FirstFrameGate.state.opened { PerfTrace.pageDataReady("discover") }
+        }
+        .onChange(of: feed.perfComplete && FirstFrameGate.state.opened) { _, complete in
+            if complete, !warmup { PerfTrace.pageDataReady("discover") }
         }
         .tracksSubscriptionIndex()
     }
@@ -78,8 +90,11 @@ struct DiscoverView: View {
     private func content(_ feed: DiscoverFeed) -> some View {
         let immersive = feed.declaresHero && feed.hero?.isEmpty != true
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                if feed.layout == nil {
+            // 懒加载：二十来行里首屏只看得见两三行，原先的 VStack 一上来就把每一行连同可见的海报卡全建出来
+            LazyVStack(alignment: .leading, spacing: 28) {
+                // 冷启动落在这里时第一帧先画骨架（轻），开闸后下一帧再画快照 / 数据：
+                // 首帧不被整页内容拖晚，完整页面紧跟着就到（见 FirstFrameGate）
+                if feed.layout == nil || !FirstFrameGate.state.opened {
                     DiscoverHeroSkeleton()
                     DiscoverRowSkeleton(title: " ")
                     DiscoverRowSkeleton(title: " ")
@@ -103,7 +118,7 @@ struct DiscoverView: View {
                     }
                 }
             }
-            .padding(.top, immersive || feed.layout == nil ? -topInset : 8)
+            .padding(.top, immersive || feed.layout == nil || !FirstFrameGate.state.opened ? -topInset : 8)
             .padding(.bottom, 32)
         }
         // 沉浸 Hero 从状态栏与顶栏底下穿过：关掉顶部滚动边缘雾化，由 Hero 自带的顶部压暗保证控件可读
@@ -118,7 +133,11 @@ struct DiscoverView: View {
             guard let url = tintSource(feed) else { return }
             if let color = await ImmersiveHeroAmbientColor.color(for: url), !Task.isCancelled { tint = color }
         }
-        .onChange(of: feedKey) { heroIndex = 0 }
+        .onChange(of: feedKey) {
+            heroIndex = 0
+            // 切视角（电影 / 剧集）时这个视角的数据已经在（快照 / 缓存）：这一次打开当场就算数据就绪
+            if feed.perfComplete, !warmup { PerfTrace.pageDataReady("discover") }
+        }
         .refreshable { await feed.reload(api: api) }
         .accessibilityIdentifier("discover-scroll")
     }
@@ -257,10 +276,32 @@ final class DiscoverFeed {
     init(mediaType: String, provider: String) {
         self.mediaType = mediaType
         self.provider = provider
+        // 本机快照（DiscoverSnapshots）：先原样画出上次的版面、Hero 与各行，再照常刷新
+        if let snapshot = DiscoverSnapshots.snapshot(mediaType: mediaType, provider: provider) {
+            layout = snapshot.layout
+            hero = snapshot.hero
+            rows = snapshot.rows.mapValues { .loaded($0) }
+        }
     }
 
     var declaresHero: Bool { layout?.sections.contains { $0.presentation == "hero" } == true }
     var rowSections: [API.DiscoveryPageSectionView] { layout?.sections.filter { $0.presentation != "hero" } ?? [] }
+
+    /// 整页数据都到了（打点用，见 PerfTrace）：版面、Hero 与每一行都有了结果（成功或失败）
+    var perfComplete: Bool {
+        guard layout != nil else { return failure != nil }
+        return (!declaresHero || hero != nil) && rowSections.allSatisfy { rows[$0.collectionRef] != nil }
+    }
+
+    /// 首屏会显示的图（交给 FirstScreenImages 提前解码进内存）：Hero 第一张的剧照、第一行前 4 张海报
+    func firstScreenImageURLs(api: APIClient) -> [URL] {
+        var urls: [URL?] = []
+        if let first = hero?.first { urls.append(DiscoverHeroSlide.imageURL(first, api: api)) }
+        if let section = rowSections.first, case let .loaded(items) = rows[section.collectionRef] {
+            urls += items.prefix(4).map { api.image($0.posterUrl, .card(aspect: Double($0.aspect))) }
+        }
+        return urls.compactMap { $0 }
+    }
 
     /// 常规行全部失败（且没有任何一行成功）→ 整页错误态
     var allRowsFailed: Bool {
@@ -330,6 +371,10 @@ final class DiscoverFeed {
                     }
                 }
             }
+        }
+        if !allRowsFailed, let layout {
+            let loaded = rows.compactMapValues { if case let .loaded(items) = $0 { items } else { nil } }
+            DiscoverSnapshots.save(DiscoverFeedSnapshot(layout: layout, hero: hero, rows: loaded), mediaType: mediaType, provider: provider)
         }
         if allRowsFailed, let firstError {
             failure = Failure(message: firstError.error.localizedDescription, unreachable: firstError.error.isUpstreamUnreachable)
@@ -425,7 +470,7 @@ private struct DiscoverAmbientHost: View {
     }
 }
 
-private struct DiscoverHeroSlide: View {
+struct DiscoverHeroSlide: View {
     let item: DiscoverPosterItem
     let active: Bool
     let scrollOffset: CGFloat

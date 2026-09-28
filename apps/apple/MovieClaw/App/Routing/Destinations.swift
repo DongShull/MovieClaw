@@ -4,9 +4,17 @@ import SwiftUI
 ///
 /// 每个页面类型的名字和入参在这里固定下来，各模块在自己的目录里实现同名 View；
 /// 这样并行开发的模块之间不需要改同一个文件。
+///
+/// 返回类型擦除成 AnyView：写成 `some View` 时，返回类型是把三十来个页面层层套进 `_ConditionalContent`
+/// 的一个巨型泛型，每个页签的导航栈第一次建起来（冷启动落地页就在其中）都要为它实例化类型元数据、
+/// 逐个做协议一致性检查——等于启动时把全部页面的类型过一遍。擦除后各页面只在真正打开时才实例化
 extension AppRoute {
+    var destination: AnyView {
+        AnyView(page)
+    }
+
     @ViewBuilder
-    var destination: some View {
+    private var page: some View {
         switch self {
         // 发现
         case let .discover(kind): DiscoverView(kind: kind)

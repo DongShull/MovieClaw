@@ -64,24 +64,27 @@ struct RemoteImage: View {
 
     var body: some View {
         LazyImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.2))) { state in
-            if let image = state.image {
-                image.resizable().aspectRatio(contentMode: contentMode)
-            } else if state.error != nil || url == nil {
-                ZStack {
-                    Theme.surfaceRaised
-                    if let placeholderText {
-                        Text(placeholderText)
-                            .font(.caption)
-                            .foregroundStyle(Theme.textFaint)
-                    } else {
-                        Image(systemName: placeholderSymbol)
-                            .font(.title2)
-                            .foregroundStyle(Theme.textFaint)
+            Group {
+                if let image = state.image {
+                    image.resizable().aspectRatio(contentMode: contentMode)
+                } else if state.error != nil || url == nil {
+                    ZStack {
+                        Theme.surfaceRaised
+                        if let placeholderText {
+                            Text(placeholderText)
+                                .font(.caption)
+                                .foregroundStyle(Theme.textFaint)
+                        } else {
+                            Image(systemName: placeholderSymbol)
+                                .font(.title2)
+                                .foregroundStyle(Theme.textFaint)
+                        }
                     }
+                } else {
+                    Theme.surfaceRaised
                 }
-            } else {
-                Theme.surfaceRaised
             }
+            .perfImage(url, state)
         }
     }
 }
@@ -93,7 +96,9 @@ enum ImagePipelineSetup {
         let urlConfig = DataLoader.defaultConfiguration
         urlConfig.httpCookieStorage = nil
         urlConfig.httpShouldSetCookies = false
-        configuration.dataLoader = AuthorizedDataLoader(base: DataLoader(configuration: urlConfig))
+        let loader = DataLoader(configuration: urlConfig)
+        if PerfTrace.enabled { loader.delegate = PerfTrace.NetworkMetrics.shared }
+        configuration.dataLoader = AuthorizedDataLoader(base: loader)
         ImagePipeline.shared = ImagePipeline(configuration: configuration)
     }
 }

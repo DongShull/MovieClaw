@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { DiscoverView } from "@/components/discover-view";
-import { discoveryFiltersKey, parseDiscoveryFilters } from "@/lib/discovery-filters";
+import { parseDiscoveryFilters } from "@/lib/discovery-filters";
 import type { MediaSource } from "@/lib/media-types";
 
 export async function generateMetadata({
@@ -30,8 +30,10 @@ export default async function DiscoverPage({
   const filters = parseDiscoveryFilters(query);
   return (
     <div className="flex h-full flex-col">
+      {/* key 只含类型与数据源：筛选条件在页内就地改（地址用 router.replace 同步），
+          不能随条件整棵重建——结果页头部的条件胶囊会跟着重来、横滑位置归零 */}
       <DiscoverView
-        key={`${type}:${source}:${discoveryFiltersKey(filters)}`}
+        key={`${type}:${source}`}
         mediaType={type}
         source={source}
         filters={filters}

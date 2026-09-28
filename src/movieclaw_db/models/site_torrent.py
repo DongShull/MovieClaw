@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import JSON, Column, UniqueConstraint
+from sqlalchemy import JSON, Column, Index, Text, UniqueConstraint
 from sqlmodel import Field
 
 from movieclaw_db.models.base import TimestampMixin, utcnow
@@ -53,6 +53,9 @@ class SiteTorrent(TimestampMixin, table=True):
     __table_args__ = (
         # 同一站点内 torrent_id 唯一——upsert 的冲突键
         UniqueConstraint("site_id", "torrent_id", name="uq_site_torrent_site_tid"),
+        # 发布预测的别名预筛只读这两列（外加隐含的 rowid），走覆盖索引即可，
+        # 不必把带 attrs 大 JSON 的整行读出来（见 match_text 字段注释）
+        Index("ix_site_torrent_publish_match", "publish_time", "match_text"),
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -115,6 +118,20 @@ class SiteTorrent(TimestampMixin, table=True):
     )
     enrich_version: int | None = Field(
         default=None, description="产出 attrs 的提取器版本；NULL=尚未扩充"
+    )
+    # -- 检索层：身份匹配的「检索文本」（派生列）-----------------------------
+    # 主标题、副标题、NER 中外文片名各自归一化后拼接，口径定义在
+    # movieclaw_matcher.identity.match_text。任何别名能命中本行，归一化后的别名
+    # 就一定是它的子串——发布预测据此在 SQLite 里预筛（扫描在 C 层完成、不占
+    # Python 解释器），只把几十行可能相关的种子交给匹配内核细查，而不是把整个
+    # 90 天索引读进 Python 逐行解析。
+    # 本层只声明列、不含行为：写入时由服务层的 ORM 事件按行的最终状态自动重算
+    # （movieclaw_api/services/torrent_match_text.py）。NULL = 尚未计算（旧版本
+    # 写入的行），查询端一律当作"必须细查"，不会因此漏配。
+    match_text: str | None = Field(
+        default=None,
+        sa_column=Column(Text, nullable=True),
+        description="身份匹配检索文本（派生列）；NULL=尚未计算",
     )
 
     # -- 详情层：仅 DETAIL 来源填充，列表刷新绝不可覆盖为空 ----------------

@@ -2,43 +2,42 @@
 
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { AccountSwitcherDialog } from "@/components/account-switcher-dialog";
 import { AppUpdateEntry } from "@/components/app-update-entry";
 import { AvatarBadge } from "@/components/avatar-badge";
-import { ConversationMenu } from "@/components/conversation-menu";
-import { copyText } from "@/components/copy-button";
-import { useConfirm, usePrompt, useToast } from "@/components/feedback";
+import { ConversationMenu, useConversationActions } from "@/components/conversation-menu";
 import {
-  ChevronDownIcon,
   ChevronRightIcon,
+  ComposeIcon,
   GearIcon,
   LogoutIcon,
-  UserIcon,
+  UsersIcon,
 } from "@/components/icons";
 import { NoticeCenter } from "@/components/notice-center";
 import { reloadAfterAccountChange } from "@/lib/account-reload";
 import { logout } from "@/lib/api/auth";
 import { useAgentConversations } from "@/lib/agent-conversations";
+import { usePageChrome } from "@/lib/page-chrome";
 import { accessiblePathFor, roleLabel, usePermissions } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 import type { TaskActivityBadge } from "@/lib/task-activity";
 
 /**
- * 「更多」页（路由 /my，主题 pages.my 坑位的基础实现）——银玻璃移动端液态玻璃
+ * 「我的」页（路由 /my，主题 pages.my 坑位的基础实现）——银玻璃移动端液态玻璃
  * 底栏最右的头像页签（docs/design/web-themes-mobile/04-iOS-液态玻璃底栏.md §3.1）。
  *
- * 抽屉侧栏在移动端退役后，它承载的低频入口与账号操作都收在这里，版式对齐
- * iOS「更多 / 设置」的分组列表（inset grouped）：
- *   - 用户头：头像 + 昵称 + 角色；
- *   - 常用：个人信息 / 待处理事项 / 设置 / 应用更新（新会话走顶栏右上角的「+」
- *     撰写键，活动已提到底栏页签，这里都不重复放）；
+ * 版式对齐原生 App 的「我的」页（apps/apple/MovieClaw/Features/Root/MorePage.swift），
+ * iOS 设置式分组列表（inset grouped）：
+ *   - 头像卡：头像 + 昵称 + `@用户名 · 角色`，整张卡可点进「个人信息」（同 iOS 设置 App
+ *     顶部的账户卡），因此常用组里不再单列「个人信息」行；
+ *   - 常用：待处理事项（管理员、有事才出现）/ 设置 / 应用更新（有更新才出现）；
  *   - 账号：切换账号 / 退出登录——紧跟设置之后，不被下面会长的会话列表推到页底；
- *   - 最近会话：AI 会话列表，点击直达会话页。默认只列最近几条，其余收在
- *     「显示全部」一行里就地展开（iOS 设置列表的惯例；卡片内滚动条试过，用户
- *     嫌难看，且没有会话列表页可跳，所以是展开而不是「查看全部」）。
- * 新会话与活动、AI 会话是 Agent 能力，管理员专属——与侧栏的 memberNavItems 同口径
+ *   - 最近会话（管理员）：首行「新会话」（顶栏的「+」已去掉，这里是发起新会话的入口），
+ *     下面是 AI 会话，滑到末尾自动取下一页（不再是「显示全部 / 收起」——那样手机上
+ *     第 21 条以后的会话永远到不了）；行尾 ⋯ 菜单：在新会话中继续 / 重命名 / 删除。
+ * 新会话与 AI 会话是 Agent 能力，管理员专属——与侧栏的 memberNavItems 同口径
  * （安全边界在后端 require_admin，这里是界面裁剪）。
  *
  * Netflix 主题有自己的「我的」页（themes/netflix/pages/my-page），会覆盖本页。
@@ -47,17 +46,28 @@ export function MorePage() {
   const router = useRouter();
   const { session } = useSession();
   const { isAdmin } = usePermissions();
-  const { conversations, rename, remove, fork } = useAgentConversations();
-  const prompt = usePrompt();
-  const confirm = useConfirm();
-  const toast = useToast();
+  const { conversations, hasMore, loadingMore, loadMore } = useAgentConversations();
+  const { forkConversation, renameConversation, removeConversation } = useConversationActions();
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [showAllSessions, setShowAllSessions] = useState(false);
-  const hiddenSessions = Math.max(0, conversations.length - RECENT_SESSIONS_LIMIT);
-  const visibleSessions =
-    showAllSessions || hiddenSessions === 0
-      ? conversations
-      : conversations.slice(0, RECENT_SESSIONS_LIMIT);
+
+  // 手机顶栏标题「我的」（同 App：这一页是正文字号的行内标题，不是大字标题）
+  const setTopBarTitle = usePageChrome()?.setTopBarTitle;
+  useEffect(() => setTopBarTitle?.("我的"), [setTopBarTitle]);
+
+  // 最近会话触底续载：列表末尾的哨兵进入视口（留 200px 提前量）就取下一页
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMore();
+      },
+      { rootMargin: "200px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore, conversations.length]);
 
   /**
    * 退出登录：只退当前账号，本浏览器还有别的账号时后端自动切过去，
@@ -73,72 +83,33 @@ export function MorePage() {
     await reloadAfterAccountChange(next ? accessiblePathFor(next, "/") : "/login", next != null);
   };
 
-  // 会话行「⋯」菜单的四个动作：与侧栏会话行同一套语义（sidebar.tsx）
-  const handleRename = async (id: string, currentTitle: string) => {
-    const input = await prompt({ title: "重命名会话", initialValue: currentTitle, maxLength: 80 });
-    if (input == null) return;
-    const title = input.trim().slice(0, 80);
-    if (!title || title === currentTitle) return;
-    void rename(id, title).catch((error) => {
-      toast.error(`重命名失败：${(error as Error).message}`);
-    });
-  };
-  const handleDelete = async (id: string, title: string) => {
-    const ok = await confirm({
-      title: `彻底删除会话「${title}」？`,
-      description: "服务器上的完整对话记录将一并删除，此操作不可恢复。",
-      confirmLabel: "彻底删除",
-      tone: "danger",
-    });
-    if (!ok) return;
-    void remove(id).catch((error) => {
-      toast.error(`删除失败：${(error as Error).message}`);
-    });
-  };
-  const handleFork = async (id: string) => {
-    try {
-      const targetId = await fork(id);
-      router.push(`/sessions/${targetId}` as Route);
-    } catch (error) {
-      toast.error(`创建续接会话失败：${(error as Error).message}`);
-    }
-  };
-  const handleCopyId = async (id: string) => {
-    try {
-      await copyText(id);
-      toast.success("会话 ID 已复制");
-    } catch (error) {
-      toast.error(`复制失败：${(error as Error).message}`);
-    }
-  };
-
   return (
     <div className="scroll-thin scroll-safe h-full overflow-y-auto">
       <div className="mx-auto w-full max-w-2xl px-4 pb-10 pt-4 md:px-6 md:pt-10">
-        <header className="flex items-center gap-4 px-1 pb-5">
+        {/* 头像卡：整张可点进个人信息，右缘 › 表达可点（同 iOS 设置 App 的账户卡） */}
+        <button
+          type="button"
+          onClick={() => router.push("/settings/profile" as Route)}
+          aria-label={`${session.nickname}，查看和修改个人信息`}
+          className="glass-row mb-5 w-full gap-4 rounded-2xl bg-[var(--glass-fill)] px-4 py-3.5 ring-1 ring-inset ring-[var(--line)]"
+        >
           <AvatarBadge
             nickname={session.nickname}
             avatarUrl={session.avatar_url}
             className="size-14 text-title-lg"
           />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-title-lg font-bold tracking-[-0.01em] text-[var(--text)]">
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block truncate text-title font-semibold tracking-[-0.01em] text-[var(--text)]">
               {session.nickname}
-            </h1>
-            <p className="mt-0.5 truncate text-ui text-[var(--text-muted)]">
+            </span>
+            <span className="mt-0.5 block truncate text-ui text-[var(--text-muted)]">
               @{session.username} · {roleLabel(session)}
-            </p>
-          </div>
-        </header>
+            </span>
+          </span>
+          <ChevronRightIcon className="size-4 shrink-0 text-[var(--text-faint)]" />
+        </button>
 
         <MoreGroup label="常用">
-          {/* 新会话已有顶栏右上角的「+」撰写键（app-shell），这里改放个人信息入口：
-              账号头就在上面，点进去改头像 / 昵称 / 密码是最顺的一步 */}
-          <MoreRow
-            Icon={UserIcon}
-            label="个人信息"
-            onClick={() => router.push("/settings/profile" as Route)}
-          />
           {/* 待处理事项与应用更新：组件自轮询，无事时整行不渲染 */}
           <NoticeCenter collapsed={false} />
           <MoreRow Icon={GearIcon} label="设置" onClick={() => router.push("/settings" as Route)} />
@@ -146,18 +117,24 @@ export function MorePage() {
         </MoreGroup>
 
         <MoreGroup label="账号">
-          <MoreRow Icon={UserIcon} label="切换账号" onClick={() => setSwitcherOpen(true)} />
+          <MoreRow Icon={UsersIcon} label="切换账号" onClick={() => setSwitcherOpen(true)} />
           <MoreRow Icon={LogoutIcon} label="退出登录" danger onClick={() => void handleLogout()} />
         </MoreGroup>
 
         {isAdmin && (
           <MoreGroup label="最近会话">
+            <MoreRow
+              Icon={ComposeIcon}
+              label="新会话"
+              accent
+              onClick={() => router.push("/new" as Route)}
+            />
             {conversations.length === 0 ? (
               <p className="px-4 py-3 text-caption leading-5 text-[var(--text-faint)]">
                 还没有会话，点上方的「新会话」开始。
               </p>
             ) : (
-              visibleSessions.map((c) => (
+              conversations.map((c) => (
                 <MoreRow
                   key={c.id}
                   label={c.title}
@@ -165,44 +142,30 @@ export function MorePage() {
                   onClick={() => router.push(`/sessions/${c.id}` as Route)}
                   trailing={
                     <ConversationMenu
-                      onFork={() => void handleFork(c.id)}
-                      onCopyId={() => void handleCopyId(c.id)}
-                      onRename={() => void handleRename(c.id, c.title)}
-                      onDelete={() => void handleDelete(c.id, c.title)}
+                      onFork={() => void forkConversation(c.id, c.title)}
+                      onRename={() => void renameConversation(c.id, c.title)}
+                      onDelete={() => void removeConversation(c.id, c.title)}
                       triggerClassName="!size-8 text-[var(--text-muted)]"
                     />
                   }
                 />
               ))
             )}
-            {hiddenSessions > 0 && (
-              // 展开/收起行：与列表行同一皮肤，但文字居中、弱化，用向下/向上箭头表达
-              // 「还有内容折在这里」（列表行的右缘箭头表达「点进去」，两者不混用）
-              <button
-                type="button"
-                onClick={() => setShowAllSessions((v) => !v)}
-                aria-expanded={showAllSessions}
-                className="glass-row w-full justify-center px-4 py-2.5 text-ui font-medium !text-[var(--text-muted)]"
-              >
-                <span>{showAllSessions ? "收起" : `显示全部 ${conversations.length} 个会话`}</span>
-                <ChevronDownIcon
-                  className={`size-4 shrink-0 transition-transform duration-200 ${
-                    showAllSessions ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
+            {loadingMore && (
+              <p className="px-4 py-2.5 text-center text-caption text-[var(--text-faint)]">
+                正在加载更多会话…
+              </p>
             )}
           </MoreGroup>
         )}
+        {/* 触底续载哨兵：放在卡片外，免得被 divide-y 画出一条多余的分隔线 */}
+        {isAdmin && hasMore && <div ref={sentinelRef} aria-hidden="true" className="h-px" />}
       </div>
 
       <AccountSwitcherDialog open={switcherOpen} onClose={() => setSwitcherOpen(false)} />
     </div>
   );
 }
-
-/** 「最近会话」默认露出的条数；再多的折进「显示全部」行里。 */
-const RECENT_SESSIONS_LIMIT = 5;
 
 /** 分组卡片：小节标题 + 圆角卡片，行间细分隔线（iOS inset grouped 列表） */
 function MoreGroup({ label, children }: { label: string; children: ReactNode }) {
@@ -227,6 +190,7 @@ function MoreRow({
   label,
   onClick,
   danger = false,
+  accent = false,
   running = false,
   badge,
   trailing,
@@ -235,6 +199,8 @@ function MoreRow({
   label: string;
   onClick: () => void;
   danger?: boolean;
+  /** 强调色行（最近会话首行的「新会话」，同 App 的 accentStrong） */
+  accent?: boolean;
   running?: boolean;
   /** 右缘状态角标（活动行的任务计数：alert 红 / 否则提示蓝） */
   badge?: TaskActivityBadge;
@@ -246,13 +212,21 @@ function MoreRow({
       onClick={onClick}
       title={badge?.hint}
       className={`glass-row w-full px-4 py-3 text-body font-medium ${
-        danger ? "!text-[var(--danger)]" : "!text-[var(--text)]"
+        danger
+          ? "!text-[var(--danger)]"
+          : accent
+            ? "!text-[var(--accent-strong)]"
+            : "!text-[var(--text)]"
       } ${trailing ? "pr-14" : ""}`}
     >
       {running && (
         <span aria-hidden="true" className="size-1.5 shrink-0 animate-pulse rounded-full bg-[var(--info)]" />
       )}
-      {Icon && <Icon className="size-[22px] shrink-0 text-[var(--text-muted)]" />}
+      {Icon && (
+        <Icon
+          className={`size-[22px] shrink-0 ${accent || danger ? "" : "text-[var(--text-muted)]"}`}
+        />
+      )}
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
       {badge && badge.count > 0 && (
         <span

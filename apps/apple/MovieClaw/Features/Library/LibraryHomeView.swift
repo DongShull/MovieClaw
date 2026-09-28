@@ -68,22 +68,20 @@ struct LibraryHomeView: View {
     @Environment(\.permissions) private var permissions
     @Environment(Router.self) private var router
     @Environment(AppModel.self) private var model
+    @Environment(\.pageWarmup) private var warmup
     @State private var prefs = LibraryHomePrefs.shared
-
-    @State private var libraries: [API.LibraryView]?
-    @State private var collections: [API.CollectionView] = []
-    @State private var upNext: [API.UpNextItemView]?
-    @State private var favorites: API.FavoritesView?
-    @State private var itemsByKey: [String: [API.LibraryItemView]] = [:]
-    @State private var failed = false
-    @State private var lastSnapshot: String?
-    @State private var busyUntil: Date = .distantPast
+    /// 整页数据在跟着账号走的共享对象里（快照秒开、外壳预取，见 LibraryHomeStore）
+    private var store: LibraryHomeStore { .shared }
+    private var libraries: [API.LibraryView]? { store.libraries }
+    private var collections: [API.CollectionView] { store.collections }
+    private var upNext: [API.UpNextItemView]? { store.upNext }
+    private var favorites: API.FavoritesView? { store.favorites }
+    private var itemsByKey: [String: [API.LibraryItemView]] { store.itemsByKey }
+    private var failed: Bool { store.failed }
     /// 扫描/整理结束后的 12 秒快轮询窗口还没过（同 Web recentlyBusy）。必须是状态而不是在 body 里
     /// 现算 `Date.now < busyUntil`：数据不变时 body 不会重算，间隔就会一直停在 3 秒
     @State private var recentlyBusy = false
     @State private var clearingLibrary = false
-
-    private static let rowCount = 20
 
     var body: some View {
         ScrollView {
@@ -116,11 +114,19 @@ struct LibraryHomeView: View {
             }
         }
         .refreshable { await reload() }
-        .onAppear { Task { await reload() } }
+        .onAppear {
+            guard !warmup else { return }
+            PerfTrace.pageAppeared("library")
+            if dataComplete { PerfTrace.pageDataReady("library") }
+            Task { await reload() }
+        }
+        .onChange(of: dataComplete) { _, complete in
+            if complete, !warmup { PerfTrace.pageDataReady("library") }
+        }
         .polling(every: pollInterval) { await reload() }
-        .task(id: busyUntil) {
+        .task(id: store.busyUntil) {
             // 窗口到期把 recentlyBusy 落回 false，轮询间隔随之回到慢档
-            let remaining = busyUntil.timeIntervalSinceNow
+            let remaining = store.busyUntil.timeIntervalSinceNow
             recentlyBusy = remaining > 0
             guard remaining > 0 else { return }
             try? await Task.sleep(for: .seconds(remaining))
@@ -135,8 +141,14 @@ struct LibraryHomeView: View {
 
     private var visibleLibraries: [API.LibraryView] { (libraries ?? []).filter(\.viewerAccess) }
 
+    /// 整页数据都到了（打点用，见 PerfTrace）：库、接下来继续、收藏、各行条目
+    private var dataComplete: Bool {
+        guard let libraries else { return false }
+        return libraries.isEmpty || (upNext != nil && favorites != nil && store.rowsLoaded)
+    }
+
     private var rows: [HomeRows.Row] {
-        HomeRows.build(prefs: prefs.rows ?? [], libraries: libraries ?? [], collections: collections)
+        HomeRows.build(prefs: prefs.rows ?? store.snapshotRows ?? [], libraries: libraries ?? [], collections: collections)
     }
 
     private var pollInterval: Double {
@@ -279,7 +291,7 @@ struct LibraryHomeView: View {
                         LazyHStack(spacing: 14) {
                             ForEach(visibleLibraries, id: \.id) { library in
                                 NavigationLink(value: AppRoute.library(id: library.id)) {
-                                    LibraryHomeCard(library: library, hasPosters: !(itemsByKey[Self.coverKey(library.id)] ?? []).isEmpty)
+                                    LibraryHomeCard(library: library, hasPosters: !(itemsByKey[LibraryHomeStore.coverKey(library.id)] ?? []).isEmpty)
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("library-card-\(library.id)")
@@ -292,13 +304,13 @@ struct LibraryHomeView: View {
                 .padding(.top, 24)
             }
         case let .library(library, _, _, _, _, _):
-            let items = itemsByKey[Self.fetchKey(row)] ?? []
+            let items = itemsByKey[LibraryHomeStore.fetchKey(row)] ?? []
             if !items.isEmpty {
                 posterRow(title: row.title, moreTitle: "查看全部", more: .library(id: library.id), items: items.map { PosterRowItem($0, fallbackLibrary: library.id) })
                     .accessibilityIdentifier("home-row-\(row.id)")
             }
         case let .collection(collection, _, _, _):
-            let items = itemsByKey[Self.fetchKey(row)] ?? []
+            let items = itemsByKey[LibraryHomeStore.fetchKey(row)] ?? []
             if !items.isEmpty {
                 posterRow(title: row.title, moreTitle: "查看全部", more: .collection(libraryId: collection.libraryId, collectionId: collection.id),
                           items: items.map { PosterRowItem($0, fallbackLibrary: collection.libraryId ?? 0) })
@@ -334,105 +346,8 @@ struct LibraryHomeView: View {
 
     // MARK: 加载
 
-    /// 一行取数的缓存键：同一个库同一种排序同一方向（同一个未看开关）只请求一次
-    private static func fetchKey(_ row: HomeRows.Row) -> String {
-        switch row.kind {
-        case let .library(library, sort, reversed, unwatched, _, _): "lib:\(library.id):\(sort):\(reversed):\(unwatched)"
-        case let .collection(collection, sort, reversed, _): "col:\(collection.id):\(sort):\(reversed)"
-        default: row.id
-        }
-    }
-
-    /// 库卡片封面用的那批条目，与默认的「最近添加」行共用一份
-    private static func coverKey(_ libraryId: Int) -> String { "lib:\(libraryId):added_at:false:false" }
-
     private func reload() async {
-        do {
-            // 偏好：拉到为止（之后由自定义页写回共享副本）。失败保持 nil、下一轮轮询再拉——
-            // 写成 [] 会让合集页「显示在首页」以空清单为底整份保存，把用户自定义的行覆盖掉
-            await prefs.ensureLoaded(api: api, owner: LibraryHomePrefs.ownerKey(api: api, username: model.session?.username))
-            async let libsTask = api.libraryList(scope: "all")
-            async let colsTask = try? api.collectionList()
-            let libs = try await libsTask
-            let cols = await colsTask ?? collections
-            failed = false
-            if libs != libraries { libraries = libs }
-            if cols != collections { collections = cols }
-            if libs.contains(where: { $0.scanning || $0.organizing }) { busyUntil = .now.addingTimeInterval(12) }
-
-            let visibleRows = HomeRows.build(prefs: prefs.rows ?? [], libraries: libs, collections: cols).filter { !$0.hidden }
-            let favoritesRow = visibleRows.first { if case .favorites = $0.kind { true } else { false } }
-            let wantsUpNext = visibleRows.contains { $0.kind == .upNext }
-            let api = self.api
-            async let upNextTask: [API.UpNextItemView]? = wantsUpNext ? (try? await api.playbackUpNext(limit: Self.rowCount))?.items : nil
-            async let favoritesTask: API.FavoritesView? = Self.fetchFavorites(api, favoritesRow)
-            let (latestUpNext, latestFavorites) = await (upNextTask, favoritesTask)
-            if let latestUpNext { upNext = latestUpNext } else if upNext == nil { upNext = [] }
-            if let latestFavorites { favorites = latestFavorites } else if favorites == nil { favorites = API.FavoritesView(items: [], total: 0) }
-
-            // 各行条目：库状态、要取的行、合集都没变时跳过
-            let fetches = rowFetches(visibleRows, libs)
-            let snapshot = [
-                String(data: (try? JSONEncoder().encode(libs)) ?? Data(), encoding: .utf8) ?? "",
-                fetches.keys.sorted().joined(separator: ","),
-                String(data: (try? JSONEncoder().encode(cols)) ?? Data(), encoding: .utf8) ?? "",
-            ].joined(separator: "|")
-            if snapshot == lastSnapshot { return }
-            var next: [String: [API.LibraryItemView]] = [:]
-            await withTaskGroup(of: (String, [API.LibraryItemView]).self) { group in
-                for (key, fetch) in fetches {
-                    group.addTask { (key, (try? await fetch()) ?? []) }
-                }
-                for await (key, items) in group { next[key] = items }
-            }
-            lastSnapshot = snapshot
-            itemsByKey = next
-        } catch is CancellationError {
-        } catch {
-            failed = true
-        }
-    }
-
-    private static func fetchFavorites(_ api: APIClient, _ row: HomeRows.Row?) async -> API.FavoritesView? {
-        guard let row, case let .favorites(sort, reversed) = row.kind else { return nil }
-        return try? await api.playbackFavorites(
-            limit: rowCount, offset: 0,
-            // 「未看优先」是首页这一行的默认（全量页不传，保持收藏时间序）
-            unwatchedFirst: sort == "unwatched_first",
-            sort: sort == "unwatched_first" ? "favorited_at" : sort,
-            order: HomeRows.favoritesPreset(sort).direction?.orderParam(reversed: reversed)
-        )
-    }
-
-    /// 显示中的行各自要打的请求，按缓存键去重；排序与截断交给服务端
-    private func rowFetches(_ rows: [HomeRows.Row], _ libs: [API.LibraryView]) -> [String: @Sendable () async throws -> [API.LibraryItemView]] {
-        var fetches: [String: @Sendable () async throws -> [API.LibraryItemView]] = [:]
-        let api = self.api
-        let limit = Self.rowCount
-        for row in rows {
-            switch row.kind {
-            case let .library(library, sort, reversed, unwatched, _, _):
-                // 「最近观看」行只要播过的（w=seen）
-                let watch: String? = sort == "last_played" ? "seen" : unwatched ? "unwatched" : nil
-                let order = HomeRows.preset(sort).direction?.orderParam(reversed: reversed)
-                let id = library.id
-                fetches[Self.fetchKey(row)] = { try await api.libraryItemsList(libraryId: id, sort: sort, order: order, limit: limit, w: watch) }
-            case let .collection(collection, sort, reversed, _):
-                let order = HomeRows.preset(sort).direction?.orderParam(reversed: reversed)
-                let id = collection.id
-                fetches[Self.fetchKey(row)] = { try await api.collectionItemsList(collectionId: id, limit: limit, sort: sort, order: order) }
-            case .libraries:
-                for library in libs where library.viewerAccess {
-                    let key = Self.coverKey(library.id)
-                    let id = library.id
-                    if fetches[key] == nil {
-                        fetches[key] = { try await api.libraryItemsList(libraryId: id, sort: "added_at", limit: limit) }
-                    }
-                }
-            default: break
-            }
-        }
-        return fetches
+        await store.reload(api: api, owner: LibraryHomePrefs.ownerKey(api: api, username: model.session?.username))
     }
 }
 
@@ -656,13 +571,16 @@ private struct UpNextCard: View {
                     .aspectRatio(16 / 9, contentMode: .fit)
                     .overlay {
                         LazyImage(url: api.image(url, .landscapeCard)) { state in
-                            if let image = state.image {
-                                image.resizable().aspectRatio(contentMode: .fill)
-                            } else if state.error != nil {
-                                artworkFallback
-                            } else {
-                                Theme.surfaceRaised
+                            Group {
+                                if let image = state.image {
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } else if state.error != nil {
+                                    artworkFallback
+                                } else {
+                                    Theme.surfaceRaised
+                                }
                             }
+                            .perfImage(api.image(url, .landscapeCard), state)
                         }
                     }
                     .clipped()

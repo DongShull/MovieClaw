@@ -134,3 +134,43 @@ export const DEFAULT_SEARCH_TABS: SearchTab[] = (
     ["other", false],
   ] as const
 ).map(([id, visible]) => ({ type: "category", id, visible }));
+
+/**
+ * 两个搜索范围是否相同（结果页判定当前范围落在哪个分类、搜索面板按草稿回填分类时用）。
+ * 数组来自同一份分类配置，顺序有意义且会被 URL 原样保留，因此逐项比较即可。
+ */
+export function scopeEquals(left: SearchScope, right: SearchScope): boolean {
+  return (
+    left.label === right.label &&
+    left.posterMode === right.posterMode &&
+    left.skipHistory === right.skipHistory &&
+    left.categories.length === right.categories.length &&
+    left.categories.every((value, index) => value === right.categories[index]) &&
+    left.siteIds.length === right.siteIds.length &&
+    left.siteIds.every((value, index) => value === right.siteIds[index])
+  );
+}
+
+/**
+ * 自定义分类的范围摘要（同 iOS SearchTab.summary / 设置页预设行）：
+ * 「电影、剧集 · 3 个站点 · 图览 · 无痕」；内置分类没有摘要。
+ */
+export function presetSummary(tab: SearchTab): string | null {
+  if (tab.type !== "preset") return null;
+  const cats =
+    tab.categories.length === 0
+      ? "不限分类"
+      : tab.categories.map((c) => CATEGORY_LABEL[c]).join("、");
+  const sites = tab.site_ids.length === 0 ? "全部站点" : `${tab.site_ids.length} 个站点`;
+  return `${cats} · ${sites}${tab.poster_mode ? " · 图览" : ""}${tab.skip_history ? " · 无痕" : ""}`;
+}
+
+/** 标签的展示名：内置分类取中文名，自定义分类取预设名。 */
+export function tabLabel(tab: SearchTab): string {
+  return tab.type === "category" ? CATEGORY_LABEL[tab.id] : tab.name;
+}
+
+/** 标签的稳定 key：类型加前缀，内置分类与预设的 id 不会互相撞。 */
+export function tabKeyOf(tab: SearchTab): string {
+  return `${tab.type}:${tab.id}`;
+}

@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 
-import { AuthError, AuthField, AuthScreen } from "@/components/auth-screen";
+import { LockIcon, UserIcon } from "@/components/icons";
+import {
+  WelcomeCard,
+  WelcomeError,
+  WelcomeField,
+  WelcomeFields,
+  WelcomeScreen,
+  WelcomeSubmit,
+} from "@/components/welcome-screen";
 import { getBootstrapStatus, getSession, login } from "@/lib/api/auth";
 import { reloadAfterAccountChange } from "@/lib/account-reload";
 import { usePageTitle } from "@/lib/use-page-title";
@@ -34,28 +42,37 @@ function isAddingAccount(): boolean {
   return new URLSearchParams(window.location.search).get("add") === "1";
 }
 
+/** 是否是会话过期被送回来的（http.ts 写入 ?next=）：直接给登录卡片，不先停在首页 */
+function isReturning(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).has("next");
+}
+
 /**
- * 登录页。挂载时做两个跳转判断：
+ * 登录页：星空欢迎页（components/welcome-screen.tsx，对齐原生 App 的欢迎页），
+ * 首页底部「登录」按钮升起登录卡片。网页不需要服务器地址——页面本身就是从服务器打开的。
+ *
+ * 挂载时做两个跳转判断：
  * 1. 系统尚未初始化 → 转 /setup 引导页（首次部署的入口）；
  * 2. 已持有效会话 → 直接回 next 目标（默认首页），不重复登录。
+ * 判断完之前不放片头，免得已登录的人先看到星空再被跳走。
  * 安全性完全由后端保证，这里的跳转只是导航体验。
  *
- * "添加账号"形态（?add=1，docs/design/account-switching.md §4）：已登录也不跳走，
- * 登录成功后后端自动把新账号并入本浏览器的账号列表，前端不需要传任何额外参数。
+ * 一进来就是卡片的两种情况：会话过期回来（?next=）与「添加账号」（?add=1，
+ * docs/design/account-switching.md §4：已登录也不跳走，登录成功后后端自动把新账号
+ * 并入本浏览器的账号列表）。添加账号的卡片 × 回到当前账号。
  */
 export default function LoginPage() {
   // 挂载后再读 URL：服务端渲染没有 window，初值若按 URL 算会造成水合不一致
   const [adding, setAdding] = useState(false);
+  const [returning, setReturning] = useState(false);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     setAdding(isAddingAccount());
+    setReturning(isReturning());
   }, []);
   usePageTitle(adding ? "添加账号" : "登录");
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,17 +86,61 @@ export default function LoginPage() {
         }
         // 添加账号：已登录也留在本页。直接读 URL 而不用 adding 状态——
         // 状态要等首个 effect 才更新，这里不能抢在它前面把人跳走
-        if (isAddingAccount()) return;
+        if (isAddingAccount()) {
+          setReady(true);
+          return;
+        }
         const session = await getSession(); // 已登录则不抛错
         if (!cancelled) router.replace(resolveNext(session) as Route);
       } catch {
-        // 未登录（401）或后端暂不可达：留在登录页即可
+        // 未登录（401）或后端暂不可达：留在登录页
+        if (!cancelled) setReady(true);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [router]);
+
+  return (
+    <WelcomeScreen
+      buttonLabel="登录"
+      ready={ready}
+      initialStage={adding || returning ? "card" : "home"}
+      card={({ close, autoFocus }) => (
+        <LoginCard
+          adding={adding}
+          autoFocus={autoFocus}
+          onClose={adding ? () => router.replace("/") : close}
+        />
+      )}
+    />
+  );
+}
+
+function LoginCard({
+  adding,
+  autoFocus,
+  onClose,
+}: {
+  adding: boolean;
+  autoFocus: boolean;
+  onClose: () => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const usernameRef = useRef<HTMLInputElement>(null);
+
+  // 用户点按钮打开的卡片：等卡片升起后聚焦用户名（同 App：动画与弹键盘挤在一起会卡）；
+  // 页面自己出现的卡片只在有物理键盘的设备上聚焦，手机上不抢着弹键盘
+  useEffect(() => {
+    if (!autoFocus && !window.matchMedia("(pointer: fine)").matches) return;
+    const timer = window.setTimeout(() => usernameRef.current?.focus(), autoFocus ? 450 : 0);
+    return () => window.clearTimeout(timer);
+  }, [autoFocus]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,57 +160,54 @@ export default function LoginPage() {
   };
 
   return (
-    <AuthScreen
-      title={adding ? "添加账号" : "登录"}
+    <WelcomeCard
+      title={adding ? "添加账号" : "登录 MovieClaw"}
       subtitle={
         adding
           ? "登录另一个账号；之后可在用户菜单里一键切换，不用再输密码。"
-          : "使用你的 MovieClaw 账号进入。"
+          : "使用你在这台服务器上的账号进入。"
       }
+      onClose={onClose}
     >
       <form onSubmit={submit} className="space-y-4">
-        <AuthField
-          label="用户名"
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoComplete="username"
-          autoFocus
-        />
-        <AuthField
-          label="密码"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-        />
-        <label className="flex cursor-pointer items-center gap-2 text-sub text-[var(--text-muted)]">
+        <WelcomeFields>
+          <WelcomeField
+            ref={usernameRef}
+            icon={<UserIcon className="size-[18px]" />}
+            placeholder="用户名"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="next"
+          />
+          <WelcomeField
+            icon={<LockIcon className="size-[18px]" />}
+            placeholder="密码"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            enterKeyHint="go"
+          />
+        </WelcomeFields>
+        <label className="flex cursor-pointer items-center gap-2 px-1 text-sub text-[var(--text-muted)]">
           <input
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="size-3.5 accent-[var(--accent)]"
+            className="size-3.5 accent-[var(--accent-strong)]"
           />
           30 天内记住我
         </label>
-        <AuthError message={error} />
-        <button
-          type="submit"
-          disabled={busy || !username.trim() || !password}
-          className="btn-accent w-full rounded-full px-4.5 py-2.5 text-ui font-semibold disabled:opacity-40"
-        >
-          {busy ? "登录中…" : adding ? "添加并切换" : "登录"}
-        </button>
-        {adding && (
-          <button
-            type="button"
-            onClick={() => router.replace("/")}
-            className="w-full text-center text-sub text-[var(--text-muted)] hover:text-[var(--text)]"
-          >
-            取消，回到当前账号
-          </button>
-        )}
+        <WelcomeError message={error} />
+        <WelcomeSubmit busy={busy} disabled={busy || !username.trim() || !password}>
+          {busy ? "正在登录…" : adding ? "添加并切换" : "登录"}
+        </WelcomeSubmit>
       </form>
-    </AuthScreen>
+    </WelcomeCard>
   );
 }

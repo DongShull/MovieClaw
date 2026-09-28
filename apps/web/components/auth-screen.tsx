@@ -5,11 +5,12 @@ import { BackdropProvider, useBackdrop } from "@/lib/backdrop";
 import { publicEnv } from "@/lib/env";
 
 /**
- * 登录 / 初始化引导两个页面共用的全屏外壳：
+ * 访客分享页（components/share/share-page.tsx）的密码卡外壳：
  * 背景大图之上居中悬浮一块液态玻璃卡片，与工作台的视觉语言一致。
+ * （登录 / 初始化页 2026-09-27 起改用星空欢迎页 components/welcome-screen.tsx。）
  *
- * BackdropProvider 在此单独包一层（这两个页面不在 AppShell 内），
- * 使自定义背景图在登录页同样生效——对应后端把外观读取接口放进了公开白名单。
+ * BackdropProvider 在此单独包一层（分享页不在 AppShell 内），
+ * 使自定义背景图在这里同样生效——对应后端把外观读取接口放进了公开白名单。
  */
 export function AuthScreen({
   title,

@@ -37,7 +37,7 @@ packages:
     url: https://github.com/superuser404notfound/FFmpegBuild
     exactVersion: "3.6.0"
 configFiles:
-  # 开发者团队从本机 Signing.local.xcconfig 读（不入库），见 XcodeConfig/Signing.xcconfig
+  # 开发者团队与 Bundle ID 前缀从本机 Signing.local.xcconfig 读（不入库），见 XcodeConfig/Signing.xcconfig
   Debug: XcodeConfig/Signing.xcconfig
   Release: XcodeConfig/Signing.xcconfig
 settings:
@@ -103,7 +103,8 @@ targets:
           - audio
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.movieclaw.app
+        # 前缀默认 io.movieclaw，可在 Signing.local.xcconfig 或 xcodebuild 参数里改，见 XcodeConfig/Signing.xcconfig
+        PRODUCT_BUNDLE_IDENTIFIER: $(MC_BUNDLE_ID_PREFIX).app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO
@@ -122,7 +123,7 @@ targets:
         product: MPVKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.movieclaw.mpvcore
+        PRODUCT_BUNDLE_IDENTIFIER: $(MC_BUNDLE_ID_PREFIX).mpvcore
         GENERATE_INFOPLIST_FILE: YES
         SKIP_INSTALL: YES
         # OpenGL ES / GLKit 在 iOS 上已标记废弃，但仍是模拟器上唯一可用的 mpv 渲染路径
@@ -156,6 +157,7 @@ targets:
       - target: MovieClaw
     settings:
       base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MC_BUNDLE_ID_PREFIX).MovieClawTests
         GENERATE_INFOPLIST_FILE: YES
   MovieClawUITests:
     type: bundle.ui-testing
@@ -167,6 +169,7 @@ targets:
       - target: MovieClaw
     settings:
       base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MC_BUNDLE_ID_PREFIX).MovieClawUITests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: MovieClaw
         # XCTestCase 的初始化器是非隔离的，测试类不能继承工程级的默认主线程隔离

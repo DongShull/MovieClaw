@@ -314,10 +314,16 @@ export function TaskActionsMenu({
   ariaLabel,
   disabled = false,
   items,
+  header,
 }: {
   ariaLabel: string;
   disabled?: boolean;
   items: TaskActionMenuItem[];
+  /**
+   * 菜单顶部的说明（不可点）：活动页正在播放行用它放「为什么是硬件转码」——对齐原生 App
+   * 长按菜单顶部的说明分组（NowPlayingRows.swift）。
+   */
+  header?: { title: string; body: string } | null;
 }) {
   const itemClass =
     "glass-row nav-item cursor-pointer px-3 py-2 text-sub font-medium outline-none " +
@@ -343,6 +349,15 @@ export function TaskActionsMenu({
           collisionPadding={12}
           className="menu-surface z-50 min-w-[9rem] p-1"
         >
+          {header && (
+            <>
+              <DropdownMenu.Label className="max-w-[17rem] px-3 pb-2 pt-1.5">
+                <span className="block text-caption font-semibold text-white/55">{header.title}</span>
+                <span className="mt-0.5 block text-caption leading-5 text-white/45">{header.body}</span>
+              </DropdownMenu.Label>
+              <DropdownMenu.Separator className="mx-2 mb-1 h-px bg-white/[0.08]" />
+            </>
+          )}
           {items.map((item) => (
             <DropdownMenu.Item
               key={item.id}

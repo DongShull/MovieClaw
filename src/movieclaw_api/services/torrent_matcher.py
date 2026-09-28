@@ -22,7 +22,6 @@ from sqlmodel import select
 from movieclaw_api.services.subscription import (
     MATCH_BATCH_SIZE,
     evaluate_and_dispatch,
-    load_match_context,
     refresh_release_forecasts,
     try_replacement_candidates,
 )
@@ -49,18 +48,28 @@ class MatchWatermark(SettingSchema):
 _lock = asyncio.Lock()
 
 
-async def process_new_torrents() -> None:
+async def process_new_torrents(*, full_forecast_refresh: bool = False) -> None:
     """扫描水位之后的新种子，喂给共享评估管道，批处理直到追平。
 
     背景任务语义：绝不向外抛异常（sync 尾调时不能影响同步主流程）。
+
+    ``full_forecast_refresh``：同步尾调为 False——只重算本轮新种里出现了单集观测
+    的在追剧（新种没带来观测，预测不可能变化）；每小时兜底为 True，全量重算，
+    覆盖别名修改、种子补 ID、重新富化、观测滑出窗口这些不经过新种的变化。
     """
     try:
         async with _lock:
+            before = await _read_watermark()
             await _process_locked()
             # 新种子的发布时间本身就是下一集预测的新观测。匹配水位推进后立即
-            # 重算活跃追新工单，不依赖另一套 observation 表或独立定时任务。
+            # 重算受影响的追新工单，不依赖另一套 observation 表或独立定时任务。
+            after = await _read_watermark()
             async with get_database().session() as session:
-                await refresh_release_forecasts(session)
+                if full_forecast_refresh or before is None:
+                    # 兜底任务，或水位刚初始化（首跑/记录损坏）不知道哪些是新种：全量重算
+                    await refresh_release_forecasts(session)
+                elif after != before:
+                    await refresh_release_forecasts(session, new_since_id=before)
     except Exception:  # noqa: BLE001 -- 背景匹配失败只记日志，等下一轮
         logger.exception("被动匹配执行失败，等待下一轮触发")
 
@@ -104,10 +113,9 @@ async def _process_locked() -> None:
             if not rows:
                 return
 
-            # 没有任何缺口时只推进水位，不做逐种子评估
-            contexts = await load_match_context(session)
-            if contexts:
-                await evaluate_and_dispatch(session, rows, source="被动匹配")
+            # 没有任何缺口时评估管道自己会立即返回（它要加载匹配上下文，这里不再
+            # 先加载一遍判空——那样每批都要把全部订阅的上下文多读一次）
+            await evaluate_and_dispatch(session, rows, source="被动匹配")
             # 换源退避只约束主动跨站搜索；刚同步进索引的新种是新的事实，
             # 应立即抢跑评估，不能让用户等到 1h/3h/12h/24h 的下个时间点。
             await try_replacement_candidates(session, rows)
@@ -123,9 +131,9 @@ async def _process_locked() -> None:
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=3600,
     description=(
-        "低频兜底：扫描种子索引中水位之后的新种子并匹配订阅缺口。"
+        "低频兜底：扫描种子索引中水位之后的新种子并匹配订阅缺口，并全量重算追新发布预测。"
         "主触发在站点同步任务尾部（零延迟），本任务只兜进程重启/同步异常的漏网。"
     ),
 )
 async def match_new_torrents_task() -> None:
-    await process_new_torrents()
+    await process_new_torrents(full_forecast_refresh=True)

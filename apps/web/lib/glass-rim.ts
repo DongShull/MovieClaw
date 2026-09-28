@@ -4,7 +4,7 @@
  * 为什么是「边缘」而不是整块玻璃：WebGL 读不到网页内容，而底栏浮在滚动的
  * 页面上，玻璃必须透出真实内容（布局不让位是定案，见
  * docs/design/web-themes-mobile/04 §3.7）。于是分两层：
- *   - 胶囊中心：CSS 层（现为清透、不模糊不染色），透出真实的滚动内容（含文字）；
+ *   - 胶囊中心：CSS 层（半透明石墨灰毛玻璃，材质见 RIM_MATERIAL），透出真实的滚动内容（含文字）；
  *   - 胶囊厚边（外沿向内 --thickness 一圈）：由本模块画。每帧把「底栏下方此刻
  *     看得见的东西」重建成一张场景纹理——站点背景大图（+ 全站蒙版）、页面里
  *     落在底栏下方的 <img>/<video>（海报、剧照）、底栏自己的滚动边缘压暗层——
@@ -44,21 +44,21 @@ export const RIM_OPTICS = {
 };
 
 /**
- * 与 CSS 中心同一套材质（globals.css 的 .glass-capsule[data-rim="on"]）：
+ * 与 CSS 中心同一套材质（globals.css 的 --glass-tint / --glass-backdrop）：
  * 厚边内缘要和 CSS 中心无缝接上，各项必须两边一致，且按 CSS 的合成顺序运算：
  * 先 backdrop-filter（blur → saturate），再叠半透明底色（tint）。
  *
- * 暗色毛玻璃（2026-09-25 按用户给的 Instagram iOS 26 底栏截图实测）：整块均匀叠一层
- * 近黑冷灰——倒推「内 = 外 × (1 − α) + 染色 × α」得染色约 rgb(10,12,16)、α ≈ 0.78；
- * 模糊很强，底下只剩颜色倾向。这里 α 取 0.72（本站底栏下的页面本来就偏暗）、模糊 18px。
- * 与更早那版暗玻璃的区别：厚边也叠同一层染色与模糊，整块玻璃一个质地，折射 / 色散 /
- * 高光在暗色基底上照样可见（那版厚边清晰不染、中心又糊又暗，用户看成「只有边透明」）。
- * 同日否掉过的：全透明无模糊、按亮度自适应压暗、亮部压缩（contrast × brightness）。
+ * iOS 26 暗色模式的系统玻璃（2026-09-27）：中性石墨灰 rgb(62,62,66)、α 0.4，模糊 14px、
+ * 饱和 180%——底下内容糊成色块但提艳、透上来六成，压在近黑页面上是一块略亮的炭灰。
+ * 厚边也叠同一层染色与模糊，整块玻璃一个质地（厚边清晰、中心又糊又暗时，用户看成
+ * 「只有边透明」）。
+ * 否掉过的：全透明无模糊、按亮度自适应压暗、亮部压缩（contrast × brightness）、
+ * Instagram 式近黑 α 0.72（「太暗」）。
  */
 export const RIM_MATERIAL = {
-  blurPx: 18,
-  saturate: 1.5,
-  tint: [12 / 255, 14 / 255, 18 / 255, 0.72] as [number, number, number, number],
+  blurPx: 14,
+  saturate: 1.8,
+  tint: [62 / 255, 62 / 255, 66 / 255, 0.4] as [number, number, number, number],
 };
 
 /** 一次活跃期的时长：覆盖胶囊最长的弹簧过渡（640ms）再留余量 */
@@ -206,7 +206,7 @@ export class GlassRim {
     const wake = () => this.wake();
     const onTransition = (event: Event) => {
       const t = event.target;
-      if (t instanceof Element && t.closest(".glass-tabbar, .glass-tabbar-accessory, .glass-tabbar-edge")) wake();
+      if (t instanceof Element && t.closest(".glass-tabbar, .glass-tabbar-edge")) wake();
     };
     document.addEventListener("scroll", wake, { capture: true, passive: true });
     document.addEventListener("load", wake, true);
@@ -327,7 +327,7 @@ export class GlassRim {
 
   private ensureFloor() {
     const root = getComputedStyle(document.documentElement);
-    const url = cssUrl(root.getPropertyValue("--backdrop-image")) ?? "/backdrop-default.jpg";
+    const url = cssUrl(root.getPropertyValue("--backdrop-image")) ?? "/backdrop-neutral.jpg";
     const overshoot = parseFloat(root.getPropertyValue("--vp-overshoot")) || 0;
     const scrim = document.querySelector<HTMLElement>(".page-scrim, .page-solid");
     const scrimColor = scrim ? getComputedStyle(scrim).backgroundColor : "";

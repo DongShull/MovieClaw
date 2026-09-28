@@ -195,15 +195,18 @@ private struct SubsHomeHeroSlideView: View {
     private var titleArt: some View {
         if let logo = slide.media.logoUrl, let url = api.image(logo) {
             LazyImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.25))) { state in
-                if let image = state.image {
-                    image.resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .shadow(color: .black.opacity(0.45), radius: 14, y: 4)
-                } else if state.error != nil {
-                    titleText
-                } else {
-                    Color.clear
+                Group {
+                    if let image = state.image {
+                        image.resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .shadow(color: .black.opacity(0.45), radius: 14, y: 4)
+                    } else if state.error != nil {
+                        titleText
+                    } else {
+                        Color.clear
+                    }
                 }
+                .perfImage(url, state)
             }
             .frame(maxWidth: 240, maxHeight: 88)
             .accessibilityHidden(true)

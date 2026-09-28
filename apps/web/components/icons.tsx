@@ -190,6 +190,15 @@ export const UserIcon = (p: IconProps) => (
   </Base>
 );
 
+/** 两个人（切换账号；SF Symbols person.2） */
+export const UsersIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="9" cy="8.5" r="3.2" />
+    <path d="M3 19.5c.9-3 3.2-4.6 6-4.6s5.1 1.6 6 4.6" />
+    <path d="M15.5 5.6a3 3 0 0 1 0 5.8M17.6 14.9c1.6.6 2.8 2 3.4 4.1" />
+  </Base>
+);
+
 export const LogoutIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M15 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3M10 12h9M16 8l3 4-3 4" />
@@ -440,6 +449,23 @@ export const MoreIcon = (p: IconProps) => (
 export const PencilIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M17 3a2.4 2.4 0 0 1 3.4 3.4L7.5 19.3 3 21l1.7-4.5Z" />
+  </Base>
+);
+
+/** 方框加笔（新会话撰写；SF Symbols square.and.pencil） */
+export const ComposeIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
+    <path d="M17.6 3.4a2 2 0 0 1 2.9 2.9L12 14.8l-3.6.8.8-3.6Z" />
+  </Base>
+);
+
+/** 分叉箭头（在新会话中继续；SF Symbols arrow.triangle.branch） */
+export const BranchIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M6 21V11a5 5 0 0 1 5-5h9" />
+    <path d="M16 2l4 4-4 4" />
+    <path d="M6 13c0 3 2 5 5 5h3" />
   </Base>
 );
 

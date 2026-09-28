@@ -11,6 +11,10 @@ import SwiftUI
 ///
 /// 单例跨账号存活，所以记着属于谁（服务器地址 + 用户名，同 SubscriptionIndex）：换账号即清空，
 /// 刷新期间换了账号的迟到结果直接丢弃，不串到别的账号上。
+///
+/// 快照（`PageSnapshots`）：整页三份数据每次刷齐都存在本机，登录恢复的那一刻（`adopt`）就在后台读出来，
+/// 订阅首页第一帧就是上次的完整样子（Hero、日程、两排海报），随后静默刷新。整周预告按天算
+/// （「今天」「周四」），隔天的快照不用它，等网络的新数据。
 @MainActor
 @Observable
 final class SubscriptionsHomeFeed {
@@ -22,6 +26,8 @@ final class SubscriptionsHomeFeed {
     private(set) var tasks: [API.DownloadTaskView] = []
     /// 算「几点能看」「多久前入库」用的当前时刻，随预告一起刷新
     private(set) var now = Date()
+    /// 整页数据至少齐过一次（刷齐了，或来自快照）：页面据此判断是否已是完整的样子
+    private(set) var loaded = false
 
     @ObservationIgnored private var owner: String?
     @ObservationIgnored private var refreshedAt: Date?
@@ -31,16 +37,65 @@ final class SubscriptionsHomeFeed {
         "\(api.server.apiBase.absoluteString)|\(username ?? "")"
     }
 
-    /// 以这个账号的身份使用：换了账号就清掉旧账号的数据与缓存
-    func adopt(owner key: String) {
-        guard key != owner else { return }
+    /// 以这个账号的身份使用：换了账号就清掉旧账号的数据与缓存，并读出这个账号的快照。
+    /// `synchronously`：冷启动就落在订阅首页时当场读完；其余情况在后台线程读
+    /// 返回值：后台读快照的任务（同步读、没换账号时为 nil）
+    @discardableResult
+    func adopt(owner key: String, synchronously: Bool = false) -> Task<Void, Never>? {
+        guard key != owner else { return nil }
         owner = key
         week = nil
         recent = []
         tasks = []
+        loaded = false
         refreshedAt = nil
         cache = nil
+        savedFingerprint = nil
+        savedAt = nil
+        if synchronously {
+            if let snapshot = PageSnapshots.read(SubscriptionsFeedSnapshot.self, Self.snapshotName, owner: key) { apply(snapshot, owner: key) }
+            return nil
+        }
+        // 读盘立刻在后台线程开始（不等主线程空下来）；读完交回主线程
+        let read = Task.detached(priority: .userInitiated) {
+            PageSnapshots.read(SubscriptionsFeedSnapshot.self, Self.snapshotName, owner: key)
+        }
+        return Task {
+            if let snapshot = await read.value { apply(snapshot, owner: key) }
+        }
     }
+
+    private func apply(_ snapshot: SubscriptionsFeedSnapshot, owner key: String) {
+        // 读盘期间换了账号，或网络已经先一步刷齐：快照作废
+        guard owner == key, !loaded else { return }
+        if Calendar.current.isDateInToday(snapshot.savedAt) { week = snapshot.week }
+        recent = snapshot.recent
+        tasks = snapshot.tasks
+        now = .now
+        loaded = true
+        PerfTrace.record("snapshot.applied", ["page": "subscriptions"])
+    }
+
+    private nonisolated static let snapshotName = "subscriptions-feed"
+
+    /// 上次写盘的内容指纹：没变就不重写
+    @ObservationIgnored private var savedFingerprint: Int?
+
+    private func saveSnapshot() {
+        guard let owner, let week else { return }
+        var hasher = Hasher()
+        hasher.combine(week)
+        hasher.combine(recent)
+        hasher.combine(tasks)
+        let fingerprint = hasher.finalize()
+        // 预告按天算：跨天后内容没变也要重写一次，快照的日期才对得上「今天」
+        guard fingerprint != savedFingerprint || !Calendar.current.isDateInToday(savedAt ?? .distantPast) else { return }
+        savedFingerprint = fingerprint
+        savedAt = .now
+        PageSnapshots.write(SubscriptionsFeedSnapshot(savedAt: .now, week: week, recent: recent, tasks: tasks), Self.snapshotName, owner: owner)
+    }
+
+    @ObservationIgnored private var savedAt: Date?
 
     /// 算好的整页结果。输入（订阅清单、预告、刚刚入库、下载快照、时刻）没变就直接复用上一次
     func state(for subscriptions: [API.SubscriptionView]) -> SubsHomeState {
@@ -68,10 +123,14 @@ final class SubscriptionsHomeFeed {
     }
 
     func refreshAll(api: APIClient, isAdmin: Bool) async {
+        let key = owner
         async let arrivals: Void = refreshArrivals(api: api)
         async let arrived: Void = refreshRecent(api: api)
         async let snapshot: Void = refreshTasks(api: api, isAdmin: isAdmin)
         _ = await (arrivals, arrived, snapshot)
+        guard key == owner else { return }
+        loaded = true
+        saveSnapshot()
     }
 
     /// 整周预告：已有快照时瞬时失败继续保留，不闪成空
@@ -104,5 +163,30 @@ final class SubscriptionsHomeFeed {
         if let list = try? await api.dlTasks(), key == owner {
             tasks = list.items
         }
+    }
+}
+
+/// 订阅首页的快照（`PageSnapshots`）：整周预告、刚刚入库、下载快照（订阅清单本身在 SubscriptionIndex 的快照里）
+nonisolated struct SubscriptionsFeedSnapshot: Codable, Sendable {
+    var savedAt: Date
+    var week: [API.TodayArrivalView]
+    var recent: [API.RecentArrivalView]
+    var tasks: [API.DownloadTaskView]
+}
+
+extension SubscriptionsHomeFeed {
+    /// 订阅首页首屏会显示的图（与页面排版同一口径，交给 `FirstScreenImages` 提前解码进内存）：
+    /// Hero 第一张的剧照与片名 Logo、「刚刚入库」前两张卡的剧照与 Logo
+    func firstScreenImageURLs(subscriptions: [API.SubscriptionView], api: APIClient) -> [URL] {
+        var urls: [URL?] = []
+        if let slide = state(for: subscriptions).slides.first {
+            urls.append(api.server.originalTMDBImageURL(slide.media.backdropUrl) ?? api.image(slide.media.posterUrl))
+            urls.append(api.image(slide.media.logoUrl))
+        }
+        for card in recent.prefix(2) {
+            urls.append(api.image(card.stillUrl ?? card.media.backdropUrl ?? card.media.posterUrl, .landscapeCard))
+            urls.append(api.image(card.media.logoUrl))
+        }
+        return urls.compactMap { $0 }
     }
 }
