@@ -72,7 +72,7 @@ from movieclaw_api.services.library.access import (
 from movieclaw_api.services.library.items import build_season_episodes, episode_view
 from movieclaw_api.services.media_probe import probe_keyframe_before
 from movieclaw_api.services.playback import marks as playback_marks
-from movieclaw_api.services.playback import metrics, trickplay
+from movieclaw_api.services.playback import metrics, track_memory, trickplay
 from movieclaw_api.services.playback import plan as playback_plan
 from movieclaw_api.services.playback import warmup as playback_warmup
 from movieclaw_api.services.playback import watch as playback_watch
@@ -735,6 +735,7 @@ async def decide_playback_route(
             session, [payload.media_item_id], member_id=member_id
         )
         payload = _with_watch_memory(payload, states.get(unit))
+        payload, _ = await _with_series_memory(session, payload, states, unit)
     decision = await _decide(payload, principal, session)
 
     if decision is None:
@@ -743,6 +744,29 @@ async def decide_playback_route(
 
 
 _RequestT = TypeVar("_RequestT", bound=PlaybackDecideRequest)
+
+
+async def _with_series_memory(
+    session: AsyncSession,
+    request: _RequestT,
+    states: dict[tuple[int, int, int], PlaybackState],
+    unit: tuple[int, int, int],
+) -> tuple[_RequestT, tuple[str | None, str | None]]:
+    """本集没有记忆时，沿用同一部剧最近一集的音轨 / 字幕（按语言换算，见 ``track_memory``）。
+
+    返回（补上记忆的请求，实际补上的（音轨, 字幕））——后者随观看状态带回，
+    客户端据此提示「已沿用上次的选择」。
+    """
+    if request.audio_track is not None and request.subtitle_track is not None:
+        return request, (None, None)
+    target = None
+    if request.file_id is not None:
+        target = await session.get(LibraryFile, request.file_id)
+    audio, subtitle = await track_memory.series_track_memory(session, states, unit, target)
+    audio = audio if request.audio_track is None else None
+    subtitle = subtitle if request.subtitle_track is None else None
+    update = {k: v for k, v in (("audio_track", audio), ("subtitle_track", subtitle)) if v}
+    return (request.model_copy(update=update) if update else request), (audio, subtitle)
 
 
 def _with_watch_memory(request: _RequestT, watch_row: PlaybackState | None) -> _RequestT:
@@ -935,15 +959,16 @@ async def start_playback_session(
             session, [payload.media_item_id], member_id=member_id
         )
         watch_row = states.get(unit)
+        payload = _with_watch_memory(payload, watch_row)
+        payload, inherited = await _with_series_memory(session, payload, states, unit)
         watch_view = PlaybackStateView(
             position_ms=watch_row.position_ms if watch_row else 0,
             played=watch_row.played if watch_row else False,
             play_count=watch_row.play_count if watch_row else 0,
             duration_ms=await playback_state.unit_runtime_ms(session, unit),
-            audio_track=watch_row.audio_track if watch_row else None,
-            subtitle_track=watch_row.subtitle_track if watch_row else None,
+            audio_track=(watch_row.audio_track if watch_row else None) or inherited[0],
+            subtitle_track=(watch_row.subtitle_track if watch_row else None) or inherited[1],
         )
-        payload = _with_watch_memory(payload, watch_row)
     resolved_start_ms = payload.start_ms
     if resolved_start_ms is None:
         # 看完的重播从头开始——续播到最后三十秒等于点开就是片尾
@@ -1716,7 +1741,11 @@ _DISC_FILE_PATTERNS = (
     re.compile(r"BDMV/PLAYLIST/\d{5}\.mpls", re.IGNORECASE),
     re.compile(r"BDMV/CLIPINF/\d{5}\.clpi", re.IGNORECASE),
     re.compile(r"BDMV/STREAM/\d{5}\.m2ts", re.IGNORECASE),
+    # DVD 目录：菜单与各标题集的信息文件、节目流（BUP 是 IFO 的备份，IFO 坏了引擎可以读它）
+    re.compile(r"VIDEO_TS/(?:VIDEO_TS|VTS_\d{2}_\d)\.(?:IFO|BUP|VOB)", re.IGNORECASE),
 )
+#: 能目录直推的台账容器：蓝光原盘目录与 DVD 目录
+_DISC_FOLDER_CONTAINERS = frozenset({"bluray", "dvd"})
 #: 目录清单短缓存：引擎读剪辑是一连串 Range 请求，每次都在网络挂载上重列几层目录不值得
 _DISC_TREE_TTL_S = 30.0
 _disc_tree_cache: dict[str, tuple[float, dict[str, tuple[str, PathLib, int]]]] = {}
@@ -1737,7 +1766,8 @@ def _child_dir(parent: PathLib, name: str) -> PathLib | None:
 def _disc_tree(disc_dir: PathLib) -> dict[str, tuple[str, PathLib, int]]:
     """原盘目录里可直推的文件：大写的相对路径 → (盘上实际的相对路径, 绝对路径, 字节数)。
 
-    只看 ``BDMV`` 与它下面的 PLAYLIST / CLIPINF / STREAM 三层，不递归别处；读不到的层当作空。
+    蓝光只看 ``BDMV`` 与它下面的 PLAYLIST / CLIPINF / STREAM 三层，DVD 只看 ``VIDEO_TS`` 一层，
+    不递归别处；读不到的层当作空。
     """
     key = str(disc_dir)
     cached = _disc_tree_cache.get(key)
@@ -1745,28 +1775,32 @@ def _disc_tree(disc_dir: PathLib) -> dict[str, tuple[str, PathLib, int]]:
     if cached is not None and now - cached[0] < _DISC_TREE_TTL_S:
         return cached[1]
     found: dict[str, tuple[str, PathLib, int]] = {}
+    layers: list[tuple[PathLib, str]] = []
     bdmv = _child_dir(disc_dir, "BDMV")
     if bdmv is not None:
-        layers = [(bdmv, bdmv.name)]
+        layers.append((bdmv, bdmv.name))
         for name in ("PLAYLIST", "CLIPINF", "STREAM"):
             child = _child_dir(bdmv, name)
             if child is not None:
                 layers.append((child, f"{bdmv.name}/{child.name}"))
-        for directory, rel_dir in layers:
-            try:
-                with os.scandir(directory) as entries:
-                    for entry in entries:
-                        rel = f"{rel_dir}/{entry.name}"
-                        if not any(p.fullmatch(rel) for p in _DISC_FILE_PATTERNS):
-                            continue
-                        try:
-                            if entry.is_file():
-                                size = entry.stat().st_size
-                                found[rel.upper()] = (rel, PathLib(entry.path), size)
-                        except OSError:
-                            continue
-            except OSError:
-                continue
+    video_ts = _child_dir(disc_dir, "VIDEO_TS")
+    if video_ts is not None:
+        layers.append((video_ts, video_ts.name))
+    for directory, rel_dir in layers:
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    rel = f"{rel_dir}/{entry.name}"
+                    if not any(p.fullmatch(rel) for p in _DISC_FILE_PATTERNS):
+                        continue
+                    try:
+                        if entry.is_file():
+                            size = entry.stat().st_size
+                            found[rel.upper()] = (rel, PathLib(entry.path), size)
+                    except OSError:
+                        continue
+        except OSError:
+            continue
     _disc_tree_cache[key] = (now, found)
     return found
 
@@ -1783,8 +1817,8 @@ async def _disc_file_owner(file_id: int, token: str, session: AsyncSession):
         raise NotFoundException("文件不存在")
     # 与原文件直出同理：读完台账立刻还连接，往下只用已读出的列
     await session.close()
-    if (file.container or "") != "bluray":
-        raise NotFoundException("不是蓝光原盘目录，没有可直推的目录清单")
+    if (file.container or "") not in _DISC_FOLDER_CONTAINERS:
+        raise NotFoundException("不是原盘目录（蓝光 BDMV / DVD VIDEO_TS），没有可直推的目录清单")
     return grant, file
 
 
@@ -1809,7 +1843,7 @@ async def list_disc_files(
     disc_dir = PathLib(file.file_path)
     tree = await asyncio.to_thread(_disc_tree, disc_dir)
     if not tree:
-        raise NotFoundException("原盘目录不可读，请检查 BDMV 是否完整")
+        raise NotFoundException("原盘目录不可读，请检查 BDMV / VIDEO_TS 是否完整")
     disc = await asyncio.to_thread(disc_source_for_file, file)
     files = [
         PlaybackDiscFileView(

@@ -1025,7 +1025,7 @@ def test_real_degrade_still_marks_the_origin_tier():
 
 
 def test_universal_capability_keeps_subtitles_and_the_chosen_audio_track():
-    """App 的 MPV 直出原文件：字幕菜单与叠加层靠计划里的字幕清单，本机切音轨靠计划里的
+    """App 的自研引擎直出原文件：字幕菜单与叠加层靠计划里的字幕清单，本机切音轨靠计划里的
     音轨引用——全解码分支也得带上它们，且认用户点选 / 记住的那条音轨。"""
     subs = (
         SubtitleTrack(ref="embedded:2", codec="subrip", language="chi", is_default=True),
@@ -1079,6 +1079,23 @@ def test_multi_clip_disc_is_direct_played_as_folder_for_disc_capable_player():
     decision = decide_playback(multi, universal_capability(), NO_GPU)
     assert isinstance(decision, PlaybackPlan)
     assert decision.tier is PlaybackTier.REMUX and decision.disc is None
+
+
+def test_dvd_folder_is_pushed_as_a_folder_to_disc_capable_players():
+    """DVD 目录（VIDEO_TS）没有单个文件可直连：能读目录的播放器按目录直推（自己读 IFO、拼 VOB）；
+    原来落到「原文件直连」，取的是个文件夹，一律 404。别的播放器不受影响。"""
+    from dataclasses import replace
+
+    dvd = media(container="dvd", video_codec="mpeg2video", resolution="480p", dvd_folder=True)
+    native = replace(universal_capability(), disc_folder=True)
+    decision = decide_playback(dvd, native, NO_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY
+    assert decision.disc == "folder" and decision.disc_playlist is None
+    assert "DVD" in decision.reason
+
+    decision = decide_playback(dvd, universal_capability(), NO_GPU)
+    assert isinstance(decision, PlaybackPlan) and decision.disc is None
 
 
 def test_single_clip_disc_is_folder_for_disc_capable_player_and_plain_file_otherwise():

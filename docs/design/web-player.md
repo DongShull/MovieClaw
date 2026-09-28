@@ -1069,6 +1069,9 @@ ref——`setChromeVisible(true)` 是异步的，click 回调读到的可能已�
    播），`audio_track` 缺省时用记忆轨，整份观看状态随会话响应带回（`watch`
    字段，字幕记忆、时间轴兜底片长都从这来）。/resume 从起播链路里消失；
    顺带让「分享链接各看各的进度」天然成立，`?t=` 只是显式覆盖。
+   剧集的新一集没有记忆时，沿用同一部剧最近一集的音轨 / 字幕、按语言换算
+   成本集的轨（2026-09-28，`services/playback/track_memory.py`，规则见
+   [player-engine.md](player-engine.md) §3.2），同样经 `watch` 带回。
 3. **hls.js 与会话请求并行热身**（`preloadHlsEngine`，无 MSE 的原生 HLS
    路径不下）。
 4. **条目页的播放键预取路由**：它是 button 不是 `<Link>`，Next 不会自动

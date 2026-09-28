@@ -453,7 +453,7 @@ def test_session_lifecycle_playlist_segment_ping_stop(client, tmp_path):
 
 
 def test_full_decode_client_gets_the_original_file_without_a_session(client, tmp_path):
-    """App 的 MPV 申报全解码（universal）：MKV 也直接给档 0 原文件地址，不建换封装会话、
+    """App 的自研引擎申报全解码（universal）：MKV 也直接给档 0 原文件地址，不建换封装会话、
     不拉起 ffmpeg——原来要先起一路 remux（冷启动还要采样关键帧）再被客户端丢掉。"""
     file_id = seed(client, tmp_path, container="mkv")
     data = start_session(client, file_id, capability={**CAPABILITY, "universal": True})
@@ -1549,6 +1549,72 @@ def test_disc_with_upper_case_stream_names_is_served(client, tmp_path):
     token = data["stream_url"].split("token=", 1)[1]
     response = client.get(f"{_PB}/files/{file_id}/disc/BDMV/STREAM/00001.m2ts?token={token}")
     assert response.status_code == 200 and response.content == b"M2TS" * 64
+
+
+async def _seed_dvd_folder(tmp_path: Path) -> int:
+    """落一个最小的 DVD 目录：菜单与一个标题集的信息文件、两段节目流，外加一个不该直推的文件。"""
+    n = next(_seed_counter)
+    disc = tmp_path / f"dvds{n}" / "Old Movie (1979)"
+    video_ts = disc / "VIDEO_TS"
+    video_ts.mkdir(parents=True)
+    for name in ("VIDEO_TS.IFO", "VIDEO_TS.BUP", "VTS_01_0.IFO", "VTS_01_0.BUP"):
+        (video_ts / name).write_bytes(b"DVDVIDEO" * 8)
+    (video_ts / "VTS_01_1.VOB").write_bytes(b"VOB1" * 64)
+    (video_ts / "VTS_01_2.VOB").write_bytes(b"VOB2" * 32)
+    (video_ts / "notes.txt").write_bytes(b"x")
+    async with get_database().session() as session:
+        library = await LibraryRepository(session).create(
+            name=f"DVD 库{n}", kind="movie", root_paths=[str(disc.parent)]
+        )
+        item = MediaItem(kind="movie", tmdb_id=7000 + n, title=f"DVD{n}", original_title=f"DVD{n}")
+        session.add(item)
+        await session.flush()
+        row = LibraryFile(
+            library_id=library.id,
+            media_item_id=item.id,
+            file_path=str(disc),
+            size_bytes=4096,
+            source=FileSource.SCANNED,
+            state=FileState.IN_PLACE,
+            container="dvd",
+            video_codec="mpeg2video",
+            resolution="480p",
+            duration_seconds=5400,
+            audio_streams=[{"codec": "ac3", "channels": 6, "default": True}],
+        )
+        session.add(row)
+        await session.commit()
+        return row.id
+
+
+def test_dvd_folder_is_pushed_as_a_folder_listing(client, tmp_path):
+    """DVD 目录对能读目录的播放器（自研引擎）目录直推：清单只列 VIDEO_TS 里的 IFO / BUP / VOB，
+    按 Range 出字节。原来落到「原文件直连」，取的是个文件夹，一律 404、App 只好降级。"""
+    file_id = client.portal.call(partial(_seed_dvd_folder, tmp_path))
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    assert data["decision"]["tier"] == 0 and data["decision"]["disc"] == "folder"
+    assert data["decision"]["disc_playlist"] is None
+    assert data["stream_url"].startswith(f"{_PB}/files/{file_id}/disc?token=")
+
+    client.cookies.clear()
+    listing = client.get(data["stream_url"])
+    assert listing.status_code == 200, listing.text
+    files = {f["path"]: f for f in listing.json()["data"]["files"]}
+    assert set(files) == {
+        "VIDEO_TS/VIDEO_TS.IFO",
+        "VIDEO_TS/VIDEO_TS.BUP",
+        "VIDEO_TS/VTS_01_0.IFO",
+        "VIDEO_TS/VTS_01_0.BUP",
+        "VIDEO_TS/VTS_01_1.VOB",
+        "VIDEO_TS/VTS_01_2.VOB",
+    }
+    vob = files["VIDEO_TS/VTS_01_2.VOB"]
+    assert vob["size"] == 128
+    part = client.get(vob["url"], headers={"Range": "bytes=0-3"})
+    assert part.status_code == 206 and part.content == b"VOB2"
+    token = data["stream_url"].split("token=", 1)[1]
+    base = f"{_PB}/files/{file_id}/disc"
+    assert client.get(f"{base}/VIDEO_TS/notes.txt?token={token}").status_code == 404
 
 
 def test_iso_is_streamed_as_raw_bytes_and_explained_to_browsers(client, tmp_path):

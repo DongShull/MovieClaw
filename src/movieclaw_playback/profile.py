@@ -51,6 +51,7 @@ def media_profile_from_file(
         is_strm=is_strm(file.file_path),
         disc_clips=disc_clips,
         disc_playlist=disc_playlist,
+        dvd_folder=(file.container or "") == "dvd",
     )
 
 

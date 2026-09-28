@@ -145,6 +145,9 @@ class MediaProfile:
     #: 原盘主播放列表的文件名（如 ``00800.mpls``）：目录直推时随计划下发，播放器按名字
     #: 选同一部主片——服务端的诱饵判定与台账时长同一口径
     disc_playlist: str | None = None
+    #: DVD 目录（VIDEO_TS 文件夹）：没有单个文件可直连，服务端也不解析它的结构；
+    #: 能读目录的播放器按目录直推，自己读 IFO 选正片、拼接 VOB（disc-direct-play.md §2.7）
+    dvd_folder: bool = False
 
     @property
     def height(self) -> int | None:
@@ -359,7 +362,7 @@ def decide_playback(
     #    单剪辑原盘对能读目录的播放器同样按目录给：播放器读得到 CLPI 的 EP map，
     #    续播起点与拖动一次按字节定位，不用在几十 GB 的 m2ts 里按时间二分（真机每次
     #    约 0.5 秒），音轨与字幕的语言也从播放列表读到。
-    #    字幕清单照常给：App 的 MPV 直出原文件时，字幕菜单与叠加层都靠它。
+    #    字幕清单照常给：App 的自研引擎直出原文件时，字幕菜单靠它。
     if capability.universal and media.disc_clips >= 1 and capability.disc_folder:
         chosen = next((t for t in media.audio_tracks if t.ref == preferred_audio), None)
         return PlaybackPlan(
@@ -380,6 +383,23 @@ def decide_playback(
             ),
             disc="folder",
             disc_playlist=media.disc_playlist,
+        )
+    # DVD 目录同理按目录直推：播放器读 VIDEO_TS.IFO 挑正片标题集、按 cell 折叠时间轴（与读 DVD
+    # 镜像同一套），服务端只按文件供字节。原来落到下面「原文件直连」，取的却是个文件夹，一律 404
+    if capability.universal and media.dvd_folder and capability.disc_folder:
+        chosen = next((t for t in media.audio_tracks if t.ref == preferred_audio), None)
+        return PlaybackPlan(
+            tier=PlaybackTier.DIRECT_PLAY,
+            file_id=media.file_id,
+            container="mp4",
+            video=VideoPlan(action="copy"),
+            audio=_copy_audio_plan(
+                chosen or (_preferred_audio(media.audio_tracks) if media.audio_tracks else None)
+            ),
+            subtitles=plan_subtitles(media),
+            audio_tracks=media.audio_tracks,
+            reason="DVD 目录直推：播放器读 IFO 选正片、在本机拼接 VOB，服务端只按文件供字节",
+            disc="folder",
         )
     if capability.universal and media.disc_clips > 1:
         return PlaybackPlan(
@@ -1196,7 +1216,7 @@ def _preferred_audio(tracks: tuple[AudioTrack, ...]) -> AudioTrack:
     """首选音轨：标了 default 的优先，否则取第一条。
 
     探测认不出编码的轨（codec 为空，如国产 4K 剧的菁彩声 Audio Vivid「av3a」）谁也解不了——
-    客户端、MPV、服务端转码用的 FFmpeg 都没有它的解码器——有别的轨时不选它。
+    客户端（含 App 的自研引擎）、服务端转码用的 FFmpeg 都没有它的解码器——有别的轨时不选它。
     """
     usable = tuple(t for t in tracks if t.codec) or tracks
     return next((t for t in usable if t.is_default), usable[0])
