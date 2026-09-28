@@ -1841,7 +1841,8 @@ final class SoftwarePlaybackHost {
         // [MovieClaw P17] 起播锚时钟时等这一代解出的第一帧交到显示层再走
         let armStartupClockHold: @Sendable (AudioOutput) -> Void = { [weak self] output in
             guard let self else { return }
-            self.armClockHold(output: output, generation: self.decodeGeneration)
+            self.armClockHold(output: output, generation: self.decodeGeneration,
+                              catchingUp: { vDec.skipUntilPTS != nil })
         }
         demuxQueue.async {
             Self.runDemuxLoop(
@@ -2670,12 +2671,21 @@ final class SoftwarePlaybackHost {
             // inside the decoder rather than leaving the caller to re-check a value it cannot hold
             // across the call.
             var epochBeforeRead = videoDecoder.feedEpoch
+            // [MovieClaw P27] 读卡住（断流、读取端在重连）期间也要能停钟重新缓冲，见 ReadStarvationGuard。
+            // 看护器在读回来时就停掉、之后不会再调 isPlaying，所以它不会真的逃出这次读
+            let armGuard = decoupleAudio && everHadLead && clockArmed()
+            let fedAudioPTS = lastEnqueuedAudioPtsSec
             let packet: UnsafeMutablePointer<AVPacket>?
             do {
-                if let readAhead {
-                    packet = try readAhead.read(isCurrent: { admitsRead(genBeforeRead) })?.makeAVPacket()
-                } else {
-                    packet = try demuxer.readPacket(isCurrent: { admitsRead(genBeforeRead) })
+                packet = try withoutActuallyEscaping(isPlaying) { playing -> UnsafeMutablePointer<AVPacket>? in
+                    let starvationGuard = armGuard ? audioOutput.map {
+                        ReadStarvationGuard(audioOutput: $0, lastFedAudioPTS: fedAudioPTS, isPlaying: playing)
+                    } : nil
+                    defer { starvationGuard?.finish() }
+                    if let readAhead {
+                        return try readAhead.read(isCurrent: { admitsRead(genBeforeRead) })?.makeAVPacket()
+                    }
+                    return try demuxer.readPacket(isCurrent: { admitsRead(genBeforeRead) })
                 }
             } catch {
                 // Stop/seek cancellation is not a playback failure, including a normal .closed
@@ -3262,25 +3272,48 @@ extension SoftwarePlaybackHost: LiveRecordingHost {
 // 被显示层丢掉（DVD 7 帧、AVI 11 帧、VP9 4 帧），跳转后画面停半秒再跳。改成时钟先停在落点，落点之后第 5 次送帧
 // （渲染器的重排缓冲攒够 4 帧才放出第一帧，这一次落点那一帧才真正交到显示层）再按当前速率走；兜底 0.6 秒，
 // 解码卡住时也不会一直停着。暂停会取消等待，免得暂停之后又被放开
+//
+// [MovieClaw P30] 兜底到点时解码器若还没解到落点（跳帧门槛 skipUntilPTS 还在），就接着停，最多停 20 秒。
+// DVD 的时间表粗（真机《哪吒闹海》137 个点、每 43 秒一个），按它定位会落在目标前几十秒，要白读白解到目标才出落点那一帧；
+// 0.6 秒兜底一到时钟就走，画面冻 2–3 秒、进度照走，追上时一口气丢 56 帧，跳转计时却只记了 165 毫秒。
+// 数据没到时同理：时钟停着进度就不走，宿主「长时间没进展」的看门狗才能照常触发
 extension SoftwarePlaybackHost {
     struct SeekClockHold {
         let generation: UInt64
         let output: AudioOutput
         var frames: Int
+        /// [MovieClaw P30] 解码器还在往落点追（落点那一帧还没解出来）
+        var catchingUp: @Sendable () -> Bool = { false }
+        var armedAt = DispatchTime.now()
     }
     nonisolated static let seekClockHoldFrames = 5
     nonisolated static let seekClockHoldTimeout: TimeInterval = 0.6
+    /// [MovieClaw P30] 追落点时最多停多久
+    nonisolated static let seekClockHoldCatchUpCap: TimeInterval = 20
 
     func armSeekClockHold(generation: UInt64) {
         guard let output = audioOutput else { return }
-        armClockHold(output: output, generation: generation)
+        let decoder = videoDecoder
+        armClockHold(output: output, generation: generation, catchingUp: { decoder.skipUntilPTS != nil })
     }
 
     /// 起播时读包线程也用它（时钟已按速率 0 锚好，等这一代解出的帧交到显示层）
-    nonisolated func armClockHold(output: AudioOutput, generation: UInt64) {
-        seekClockHoldState.set(SeekClockHold(generation: generation, output: output, frames: 0))
+    nonisolated func armClockHold(output: AudioOutput, generation: UInt64,
+                                  catchingUp: @escaping @Sendable () -> Bool = { false }) {
+        seekClockHoldState.set(SeekClockHold(generation: generation, output: output, frames: 0,
+                                             catchingUp: catchingUp))
+        scheduleSeekClockHoldTimeout(generation: generation)
+    }
+
+    nonisolated private func scheduleSeekClockHoldTimeout(generation: UInt64) {
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + Self.seekClockHoldTimeout) { [weak self] in
-            self?.releaseSeekClockHold(generation: generation, afterFrame: false)
+            guard let self else { return }
+            // [MovieClaw P30] 还在追落点且没超上限：再等一个兜底周期
+            if self.seekClockHoldState.isCatchingUp(generation: generation, cap: Self.seekClockHoldCatchUpCap) {
+                self.scheduleSeekClockHoldTimeout(generation: generation)
+                return
+            }
+            self.releaseSeekClockHold(generation: generation, afterFrame: false)
         }
     }
 
@@ -3289,6 +3322,10 @@ extension SoftwarePlaybackHost {
         guard let hold = seekClockHoldState.take(generation: generation, afterFrame: afterFrame,
                                                  needed: Self.seekClockHoldFrames) else { return }
         hold.output.setRate(lastRate)
+        // [MovieClaw P30] 真实的「跳转到出画」：宿主的跳转计时在落点时就停了，软件通路要加上这一段
+        let heldMs = Int(Double(DispatchTime.now().uptimeNanoseconds - hold.armedAt.uptimeNanoseconds) / 1e6)
+        EngineLog.emit("[SWHost] [MovieClaw P30] 停钟 \(heldMs)ms 后放开（\(afterFrame ? "落点帧已交到显示层" : "兜底")）",
+                       category: .swPlayback)
     }
 
     func cancelSeekClockHold() {
@@ -3306,6 +3343,15 @@ final class SeekClockHoldState: @unchecked Sendable {
     }
 
     /// 这一代跳转的等待：计一帧（或兜底），该放开时取走并返回它，否则返回 nil
+    /// [MovieClaw P30] 这一代的等待还在、解码器还在追落点、且没超过上限
+    func isCatchingUp(generation: UInt64, cap: TimeInterval) -> Bool {
+        lock.lock()
+        guard let current = hold, current.generation == generation else { lock.unlock(); return false }
+        lock.unlock()
+        let waited = Double(DispatchTime.now().uptimeNanoseconds - current.armedAt.uptimeNanoseconds) / 1e9
+        return waited < cap && current.catchingUp()
+    }
+
     func take(generation: UInt64, afterFrame: Bool, needed: Int) -> SoftwarePlaybackHost.SeekClockHold? {
         lock.lock(); defer { lock.unlock() }
         guard var current = hold, current.generation == generation else { return nil }

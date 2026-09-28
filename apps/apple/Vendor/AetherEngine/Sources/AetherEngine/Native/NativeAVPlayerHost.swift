@@ -1429,8 +1429,12 @@ final class NativeAVPlayerHost {
                     category: .engine
                 )
             }
-            for _ in 0..<Self.liveJoinHoldWitnessSamples {
-                try? await Task.sleep(nanoseconds: UInt64(Self.liveJoinHoldWitnessInterval * 1_000_000_000))
+            // [MovieClaw P28] VOD 采样更密：过线后每多等一个采样间隔，就是多冻一截画面
+            let vod = self?.isLiveSession == false
+            let interval = vod ? Self.vodHoldWitnessInterval : Self.liveJoinHoldWitnessInterval
+            let samples = vod ? Self.vodHoldWitnessSamples : Self.liveJoinHoldWitnessSamples
+            for _ in 0..<samples {
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 guard let self else { account(.hostGone); return }
                 if let ending = Self.liveJoinHoldWitnessEnding(
                     itemIsCurrent: self.playerItem === item,
@@ -1450,6 +1454,22 @@ final class NativeAVPlayerHost {
                     playbackBufferEmpty: reading.bufferEmpty, bufferedAheadSeconds: reading.aheadSeconds
                 ) else { continue }
                 account(.crossed)
+                // [MovieClaw P28] VOD 的分片由本机远快于 1 倍速地产出，过线后的缓冲只会继续涨，上游「只记录不动手」
+                // 顾虑的直播 1 倍速供给不存在：真机 UHD 原盘起播时缓冲已 3.65 秒、AVPlayer 还多按了 0.6 秒。
+                // 所以 VOD 过线即开播；直播保持上游行为
+                if !self.isLiveSession, self.playerItem === item, self.playIntent,
+                   !self.liveJoinImmediateStartSpent,
+                   self.timeControlStatus == .waitingToPlayAtSpecifiedRate,
+                   self.avPlayer.reasonForWaitingToPlay == .toMinimizeStalls {
+                    self.liveJoinImmediateStartSpent = true
+                    self.liveJoinImmediateStartCutShort = true
+                    let rate = self.avPlayer.defaultRate != 0 ? self.avPlayer.defaultRate : 1.0
+                    EngineLog.emit(
+                        "[NativeAVPlayerHost] #\(sid) [MovieClaw P28] VOD 缓冲已过线（"
+                        + String(format: "%.2f", reading.aheadSeconds) + " 秒），不再等 AVPlayer 的码率估计，直接开播",
+                        category: .engine)
+                    self.avPlayer.playImmediately(atRate: rate)
+                }
                 return
             }
             account(.budgetSpent)
@@ -1557,6 +1577,9 @@ final class NativeAVPlayerHost {
     /// leaving a sampler running behind a session that has moved on.
     nonisolated static let liveJoinHoldWitnessInterval: Double = 0.25
     nonisolated static let liveJoinHoldWitnessSamples: Int = 20
+    /// [MovieClaw P28] VOD 的见证采样：0.1 秒一次、至多 5 秒
+    nonisolated static let vodHoldWitnessInterval: Double = 0.1
+    nonisolated static let vodHoldWitnessSamples: Int = 50
 
     nonisolated static func secondsSince(_ start: DispatchTime) -> Double {
         Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000_000
@@ -1799,6 +1822,16 @@ final class NativeAVPlayerHost {
         seekGeneration &+= 1
         let gen = seekGeneration
         seekInFlight = true
+        // [MovieClaw P28] VOD 每次跳转重新给一次 P2 的「提前开播」：跳转落点后 AVPlayer 同样会以 ToMinimizeStalls
+        // 按住已缓冲好的画面等码率估计（真机 4K60 往回 5 秒、往前 20 秒都落在本机已产出的分片里，仍各等了 1.4–1.5 秒）。
+        // 守卫与起播时相同：缓冲非空且至少 1.5 秒才切，缓冲薄时照旧交给 AVPlayer 自己的策略
+        if !isLiveSession && liveJoinStartsImmediately {
+            liveJoinImmediateStartSpent = false
+            liveJoinThinBufferLogged = false
+            liveJoinNoDecisionLogged = false
+            liveJoinHoldWitnessStarted = false
+            liveJoinImmediateStartCutShort = false
+        }
         // AE#629: this seek's own landing publishes the clock from here on.
         inPlaceSwapMountPending = false
         latestSeekRenderedTimePublished = false
