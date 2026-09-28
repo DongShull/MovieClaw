@@ -26,8 +26,9 @@ App Support 仍会保存 ffmpeg 包、版本信息和普通配置，日志也会
 否则「应用程序」里会同时有两个；设置、配对授权和日志都沿用，不需要重新配置。如果在
 「系统设置 → 通用 → 登录项」里加过旧 App，也换成新的。
 
-**首次打开会被系统拦住**，提示「无法打开，因为无法验证开发者」。这是因为当前发布
-的构建使用 ad-hoc 签名、没有 Apple 公证。放行方式：
+发布包经过 Developer ID 签名与 Apple 公证时，双击即可打开。发版仓库没配签名证书时
+（例如 fork 出去自己发版），或者用的是较早的版本，发布包是 ad-hoc 签名、没有公证，
+**首次打开会被系统拦住**，提示「无法打开，因为无法验证开发者」。放行方式：
 
 1. 在「应用程序」里 **右键点击** App 图标，选「打开」；
 2. 在弹出的对话框里再点一次「打开」。
@@ -48,7 +49,20 @@ open "dist/MovieClaw 转码器.app"
 
 脚本会执行 Swift Release 构建、生成 App Bundle，并默认使用 ad-hoc 签名（构建完会
 提示这一点）。正式分发时通过 `MOVIECLAW_SIGNING_IDENTITY` 指定 Developer ID 签名
-身份，之后还需要完成公证。这个变量只用于 App 打包签名，不是远程转码运行配置。
+身份，再给出公证凭证，脚本会提交 Apple 公证并把票据钉进 App：
+
+```bash
+# 一次性：把 App Store Connect API 密钥或 Apple ID 专用密码存进钥匙串
+xcrun notarytool store-credentials movieclaw-notary
+# 打包 + 签名 + 公证
+MOVIECLAW_SIGNING_IDENTITY="Developer ID Application: 你的名字 (TEAMID)" \
+MOVIECLAW_NOTARY_PROFILE=movieclaw-notary \
+  scripts/package-app.sh
+```
+
+发版流水线用 API 密钥文件（`MOVIECLAW_NOTARY_KEY_PATH` / `_KEY_ID` / `_ISSUER`），
+所需的仓库密钥见 `.github/workflows/release.yml` 的 worker-macos 作业。这些变量只用于
+App 打包签名，不是远程转码运行配置。
 
 ad-hoc 签名有个实际影响：每次重新构建后第一次读令牌会弹窗要钥匙串密码，
 原因见下面「系统弹窗要『登录』钥匙串密码」。

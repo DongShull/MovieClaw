@@ -222,11 +222,68 @@ jobs:
       - name: 单测
         run: swift test --package-path macos/MovieClawTranscoder
 
-      - name: 打包 App（ad-hoc 签名，版本号注入自发版 tag）
+      # Developer ID 签名 + Apple 公证，用户下载后双击即可打开。所需仓库密钥：
+      #   MACOS_DEVELOPER_ID_P12           「Developer ID Application」证书连私钥导出的 .p12，base64 编码
+      #   MACOS_DEVELOPER_ID_P12_PASSWORD  导出 .p12 时设的密码
+      #   APPLE_API_KEY_P8                 App Store Connect API 密钥 .p8 的文件内容（公证用）
+      #   APPLE_API_KEY_ID / APPLE_API_ISSUER_ID  该密钥的 ID 与 Issuer ID
+      # 没配证书（例如 fork 出去的仓库）时照旧 ad-hoc 签名，发版不受影响。
+      # 证书导入临时钥匙串，作业结束即删；密钥只落在 runner 的临时目录。
+      - name: 准备 Developer ID 签名与公证凭证
+        env:
+          P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          if [ -z "$P12" ]; then
+            echo "::warning::未配置 MACOS_DEVELOPER_ID_P12，转码器沿用 ad-hoc 签名（用户首次打开会被系统拦下）"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          printf '%s' "$P12" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security import "$RUNNER_TEMP/developer-id.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/developer-id.p12"
+          # 允许 codesign 无交互地使用私钥（CI 里没人点「允许」）
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" \
+            | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::MACOS_DEVELOPER_ID_P12 里没有「Developer ID Application」证书（导出的是不是 Apple Development / Distribution？）"
+            exit 1
+          fi
+          echo "MOVIECLAW_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          if [ -n "$API_KEY_P8" ]; then
+            printf '%s\n' "$API_KEY_P8" > "$RUNNER_TEMP/notary-key.p8"
+            {
+              echo "MOVIECLAW_NOTARY_KEY_PATH=$RUNNER_TEMP/notary-key.p8"
+              echo "MOVIECLAW_NOTARY_KEY_ID=$API_KEY_ID"
+              echo "MOVIECLAW_NOTARY_ISSUER=$API_ISSUER_ID"
+            } >> "$GITHUB_ENV"
+          else
+            echo "::warning::已配置签名证书但未配置 APPLE_API_KEY_P8，转码器不会公证（用户首次打开仍会被系统拦下）"
+          fi
+
+      - name: 打包 App（有证书时 Developer ID 签名并公证，版本号注入自发版 tag）
         run: |
           chmod +x macos/MovieClawTranscoder/scripts/package-app.sh
           MOVIECLAW_WORKER_VERSION="${RELEASE_TAG#v}" \
             macos/MovieClawTranscoder/scripts/package-app.sh
+
+      - name: 清理签名钥匙串与密钥
+        if: always()
+        run: |
+          if [ -n "${SIGNING_KEYCHAIN:-}" ]; then security delete-keychain "$SIGNING_KEYCHAIN" || true; fi
+          rm -f "$RUNNER_TEMP/notary-key.p8"
 
       - name: 压缩 App Bundle
         run: |
