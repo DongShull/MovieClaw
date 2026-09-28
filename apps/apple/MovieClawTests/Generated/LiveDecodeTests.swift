@@ -150,6 +150,9 @@ struct LiveDecodeTests {
     @Test func playbackStats() async throws {
         try await LiveServer.check { try await $0.playbackStats() }
     }
+    @Test func playbackStatsQoe() async throws {
+        try await LiveServer.check { try await $0.playbackStatsQoe() }
+    }
     @Test func playbackStatsWatch() async throws {
         try await LiveServer.check { try await $0.playbackStatsWatch() }
     }

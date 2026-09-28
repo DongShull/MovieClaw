@@ -45,8 +45,16 @@ enum EngineEvent {
     case pictureInPicture(Bool)
     /// 引擎读到的轨道列表出来了 / 变了（只有自研引擎报：服务端看不到的轨由它补进菜单，见 `PlaybackController.adoptEngineTracks`）
     case tracksChanged
-    /// 起播里程碑（只用于分段计时，见 `StartupTrace`）
+    /// 起播里程碑（只用于分段计时，见 `StartupTrace`）。自研引擎每次出首帧都报 `.firstFrame`（换音轨、
+    /// 回前台重建之后也会再报一次），播放记录据此结束「换轨 / 回前台」的计时
     case milestone(EngineMilestone)
+    /// 引擎内部的起播检查点（自研引擎：打开片源、识别容器、探测轨道……，见 `AetherPlayback.onStartupStage`）
+    case startupStage(String)
+    /// 跳转后落点的画面到了（自研引擎报；主力通路是 AVPlayer 在落点恢复播放 / 暂停中跳转完成，
+    /// 软件通路是落点那一帧交到显示层）。播放记录的跳转耗时以它为终点（docs/design/playback-qoe.md §1.3）
+    case seekPresented
+    /// 跳转超时没落地 / 被拒
+    case seekFailed
 }
 
 /// 引擎内部的起播里程碑：控制器只看得到「开始播放」，慢在引擎哪一步要靠这几个点区分

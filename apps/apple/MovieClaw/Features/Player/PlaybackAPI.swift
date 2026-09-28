@@ -52,11 +52,29 @@ struct PlaybackAPI {
     //
     // 这两个接口标成 nonisolated：起播协商（`negotiate`）要在后台一口气跑完，不能每一步都回主线程排队。
 
-    nonisolated func startSession(_ body: API.PlaybackSessionRequest) async throws -> API.PlaybackSessionView {
+    /// 开会话。登录成员的请求顺带读回响应头 `Server-Timing`（服务端决策 / 准备 / ffmpeg 各段耗时），
+    /// 播放记录据此把起播分段拆成「网络往返」与「服务端处理」（docs/design/playback-qoe.md §2）
+    nonisolated func startSession(_ body: API.PlaybackSessionRequest) async throws -> (API.PlaybackSessionView, [String: Int]) {
         var body = body
         body.deviceId = deviceId
-        if let shareSlug { return try await api.sharePlaybackSessionStart(slug: shareSlug, body: body) }
-        return try await api.playbackSessionStart(body: body)
+        if let shareSlug { return (try await api.sharePlaybackSessionStart(slug: shareSlug, body: body), [:]) }
+        let (view, headers): (API.PlaybackSessionView, [String: String]) =
+            try await api.sendReturningHeaders("POST", "/playback/sessions", body: body)
+        return (view, Self.serverTiming(headers["server-timing"]))
+    }
+
+    /// `decide;dur=12, prep;dur=30` → ["decide": 12, "prep": 30]
+    nonisolated static func serverTiming(_ header: String?) -> [String: Int] {
+        guard let header else { return [:] }
+        var result: [String: Int] = [:]
+        for part in header.split(separator: ",") {
+            let fields = part.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
+            guard let name = fields.first, !name.isEmpty,
+                  let duration = fields.dropFirst().first(where: { $0.hasPrefix("dur=") }),
+                  let value = Double(duration.dropFirst(4)) else { continue }
+            result[name] = Int(value.rounded())
+        }
+        return result
     }
 
     /// 起播协商用的引擎模式（由控制器按兜底阶梯算好，见 `PlaybackController` 的类注释）
@@ -84,6 +102,8 @@ struct PlaybackAPI {
         var session: API.PlaybackSessionView
         var startedAt: ContinuousClock.Instant
         var sessionAt: ContinuousClock.Instant
+        /// 开会话响应里的服务端各段耗时（毫秒）
+        var serverTiming: [String: Int] = [:]
         /// 给系统播放器预先建好、已经在加载的资源（见 `negotiate` 末尾）；自研引擎或没给出计划时为 nil
         var preparedAsset: AVURLAsset?
     }
@@ -97,7 +117,7 @@ struct PlaybackAPI {
         let clock = ContinuousClock()
         let startedAt = clock.now
         let useNative = inputs.mode == .native
-        let session = try await startSession(useNative ? inputs.native : inputs.system)
+        let (session, serverTiming) = try await startSession(useNative ? inputs.native : inputs.system)
         let sessionAt = clock.now
         // 系统播放器要放的地址此刻已经确定：马上建好资源、开始读文件头 / 播放列表。
         // 主线程这时多半还在忙播放器弹出的转场，挂引擎要再等几十毫秒——AVFoundation 先干起来
@@ -110,7 +130,7 @@ struct PlaybackAPI {
         }
         return Negotiation(
             useNative: useNative, session: session, startedAt: startedAt, sessionAt: sessionAt,
-            preparedAsset: preparedAsset
+            serverTiming: serverTiming, preparedAsset: preparedAsset
         )
     }
 

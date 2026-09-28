@@ -59,6 +59,9 @@ var knownNonGenerated = []string{
 	"playback.session.master",
 	"playback.session.subtitle-playlist",
 	"playback.file.stream",
+	// 原盘目录直推（disc-direct-play.md）：目录清单与盘内文件的 Range 取流，只给播放引擎用
+	"playback.file.disc.list",
+	"playback.file.disc.file",
 	"playback.file.subtitle",
 	"playback.file.fonts",
 	"playback.file.font",

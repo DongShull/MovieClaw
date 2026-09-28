@@ -129,6 +129,7 @@ final class AppModel {
                 phase = .ready(cached)
                 needsRevalidation = true
                 SessionPrewarm.start(server: server, session: cached, landing: SessionPrewarm.landingTab(for: cached))
+                Self.flushPlaybackReports(APIClient(server: server, token: token))
             }
         }
         unauthorizedObserver = NotificationCenter.default.addObserver(
@@ -445,7 +446,14 @@ final class AppModel {
         persist()
         SessionCache.save(session, server: address)
         SessionPrewarm.start(server: address, session: session)
+        Self.flushPlaybackReports(APIClient(server: address, token: token))
         phase = .ready(session)
+    }
+
+    /// 补发上次没发出去的播放记录（含上次闪退、被系统杀掉时留下的那一次，docs/design/playback-qoe.md §2）
+    private static func flushPlaybackReports(_ api: APIClient) {
+        PlaybackReportQueue.recoverAbnormalExit()
+        Task.detached(priority: .utility) { await PlaybackReportQueue.flush(api: api) }
     }
 
     private func forgetCurrentToken() {

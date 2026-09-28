@@ -106,7 +106,7 @@ struct PlayerCenterControls: View {
             HStack(spacing: 36) {
                 TransportButton(label: "后退 10 秒", size: 56, action: {
                     backTaps += 1
-                    controller.seek(by: -10)
+                    controller.seek(by: -10, source: .button)
                 }) {
                     Image(systemName: "gobackward.10")
                         .symbolEffect(.rotate.counterClockwise.byLayer, value: backTaps)
@@ -118,7 +118,7 @@ struct PlayerCenterControls: View {
                 }
                 TransportButton(label: "前进 10 秒", size: 56, action: {
                     forwardTaps += 1
-                    controller.seek(by: 10)
+                    controller.seek(by: 10, source: .button)
                 }) {
                     Image(systemName: "goforward.10")
                         .symbolEffect(.rotate.clockwise.byLayer, value: forwardTaps)
@@ -364,7 +364,7 @@ struct PlayerProgressBar: View {
                         controller.scrubFollow(toFileMs: target)
                     }
                     .onEnded { _ in
-                        if let target = scrubMs { controller.seek(toFileMs: target) }
+                        if let target = scrubMs { controller.seek(toFileMs: target, source: .scrub) }
                         dragging = false
                         scrubMs = nil
                     }

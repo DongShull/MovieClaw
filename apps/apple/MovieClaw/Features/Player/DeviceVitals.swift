@@ -1,10 +1,10 @@
-#if DEBUG
 import Darwin
 import UIKit
 
-/// 开发期的设备体征读数：引擎能耗对比用（docs/design/player-engine.md 第 6 节）。
+/// 设备体征读数：开发期的引擎能耗对比（docs/design/player-engine.md 第 6 节），以及播放记录的资源读数
+/// （docs/design/playback-qoe.md §3.4，Release 包也用，10 秒采一次，开销可以忽略）。
 ///
-/// 每 10 秒随播放打一行 `[Vitals]`：温度状态、电量与充电状态、本进程 CPU、内存占用、低电量模式。
+/// 开发期每 10 秒随播放打一行 `[Vitals]`：温度状态、电量与充电状态、本进程 CPU、内存占用、低电量模式。
 /// 注意口径：AVPlayer 的解码与合成在系统进程（mediaserverd / 硬件解码器）里做，**不计入本进程 CPU**；
 /// 自研引擎软件通路的解码在本进程里。所以不同通路的「本进程 CPU」不能直接比较谁更省电，
 /// 同一部片连播 30 分钟后的温度状态与掉电才是可比的结果。
@@ -67,4 +67,3 @@ enum DeviceVitals {
         return result == KERN_SUCCESS ? Double(info.phys_footprint) / 1_048_576 : -1
     }
 }
-#endif

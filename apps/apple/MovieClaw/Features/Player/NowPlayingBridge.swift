@@ -21,14 +21,14 @@ final class NowPlayingBridge {
         add(center.playCommand) { $0.play() }
         add(center.pauseCommand) { $0.pause() }
         add(center.togglePlayPauseCommand) { $0.togglePlay() }
-        add(center.skipForwardCommand) { $0.seek(by: 10) }
-        add(center.skipBackwardCommand) { $0.seek(by: -10) }
+        add(center.skipForwardCommand) { $0.seek(by: 10, source: .remote) }
+        add(center.skipBackwardCommand) { $0.seek(by: -10, source: .remote) }
         add(center.nextTrackCommand) { $0.playNext() }
         add(center.previousTrackCommand) { $0.playPrevious() }
         let target = center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let seconds = event.positionTime
-            MainActor.assumeIsolated { self?.controller?.seek(toFileMs: Int(seconds * 1000)) }
+            MainActor.assumeIsolated { self?.controller?.seek(toFileMs: Int(seconds * 1000), source: .remote) }
             return .success
         }
         targets.append((center.changePlaybackPositionCommand, target))

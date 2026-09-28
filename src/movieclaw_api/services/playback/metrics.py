@@ -1,5 +1,9 @@
 """播放质量指标的落库与聚合（docs/design/web-player.md §8）。
 
+2026-09-28 起 App 的播放按 docs/design/playback-qoe.md 口径一次播放一行、按编号合并，北极星改为
+「无打扰播放率」（``services/playback/qoe.py``）；这里保留网页旧口径的整行记录与 ``/playback/stats``
+汇总。清理改为按时间（``qoe.purge_expired``），不再按行数。
+
 **北极星指标是直通率**（档 0 + 档 1 占全部播放的比例）：这一个数同时代表
 画质（没重编码 = 无损）、速度（秒开）和服务器负担（不烧 GPU），其它指标各自
 只覆盖一个侧面。它也是「这个软件对我的库适配得好不好」的直观答案，所以要给
@@ -12,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_db.models import PlaybackMetric
@@ -83,32 +87,6 @@ async def summarize(session: AsyncSession, *, limit: int = 500) -> PlaybackStats
         rebuffer_ratio=(rebuffered / (watched + rebuffered)) if watched + rebuffered else None,
         dropped_ratio=(dropped / frames) if frames else None,
         tier_counts=tier_counts,
-    )
-
-
-async def purge_older_than(session: AsyncSession, *, keep: int = 2000) -> int:
-    """只保留最近 ``keep`` 行。
-
-    指标是趋势数据，不是台账——攒到几十万行只会拖慢 data 卷上的 SQLite，
-    而更早的数据对「现在适配得好不好」没有意义。
-    """
-    threshold = (
-        await session.execute(
-            select(PlaybackMetric.id).order_by(PlaybackMetric.id.desc()).offset(keep).limit(1)
-        )
-    ).scalar_one_or_none()
-    if threshold is None:
-        return 0
-    result = await session.execute(
-        PlaybackMetric.__table__.delete().where(PlaybackMetric.id <= threshold)
-    )
-    await session.commit()
-    return result.rowcount or 0
-
-
-async def count(session: AsyncSession) -> int:
-    return int(
-        (await session.execute(select(func.count()).select_from(PlaybackMetric))).scalar_one()
     )
 
 

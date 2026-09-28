@@ -37,7 +37,7 @@ from movieclaw_api.services.playback.session import (
     get_session_manager,
     reset_session_manager,
 )
-from movieclaw_api.services.playback.signing import issue_stream_token
+from movieclaw_api.services.playback.signing import issue_stream_token, verify_stream_token
 from movieclaw_api.settings.store import reset_setting_store
 from movieclaw_db.crypto import reset_secret_box
 from movieclaw_db.engine import get_database
@@ -332,6 +332,98 @@ def test_direct_play_supports_range_requests(client, tmp_path):
     resp = client.get(url, headers={"Range": "bytes=0-15"})
     assert resp.status_code == 206
     assert resp.content == b"FAKE-MEDIA-BYTES"
+
+
+def _attempt_row(client, attempt_id):
+    from movieclaw_api.services.playback import qoe
+
+    async def load():
+        async with get_database().session() as session:
+            return await qoe.get_attempt(session, attempt_id)
+
+    return client.portal.call(load)  # type: ignore[attr-defined]
+
+
+def test_session_with_attempt_id_records_start_and_returns_server_timing(client, tmp_path):
+    """带播放编号开会话：响应头回传服务端耗时，后台记「已开始」，取流令牌带上编号
+    （docs/design/playback-qoe.md §2）。"""
+    file_id = seed(client, tmp_path, container="mp4")
+    resp = client.post(
+        f"{_PB}/sessions",
+        json={"file_id": file_id, "capability": CAPABILITY, "attempt_id": "att-1", "client": "ios"},
+    )
+    assert resp.status_code == 200, resp.text
+    timing = resp.headers["server-timing"]
+    assert "total;dur=" in timing and "decide;dur=" in timing
+
+    row = _attempt_row(client, "att-1")
+    assert row is not None
+    assert (row.status, row.tier, row.client, row.library_file_id) == ("started", 0, "ios", file_id)
+    assert row.source_class == "1080p"
+    assert row.detail["server"]["sessions"][0]["outcome"] == "plan"
+
+    url = resp.json()["data"]["stream_url"]
+    token = url.split("token=", 1)[1]
+    grant = client.portal.call(verify_stream_token, token)  # type: ignore[attr-defined]
+    assert grant is not None and grant.attempt_id == "att-1"
+
+
+def test_session_without_attempt_id_records_nothing(client, tmp_path):
+    file_id = seed(client, tmp_path, container="mp4")
+    resp = client.post(f"{_PB}/sessions", json={"file_id": file_id, "capability": CAPABILITY})
+    assert resp.status_code == 200
+    assert "server-timing" in resp.headers  # 服务端耗时照样回传，只是不记录
+
+
+def test_direct_play_requests_are_tallied_into_the_attempt(client, tmp_path):
+    """原文件直出的 Range 请求按令牌里的编号计时，App 收尾时一次写进记录。"""
+    file_id = seed(client, tmp_path, container="mp4")
+    data = client.post(
+        f"{_PB}/sessions",
+        json={"file_id": file_id, "capability": CAPABILITY, "attempt_id": "att-2"},
+    ).json()["data"]
+    assert client.get(data["stream_url"], headers={"Range": "bytes=0-15"}).status_code == 206
+    assert client.get(data["stream_url"], headers={"Range": "bytes=16-31"}).status_code == 206
+
+    resp = client.post(
+        f"{_PB}/metrics",
+        json={
+            "attempt_id": "att-2",
+            "outcome": "watched",
+            "tier": 0,
+            "library_file_id": file_id,
+            "client": "ios",
+            "route": "loopback",
+            "first_frame_ms": 640,
+            "watched_ms": 30_000,
+            "detail": {"seeks": [{"ms": 180, "buffered": True, "outcome": "landed"}]},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"] == {"recorded": True, "undisturbed": True}
+
+    row = _attempt_row(client, "att-2")
+    assert row.status == "finished"
+    assert row.ttff_ms == 640  # 旧的 /playback/stats 汇总照样有首帧
+    serve = row.detail["server"]["serve"]
+    assert serve["requests"] == 2
+    assert serve["bytes"] == 32
+
+    stats = client.get(f"{_PB}/stats/qoe", params={"days": 7}).json()["data"]
+    assert stats["overall"]["attempts"] == 1
+    assert stats["overall"]["small_sample"] is True
+
+    detail = client.get(f"{_PB}/attempts/att-2").json()["data"]
+    assert detail["attempt_id"] == "att-2"
+    assert detail["detail"]["server"]["serve"]["requests"] == 2
+    assert client.get(f"{_PB}/attempts/nope").status_code == 404
+
+
+def test_legacy_metric_report_still_works(client, tmp_path):
+    """网页播放器的旧口径整行上报（不带编号）原样落库。"""
+    resp = client.post(f"{_PB}/metrics", json={"tier": 1, "ttff_ms": 900, "watched_ms": 1000})
+    assert resp.status_code == 200
+    assert resp.json()["data"] == {"recorded": True}
 
 
 def test_direct_play_releases_the_db_connection_before_streaming(client, tmp_path, monkeypatch):

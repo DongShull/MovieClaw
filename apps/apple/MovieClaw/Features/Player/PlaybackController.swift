@@ -151,6 +151,13 @@ final class PlaybackController {
     private var reportedStart = false
     private var lastDownlinkBps: Double?
     private var qoe = QoE()
+    /// 这次播放的记录（docs/design/playback-qoe.md）：切集、错误页上重试时新建，离开时上报（所有结局都报）
+    private var record: PlaybackRecord?
+    /// 这次播放开始时已累计的观看时长（重试不清 `qoe`，每次播放只算自己的）
+    private var recordWatchedBaseline = 0
+    /// 每秒一跳：10 秒刷一次资源读数与「正在播放」标记
+    private var recordTick = 0
+    private var audioSessionObservers: [NSObjectProtocol] = []
     /// 起播分段计时（首帧一出上报一次，见 PlaybackStartupTrace.swift）
     private var trace = StartupTrace()
     /// 用户点播放的时刻：第一个单元的计时从这里算起（之后切集、重开从各自发请求算起）
@@ -166,10 +173,6 @@ final class PlaybackController {
     private var reconnectBackoff = ReconnectBackoff()
     /// 已发出、还没落地的 seek：这段等待不算卡顿（QoE 口径同 Web qoe.ts），看门狗也不把它当停顿
     private var seekStartedAt: Date?
-    #if DEBUG
-    /// 真机量跳转耗时用：发起时记下起止位置、落点是否在前向缓冲里，落地时连同耗时打进 `[SeekTrace]`
-    private var seekTrace: (fromMs: Int, toMs: Int, buffered: Bool)?
-    #endif
     private var backgrounded = false
     /// 拖动跟随：上一次真的跟过去的时刻与排队中的后沿落地
     private var lastScrubFollowAt = Date.distantPast
@@ -209,6 +212,8 @@ final class PlaybackController {
     /// 播放器出现：加载条目信息（不挡起播）、开始第一个单元
     func start() {
         let appearedAt = ContinuousClock.now
+        // 上次没能收尾的播放（闪退、被系统杀掉）先转进上报队列：必须赶在这次写「正在播放」标记之前
+        if scope.telemetry { PlaybackReportQueue.recoverAbnormalExit() }
         // 激活音频会话要和系统媒体服务打交道，真机上可能卡主线程几十毫秒：放到后台，
         // 起播协商与引擎读文件头都比它慢，出声之前一定已经就绪
         Task.detached { Self.activateAudioSession() }
@@ -230,13 +235,34 @@ final class PlaybackController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.applyPausedPrefetchPolicy() }
         }
+        observeAudioSessionForRecord()
         startTickLoop()
+    }
+
+    /// 来电 / Siri 打断、耳机拔插：记进播放记录（不算我们的中断，看恢复得对不对）；输出变了规格快照跟着变
+    private func observeAudioSessionForRecord() {
+        let center = NotificationCenter.default
+        audioSessionObservers.append(center.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            let began = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt) == AVAudioSession.InterruptionType.began.rawValue
+            MainActor.assumeIsolated { self?.record?.noteSystem(began ? "音频被系统打断（来电 / Siri 等）" : "系统打断结束") }
+        })
+        audioSessionObservers.append(center.addObserver(
+            forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.record?.noteSystem("音频输出变为 \(PlaybackRecord.audioRoute())")
+                self?.updateRecordDelivery()
+            }
+        })
     }
 
     /// 退出播放器：补一次停止上报与质量快照、释放服务端会话、销毁引擎
     func close() {
         guard !closed else { return }
         closed = true
+        endRecord()
         leaveUnit()
         startTask?.cancel()
         tickTask?.cancel()
@@ -249,6 +275,8 @@ final class PlaybackController {
         if let terminationObserver { NotificationCenter.default.removeObserver(terminationObserver) }
         if let networkCostObserver { NotificationCenter.default.removeObserver(networkCostObserver) }
         networkCostObserver = nil
+        audioSessionObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        audioSessionObservers = []
         terminationObserver = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
@@ -265,6 +293,8 @@ final class PlaybackController {
             attempt += 1
             startTask?.cancel()
             engine?.pause()
+            record?.noteError(message: error.localizedDescription, kind: nil, category: "item_info", stage: recordStage)
+            endRecord(forceOutcome: .failed)
             leaveUnit()
             return
         }
@@ -282,6 +312,7 @@ final class PlaybackController {
     /// 开始播放一个单元（首次进入、上一集/下一集）
     func startUnit(_ next: PlaybackUnit) {
         let seasonChanged = next.season != unit.season
+        endRecord()
         if engine != nil || session != nil { leaveUnit() }
         unit = next
         retire(engine)
@@ -319,6 +350,7 @@ final class PlaybackController {
         qoe = QoE()
         trace = StartupTrace()
         // 第一个单元从用户点播放算起（含播放器弹出），之后的切集从发请求算起
+        beginRecord(origin: .tap, at: tappedAt)
         if let tappedAt {
             trace.begin(at: tappedAt)
             self.tappedAt = nil
@@ -349,7 +381,6 @@ final class PlaybackController {
                 await scope.progress(unit, event: "stop", positionMs: position, durationMs: duration, audio: audio, subtitle: subtitle)
                 NotificationCenter.default.post(name: .playbackStopReported, object: nil, userInfo: ["mediaItemId": unit.mediaItemId])
             }
-            reportMetric()
         }
         if let activeSessionId {
             let scope = self.scope
@@ -415,6 +446,7 @@ final class PlaybackController {
         pendingDecision = nil
         engine?.pause()
         if qoe.requestedAt == nil { qoe.requestedAt = Date() }
+        record?.event("request", "请求播放地址（\(next)）")
         trace.begin()
         startTask?.cancel()
         negotiationTask?.cancel()
@@ -449,7 +481,10 @@ final class PlaybackController {
             subtitleTrack: forNative ? "off" : requestedSubtitle,
             maxHeight: quality,
             downlinkBps: lastDownlinkBps.map { Int($0) },
-            startMs: startMs
+            startMs: startMs,
+            // 播放记录的编号（分享访客不上报遥测，也不带）：服务端据此建「已开始」、写进取流令牌
+            attemptId: scope.telemetry ? record?.id : nil,
+            client: scope.telemetry ? "ios" : nil
         )
     }
 
@@ -485,6 +520,7 @@ final class PlaybackController {
             }
             trace.mark("开始请求", at: result.startedAt)
             trace.mark("会话", at: result.sessionAt)
+            record?.noteServerTiming(result.serverTiming)
             await handleSession(
                 session, useNative: result.useNative, requestedStartMs: startMs,
                 preparedAsset: result.preparedAsset
@@ -494,14 +530,15 @@ final class PlaybackController {
             guard myAttempt == attempt else { return }
             if phase == .sessionStarting, reportedStart, Self.isTransient(error), let delay = reconnectBackoff.nextDelay() {
                 // 播放中重开时服务端暂时连不上（多半在重启）：隔几秒自动再试，不直接落到错误页
-                scope.clientLog("reconnect-retry", ["reason": .string(error.localizedDescription), "delay_s": .int(Int(delay))])
+                log("reconnect-retry", ["reason": .string(error.localizedDescription), "delay_s": .int(Int(delay))])
+                record?.beginReconnect(reason: error.localizedDescription)
                 flash("连接中断，正在重连…")
                 try? await Task.sleep(for: .seconds(delay))
                 guard myAttempt == attempt, !closed else { return }
                 request(startMs: positionMs, phase: .sessionStarting)
                 return
             }
-            fail(error.localizedDescription, suggestion: nil)
+            fail(error.localizedDescription, suggestion: nil, category: Self.isTransient(error) ? "network" : "server")
         }
     }
 
@@ -542,9 +579,10 @@ final class PlaybackController {
             }
             pendingDecision = decision
             phase = .consent
+            record?.beginUserWait()
             return
         case "rejected":
-            fail(decision.reason, suggestion: decision.suggestion)
+            fail(decision.reason, suggestion: decision.suggestion, category: "rejected")
             return
         default:
             consentGranted = false
@@ -594,6 +632,18 @@ final class PlaybackController {
         }
         playsOriginalFile = original || decision.tier == 0
         originMs = (playsOriginalFile || session.timeline == "file") ? 0 : session.startMs
+        if let record {
+            if record.tier < 0 {
+                // 这次播放的第一个会话：起播位置与是不是续播（服务端按观看状态定的起点）
+                record.startPositionMs = session.startMs
+                record.resumed = requestedStartMs == nil && session.startMs > 0
+            }
+            record.tier = decision.tier ?? -1
+            record.degradedFrom = decision.degradedFrom
+            record.libraryFileId = fileId
+            record.hwBackend = session.hwBackend ?? ""
+            record.event("session", "会话：档 \(decision.tier ?? -1)\(original ? " 原文件" : " 服务端流")\(decision.degradedFrom.map { "（从档 \($0) 降下）" } ?? "")")
+        }
         if requestedStartMs == nil || positionMs == 0 { positionMs = session.startMs }
         if let duration = session.watch?.durationMs { durationMs = duration }
         self.session = session
@@ -673,6 +723,7 @@ final class PlaybackController {
         }
         retire(engine)
         engine = newEngine
+        record?.engine = newEngine.kind.rawValue
         speedLabel = nil
         newEngine.onEvent = { [weak self, weak newEngine] event in
             guard let self, let newEngine, self.engine === newEngine else { return }
@@ -765,13 +816,15 @@ final class PlaybackController {
 
     /// 片源不在了（服务端对原文件回 404）：换什么播放器都一样，直接说明
     private func failSourceMissing() {
-        fail("服务器上找不到这个文件", suggestion: "文件可能被移动、删除，或存放它的磁盘没有挂上。检查后点「重试」。")
+        fail("服务器上找不到这个文件", suggestion: "文件可能被移动、删除，或存放它的磁盘没有挂上。检查后点「重试」。",
+             category: "source_missing")
     }
 
-    private func fail(_ message: String, suggestion: String?) {
+    private func fail(_ message: String, suggestion: String?, category: String = "unknown") {
         #if DEBUG
         print("[PlayerError] \(message)｜\(suggestion ?? "-")")
         #endif
+        record?.noteError(message: message, kind: (engine as? NativeEngine)?.lastFailureKind, category: category, stage: recordStage)
         engine?.pause()
         phase = .error
         errorMessage = message
@@ -809,7 +862,8 @@ final class PlaybackController {
         }
         #endif
         nativeFailed = true
-        scope.clientLog("engine-fallback", [
+        record?.noteFallback(reason: reason)
+        log("engine-fallback", [
             "from": .string("native"), "reason": .string(reason),
             "media_item_id": .int(unit.mediaItemId),
         ])
@@ -825,6 +879,10 @@ final class PlaybackController {
     // MARK: - 用户操作：重试 / 同意
 
     func retry() {
+        // 错误页上点重试：上一次播放以失败收尾，这是新的一次
+        record?.noteBehavior("retry")
+        endRecord()
+        beginRecord(origin: .retry, at: nil)
         failedTiers = []
         failureCount = 0
         networkRestarts.reset()
@@ -841,6 +899,7 @@ final class PlaybackController {
             throw APIError.http(status: 500, message: "软件转码开关保存后未生效，请重试或查看服务端日志", code: nil)
         }
         consentGranted = true
+        record?.endUserWait()
         request(startMs: positionMs, phase: .deciding)
     }
 
@@ -851,26 +910,19 @@ final class PlaybackController {
         case .playing:
             let wasPaused = paused
             paused = false
+            record?.notePlaying()
             if let since = seekStartedAt {
                 qoe.lastSeekMs = Int(Date().timeIntervalSince(since) * 1000)
                 seekStartedAt = nil
-                #if DEBUG
-                if let trace = seekTrace, let spent = qoe.lastSeekMs {
-                    seekTrace = nil
-                    FileHandle.standardError.write(Data(
-                        "[SeekTrace] \(trace.fromMs / 1000) → \(trace.toMs / 1000) 秒（\(trace.buffered ? "缓冲内" : "缓冲外")）耗时 \(spent) 毫秒\n".utf8))
-                }
-                #endif
             }
+            // 系统播放器不报「落点画面到了」：以恢复播放为准（自研引擎等 `.seekPresented`）
+            if engine?.kind == .avPlayer, let spent = record?.seekPresented() { qoe.lastSeekMs = spent }
             guard [.buffering, .playing, .ended].contains(phase) else { return }
             if phase == .buffering, qoe.bufferingSince != nil { qoe.endRebuffer() }
             phase = .playing
             failureCount = 0
             networkRestarts.reachedPlaying()
             reconnectBackoff.reset()
-            if qoe.ttffMs == nil, let requestedAt = qoe.requestedAt {
-                qoe.ttffMs = Int(Date().timeIntervalSince(requestedAt) * 1000)
-            }
             if !memoryNoticeChecked {
                 // 出画这一刻提示（转圈时提示会被忽略）
                 memoryNoticeChecked = true
@@ -917,6 +969,7 @@ final class PlaybackController {
         case .paused:
             paused = true
             seekStartedAt = nil
+            if engine?.kind == .avPlayer, let spent = record?.seekPresented() { qoe.lastSeekMs = spent }
             // 引擎已就绪却停在「缓冲」（暂停中拖动、以暂停状态起播）：回到正常态，否则转圈不消、10 秒心跳也停发，
             // 活动页几分钟后就把这个会话丢了
             if phase == .buffering, engine?.duration != nil {
@@ -941,7 +994,7 @@ final class PlaybackController {
             if prematureEnd.shouldResume(positionMs: positionMs, durationMs: durationMs) {
                 // 离片尾还远就报播完：取流断了（直出遇上服务端重启就可能这样），从当前位置重开，
                 // 不进「已播完」——否则弹出「即将播放下一集」并把进度报成停在半路
-                scope.clientLog("premature-end", [
+                log("premature-end", [
                     "engine": .string(engine?.kind.rawValue ?? ""), "position_ms": .int(positionMs),
                     "duration_ms": durationMs.map { .int($0) } ?? .null,
                 ])
@@ -950,23 +1003,35 @@ final class PlaybackController {
             }
             phase = .ended
             paused = true
+            record?.event("ended", "播完")
             // 引擎报「播完」不一定真到了片尾（断流也可能报 eof）：离片尾 5 秒内才吸附到片长，
             // 否则按真实位置上报——片长会让服务端直接标「已看」
             if let durationMs, durationMs - positionMs <= 5000 { positionMs = durationMs }
             if reportedStart { sendProgress(paused: true) }
         case let .failed(reason, cause):
+            record?.noteEngineFailure(reason: reason, kind: (engine as? NativeEngine)?.lastFailureKind, cause: "\(cause)")
             engineReportedFailure(reason: reason, cause: cause)
         case let .pictureInPicture(active):
             pipActive = active
+            record?.event("pip", active ? "进入画中画" : "退出画中画")
         case .tracksChanged:
             adoptEngineTracks()
         case let .milestone(milestone):
             switch milestone {
             case .ready: trace.mark("就绪")
             case .seeked: trace.mark("定位")
-            case .firstFrame: trace.mark("首帧")
+            case .firstFrame:
+                trace.mark("首帧")
+                record?.noteFirstFrame()
+                updateRecordDelivery()
             }
             reportStartupIfComplete()
+        case let .startupStage(name):
+            record?.noteEngineStage(name)
+        case .seekPresented:
+            if let spent = record?.seekPresented() { qoe.lastSeekMs = spent }
+        case .seekFailed:
+            record?.closeSeek(outcome: "failed")
         }
     }
 
@@ -974,6 +1039,7 @@ final class PlaybackController {
     /// 引擎给不出首帧信号时（极少数流），开始播放 3 秒后照样报，只是缺「首帧」一项
     private func reportStartupIfComplete(force: Bool = false) {
         guard trace.has("播放"), force || trace.has("首帧"), let marks = trace.finish() else { return }
+        record?.noteStartupMarks(marks.map { ($0.name, $0.ms) })
         var detail: [String: API.JSONValue] = [
             "engine": .string(engine?.kind.rawValue ?? ""),
             "tier": session?.decision.tier.map { .int($0) } ?? .null,
@@ -986,7 +1052,7 @@ final class PlaybackController {
         #if DEBUG
         print("[StartupTrace] \(engine?.kind.rawValue ?? "-") 档 \(session?.decision.tier ?? -1) \(playsOriginalFile ? "原文件" : "服务端流")：\(StartupTrace.summary(marks))")
         #endif
-        scope.clientLog("startup", detail)
+        log("startup", detail)
     }
 
     /// 引擎报的失败。自研引擎直出原文件时报「解不了」，先探一下片源取不取得到：起播那一刻断线、超时，
@@ -1019,7 +1085,7 @@ final class PlaybackController {
     /// 确定解不了才换播放器 / 降档；线路慢不会走到这里
     private func engineFailed(reason: String, cause: EngineFailureCause) {
         guard !failureInFlight, [.buffering, .playing, .ended].contains(phase), let session else { return }
-        scope.clientLog("playback-error", [
+        log("playback-error", [
             "engine": .string(engine?.kind.rawValue ?? ""), "reason": .string(reason),
             "tier": session.decision.tier.map { .int($0) } ?? .null,
         ])
@@ -1039,33 +1105,37 @@ final class PlaybackController {
         case .reconnect:
             // 断线、token 过期、服务端重启：同引擎、同片源原地重开（新会话 = 新 token）。原文件直出先等片源取得到
             // （awaitSourceThenReconnect）；服务端还没起来时重开请求本身会失败，按退避重试（ReconnectBackoff），见 performRequest
-            scope.clientLog("network-restart", ["reason": .string(reason), "attempt": .int(networkRestarts.consecutive)])
+            log("network-restart", ["reason": .string(reason), "attempt": .int(networkRestarts.consecutive)])
+            record?.beginReconnect(reason: reason)
             if nativeOriginal, let probeURL = sourceProbeURL {
                 awaitSourceThenReconnect(reason: reason, probeURL: probeURL)
             } else {
                 request(startMs: positionMs, phase: .sessionStarting)
             }
         case .retryNative:
-            scope.clientLog("native-retry", ["reason": .string(reason)])
+            log("native-retry", ["reason": .string(reason)])
+            record?.event("native_retry", "原位重开：\(reason)")
             flash("播放出了点问题，正在原位重开")
             request(startMs: positionMs, phase: .sessionStarting)
         case .retryNativeLowStorage:
-            scope.clientLog("native-retry", ["reason": .string(reason), "low_storage": .bool(true)])
+            log("native-retry", ["reason": .string(reason), "low_storage": .bool(true)])
+            record?.event("native_retry", "存储不足，收小缓存重开：\(reason)")
             forceMinimalStorage = true
             flash("手机存储空间不足，已减小缓存后继续播放")
             request(startMs: positionMs, phase: .sessionStarting)
         case .failSourceMissing:
-            scope.clientLog("source-missing", ["reason": .string(reason)])
+            log("source-missing", ["reason": .string(reason)])
             failSourceMissing()
         case .failNetwork:
-            scope.clientLog("network-restart-exhausted", ["reason": .string(reason)])
-            fail("连接中断，重连了几次都没成功（\(reason)）", suggestion: "检查网络后点「重试」，会从刚才的位置接着放。")
+            log("network-restart-exhausted", ["reason": .string(reason)])
+            fail("连接中断，重连了几次都没成功（\(reason)）", suggestion: "检查网络后点「重试」，会从刚才的位置接着放。",
+                 category: "network")
         case .fallbackToServerStream:
             nativeFallback(reason: reason)
         case .stepDownTier:
             if cause == .network {
                 // 服务端流连续重开都没能出画：「网络」归因多半不对，按这一档放不了往下走
-                scope.clientLog("network-restart-exhausted", ["reason": .string(reason)])
+                log("network-restart-exhausted", ["reason": .string(reason)])
             }
             stepDownTier(reason: reason, session: session)
         }
@@ -1094,8 +1164,9 @@ final class PlaybackController {
                 case let .unreachable(why):
                     guard let delay = backoff.nextDelay() else {
                         self.failureInFlight = false
-                        self.scope.clientLog("network-restart-exhausted", ["reason": .string(why)])
-                        self.fail("连接中断，重连了几次都没成功（\(why)）", suggestion: "检查网络后点「重试」，会从刚才的位置接着放。")
+                        self.log("network-restart-exhausted", ["reason": .string(why)])
+                        self.fail("连接中断，重连了几次都没成功（\(why)）", suggestion: "检查网络后点「重试」，会从刚才的位置接着放。",
+                                  category: "network")
                         return
                     }
                     #if DEBUG
@@ -1120,7 +1191,7 @@ final class PlaybackController {
         failedTiers = accumulated.sorted()
         failureCount += 1
         if tier >= 4 {
-            fail(reason, suggestion: "可以换一个版本重试；若反复出现，请打开「⋯ → 播放诊断」查看原因。")
+            fail(reason, suggestion: "可以换一个版本重试；若反复出现，请打开「⋯ → 播放诊断」查看原因。", category: "decode")
             return
         }
         request(startMs: positionMs, phase: .degrading)
@@ -1131,7 +1202,7 @@ final class PlaybackController {
     func togglePlay() {
         guard let engine else { return }
         if phase == .ended {
-            seek(toFileMs: 0)
+            seek(toFileMs: 0, source: .restart)
             wantsPlay = true
             engine.play()
             return
@@ -1167,20 +1238,21 @@ final class PlaybackController {
     func pause() { if engine?.isPaused == false { togglePlay() } }
 
     /// 相对跳转（±10 秒按钮、双击、锁屏遥控）：按关键帧，快
-    func seek(by seconds: Double) {
-        seek(toFileMs: positionMs + Int(seconds * 1000), exact: false)
+    func seek(by seconds: Double, source: PlaybackRecord.SeekSource = .unknown) {
+        seek(toFileMs: positionMs + Int(seconds * 1000), exact: false, source: source)
     }
 
-    /// 跳到文件时间（毫秒）
-    func seek(toFileMs raw: Int, exact: Bool = true) {
+    /// 跳到文件时间（毫秒）。`source` 进播放记录（按键 / 拖动 / 锁屏……分开看哪种慢）
+    func seek(toFileMs raw: Int, exact: Bool = true, source: PlaybackRecord.SeekSource = .unknown) {
         // 先夹进片长之内：越过片尾的落点会开出一个什么也转不出来的会话
         var target = max(0, raw)
         if let durationMs, durationMs > 1000 { target = min(target, durationMs - 1000) }
-        qoe.seekCount += 1
         scrubFollowTask?.cancel()
+        let buffered = bufferedEndMs.map { target >= positionMs && target <= $0 } ?? false
         guard let engine, session != nil, phase != .sessionStarting, phase != .deciding, phase != .degrading else {
             // 会话正在重开的空档：改走换会话，新会话直接从目标位置起
             if phase.isBusy, session == nil, phase != .deciding || positionMs > 0 {
+                record?.beginSeek(source: source, fromMs: positionMs, toMs: target, buffered: false, paused: !wantsPlay, restart: true)
                 positionMs = target
                 request(startMs: target, phase: .sessionStarting)
             }
@@ -1188,13 +1260,12 @@ final class PlaybackController {
         }
         if session?.timeline == "session", activeSessionId != nil, !withinSessionBuffer(target) {
             // 旧式会话相对列表只覆盖已转出的部分：落点在区间外才换会话，区间内原地跳（同 Web planSeek）
+            record?.beginSeek(source: source, fromMs: positionMs, toMs: target, buffered: false, paused: engine.isPaused, restart: true)
             positionMs = target
             request(startMs: target, phase: .sessionStarting)
             return
         }
-        #if DEBUG
-        seekTrace = (positionMs, target, bufferedEndMs.map { target >= positionMs && target <= $0 } ?? false)
-        #endif
+        record?.beginSeek(source: source, fromMs: positionMs, toMs: target, buffered: buffered, paused: engine.isPaused, restart: false)
         positionMs = target
         if phase == .ended { phase = .buffering }
         seekStartedAt = Date()
@@ -1216,6 +1287,8 @@ final class PlaybackController {
     /// 原文件直出拖出缓冲时只在手指停住后跟一次，其余情况松手才跳。跟随不计入 seek 次数，松手那次才算
     func scrubFollow(toFileMs target: Int) {
         guard let engine, session != nil, [.playing, .buffering, .ended].contains(phase) else { return }
+        // 连续拖动的跳转耗时以第一次拖动为起点（松手那次 seek 结束计时）
+        record?.noteScrubActivity()
         let reachable = target >= originMs
         let cheap = target >= positionMs - 1000 && target <= (bufferedEndMs ?? 0)
         let now = Date()
@@ -1279,14 +1352,23 @@ final class PlaybackController {
 
     /// 换音轨：自研引擎直出原文件时原地切换；否则带着当前位置重开会话（服务端流的音轨在开会话时就定死了）
     func selectAudio(_ ref: String) {
+        let previous = currentAudio
         requestedAudio = ref
+        if ref != previous {
+            record?.noteAudioChange(from: previous, to: ref)
+            // 新音轨出声才算换完：自研引擎原地重载后出首帧、服务端流是新会话的首帧（见 noteFirstFrame）
+            record?.beginSwitch(kind: "audio", from: previous, to: ref)
+        }
         if let engine, engine.canSwitchAudioInPlace, let index = AudioOption(ref: ref, label: "", isDefault: false).embeddedIndex {
             engine.selectAudio(embeddedIndex: index)
             currentAudio = ref
             sendProgress(paused: engine.isPaused)
             return
         }
-        guard ref != (session?.decision.audio?.trackRef) else { return }
+        guard ref != (session?.decision.audio?.trackRef) else {
+            record?.closeSwitch(immediate: true)
+            return
+        }
         wantsPlay = true
         request(startMs: positionMs, phase: .sessionStarting)
     }
@@ -1313,6 +1395,15 @@ final class PlaybackController {
     var graphicSubtitlesBurnIn: Bool { engine?.kind == .avPlayer || (engine != nil && !playsOriginalFile) }
 
     func selectSubtitle(_ ref: String?) {
+        if ref != selectedSubtitle {
+            record?.noteSubtitleChange(from: selectedSubtitle, to: ref)
+            record?.beginSwitch(kind: "subtitle", from: selectedSubtitle, to: ref)
+        }
+        // 不用重开会话的切换即刻生效；要服务端压制 / 撤下压制的等新会话首帧
+        defer {
+            if phase != .sessionStarting { record?.closeSwitch(immediate: true) }
+            updateRecordDelivery()
+        }
         subtitleTouched = true
         selectedSubtitle = ref
         let target = ref.flatMap { ref in subtitles.options.first { $0.ref == ref } }
@@ -1418,6 +1509,12 @@ final class PlaybackController {
     }
 
     func selectQuality(_ maxHeight: Int?) {
+        if maxHeight != quality {
+            record?.noteBehavior("quality_change", from: quality.map(String.init) ?? "auto", to: maxHeight.map(String.init) ?? "auto")
+            record?.beginSwitch(kind: "quality", from: quality.map(String.init), to: maxHeight.map(String.init))
+        }
+        // 视频直通且源不超所选档时不用重开：即刻生效
+        defer { if phase != .deciding { record?.closeSwitch(immediate: true) } }
         qualityFromMemory = false
         if scope.shareSlug == nil {
             // 上限不低于片源等于没限：记成「自动」，下次打开照样由自研引擎直出原文件
@@ -1452,7 +1549,7 @@ final class PlaybackController {
         let sourceHeight = Self.height(of: session?.source?.resolution)
         let currentHeight = quality.map { cap in sourceHeight.map { min($0, cap) } ?? cap } ?? sourceHeight
         guard let offer = qualitySuggestion.offer(streamBitrate: bitrate, currentHeight: currentHeight) else { return }
-        scope.clientLog("quality-suggestion", [
+        log("quality-suggestion", [
             "measured_bps": .int(Int(offer.measuredBps)), "required_bps": .int(Int(offer.requiredBps)),
             "suggested_height": .int(offer.maxHeight), "engine": .string(engine.kind.rawValue),
         ])
@@ -1473,7 +1570,7 @@ final class PlaybackController {
     /// 开发期：模拟一次断线重连（PlayerScreen 的 -mcAutoReconnect）：新会话、新令牌、新的引擎实例，
     /// 验证片源字节缓存跨引擎实例接得上
     func debugReconnect() {
-        scope.clientLog("network-restart", ["reason": .string("debug"), "attempt": .int(0)])
+        log("network-restart", ["reason": .string("debug"), "attempt": .int(0)])
         request(startMs: positionMs, phase: .sessionStarting)
     }
     #endif
@@ -1481,7 +1578,7 @@ final class PlaybackController {
     /// 接受提议：改用推荐的画质（服务端转码）
     func acceptQualityOffer() {
         guard let offer = qualityOffer else { return }
-        scope.clientLog("quality-suggestion-accepted", ["suggested_height": .int(offer.maxHeight)])
+        log("quality-suggestion-accepted", ["suggested_height": .int(offer.maxHeight)])
         dismissQualityOffer()
         selectQuality(offer.maxHeight)
     }
@@ -1497,12 +1594,20 @@ final class PlaybackController {
 
     func setBackgrounded(_ background: Bool) {
         backgrounded = background
+        record?.event(background ? "background" : "foreground", background ? "切到后台" : "回到前台")
+        if !background { record?.beginSwitch(kind: "resume", from: nil, to: nil) }
         // 切后台先把当前位置报上去：之后 App 可能被挂起、被系统回收，等不到下一次心跳（同网页 visibilitychange）
         if background, reportedStart { sendProgress(paused: engine?.isPaused) }
         // 后台时引擎主动丢帧 / 不出画，回来先清窗口，免得误判卡顿与掉帧
         resetWatchdogs()
         if !background { qualitySuggestion.restartGrace() }
         engine?.setBackgrounded(background)
+        if !background, !((engine as? NativeEngine)?.rebuiltOnForeground ?? false) {
+            // 管线没被拆：画面一直都在，回前台即刻可看；拆过的要等重建后的首帧（见 noteFirstFrame）
+            record?.closeSwitch(immediate: true)
+        }
+        // 切后台时刷一次「正在播放」标记：暂停着被系统回收是正常退出，不是异常
+        markRecordActive()
         if !background, let activeSessionId {
             // 回前台先探一次活：后台期间心跳可能被系统挂起、会话已被回收
             Task { await ping(activeSessionId) }
@@ -1568,6 +1673,8 @@ final class PlaybackController {
 
     /// App 即将被结束：同步补发 stop（最多等 1.5 秒）
     private func reportTermination() {
+        // 播放记录先落盘（进程马上要退出，发送留给下次启动补发）
+        endRecord(terminating: true)
         guard reportedStart else { return }
         reportedStart = false
         scope.stopBeforeTermination(unit, positionMs: positionMs, durationMs: durationMs, audio: audioMemory, subtitle: subtitleMemory)
@@ -1582,20 +1689,6 @@ final class PlaybackController {
         engine?.pause()
         leaveUnit()
         fail("管理员已结束本次播放", suggestion: "稍后可以重新开始播放；观看进度已经保存。")
-    }
-
-    private func reportMetric() {
-        guard let decision = session?.decision, let tier = decision.tier else { return }
-        let stats = engine?.stats()
-        qoe.flushWatched()
-        guard qoe.watchedMs > 0 || qoe.ttffMs != nil else { return }
-        scope.metric(API.PlaybackMetricPayload(
-            libraryFileId: decision.fileId, tier: tier, degradedFrom: decision.degradedFrom,
-            engine: engine?.kind.rawValue ?? "", hwBackend: session?.hwBackend ?? "",
-            ttffMs: qoe.ttffMs, rebufferMs: qoe.rebufferMs, rebufferCount: qoe.rebufferCount,
-            seekCount: qoe.seekCount, droppedFrames: stats?.droppedFrames, totalFrames: stats?.totalFrames,
-            watchedMs: qoe.watchedMs
-        ))
     }
 
     // MARK: - 读数循环（4Hz 位置 / 1Hz 速度）
@@ -1615,6 +1708,7 @@ final class PlaybackController {
     }
 
     private func tickPosition() {
+        defer { sampleRecordPlayhead() }
         guard let engine, session != nil, [.buffering, .playing].contains(phase) else { return }
         let stream = engine.currentTime
         let file = originMs + Int(stream * 1000)
@@ -1642,6 +1736,13 @@ final class PlaybackController {
         runWatchdogs(engine: engine, stats: stats)
         feedQualitySuggestion(engine: engine, stats: stats)
         nowPlaying.updatePosition(controller: self)
+        record?.sampleFrames(presented: (engine as? NativeEngine)?.presentedFrameCount, positionMs: positionMs,
+                             active: recordWatching && phase == .playing)
+        recordTick += 1
+        if recordTick % 10 == 0 {
+            record?.sampleResources(downlinkBps: lastDownlinkBps)
+            markRecordActive()
+        }
         #if DEBUG
         // 开发期：每 10 秒一行设备体征（引擎能耗对比用，口径见 DeviceVitals）
         vitalsTick += 1
@@ -1688,7 +1789,8 @@ final class PlaybackController {
         case .ok:
             break
         case .nudge:
-            scope.clientLog("stall-nudge", ["position_ms": .int(positionMs)])
+            log("stall-nudge", ["position_ms": .int(positionMs)])
+            record?.event("stall_nudge", "卡住不走，推一下播放头")
             engine.seek(to: engine.currentTime + StallWatch.nudgeStep, exact: true)
             engine.play()
         case .decodeStalled:
@@ -1806,6 +1908,113 @@ final class PlaybackController {
         return RememberedChoices.notice(quality: qualityLimit, network: network, audio: audio, subtitle: subtitle)
     }
 
+    // MARK: - 播放记录（docs/design/playback-qoe.md）
+
+    /// 新的一次播放：切集（含进入播放器的第一个单元）、错误页上重试
+    private func beginRecord(origin: PlaybackRecord.Origin, at instant: ContinuousClock.Instant?) {
+        guard scope.telemetry else { return }
+        PlaybackReportQueue.recoverAbnormalExit()
+        record = PlaybackRecord(unit: unit, origin: origin, startedAt: instant)
+        recordWatchedBaseline = qoe.watchedMs
+        recordTick = 0
+    }
+
+    /// 结束这次播放并上报（所有结局都报）。`terminating` = App 马上退出，只落盘不发送
+    private func endRecord(forceOutcome: PlaybackRecord.Outcome? = nil, terminating: Bool = false) {
+        guard let record else { return }
+        self.record = nil
+        record.noteLeaving()
+        qoe.flushWatched()
+        let outcome = forceOutcome ?? record.outcome(
+            phaseIsError: phase == .error, phaseIsEnded: phase == .ended, positionMs: positionMs, durationMs: durationMs
+        )
+        let payload = recordPayload(record, outcome: outcome)
+        #if DEBUG
+        print("[PlaybackRecord] \(record.id) 结局=\(outcome.rawValue) 首帧=\(payload.firstFrameMs.map(String.init) ?? "-") 毫秒 跳转 \(payload.seekCount ?? 0) 次 卡顿 \(payload.rebufferCount ?? 0) 次/\(payload.rebufferMs ?? 0) 毫秒 错误=\(record.errorKind.isEmpty ? "-" : record.errorKind)")
+        #endif
+        if terminating {
+            PlaybackReportQueue.markActive(payload, api: scope.api)
+        } else {
+            PlaybackReportQueue.submit(payload, api: scope.api)
+        }
+    }
+
+    private func recordPayload(_ record: PlaybackRecord, outcome: PlaybackRecord.Outcome) -> API.PlaybackMetricPayload {
+        let stats = engine?.stats()
+        // 失败、画面冻过才附引擎日志尾巴（平常不报）
+        let wantsLog = outcome == .failed || outcome == .abnormalExit || record.sawFreeze || !record.errorKind.isEmpty
+        return record.payload(
+            outcome: outcome, network: network, positionMs: positionMs, durationMs: durationMs,
+            watchedMs: max(0, qoe.watchedMs - recordWatchedBaseline),
+            droppedFrames: stats?.droppedFrames, totalFrames: stats?.totalFrames,
+            logTail: wantsLog && engine?.kind == .native ? NativeEngine.recentEngineLog() : nil
+        )
+    }
+
+    /// 刷新「正在播放」标记：这次播放要是没能正常收尾（闪退、被系统杀掉），下次启动据此补报。
+    /// 在后台且暂停着时写成「中途退出」：那时被系统回收是正常的
+    private func markRecordActive() {
+        guard let record else { return }
+        let outcome: PlaybackRecord.Outcome = backgrounded && !wantsPlay ? .exited : .abnormalExit
+        PlaybackReportQueue.markActive(recordPayload(record, outcome: outcome), api: scope.api)
+    }
+
+    /// 用户在看：画面出过、想看、不在后台
+    private var recordWatching: Bool {
+        record?.firstFrameAt != nil && wantsPlay && !backgrounded && !closed
+    }
+
+    /// 每 250 毫秒：播放头 0.5 秒不走就是卡顿（引擎报不报缓冲都算；跳转、换轨中的等待不算）
+    private func sampleRecordPlayhead() {
+        guard let record else { return }
+        let active = recordWatching && [.buffering, .playing, .sessionStarting, .degrading, .deciding].contains(phase)
+        record.samplePlayhead(positionMs, active: active) { [self] in
+            if record.reconnecting { return "reconnect" }
+            if phase == .sessionStarting || phase == .degrading || phase == .deciding { return "restart" }
+            guard let stats = engine?.stats() else { return "unknown" }
+            if stats.bufferedSeconds >= 3 { return "decode" }
+            return (stats.loadingBps ?? 0) > 0 ? "slow_network" : "network"
+        }
+    }
+
+    /// 规格快照（首帧、换字幕、音频输出变化时刷新）
+    private func updateRecordDelivery() {
+        guard let record, let session, engine != nil else { return }
+        let native = engine as? NativeEngine
+        let facts = native?.deliveryFacts()
+        let route: String = if playsOriginalFile {
+            facts?.route == "software" ? "software" : "loopback"
+        } else {
+            (session.decision.tier ?? 0) >= 2 ? "server_transcode" : "server_remux"
+        }
+        record.route = route
+        let subtitleMode = if burnedSubtitle != nil {
+            "burned"
+        } else if selectedSubtitle == nil {
+            "none"
+        } else {
+            engineRendersSubtitles ? "engine" : "overlay"
+        }
+        record.noteDelivery(PlaybackRecord.makeDelivery(
+            facts: facts, session: session, playsOriginalFile: playsOriginalFile, route: route,
+            userCapped: qualityLimited, fallbackReason: nativeFailed ? "native_failed" : nil,
+            subtitleMode: subtitleMode, currentAudio: currentAudio
+        ))
+    }
+
+    /// 失败发生在哪一段：还没开成会话 / 开了会话还没出画 / 播放中
+    private var recordStage: String {
+        if record?.firstFrameAt != nil { return "playback" }
+        return session == nil ? "negotiation" : "startup"
+    }
+
+    /// 客户端事件日志（服务端按天日志）：一律带上播放编号，与服务端的「播放会话就绪」「首片供给」等行串起来
+    private func log(_ event: String, _ detail: [String: API.JSONValue]) {
+        var detail = detail
+        if let id = record?.id { detail["attempt_id"] = .string(id) }
+        scope.clientLog(event, detail)
+    }
+
     func flash(_ message: String) {
         notice = message
         noticeTask?.cancel()
@@ -1822,15 +2031,14 @@ final class PlaybackController {
     }
 }
 
-/// 一次播放的质量读数（对应 Web `lib/player/qoe.ts` 的归约结果）
+/// 诊断面板的实时读数（对应 Web `lib/player/qoe.ts` 的归约结果）与观看时长。
+/// 上报用的完整记录在 `PlaybackRecord`（docs/design/playback-qoe.md）
 private struct QoE {
     var requestedAt: Date?
     /// 最近一次 seek 从发出到重新出画的耗时（诊断面板「上次跳转 x 秒」）
     var lastSeekMs: Int?
-    var ttffMs: Int?
     var rebufferCount = 0
     var rebufferMs = 0
-    var seekCount = 0
     var watchedMs = 0
     var bufferingSince: Date?
     private var watchingSince: Date?

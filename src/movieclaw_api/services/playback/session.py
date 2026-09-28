@@ -55,6 +55,7 @@ from movieclaw_api.services.playback.ffmpeg_args import (
     segment_type,
 )
 from movieclaw_api.services.playback.limits import auto_quota_bytes
+from movieclaw_api.services.playback.qoe import note_transcode_session
 from movieclaw_api.services.playback.remote_signing import issue_remote_grant
 from movieclaw_api.services.playback.remote_worker import (
     RemoteWorkerUnavailable,
@@ -326,6 +327,10 @@ class TranscodeSession:
     #: 起会话的浏览器设备标识（web-<成员>-<浏览器>），管理员「结束播放」按它
     #: 找到并停掉这台浏览器的全部会话。
     device_id: str = ""
+    #: App 的播放编号（docs/design/playback-qoe.md §2）：会话结束时把摘要交给这次播放的记录
+    attempt_id: str | None = None
+    #: 首个分片距会话创建的毫秒数（起播最后一公里），交给播放记录用
+    first_segment_ms: int | None = None
     #: 跨会话复用的台账（§B）：非 None 表示目录按指纹命名、结束时不删而是
     #: 落台账供下一次认领；None = 旧行为（目录按会话 id 命名，结束即删）。
     manifest: Manifest | None = None
@@ -767,6 +772,7 @@ class TranscodeSessionManager:
         device_id: str = "",
         cache: bool = True,
         source_concat: str | None = None,
+        attempt_id: str | None = None,
     ) -> TranscodeSession:
         """起一个会话。playlist 出现即返回，不等全部分片转完。
 
@@ -804,6 +810,7 @@ class TranscodeSessionManager:
             file_id=plan.file_id,
             display_name=display_name,
             device_id=device_id,
+            attempt_id=attempt_id,
             member_id=member_id,
             tier=plan.tier,
             # 目录名默认就用会话 id：排查问题时看一眼盘上的目录就知道是哪个
@@ -1377,14 +1384,17 @@ class TranscodeSessionManager:
                 session.served_segments += 1
             if result is not None and not session.first_segment_served:
                 session.first_segment_served = True
+                session.first_segment_ms = int((time.monotonic() - session.created_at) * 1000)
                 # 起播链路的最后一公里：「会话就绪」只等到 playlist，画面
                 # 能动还要等首个分片转出来。首帧慢但「会话就绪」各段都快时，
                 # 差值就在这里（ffmpeg 起转到首片落盘 + 客户端发现延迟）
                 logger.info(
-                    "首片供给：session=%s seg=%05d 距会话创建 %.1f 秒（本次请求等待 %d 毫秒）",
+                    "首片供给：session=%s seg=%05d 距会话创建 %.1f 秒"
+                    "（本次请求等待 %d 毫秒 attempt=%s）",
                     session.id, index,
                     time.monotonic() - session.created_at,
                     int((time.monotonic() - waited_from) * 1000),
+                    session.attempt_id or "-",
                 )
             return result
         finally:
@@ -1997,7 +2007,7 @@ class TranscodeSessionManager:
         log = logger.warning if (error or session.segment_timeouts) else logger.info
         log(
             "转码会话结束：session=%s（%s）原因=%s · 档 %d %s · 持续 %.1f 分钟 · 供片 %d 段"
-            " · 重启 %d 次 · 等待超时 %d 次 · 最后请求第 %s 段%s",
+            " · 重启 %d 次 · 等待超时 %d 次 · 最后请求第 %s 段%s（attempt=%s）",
             session.id,
             session.display_name or "-",
             reason,
@@ -2009,6 +2019,24 @@ class TranscodeSessionManager:
             session.segment_timeouts,
             "-" if session.last_requested_segment is None else session.last_requested_segment,
             f" · 错误：{error[:500]}" if error else "",
+            session.attempt_id or "-",
+        )
+        # 播放体验打点（playback-qoe.md §5.3）：会话摘要交给这次播放，收尾时写进记录
+        note_transcode_session(
+            session.attempt_id,
+            {
+                "session_id": session.id,
+                "reason": reason,
+                "tier": int(session.tier),
+                "where": where,
+                "duration_s": round(time.monotonic() - session.created_at, 1),
+                "first_segment_ms": session.first_segment_ms,
+                "served_segments": session.served_segments,
+                "restarts": session.restart_generation,
+                "timeouts": session.segment_timeouts,
+                "last_segment_wait_ms": session.last_segment_wait_ms,
+                "error": error[:300] or None,
+            },
         )
 
     def touch_for_device(self, device_id: str) -> int:

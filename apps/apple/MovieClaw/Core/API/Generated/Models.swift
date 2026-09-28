@@ -5909,6 +5909,105 @@ nonisolated extension API {
         }
     }
 
+    /// 一次播放的完整记录与时间线（docs/design/playback-qoe.md §5.5）。
+    struct PlaybackAttemptView: Codable, Hashable, Sendable {
+        var attemptId: String
+        var status: String
+        var outcome: String
+        var client: String
+        var origin: String
+        var labScenario: String
+        var memberId: Int
+        var mediaItemId: Int?
+        var seasonNumber: Int?
+        var episodeNumber: Int?
+        var libraryFileId: Int?
+        var tier: Int
+        var degradedFrom: Int?
+        var engine: String
+        var route: String
+        var sourceClass: String
+        var networkClass: String
+        var interface: String
+        var appVersion: String
+        var firstFrameMs: Int?
+        var playingMs: Int?
+        var userWaitMs: Int
+        var seekInCount: Int
+        var seekInP90Ms: Int?
+        var seekInMaxMs: Int?
+        var seekOutCount: Int
+        var seekOutP90Ms: Int?
+        var seekOutMaxMs: Int?
+        var rebufferCount: Int
+        var rebufferMs: Int
+        var freezeCount: Int
+        var freezeMs: Int
+        var reconnectCount: Int
+        var reconnectMs: Int
+        var interruptCount: Int
+        var errorKind: String
+        var errorCategory: String
+        var errorStage: String
+        var avoidableLoss: Bool?
+        var misguessCount: Int
+        var undisturbed: Bool?
+        var watchedMs: Int
+        var createdAt: String
+        var endedAt: String?
+        var detail: [String: API.JSONValue]
+        var logTail: String
+
+        enum CodingKeys: String, CodingKey {
+            case attemptId = "attempt_id"
+            case status
+            case outcome
+            case client
+            case origin
+            case labScenario = "lab_scenario"
+            case memberId = "member_id"
+            case mediaItemId = "media_item_id"
+            case seasonNumber = "season_number"
+            case episodeNumber = "episode_number"
+            case libraryFileId = "library_file_id"
+            case tier
+            case degradedFrom = "degraded_from"
+            case engine
+            case route
+            case sourceClass = "source_class"
+            case networkClass = "network_class"
+            case interface
+            case appVersion = "app_version"
+            case firstFrameMs = "first_frame_ms"
+            case playingMs = "playing_ms"
+            case userWaitMs = "user_wait_ms"
+            case seekInCount = "seek_in_count"
+            case seekInP90Ms = "seek_in_p90_ms"
+            case seekInMaxMs = "seek_in_max_ms"
+            case seekOutCount = "seek_out_count"
+            case seekOutP90Ms = "seek_out_p90_ms"
+            case seekOutMaxMs = "seek_out_max_ms"
+            case rebufferCount = "rebuffer_count"
+            case rebufferMs = "rebuffer_ms"
+            case freezeCount = "freeze_count"
+            case freezeMs = "freeze_ms"
+            case reconnectCount = "reconnect_count"
+            case reconnectMs = "reconnect_ms"
+            case interruptCount = "interrupt_count"
+            case errorKind = "error_kind"
+            case errorCategory = "error_category"
+            case errorStage = "error_stage"
+            case avoidableLoss = "avoidable_loss"
+            case misguessCount = "misguess_count"
+            case undisturbed
+            case watchedMs = "watched_ms"
+            case createdAt = "created_at"
+            case endedAt = "ended_at"
+            case detail
+            case logTail = "log_tail"
+        }
+    }
+
     /// 进度条上的章节刻度（docs/design/player-feel.md §2.C1）。
     /// 只有起点与标题：预览图由 trickplay 雪碧图负责，章节图片再塞一份会把
     /// 起播响应撑大好几倍，而进度条上根本画不下。
@@ -6288,7 +6387,11 @@ nonisolated extension API {
         }
     }
 
-    /// 一次播放结束时上报的质量快照。指标口径按 CTA-2066，不自创。
+    /// 一次播放结束时上报的记录。指标口径按 CTA-2066，不自创。
+    /// 带 ``attempt_id`` 的是 docs/design/playback-qoe.md 口径的收尾上报：按编号合并进服务端在
+    /// 会话接口建好的那一行，**所有结局都报**（看完、中途退出、出画前退出、失败、异常退出）。
+    /// 不带编号的是网页播放器的旧口径整行快照，原样落库。
+    /// 数值超出上下界会被夹住、列表与明细超限会被截断（记一行警告），不拒收。
     struct PlaybackMetricPayload: Codable, Hashable, Sendable {
         var libraryFileId: Int?
         var tier: Int
@@ -6302,6 +6405,26 @@ nonisolated extension API {
         var droppedFrames: Int?
         var totalFrames: Int?
         var watchedMs: Int?
+        var attemptId: String?
+        var outcome: String?
+        var mediaItemId: Int?
+        var seasonNumber: Int?
+        var episodeNumber: Int?
+        var origin: String?
+        var client: String?
+        var labScenario: String?
+        var route: String?
+        var networkClass: String?
+        var interface: String?
+        var appVersion: String?
+        var firstFrameMs: Int?
+        var playingMs: Int?
+        var userWaitMs: Int?
+        var errorKind: String?
+        var errorCategory: String?
+        var errorStage: String?
+        var detail: [String: API.JSONValue]?
+        var logTail: String?
 
         enum CodingKeys: String, CodingKey {
             case libraryFileId = "library_file_id"
@@ -6316,6 +6439,26 @@ nonisolated extension API {
             case droppedFrames = "dropped_frames"
             case totalFrames = "total_frames"
             case watchedMs = "watched_ms"
+            case attemptId = "attempt_id"
+            case outcome
+            case mediaItemId = "media_item_id"
+            case seasonNumber = "season_number"
+            case episodeNumber = "episode_number"
+            case origin
+            case client
+            case labScenario = "lab_scenario"
+            case route
+            case networkClass = "network_class"
+            case interface
+            case appVersion = "app_version"
+            case firstFrameMs = "first_frame_ms"
+            case playingMs = "playing_ms"
+            case userWaitMs = "user_wait_ms"
+            case errorKind = "error_kind"
+            case errorCategory = "error_category"
+            case errorStage = "error_stage"
+            case detail
+            case logTail = "log_tail"
         }
     }
 
@@ -6378,6 +6521,30 @@ nonisolated extension API {
         }
     }
 
+    /// 播放体验统计（docs/design/playback-qoe.md §5.5）：北极星、快 / 稳 / 对、打扰原因、
+    /// 最差的播放。
+    struct PlaybackQoeStatsView: Codable, Hashable, Sendable {
+        var days: Int
+        var since: String
+        var includeLab: Bool
+        var groupBy: String?
+        var overall: API.QoeGroupStatsView
+        var groups: [API.QoeGroupView]
+        var reasons: [API.QoeReasonView]
+        var worst: [API.QoeAttemptBriefView]
+
+        enum CodingKeys: String, CodingKey {
+            case days
+            case since
+            case includeLab = "include_lab"
+            case groupBy = "group_by"
+            case overall
+            case groups
+            case reasons
+            case worst
+        }
+    }
+
     /// 开会话请求：在决策请求上多一个起播位置。
     struct PlaybackSessionRequest: Codable, Hashable, Sendable {
         var fileId: Int?
@@ -6392,6 +6559,8 @@ nonisolated extension API {
         var deviceId: String?
         var downlinkBps: Int?
         var startMs: Int?
+        var attemptId: String?
+        var client: String?
 
         enum CodingKeys: String, CodingKey {
             case fileId = "file_id"
@@ -6406,6 +6575,8 @@ nonisolated extension API {
             case deviceId = "device_id"
             case downlinkBps = "downlink_bps"
             case startMs = "start_ms"
+            case attemptId = "attempt_id"
+            case client
         }
     }
 
@@ -6812,6 +6983,162 @@ nonisolated extension API {
 
         enum CodingKeys: String, CodingKey {
             case text
+        }
+    }
+
+    /// 一次播放的摘要（统计里的「最差 N 条」与小样本明细）。
+    struct QoeAttemptBriefView: Codable, Hashable, Sendable {
+        var attemptId: String?
+        var createdAt: String?
+        var status: String?
+        var outcome: String?
+        var client: String?
+        var mediaItemId: Int?
+        var seasonNumber: Int?
+        var episodeNumber: Int?
+        var libraryFileId: Int?
+        var tier: Int?
+        var sourceClass: String?
+        var route: String?
+        var networkClass: String?
+        var firstFrameMs: Int?
+        var seekMaxMs: Int?
+        var interruptCount: Int?
+        var errorKind: String?
+        var avoidableLoss: Bool?
+        var misguessCount: Int?
+        var undisturbed: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case attemptId = "attempt_id"
+            case createdAt = "created_at"
+            case status
+            case outcome
+            case client
+            case mediaItemId = "media_item_id"
+            case seasonNumber = "season_number"
+            case episodeNumber = "episode_number"
+            case libraryFileId = "library_file_id"
+            case tier
+            case sourceClass = "source_class"
+            case route
+            case networkClass = "network_class"
+            case firstFrameMs = "first_frame_ms"
+            case seekMaxMs = "seek_max_ms"
+            case interruptCount = "interrupt_count"
+            case errorKind = "error_kind"
+            case avoidableLoss = "avoidable_loss"
+            case misguessCount = "misguess_count"
+            case undisturbed
+        }
+    }
+
+    /// 一组播放的体验统计。样本少于 30 条时各项为 null，改列 ``samples`` 明细——不编数字。
+    struct QoeGroupStatsView: Codable, Hashable, Sendable {
+        var attempts: Int
+        var reported: Int
+        var unreported: Int
+        var inProgress: Int
+        var smallSample: Bool
+        var undisturbedRate: Double?
+        var firstFrameMs: API.QoePercentilesView?
+        var seekInBufferMs: API.QoePercentilesView?
+        var seekOutBufferMs: API.QoePercentilesView?
+        var interruptsPerHour: Double?
+        var failureRate: Double?
+        var exitBeforeStartRate: Double?
+        var abnormalExitRate: Double?
+        var avoidableLossRate: Double?
+        var misguessRate: Double?
+        var samples: [API.QoeAttemptBriefView]?
+
+        enum CodingKeys: String, CodingKey {
+            case attempts
+            case reported
+            case unreported
+            case inProgress = "in_progress"
+            case smallSample = "small_sample"
+            case undisturbedRate = "undisturbed_rate"
+            case firstFrameMs = "first_frame_ms"
+            case seekInBufferMs = "seek_in_buffer_ms"
+            case seekOutBufferMs = "seek_out_buffer_ms"
+            case interruptsPerHour = "interrupts_per_hour"
+            case failureRate = "failure_rate"
+            case exitBeforeStartRate = "exit_before_start_rate"
+            case abnormalExitRate = "abnormal_exit_rate"
+            case avoidableLossRate = "avoidable_loss_rate"
+            case misguessRate = "misguess_rate"
+            case samples
+        }
+    }
+
+    struct QoeGroupView: Codable, Hashable, Sendable {
+        var attempts: Int
+        var reported: Int
+        var unreported: Int
+        var inProgress: Int
+        var smallSample: Bool
+        var undisturbedRate: Double?
+        var firstFrameMs: API.QoePercentilesView?
+        var seekInBufferMs: API.QoePercentilesView?
+        var seekOutBufferMs: API.QoePercentilesView?
+        var interruptsPerHour: Double?
+        var failureRate: Double?
+        var exitBeforeStartRate: Double?
+        var abnormalExitRate: Double?
+        var avoidableLossRate: Double?
+        var misguessRate: Double?
+        var samples: [API.QoeAttemptBriefView]?
+        var key: String
+        var label: String
+
+        enum CodingKeys: String, CodingKey {
+            case attempts
+            case reported
+            case unreported
+            case inProgress = "in_progress"
+            case smallSample = "small_sample"
+            case undisturbedRate = "undisturbed_rate"
+            case firstFrameMs = "first_frame_ms"
+            case seekInBufferMs = "seek_in_buffer_ms"
+            case seekOutBufferMs = "seek_out_buffer_ms"
+            case interruptsPerHour = "interrupts_per_hour"
+            case failureRate = "failure_rate"
+            case exitBeforeStartRate = "exit_before_start_rate"
+            case abnormalExitRate = "abnormal_exit_rate"
+            case avoidableLossRate = "avoidable_loss_rate"
+            case misguessRate = "misguess_rate"
+            case samples
+            case key
+            case label
+        }
+    }
+
+    /// 一组毫秒数的分位（最近秩法）。
+    struct QoePercentilesView: Codable, Hashable, Sendable {
+        var p50: Int?
+        var p90: Int?
+        var p99: Int?
+        var count: Int
+
+        enum CodingKeys: String, CodingKey {
+            case p50
+            case p90
+            case p99
+            case count
+        }
+    }
+
+    /// 打扰原因的帕累托：一种原因打扰了多少次播放。
+    struct QoeReasonView: Codable, Hashable, Sendable {
+        var reason: String
+        var label: String
+        var count: Int
+
+        enum CodingKeys: String, CodingKey {
+            case reason
+            case label
+            case count
         }
     }
 

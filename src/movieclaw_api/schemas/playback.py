@@ -645,6 +645,11 @@ class PlaybackSessionRequest(PlaybackDecideRequest):
     #: 没看完的接续播点——分享出去的链接因此天然「各看各的进度」。显式给值
     #: （含 0）原样照办：seek 重开、「从头开始」都走这条路。
     start_ms: int | None = None
+    #: 播放编号（docs/design/playback-qoe.md §2）：App 在用户点下时生成，断线重连、原位重开、
+    #: 降级、换画质都沿用同一个。服务端据此建「已开始」的记录，并写进取流令牌
+    attempt_id: str | None = Field(default=None, max_length=64)
+    #: 客户端类型（ios / web），只用于播放记录分组
+    client: str | None = Field(default=None, max_length=16)
 
 
 class PlaybackItemView(BaseModel):
@@ -818,13 +823,22 @@ class PlaybackClientLogPayload(BaseModel):
 
 
 class PlaybackMetricPayload(BaseModel):
-    """一次播放结束时上报的质量快照。指标口径按 CTA-2066，不自创。"""
+    """一次播放结束时上报的记录。指标口径按 CTA-2066，不自创。
+
+    带 ``attempt_id`` 的是 docs/design/playback-qoe.md 口径的收尾上报：按编号合并进服务端在
+    会话接口建好的那一行，**所有结局都报**（看完、中途退出、出画前退出、失败、异常退出）。
+    不带编号的是网页播放器的旧口径整行快照，原样落库。
+
+    数值超出上下界会被夹住、列表与明细超限会被截断（记一行警告），不拒收。
+    """
 
     library_file_id: int | None = None
+    #: 最终档位；还没定档就结束记 -1
     tier: int
     degraded_from: int | None = None
     engine: str = ""
     hw_backend: str = ""
+    #: 旧口径：点击播放 → 首帧（网页）。新口径看 ``first_frame_ms``
     ttff_ms: int | None = None
     rebuffer_ms: int = 0
     rebuffer_count: int = 0
@@ -832,6 +846,41 @@ class PlaybackMetricPayload(BaseModel):
     dropped_frames: int | None = None
     total_frames: int | None = None
     watched_ms: int = 0
+
+    # —— playback-qoe.md 口径 ——
+    attempt_id: str | None = Field(default=None, max_length=64)
+    #: watched / exited / exit_before_start / failed / abnormal_exit
+    outcome: str = ""
+    media_item_id: int | None = None
+    season_number: int | None = None
+    episode_number: int | None = None
+    #: tap / auto_next / deeplink
+    origin: str = ""
+    #: ios / web
+    client: str = ""
+    #: 实验室场景名（启动参数 -mcLab）；空 = 真实使用
+    lab_scenario: str = ""
+    #: loopback / software / remote_bypass / server_transcode
+    route: str = ""
+    #: home / away / unknown
+    network_class: str = ""
+    #: wifi / cellular / wired / other
+    interface: str = ""
+    app_version: str = ""
+    #: 点下 → 首帧出画 / 开始走（毫秒，已扣除 user_wait_ms）
+    first_frame_ms: int | None = None
+    playing_ms: int | None = None
+    user_wait_ms: int = 0
+    #: 最后一次错误：引擎错误类型原值、归类（network / source_missing / storage_full /
+    #: decode）、阶段
+    error_kind: str = ""
+    error_category: str = ""
+    error_stage: str = ""
+    #: 逐条明细：startup / seeks / switches / interruptions / delivery / behaviors / context /
+    #: resources / timeline（字段见 playback-qoe.md §3）
+    detail: dict = {}
+    #: 失败、异常退出或冻帧时附带的引擎日志尾巴（≤ 32 KB）
+    log_tail: str = ""
 
 
 class PlaybackStatsView(BaseModel):
@@ -849,3 +898,137 @@ class PlaybackStatsView(BaseModel):
     rebuffer_ratio: float | None = None
     dropped_ratio: float | None = None
     tier_counts: dict[int, int] = {}
+
+
+class QoePercentilesView(BaseModel):
+    """一组毫秒数的分位（最近秩法）。"""
+
+    p50: int | None = None
+    p90: int | None = None
+    p99: int | None = None
+    count: int = 0
+
+
+class QoeAttemptBriefView(BaseModel):
+    """一次播放的摘要（统计里的「最差 N 条」与小样本明细）。"""
+
+    attempt_id: str | None = None
+    created_at: str | None = None
+    status: str | None = None
+    outcome: str | None = None
+    client: str | None = None
+    media_item_id: int | None = None
+    season_number: int | None = None
+    episode_number: int | None = None
+    library_file_id: int | None = None
+    tier: int | None = None
+    source_class: str | None = None
+    route: str | None = None
+    network_class: str | None = None
+    first_frame_ms: int | None = None
+    seek_max_ms: int | None = None
+    interrupt_count: int | None = None
+    error_kind: str | None = None
+    avoidable_loss: bool | None = None
+    misguess_count: int | None = None
+    undisturbed: bool | None = None
+
+
+class QoeGroupStatsView(BaseModel):
+    """一组播放的体验统计。样本少于 30 条时各项为 null，改列 ``samples`` 明细——不编数字。"""
+
+    attempts: int = 0
+    reported: int = 0
+    unreported: int = 0
+    in_progress: int = 0
+    small_sample: bool = False
+    #: 北极星：无打扰播放率（只算已收尾且判定过的）
+    undisturbed_rate: float | None = None
+    first_frame_ms: QoePercentilesView | None = None
+    seek_in_buffer_ms: QoePercentilesView | None = None
+    seek_out_buffer_ms: QoePercentilesView | None = None
+    interrupts_per_hour: float | None = None
+    failure_rate: float | None = None
+    exit_before_start_rate: float | None = None
+    abnormal_exit_rate: float | None = None
+    avoidable_loss_rate: float | None = None
+    misguess_rate: float | None = None
+    samples: list[QoeAttemptBriefView] | None = None
+
+
+class QoeGroupView(QoeGroupStatsView):
+    key: str
+    label: str
+
+
+class QoeReasonView(BaseModel):
+    """打扰原因的帕累托：一种原因打扰了多少次播放。"""
+
+    reason: str
+    label: str
+    count: int
+
+
+class PlaybackQoeStatsView(BaseModel):
+    """播放体验统计（docs/design/playback-qoe.md §5.5）：北极星、快 / 稳 / 对、打扰原因、
+    最差的播放。"""
+
+    days: int
+    since: str
+    include_lab: bool
+    group_by: str | None = None
+    overall: QoeGroupStatsView
+    groups: list[QoeGroupView] = []
+    reasons: list[QoeReasonView] = []
+    worst: list[QoeAttemptBriefView] = []
+
+
+class PlaybackAttemptView(BaseModel):
+    """一次播放的完整记录与时间线（docs/design/playback-qoe.md §5.5）。"""
+
+    attempt_id: str
+    status: str
+    outcome: str
+    client: str
+    origin: str
+    lab_scenario: str
+    member_id: int
+    media_item_id: int | None = None
+    season_number: int | None = None
+    episode_number: int | None = None
+    library_file_id: int | None = None
+    tier: int
+    degraded_from: int | None = None
+    engine: str
+    route: str
+    source_class: str
+    network_class: str
+    interface: str
+    app_version: str
+    first_frame_ms: int | None = None
+    playing_ms: int | None = None
+    user_wait_ms: int
+    seek_in_count: int
+    seek_in_p90_ms: int | None = None
+    seek_in_max_ms: int | None = None
+    seek_out_count: int
+    seek_out_p90_ms: int | None = None
+    seek_out_max_ms: int | None = None
+    rebuffer_count: int
+    rebuffer_ms: int
+    freeze_count: int
+    freeze_ms: int
+    reconnect_count: int
+    reconnect_ms: int
+    interrupt_count: int
+    error_kind: str
+    error_category: str
+    error_stage: str
+    avoidable_loss: bool | None = None
+    misguess_count: int
+    undisturbed: bool | None = None
+    watched_ms: int
+    created_at: str
+    ended_at: str | None = None
+    detail: dict = {}
+    log_tail: str = ""

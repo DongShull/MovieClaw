@@ -13,7 +13,7 @@ from pathlib import Path as PathLib
 from typing import Annotated, Literal, TypeVar
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Header, Path, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Path, Query, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -34,6 +34,7 @@ from movieclaw_api.schemas.playback import (
     HwProbeView,
     MediaActivityView,
     PlaybackArtifactUploadView,
+    PlaybackAttemptView,
     PlaybackChapterMarkView,
     PlaybackClientLogPayload,
     PlaybackDecideRequest,
@@ -51,6 +52,7 @@ from movieclaw_api.schemas.playback import (
     PlaybackPolicyPayload,
     PlaybackPolicyView,
     PlaybackProgressRequest,
+    PlaybackQoeStatsView,
     PlaybackSessionRequest,
     PlaybackSessionView,
     PlaybackSourceView,
@@ -72,7 +74,7 @@ from movieclaw_api.services.library.access import (
 from movieclaw_api.services.library.items import build_season_episodes, episode_view
 from movieclaw_api.services.media_probe import probe_keyframe_before
 from movieclaw_api.services.playback import marks as playback_marks
-from movieclaw_api.services.playback import metrics, track_memory, trickplay
+from movieclaw_api.services.playback import metrics, qoe, track_memory, trickplay
 from movieclaw_api.services.playback import plan as playback_plan
 from movieclaw_api.services.playback import warmup as playback_warmup
 from movieclaw_api.services.playback import watch as playback_watch
@@ -831,10 +833,6 @@ def playlist_with_tokens(playlist: str, token: str) -> str:
     return "".join(lines)
 
 
-#: 攒到这个行数就顺手裁一次。指标是趋势数据不是台账。
-_METRIC_PURGE_TRIGGER = 3000
-
-
 def _share_stream_kwargs(principal: Principal) -> dict[str, int]:
     """分享访客的取流 token 附加项：带分享 id（字节面据此回查分享是否仍有效），
     有效期不超过分享到期剩余（docs/design/media-share.md §4.3）。成员为空。"""
@@ -923,6 +921,8 @@ async def _decide(
 )
 async def start_playback_session(
     payload: PlaybackSessionRequest,
+    response: Response,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[PlaybackSessionView]:
@@ -935,9 +935,35 @@ async def start_playback_session(
     从头播）、``audio_track`` 缺省时用上次听的那条轨，整份状态随响应带回。
     起播链路因此不用先问一次 ``/resume``——省一个串行往返，分享出去的链接
     也天然「各看各的进度」。
+
+    播放体验打点（docs/design/playback-qoe.md §2、§5.2）：请求带播放编号时，每个出口都在响应
+    之后于后台记一条「已开始」（档位、决策原因、转码计划、服务端各段耗时），取流令牌写进编号；
+    响应头 ``Server-Timing`` 回传服务端各段耗时，App 据此把起播分段拆成网络往返与服务端处理。
     """
     started_at = time.perf_counter()
     member_id = principal.member_id if principal.member_id is not None else 0
+    attempt_id = payload.attempt_id or None
+
+    def attempt_started(
+        file_id: int | None, tier: int, view: PlaybackDecisionView, **timings: int
+    ) -> None:
+        """回传服务端耗时，并（有播放编号时）排一个后台任务记「已开始」。"""
+        timings = {"total": int((time.perf_counter() - started_at) * 1000), **timings}
+        response.headers["Server-Timing"] = ", ".join(
+            f"{name};dur={value}" for name, value in timings.items()
+        )
+        if attempt_id is None:
+            return
+        background_tasks.add_task(
+            _begin_attempt_in_background,
+            attempt_id=attempt_id,
+            member_id=member_id,
+            file_id=file_id,
+            tier=tier,
+            client=payload.client or "",
+            server=_attempt_server_facts(view, timings),
+        )
+
     # 分享访客的 token 多带分享 id、有效期不超过分享到期（media-share.md §4.3）
     share_kwargs = _share_stream_kwargs(principal)
     # 取流 token 带上浏览器设备标识：取流字节据此记到活动页上这台浏览器的
@@ -980,6 +1006,7 @@ async def start_playback_session(
         raise NotFoundException("没有找到可播放的文件")
     view = playback_plan.to_view(decision)
     if view.outcome != "plan":
+        attempt_started(view.file_id, -1, view, decide=decide_ms)
         return ok(PlaybackSessionView(decision=view, watch=watch_view))
 
     file = await session.get(LibraryFile, view.file_id)
@@ -998,6 +1025,7 @@ async def start_playback_session(
                 raise NotFoundException("没有找到可播放的文件")
             view = playback_plan.to_view(decision)
             if view.outcome != "plan":
+                attempt_started(view.file_id, -1, view, decide=decide_ms)
                 return ok(PlaybackSessionView(decision=view, watch=watch_view))
             file = await session.get(LibraryFile, view.file_id)
             if file is None:
@@ -1032,11 +1060,21 @@ async def start_playback_session(
 
     if view.tier == int(Tier.DIRECT_PLAY):
         token = await issue_stream_token(
-            member_id=member_id, file_id=file.id, device_id=device_id, **share_kwargs
+            member_id=member_id,
+            file_id=file.id,
+            device_id=device_id,
+            attempt_id=attempt_id,
+            **share_kwargs,
         )
         # 分段计时（§6.10）：用户报「起播慢」时，这一行直接指认卡在哪一段。
         # 决策段偏慢多半是关键帧采样在现场读盘——详情页预热没盖住的路径。
-        logger.info("播放会话就绪：档 0 直出 · 决策 %d 毫秒（file_id=%s）", decide_ms, file.id)
+        logger.info(
+            "播放会话就绪：档 0 直出 · 决策 %d 毫秒（file_id=%s attempt=%s）",
+            decide_ms,
+            file.id,
+            attempt_id or "-",
+        )
+        attempt_started(file.id, int(Tier.DIRECT_PLAY), view, decide=decide_ms)
         return ok(
             PlaybackSessionView(
                 decision=view,
@@ -1116,6 +1154,7 @@ async def start_playback_session(
             raise NotFoundException("没有找到可播放的文件")
         view = playback_plan.to_view(decision)
         if view.outcome != "plan":
+            attempt_started(view.file_id, -1, view, decide=decide_ms)
             return ok(PlaybackSessionView(decision=view, watch=watch_view))
         file = await session.get(LibraryFile, view.file_id)
         if file is None:
@@ -1206,6 +1245,7 @@ async def start_playback_session(
             device_id=device_id,
             cache=policy.transcode_cache_enabled,
             source_concat=disc.concat_list() if disc is not None else None,
+            attempt_id=attempt_id,
         )
     except (SessionLimitError, DiskQuotaError) as exc:
         # 这两类的文案本来就是写给用户的，前端原样展示；NAS 日志也要留一份，
@@ -1228,6 +1268,7 @@ async def start_playback_session(
         file_id=file.id,
         session_id=transcode.id,
         device_id=device_id,
+        attempt_id=attempt_id,
         **share_kwargs,
     )
     total_ms = int((time.perf_counter() - started_at) * 1000)
@@ -1238,7 +1279,7 @@ async def start_playback_session(
     # 用户报「起播慢」时这一行直接指认方向。
     logger.info(
         "播放会话就绪：档 %s · 决策 %d 毫秒 · 准备 %d 毫秒 · ffmpeg %d 毫秒 · 共 %d 毫秒"
-        "（file_id=%s hw=%s session=%s 缓存=%s）",
+        "（file_id=%s hw=%s session=%s 缓存=%s attempt=%s）",
         view.tier,
         decide_ms,
         prep_ms,
@@ -1248,6 +1289,15 @@ async def start_playback_session(
         hw_used or "无",
         transcode.id,
         f"命中 {transcode.cached_segments} 段" if transcode.cache_hit else "未命中",
+        attempt_id or "-",
+    )
+    attempt_started(
+        file.id,
+        view.tier if view.tier is not None else -1,
+        view,
+        decide=decide_ms,
+        prep=prep_ms,
+        spawn=spawn_ms,
     )
     return ok(
         PlaybackSessionView(
@@ -1699,9 +1749,13 @@ def _metered_file_response(
     size_bytes: int | None = None,
 ) -> Response:
     """按 Range 出一个磁盘文件，并登记到设备流与活动页（原文件直出与原盘目录直推共用）。"""
+    # 播放体验打点的取流计时（playback-qoe.md §5.3）：令牌里带播放编号才计
+    probe = qoe.serve_probe(grant.attempt_id)
     if not grant.device_id or file.media_item_id is None:
         # 升级前签出的旧地址没有设备标识，不计量；未识别文件没有播放单元可记
-        return DisconnectAwareFileResponse(path, media_type=media_type, byte_patches=byte_patches)
+        return DisconnectAwareFileResponse(
+            path, media_type=media_type, byte_patches=byte_patches, probe=probe
+        )
     # 与 Jellyfin 取流同一套登记：按浏览器设备登记这条流，让停止上报能主动
     # 停止读盘（播放器不会因为退出就立刻关闭已建立的 Range 连接）；顺带登记
     # 到活动注册表，活动页据此展示这台浏览器的实时传输速率
@@ -1731,6 +1785,7 @@ def _metered_file_response(
         byte_sink=meter.add,
         on_close=_close,
         byte_patches=byte_patches,
+        probe=probe,
     )
 
 
@@ -2580,7 +2635,7 @@ _INFO_CLIENT_EVENTS = frozenset({"hls-back-buffer"})
 
 #: 起播分段里的描述字段；其余键都是「计时点名 → 距点播放的毫秒数」
 _STARTUP_META_KEYS = frozenset(
-    {"engine", "tier", "original", "start_ms", "media_item_id", "file_id"}
+    {"engine", "tier", "original", "start_ms", "media_item_id", "file_id", "attempt_id"}
 )
 
 
@@ -2605,8 +2660,92 @@ def _startup_summary(detail: dict) -> str:
         f"{detail.get('engine') or '未知引擎'} 档 {detail.get('tier')} {path} · "
         + " → ".join(f"{name} {int(value)}" for name, value in marks)
         + f" 毫秒（条目 {detail.get('media_item_id')} · 文件 {detail.get('file_id')}"
-        + f" · 起点 {start_s} 秒）"
+        + f" · 起点 {start_s} 秒"
+        + (f" · attempt={detail['attempt_id']}" if detail.get("attempt_id") else "")
+        + "）"
     )
+
+
+async def _begin_attempt_in_background(
+    *,
+    attempt_id: str,
+    member_id: int,
+    file_id: int | None,
+    tier: int,
+    client: str,
+    server: dict,
+) -> None:
+    """会话接口响应之后，在后台记这次播放「已开始」（playback-qoe.md §2）。
+
+    自开数据库会话、吞掉一切异常：打点失败绝不能影响播放，只记一行警告。"""
+    try:
+        async with get_database().session() as db:
+            file = await db.get(LibraryFile, file_id) if file_id else None
+            await qoe.begin_attempt(
+                db,
+                attempt_id=attempt_id,
+                member_id=member_id,
+                file=file,
+                tier=tier,
+                client=client,
+                server=server,
+            )
+    except Exception:  # noqa: BLE001 — 打点是旁路，任何失败都不能冒到播放上
+        logger.warning(
+            "播放记录「已开始」写入失败（attempt=%s），不影响播放", attempt_id, exc_info=True
+        )
+
+
+def _attempt_server_facts(view: PlaybackDecisionView, timings: dict[str, int]) -> dict:
+    """服务端视角的事实：档位、决策结果与原因、转码计划、各段耗时（进播放记录的 detail.server）。"""
+    facts: dict = {
+        "at": utc_isoformat(utcnow()),
+        "outcome": view.outcome,
+        "tier": view.tier,
+        "degraded_from": view.degraded_from,
+        "reason": view.reason,
+        "disc": view.disc,
+        "timings_ms": timings,
+    }
+    if view.video is not None:
+        facts["video"] = {
+            "action": view.video.action,
+            "codec": view.video.codec,
+            "height": view.video.height,
+            "tone_map": view.video.tone_map,
+            "burn_subtitle": view.video.burn_subtitle,
+        }
+    if view.audio is not None:
+        facts["audio"] = {
+            "action": view.audio.action,
+            "codec": view.audio.codec,
+            "channels": view.audio.channels,
+            "downmix": view.audio.downmix,
+        }
+    return facts
+
+
+#: 「未收尾」清扫与按时间清理最多每 10 分钟做一次（都在上报之后顺手做，不另起定时任务）
+_QOE_HOUSEKEEPING_INTERVAL_S = 600.0
+_qoe_housekeeping_at = 0.0
+
+
+async def _qoe_housekeeping(session: AsyncSession) -> None:
+    global _qoe_housekeeping_at
+    now = time.monotonic()
+    if now - _qoe_housekeeping_at < _QOE_HOUSEKEEPING_INTERVAL_S:
+        return
+    _qoe_housekeeping_at = now
+    unreported = await qoe.sweep_unreported(session)
+    purged = await qoe.purge_expired(session, days=get_settings().playback_metric_retention_days)
+    dropped = qoe.sweep_serve_stats()
+    if unreported or purged or dropped:
+        logger.info(
+            "播放记录清扫：%d 条超时未收尾、清理 %d 条过期记录、丢弃 %d 份闲置的取流统计",
+            unreported,
+            purged,
+            dropped,
+        )
 
 
 @router.post(
@@ -2621,11 +2760,29 @@ async def report_playback_metric(
     principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[dict]:
-    """一次播放结束时上报一行质量快照。
+    """一次播放结束时上报。
 
-    **只落本地**（硬边界 3）：写进自己的数据库、设置页可看，绝不外发。
+    带 ``attempt_id`` 的是 docs/design/playback-qoe.md 口径：合并进会话接口建好的那一行，服务端在
+    这里统一判定跳转分位、非自愿中断、可避免的规格损失与北极星，并写一行「播放记录」摘要日志。
+    不带编号的是网页播放器的旧口径整行快照。
+
+    **只落本地**（硬边界 3）：写进自己的数据库，绝不外发。
     """
     member_id = principal.member_id if principal.member_id is not None else 0
+    if payload.attempt_id:
+        fields = payload.model_dump(exclude={"ttff_ms"})
+        report = qoe.FinishReport(**{k: v for k, v in fields.items() if v is not None or k in {
+            "first_frame_ms", "playing_ms", "degraded_from", "dropped_frames", "total_frames",
+            "library_file_id", "media_item_id", "season_number", "episode_number",
+        }})
+        # 旧字段 ttff_ms 仍填上首帧，老的 /playback/stats 汇总照样能看
+        row = await qoe.finish_attempt(session, member_id=member_id, report=report)
+        if row.ttff_ms is None and payload.first_frame_ms is not None:
+            row.ttff_ms = payload.first_frame_ms
+            await session.commit()
+        await _qoe_housekeeping(session)
+        return ok({"recorded": True, "undisturbed": row.undisturbed})
+
     # 用户端的真实体验落进服务端日志：ttff 是 requestVideoFrameCallback 量出
     # 的「点播放 → 真出画」，与「播放会话就绪」的服务端分段计时对照，差值就
     # 是网络 + 播放器初始化 + 首片下载解码——排查「日志都快但用户说慢」靠它
@@ -2642,14 +2799,77 @@ async def report_playback_metric(
         payload.watched_ms // 1000,
         payload.library_file_id,
     )
-    await metrics.record(
-        session,
-        PlaybackMetric(member_id=member_id, **payload.model_dump()),
+    legacy = payload.model_dump(
+        include={
+            "library_file_id", "tier", "degraded_from", "engine", "hw_backend", "ttff_ms",
+            "rebuffer_ms", "rebuffer_count", "seek_count", "dropped_frames", "total_frames",
+            "watched_ms",
+        }
     )
-    # 指标是趋势数据不是台账，攒到几十万行只会拖慢 data 卷上的 SQLite
-    if await metrics.count(session) > _METRIC_PURGE_TRIGGER:
-        await metrics.purge_older_than(session)
+    await metrics.record(session, PlaybackMetric(member_id=member_id, client="web", **legacy))
+    await _qoe_housekeeping(session)
     return ok({"recorded": True})
+
+
+@router.get(
+    "/stats/qoe",
+    response_model=ApiResponse[PlaybackQoeStatsView],
+    summary="播放体验统计：无打扰播放率、起播与跳转分位、中断、规格损失、最差的播放",
+    operation_id="playback.stats.qoe",
+    dependencies=[Depends(require_admin)],
+)
+async def get_playback_qoe_stats(
+    days: Annotated[int, Query(ge=1, le=365, description="统计最近多少天")] = 7,
+    group_by: Annotated[
+        Literal["source_class", "network_class", "route", "app_version", "client", "interface"]
+        | None,
+        Query(description="分组维度；不给只看总体"),
+    ] = None,
+    include_lab: Annotated[bool, Query(description="是否包含实验室的播放（默认排除）")] = False,
+    worst: Annotated[int, Query(ge=0, le=100, description="列出最差的多少次播放")] = 20,
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[PlaybackQoeStatsView]:
+    """最近 N 天的播放体验（docs/design/playback-qoe.md §5.5）。
+
+    北极星是**无打扰播放率**：一次播放从点下到离开，起播 ≤ 2 秒、每次跳转 ≤ 1.5 秒、没有非自愿
+    中断（卡顿 ≥ 0.5 秒、冻帧 ≥ 1 秒、报错、闪退）、没有可避免的规格损失、没有猜错音轨字幕续播
+    位置，才算一次无打扰。另给快（首帧、缓冲内 / 外跳转的 p50 / p90 / p99）、稳（每小时中断、
+    失败率、出画前退出率、异常退出率）、对（可避免损失率、猜错率）、打扰原因的帕累托，
+    以及最差的若干次播放（拿编号去查详情）。
+
+    样本少于 30 次的分组不算分位数，改列明细。只统计本文口径（口径 2）的记录。"""
+    await qoe.sweep_unreported(session)
+    return ok(
+        PlaybackQoeStatsView(
+            **await qoe.qoe_stats(
+                session, days=days, group_by=group_by, include_lab=include_lab, worst=worst
+            )
+        )
+    )
+
+
+@router.get(
+    "/attempts/{attempt_id}",
+    response_model=ApiResponse[PlaybackAttemptView],
+    summary="一次播放的完整记录与时间线",
+    operation_id="playback.attempt.get",
+    dependencies=[Depends(require_admin)],
+)
+async def get_playback_attempt(
+    attempt_id: Annotated[str, Path(max_length=64)],
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[PlaybackAttemptView]:
+    """按播放编号查一次播放：起播分段、每次跳转、中断、规格快照与判定、猜错、环境与资源、
+    服务端视角（会话、取流统计）、事件时间线，失败时还有引擎日志尾巴（playback-qoe.md §5.5）。"""
+    row = await qoe.get_attempt(session, attempt_id)
+    if row is None:
+        raise NotFoundException("没有这次播放的记录")
+    data = row.model_dump(exclude={"id", "updated_at", "ttff_ms", "hw_backend", "dropped_frames",
+                                   "total_frames", "seek_count", "metric_version"})
+    data["attempt_id"] = row.attempt_id or attempt_id
+    data["created_at"] = utc_isoformat(row.created_at)
+    data["ended_at"] = utc_isoformat(row.ended_at) if row.ended_at else None
+    return ok(PlaybackAttemptView(**data))
 
 
 @router.get(

@@ -179,6 +179,29 @@ nonisolated struct APIClient: Sendable {
         return envelope.data
     }
 
+    /// 发请求并拆信封，同时带回响应头（播放记录读开会话响应的 `Server-Timing`，docs/design/playback-qoe.md §2）。
+    @concurrent
+    func sendReturningHeaders<T: Decodable & Sendable>(
+        _ method: String,
+        _ path: String,
+        body: (any Encodable & Sendable)? = nil,
+        as type: T.Type = T.self
+    ) async throws -> (T, [String: String]) {
+        var request = URLRequest(url: url(path))
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try Self.encoder.encode(body)
+        }
+        let (data, headers) = try await performReturningHeaders(request)
+        do {
+            return (try Self.decoder.decode(APIEnvelope<T>.self, from: data).data, headers)
+        } catch {
+            throw APIError.decoding(Self.describe(error))
+        }
+    }
+
     /// 不拆信封（少数接口如 `/health` 直接返回对象）。
     @concurrent
     func raw<T: Decodable & Sendable>(
@@ -240,6 +263,11 @@ nonisolated struct APIClient: Sendable {
 
     /// 执行请求、统一处理错误；返回响应体原始字节。
     func perform(_ request: URLRequest) async throws -> Data {
+        try await performReturningHeaders(request).0
+    }
+
+    /// 同 `perform`，另外带回响应头（键为小写）
+    func performReturningHeaders(_ request: URLRequest) async throws -> (Data, [String: String]) {
         let data: Data
         let response: URLResponse
         do {
@@ -264,7 +292,11 @@ nonisolated struct APIClient: Sendable {
             }
             throw APIError.http(status: http.statusCode, message: message, code: body?.code)
         }
-        return data
+        var headers: [String: String] = [:]
+        for (key, value) in http.allHeaderFields {
+            if let key = key as? String, let value = value as? String { headers[key.lowercased()] = value }
+        }
+        return (data, headers)
     }
 
     /// 这些接口的 401 不是「会话过期」，不能把用户踢回登录页：

@@ -170,7 +170,7 @@ struct PlayerScreen: View {
                         let relative = spec.hasPrefix("+") || spec.hasPrefix("-")
                         let targetMs = relative ? created.positionMs + Int(value * 1000) : Int(value * 1000)
                         Self.autoTestLog("跳转 → \(targetMs / 1000) 秒")
-                        created.seek(toFileMs: targetMs)
+                        created.seek(toFileMs: targetMs, source: .auto)
                     }
                 }
             }
@@ -674,10 +674,10 @@ private struct PlayerContent: View {
         // 双击左右三分之一 = ∓10 秒；第一下切换过的控制层恢复原状，净效果只剩跳转
         if xRatio < 1 / 3 {
             chromeVisible = lastTapChromeState
-            controller.seek(by: -10)
+            controller.seek(by: -10, source: .gesture)
         } else if xRatio > 2 / 3 {
             chromeVisible = lastTapChromeState
-            controller.seek(by: 10)
+            controller.seek(by: 10, source: .gesture)
         } else if !chromeMustStayVisible {
             chromeVisible.toggle()
         }
@@ -696,7 +696,7 @@ private struct PlayerContent: View {
             scrubMs = target
             controller.scrubFollow(toFileMs: target)
         case .ended:
-            if let scrubMs { controller.seek(toFileMs: scrubMs) }
+            if let scrubMs { controller.seek(toFileMs: scrubMs, source: .scrub) }
             scrubMs = nil
             scrubbingByGesture = false
         case .cancelled:

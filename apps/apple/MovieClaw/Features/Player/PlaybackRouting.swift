@@ -274,14 +274,25 @@ nonisolated final class NetworkCost: @unchecked Sendable {
     private let monitor = NWPathMonitor()
     private let lock = NSLock()
     private var metered = false
+    private var currentInterface = "other"
 
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self else { return }
             let now = path.isExpensive || path.isConstrained
+            let interface = if path.usesInterfaceType(.wifi) {
+                "wifi"
+            } else if path.usesInterfaceType(.cellular) {
+                "cellular"
+            } else if path.usesInterfaceType(.wiredEthernet) {
+                "wired"
+            } else {
+                "other"
+            }
             self.lock.lock()
             let changed = now != self.metered
             self.metered = now
+            self.currentInterface = interface
             self.lock.unlock()
             if changed { NotificationCenter.default.post(name: .networkCostChanged, object: nil) }
         }
@@ -295,6 +306,12 @@ nonisolated final class NetworkCost: @unchecked Sendable {
         #endif
         lock.lock(); defer { lock.unlock() }
         return metered
+    }
+
+    /// 当前网络接口：wifi / cellular / wired / other（播放记录的分组维度，docs/design/playback-qoe.md §3.4）
+    var interface: String {
+        lock.lock(); defer { lock.unlock() }
+        return currentInterface
     }
 }
 

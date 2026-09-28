@@ -111,19 +111,3 @@ async def test_summary_looks_at_recent_sessions_only(db):
         stats = await metrics.summarize(session, limit=3)
     assert stats.sessions == 3
     assert stats.direct_ratio == pytest.approx(1.0)  # 最近三次都是直通
-
-
-async def test_purge_keeps_the_recent_tail(db):
-    """指标是趋势数据不是台账——攒到几十万行只会拖慢 data 卷上的 SQLite。"""
-    await seed(db, [metric() for _ in range(50)])
-    async with db.session() as session:
-        removed = await metrics.purge_older_than(session, keep=10)
-        assert removed == 40
-        assert await metrics.count(session) == 10
-
-
-async def test_purge_under_the_threshold_is_a_noop(db):
-    await seed(db, [metric() for _ in range(5)])
-    async with db.session() as session:
-        assert await metrics.purge_older_than(session, keep=10) == 0
-        assert await metrics.count(session) == 5

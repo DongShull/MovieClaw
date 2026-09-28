@@ -67,6 +67,14 @@ final class NativeEngine: NSObject, PlayerEngine {
     private var firstFrameShown = false
     /// 引擎报「在播」时首帧还没上屏（见 handle(_:)）
     private var playingBeforeFirstFrame = false
+    /// 播放体验打点：发出了跳转、还在等落点的画面（`EngineEvent.seekPresented`）
+    private var awaitingSeekPicture = false
+    /// 引擎那边这次跳转已落地（主力通路据此加上「恢复播放」判定画面到了）
+    private var seekLanded = false
+    /// 最近一次失败的引擎错误类型（`PlaybackErrorKind` 原值），播放记录用
+    private(set) var lastFailureKind: String?
+    /// 回前台时是否真的重建了管线（后台暂停超过 15 秒会被拆掉）：重建了要等首帧，没重建画面一直都在
+    private(set) var rebuiltOnForeground = false
 
     #if DEBUG
     /// 开发期：状态变化打到控制台并标上距装载的毫秒数（量起播、跳转、换轨耗时）
@@ -82,11 +90,14 @@ final class NativeEngine: NSObject, PlayerEngine {
 
     init(playsOriginalFile: Bool) throws {
         self.playsOriginalFile = playsOriginalFile
+        // 引擎日志一律进环形缓冲，播放失败时随播放记录上报（docs/design/playback-qoe.md §3.5）；
+        // 开发期 -mcAetherLog YES 同时打到控制台（模拟器排查用）
         #if DEBUG
-        // 开发期：-mcAetherLog YES 把引擎日志打到控制台（模拟器排查用）
-        AetherPlayback.mirrorEngineLog(UserDefaults.standard.bool(forKey: "mcAetherLog"))
+        AetherPlayback.installLogHandler(mirror: UserDefaults.standard.bool(forKey: "mcAetherLog"))
         // -mcAetherCues YES：把文字字幕与 ASS 定位打到控制台
         AetherPlayback.logsCues = UserDefaults.standard.bool(forKey: "mcAetherCues")
+        #else
+        AetherPlayback.installLogHandler(mirror: false)
         #endif
         core = try AetherPlayback()
         super.init()
@@ -95,6 +106,9 @@ final class NativeEngine: NSObject, PlayerEngine {
         core.onFailure = { [weak self] failure in self?.handle(failure) }
         core.onTracksChanged = { [weak self] in self?.tracksChanged() }
         core.onFirstFrame = { [weak self] in self?.firstFrameReady() }
+        core.onStartupStage = { [weak self] stage in self?.onEvent?(.startupStage(stage)) }
+        core.onSeekOutcome = { [weak self] outcome in self?.seekOutcome(outcome) }
+        core.onSoftwareFrameGeneration = { [weak self] in self?.softwareFrameGeneration() }
     }
 
     var view: UIView { core.view }
@@ -164,7 +178,11 @@ final class NativeEngine: NSObject, PlayerEngine {
     func pause() { core.pause() }
 
     /// 引擎的定位本身就是精确的（主力通路由 AVPlayer 按帧落点），exact 不区分
-    func seek(to seconds: Double, exact: Bool) { core.seek(to: seconds) }
+    func seek(to seconds: Double, exact: Bool) {
+        awaitingSeekPicture = true
+        seekLanded = false
+        core.seek(to: seconds)
+    }
 
     func setRate(_ rate: Float) { core.setRate(rate) }
 
@@ -396,8 +414,28 @@ final class NativeEngine: NSObject, PlayerEngine {
     /// 前后台大多由引擎自己跟随 App 生命周期处理（后台只留声音、画中画时保持管线）。只有一件要宿主做：
     /// 暂停着在后台超过 15 秒，引擎会拆掉视频管线省电（上游 #127），回前台要在原位置重建，否则点播放只会一直转圈
     func setBackgrounded(_ background: Bool) {
-        if !background { core.rebuildAfterBackgroundTeardown() }
+        if !background { rebuiltOnForeground = core.rebuildAfterBackgroundTeardown() }
     }
+
+    // MARK: - 播放体验打点的读数（docs/design/playback-qoe.md §3）
+
+    /// 软件通路交到显示层的累计帧数（冻帧检测）；其余通路为 nil
+    var presentedFrameCount: Int? { core.readouts().route == "software" ? core.presentedSoftwareFrames : nil }
+
+    /// 规格事实（源是什么、实际送出的是什么）
+    func deliveryFacts() -> EngineDeliveryFacts {
+        let facts = core.deliveryFacts()
+        return EngineDeliveryFacts(
+            route: facts.route, container: facts.container, videoCodec: facts.videoCodec,
+            sourceFormat: facts.sourceFormat, outputFormat: facts.outputFormat,
+            dolbyVisionProfile: facts.dolbyVisionProfile, dolbyVisionConversion: facts.dolbyVisionConversion,
+            audioDelivery: facts.audioDelivery, audioDecoder: facts.audioDecoder, audioCodec: facts.audioCodec,
+            audioChannels: facts.audioChannels, audioName: facts.audioName
+        )
+    }
+
+    /// 引擎日志最近的若干行（播放失败时随记录上报）
+    static func recentEngineLog() -> String { AetherPlayback.recentEngineLog() }
 
     func destroy() {
         onEvent = nil
@@ -414,6 +452,8 @@ final class NativeEngine: NSObject, PlayerEngine {
         case .playing:
             // 软件通路上时钟先转、画面后到：首帧上屏之前一直报缓冲，转圈不提前收起、起播计时也按首帧算
             if firstFrameShown { emit(.playing) } else { playingBeforeFirstFrame = true }
+            // 主力通路：跳转落地之后恢复播放，落点的画面才真的动起来
+            if awaitingSeekPicture, seekLanded, core.readouts().route != "software" { seekPictureShown() }
         case .paused: emit(.paused)
         case .ended: emit(.ended)
         }
@@ -424,6 +464,7 @@ final class NativeEngine: NSObject, PlayerEngine {
         let message = failure.message.hasPrefix("Device storage is full")
             ? "手机存储空间不足，视频分片写不进缓存，请清理存储后重试"
             : failure.message
+        lastFailureKind = failure.kind
         let cause: EngineFailureCause = switch failure.category {
         case .network: .network
         case .sourceMissing: .sourceMissing
@@ -445,6 +486,8 @@ final class NativeEngine: NSObject, PlayerEngine {
 
     private func firstFrameReady() {
         firstFrameShown = true
+        // 每次出首帧都报（起播、换音轨重载、回前台重建）：不走 emit，不影响播放状态的去重
+        onEvent?(.milestone(.firstFrame))
         if playingBeforeFirstFrame {
             playingBeforeFirstFrame = false
             emit(.playing)
@@ -458,6 +501,40 @@ final class NativeEngine: NSObject, PlayerEngine {
                 selectAudio(embeddedIndex: pendingAudio)
             }
         }
+    }
+
+    /// 引擎那边的跳转终局。主力通路：暂停中落地即是画面到了，播放中要等恢复播放（见 handle(_:)）；
+    /// 软件通路等新一代的第一帧交到显示层（`softwareFrameGeneration`）
+    private func seekOutcome(_ outcome: AetherPlayback.SeekOutcome) {
+        guard awaitingSeekPicture else { return }
+        switch outcome {
+        case .landed:
+            seekLanded = true
+            guard core.readouts().route != "software" else { return }
+            if case .playing? = lastReported {
+                seekPictureShown()
+            } else if core.isPaused {
+                seekPictureShown()
+            }
+        case .stalled, .rejected:
+            awaitingSeekPicture = false
+            onEvent?(.seekFailed)
+        case .superseded:
+            // 更新的跳转接着来：继续等它的落点
+            break
+        }
+    }
+
+    /// 软件通路：新一代的第一帧交到了显示层（跳转后落点那一帧，或装载后的第一帧）
+    private func softwareFrameGeneration() {
+        guard awaitingSeekPicture else { return }
+        seekPictureShown()
+    }
+
+    private func seekPictureShown() {
+        awaitingSeekPicture = false
+        seekLanded = false
+        onEvent?(.seekPresented)
     }
 
     /// 服务端挑的第 N 条内封音轨与引擎正在放的轨语言是否不同（任一方没有语言标记时视为相同，信引擎的挑选）

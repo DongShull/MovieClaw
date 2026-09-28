@@ -1532,6 +1532,12 @@ nonisolated extension APIClient {
         let _: API.JSONValue? = try await send("POST", "/playback/activity/sessions/\(deviceId)/end")
     }
 
+    /// 一次播放的完整记录与时间线
+    /// `GET /playback/attempts/{attempt_id}`
+    func playbackAttemptGet(attemptId: String) async throws -> API.PlaybackAttemptView {
+        return try await send("GET", "/playback/attempts/\(attemptId)")
+    }
+
     /// 播放器客户端日志
     /// `POST /playback/client-log`
     func playbackClientLog(body: API.PlaybackClientLogPayload) async throws -> [String: API.JSONValue] {
@@ -1722,6 +1728,17 @@ nonisolated extension APIClient {
     /// `GET /playback/stats`
     func playbackStats() async throws -> API.PlaybackStatsView {
         return try await send("GET", "/playback/stats")
+    }
+
+    /// 播放体验统计：无打扰播放率、起播与跳转分位、中断、规格损失、最差的播放
+    /// `GET /playback/stats/qoe`
+    func playbackStatsQoe(days: Int? = nil, groupBy: String? = nil, includeLab: Bool? = nil, worst: Int? = nil) async throws -> API.PlaybackQoeStatsView {
+        var query: [URLQueryItem] = []
+        if let days { query.append(URLQueryItem(name: "days", value: "\(days)")) }
+        if let groupBy { query.append(URLQueryItem(name: "group_by", value: "\(groupBy)")) }
+        if let includeLab { query.append(URLQueryItem(name: "include_lab", value: "\(includeLab)")) }
+        if let worst { query.append(URLQueryItem(name: "worst", value: "\(worst)")) }
+        return try await send("GET", "/playback/stats/qoe", query: query)
     }
 
     /// 一段时间的观看总览：看了多久、多少场、看完率、活跃了几个人
