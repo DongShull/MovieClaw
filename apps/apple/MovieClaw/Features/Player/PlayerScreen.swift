@@ -262,6 +262,10 @@ private struct PlayerContent: View {
     @State private var lockHint = false
     @State private var lockHintTask: Task<Void, Never>?
     @State private var adjust: AdjustState?
+    /// 亮度/音量胶囊的收起计时：松手或按侧键后 0.9 秒收起，期间再有动作就重新计时
+    @State private var adjustHideTask: Task<Void, Never>?
+    /// 手指正在竖滑：这期间的系统音量变化是自己拨出来的，不当成侧键
+    @State private var adjustingByGesture = false
     @State private var volumeUnsupported = false
     @State private var scrubMs: Int?
     @State private var scrubBase = 0
@@ -374,6 +378,9 @@ private struct PlayerContent: View {
             .animation(.easeInOut(duration: 0.25), value: chromeVisible)
             .animation(.easeInOut(duration: 0.2), value: controller.notice)
             .animation(.easeInOut(duration: 0.25), value: controller.qualityOffer)
+        }
+        .onReceive(SystemVolume.shared.changes) { volume in
+            showVolumeFromKeys(Double(volume))
         }
         .task(id: autoHideKey) {
             // 控制条 4 秒无操作自动隐藏；必须常显的情况（暂停、菜单、拖动、等用户拍板）直接钉住（同 Web chromeMustStayVisible）
@@ -723,6 +730,9 @@ private struct PlayerContent: View {
     private func handleAdjust(_ phase: PlayerGestureLayer.GesturePhase, _ side: PlayerGestureLayer.AdjustSide, _ delta: CGFloat) {
         switch phase {
         case .began:
+            // 上一次的收起计时还没到点就开始新一滑：先掐掉，否则它会在滑动途中把胶囊和状态清掉
+            adjustHideTask?.cancel()
+            adjustingByGesture = true
             let base = side == .brightness ? ScreenBrightness.current : Double(SystemVolume.shared.value)
             volumeUnsupported = side == .volume && !SystemVolume.shared.isAdjustable
             adjust = AdjustState(side: side, value: base, base: base)
@@ -737,10 +747,25 @@ private struct PlayerContent: View {
             current.value = value
             adjust = current
         case .ended, .cancelled:
-            Task {
-                try? await Task.sleep(for: .milliseconds(900))
-                adjust = nil
-            }
+            adjustingByGesture = false
+            scheduleAdjustHide()
+        }
+    }
+
+    /// 侧键（或控制中心）改了音量：弹出与竖滑同一个音量胶囊。
+    /// 竖滑途中的变化是自己拨滑杆拨出来的，胶囊已经在跟手显示，这里不管
+    private func showVolumeFromKeys(_ value: Double) {
+        guard !adjustingByGesture else { return }
+        volumeUnsupported = false
+        adjust = AdjustState(side: .volume, value: value, base: value)
+        scheduleAdjustHide()
+    }
+
+    private func scheduleAdjustHide() {
+        adjustHideTask?.cancel()
+        adjustHideTask = Task {
+            try? await Task.sleep(for: .milliseconds(900))
+            if !Task.isCancelled { adjust = nil }
         }
     }
 

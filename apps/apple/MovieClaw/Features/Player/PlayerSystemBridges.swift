@@ -1,4 +1,5 @@
 import AVKit
+import Combine
 import MediaPlayer
 import SwiftUI
 
@@ -42,7 +43,8 @@ struct AirPlayButton: UIViewRepresentable {
 }
 
 /// 系统音量：iOS 不允许直接改音量，唯一的公开途径是 MPVolumeView 里的滑杆。
-/// 这个视图常驻在播放器里（几乎透明），同时也把系统音量 HUD 压掉，由我们自己的胶囊显示。
+/// 这个视图常驻在播放器里（几乎透明），同时也把系统音量 HUD 压掉，由我们自己的胶囊显示——
+/// 竖滑和侧键都是：系统 HUD 压掉后侧键若不接，按了音量会变、屏幕上却什么都没有。
 @MainActor
 final class SystemVolume {
     static let shared = SystemVolume()
@@ -52,6 +54,12 @@ final class SystemVolume {
 
     /// 当前音量（0~1）
     var value: Float { AVAudioSession.sharedInstance().outputVolume }
+
+    /// 系统音量每次变化（侧键、控制中心、我们自己拨滑杆都算），不含订阅那一刻的当前值；
+    /// KVO 可能在音频线程上发，切回主线程再交给界面
+    let changes = AVAudioSession.sharedInstance().publisher(for: \.outputVolume, options: [.new])
+        .receive(on: DispatchQueue.main)
+        .eraseToAnyPublisher()
 
     /// 能否由 App 调节（模拟器上没有真实的音量滑杆）
     var isAdjustable: Bool { slider != nil }
