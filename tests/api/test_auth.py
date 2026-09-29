@@ -398,7 +398,9 @@ def test_every_route_denies_anonymous_access(client: TestClient) -> None:
     也能兜住。路径参数用哑值填充——鉴权在路由解析后、业务逻辑前执行，
     未登录时必须 401 而非 404/422。
     """
-    openapi = client.get("/api/v1/openapi.json").json()
+    # 直接问应用要 spec，而不是走 /openapi.json：生产环境（APP_ENV 非 local）
+    # 刻意不挂那条 HTTP 路由，守护测试不该依赖一个安全开关的开启状态。
+    openapi = client.app.openapi()
 
     checked = 0
     for path, methods in openapi["paths"].items():

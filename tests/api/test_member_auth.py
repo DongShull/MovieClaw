@@ -733,7 +733,8 @@ def test_every_route_denies_member_overreach(client: TestClient) -> None:
     可以 404/422，那证明已通过鉴权与授权进入业务逻辑）。
     """
     _admin_cookie, member_cookie, _ = _setup_admin_and_member(client)
-    openapi = client.get("/api/v1/openapi.json").json()
+    # 同 test_auth.py：spec 直接取自应用，不依赖 /openapi.json 是否对外开放。
+    openapi = client.app.openapi()
     _use(client, member_cookie)
 
     # 这几个接口会在服务端作废当前会话（退出登录即作废令牌，docs/design/login-devices.md），

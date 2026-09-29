@@ -386,7 +386,8 @@ def test_transcoder_token_is_rejected_by_every_business_route(client: TestClient
         ("GET", "/api/v1/auth/devices/current"),
         ("DELETE", "/api/v1/auth/devices/current"),
     }
-    openapi = client.get("/api/v1/openapi.json").json()
+    # 同 test_auth.py：spec 直接取自应用，不依赖 /openapi.json 是否对外开放（生产默认关闭）
+    openapi = client.app.openapi()
     checked = 0
     for path, methods in openapi["paths"].items():
         url = fill_path_params(path)
