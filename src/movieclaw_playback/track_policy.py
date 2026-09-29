@@ -4,10 +4,11 @@
 只在这里算。**音轨跟片子走，字幕跟人走**：
 
 - **音轨按影片原始语言**（刮削存下的 TMDB original_language）：英文片默认英语原声、
-  港片默认粤语原声（TMDB 用 ``cn`` 表示粤语）。同语言有好几条时，容器标了默认的那条
-  优先（片源自己的选择；直出放的就是它，网页端不必为换轨重封装、App 不必本机转音频），
-  它不是原声语言时才挑音质最好的（无损 > 高码率有损 > 普通，再比声道数）。导评、口述影像
-  这类特殊轨不自动选。原声语言的轨一条都没有时，退回旧规则（容器默认旗标 → 第一条）。
+  港片默认粤语原声（TMDB 用 ``cn`` 表示粤语；``zh`` 分不清普通话与粤语，两种都算原声）。
+  **只有标签明确说片源的默认轨不是原声，才换**：默认轨就是原声语言、或没标语言，照片源的来
+  （直出放的就是它，网页端不必为换轨重封装、App 不必本机转音频）；要换时在原声语言的轨里
+  挑音质最好的（无损 > 高码率有损 > 普通，再比声道数）。导评、口述影像这类特殊轨不自动选。
+  原声语言的轨一条都没有时，退回旧规则（容器默认旗标 → 第一条）。
 - **字幕按媒体库的元数据主语言**（用户读什么语言，库就刮成什么语言）：库语言的完整字幕
   优先（简繁按库的地区，zh-CN 简体优先），再跟**将要放的那条音轨**对一下：
   - 原声是外语 → 开库语言的完整字幕；
@@ -15,7 +16,9 @@
     只开库语言的强制字幕（片中外语对白的翻译），没有就不开；
   - 导评字幕不自动选，听障（SDH）排在普通字幕之后，只有特效 / 歌词的字幕当强制字幕看待；
   - 库语言的字幕一条都没有：原声是库语言时不开（不能给国产片挂一条英文字幕），
-    原声是外语时退回旧规则（外挂 > AI > 默认旗标 > 强制）。
+    原声是外语时退回旧规则（外挂 > AI > 默认旗标 > 强制）；
+  - 要关掉的是片源默认开、却没标语言的字幕时照片源的来——标签没说它不对
+    （国产片的默认字幕常常就是没标语言的中文字幕）。
 - **播放时相信标签**：语言按轨道的语言标记、标题、外挂字幕文件名里的标记认，标错了是
   片库整理的事，不在播放这一刻去猜（用户拍板：这样代价最低）。
 
@@ -42,6 +45,9 @@ from movieclaw_playback.subtitles import (
 )
 
 # -- 语言归一 ---------------------------------------------------------------
+
+#: 原始语言 → 算原声的音轨语言：TMDB 的 ``zh`` 只说是中文，普通话、粤语都可能是原声
+_ORIGINAL_AUDIO_MATCHES: dict[str, frozenset[str]] = {"chi": frozenset({"chi", "yue"})}
 
 #: 各种写法 → ISO 639-2/B 三字码（与外挂字幕台账的口径一致：中文 chi、德语 ger、法语 fre）
 _LANGUAGE_ALIASES: dict[str, str] = {
@@ -288,6 +294,8 @@ def _audio_language(raw: dict) -> str | None:
     code = normalize_language(raw.get("language"))
     if code in (None, "chi") and _has_word(title, _MANDARIN_WORDS):
         return "chi"
+    if code is None and _has_word(title, _CHINESE_WORDS):
+        return "chi"
     return code
 
 
@@ -353,20 +361,26 @@ def default_audio(file: LibraryFile, context: TrackContext = NO_CONTEXT) -> Audi
         return AudioChoice(None, "none")
     usable = [s for s in streams if s[1].get("codec")] or streams
     normal = [s for s in usable if not _audio_special(s[1])] or usable
-    if context.original_language:
-        matched = [s for s in normal if _audio_language(s[1]) == context.original_language]
-        if matched:
-            # 默认旗标排在音质前面：多数片源本来就把最好的那条标成默认；标的不是最好的，
-            # 换过去的代价（网页端重封装、App 本机转音频）比多出来的那点音质更影响起播
-            best = max(
-                matched,
-                key=lambda s: (bool(s[1].get("default")), *_audio_quality(s[1]), -s[0]),
-            )
-            return AudioChoice(best[0], "original_language")
+    # 片源的默认轨（直出放的就是它）：标了默认的第一条，否则第一条
     flagged = next((s for s in normal if s[1].get("default")), None)
-    if flagged is not None:
-        return AudioChoice(flagged[0], "default_flag")
-    return AudioChoice(normal[0][0], "first")
+    container = flagged or normal[0]
+    legacy = AudioChoice(container[0], "default_flag" if flagged else "first")
+    original = context.original_language
+    if not original:
+        return legacy
+    wanted = _ORIGINAL_AUDIO_MATCHES.get(original, frozenset({original}))
+    current = _audio_language(container[1])
+    # 只有标签明确说默认轨不是原声才换：它就是原声、或没标语言，照片源的来
+    # （NAS 实测：没标语言的默认轨、TMDB 标 zh 的粤语片，换走都是错的）
+    if current in wanted:
+        return AudioChoice(container[0], "original_language")
+    if current is None:
+        return legacy
+    matched = [s for s in normal if _audio_language(s[1]) in wanted]
+    if not matched:
+        return legacy
+    best = max(matched, key=lambda s: (*_audio_quality(s[1]), -s[0]))
+    return AudioChoice(best[0], "original_language")
 
 
 def default_subtitle(
@@ -379,21 +393,34 @@ def default_subtitle(
     library = context.library_language
     if library:
         audio = _playing_audio(file, context, audio_ref)
-        candidates = [s for s in _subtitles(file) if not s.commentary and library in s.languages]
+        subtitles = _subtitles(file)
+        candidates = [s for s in subtitles if not s.commentary and library in s.languages]
         full = [s for s in candidates if not s.partial]
         partial = [s for s in candidates if s.partial]
         same_language = audio == library
         if same_language and library != "chi":
             if partial:
                 return SubtitleChoice(_best(partial, context).ref, "forced")
-            return SubtitleChoice(None, "same_language_off")
+            return _off_unless_unlabeled(file, subtitles, "same_language_off")
         if full:
             return SubtitleChoice(_best(full, context).ref, "library_language")
         if same_language:
             if partial:
                 return SubtitleChoice(_best(partial, context).ref, "forced")
-            return SubtitleChoice(None, "no_language_match")
+            return _off_unless_unlabeled(file, subtitles, "no_language_match")
     return _legacy_subtitle(file)
+
+
+def _off_unless_unlabeled(
+    file: LibraryFile, subtitles: list[_Subtitle], reason: str
+) -> SubtitleChoice:
+    """原声就是库语言时不开字幕——但旧规则会开的那条没标语言时照片源的来：标签没说它不对
+    （NAS 实测：国产片的默认字幕常常就是没标语言的中文字幕）。"""
+    legacy = _legacy_subtitle(file)
+    unlabeled = {s.ref for s in subtitles if not s.languages}
+    if legacy.ref is not None and legacy.ref in unlabeled:
+        return legacy
+    return SubtitleChoice(None, reason)
 
 
 def default_tracks(

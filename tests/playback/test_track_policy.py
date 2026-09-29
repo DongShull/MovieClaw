@@ -245,3 +245,40 @@ def test_library_locale_and_original_language_are_normalized():
     )
     assert TrackContext.build("en-US", "zh") == TrackContext("eng", None, "chi")
     assert TrackContext.build(None, None) == TrackContext()
+
+
+# ---------------------------------------------------------------------------
+# 只有标签明确说片源默认的不对才换（2026-09-30 NAS 全库核对发现的四类误判）
+# ---------------------------------------------------------------------------
+
+
+def test_tmdb_zh_counts_cantonese_as_original_too():
+    """《麦兜故事》：TMDB 标 zh（分不清普通话、粤语），片源默认粤语——不能换成国语 2.0。"""
+    f = _file(
+        audio=[
+            _a("chi", "dts", 6, default=True, title="Cantonese DTS 5.1"),
+            _a("chi", "ac3", 2, title="Mandarin AC3 2.0"),
+        ]
+    )
+    assert default_audio(f, ZH_CN_FILM).index == 0
+
+
+def test_an_unlabeled_default_audio_track_is_kept():
+    """《鹊刀门传奇》：默认轨没标语言（und），另一条标着 zho——标签没说默认轨不对，不换。"""
+    f = _file(audio=[_a("und", "aac", 2, default=True), _a("zho", "eac3", 6)])
+    assert default_audio(f, ZH_CN_FILM).index == 0
+
+
+def test_several_default_flags_keep_the_first_one():
+    """《漂白》《银河护卫队3》：两条原声都标了默认，放第一条（直出放的就是它），不为音质换第二条。"""
+    f = _file(audio=[_a("chi", "aac", 2, default=True), _a("chi", "eac3", 6, default=True)])
+    choice = default_audio(f, ZH_CN_FILM)
+    assert (choice.index, choice.reason) == (0, "original_language")
+
+
+def test_an_unlabeled_default_subtitle_stays_on_for_chinese_films():
+    """《如果历史是一群喵》：国产片的默认字幕没标语言，多半就是中文字幕——不关。"""
+    f = _file(audio=[_a("chi", default=True)], subs=[_s(None, default=True)])
+    assert default_subtitle(f, ZH_CN_FILM).ref == "embedded:0"
+    labeled = _file(audio=[_a("chi", default=True)], subs=[_s("jpn", default=True)])
+    assert default_subtitle(labeled, ZH_CN_FILM).ref is None
