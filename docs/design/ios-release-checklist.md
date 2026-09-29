@@ -13,10 +13,9 @@
       ```bash
       mkdir -p ~/workspace && cd ~/workspace
       git clone https://github.com/movieclaw/movieclaw.git && cd movieclaw
-      git checkout feat/ios-app
       ```
-      已有仓库的机器改为 `git fetch origin && git checkout feat/ios-app && git pull --ff-only`，
-      打包前 `git status` 干净、`git log -1 --oneline` 与 GitHub 上分支最新提交一致（打的就是这个提交）
+      已有仓库的机器改为 `git fetch origin && git checkout main && git pull --ff-only`，
+      打包前 `git status` 干净、`git log -1 --oneline` 与 GitHub 上 main 最新提交一致（打的就是这个提交）
 - [ ] 建本机签名配置（已被 .gitignore 忽略）：
       ```bash
       echo 'DEVELOPMENT_TEAM = <第 2 步确认的 Team ID>' > apps/apple/XcodeConfig/Signing.local.xcconfig
@@ -45,7 +44,6 @@
       套装 ID `io.movieclaw.app`、SKU `movieclaw-ios`
 - [ ] App 信息：
   - [ ] 隐私政策网址 `https://github.com/movieclaw/movieclaw/blob/main/docs/privacy-policy.md`
-        （合入 main 前临时用 `…/blob/feat/ios-app/docs/privacy-policy.md`）
   - [ ] 技术支持网址 `https://github.com/movieclaw/movieclaw/issues`
   - [ ] 类别「娱乐」，价格免费
   - [ ] App 隐私问卷：**不收集数据**

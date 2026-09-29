@@ -39,8 +39,7 @@ App 里**不提供**「资源与下载」这组配置（订阅规则、资源站
    - 套装 ID 选 `io.movieclaw.app`（没有就先在 developer.apple.com → Identifiers 注册，或让
      Xcode 自动签名首次导出时自动注册）；SKU 随意（如 `movieclaw-ios`）。
 5. **App 信息**：
-   - 隐私政策网址：`https://github.com/movieclaw/movieclaw/blob/main/docs/privacy-policy.md`
-     （该文件随 feat/ios-app 合入 main 后才可访问；合入前可临时用分支地址）；
+   - 隐私政策网址：`https://github.com/movieclaw/movieclaw/blob/main/docs/privacy-policy.md`；
    - 技术支持网址：`https://github.com/movieclaw/movieclaw/issues`；
    - 类别：娱乐（或摄影与录像）；价格：免费；
    - App 隐私问卷：**不收集任何数据**（数据都在用户自己的服务器上，见隐私政策）；
