@@ -25,8 +25,6 @@ struct SubscriptionsView: View {
     @Environment(\.pageWarmup) private var warmup
 
     @State private var failed = false
-    /// 体检整体为 error 时的库错误数；nil = 不亮警示钮
-    @State private var healthErrors: Int?
     @State private var heroIndex = 0
     @State private var tint: Color?
     /// 顶部安全区（状态栏 + 顶栏）高度：沉浸 Hero 用等量负边距顶到屏幕物理顶边
@@ -86,7 +84,6 @@ struct SubscriptionsView: View {
         // 标题同其他标签根页：左上角大字（iOS 标签根页规范）；沉浸时叠在 Hero 的顶部压暗上
         .navigationTitle("我的订阅")
         .toolbarTitleDisplayMode(.inlineLarge)
-        .toolbar { healthToolbar }
         .refreshable { await reload() }
         .task {
             guard !warmup else { return }
@@ -171,34 +168,6 @@ struct SubscriptionsView: View {
         .accessibilityIdentifier("subscriptions-empty")
     }
 
-    /// 链路体检：整体 error 时右上角亮琥珀色警示钮，点开先说清楚是什么问题，再给修复入口
-    @ToolbarContentBuilder
-    private var healthToolbar: some ToolbarContent {
-        if permissions.canManageSubscriptions, let healthErrors {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Section(healthMessage(healthErrors)) {
-                        Button("查看体检详情与修复入口", systemImage: "stethoscope") {
-                            router.push(.settingsSection(.overview))
-                        }
-                    }
-                } label: {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(SubsColor.warn)
-                }
-                .accessibilityLabel("订阅链路异常：\(healthMessage(healthErrors))")
-                .accessibilityIdentifier("health-banner")
-            }
-        }
-    }
-
-    private func healthMessage(_ errors: Int) -> String {
-        errors > 0
-            ? "\(errors) 个媒体库的入库链路有问题，相关订阅暂时无法自动下载入库（已下达的任务会自动重试）"
-            : "订阅链路尚未就绪（缺少可用的资源站点或下载器），订阅暂时只能记录意愿"
-    }
-
     // MARK: 氛围色
 
     /// 当前 Hero 那张的画面地址（与 Hero 显示同一个地址，取色命中图片缓存）
@@ -229,18 +198,17 @@ struct SubscriptionsView: View {
     private func reload() async {
         failed = false
         feed.adopt(owner: SubscriptionsHomeFeed.ownerKey(api: api, username: model.session?.username))
-        // 已知有订阅（快照 / 上一轮）时，订阅清单、预告 / 刚刚入库 / 下载快照、链路体检同时发：
-        // 三份首页数据本来就不依赖清单。原先先等清单（300 部时服务端要现算 100～300ms）再发另外三个
+        // 已知有订阅（快照 / 上一轮）时，订阅清单与预告 / 刚刚入库 / 下载快照同时发：
+        // 首页数据本来就不依赖清单。原先先等清单（300 部时服务端要现算 100～300ms）再发另外几份
         if hasSubscriptions {
             let api = api, username = model.session?.username, isAdmin = permissions.isAdmin
             let index = index, feed = feed
             async let ok = index.refresh(api: api, owner: username)
-            async let health: Void = refreshHealth()
             async let data: Void = feed.refreshAll(api: api, isAdmin: isAdmin)
             let refreshed = await ok
             failed = !refreshed && index.subscriptions == nil
             PerfTrace.pageStage("subscriptions", "subscriptions")
-            _ = await (health, data)
+            await data
             loadedOnce = true
             return
         }
@@ -248,26 +216,11 @@ struct SubscriptionsView: View {
         failed = !ok && index.subscriptions == nil
         PerfTrace.pageStage("subscriptions", "subscriptions")
         guard hasSubscriptions else {
-            await refreshHealth()
             loadedOnce = true
             return
         }
-        async let health: Void = refreshHealth()
-        async let data: Void = feed.refreshAll(api: api, isAdmin: permissions.isAdmin)
-        _ = await (health, data)
+        await feed.refreshAll(api: api, isAdmin: permissions.isAdmin)
         loadedOnce = true
-    }
-
-    private func refreshHealth() async {
-        guard permissions.canManageSubscriptions else {
-            healthErrors = nil
-            return
-        }
-        if let health = try? await api.subscriptionsCheckAutomationReadiness() {
-            healthErrors = health.status == "error" ? health.errorCount : nil
-        } else {
-            healthErrors = nil
-        }
     }
 }
 

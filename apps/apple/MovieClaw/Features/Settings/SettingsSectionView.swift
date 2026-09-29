@@ -17,11 +17,10 @@ struct SettingsSectionView: View {
     @ViewBuilder
     private func sectionView(_ section: SettingsSection) -> some View {
         switch section {
-        case .overview: OverviewSettingsView()
         case .profile: ProfileSettingsView()
         case .members: MembersSettingsView()
         case .devices: DevicesSettingsView()
-        case .subscription, .sites, .downloaders, .importWatch: WebManagedSectionView(section: section)
+        case .overview, .subscription, .sites, .downloaders, .importWatch: WebManagedSectionView(section: section)
         case .scrape: ScrapeSettingsView()
         case .playback: PlaybackSettingsView()
         case .imPush: PushSettingsView()
