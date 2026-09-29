@@ -64,6 +64,20 @@ scripts/release.sh --upload                 # 上传：同一个构建可用于�
 - 上传后 5～30 分钟处理完才出现在 TestFlight；处理期间 Apple 会发邮件报告问题，
   **首次上传务必看邮件**（见 §5）。
 
+### 侧载用的未签名 IPA
+
+每次发版 release.yml 的 `ios-ipa` 作业在 macOS runner 上跑 `apps/apple/scripts/build-unsigned-ipa.sh`，
+把 `MovieClaw-iOS-unsigned.ipa` 附到 GitHub Release（可选附件，失败不拦转正）。给不走 App Store /
+TestFlight 的用户：用 AltStore / SideStore / Sideloadly 以自己的 Apple ID 重签安装——免费 Apple ID
+签的包 7 天过期（AltStore / SideStore 可后台自动续签），付费开发者账号 1 年。
+
+- 与商店版**同一份代码、同一个发行版本**（§1），只是不签名；不需要任何签名密钥，fork 仓库也能产出。
+- App 没有扩展、没有特殊 entitlements，免费 Apple ID 也能签（只占 1 个 App ID）。
+- 文件名固定，`releases/latest/download/MovieClaw-iOS-unsigned.ipa` 长期指向最新版。
+- 本机也能打：`apps/apple/scripts/build-unsigned-ipa.sh`，产物在 `apps/apple/build-ipa/`（已被 git 忽略）。
+- **不要**用企业证书对外分发（只允许公司内部使用，违规会被吊销）；Ad Hoc 每年每类设备限 100 台，
+  只适合极少数人。
+
 ## 4. 提交审核（对外测试与上架）
 
 对外 TestFlight 首个构建要过一次 Beta 审核，上架要过正式审核，两者都要：
