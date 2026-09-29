@@ -317,9 +317,9 @@ def pick_default_subtitle(file: LibraryFile) -> str | None:
     比随片源顺来的外挂更可能是用户想看的那条）；没有外挂则尊重内封 default
     旗标，仅当只有 forced 轨可选时才选 forced。
 
-    **这是全端唯一的默认字幕策略**：Jellyfin 协议端经 resolve_default_subtitle
-    直接用；网页端经 profile 把结论写进轨列表的 is_default 间接用。改这里
-    两端同时生效，不会再漂。
+    现在是默认字幕的**旧规则**（2026-09-29 默认轨策略改造）：全端的默认字幕只经
+    ``movieclaw_playback.track_policy`` 算（按媒体库语言、看将要放的音轨），它在没有
+    库语言可比、或原声是外语而没有库语言字幕时才退回这里。别处不要直接调它。
     """
     candidates: list[tuple[bool, bool, bool, bool, int, str]] = []
     order = 0
@@ -353,7 +353,7 @@ def pick_default_subtitle(file: LibraryFile) -> str | None:
     return eligible[0][5]
 
 
-def _track_exists(file: LibraryFile, track: str) -> bool:
+def subtitle_track_exists(file: LibraryFile, track: str) -> bool:
     """中性引用当前是否仍有效（重扫/换文件后可能悬空）。"""
     k = parse_embedded_track(track)
     if k is not None:
@@ -364,30 +364,3 @@ def _track_exists(file: LibraryFile, track: str) -> bool:
             e.get("filename") == filename for e in file.external_subtitles or []
         )
     return False
-
-
-def resolve_default_subtitle(file: LibraryFile, remembered: str | None) -> str | None:
-    """默认字幕轨的最终裁决：记忆优先（含 off），失效回落选择策略。"""
-    if remembered == SUBTITLE_OFF:
-        return SUBTITLE_OFF
-    if remembered is not None and _track_exists(file, remembered):
-        return remembered
-    return pick_default_subtitle(file)
-
-
-def default_audio_index(streams: list[dict]) -> int | None:
-    """不经用户选择时放的那条音轨的下标（全端同一口径，同 decide 的 ``_preferred_audio``）：
-    认得出编码的轨里标了默认的，否则第一条；没有音轨返回 None。"""
-    usable = [i for i, t in enumerate(streams) if t.get("codec")] or list(range(len(streams)))
-    return next((i for i in usable if streams[i].get("default")), usable[0] if usable else None)
-
-
-def resolve_default_audio(file: LibraryFile, remembered: str | None) -> int | None:
-    """记忆的音轨 → audio_streams 下标；无记忆/失效返回 None
-    （调用方维持现状算法：default 旗标优先）。"""
-    if remembered is None:
-        return None
-    k = parse_embedded_track(remembered)
-    if k is not None and k < len(file.audio_streams or []):
-        return k
-    return None

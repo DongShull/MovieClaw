@@ -9,10 +9,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from movieclaw_db.models import (
@@ -23,31 +23,30 @@ from movieclaw_db.models import (
 )
 from movieclaw_db.models.base import utcnow
 from movieclaw_playback.progress import resolve_mark_played, resolve_progress
-from movieclaw_playback.subtitles import (
-    SUBTITLE_OFF,
-    default_audio_index,
-    embedded_track,
-    pick_default_subtitle,
+from movieclaw_playback.track_policy import (
+    NO_CONTEXT,
+    TrackContext,
+    default_audio,
+    default_subtitle_or_off,
 )
 
 Unit = tuple[int, int, int]  # (media_item_id, season, episode)
 
 
+def unit_files_statement(unit: Unit) -> Select:
+    """一个播放单元在位文件的查询（:func:`unit_files` 与要连带取别的列的调用方共用）。"""
+    item_id, season, episode = unit
+    return select(LibraryFile).where(
+        LibraryFile.media_item_id == item_id,
+        LibraryFile.season_number == season,
+        LibraryFile.episode_number == episode,
+        LibraryFile.in_place(),
+    )
+
+
 async def unit_files(session: AsyncSession, unit: Unit) -> list[LibraryFile]:
     """一个播放单元的在位文件（多版本时不止一个）。"""
-    item_id, season, episode = unit
-    return list(
-        (
-            await session.execute(
-                select(LibraryFile).where(
-                    LibraryFile.media_item_id == item_id,
-                    LibraryFile.season_number == season,
-                    LibraryFile.episode_number == episode,
-                    LibraryFile.in_place(),
-                )
-            )
-        ).scalars()
-    )
+    return list((await session.execute(unit_files_statement(unit))).scalars())
 
 
 async def unit_runtime_ms(
@@ -231,9 +230,16 @@ def track_report_changes(
     )
 
 
-def _untouched_choice(ref: str, kind: str, files: Iterable[LibraryFile]) -> bool:
-    """``ref`` 是不是这些文件「没人动过」时本来就会放的那条：默认音轨、默认字幕，
-    或者文件根本没有默认字幕时的「关闭」。
+def _untouched_choice(
+    ref: str,
+    kind: str,
+    files: Iterable[LibraryFile],
+    contexts: Mapping[int, TrackContext],
+    playing_audio: str | None,
+) -> bool:
+    """``ref`` 是不是这些文件「没人动过」时本来就会放的那条：默认轨策略挑的音轨、字幕，
+    或者策略本来就不开字幕时的「关闭」。默认字幕要看放的是哪条音轨（``playing_audio``，
+    没有就按默认音轨算），见 ``movieclaw_playback.track_policy``。
 
     判断不了的文件跳过：原盘的轨以播放器引擎读到的为准、服务端读不到；还没探测过
     内封轨的旧行也不知道默认是哪条。多版本又不知道放的是哪个时，任一版本对得上就算
@@ -242,15 +248,15 @@ def _untouched_choice(ref: str, kind: str, files: Iterable[LibraryFile]) -> bool
     for file in files:
         if file.is_disc():
             continue
+        context = contexts.get(file.id or 0, NO_CONTEXT)
         if kind == "audio":
             if not file.audio_streams:
                 continue
-            index = default_audio_index(file.audio_streams)
-            default = embedded_track(index) if index is not None else None
+            default = default_audio(file, context).ref
         else:
             if file.subtitle_streams is None:
                 continue
-            default = pick_default_subtitle(file) or SUBTITLE_OFF
+            default = default_subtitle_or_off(file, context, playing_audio)
         if ref == default:
             return True
     return False
@@ -262,6 +268,7 @@ def apply_track_selection(
     audio_track: str | None = None,
     subtitle_track: str | None = None,
     files: Iterable[LibraryFile] = (),
+    contexts: Mapping[int, TrackContext] | None = None,
 ) -> None:
     """在已取得的状态行上记忆轨选择（docs/design/jellyfin-subtitle.md §3.3）。
 
@@ -279,17 +286,24 @@ def apply_track_selection(
     照记。用户在菜单里特意选回默认那条，清空和记住的效果一样。
 
     ``files`` 是这个单元的在位文件，知道放的是哪个版本时只给那一个；不给（或都判断
-    不了）就照上报原样记。只在上报和已记的值不同时才判断（纯内存计算，不查库）。
+    不了）就照上报原样记。``contexts`` 是各文件的默认轨策略上下文（库语言、原始语言，
+    按文件 id），与文件同一条 SQL 取出；不给按旧规则判断。只在上报和已记的值不同时才判断
+    （纯内存计算，不查库）。
     """
     files = list(files)
+    contexts = contexts or {}
     changed = False
     if audio_track is not None and row.audio_track != audio_track:
-        value = None if _untouched_choice(audio_track, "audio", files) else audio_track
+        untouched = _untouched_choice(audio_track, "audio", files, contexts, None)
+        value = None if untouched else audio_track
         if row.audio_track != value:
             row.audio_track = value
             changed = True
     if subtitle_track is not None and row.subtitle_track != subtitle_track:
-        value = None if _untouched_choice(subtitle_track, "subtitle", files) else subtitle_track
+        # 默认字幕看正在放的音轨：这次报了就是它，没报就是记着的（都没有即默认音轨）
+        playing_audio = audio_track if audio_track is not None else row.audio_track
+        untouched = _untouched_choice(subtitle_track, "subtitle", files, contexts, playing_audio)
+        value = None if untouched else subtitle_track
         if row.subtitle_track != value:
             row.subtitle_track = value
             changed = True

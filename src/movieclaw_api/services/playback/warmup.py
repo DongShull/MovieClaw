@@ -43,6 +43,7 @@ from movieclaw_db.models import LibraryFile
 from movieclaw_playback.capability import ClientCapability
 from movieclaw_playback.decide import needs_keyframe_probe
 from movieclaw_playback.profile import media_profile_from_file
+from movieclaw_playback.track_policy import NO_CONTEXT, TrackContext
 
 logger = logging.getLogger("movieclaw_api.playback.warmup")
 
@@ -102,10 +103,13 @@ def schedule(
     *,
     identity: str,
     user_agent: str | None,
+    context: TrackContext = NO_CONTEXT,
 ) -> None:
     """后台预热一个条目的在位文件。
 
     跳过：文件多（剧集）、已在预热中、不认识这个客户端（没上报过解码能力）。
+    ``context`` 是默认轨策略的上下文（库语言、原始语言）：预判「会不会走直通」要和真正
+    起播挑同一条音轨——策略挑的原声不是容器默认轨时要重封装，才用得上关键帧采样。
     """
     if not files or len(files) > _MAX_FILES:
         return
@@ -126,7 +130,7 @@ def schedule(
                 # 原盘的关键帧密度来自 CLPI（不读码流），不需要预热；
                 # 其余文件先用纯判定问一句「这个客户端放它会不会走直通」。
                 if file.is_disc() or not needs_keyframe_probe(
-                    media_profile_from_file(file), capability, policy
+                    media_profile_from_file(file, context=context), capability, policy
                 ):
                     continue
                 result = _warm_file(file)

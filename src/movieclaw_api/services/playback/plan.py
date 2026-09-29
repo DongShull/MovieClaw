@@ -12,7 +12,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.services.media_probe import probe_keyframe_interval
@@ -20,6 +20,7 @@ from movieclaw_api.services.playback.disc_source import disc_source_for_file
 from movieclaw_api.services.playback.ffmpeg_args import effective_hw_backend
 from movieclaw_api.services.playback.hwprobe import hardware_available
 from movieclaw_api.services.playback.limits import MAX_TRANSCODE_HEIGHT
+from movieclaw_api.services.playback.track_context import track_contexts
 from movieclaw_api.settings import PlaybackPolicySetting
 from movieclaw_api.settings.store import get_setting_store
 from movieclaw_db.models import FileState, LibraryFile
@@ -34,6 +35,7 @@ from movieclaw_playback.decide import (
 )
 from movieclaw_playback.decide import PlaybackTier as Tier
 from movieclaw_playback.profile import media_profile_from_file
+from movieclaw_playback.track_policy import TrackContext
 
 if TYPE_CHECKING:  # 仅类型标注需要，运行时不导入（避免 schemas ↔ services 循环）
     from movieclaw_api.schemas.playback import PlaybackDecisionView
@@ -71,6 +73,7 @@ async def decide_for_file(
         preferred_audio=preferred_audio,
         preferred_subtitle=preferred_subtitle,
         max_height=max_height,
+        contexts=await track_contexts(session, [file]),
     )
 
 
@@ -83,12 +86,16 @@ async def decide_for_files(
     preferred_audio: str | None = None,
     preferred_subtitle: str | None = None,
     max_height: int | None = None,
+    contexts: dict[int, TrackContext] | None = None,
 ) -> PlaybackDecision | None:
     """多候选择优（§3.5）：同一条目常有 1080p/2160p 两个版本，能直通的
     1080p 胜过要转码的 2160p。
 
     接口形状是「候选集合 → 最优计划」而不是逐文件判档——形状定死在这里，
     调用方以后加多版本选择不用改签名。
+
+    ``contexts`` 是各文件的默认轨策略上下文（随取文件的 SQL 一起取出，见 ``track_context``）：
+    用户没表态时放哪条音轨、开哪条字幕按它算；不给则按旧规则（容器默认旗标）。
     """
     if not files:
         return None
@@ -103,8 +110,10 @@ async def decide_for_files(
         disc = disc_source_for_file(file) if file.is_disc() else None
         disc_clips = len(disc.clips) if disc is not None else 0
         disc_playlist = disc.playlist_name if disc is not None else None
+        context = (contexts or {}).get(file.id or 0)
         profile = media_profile_from_file(
-            file, disc_clips=disc_clips, disc_playlist=disc_playlist
+            file, disc_clips=disc_clips, disc_playlist=disc_playlist,
+            context=context, preferred_audio=preferred_audio,
         )
         interval = None
         if disc is not None:
@@ -114,6 +123,8 @@ async def decide_for_files(
                 keyframe_interval_s=interval,
                 disc_clips=disc_clips,
                 disc_playlist=disc_playlist,
+                context=context,
+                preferred_audio=preferred_audio,
             )
         elif needs_keyframe_probe(
             profile,
@@ -138,7 +149,8 @@ async def decide_for_files(
                     probe_s, file.file_path,
                 )
             profile = media_profile_from_file(
-                file, keyframe_interval_s=interval, disc_clips=disc_clips
+                file, keyframe_interval_s=interval, disc_clips=disc_clips,
+                context=context, preferred_audio=preferred_audio,
             )
         decisions.append(
             (
@@ -222,6 +234,26 @@ def _best(decisions: list[tuple[PlaybackDecision, int | None]]) -> PlaybackDecis
     return consents[0] if consents else decisions[0][0]
 
 
+def library_files_statement(
+    media_item_id: int,
+    season_number: int,
+    episode_number: int,
+    *,
+    visible_library_ids: set[int] | None = None,
+) -> Select:
+    """一个播放单元（电影或某一集）在位的全部版本文件的查询（起播决策要连带取默认轨上下文，
+    见 ``track_context.files_with_contexts``）。"""
+    stmt = select(LibraryFile).where(
+        LibraryFile.media_item_id == media_item_id,
+        LibraryFile.season_number == season_number,
+        LibraryFile.episode_number == episode_number,
+        LibraryFile.state == FileState.IN_PLACE,
+    )
+    if visible_library_ids is not None:
+        stmt = stmt.where(LibraryFile.library_id.in_(visible_library_ids))
+    return stmt
+
+
 async def library_files_for_unit(
     session: AsyncSession,
     media_item_id: int,
@@ -231,14 +263,9 @@ async def library_files_for_unit(
     visible_library_ids: set[int] | None = None,
 ) -> list[LibraryFile]:
     """取一个播放单元（电影或某一集）在位的全部版本文件，供多候选择优。"""
-    stmt = select(LibraryFile).where(
-        LibraryFile.media_item_id == media_item_id,
-        LibraryFile.season_number == season_number,
-        LibraryFile.episode_number == episode_number,
-        LibraryFile.state == FileState.IN_PLACE,
+    stmt = library_files_statement(
+        media_item_id, season_number, episode_number, visible_library_ids=visible_library_ids
     )
-    if visible_library_ids is not None:
-        stmt = stmt.where(LibraryFile.library_id.in_(visible_library_ids))
     return list((await session.execute(stmt)).scalars().all())
 
 

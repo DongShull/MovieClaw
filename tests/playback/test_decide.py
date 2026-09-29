@@ -820,6 +820,34 @@ def test_picking_default_audio_keeps_direct_play():
     assert decision.tier is PlaybackTier.DIRECT_PLAY
 
 
+def test_policy_pick_plays_without_being_asked_and_needs_remux():
+    """默认轨策略挑中的轨（``preferred``，如英文片的英语原声）不经用户点选就放它；
+    它不是容器默认轨（国语配音标了默认），直出放不了它，要重封装——和用户点选同一个判定。"""
+    dub = AudioTrack(ref="embedded:1", codec="aac", channels=2, language="chi", is_default=True)
+    original = AudioTrack(
+        ref="embedded:2", codec="aac", channels=2, language="eng", preferred=True
+    )
+    decision = decide_playback(
+        media(container="mp4", audio_tracks=(dub, original)), CHROME_HEVC, WITH_GPU
+    )
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.audio.track_ref == "embedded:2"
+    assert decision.tier is PlaybackTier.REMUX
+
+
+def test_policy_pick_on_the_container_default_keeps_direct_play():
+    """策略挑的就是容器默认轨（绝大多数片子）：照旧直出，不为策略多起一次重封装。"""
+    original = AudioTrack(
+        ref="embedded:1", codec="aac", channels=2, language="eng", is_default=True, preferred=True
+    )
+    dub = AudioTrack(ref="embedded:2", codec="aac", channels=2, language="chi")
+    decision = decide_playback(
+        media(container="mp4", audio_tracks=(original, dub)), CHROME_HEVC, WITH_GPU
+    )
+    assert decision.tier is PlaybackTier.DIRECT_PLAY
+    assert decision.audio.track_ref == "embedded:1"
+
+
 def test_unrecognized_audio_codec_is_never_the_automatic_pick():
     """探测认不出编码的轨谁也解不了：自动挑选跳过它。
 

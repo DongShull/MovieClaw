@@ -19,7 +19,14 @@ from movieclaw_api.services.playback.track_memory import (
 )
 from movieclaw_db.engine import dispose_db, get_database, init_db
 from movieclaw_db.migrations import run_migrations
-from movieclaw_db.models import FileSource, FileState, LibraryFile, MediaItem, PlaybackState
+from movieclaw_db.models import (
+    FileSource,
+    FileState,
+    LibraryFile,
+    MediaItem,
+    MediaMetadata,
+    PlaybackState,
+)
 from movieclaw_db.repositories.library_repo import LibraryRepository
 
 
@@ -163,7 +170,10 @@ def _state(item_id: int, episode: int, played_at: datetime, **tracks) -> Playbac
 
 
 async def test_latest_episode_choice_carries_to_a_new_episode(db):
-    """第 1、2 集都换过轨，第 3 集没看过：按最近看的第 2 集换算；本集自己有记忆时以本集为准。"""
+    """第 1、2 集都换过轨，第 3 集没看过：按最近看的第 2 集换算；本集自己有记忆时以本集为准。
+
+    库语言是中文（TMDB_LANGUAGE 默认 zh-CN）：中文字幕本来就是默认挑选，用户换成英文字幕才算选择。
+    """
     async with db.session() as session:
         library = await LibraryRepository(session).create(
             name="剧集库", kind="tv", root_paths=["/tv"]
@@ -186,11 +196,11 @@ async def test_latest_episode_choice_carries_to_a_new_episode(db):
         states = {
             (show.id, 1, 1): _state(show.id, 1, datetime(2026, 9, 1), audio_track="embedded:2"),
             (show.id, 1, 2): _state(show.id, 2, datetime(2026, 9, 2), audio_track="embedded:1",
-                                    subtitle_track="embedded:1"),
+                                    subtitle_track="embedded:0"),
         }
         assert await series_track_memory(session, states, (show.id, 1, 3)) == (
             "embedded:2",
-            "embedded:1",
+            "embedded:0",
         )
 
         # 本集已经记着自己的音轨：只补缺的字幕
@@ -198,8 +208,35 @@ async def test_latest_episode_choice_carries_to_a_new_episode(db):
                                          audio_track="embedded:0")
         assert await series_track_memory(session, states, (show.id, 1, 3)) == (
             None,
-            "embedded:1",
+            "embedded:0",
         )
+
+
+async def test_what_counts_as_the_default_follows_the_track_policy(db):
+    """英文剧、国语配音标了默认：默认挑选是英语原声。用户在上一集换成国语（恰好是容器默认轨），
+    是用户的选择、要沿用；选了英语原声就是默认挑选，不沿用。"""
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="剧集库", kind="tv", root_paths=["/tv"]
+        )
+        show = MediaItem(kind="tv", tmdb_id=302, title="英剧", original_title="Show")
+        session.add(show)
+        await session.flush()
+        assert library.id and show.id
+        session.add(MediaMetadata(media_item_id=show.id, original_language="en"))
+        dubbed = [_audio("chi", default=True), _audio("eng")]
+        session.add_all([_episode(library.id, show.id, n, dubbed) for n in (1, 2)])
+        await session.commit()
+
+        mandarin = {(show.id, 1, 1): _state(show.id, 1, datetime(2026, 9, 1),
+                                            audio_track="embedded:0")}
+        assert await series_track_memory(session, mandarin, (show.id, 1, 2)) == (
+            "embedded:0",
+            None,
+        )
+        original = {(show.id, 1, 1): _state(show.id, 1, datetime(2026, 9, 1),
+                                            audio_track="embedded:1")}
+        assert await series_track_memory(session, original, (show.id, 1, 2)) == (None, None)
 
 
 async def test_movies_are_never_inherited(db):

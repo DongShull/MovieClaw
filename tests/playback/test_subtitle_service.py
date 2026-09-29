@@ -17,11 +17,10 @@ from movieclaw_playback.subtitles import (
     parse_embedded_track,
     parse_external_track,
     pick_default_subtitle,
-    resolve_default_audio,
-    resolve_default_subtitle,
     resolve_external_subtitle,
     serve_subtitle,
 )
+from movieclaw_playback.track_policy import resolve_audio, resolve_subtitle
 
 SRT = "1\n00:00:01,000 --> 00:00:02,500\n简体中文字幕测试\n\n"
 
@@ -304,18 +303,18 @@ def test_pick_ai_marker_reads_title_not_filename() -> None:
 
 def test_resolve_default_off_always_wins() -> None:
     f = _file_tracks([], [{"filename": "Movie.chs.srt", "format": "srt"}])
-    assert resolve_default_subtitle(f, SUBTITLE_OFF) == SUBTITLE_OFF
+    assert resolve_subtitle(f, SUBTITLE_OFF).ref == SUBTITLE_OFF
 
 
 def test_resolve_default_remembered_valid() -> None:
     f = _file_tracks([{"codec": "subrip"}], [])
-    assert resolve_default_subtitle(f, "embedded:0") == "embedded:0"
+    assert resolve_subtitle(f, "embedded:0").ref == "embedded:0"
 
 
 def test_resolve_default_stale_falls_back_to_policy() -> None:
     f = _file_tracks([], [{"filename": "Movie.chs.srt", "format": "srt"}])
     # 记忆指向已删除的字幕文件 → 回落选择策略（选现存外挂）
-    assert resolve_default_subtitle(f, "external:gone.srt") == "external:Movie.chs.srt"
+    assert resolve_subtitle(f, "external:gone.srt").ref == "external:Movie.chs.srt"
 
 
 def test_resolve_default_audio_validity() -> None:
@@ -326,9 +325,10 @@ def test_resolve_default_audio_validity() -> None:
         audio_streams=[{"codec": "aac"}, {"codec": "dts"}],
         source="scanned",
     )
-    assert resolve_default_audio(f, "embedded:1") == 1
-    assert resolve_default_audio(f, "embedded:5") is None  # 悬空
-    assert resolve_default_audio(f, None) is None
+    assert resolve_audio(f, "embedded:1").index == 1
+    # 悬空记忆、没有记忆：都按默认轨策略（没有默认旗标时第一条）
+    assert resolve_audio(f, "embedded:5").index == 0
+    assert resolve_audio(f, None).index == 0
 
 
 # ---------------------------------------------------------------------------

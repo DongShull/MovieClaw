@@ -857,6 +857,30 @@ class FileOriginView(BaseModel):
     )
 
 
+class TrackDefaultsView(BaseModel):
+    """不经用户操作时会放的音轨 / 字幕（与起播同一口径：本集记着的 > 沿用同剧上一集 >
+    默认轨策略，见 services/playback/track_defaults）。详情页据此标「默认」并说明原因。"""
+
+    audio_track: str | None = Field(
+        default=None, description="将要放的音轨（中性引用 embedded:<k>）；没有音轨为 null"
+    )
+    audio_reason: str = Field(
+        description="remembered 上次换的 / series 沿用上一集 / original_language 影片原声 / "
+        "default_flag 片源标注的默认 / first 第一条 / none 没有音轨"
+    )
+    audio_note: str = Field(description="音轨原因的一句中文，界面直接展示")
+    subtitle_track: str | None = Field(
+        default=None,
+        description="将要开的字幕（embedded:<k> / external:<文件名>）；null = 不开字幕",
+    )
+    subtitle_reason: str = Field(
+        description="remembered / series / library_language 媒体库语言 / forced 强制字幕 / "
+        "same_language_off 原声就是库语言 / no_language_match 没有库语言字幕 / "
+        "external / default_flag / forced_only / none（后四个是没有库语言可比时的旧规则）"
+    )
+    subtitle_note: str = Field(description="字幕原因的一句中文，界面直接展示")
+
+
 class LibraryFileView(BaseModel):
     """条目详情页的一个物理文件（一个版本 / 一集）。"""
 
@@ -904,6 +928,11 @@ class LibraryFileView(BaseModel):
     )
     subtitle_streams: list[SubtitleStreamView] = Field(
         default_factory=list, description="字幕列表：内封轨 + 外挂文件"
+    )
+    playback_defaults: TrackDefaultsView | None = Field(
+        default=None,
+        description="当前成员起播时会放的音轨 / 字幕与原因；null = 原盘或尚未探测轨道"
+        "（界面退回按片源标注的默认旗标展示）",
     )
     # 章节（docs/design/video-chapters.md）：内嵌章节优先，没有就按时长合成。
     # null = 所在库没开「生成章节」（默认关），或尚未探测章节（旧行未补探/ffprobe

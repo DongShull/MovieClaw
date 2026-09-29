@@ -14,6 +14,11 @@
  *
  * 多文件（多版本 / 多分集）时先选物理文件再看轨道，避免不同版本的语言与格式
  * 混在一起。
+ *
+ * 标「默认」的是**这个成员起播时真会放的那条**（服务端 `playback_defaults`：本集记着的 >
+ * 沿用上一集 > 默认轨策略的原声 / 库语言），不是片源的默认旗标（2026-09-29 默认轨策略改造）：
+ * 它所在的语言芯片排第一并带一个小播放标，展开的列表顶上写明为什么是它；字幕默认不开时
+ * 没有芯片带标，列表顶上写明为什么不开。原盘、没探测过轨道的文件服务端不给，退回按旗标展示。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -33,7 +38,7 @@ import {
 } from "@floating-ui/react";
 
 import { useConfirm, useToast } from "@/components/feedback";
-import { TrashIcon } from "@/components/icons";
+import { PlayIcon, TrashIcon } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { SubtitleGenPanel } from "@/components/subtitle-gen-panel";
 import { SubtitlePreviewDialog } from "@/components/subtitle-preview-dialog";
@@ -41,6 +46,7 @@ import {
   type AudioStream,
   type LibraryItemFile,
   type SubtitleStream,
+  type TrackDefaults,
   deleteExternalSubtitle,
 } from "@/lib/api/libraries";
 import { formatVideoResolution } from "@/lib/format";
@@ -375,8 +381,13 @@ interface TrackEntry {
   preview: { stream: SubtitleStream; track: string; label: string } | null;
 }
 
-function audioEntries(streams: AudioStream[]): TrackEntry[] {
+/**
+ * 「默认」标给哪条：有服务端的 `playback_defaults` 就标起播时真会放的那条，没有（原盘、
+ * 没探测过、分享页）退回片源的默认旗标。
+ */
+function audioEntries(streams: AudioStream[], defaults?: TrackDefaults | null): TrackEntry[] {
   return streams.map((stream, index) => {
+    const isDefault = defaults ? defaults.audio_track === `embedded:${index}` : stream.default;
     const spec = audioSpecLabel(stream);
     const title = stream.title?.trim();
     return {
@@ -389,16 +400,20 @@ function audioEntries(streams: AudioStream[]): TrackEntry[] {
       tone: audioTone(stream),
       primary: title ? `${spec} · ${title}` : spec,
       secondary: `轨 ${index + 1}`,
-      flags: stream.default ? ["默认"] : [],
+      flags: isDefault ? ["默认"] : [],
       external: null,
-      order: stream.default ? 0 : 1,
+      order: isDefault ? 0 : 1,
       deletable: null,
       preview: null,
     };
   });
 }
 
-function subtitleEntries(streams: SubtitleStream[], videoStem: string): TrackEntry[] {
+function subtitleEntries(
+  streams: SubtitleStream[],
+  videoStem: string,
+  defaults?: TrackDefaults | null,
+): TrackEntry[] {
   // 内封轨在界面上按"内封里的第几条"编号，而不是在混合数组里的下标——
   // subtitle_streams 里内封与外挂是混在一起的，直接用下标会给出错误的轨号
   let embeddedOrdinal = 0;
@@ -408,6 +423,9 @@ function subtitleEntries(streams: SubtitleStream[], videoStem: string): TrackEnt
     const external = stream.external;
     if (!external) embeddedOrdinal += 1;
     const track = subtitleTrackRef(stream, index);
+    const isDefault = defaults
+      ? track !== null && defaults.subtitle_track === track
+      : stream.default;
     const label = [language, format].filter(Boolean).join(" · ");
     return {
       key: `subtitle:${track ?? `unknown:${index}`}`,
@@ -419,17 +437,29 @@ function subtitleEntries(streams: SubtitleStream[], videoStem: string): TrackEnt
         ? externalSubtitleLabel(stream.file_name, videoStem)
         : `内封轨 ${embeddedOrdinal}`,
       secondary: external ? externalSubtitleSuffix(stream) : "内封",
-      flags: [stream.default ? "默认" : null, stream.forced ? "强制" : null].filter(
+      flags: [isDefault ? "默认" : null, stream.forced ? "强制" : null].filter(
         (flag): flag is string => flag !== null,
       ),
       external,
-      order: stream.default ? 0 : isAiSubtitle(stream) ? 3 : external ? 2 : 1,
+      order: isDefault ? 0 : isAiSubtitle(stream) ? 3 : external ? 2 : 1,
       // 外挂（含 AI 生成）是磁盘上的独立文件，可以单独删；内封轨要删得
       // 重封装视频本体，不给入口
       deletable: external ? (stream.file_name ?? null) : null,
       preview: track ? { stream, track, label } : null,
     };
   });
+}
+
+/** 列表顶上的说明：会放哪条（标「默认」的那条）、为什么；字幕默认不开时说为什么不开。 */
+function defaultNote(defaults: TrackDefaults, kind: "audio" | "subtitle"): string | null {
+  if (kind === "audio") {
+    if (!defaults.audio_track || !defaults.audio_note) return null;
+    return `标「默认」的这条会自动播放：${defaults.audio_note}`;
+  }
+  if (!defaults.subtitle_note) return null;
+  return defaults.subtitle_track
+    ? `标「默认」的这条会自动打开：${defaults.subtitle_note}`
+    : defaults.subtitle_note;
 }
 
 function subtitleRank(stream: SubtitleStream, language: string): number {
@@ -511,15 +541,17 @@ export function MediaTrackRows({
   const selectedFile =
     availableFiles.find((file) => file.id === selectedFileId) ?? availableFiles[0];
 
+  const defaults = selectedFile?.playback_defaults ?? null;
   const audioGroups = useMemo(
-    () => groupByLanguage(audioEntries(selectedFile?.audio_streams ?? [])),
-    [selectedFile?.audio_streams],
+    () => groupByLanguage(audioEntries(selectedFile?.audio_streams ?? [], defaults)),
+    [selectedFile?.audio_streams, defaults],
   );
   // 外挂字幕的行内标签要减掉这段前缀（见 externalSubtitleLabel）
   const videoStem = (selectedFile?.file_name ?? "").replace(/\.[^.]+$/, "");
   const subtitleGroups = useMemo(
-    () => groupByLanguage(subtitleEntries(selectedFile?.subtitle_streams ?? [], videoStem)),
-    [selectedFile?.subtitle_streams, videoStem],
+    () =>
+      groupByLanguage(subtitleEntries(selectedFile?.subtitle_streams ?? [], videoStem, defaults)),
+    [selectedFile?.subtitle_streams, videoStem, defaults],
   );
 
   /**
@@ -579,6 +611,8 @@ export function MediaTrackRows({
           label="音轨"
           kind="音轨"
           groups={audioGroups}
+          marksDefault={defaults !== null}
+          defaultNote={defaults ? defaultNote(defaults, "audio") : null}
           trailing={
             audioSpec ? (
               <span className="tnum shrink-0 rounded-[7px] md:ml-auto border border-white/[0.14] bg-white/[0.04] px-2.5 py-1 text-caption font-semibold text-white/80">
@@ -596,6 +630,8 @@ export function MediaTrackRows({
           label="字幕"
           kind="字幕"
           groups={subtitleGroups}
+          marksDefault={defaults !== null}
+          defaultNote={defaults ? defaultNote(defaults, "subtitle") : null}
           footer={
             canManageLibraries
               ? "点任意一条打开字幕预览；外挂字幕可就地删除"
@@ -696,6 +732,8 @@ function TrackRow({
   kind,
   groups,
   empty,
+  marksDefault = false,
+  defaultNote,
   footer,
   trailing,
   onSelect,
@@ -705,6 +743,10 @@ function TrackRow({
   kind: string;
   groups: LanguageGroup[];
   empty: string;
+  /** 起播会放的那组（hasDefault）芯片带小播放标；只在「默认」来自服务端的起播结论时标 */
+  marksDefault?: boolean;
+  /** 展开列表顶上的说明：默认会放哪条、为什么 */
+  defaultNote?: string | null;
   footer?: string;
   trailing?: React.ReactNode;
   onSelect?: (entry: TrackEntry) => void;
@@ -786,6 +828,7 @@ function TrackRow({
       groups={groups}
       total={total}
       focusLanguage={focusLanguage}
+      defaultNote={defaultNote}
       footer={footer}
       onSelect={
         onSelect
@@ -817,6 +860,12 @@ function TrackRow({
                 aria-expanded={open && focusLanguage === group.language}
                 onClick={(event) => toggleAt(group.language, event.currentTarget)}
               >
+                {marksDefault && group.hasDefault && (
+                  <>
+                    <PlayIcon aria-hidden="true" className="size-2 text-[var(--accent-2)]" />
+                    <span className="sr-only">默认播放：</span>
+                  </>
+                )}
                 <span>{group.language}</span>
                 {group.entries.length === 1 ? (
                   <span className="text-micro font-semibold text-white/50">
@@ -882,6 +931,7 @@ function TrackList({
   groups,
   total,
   focusLanguage,
+  defaultNote,
   footer,
   onSelect,
   onDelete,
@@ -892,6 +942,7 @@ function TrackList({
   groups: LanguageGroup[];
   total: number;
   focusLanguage: string | null;
+  defaultNote?: string | null;
   footer?: string;
   onSelect?: (entry: TrackEntry) => void;
   onDelete?: (entry: TrackEntry) => void;
@@ -929,6 +980,9 @@ function TrackList({
           </span>
         )}
       </div>
+      {defaultNote && (
+        <div className="px-4 pt-2 text-caption text-[var(--text-muted)]">{defaultNote}</div>
+      )}
 
       <div
         ref={scrollRef}

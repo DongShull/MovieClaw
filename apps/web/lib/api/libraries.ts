@@ -1353,9 +1353,30 @@ export interface LibraryItemFile {
   audio_streams: AudioStream[] | null;
   /** 字幕列表：内封轨 + 外挂文件 */
   subtitle_streams: SubtitleStream[];
+  /** 当前成员起播时会放的音轨 / 字幕与原因；null = 原盘或尚未探测轨道（界面退回按片源旗标展示） */
+  playback_defaults: TrackDefaults | null;
   /** 有效章节（内嵌或按时长合成）；null=所在库没开「生成章节」或尚未探测章节 */
   chapters: LibraryChapter[] | null;
   added_at: string;
+}
+
+/**
+ * 不经用户操作时会放的音轨 / 字幕（与起播同一口径：本集记着的 > 沿用同剧上一集 >
+ * 默认轨策略的原声 / 库语言，见服务端 services/playback/track_defaults）。
+ */
+export interface TrackDefaults {
+  /** 将要放的音轨（embedded:<k>）；没有音轨为 null */
+  audio_track: string | null;
+  /** remembered / series / original_language / default_flag / first / none */
+  audio_reason: string;
+  /** 音轨原因的一句中文 */
+  audio_note: string;
+  /** 将要开的字幕（embedded:<k> / external:<文件名>）；null = 不开字幕 */
+  subtitle_track: string | null;
+  /** remembered / series / library_language / forced / same_language_off / no_language_match / … */
+  subtitle_reason: string;
+  /** 字幕原因的一句中文 */
+  subtitle_note: string;
 }
 
 /** 一个章节（docs/design/video-chapters.md）：详情页「场景」横排的一张卡。 */

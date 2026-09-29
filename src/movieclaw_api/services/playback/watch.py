@@ -27,6 +27,7 @@ import time
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from movieclaw_api.services.playback.track_context import unit_files_with_contexts
 from movieclaw_api.services.webhook import emit_events
 from movieclaw_db.models import LibraryFile, MediaItem, PlaybackLog, PlaybackState
 from movieclaw_db.models.base import utcnow
@@ -389,12 +390,14 @@ async def record_start(
         row, audio_track=audio_track, subtitle_track=subtitle_track
     ):
         # 轨和已记的不同才要判断是不是默认挑选；开始上报本身不取文件，只在这时取一次
-        files = await playback_state.unit_files(session, unit)
+        # （默认轨策略的上下文随文件同一条 SQL 取出）
+        files, contexts = await unit_files_with_contexts(session, unit)
         playback_state.apply_track_selection(
             row,
             audio_track=audio_track,
             subtitle_track=subtitle_track,
             files=_played_files(files, file_id),
+            contexts=contexts,
         )
     # 起点记续播位置：看完的从头播（position 已被清零），没看完的接着播
     await _log_start(session, unit, member_id=member_id, client=client, position_ms=row.position_ms)
@@ -435,8 +438,9 @@ async def record_progress(
             position_ms=position_ms,
             paused=paused,
         )
-    # 片长与轨选择判断共用同一次取文件（心跳很频繁，不为判断轨多查一次库）
-    files = await playback_state.unit_files(session, unit)
+    # 片长与轨选择判断共用同一次取文件（心跳很频繁，不为判断轨多查一次库）：
+    # 判断要的默认轨策略上下文（库语言、原始语言）也随文件同一条 SQL 取出
+    files, contexts = await unit_files_with_contexts(session, unit)
     runtime_ms = await playback_state.unit_runtime_ms(session, unit, files=files)
     row, newly_played = await playback_state.record_playback_progress(
         session,
@@ -450,6 +454,7 @@ async def record_progress(
         audio_track=audio_track,
         subtitle_track=subtitle_track,
         files=_played_files(files, file_id),
+        contexts=contexts,
     )
     await _log_progress(
         session,

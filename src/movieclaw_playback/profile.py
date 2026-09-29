@@ -18,7 +18,12 @@ from movieclaw_playback.subtitles import (
     embedded_track,
     external_track,
     is_ai_generated,
-    pick_default_subtitle,
+)
+from movieclaw_playback.track_policy import (
+    AudioChoice,
+    SubtitleChoice,
+    TrackContext,
+    default_tracks,
 )
 
 
@@ -28,6 +33,8 @@ def media_profile_from_file(
     keyframe_interval_s: float | None = None,
     disc_clips: int = 0,
     disc_playlist: str | None = None,
+    context: TrackContext | None = None,
+    preferred_audio: str | None = None,
 ) -> MediaProfile:
     """把一行台账装配成决策输入。
 
@@ -35,7 +42,11 @@ def media_profile_from_file(
     决策引擎会保守地不走 remux——档 1/2 的分片只能切在源片已有的 IDR 上，
     索引未知就赌不起。``disc_clips`` 是原盘主播放列表的段数（非原盘为 0），
     由调用方从播放源解析器取——本模块不碰磁盘；``disc_playlist`` 是它的文件名。
+
+    ``context`` 是默认轨策略的上下文（库语言、原始语言，见 track_policy），``preferred_audio`` 是
+    这次要放的音轨（用户点选 / 记忆）——默认字幕要看放的是哪种语言的音轨。不给上下文时按旧规则。
     """
+    audio_choice, subtitle_choice = default_tracks(file, context or TrackContext(), preferred_audio)
     return MediaProfile(
         file_id=file.id or 0,
         container=file.container,
@@ -45,8 +56,8 @@ def media_profile_from_file(
         color_space=file.color_space,
         bit_depth=file.bit_depth,
         duration_ms=(file.duration_seconds * 1000) if file.duration_seconds else None,
-        audio_tracks=_audio_tracks(file),
-        subtitle_tracks=_subtitle_tracks(file),
+        audio_tracks=_audio_tracks(file, audio_choice),
+        subtitle_tracks=_subtitle_tracks(file, subtitle_choice),
         keyframe_interval_s=keyframe_interval_s,
         is_strm=is_strm(file.file_path),
         disc_clips=disc_clips,
@@ -55,7 +66,9 @@ def media_profile_from_file(
     )
 
 
-def _audio_tracks(file: LibraryFile) -> tuple[AudioTrack, ...]:
+def _audio_tracks(file: LibraryFile, choice: AudioChoice) -> tuple[AudioTrack, ...]:
+    """``is_default`` 是容器旗标（直出放哪条）；``preferred`` 是默认轨策略挑中的那条
+    （用户没表态时放哪条）。"""
     return tuple(
         AudioTrack(
             ref=embedded_track(index),
@@ -63,21 +76,21 @@ def _audio_tracks(file: LibraryFile) -> tuple[AudioTrack, ...]:
             channels=raw.get("channels"),
             language=raw.get("language"),
             is_default=bool(raw.get("default")),
+            preferred=index == choice.index,
         )
         for index, raw in enumerate(file.audio_streams or [])
         if isinstance(raw, dict)
     )
 
 
-def _subtitle_tracks(file: LibraryFile) -> tuple[SubtitleTrack, ...]:
+def _subtitle_tracks(file: LibraryFile, choice: SubtitleChoice) -> tuple[SubtitleTrack, ...]:
     """内封轨在前、外挂轨在后——与既有中性引用的编号口径保持一致。
 
-    ``is_default`` 写的是**服务端裁决出的那一条**（pick_default_subtitle：
-    外挂 > AI 优先 > 内封 default 旗标 > 非 forced，全不命中则谁都不标），
-    不是容器里的原始旗标。网页端拿这个标记做首选，Jellyfin 端经
-    resolve_default_subtitle 走同一个函数——两端对同一部片给出同一条默认轨。
+    ``is_default`` 写的是**服务端裁决出的那一条**（track_policy 的默认字幕：库语言优先、再看原声），
+    不是容器里的原始旗标，不开字幕时谁都不标。网页端、App 拿这个标记做首选，Jellyfin 端经
+    track_policy.resolve_subtitle 走同一个策略——各端对同一部片给出同一条默认轨。
     """
-    default_ref = pick_default_subtitle(file)
+    default_ref = choice.ref
     embedded = [
         SubtitleTrack(
             ref=embedded_track(index),

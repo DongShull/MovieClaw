@@ -13,6 +13,11 @@ import SwiftUI
 /// 多文件（多版本 / 多分集）时先选物理文件再看轨道，避免不同版本的语言与格式混在一起；
 /// 只认在位文件（`state == in_place`），缺失与待回收的版本不出现在选择器里。
 ///
+/// 标「默认」的是**这个成员起播时真会放的那条**（服务端 `playback_defaults`：本集记着的 >
+/// 沿用上一集 > 默认轨策略的原声 / 库语言），不是片源的默认旗标（2026-09-29 默认轨策略改造）：
+/// 它所在的语言芯片排第一并带一个小播放标，列表里第一组下面写明为什么是它；字幕默认不开时
+/// 没有芯片带标，列表里写明为什么不开。原盘、没探测过轨道的文件服务端不给，退回按旗标展示。
+///
 /// 字幕行可点开预览（在列表弹层里推进一页，含一键校准时间轴）；外挂字幕（含 AI 生成）管理员可左滑删除；
 /// 字幕行尾挂「AI 生成字幕」入口（仅管理员，见 `TrackSubtitleGenButton`）。
 struct MediaTrackSection: View {
@@ -43,9 +48,10 @@ struct MediaTrackSection: View {
     }
 
     private func content(_ file: API.LibraryFileView) -> some View {
-        let audioGroups = TrackModel.groupByLanguage(TrackModel.audioEntries(file.audioStreams ?? []))
+        let defaults = file.playbackDefaults
+        let audioGroups = TrackModel.groupByLanguage(TrackModel.audioEntries(file.audioStreams ?? [], defaults: defaults))
         let subtitleGroups = TrackModel.groupByLanguage(
-            TrackModel.subtitleEntries(file.subtitleStreams, videoStem: TrackModel.videoStem(file.fileName))
+            TrackModel.subtitleEntries(file.subtitleStreams, videoStem: TrackModel.videoStem(file.fileName), defaults: defaults)
         )
         let audioSpec = TrackModel.topAudioSpec(file.audioStreams ?? [])
 
@@ -58,6 +64,7 @@ struct MediaTrackSection: View {
                 label: "音轨",
                 groups: audioGroups,
                 empty: file.audioStreams == nil ? "尚未探测" : "文件内没有音轨",
+                marksDefault: defaults != nil,
                 onOpen: { listTarget = TrackListTarget(kind: .audio, focusLanguage: $0) }
             ) {
                 if let audioSpec {
@@ -75,6 +82,7 @@ struct MediaTrackSection: View {
                 label: "字幕",
                 groups: subtitleGroups,
                 empty: "无内封或外挂字幕",
+                marksDefault: defaults != nil,
                 onOpen: { listTarget = TrackListTarget(kind: .subtitle, focusLanguage: $0) }
             ) {
                 // 生成入口紧跟在语言芯片后面：它是对「这一行的字幕」动手，挨着作用对象才读得通。
@@ -87,15 +95,17 @@ struct MediaTrackSection: View {
         .sheet(item: $listTarget) { target in
             // 列表内容取自当前（可能已重拉过的）文件：删除 / 校准一条字幕后列表就地刷新
             let currentFile = selectedFile ?? file
+            let currentDefaults = currentFile.playbackDefaults
             let groups = target.kind == .audio
-                ? TrackModel.groupByLanguage(TrackModel.audioEntries(currentFile.audioStreams ?? []))
+                ? TrackModel.groupByLanguage(TrackModel.audioEntries(currentFile.audioStreams ?? [], defaults: currentDefaults))
                 : TrackModel.groupByLanguage(TrackModel.subtitleEntries(
-                    currentFile.subtitleStreams, videoStem: TrackModel.videoStem(currentFile.fileName)
+                    currentFile.subtitleStreams, videoStem: TrackModel.videoStem(currentFile.fileName), defaults: currentDefaults
                 ))
             TrackListSheet(
                 kind: target.kind,
                 groups: groups,
                 focusLanguage: target.focusLanguage,
+                defaultNote: currentDefaults.flatMap { TrackModel.defaultNote($0, kind: target.kind) },
                 footer: target.kind == .subtitle
                     ? (permissions.canManageLibraries ? "点任意一条打开字幕预览；外挂字幕可左滑删除" : "点任意一条打开字幕预览")
                     : nil,
@@ -175,6 +185,7 @@ struct MediaTrackReadOnlyRows: View {
                 label: "音轨",
                 groups: audioGroups,
                 empty: audioStreams == nil ? "尚未探测" : "文件内没有音轨",
+                marksDefault: false,
                 onOpen: { listTarget = TrackListTarget(kind: .audio, focusLanguage: $0) }
             ) {
                 if let audioSpec {
@@ -191,6 +202,7 @@ struct MediaTrackReadOnlyRows: View {
                 label: "字幕",
                 groups: subtitleGroups,
                 empty: "无内封或外挂字幕",
+                marksDefault: false,
                 onOpen: { listTarget = TrackListTarget(kind: .subtitle, focusLanguage: $0) }
             ) {
                 EmptyView()
@@ -202,6 +214,7 @@ struct MediaTrackReadOnlyRows: View {
                 kind: target.kind,
                 groups: target.kind == .audio ? audioGroups : subtitleGroups,
                 focusLanguage: target.focusLanguage,
+                defaultNote: nil,
                 footer: nil,
                 canDelete: false,
                 file: nil,
@@ -503,8 +516,11 @@ private enum TrackModel {
         return labels[key] ?? resolution
     }
 
-    static func audioEntries(_ streams: [API.AudioStreamView]) -> [TrackEntry] {
+    /// 「默认」标给哪条：有服务端的 `playback_defaults` 就标起播时真会放的那条，
+    /// 没有（原盘、没探测过、访客页）退回片源的默认旗标
+    static func audioEntries(_ streams: [API.AudioStreamView], defaults: API.TrackDefaultsView? = nil) -> [TrackEntry] {
         streams.enumerated().map { index, stream in
+            let isDefault = defaults.map { $0.audioTrack == "embedded:\(index)" } ?? stream.default
             let spec = audioSpecLabel(stream)
             let title = stream.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let format: String = {
@@ -519,16 +535,18 @@ private enum TrackModel {
                 tone: audioTone(stream),
                 primary: title.isEmpty ? spec : "\(spec) · \(title)",
                 secondary: "轨 \(index + 1)",
-                flags: stream.default ? ["默认"] : [],
+                flags: isDefault ? ["默认"] : [],
                 external: nil,
-                order: stream.default ? 0 : 1,
+                order: isDefault ? 0 : 1,
                 deletable: nil,
                 preview: nil
             )
         }
     }
 
-    static func subtitleEntries(_ streams: [API.SubtitleStreamView], videoStem: String) -> [TrackEntry] {
+    static func subtitleEntries(
+        _ streams: [API.SubtitleStreamView], videoStem: String, defaults: API.TrackDefaultsView? = nil
+    ) -> [TrackEntry] {
         // 内封轨在界面上按「内封里的第几条」编号，而不是混合数组的下标——
         // subtitle_streams 里内封与外挂混在一起，直接用下标会给出错误的轨号
         var embeddedOrdinal = 0
@@ -538,9 +556,10 @@ private enum TrackModel {
             let external = stream.external
             if !external { embeddedOrdinal += 1 }
             let track = subtitleTrackRef(stream, index: index)
+            let isDefault = defaults.map { track != nil && $0.subtitleTrack == track } ?? stream.default
             let label = "\(language) · \(format)"
             var flags: [String] = []
-            if stream.default { flags.append("默认") }
+            if isDefault { flags.append("默认") }
             if stream.forced { flags.append("强制") }
             return TrackEntry(
                 id: "subtitle:\(track ?? "unknown:\(index)")",
@@ -552,11 +571,25 @@ private enum TrackModel {
                 secondary: external ? externalSubtitleSuffix(stream) : "内封",
                 flags: flags,
                 external: external,
-                order: stream.default ? 0 : isAiSubtitle(stream) ? 3 : external ? 2 : 1,
+                order: isDefault ? 0 : isAiSubtitle(stream) ? 3 : external ? 2 : 1,
                 // 外挂（含 AI 生成）是磁盘上的独立文件，可以单独删；内封轨要删得重封装视频本体，不给入口
                 deletable: external ? stream.fileName : nil,
                 preview: track.map { TrackPreviewInfo(stream: stream, track: $0, label: label) }
             )
+        }
+    }
+
+    /// 列表第一组下面的说明：会放哪条（标「默认」的那条）、为什么；字幕默认不开时说为什么不开
+    static func defaultNote(_ defaults: API.TrackDefaultsView, kind: TrackKind) -> String? {
+        switch kind {
+        case .audio:
+            guard defaults.audioTrack != nil, !defaults.audioNote.isEmpty else { return nil }
+            return "标「默认」的这条会自动播放：\(defaults.audioNote)"
+        case .subtitle:
+            guard !defaults.subtitleNote.isEmpty else { return nil }
+            return defaults.subtitleTrack != nil
+                ? "标「默认」的这条会自动打开：\(defaults.subtitleNote)"
+                : defaults.subtitleNote
         }
     }
 
@@ -606,6 +639,8 @@ private struct TrackRowView<Trailing: View>: View {
     let label: String
     let groups: [TrackLanguageGroup]
     let empty: String
+    /// 起播会放的那组（`hasDefault`）芯片带小播放标；只在「默认」来自服务端的起播结论时标
+    let marksDefault: Bool
     let onOpen: (String) -> Void
     @ViewBuilder let trailing: () -> Trailing
 
@@ -626,8 +661,14 @@ private struct TrackRowView<Trailing: View>: View {
                         .frame(height: 32)
                 } else {
                     ForEach(groups.prefix(maxChips)) { group in
+                        let playing = marksDefault && group.hasDefault
                         Button { onOpen(group.language) } label: {
                             HStack(spacing: 6) {
+                                if playing {
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 7, weight: .bold))
+                                        .foregroundStyle(Theme.accentStrong)
+                                }
                                 Text(group.language)
                                 if group.entries.count == 1 {
                                     Text(group.entries[0].format)
@@ -642,6 +683,7 @@ private struct TrackRowView<Trailing: View>: View {
                             .modifier(TrackChipStyle(background: Color.white.opacity(0.075), foreground: Color.white.opacity(0.85)))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityValue(playing ? "默认播放" : "")
                     }
                     let hidden = groups.dropFirst(maxChips)
                     if let first = hidden.first {
@@ -685,6 +727,8 @@ private struct TrackListSheet: View {
     let kind: TrackKind
     let groups: [TrackLanguageGroup]
     let focusLanguage: String
+    /// 第一组下面的说明：默认会放哪条、为什么（见 `TrackModel.defaultNote`）；nil = 不说
+    let defaultNote: String?
     let footer: String?
     let canDelete: Bool
     /// 轨道所属的视频文件；nil = 访客页的只读列表（不给预览，外挂字幕的完整路径也无从还原）
@@ -726,8 +770,13 @@ private struct TrackListSheet: View {
                             // 被点的那一组标题用强调色：滚过去之后依然认得出
                             .foregroundStyle(group.language == focusLanguage ? Theme.accentStrong : Theme.textMuted)
                         } footer: {
-                            if let footer, group.id == groups.last?.id {
-                                Text(footer)
+                            // 默认那组排在第一，说明挂在它下面；操作提示照旧挂在最后一组
+                            let notes = [
+                                group.id == groups.first?.id ? defaultNote : nil,
+                                group.id == groups.last?.id ? footer : nil,
+                            ].compactMap { $0 }
+                            if !notes.isEmpty {
+                                Text(notes.joined(separator: "\n"))
                             }
                         }
                         .id(group.language)

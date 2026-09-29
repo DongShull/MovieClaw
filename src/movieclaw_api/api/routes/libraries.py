@@ -90,6 +90,7 @@ from movieclaw_api.schemas.library import (
     SubtitleDeleteResultView,
     SubtitlePreviewView,
     SubtitleStreamView,
+    TrackDefaultsView,
     TransferMoveView,
     TransferPayload,
     TransferPreviewView,
@@ -200,6 +201,8 @@ from movieclaw_api.services.media_discover import get_tmdb_client
 from movieclaw_api.services.media_library import MediaLibraryService
 from movieclaw_api.services.media_server_notify import notify_media_server_refresh
 from movieclaw_api.services.playback import warmup as playback_warmup
+from movieclaw_api.services.playback.track_context import library_track_context
+from movieclaw_api.services.playback.track_defaults import FileTrackDefaults, file_track_defaults
 from movieclaw_api.services.scrape_config import resolve_scrape_library
 from movieclaw_api.services.subscription import SubscriptionService
 from movieclaw_api.services.title_discovery import parse_title_ref
@@ -224,6 +227,7 @@ from movieclaw_db.repositories.library_repo import LibraryRepository
 from movieclaw_db.repositories.member_repo import MemberRepository
 from movieclaw_media.genres import COUNTRY_NAMES, MOVIE_GENRES, REGION_PRESETS, TV_GENRES
 from movieclaw_media.models import MediaKind, MediaSource
+from movieclaw_playback import state as playback_state
 
 router = APIRouter(prefix="/libraries", tags=["libraries"])
 search_router = APIRouter(prefix="/search", tags=["search"])
@@ -2430,13 +2434,15 @@ def _file_view(
     origins: dict[int, dict] | None = None,
     *,
     chapters_enabled: bool,
+    defaults: FileTrackDefaults | None = None,
 ) -> LibraryFileView:
     """台账行 → 详情页文件视图：内封字幕轨与外挂字幕文件合并成一份清单。
 
     ``origins`` 是旧行（origin 为空）的读时推导结果（``derive_origins``），
     有落库快照的行不看它。``chapters_enabled`` 是所在库的「生成章节」开关：
     关着时章节给 None——详情页与分享页（它投影的就是这份视图）都不出章节横排，
-    台账里探到的章节与已生成的图原样留着，重新打开开关即恢复。"""
+    台账里探到的章节与已生成的图原样留着，重新打开开关即恢复。``defaults`` 是这个成员
+    起播时会放的音轨 / 字幕（``file_track_defaults``），给了才下发。"""
     subtitles = [
         SubtitleStreamView(
             codec=stream.get("codec"),
@@ -2505,6 +2511,18 @@ def _file_view(
             ]
         ),
         subtitle_streams=subtitles,
+        playback_defaults=(
+            TrackDefaultsView(
+                audio_track=defaults.audio.ref,
+                audio_reason=defaults.audio.reason,
+                audio_note=defaults.audio_note,
+                subtitle_track=defaults.subtitle_ref,
+                subtitle_reason=defaults.subtitle.reason,
+                subtitle_note=defaults.subtitle_note,
+            )
+            if defaults is not None
+            else None
+        ),
         chapters=_chapter_views(row) if chapters_enabled else None,
         added_at=row.created_at,
     )
@@ -2536,16 +2554,24 @@ async def get_library_item(
     # 判定走 access 的收口，超出上限与"条目不存在"不可区分
     await assert_item_visible(session, principal, media_item_id)
     item, rows = await _item_rows(session, library_id, media_item_id)
+    meta_row = await MediaItemRepository(session).get_metadata(media_item_id)
+    # 默认轨策略的上下文（库语言、原始语言）：库行与条目元数据手里都有，直接拼，不另查库。
+    # 预热的「会不会走直通」预判与文件区的「默认会放哪条」都按它算，与起播同一口径
+    track_context = library_track_context(
+        library, meta_row.original_language if meta_row is not None else None
+    )
     # 起播预热：用户在详情页看简介的这几秒，正好把关键帧采样做掉——点播放
     # 时缓存直接命中，首播不再现场探测（§6.10）。只替上报过解码能力、且放这
     # 部片可能走直通的网页客户端做；内封字幕不在这里抽（整文件通读，详情接口
     # 会被批量调用）。见 warmup 模块说明。后台任务，失败无感；剧集（文件多）
     # 在 warmup 内部自动跳过。分享页内部调用时没有 User-Agent，不预热。
+    in_place_rows = [row for row in rows if row.state == FileState.IN_PLACE]
     playback_warmup.schedule(
         media_item_id,
-        [row for row in rows if row.state == FileState.IN_PLACE],
+        in_place_rows,
         identity=playback_warmup.identity_of(principal),
         user_agent=user_agent,
+        context=track_context,
     )
     # 章节场景图懒触发（docs/design/video-chapters.md §4.5）：有在位文件的图
     # 还没抓齐就后台抓这一个条目，前端按 chapters_pending 轮询几轮把图补上——
@@ -2595,7 +2621,6 @@ async def get_library_item(
     # 图片优先级与元数据同构：条目目录美术图 > 本地刮削资产 > TMDB 图床。
     # 本地两层的 URL 都带 ?v=<mtime> 版本戳：换图是**原地覆盖同一路径**，
     # 不带版本浏览器会拿缓存里的旧图，用户看到"换了没生效"（实测踩过）
-    meta_row = await MediaItemRepository(session).get_metadata(media_item_id)
     if bundle.has_local_poster:
         poster_url = f"{art_base}?kind=poster&v={bundle.local_poster_version}"
     elif meta_row is not None and meta_row.poster_file:
@@ -2670,12 +2695,23 @@ async def get_library_item(
 
     assert item.id is not None
     origins = await derive_origins(session, rows)
+    # 文件区标「默认」的是这个成员起播时真会放的那条（本集记着的 > 沿用上一集 > 默认轨策略），
+    # 不再是片源的默认旗标：观看状态一次查询取完整个条目，其余是内存计算
+    watch_states = await playback_state.get_states(session, [media_item_id], member_id=member_id)
+    unit_files: dict[tuple[int, int, int], LibraryFile] = {}
+    for row in in_place_rows:
+        unit_files.setdefault((media_item_id, row.season_number, row.episode_number), row)
     file_views = [
         _file_view(
             row,
             bundle.external_subtitles.get(row.id or -1, []),
             origins,
             chapters_enabled=library.extract_chapter_images,
+            defaults=(
+                file_track_defaults(row, track_context, watch_states, unit_files)
+                if row.state == FileState.IN_PLACE
+                else None
+            ),
         )
         for row in rows
     ]

@@ -3866,6 +3866,8 @@ nonisolated extension API {
         var audioStreams: [API.AudioStreamView]?
         /// 字幕列表：内封轨 + 外挂文件
         var subtitleStreams: [API.SubtitleStreamView]
+        /// 当前成员起播时会放的音轨 / 字幕与原因；null = 原盘或尚未探测轨道（界面退回按片源标注的默认旗标展示）
+        var playbackDefaults: API.TrackDefaultsView?
         /// 有效章节列表（内嵌或按时长合成）；null=所在库未开启「生成章节」或尚未探测
         var chapters: [API.ChapterView]?
         var addedAt: String
@@ -3898,6 +3900,7 @@ nonisolated extension API {
             case keptAt = "kept_at"
             case audioStreams = "audio_streams"
             case subtitleStreams = "subtitle_streams"
+            case playbackDefaults = "playback_defaults"
             case chapters
             case addedAt = "added_at"
         }
@@ -9600,6 +9603,32 @@ nonisolated extension API {
             case elapsedMs = "elapsed_ms"
             case items
             case sites
+        }
+    }
+
+    /// 不经用户操作时会放的音轨 / 字幕（与起播同一口径：本集记着的 > 沿用同剧上一集 >
+    /// 默认轨策略，见 services/playback/track_defaults）。详情页据此标「默认」并说明原因。
+    struct TrackDefaultsView: Codable, Hashable, Sendable {
+        /// 将要放的音轨（中性引用 embedded:<k>）；没有音轨为 null
+        var audioTrack: String?
+        /// remembered 上次换的 / series 沿用上一集 / original_language 影片原声 / default_flag 片源标注的默认 / first 第一条 / none 没有音轨
+        var audioReason: String
+        /// 音轨原因的一句中文，界面直接展示
+        var audioNote: String
+        /// 将要开的字幕（embedded:<k> / external:<文件名>）；null = 不开字幕
+        var subtitleTrack: String?
+        /// remembered / series / library_language 媒体库语言 / forced 强制字幕 / same_language_off 原声就是库语言 / no_language_match 没有库语言字幕 / external / default_flag / forced_only / none（后四个是没有库语言可比时的旧规则）
+        var subtitleReason: String
+        /// 字幕原因的一句中文，界面直接展示
+        var subtitleNote: String
+
+        enum CodingKeys: String, CodingKey {
+            case audioTrack = "audio_track"
+            case audioReason = "audio_reason"
+            case audioNote = "audio_note"
+            case subtitleTrack = "subtitle_track"
+            case subtitleReason = "subtitle_reason"
+            case subtitleNote = "subtitle_note"
         }
     }
 

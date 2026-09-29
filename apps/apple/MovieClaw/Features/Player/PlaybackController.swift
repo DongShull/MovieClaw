@@ -734,18 +734,18 @@ final class PlaybackController {
         newEngine.applySubtitleStyle(subtitleStyle)
         resetWatchdogs()
         let startSeconds = Double(max(0, positionMs - originMs)) / 1000
-        // 起播音轨：用户这次选过、或记着的轨不是容器默认轨（说明是用户以前换过的）→ 必须照办；
-        // 否则只是默认挑选，引擎可以按实际更合适的同语言轨放（服务端只记和默认不同的选择，但原盘这类
-        // 服务端读不到轨的文件照原样记，所以仍按「和容器默认轨比」判断）
+        // 起播音轨：用户这次选过、或服务端挑的不是容器默认轨（记着的、沿用上一集的、默认轨策略挑的原声）
+        // → 装载时就交代给引擎，首帧就是它，不会先放容器默认轨（比如国语配音）再中途重载换过去；
+        // 服务端挑的就是容器默认轨时只是默认挑选，引擎可以按实际更合适的同语言轨放
         var initialAudio: (index: Int, explicit: Bool)?
         // 光盘镜像与 DVD 目录的轨以引擎读到的为准（见 adoptEngineTracks）：服务端决策里的音轨序号对不上引擎的
         let engineOwnsDiscTracks = discKind == "image" || (discKind == "folder" && session.source?.container == "dvd")
         if original, !engineOwnsDiscTracks,
-           let index = decision.audio?.trackRef.flatMap({ AudioOption(ref: $0, label: "", isDefault: false).embeddedIndex }) {
-            let remembered = session.watch?.audioTrack
-            // 容器没标默认轨（蓝光原盘的 m2ts 就不标）时，服务端默认挑第一条
+           let chosen = decision.audio?.trackRef,
+           let index = AudioOption(ref: chosen, label: "", isDefault: false).embeddedIndex {
+            // 容器没标默认轨（蓝光原盘的 m2ts 就不标）时，直出放的是第一条
             let containerDefault = audioOptions.first(where: \.isDefault)?.ref ?? audioOptions.first?.ref
-            let explicit = requestedAudio != nil || (remembered != nil && remembered != containerDefault)
+            let explicit = requestedAudio != nil || chosen != containerDefault
             initialAudio = (index, explicit)
         } else if original, engineOwnsDiscTracks,
                   let index = (requestedAudio ?? session.watch?.audioTrack).flatMap({ AudioOption(ref: $0, label: "", isDefault: false).embeddedIndex }) {

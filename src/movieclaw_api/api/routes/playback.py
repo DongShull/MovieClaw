@@ -122,6 +122,7 @@ from movieclaw_api.services.playback.signing import (
     issue_stream_token,
     verify_stream_token,
 )
+from movieclaw_api.services.playback.track_context import files_with_contexts
 from movieclaw_api.services.playback_activity import (
     end_playback,
     live_session_label,
@@ -893,12 +894,15 @@ async def _decide(
             visible_library_ids=visible,
         )
     if payload.media_item_id is not None:
-        files = await playback_plan.library_files_for_unit(
+        # 默认轨策略的上下文（库语言、原始语言）随取文件的同一条 SQL 取出，不多查一次
+        files, contexts = await files_with_contexts(
             session,
-            payload.media_item_id,
-            payload.season_number,
-            payload.episode_number,
-            visible_library_ids=visible,
+            playback_plan.library_files_statement(
+                payload.media_item_id,
+                payload.season_number,
+                payload.episode_number,
+                visible_library_ids=visible,
+            ),
         )
         return await playback_plan.decide_for_files(
             files,
@@ -908,6 +912,7 @@ async def _decide(
             preferred_audio=payload.audio_track,
             preferred_subtitle=payload.subtitle_track,
             max_height=payload.max_height,
+            contexts=contexts,
         )
     raise BadRequestException("需要提供 file_id 或 media_item_id")
 
