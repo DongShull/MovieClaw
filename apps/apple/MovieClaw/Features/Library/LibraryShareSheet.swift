@@ -127,7 +127,7 @@ struct LibraryShareSheet: View {
         }
 
         Section {
-            Toggle("密码保护", isOn: Binding(get: { passwordOn }, set: { _ in togglePassword() }))
+            Toggle("密码保护", isOn: Binding(mcGet: { passwordOn }, set: { _ in togglePassword() }))
             if passwordOn {
                 HStack(spacing: 10) {
                     TextField("访问密码", text: Binding(

@@ -938,7 +938,7 @@ struct SeasonEpisodesSection: View {
                 Text("分集").font(.title3.weight(.semibold)).foregroundStyle(Theme.text)
                 if detail.seasons.count > 1 {
                     Menu {
-                        Picker("季", selection: Binding(get: { currentSeason }, set: { season = $0 })) {
+                        Picker("季", selection: Binding(mcGet: { currentSeason }, set: { season = $0 })) {
                             ForEach(detail.seasons, id: \.self) { Text(seasonLabel($0)).tag($0) }
                         }
                     } label: {

@@ -764,7 +764,7 @@ private struct TrackListSheet: View {
             }
             .alert(
                 "删除这个字幕文件？",
-                isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                isPresented: Binding(mcGet: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
                 presenting: pendingDelete
             ) { entry in
                 Button("取消", role: .cancel) { pendingDelete = nil }

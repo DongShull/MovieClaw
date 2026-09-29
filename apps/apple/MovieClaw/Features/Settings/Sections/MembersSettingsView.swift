@@ -493,7 +493,7 @@ private struct EditMemberSheet: View {
             Section {
                 Toggle(isOn: $allowSubscribe) { SettingsRowText(title: "订阅追踪", detail: "发起订阅并管理自己的订阅") }
                     .accessibilityIdentifier("member-allow-subscribe")
-                Toggle(isOn: Binding(get: { allowSearch }, set: { allowSearch = $0; if !$0 { allowDirectDownload = false } })) {
+                Toggle(isOn: Binding(mcGet: { allowSearch }, set: { allowSearch = $0; if !$0 { allowDirectDownload = false } })) {
                     SettingsRowText(title: "站点搜索", detail: "搜索被分配的 PT 站点资源")
                 }
                 .accessibilityIdentifier("member-allow-search")

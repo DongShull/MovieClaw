@@ -381,7 +381,7 @@ private struct ActivityWatchPage: View {
                 }
                 .pickerStyle(.inline)
             }
-            Picker("成员", selection: Binding(get: { memberId ?? -1 }, set: { memberId = $0 < 0 ? nil : $0 })) {
+            Picker("成员", selection: Binding(mcGet: { memberId ?? -1 }, set: { memberId = $0 < 0 ? nil : $0 })) {
                 Text("全部成员").tag(-1)
                 Text("超级管理员").tag(Self.adminMember)
                 ForEach(members, id: \.id) { member in
@@ -389,7 +389,7 @@ private struct ActivityWatchPage: View {
                 }
             }
             .pickerStyle(.menu)
-            Picker("范围", selection: Binding(get: { media.scope }, set: { media.setScope($0) })) {
+            Picker("范围", selection: Binding(mcGet: { media.scope }, set: { media.setScope($0) })) {
                 Text("我的浏览范围").tag("visible")
                 Text("全部（含对你隐藏的库）").tag("all")
             }

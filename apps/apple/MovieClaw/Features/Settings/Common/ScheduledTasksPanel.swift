@@ -164,7 +164,7 @@ private struct TaskEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Toggle(isOn: Binding(get: { task.enabled }, set: { value in
+            Toggle(isOn: Binding(mcGet: { task.enabled }, set: { value in
                 var body = draft
                 body.enabled = value
                 Task { await onSave(body) }

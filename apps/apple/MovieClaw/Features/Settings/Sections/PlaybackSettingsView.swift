@@ -51,7 +51,7 @@ struct PlaybackSettingsView: View {
         Section("进度条预览") {
             if let policyError, policyErrorScope != .cache { SettingsNotice(text: policyError) }
             if let policy {
-                Toggle(isOn: Binding(get: { policy.trickplayEnabled }, set: { value in Task { await savePolicy(trickplay: value) } })) {
+                Toggle(isOn: Binding(mcGet: { policy.trickplayEnabled }, set: { value in Task { await savePolicy(trickplay: value) } })) {
                     SettingsRowText(
                         title: "生成进度条预览图",
                         detail: policy.trickplayEnabled
@@ -68,7 +68,7 @@ struct PlaybackSettingsView: View {
         Section("转码缓存") {
             if let policyError, policyErrorScope != .trickplay { SettingsNotice(text: policyError) }
             if let policy {
-                Toggle(isOn: Binding(get: { policy.transcodeCacheEnabled }, set: { value in Task { await savePolicy(cache: value) } })) {
+                Toggle(isOn: Binding(mcGet: { policy.transcodeCacheEnabled }, set: { value in Task { await savePolicy(cache: value) } })) {
                     SettingsRowText(
                         title: "保留转码产物供续播、重看复用",
                         detail: policy.transcodeCacheEnabled

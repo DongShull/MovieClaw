@@ -324,7 +324,7 @@ struct SettingsBScrapeNamingRows: View {
     }
 
     private func selectionBinding(_ key: String) -> Binding<TextSelection?> {
-        Binding(get: { selections[key] }, set: { selections[key] = $0 })
+        Binding(mcGet: { selections[key] }, set: { selections[key] = $0 })
     }
 
     /// 在最后聚焦的输入框光标处插入占位符；输入框为空时以默认模板为底（同 Web：`setting[key] || fallback`）

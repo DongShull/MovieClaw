@@ -107,7 +107,7 @@ struct SearchHomeView: View {
         .searchable(text: $keyword, tokens: scopeTokens, isPresented: $searchPresented, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt) { token in
             Text(token.label)
         }
-        .searchScopes(Binding(get: { mode }, set: { changeMode($0) }), activation: .onSearchPresentation) {
+        .searchScopes(Binding(mcGet: { mode }, set: { changeMode($0) }), activation: .onSearchPresentation) {
             // 只有一个可用模式时不出范围栏
             if access.available.count > 1 {
                 ForEach(access.available, id: \.self) { Text($0.shortLabel).tag($0) }

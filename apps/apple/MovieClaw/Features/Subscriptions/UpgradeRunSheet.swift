@@ -65,7 +65,7 @@ struct UpgradeRunSheet: View {
                 if saved.upgradeTarget != nil { ruleSetId = saved.id }
             }
         }
-        .sheet(item: Binding(get: { annotateSeason.map(SeasonKey.init) }, set: { annotateSeason = $0?.season })) { key in
+        .sheet(item: Binding(mcGet: { annotateSeason.map(SeasonKey.init) }, set: { annotateSeason = $0?.season })) { key in
             MediaSourceAnnotationSheet(mediaItemId: detail.media.mediaItemId, seasonNumber: key.season, isMovie: isMovie) { _ in
                 // 标注已刷新快照：重跑一轮体检，报告当场翻新
                 if let fresh = try? await api.subscriptionsUpgradeRun(subscriptionId: detail.id, body: .init(ruleSetId: nil)) {

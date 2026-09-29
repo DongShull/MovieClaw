@@ -39,7 +39,7 @@ struct SaveAsCollectionSheet: View {
                 Section {
                     TextField(
                         "名字",
-                        text: Binding(get: { name }, set: { touched = true; name = $0 }),
+                        text: Binding(mcGet: { name }, set: { touched = true; name = $0 }),
                         prompt: Text(suggested.isEmpty ? "合集名" : suggested)
                     )
                     .submitLabel(.done)

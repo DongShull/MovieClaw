@@ -192,7 +192,7 @@ struct DownloadTargetSheet: View {
                         optionRow(option)
                     }
                     if showOther, downloaders.count >= 2 {
-                        Picker("下载器", selection: Binding(get: { downloaderId ?? -1 }, set: { id in
+                        Picker("下载器", selection: Binding(mcGet: { downloaderId ?? -1 }, set: { id in
                             downloaderId = id
                             reloadManualTarget(downloaderId: id, tmdbId: selectedCandidateId)
                         })) {

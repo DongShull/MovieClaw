@@ -36,7 +36,7 @@ struct TrackSubtitleGenButton: View {
                 // 用布尔而非 item 绑定：状态弹层里点「重新预检」会原地切到预检模式，
                 // item 身份一变 SwiftUI 就会关掉重开，onDismiss 会把刚发出的预检掐掉
                 .sheet(
-                    isPresented: Binding(get: { model.mode != nil }, set: { if !$0 { model.mode = nil } }),
+                    isPresented: Binding(mcGet: { model.mode != nil }, set: { if !$0 { model.mode = nil } }),
                     onDismiss: { model.stopPreview() }
                 ) {
                     TrackGenSheet(model: model, file: file)

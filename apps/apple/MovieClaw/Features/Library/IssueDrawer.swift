@@ -104,7 +104,7 @@ struct IssueDrawerView: View {
     /// 页签：缺失 N / 待识别 N（文件数）/ 身份复核 N / 已忽略 N（文件数，没有内容就不占位）
     private func tabPicker(_ snapshot: IssueSnapshot, current: IssueTab) -> some View {
         let tabs = IssueTab.allCases.filter { $0 != .ignored || snapshot.ignoredFileTotal > 0 || current == .ignored }
-        return Picker("待处理", selection: Binding(get: { current }, set: { tab = $0 })) {
+        return Picker("待处理", selection: Binding(mcGet: { current }, set: { tab = $0 })) {
             ForEach(tabs, id: \.self) { item in
                 let count = snapshot.count(for: item)
                 Text(count > 0 ? "\(item.title) \(count)" : item.title).tag(item)
