@@ -720,6 +720,8 @@ _PATH_DUMMIES = {
     "{username}": "family",
     # 缓存管理：登记目录 key（services/storage/registry.py）
     "{key}": "cache.images",
+    # 播放体验记录的播放编号
+    "{attempt_id}": "test-attempt",
 }
 
 

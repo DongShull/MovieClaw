@@ -144,6 +144,7 @@ _PAGE_ROUTES: list[tuple[str, str]] = [
     ("/media/{movie|tv}/{TMDB ID}", "影片/剧集详情页"),
     ("/media/douban/{豆瓣ID}", "豆瓣词条详情页"),
     ("/subscriptions", "订阅列表"),
+    ("/subscriptions/wall/{类型}", "订阅海报墙：tv 全部剧集订阅、movie 全部电影订阅"),
     ("/subscriptions/{订阅ID}", "订阅详情（ID 来自 subscriptions list/get）"),
     ("/library", "媒体库总览（浏览入口：接下来继续、我的收藏、各库最近添加；行可自定义）"),
     ("/library/favorites", "我的收藏（当前账号收藏的全部作品，与 Jellyfin 客户端里点的心同一份）"),

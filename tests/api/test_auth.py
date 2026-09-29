@@ -387,6 +387,7 @@ def fill_path_params(path: str) -> str:
         .replace("{slug}", "no-such-share")
         .replace("{share_id}", "1")
         .replace("{key}", "cache.images")  # 缓存管理的登记目录 key
+        .replace("{attempt_id}", "test-attempt")  # 播放体验记录的播放编号
     )
 
 
