@@ -1,5 +1,5 @@
 /**
- * 活动总览（银玻璃手机，components/activity-overview.tsx）的纯逻辑：摘要文案、播放方式配色、
+ * 活动总览（银玻璃，components/activity-overview.tsx）的纯逻辑：摘要文案、播放方式配色、
  * 7 天观看涨跌、刷流按站点开关状态汇总。对应原生 App 的 ActivityView.swift（摘要）、
  * NowPlayingRows.swift（播放方式）、ActivityDashboardRows.swift（7 天卡、刷流行）与
  * TaskCards.swift（ActivityBoostTotals / ActivityBoostSites）——两端文案逐字一致。

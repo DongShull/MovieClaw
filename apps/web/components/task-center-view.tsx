@@ -86,7 +86,7 @@ const VIEW_LABELS: { id: TaskCenterViewName; label: string }[] = [
 /**
  * 任务卡片上的各种动作（删种、换种、取消、重试、忽略 / 撤销忽略）及其进行中状态。
  *
- * 任务视角（TaskCenterView）与银玻璃手机的活动总览（activity-overview.tsx 的「需要处理」
+ * 任务视角（TaskCenterView）与银玻璃的活动总览（activity-overview.tsx 的「需要处理」
  * 分组）共用同一套：两处渲染的是同一批卡片，动作与回执不能各写一份。删除确认框随 hook
  * 一起返回（`deleteDialog`），调用方挂进自己的树里即可。
  */
@@ -255,7 +255,7 @@ export function TaskAttentionCards({ actions }: { actions: TaskCenterActions }) 
  *
  * 页头与一级视角切换由 ActivityView 承担，本组件只渲染状态 tab 与任务内容。
  *
- * `subPage`：银玻璃手机活动总览的二级页（进行中 / 已结束）。页名已在顶栏，状态 tab 不再出现；
+ * `subPage`：银玻璃活动总览的二级页（进行中 / 已结束）。页名已在顶栏（桌面是页内标题行），状态 tab 不再出现；
  * 刷流有自己的二级页（activity-boost.tsx），这里不再摆刷流分组。
  */
 export function TaskCenterView({
@@ -1890,14 +1890,6 @@ const LIFECYCLE_DETAIL_STYLE: Record<LifecycleTone, string> = {
   future: "text-white/30",
 };
 
-/** Tailwind 要静态类名，列数只能查表拿——步骤数由落点配置决定（3～6 步）。 */
-const GRID_COLS_BY_STEPS: Record<number, string> = {
-  3: "grid-cols-3",
-  4: "grid-cols-4",
-  5: "grid-cols-5",
-  6: "grid-cols-6",
-};
-
 /**
  * 下载完成后**还没发生**的那几步，按后端推导的落点如实展开。
  *
@@ -2150,11 +2142,9 @@ function DownloadLifecycle({
       className={
         feed
           ? "mt-3 space-y-1.5"
-          : // 步骤数随落点配置变化（监听规则多一步搬运、洗版再多一步替换），
-            // 列数跟着走；窄屏统一竖排，不挤
-            `mt-3 grid gap-2 border-t border-white/[0.06] pt-3 max-md:grid-cols-1 ${
-              GRID_COLS_BY_STEPS[Math.min(steps.length, 6)] ?? "grid-cols-3"
-            }`
+          : // 手机与桌面同一形态：竖排时间线（对齐 iOS App）。步骤数随落点配置变化
+            // （监听规则多一步搬运、洗版再多一步替换），横排到 5～6 列会把说明挤成省略号
+            "mt-3 grid grid-cols-1 gap-2 border-t border-white/[0.06] pt-3"
       }
     >
       {steps.map((step, index) => (
@@ -2165,9 +2155,7 @@ function DownloadLifecycle({
           {index < steps.length - 1 && (
             <span
               aria-hidden="true"
-              className={`absolute bottom-[-0.5rem] left-[0.21875rem] top-3 w-px bg-white/[0.1] ${
-                feed ? "block" : "hidden max-md:block"
-              }`}
+              className="absolute bottom-[-0.5rem] left-[0.21875rem] top-3 w-px bg-white/[0.1]"
             />
           )}
           <span
@@ -2406,7 +2394,7 @@ function EpisodeUnitsLabel({
 }
 
 // ---------------------------------------------------------------------------
-// 活动总览（银玻璃手机）的一行摘要：完整过程与全部操作在二级页，行上只露一眼能看懂的
+// 活动总览（银玻璃）的一行摘要：完整过程与全部操作在二级页，行上只露一眼能看懂的
 // 标题 · 一行状态 · 进度条（原生 App 的 ActivityDashboardRows.swift）。放在这里是因为
 // 状态口径（DOWNLOAD_STATE_META / ingestOwnsTaskState / 作业标题）都是任务视角的私有逻辑。
 // ---------------------------------------------------------------------------

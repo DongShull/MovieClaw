@@ -396,7 +396,7 @@ interface SessionCardProps {
  *   有用的设备名）；传输只留一个实时速率或「网盘直链」，已传输总量、连接数属于排障细节；
  * - 进度条下左右两端是已看到的时刻与剩余时长，比「1:23:16 / 2:21:06」更好读。
  *
- * `variant="row"`：活动总览（手机）里作为分组列表的一行，去掉卡片描边与底色。
+ * `variant="row"`：活动总览（银玻璃）里作为分组列表的一行，去掉卡片描边与底色。
  * Netflix 主题仍用 NfSessionCard，版式不动。
  */
 export function SessionCard({
@@ -579,7 +579,7 @@ function ActivityCard({
   children: React.ReactNode;
   percent?: number | null;
   muted?: boolean;
-  /** row：活动总览（银玻璃手机）分组列表里的一行，描边与底色交给分组容器 */
+  /** row：活动总览（银玻璃）分组列表里的一行，描边与底色交给分组容器 */
   variant?: "card" | "row";
 }) {
   return (
@@ -651,7 +651,7 @@ export function DownloadCard({
   download: ActiveFileDownload;
   onRevoke: (deviceId: string, label: string) => void;
   busy: boolean;
-  /** row：活动总览（银玻璃手机）分组列表里的一行 */
+  /** row：活动总览（银玻璃）分组列表里的一行 */
   variant?: "card" | "row";
 }) {
   const media = download.media;

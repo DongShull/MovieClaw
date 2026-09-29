@@ -8,7 +8,7 @@ import Link from "next/link";
 import { ChevronRightIcon } from "@/components/icons";
 
 /**
- * 活动总览（银玻璃手机）与其二级页共用的「分组」：对应原生 App 的系统分组列表
+ * 活动总览（银玻璃）与其二级页共用的「分组」：对应原生 App 的系统分组列表
  * （insetGrouped List + ActivitySectionHeader，见 ActivityDashboardRows.swift）。
  *
  *     ● 需要处理 2 ………………………… 全部忽略

@@ -29,7 +29,7 @@ import { usePageChrome } from "@/lib/page-chrome";
 import { useTaskActivity } from "@/lib/task-activity";
 
 /**
- * 刷流做种：在池概况、清理流程、总览上的汇总行与银玻璃手机的「刷流做种」二级页。
+ * 刷流做种：在池概况、清理流程、总览上的汇总行与银玻璃的「刷流做种」二级页。
  *
  * 任务视角（task-center-view.tsx 的 BoostTaskSection，桌面与 Netflix 主题）和手机二级页
  * 共用在池概况与清理流程（useBoostPool / useBoostCleanup），版式各走各的：二级页对齐
@@ -220,7 +220,7 @@ export function BoostSummaryRow({ tasks, pool }: { tasks: DownloadTask[]; pool: 
 const BOOST_PAGE_SIZE = 20;
 
 /**
- * 「刷流做种」二级页（银玻璃手机）：页头实时汇总 → 按站点（刷流中 / 已暂停 / 已关闭）
+ * 「刷流做种」二级页（银玻璃）：页头实时汇总 → 按站点（刷流中 / 已暂停 / 已关闭）
  * → 逐种子一行；「清理」挂在右上角（种子动辄上百个，放列表底部要滑到头才找得到）。
  */
 export function ActivityBoostPage() {

@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { Route } from "next";
 
 import { ActivityBoostPage, BoostSummaryRow, useBoostPool } from "@/components/activity-boost";
 import { ActivityGroup, GroupLinkRow } from "@/components/activity-group";
-import { CheckIcon, FilterIcon } from "@/components/icons";
+import { CheckIcon, ChevronLeftIcon, FilterIcon } from "@/components/icons";
 import { TaskActionsMenu } from "@/components/job-center";
 import {
   DownloadCard,
@@ -42,16 +42,19 @@ import {
   type PlaybackLogEntry,
   type PlaybackWatchStats,
 } from "@/lib/api/playback";
+import { useBackNavigation } from "@/lib/back-navigation";
 import { useDownloadTasks } from "@/lib/download-tasks";
 import { imageUrl } from "@/lib/image-proxy";
 import { isDismissed } from "@/lib/job-attention";
-import { usePageChrome } from "@/lib/page-chrome";
+import { PageChromeProvider, usePageChrome } from "@/lib/page-chrome";
 import { ACTIVITY_PAGE_TITLES, type ActivityPageName } from "@/lib/task-center";
 import { useTaskActivity, type DownloadTaskGroup } from "@/lib/task-activity";
 import { formatRelativeTime } from "@/lib/time";
+import { useIsMobile } from "@/lib/use-media-query";
 
 /**
- * 活动页（银玻璃手机）：一页总览 + 二级页，对齐原生 App 的 ActivityView.swift / ActivityPages.swift。
+ * 活动页（银玻璃，手机与桌面同一套）：一页总览 + 二级页，对齐原生 App 的
+ * ActivityView.swift / ActivityPages.swift。
  *
  * - **不分「观看 / 任务」段**：打开就是「现在有没有要我管的事、家里在发生什么」，按紧急程度
  *   自上而下——需要处理 → 正在播放 → 正在下载 → 进行中（含刷流）→ 最近播放 → 观看统计 →
@@ -63,28 +66,92 @@ import { formatRelativeTime } from "@/lib/time";
  * - **浏览范围**不占顶栏：只在确有被隐藏的内容时以分组脚注出现、就地切换。
  *
  * 与 App 有意不同：网页没有左滑 / 长按 / 下拉刷新，行操作统一收进行尾 ⋯ 菜单。
- * 桌面银玻璃与 Netflix 主题仍是「观看 / 任务」两段版式（activity-view.tsx）。
+ * Netflix 主题仍是「观看 / 任务」两段版式（activity-view.tsx）。
+ *
+ * 手机与桌面只在「标题和页面操作放哪」上不同：手机挂进全局顶栏；桌面没有全局顶栏，
+ * 画在页内标题行（见 DesktopHeader）。
  */
-export function ActivityMobile({
+export function ActivityPages({
   page,
   media,
 }: {
   page: ActivityPageName | null;
   media: MediaActivityState;
 }) {
-  // 顶栏：总览挂大字标题（标签根页），二级页挂页名 + 返回键（回总览）
-  const setTopBarTitle = usePageChrome()?.setTopBarTitle;
+  const chrome = usePageChrome();
+  const isMobile = useIsMobile();
+  // 手机顶栏：总览挂大字标题（标签根页），二级页挂页名 + 返回键（回总览）
+  const setTopBarTitle = chrome?.setTopBarTitle;
   useEffect(() => {
-    if (!setTopBarTitle) return;
+    if (!isMobile || !setTopBarTitle) return;
     return page
       ? setTopBarTitle(ACTIVITY_PAGE_TITLES[page], { backHref: "/activity" as Route })
       : setTopBarTitle("活动", { large: true });
-  }, [page, setTopBarTitle]);
+  }, [isMobile, page, setTopBarTitle]);
 
-  if (page === "active" || page === "history") return <TaskCenterView view={page} subPage />;
-  if (page === "boost") return <ActivityBoostPage />;
-  if (page === "plays" || page === "stats") return <WatchPage page={page} media={media} />;
-  return <ActivityOverview media={media} />;
+  // 桌面：二级页往顶栏右上角挂的操作（观看页的筛选菜单、刷流页的「清理」）改落到页内
+  // 标题行右侧。做法是给子树换一个 setTopBarActions，子页面照旧调用、不必分辨形态；
+  // 撤销语义与外壳一致（只撤自己挂上去的那个节点）。
+  const [headerActions, setHeaderActions] = useState<ReactNode>(null);
+  const setDesktopActions = useCallback((node: ReactNode) => {
+    setHeaderActions(node);
+    return () => setHeaderActions((current) => (current === node ? null : current));
+  }, []);
+  const desktopChrome = useMemo(
+    () => (chrome ? { ...chrome, setTopBarActions: setDesktopActions } : null),
+    [chrome, setDesktopActions],
+  );
+
+  const body =
+    page === "active" || page === "history" ? (
+      <TaskCenterView view={page} subPage />
+    ) : page === "boost" ? (
+      <ActivityBoostPage />
+    ) : page === "plays" || page === "stats" ? (
+      <WatchPage page={page} media={media} />
+    ) : (
+      <ActivityOverview media={media} />
+    );
+  if (isMobile) return body;
+  return (
+    <PageChromeProvider value={desktopChrome}>
+      <DesktopHeader page={page} actions={headerActions} />
+      {body}
+    </PageChromeProvider>
+  );
+}
+
+/**
+ * 桌面标题行：总览是「活动」大字标题（字形同订阅首页等桌面页内标题），二级页是返回键 +
+ * 正文字号页名（回总览，能按历史回就按历史回）；右侧是二级页的页面操作。
+ */
+function DesktopHeader({ page, actions }: { page: ActivityPageName | null; actions: ReactNode }) {
+  const back = useBackNavigation("/activity" as Route);
+  return (
+    <div className="mb-2 flex min-h-11 items-center gap-2">
+      {page && (
+        <button
+          type="button"
+          onClick={back}
+          aria-label="返回活动"
+          className={`${PAGE_NAV_BUTTON_CLASS} -ml-1 shrink-0`}
+        >
+          <ChevronLeftIcon className="size-[22px]" />
+        </button>
+      )}
+      {/* 字号层级同手机顶栏 / iOS：标签根页（总览）大字标题，二级页正文字号小标题 */}
+      <h1
+        className={
+          page
+            ? "text-on-image min-w-0 flex-1 truncate text-body font-semibold tracking-[-0.01em] text-[var(--text)]"
+            : "text-on-image min-w-0 flex-1 truncate text-[26px] font-bold leading-tight tracking-[-0.02em] text-white"
+        }
+      >
+        {page ? ACTIVITY_PAGE_TITLES[page] : "活动"}
+      </h1>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+    </div>
+  );
 }
 
 /** 总览「进行中」最多露几条，其余进二级页 */

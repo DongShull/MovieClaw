@@ -51,7 +51,7 @@ function isTaskView(candidate: string | undefined): candidate is TaskCenterViewN
  * 从查询参数解析一级视角。带合法状态值 → 任务；其余（含缺省、非法、
  * 重复参数）→ 观看，即页面默认落点。
  *
- * `boost`（手机总览的「刷流做种」二级页）在两段版式里没有独立页面，落到任务视角的
+ * `boost`（银玻璃总览的「刷流做种」二级页）在两段版式里没有独立页面，落到任务视角的
  * 「进行中」——刷流分组就在那一片底部。
  */
 export function activityScopeFromQuery(
@@ -62,7 +62,7 @@ export function activityScopeFromQuery(
 }
 
 /**
- * 银玻璃手机的活动页是「一页总览 + 二级页」（对齐原生 App 的 ActivityView / ActivityPages.swift），
+ * 银玻璃的活动页（手机与桌面）是「一页总览 + 二级页」（对齐原生 App 的 ActivityView / ActivityPages.swift），
  * 二级页沿用同一个 `view` 查询参数：
  *   - active 进行中 / history 已结束 / plays 最近播放 / stats 观看统计 / boost 刷流做种；
  *   - 其余（attention 需要处理、all、playing、缺省、非法）都落在总览本身——需要处理与
@@ -80,7 +80,7 @@ export const ACTIVITY_PAGE_TITLES: Record<ActivityPageName, string> = {
   boost: "刷流做种",
 };
 
-/** 查询值 → 手机总览的二级页；落在总览本身时返回 null。 */
+/** 查询值 → 银玻璃总览的二级页；落在总览本身时返回 null。 */
 export function activityPageFromQuery(
   value: string | string[] | undefined,
 ): ActivityPageName | null {

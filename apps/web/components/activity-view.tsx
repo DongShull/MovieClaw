@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 
-import { ActivityMobile } from "@/components/activity-overview";
+import { ActivityPages } from "@/components/activity-overview";
 import { ActivityIcon } from "@/components/icons";
 import {
   MediaActivityPanel,
@@ -36,8 +36,8 @@ import { useIsMobile } from "@/lib/use-media-query";
  * 一级切换沿用发现页 TMDB/豆瓣 的分段控件形态，不新造交互词汇；两个视角
  * 各自持有数据，来回切不互相打断轮询。
  *
- * 银玻璃手机例外：换成原生 App 的「一页总览 + 二级页」（activity-overview.tsx），
- * `page` 是由 `?view=` 解析出的二级页（null = 总览）。桌面银玻璃与 Netflix 主题不变。
+ * 银玻璃（手机与桌面）例外：换成原生 App 的「一页总览 + 二级页」（activity-overview.tsx），
+ * `page` 是由 `?view=` 解析出的二级页（null = 总览）。Netflix 主题不变。
  */
 export function ActivityView({
   initialScope = "media",
@@ -141,8 +141,9 @@ export function ActivityView({
   // （字标与搜索之间本来就空着），桌面端维持页头右上角。
   const chrome = usePageChrome();
   const isMobile = useIsMobile();
-  // 银玻璃手机：一页总览（大字标题 + 实时摘要），不再有「观看 / 任务」切换器与页内页头
-  const overview = isMobile && !isNf;
+  // 银玻璃：一页总览（大字标题 + 实时摘要），不再有「观看 / 任务」切换器。手机与桌面
+  // 同一套交互（对齐原生 App），只有标题与页面操作的位置不同（见 ActivityPages）
+  const overview = !isNf;
   const setTopBarActions = chrome?.setTopBarActions;
   useEffect(() => {
     if (!isMobile || overview || !setTopBarActions) return;
@@ -158,8 +159,8 @@ export function ActivityView({
   if (overview) {
     return (
       <div ref={scrollRef} className="scroll-thin scroll-safe h-full overflow-y-auto pb-10">
-        <div className="mx-auto w-full max-w-[1180px] page-inset pt-2">
-          <ActivityMobile page={page} media={mediaActivity} />
+        <div className="mx-auto w-full max-w-[1180px] page-inset pt-7 max-md:pt-2">
+          <ActivityPages page={page} media={mediaActivity} />
         </div>
       </div>
     );
