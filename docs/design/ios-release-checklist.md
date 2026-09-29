@@ -21,19 +21,24 @@
       ```bash
       echo 'DEVELOPMENT_TEAM = <第 2 步确认的 Team ID>' > apps/apple/XcodeConfig/Signing.local.xcconfig
       ```
+- [ ] Xcode 里建好 Apple Development 证书后，终端执行一次（会要 Mac 登录密码，输入时不回显）：
+      `security set-key-partition-list -S apple-tool:,apple:,codesign: -s ~/Library/Keychains/login.keychain-db`。
+      不做的话打包时每个框架签名都弹一次钥匙串授权，几十个框叠在一起点不动
 - [ ] 先编一次模拟器版确认环境：`apps/apple/scripts/build.sh`（`MC_SIM` 指定模拟器名，默认 iPhone 17；
       依赖包缓存在 `~/workspace/.mc-ios-spm`，首次要下载 FFmpeg 等二进制，几分钟）
 
 ## 2. 开发者账号（developer.apple.com）
 
-- [ ] Membership 页确认**付费团队的 Team ID**，填进上面的 `Signing.local.xcconfig`。
-      旧机器上配的是 `G4LW3GC2T7`，要确认它就是付费团队而不是以前的个人免费团队
+- [ ] Membership 页确认**付费团队的 Team ID**，填进上面的 `Signing.local.xcconfig`，
+      要确认它是付费团队而不是以前的个人免费团队
 - [ ] Xcode → 设置 → 账户：登录这个 Apple ID（选下一步的 API 密钥也建议登录，真机调试要用）
 - [ ] Identifiers：注册 App ID `io.movieclaw.app`（也可以留给 Xcode 首次导出时自动注册）
 
 ## 3. App Store Connect
 
-- [ ] 用户和访问 → 集成 → App Store Connect API → 生成**团队密钥**，角色选「App 管理」。
+- [ ] 用户和访问 → 集成 → App Store Connect API → 生成**团队密钥**，角色选**「管理」**（不能选「App 管理」：
+      发布证书由 Apple 云端托管，「App 管理」密钥导出时报 `Cloud signing permission error`；
+      Xcode 27 的 xcodebuild 又读不到 Xcode 里登录的账号（报 `No Accounts`），只能靠这把密钥）。
       下载 `.p8`（只能下载一次），放到 `~/.appstoreconnect/private_keys/AuthKey_<密钥 ID>.p8`，
       记下**密钥 ID** 与 **Issuer ID**。这把密钥同时用于 iOS 上传和 Mac 转码器公证
 - [ ] App → 新建 App：平台 iOS、名称 MovieClaw（被占用就换）、主要语言简体中文、
