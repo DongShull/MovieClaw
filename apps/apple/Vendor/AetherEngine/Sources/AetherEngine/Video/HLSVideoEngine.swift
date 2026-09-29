@@ -1281,7 +1281,11 @@ public final class HLSVideoEngine: @unchecked Sendable {
             guard durationSeconds > 0 else {
                 throw HLSVideoEngineError.zeroDuration
             }
-            sourceBitrate = dem.bitRate
+            // [MovieClaw P37] 容器没声明码率时按总字节 ÷ 时长估，别让 BANDWIDTH 落到兜底值
+            sourceBitrate = dem.estimatedBitRate(durationSeconds: durationSeconds)
+            if dem.bitRate <= 0, sourceBitrate > 0 {
+                EngineLog.emit("[HLSVideoEngine] [MovieClaw P37] 容器未声明码率，按片源大小估 \(sourceBitrate / 1_000_000) Mbit/s", category: .session)
+            }
 
             // #409: settle the composition-offset repair while the demuxer still stands at the head.
             // It reads a short sample and holds those packets, so nothing is consumed; doing it later
@@ -1652,7 +1656,8 @@ public final class HLSVideoEngine: @unchecked Sendable {
             convertP7ToProfile81: convertP7ToProfile81,
             colorOverride: p5ColorOverride,
             extradataOverride: hevcExtradataOverride,
-            nalFramingOverride: measuredVideoNALFraming
+            nalFramingOverride: measuredVideoNALFraming,
+            annexBSamplesKeepParameterSets: framingNormalization.annexBSamplesKeepParameterSets
         )
         self.videoStreamIndex = videoIndex
         self.savedVideoConfig = videoConfig

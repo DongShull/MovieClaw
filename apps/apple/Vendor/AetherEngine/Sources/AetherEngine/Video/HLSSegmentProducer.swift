@@ -50,6 +50,8 @@ final class HLSSegmentProducer: @unchecked Sendable {
         /// which is only correct while the two agree; on a source where they do not, every walker
         /// downstream (A53 captions, the DV P7 RPU rewrite) reads the packet at the wrong offsets.
         let nalFramingOverride: VideoNALFraming?
+        /// [MovieClaw P38] 见 `MP4SegmentMuxer.VideoConfig.annexBSamplesKeepParameterSets`
+        let annexBSamplesKeepParameterSets: Bool
 
         init(
             codecpar: UnsafePointer<AVCodecParameters>,
@@ -59,7 +61,8 @@ final class HLSSegmentProducer: @unchecked Sendable {
             convertP7ToProfile81: Bool = false,
             colorOverride: MP4SegmentMuxer.ColorOverride? = nil,
             extradataOverride: [UInt8]? = nil,
-            nalFramingOverride: VideoNALFraming? = nil
+            nalFramingOverride: VideoNALFraming? = nil,
+            annexBSamplesKeepParameterSets: Bool = false
         ) {
             self.codecpar = codecpar
             self.timeBase = timeBase
@@ -69,6 +72,7 @@ final class HLSSegmentProducer: @unchecked Sendable {
             self.colorOverride = colorOverride
             self.extradataOverride = extradataOverride
             self.nalFramingOverride = nalFramingOverride
+            self.annexBSamplesKeepParameterSets = annexBSamplesKeepParameterSets
         }
     }
 
@@ -2088,7 +2092,8 @@ final class HLSSegmentProducer: @unchecked Sendable {
             // parameter-set change is still the same program, so it keeps them (isAdCreative false).
             doviConfig: isAdCreative ? .keep : videoConfig.doviConfig,
             colorOverride: isAdCreative ? nil : videoConfig.colorOverride,
-            extradataOverride: isAdCreative ? nil : videoConfig.extradataOverride
+            extradataOverride: isAdCreative ? nil : videoConfig.extradataOverride,
+            annexBSamplesKeepParameterSets: isAdCreative ? false : videoConfig.annexBSamplesKeepParameterSets
         )
         let muxerAudio: MP4SegmentMuxer.AudioConfig? = audioConfig.map { a in
             MP4SegmentMuxer.AudioConfig(codecpar: a.codecpar, timeBase: a.inputTimeBase, language: a.language)

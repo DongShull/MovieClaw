@@ -72,6 +72,9 @@ final class MP4SegmentMuxer {
         /// has numOfArrays=0 (in-band parameter sets) and the engine rebuilt a proper hvcC with
         /// VPS/SPS/PPS arrays; the mp4 muxer writes extradata directly into the hvcC/avcC box.
         let extradataOverride: [UInt8]?
+        /// [MovieClaw P38] 视频样本是 Annex B、配置记录是 hvcC：写包前由这里转成 4 字节长度前缀并保留全部 NAL
+        /// （含带内 VPS/SPS/PPS）。movenc 自己转换时对 hvc1 会剥掉参数集，片中换参数集的片子就解不了
+        let annexBSamplesKeepParameterSets: Bool
 
         init(
             codecpar: UnsafePointer<AVCodecParameters>,
@@ -79,7 +82,8 @@ final class MP4SegmentMuxer {
             codecTagOverride: String?,
             doviConfig: DoviConfigPolicy = .keep,
             colorOverride: ColorOverride? = nil,
-            extradataOverride: [UInt8]? = nil
+            extradataOverride: [UInt8]? = nil,
+            annexBSamplesKeepParameterSets: Bool = false
         ) {
             self.codecpar = codecpar
             self.timeBase = timeBase
@@ -87,6 +91,7 @@ final class MP4SegmentMuxer {
             self.doviConfig = doviConfig
             self.colorOverride = colorOverride
             self.extradataOverride = extradataOverride
+            self.annexBSamplesKeepParameterSets = annexBSamplesKeepParameterSets
         }
     }
 
@@ -167,6 +172,8 @@ final class MP4SegmentMuxer {
     /// length-prefixed at all. Latched at init: it is a property of the configuration record that
     /// lands in the sample entry, and the AE#561 sanitizer walks every video sample with it.
     private let videoNALLengthPrefixSize: Int?
+    /// [MovieClaw P38] 写包前把 Annex B 视频样本转成长度前缀（保留参数集）
+    private let convertsAnnexBVideoSamples: Bool
     /// AE#561 harness switch: the sanitizer removes the only shape that reproduces a segment Apple's
     /// parser refuses, so the rung underneath it (the software-path escalation) would have nothing to
     /// be measured against. Read once from the environment, never set in a shipped configuration.
@@ -266,6 +273,7 @@ final class MP4SegmentMuxer {
         // AE#561: the override, when there is one, is the record that reaches the sample entry. Both
         // carry the same width (the #19 rebuild keeps the source header's first 22 bytes), so this
         // only matters for a source whose own extradata is missing or Annex B.
+        self.convertsAnnexBVideoSamples = video.annexBSamplesKeepParameterSets
         if let override = video.extradataOverride {
             self.videoNALLengthPrefixSize = override.withUnsafeBufferPointer {
                 NALUnitChain.lengthPrefixSize(
@@ -615,6 +623,20 @@ final class MP4SegmentMuxer {
         packet.pointee.dts = clean.dts
 
         let streamIndex = packet.pointee.stream_index
+
+        // [MovieClaw P38] Annex B → 4 字节长度前缀，保留全部 NAL（含 VPS/SPS/PPS）；配置记录已是 hvcC，movenc 不再转换
+        if convertsAnnexBVideoSamples, streamIndex == videoOutputStreamIndex,
+           let data = packet.pointee.data, packet.pointee.size > 0,
+           let converted = AnnexBSampleConverter.lengthPrefixed(
+               UnsafeRawBufferPointer(start: data, count: Int(packet.pointee.size))) {
+            let grow = converted.count - Int(packet.pointee.size)
+            if grow > 0, av_grow_packet(packet, Int32(grow)) < 0 {
+                av_packet_unref(packet)
+                return (-1, .none)
+            }
+            if grow < 0 { av_shrink_packet(packet, Int32(converted.count)) }
+            converted.withUnsafeBytes { _ = memcpy(packet.pointee.data, $0.baseAddress, converted.count) }
+        }
 
         // #64 mid-segment flush bound: cap libavformat's interleaver RAM on a very long segment
         // (degenerate sparse-keyframe plan, or an audio stream that decodes to nothing) by emitting a

@@ -555,6 +555,8 @@ extension HLSVideoEngine {
         /// never going to reformat this track anyway). Callers fall back to deriving it from the
         /// extradata, which is only safe while the two agree.
         let measuredFraming: VideoNALFraming?
+        /// [MovieClaw P38] 样本仍是 Annex B，但配置记录已换成 hvcC：封装层自己把样本转成长度前缀、保留带内参数集
+        var annexBSamplesKeepParameterSets = false
     }
 
     /// Measure the video NAL framing on packets, then decide what config record the muxer gets.
@@ -609,6 +611,20 @@ extension HLSVideoEngine {
                 } ?? ", nothing to drop"),
                 category: .session
             )
+            // [MovieClaw P38] HEVC 点播：movenc 对 hvc1 转换时会剥掉样本里的 VPS/SPS/PPS（filter_ps），init 只剩片头那一套。
+            // 片中换过参数集的原盘（《黑豹2》118 秒、345.7 秒两次换 PPS）续播或播到换点后，硬解拿旧 PPS 解新切片
+            // 报 Cannot Decode，真机只有声音没有画面。改由封装层自己转换并保留带内参数集，配置记录给 hvcC，movenc 不再转换
+            if codecID == AV_CODEC_ID_HEVC, case .annexB = framing,
+               let record = VideoConfigRecord.fromAnnexB(
+                   canonical ?? source, codecID: codecID,
+                   width: codecpar.pointee.width, height: codecpar.pointee.height) {
+                EngineLog.emit(
+                    "[HLSVideoEngine] [MovieClaw P38] HEVC Annex B 样本由封装层转换并保留带内参数集（配置记录 \(source.count) B → hvcC \(record.count) B）",
+                    category: .session)
+                var result = VideoFramingNormalization(extradataOverride: record, measuredFraming: framing)
+                result.annexBSamplesKeepParameterSets = true
+                return result
+            }
             return VideoFramingNormalization(extradataOverride: canonical, measuredFraming: framing)
         }
 

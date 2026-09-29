@@ -1116,6 +1116,21 @@ public final class Demuxer: @unchecked Sendable {
         return ctx.pointee.bit_rate
     }
 
+    /// [MovieClaw P37] 平均码率：容器声明了就用它，没声明（原盘 / 光盘镜像的 MPEG-TS 时长是 NOPTS、bit_rate 为 0）
+    /// 按片源总字节 × 8 ÷ 时长估。宿主拿它填 HLS 的 BANDWIDTH：原来这时兜底 25 Mbit/s、峰值声明 50 Mbit/s，
+    /// UHD 原盘一段 2 秒 12～15 MB（约 60 Mbit/s）超出声明，真机 AVPlayer 报 -12318 后只放声音不出画面（《黑豹2》续播 20 秒无画）
+    func estimatedBitRate(durationSeconds: Double) -> Int64 {
+        let declared = bitRate
+        if declared > 0 { return declared }
+        let size: Int64? = {
+            accessLock.lock()
+            defer { accessLock.unlock() }
+            return avioProvider?.resolvedByteSize
+        }()
+        guard let size, size > 0, durationSeconds > 0 else { return 0 }
+        return Int64(Double(size) * 8 / durationSeconds)
+    }
+
     /// AVFormatContext.start_time in AV_TIME_BASE units. Non-zero on re-muxed
     /// MKV/TS; subtract from packet PTS for file-relative playback time.
     var formatStartTime: Int64 {
