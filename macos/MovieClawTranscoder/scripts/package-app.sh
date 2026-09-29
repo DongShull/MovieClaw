@@ -99,10 +99,10 @@ if [ "${NOTARIZE}" = "1" ]; then
     # 提交的是 zip：公证服务不收裸 .app 目录。票据要钉在 .app 上，所以这个 zip
     # 只用于提交，最终发布的 zip 由调用方在 staple 之后重新打
     ditto -c -k --keepParent "${APP_DIR}" "${NOTARY_DIR}/submit.zip"
-    echo "正在提交 Apple 公证（通常几分钟，最长等 30 分钟）…"
+    echo "正在提交 Apple 公证（通常几分钟，最长等 60 分钟）…"
     # 结果为 Invalid 时 --wait 的退出码不一定非零，以 JSON 里的 status 为准
     RESULT="$(xcrun notarytool submit "${NOTARY_DIR}/submit.zip" "${NOTARY_AUTH[@]}" \
-        --wait --timeout 30m --output-format json 2>"${NOTARY_DIR}/stderr")" || true
+        --wait --timeout 60m --output-format json 2>"${NOTARY_DIR}/stderr")" || true
     STATUS="$(plutil -extract status raw -o - - <<<"${RESULT}" 2>/dev/null || true)"
     SUBMISSION_ID="$(plutil -extract id raw -o - - <<<"${RESULT}" 2>/dev/null || true)"
     if [ "${STATUS}" != "Accepted" ]; then

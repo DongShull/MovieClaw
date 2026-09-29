@@ -46,13 +46,13 @@ description: 发布 movieclaw 新版本。当用户要求发版、发布新版�
 4. release.yml 两段式发布（draft → publish）：先以 draft 创建 Release，
    各作业往上传产物——应用三件套（app-web.tar.gz / app-backend.tar.gz /
    manifest.json，可选 manifest.json.sig）、mclaw 六平台归档 + checksums、
-   macOS Worker zip（可选附件）——同时发布多架构 Docker 镜像到 Docker Hub
+   macOS Worker zip 与 iOS 未签名 IPA（均为可选附件）——同时发布多架构 Docker 镜像到 Docker Hub
    （movieclaw/movieclaw，正式版打 vX.Y.Z + runtime-N + latest，
    预发布版只打 vX.Y.Z-… 不动 latest）。最后 publish 作业校验产物齐全、
    镜像发布成功后把 draft 转正；此前 Release 对应用内更新和
    install-cli.sh 都不可见。**任何作业失败时 Release 停在 draft，
    修复后到 Actions 重跑整个 release 工作流即可**（上传均带 --clobber，
-   安全重入）；仅 Worker 挂了不拦转正，重跑 worker-macos 作业补传即可。
+   安全重入）；仅 Worker / IPA 挂了不拦转正，重跑 worker-macos / ios-ipa 作业补传即可。
 5. changelog：写 docs/changelog/vX.Y.Z.md 合入 main。changelog 先于发版
    合入（推荐，可与发版 PR 同 PR）时，release.yml 建 Release 会直接用它
    当 body；后合入也没关系，release-notes.yml 会自动同步为 Release body
@@ -163,7 +163,8 @@ ffmpeg 版本，发版前按下表逐项过一遍。
       归档 `mclaw_{linux,darwin}_{amd64,arm64}.tar.gz`、
       `mclaw_windows_{amd64,arm64}.zip`、`checksums.txt`，启用签名时含
       `.sig`），人工只需确认 release 工作流全绿、Release 已从 draft 转正；
-      worker-macos 作业红了 → Worker zip 缺失，重跑该作业补传
+      worker-macos 作业红了 → Worker zip 缺失，重跑该作业补传；
+      ios-ipa 作业红了 → `MovieClaw-iOS-unsigned.ipa` 缺失，重跑该作业补传
 - [ ] changelog 已写入 `docs/changelog/vX.Y.Z.md` 并合入 main（release-notes.yml
       自动同步为 Release body，应用内更新界面会原文展示给用户），并按
       `changelog-guide.md` 自检过第一屏
