@@ -1,6 +1,7 @@
 """图片接口（设计文档 5.6）。
 
 资产映射：Movie/Series Primary→poster_file、Backdrop/0→backdrop_file、
+Logo→logo_file（透明底 PNG，缩放变体也保持 PNG）、
 Season Primary→media_season.poster_file、Episode Primary→media_episode.still_file、
 Movie/Episode Chapter/{index}→单元首文件第 index 个有效章节的场景图
 （docs/design/video-chapters.md §4.7；所在库开了「生成章节」才有）；
@@ -24,12 +25,22 @@ from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from movieclaw_api.services.library.chapters import chapter_image_map, effective_chapters
+from movieclaw_api.services.media_scrape import LOGO_ASSET_SIZE
 from movieclaw_db.engine import get_database
 from movieclaw_db.models import Library, LibraryFile, MediaEpisode, MediaMetadata, MediaSeason
 from movieclaw_jellyfin.errors import JellyfinError, not_found
 from movieclaw_jellyfin.ids import EntityKind, decode_guid, item_guid
 
 router = APIRouter()
+
+# 条目图类型 → (目录美术图的种类, media_item 上的 TMDB 路径字段, 图床兜底档位)。
+# 三层解析的第一层与第三层都按这张表取素材——逐类型列出来，而不是"不是 primary
+# 就当 backdrop"：那样新加一种图（Logo）会静默拿到背景图
+_ITEM_IMAGE_LAYERS: dict[str, tuple[str, str, str]] = {
+    "primary": ("poster", "poster_path", "w780"),
+    "backdrop": ("fanart", "backdrop_path", "w1280"),
+    "logo": ("clearlogo", "logo_path", LOGO_ASSET_SIZE),
+}
 
 
 async def _person_image(person_id: int, image_type: str) -> Response:
@@ -150,6 +161,8 @@ async def _resolve_asset(
             return meta.poster_file
         if itype == "backdrop":
             return meta.backdrop_file
+        if itype == "logo":
+            return meta.logo_file
         return None
 
     if ref.kind == EntityKind.SEASON and itype == "primary":
@@ -191,7 +204,9 @@ async def _item_layer_fallbacks(
     item = await session.get(MediaItem, media_item_id)
     if item is None:
         return None, None
-    tmdb_path = item.poster_path if itype == "primary" else item.backdrop_path
+    kind, field, _size = _ITEM_IMAGE_LAYERS[itype]
+    # Logo 路径空串 = TMDB 确认没有，与 NULL 一样没有兜底可走
+    tmdb_path = getattr(item, field) or None
     rows = (
         await session.execute(
             select(LibraryFile, Library)
@@ -211,7 +226,6 @@ async def _item_layer_fallbacks(
             path = Path(p)
             if path not in roots:
                 roots.append(path)
-    kind = "poster" if itype == "primary" else "fanart"
     art = await asyncio.to_thread(local_item_artwork, roots, files, kind)
     return art, tmdb_path
 
@@ -222,7 +236,7 @@ async def _tmdb_image(tmdb_path: str, itype: str, request: Request) -> Response:
     from movieclaw_api.services.image_cache import get_image_cache
 
     base = get_settings().tmdb_image_base_url.rstrip("/")
-    size = "w780" if itype == "primary" else "w1280"
+    size = _ITEM_IMAGE_LAYERS[itype][2]
     try:
         cached = await get_image_cache().get_or_fetch(f"{base}/{size}{tmdb_path}")
     except Exception:
@@ -273,7 +287,7 @@ async def get_item_image(
         )
     if ref is not None and ref.kind == EntityKind.PERSON:
         return await _person_image(ref.entity_id, image_type)
-    # 条目 Primary/Backdrop 走与 Web 相同的三层解析（docs/design/metadata.md 5）：
+    # 条目 Primary/Backdrop/Logo 走与 Web 相同的三层解析（docs/design/metadata.md 5）：
     # 条目目录美术图（用户/第三方刮削器放的图，最优先；规则见 services/library/
     # artwork.py：文件自己的 <主干>-poster 精确匹配，目录级 poster.jpg 只在目录归
     # 这个条目时才认）→ 刮削资产 → TMDB 图床兜底（经图片代理缓存；资产还没落地
@@ -282,9 +296,7 @@ async def get_item_image(
     dir_art: Path | None = None
     tmdb_fallback: str | None = None
     is_item_image = (
-        ref is not None
-        and ref.kind == EntityKind.ITEM
-        and image_type.lower() in ("primary", "backdrop")
+        ref is not None and ref.kind == EntityKind.ITEM and image_type.lower() in _ITEM_IMAGE_LAYERS
     )
     async with get_database().session() as session:
         rel_path = await _resolve_asset(session, item_id, image_type, image_index)
@@ -369,16 +381,28 @@ def _scale_bounds(request: Request) -> tuple[int, int] | None:
     return (min(widths) if widths else 8192, min(heights) if heights else 8192)
 
 
-def _render_scaled(src: Path, bounds: tuple[int, int]) -> bytes:
+def _render_scaled(src: Path, bounds: tuple[int, int]) -> tuple[bytes, str]:
+    """等比缩小（不放大）并编码，返回 (字节, Content-Type)。
+
+    带透明通道的图（片名 Logo 这类 PNG）保持 PNG：转 JPEG 会把透明区压成
+    黑底，客户端叠在剧照上就是一块黑框。调色板 PNG 先转 RGBA 再缩放——
+    P 模式只能最近邻缩放，字标边缘会出锯齿。其余照旧出 JPEG（体积小）。
+    """
     import io
 
     from PIL import Image
 
     img = Image.open(src)
+    has_alpha = img.mode in ("RGBA", "LA", "PA") or "transparency" in img.info
+    if has_alpha:
+        img = img.convert("RGBA")
     img.thumbnail(bounds)  # 等比缩小，不放大
     buf = io.BytesIO()
+    if has_alpha:
+        img.save(buf, "PNG")
+        return buf.getvalue(), "image/png"
     img.convert("RGB").save(buf, "JPEG", quality=90)
-    return buf.getvalue()
+    return buf.getvalue(), "image/jpeg"
 
 
 async def _maybe_scaled(
@@ -400,8 +424,7 @@ async def _maybe_scaled(
     key = f"jellyfin-scaled:{target}:{stat.st_mtime_ns}:{bounds[0]}x{bounds[1]}"
 
     async def produce() -> tuple[bytes, str]:
-        data = await asyncio.to_thread(_render_scaled, target, bounds)
-        return data, "image/jpeg"
+        return await asyncio.to_thread(_render_scaled, target, bounds)
 
     try:
         cached = await get_image_cache().get_or_create(key, produce)
