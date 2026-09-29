@@ -78,7 +78,7 @@ struct WebhookSettingsView: View {
             }
 
             Section {
-                Toggle(isOn: Binding(get: { config.enabled }, set: { value in Task { await toggleGlobal(value) } })) {
+                Toggle(isOn: Binding(mcGet: { config.enabled }, set: { value in Task { await toggleGlobal(value) } })) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("启用事件推送")
                         Text("关闭后所有 endpoint 都不再收到事件").font(.caption).foregroundStyle(Theme.textFaint)
@@ -443,7 +443,7 @@ private struct SettingsBWebhookEditor: View {
                 }
 
                 Section {
-                    Picker("外发格式", selection: Binding(get: { draft.format }, set: setFormat)) {
+                    Picker("外发格式", selection: Binding(mcGet: { draft.format }, set: setFormat)) {
                         Text("自有协议（HMAC 签名）").tag("movieclaw")
                         Text("Jellyfin 兼容（模板渲染）").tag("jellyfin")
                     }

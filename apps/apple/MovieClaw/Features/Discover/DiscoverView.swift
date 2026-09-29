@@ -183,7 +183,7 @@ struct DiscoverView: View {
     /// 标题菜单：类型与数据源两组（切类型保留数据源、切数据源保留类型，都清空筛选，同 Web）
     @ViewBuilder
     private var titleMenu: some View {
-        Picker("类型", selection: Binding(get: { currentType }, set: { next in
+        Picker("类型", selection: Binding(mcGet: { currentType }, set: { next in
             guard next != currentType else { return }
             mediaType = next
             filters = .empty
@@ -193,7 +193,7 @@ struct DiscoverView: View {
         }
         .pickerStyle(.inline)
         .accessibilityIdentifier("discover-type")
-        Picker("数据源", selection: Binding(get: { source }, set: { next in
+        Picker("数据源", selection: Binding(mcGet: { source }, set: { next in
             guard next != source else { return }
             source = next
             filters = .empty

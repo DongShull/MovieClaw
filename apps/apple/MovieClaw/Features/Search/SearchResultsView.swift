@@ -138,7 +138,7 @@ struct SearchResultsView: View {
     private var selector: some View {
         VStack(alignment: .leading, spacing: 10) {
             if visibleVerticals.count > 1 {
-                Picker("搜索垂直类别", selection: Binding(get: { vertical }, set: { switchTo($0) })) {
+                Picker("搜索垂直类别", selection: Binding(mcGet: { vertical }, set: { switchTo($0) })) {
                     ForEach(visibleVerticals, id: \.self) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
@@ -187,7 +187,7 @@ struct SearchResultsView: View {
     @ViewBuilder
     private var scopeMenu: some View {
         let presets = tabs.filter(\.isPreset)
-        Picker("搜索范围", selection: Binding(get: { scope }, set: { switchScope($0) })) {
+        Picker("搜索范围", selection: Binding(mcGet: { scope }, set: { switchScope($0) })) {
             Label("全部分类", systemImage: TorrentCategories.allSymbol).tag(SearchScope.all)
             if scope != .all, !tabs.contains(where: { $0.scope == scope }) {
                 Label(scope.label ?? "当前范围", systemImage: "clock.arrow.circlepath").tag(scope)

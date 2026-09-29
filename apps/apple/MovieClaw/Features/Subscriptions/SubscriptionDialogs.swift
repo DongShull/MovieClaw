@@ -609,7 +609,7 @@ struct SubsConfirmHost: ViewModifier {
     func body(content: Content) -> some View {
         content.alert(
             center.request?.title ?? "",
-            isPresented: Binding(get: { center.request != nil }, set: { if !$0 { center.finish(false) } }),
+            isPresented: Binding(mcGet: { center.request != nil }, set: { if !$0 { center.finish(false) } }),
             presenting: center.request
         ) { request in
             Button(request.cancelTitle, role: .cancel) { center.finish(false) }

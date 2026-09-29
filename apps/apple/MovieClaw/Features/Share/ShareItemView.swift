@@ -348,7 +348,7 @@ private struct ShareSeasonEpisodes: View {
                 Text("分集").font(.title3.weight(.semibold)).foregroundStyle(Theme.text)
                 if item.seasons.count > 1 {
                     Menu {
-                        Picker("季", selection: Binding(get: { currentSeason }, set: { season = $0 })) {
+                        Picker("季", selection: Binding(mcGet: { currentSeason }, set: { season = $0 })) {
                             ForEach(item.seasons, id: \.self) { Text(label($0)).tag($0) }
                         }
                     } label: {

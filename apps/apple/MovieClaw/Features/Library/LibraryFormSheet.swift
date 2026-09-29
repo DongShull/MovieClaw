@@ -610,7 +610,7 @@ private struct ManageEditLibraryBody: View {
         ManageSwitchRow(
             title: "在首页展示",
             detail: "关闭后首页「最近添加」与 Jellyfin 客户端的「最新媒体」都跳过这个库；库卡片仍在，进库内看照常。",
-            isOn: Binding(get: { !excludeFromHome }, set: { excludeFromHome = !$0 }), identifier: "form-switch-home"
+            isOn: Binding(mcGet: { !excludeFromHome }, set: { excludeFromHome = !$0 }), identifier: "form-switch-home"
         )
         // 系列是「作品的属性」：影视库来自 TMDB，其他库来自视频旁 NFO 的 <set>；照片没有系列
         if library.kind != "photo" {

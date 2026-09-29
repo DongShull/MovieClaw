@@ -152,7 +152,7 @@ struct CollectionDetailView: View {
                 .sheetFeedback()
             }
         }
-        .sheet(isPresented: Binding(get: { ordering != nil }, set: { if !$0 { ordering = nil } })) {
+        .sheet(isPresented: Binding(mcGet: { ordering != nil }, set: { if !$0 { ordering = nil } })) {
             if let ordering {
                 CollectionOrderSheet(collectionId: collectionId, items: ordering) { membersChanged() }
                     .sheetFeedback()
@@ -264,7 +264,7 @@ struct CollectionDetailView: View {
     private func rulesEditor(_ editing: LibraryFilter) -> some View {
         if let libraryId {
             VStack(alignment: .leading, spacing: 10) {
-                LibraryFilterBar(libraryId: libraryId, filter: Binding(get: { self.editing ?? editing }, set: { self.editing = $0 }))
+                LibraryFilterBar(libraryId: libraryId, filter: Binding(mcGet: { self.editing ?? editing }, set: { self.editing = $0 }))
                 HStack(spacing: 10) {
                     Button("保存条件") { Task { await saveRules() } }
                         .buttonStyle(.glassProminent)

@@ -98,7 +98,7 @@ struct MediaDetailView: View {
             SafariView(url: link.url)
                 .ignoresSafeArea()
         }
-        .alert("当前设备无法直连 YouTube", isPresented: Binding(get: { blockedTrailer != nil }, set: { if !$0 { blockedTrailer = nil } }), presenting: blockedTrailer) { video in
+        .alert("当前设备无法直连 YouTube", isPresented: Binding(mcGet: { blockedTrailer != nil }, set: { if !$0 { blockedTrailer = nil } }), presenting: blockedTrailer) { video in
             if let url = WebLink(video.watchUrl)?.url {
                 Button("在 YouTube 打开 ↗") { openURL(url) }
             }
