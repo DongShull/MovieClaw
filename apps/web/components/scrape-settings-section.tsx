@@ -945,7 +945,7 @@ const MIRROR_ROWS = [
   {
     key: "mirror_images" as const,
     label: "条目图片",
-    hint: "poster.jpg / fanart.jpg / 季海报",
+    hint: "poster.jpg / fanart.jpg / clearlogo.png / 季海报",
   },
   {
     key: "mirror_nfo" as const,

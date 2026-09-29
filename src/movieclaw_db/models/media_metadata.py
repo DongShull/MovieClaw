@@ -122,6 +122,9 @@ class MediaMetadata(TimestampMixin, table=True):
     # -- 本地图片资产（相对 data/metadata/images/，NULL=未下载/下载失败）------
     poster_file: str | None = Field(default=None, description="本地海报资产相对路径")
     backdrop_file: str | None = Field(default=None, description="本地剧照资产相对路径")
+    # 片名 Logo（透明底 PNG，``media_item.logo_path`` 的本地副本）：镜像给外部
+    # 播放器（条目目录 clearlogo.png）与 Jellyfin 协议的 Logo 图都从这里出
+    logo_file: str | None = Field(default=None, description="本地片名 Logo 资产相对路径")
     # 海报像素尺寸（本地来源条目的抓帧/内嵌封面才记；TMDB 海报固定 2:3 不记）：
     # 卡片按真实比例排版，见 docs/design/library-other-kind.md 4.7
     poster_width: int | None = Field(default=None, description="本地海报像素宽；NULL=未知")
@@ -136,6 +139,7 @@ class MediaMetadata(TimestampMixin, table=True):
     # 在弹层里点「恢复自动」解锁即可
     poster_locked: bool = Field(default=False, description="海报由用户手动选定，刷新不覆盖")
     backdrop_locked: bool = Field(default=False, description="背景由用户手动选定，刷新不覆盖")
+    logo_locked: bool = Field(default=False, description="片名 Logo 由用户手动选定，刷新不覆盖")
 
     # -- 刮削台账 ------------------------------------------------------------
     scraped_at: datetime | None = Field(default=None, description="最近一次成功刮削时间")

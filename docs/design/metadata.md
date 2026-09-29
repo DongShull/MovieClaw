@@ -329,6 +329,7 @@ NULL → 现有 image-proxy。
 data/metadata/images/{media_item_id}/
   poster.jpg              w500
   backdrop.jpg            w1280
+  logo.png                original（片名 Logo，透明底 PNG，issue #472）
   season-{n}.jpg          w500
   s{ss}e{ee}.jpg          w300（分集剧照）
 ```
@@ -343,6 +344,7 @@ data/metadata/images/{media_item_id}/
 | 背景 | `original` | 全屏沉浸底图，最显眼的一张；w1280 在 2K/4K 屏上是放大糊图 |
 | 海报 | `w780` | 详情页 186px、墙 148px，2 倍屏下足够锐利 |
 | 分集剧照 | `w300` | 小卡片，且一部剧动辄几百集 |
+| 片名 Logo | `original`（固定，不随环境变量） | TMDB 的 logo 档位在 w500 之上只有 original；它镜像成 `clearlogo.png` 给电视端播放器用（Kodi clearlogo 规格 800 宽，w500 在 4K 电视上发糊）。Jellyfin 客户端按 maxWidth 取缩放变体 |
 
 估算：1000 部电影 ≈ 1000×(0.3+2)MB ≈ **2.3GB**；分集剧照 7200×30KB ≈ 220MB。
 比原档位（w500/w1280/w300，约 550MB）大一个量级，但相对媒体文件本身
@@ -355,6 +357,12 @@ data/metadata/images/{media_item_id}/
 资产随任一刷新入口保持最新；没有这份记录时无从判断新旧，视同过期重下一次。
 选图锁定的海报/背景不受溯源触发（锁的语义是"这张图就是要的"）；档位升级
 同理经溯源生效，锁保护的是"用哪张图"，不是"用什么分辨率"。
+
+**片名 Logo 的作废**（issue #472）：海报/背景的 TMDB 路径永远不会被清空
+（本次档案没有就保留旧值），Logo 不同——`media_item.logo_path` 为空串表示
+"TMDB 看过、这部片没有合适的 Logo"（上游撤图，或刮削语言改了而新语言没有）。
+此时资产作废：`logo_file` 置空、`logo.png` 删除；镜像只认档案里在用的
+`logo_file`，不再写出旧图（媒体目录里已有的 `clearlogo.png` 按 6.2 铁律不删）。
 
 **分集剧照抓帧兜底**（2026-09-06）：TMDB 不少分集没有剧照（新剧、冷门剧、
 特别篇），分集卡只剩一个集号数字。`download_item_assets` 同步完 TMDB 剧照后，
@@ -372,8 +380,8 @@ Primary、媒体目录镜像（`<视频名>-thumb.jpg`）零改动就能用。**
 按 Kodi/Emby/Jellyfin 共同识别的命名规范，写入条目目录：
 
 ```
-电影：  Title (Year)/poster.jpg、fanart.jpg、movie.nfo
-剧集：  Title (Year)/poster.jpg、fanart.jpg、tvshow.nfo、season{NN}-poster.jpg
+电影：  Title (Year)/poster.jpg、fanart.jpg、clearlogo.png、movie.nfo
+剧集：  Title (Year)/poster.jpg、fanart.jpg、clearlogo.png、tvshow.nfo、season{NN}-poster.jpg
 分集：  <视频文件名>-thumb.jpg、<视频文件名>.nfo（<episodedetails>）
 ```
 

@@ -16,8 +16,8 @@
    写入新集都必须走同一段 diff，否则先写库的入口会"吃掉"新集信号，
    定时刷新再也发现不了它们）；
 4. 图片资产下载（data/metadata/images/{条目 id}/，缺失才下，force 覆盖）；
-5. 媒体目录镜像（poster.jpg/fanart.jpg/分集 thumb + 完整 NFO，Kodi/Emby
-   规范，**只增不覆盖不删除**）。按库开关：``write_media_assets`` 是总闸，
+5. 媒体目录镜像（poster.jpg/fanart.jpg/clearlogo.png/分集 thumb + 完整 NFO，
+   Kodi/Emby 规范，**只增不覆盖不删除**）。按库开关：``write_media_assets`` 是总闸，
    图片/NFO/分集剧照三项另可按库细分（library.scrape_overrides）。
 
 图片与镜像失败均不阻断（保持 NULL/缺失，任一后续入口自愈）。
@@ -663,9 +663,9 @@ def _merge_identity(
         item.poster_path = profile.poster_path or item.poster_path
     if meta is None or not meta.backdrop_locked:
         item.backdrop_path = profile.backdrop_path or item.backdrop_path
-    # 片名 Logo 没有手动换图入口，不受选图锁约束；存量条目同样靠刷新自然回填。
+    # 片名 Logo 同受选图锁保护；存量条目同样靠刷新自然回填。
     # None=本次档案没带图片集（未知），保留旧值；空串=确实没有，照写
-    if profile.logo_path is not None:
+    if profile.logo_path is not None and (meta is None or not meta.logo_locked):
         item.logo_path = profile.logo_path
     item.aliases = merged_aliases
     item.imdb_id = item.imdb_id or profile.imdb_id
@@ -1283,6 +1283,13 @@ async def _sync_movie_schedule(
 # ---------------------------------------------------------------------------
 
 
+# 片名 Logo 的资产档位固定取原图：TMDB 的 logo 档位在 w500 之上只有 original，
+# 而镜像出去的 clearlogo.png 是给电视端播放器用的（Kodi 的 clearlogo 规格是
+# 800 宽，w500 在 4K 电视上发糊）。透明底 PNG 的原图与背景原图同一量级；
+# Jellyfin 客户端按 maxWidth 取缩放变体，不会每次都拉原图
+LOGO_ASSET_SIZE = "original"
+
+
 def _asset_sizes(setting: MetadataScrapeSetting | None = None) -> tuple[str, str, str]:
     """生效的 (海报, 背景, 剧照) 尺寸档位（库覆盖 > 设置页 > 环境变量）。
 
@@ -1524,11 +1531,11 @@ async def download_item_assets(
     分集剧照只给**在库条目**下（订阅了几百集但一集未入库的剧，几百张
     剧照没有消费方，白占磁盘与请求量）；TMDB 没有剧照的在库分集从视频
     抓一帧顶上（``_grab_missing_stills``）。单张失败保持 NULL 不阻断，
-    任一后续刷新入口自愈。手动选定（locked）的海报/背景 force 也不重下
+    任一后续刷新入口自愈。手动选定（locked）的海报/背景/Logo force 也不重下
     ——那张图就是用户要的（docs/design/metadata.md 6.3）；``ignore_locks``
     是选图动作自己的通道：刚选的图必须落盘，此时锁就是它自己加的。
 
-    ``only``（poster/backdrop）：只同步这一张条目图，同样是选图动作的通道。
+    ``only``（poster/backdrop/logo）：只同步这一张条目图，同样是选图动作的通道。
     用户换一张海报，不该连带 force 重下整季海报、全部分集剧照、再对没有
     TMDB 剧照的集重新解码视频抓帧——长剧动辄几百集，同步的选图接口要等
     几十秒以上。不传即全量（刷新与入库补齐的常态）。
@@ -1587,6 +1594,28 @@ async def download_item_assets(
                     "backdrop",
                     locked=meta.backdrop_locked and not ignore_locks,
                 )
+            if only in (None, "logo"):
+                if item.logo_path == "":
+                    # 空串 = TMDB 看过、这部片没有合适的 Logo（上游撤图，或刮削语言
+                    # 改了而新语言没有）：旧资产作废。海报/背景的路径永远不会被清空，
+                    # 只有 Logo 有这一步——不清的话 Jellyfin 接口与目录镜像会一直用
+                    # 那张过期的图
+                    meta.logo_file = None
+                    sources.pop("logo", None)
+                    with contextlib.suppress(OSError):
+                        await asyncio.to_thread((item_dir / "logo.png").unlink, missing_ok=True)
+                else:
+                    meta.logo_file = await _sync_asset(
+                        base,
+                        LOGO_ASSET_SIZE,
+                        item.logo_path,
+                        item_dir / "logo.png",
+                        meta.logo_file,
+                        force and (ignore_locks or not meta.logo_locked),
+                        sources,
+                        "logo",
+                        locked=meta.logo_locked and not ignore_locks,
+                    )
             session.add(meta)
             for season in seasons:
                 season.poster_file = await _sync_asset(
@@ -1925,7 +1954,7 @@ async def mirror_media_dir_assets(
     库内档案**保持更新**——图片"资产比镜像新才覆盖"（_copy_asset），NFO 每次
     刷新按 media_metadata 重写（内容比对，无变化不落盘）；**绝不删除**；
     写失败只告警。``force``（单条目手动刷新）：图片无条件覆盖写。
-    ``only``（poster/backdrop）：选图动作只镜像选中的那一张（同
+    ``only``（poster/backdrop/logo）：选图动作只镜像选中的那一张（同
     ``download_item_assets``），季海报、分集剧照与 NFO 都不碰。
 
     NFO 只在身份**高置信**时写（人工认领 / 目录 tmdbid 标记 / 既有 NFO /
@@ -2019,6 +2048,11 @@ async def mirror_media_dir_assets(
                     _copy_asset(item_dir / "poster.jpg", entry / "poster.jpg", force)
                 if only in (None, "backdrop"):
                     _copy_asset(item_dir / "backdrop.jpg", entry / "fanart.jpg", force)
+                # clearlogo.png：Kodi 与 Jellyfin 共认的片名 Logo 文件名。看档案里的
+                # logo_file 而不是只看资产文件在不在——TMDB 撤掉 Logo 后资产作废
+                # （见 download_item_assets），不能再把旧图写出去
+                if only in (None, "logo") and meta is not None and meta.logo_file:
+                    _copy_asset(item_dir / "logo.png", entry / "clearlogo.png", force)
                 if item.kind == MediaKind.TV.value:
                     for season in seasons:
                         name = (

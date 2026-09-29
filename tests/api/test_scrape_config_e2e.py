@@ -287,6 +287,7 @@ def _mirror_products(entry: Path, *, kind: MediaKind) -> None:
     """在条目目录里造出一份镜像产物（等价于 mirror_media_dir_assets 写完的现场）。"""
     _touch(entry / "poster.jpg", b"POSTER")
     _touch(entry / "fanart.jpg", b"FANART")
+    _touch(entry / "clearlogo.png", b"LOGO")
     _touch(entry / ("movie.nfo" if kind is MediaKind.MOVIE else "tvshow.nfo"), b"<nfo/>")
     if kind is MediaKind.TV:
         _touch(entry / "season01-poster.jpg", b"S01")
@@ -312,13 +313,14 @@ async def test_entry_assets_follow_entry_dir_rename(db, tmp_path):
     summary = await organize_library(library_id)
     new_entry = root / "剧 (2019) [tmdbid-31]"
 
-    # poster / fanart / tvshow.nfo / season01-poster / season-specials-poster
-    assert summary.entry_assets_moved == 5
+    # poster / fanart / clearlogo / tvshow.nfo / season01-poster / season-specials-poster
+    assert summary.entry_assets_moved == 6
     # 旧目录彻底消失：这正是"反复调模板不留垃圾"的判据
     assert not old_entry.exists()
     assert summary.removed_dirs >= 1
     assert (new_entry / "poster.jpg").read_bytes() == b"POSTER"
     assert (new_entry / "fanart.jpg").read_bytes() == b"FANART"
+    assert (new_entry / "clearlogo.png").read_bytes() == b"LOGO"
     assert (new_entry / "tvshow.nfo").read_bytes() == b"<nfo/>"
     assert (new_entry / "season01-poster.jpg").read_bytes() == b"S01"
     assert (new_entry / "season-specials-poster.jpg").read_bytes() == b"SP"
@@ -541,7 +543,9 @@ async def _prepare_mirror_case(db, tmp_path, *, library_kw=None, entry="风筝 (
             session, kind=MediaKind.TV, root=root, name="剧集库", **(library_kw or {})
         )
         item = await _make_item(session, kind=MediaKind.TV, tmdb_id=68035, title="风筝", year=2017)
-        session.add(MediaMetadata(media_item_id=item.id, overview="简介"))
+        session.add(
+            MediaMetadata(media_item_id=item.id, overview="简介", logo_file=f"{item.id}/logo.png")
+        )
         session.add(MediaSeason(media_item_id=item.id, season_number=1, name="第 1 季"))
         session.add(
             MediaEpisode(media_item_id=item.id, season_number=1, episode_number=3, name="第三集")
@@ -559,10 +563,10 @@ async def _prepare_mirror_case(db, tmp_path, *, library_kw=None, entry="风筝 (
         await session.commit()
         item_id = item.id
 
-    # 资产目录：条目图 + 季海报 + 分集剧照
+    # 资产目录：条目图 + 片名 Logo + 季海报 + 分集剧照
     item_dir = assets_root() / str(item_id)
     item_dir.mkdir(parents=True, exist_ok=True)
-    for name in ("poster.jpg", "backdrop.jpg", "season-1.jpg", "s01e03.jpg"):
+    for name in ("poster.jpg", "backdrop.jpg", "logo.png", "season-1.jpg", "s01e03.jpg"):
         (item_dir / name).write_bytes(b"img")
     return item_id, root / entry, root / entry / "Season 01"
 
@@ -577,6 +581,7 @@ async def test_mirror_all_on_writes_everything(db, tmp_path):
 
     assert (entry / "poster.jpg").is_file()
     assert (entry / "fanart.jpg").is_file()
+    assert (entry / "clearlogo.png").is_file()
     assert (entry / "season01-poster.jpg").is_file()
     assert (entry / "tvshow.nfo").is_file()
     assert (season_dir / "风筝 (2017) - S01E03-thumb.jpg").is_file()
@@ -594,6 +599,7 @@ async def test_mirror_images_off_keeps_nfo(db, tmp_path):
 
     assert not (entry / "poster.jpg").exists()
     assert not (entry / "fanart.jpg").exists()
+    assert not (entry / "clearlogo.png").exists()
     assert not (entry / "season01-poster.jpg").exists()
     assert not (season_dir / "风筝 (2017) - S01E03-thumb.jpg").exists()
     assert (entry / "tvshow.nfo").is_file()
@@ -644,6 +650,7 @@ async def test_library_master_switch_blocks_everything(db, tmp_path):
     await mirror_media_dir_assets(item_id)
 
     assert not (entry / "poster.jpg").exists()
+    assert not (entry / "clearlogo.png").exists()
     assert not (entry / "tvshow.nfo").exists()
     assert not (season_dir / "风筝 (2017) - S01E03-thumb.jpg").exists()
 

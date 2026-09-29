@@ -204,7 +204,7 @@ class LastOrganizeView(BaseModel):
     renamed: int = Field(description="改名归位的主文件数")
     sidecars_renamed: int = Field(description="跟随改名的附属文件数（字幕、分集剧照等）")
     entry_assets_moved: int = Field(
-        default=0, description="跟随条目目录改名的镜像资产数（海报/背景/季海报/条目 NFO）"
+        default=0, description="跟随条目目录改名的镜像资产数（海报/背景/Logo/季海报/条目 NFO）"
     )
     already_ok: int = Field(description="本就符合规范、无需动作的文件数")
     skipped: int = Field(description="计划阶段跳过的文件数（原因见预览）")
@@ -1693,7 +1693,7 @@ class OrganizePreviewView(BaseModel):
     entry_assets: list[OrganizeSidecarView] = Field(
         default_factory=list,
         description=(
-            "条目目录改名时跟着搬的镜像资产（poster.jpg / fanart.jpg / "
+            "条目目录改名时跟着搬的镜像资产（poster.jpg / fanart.jpg / clearlogo.png / "
             "seasonNN-poster.jpg / movie.nfo / tvshow.nfo）——不搬走旧目录就清不掉"
         ),
     )
