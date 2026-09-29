@@ -13,7 +13,7 @@ Web 的 artwork 接口、Jellyfin 图片接口、本地条目的资产生成（t
    季目录结构都算）。混放目录里的 ``poster.jpg`` 是目录自己的图，谁都不该拿，
    否则一个演员文件夹下散放的几部片会共用排序第一那部的海报（串图）。
 
-三种图各自的候选名（按优先级）：
+四种图各自的候选名（按优先级）：
 
 - poster（Primary）：``<主干>.jpg`` 精确同名 → ``-poster`` / ``-folder`` /
   ``-cover`` / ``-default`` / ``-movie`` → 目录级 ``poster`` / ``folder`` /
@@ -21,7 +21,9 @@ Web 的 artwork 接口、Jellyfin 图片接口、本地条目的资产生成（t
 - fanart（Backdrop）：``-fanart`` / ``-backdrop`` → 目录级 ``fanart`` /
   ``backdrop`` / ``background``；
 - thumb（Thumb，横版）：``-landscape`` / ``-thumb`` → 目录级 ``landscape`` /
-  ``thumb``。
+  ``thumb``；
+- clearlogo（Logo，透明底片名字标）：``-logo`` / ``-clearlogo`` → 目录级 ``logo`` /
+  ``clearlogo``（Jellyfin 同序；Kodi 叫 clearlogo，Emby 常写 logo）。
 """
 
 from __future__ import annotations
@@ -44,6 +46,7 @@ _KINDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     ),
     "fanart": (("-fanart", "-backdrop"), ("fanart", "backdrop", "background")),
     "thumb": (("-landscape", "-thumb"), ("landscape", "thumb")),
+    "clearlogo": (("-logo", "-clearlogo"), ("logo", "clearlogo")),
 }
 
 
@@ -165,7 +168,7 @@ def find_artwork(
     *,
     cache: DirListing | None = None,
 ) -> Path | None:
-    """按规则找一张 ``kind`` 图（poster / fanart / thumb）；没有返回 None。
+    """按规则找一张 ``kind`` 图（poster / fanart / thumb / clearlogo）；没有返回 None。
 
     ``own_files`` 是条目自己的视频文件（可在 ``entry_dir`` 的子目录里，如剧集
     的季目录）；sidecar 按各文件主干匹配，目录级图按归属判定。同步磁盘 IO

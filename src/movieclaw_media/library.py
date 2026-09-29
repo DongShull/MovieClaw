@@ -584,22 +584,44 @@ def pick_logo(
     images = data.get("images")
     if images is None:
         return None
-    logos = [
-        logo
-        for logo in images.get("logos") or []
-        if str(logo.get("file_path") or "").lower().endswith(".png")
-    ]
-    tiers = resolve_image_languages(
-        ("meta", "en", "orig", "null"),
-        primary_language=primary_language,
-        original_language=original_language,
-    )
-    for lang in tiers:
+    logos = _png_logos(images)
+    for lang in _logo_tiers(primary_language, original_language):
         pool = [logo for logo in logos if logo.get("iso_639_1") == lang]
         if pool:
             # Logo 的像素宽度与清晰度关系不大（多为横向长条），只按加权票数挑
             return _sorted_candidates(pool, 0)[0].get("file_path") or ""
     return ""
+
+
+def list_logo_candidates(
+    data: dict, *, primary_language: str, original_language: str | None
+) -> list[dict]:
+    """「更换图片」徽标页的候选：只收 PNG，按 ``pick_logo`` 的语言档排序（档内
+    按加权票数），列表第一张就是自动策略会选的那张。
+
+    档外语言排在最后——自动策略宁可不给也不拿它们兜底，但用户看得懂、想用，
+    手动选就是它的通道。
+    """
+    logos = _png_logos(data.get("images") or {})
+    if not logos:
+        return []
+    return _tier_ordered(logos, _logo_tiers(primary_language, original_language), 0)
+
+
+def _png_logos(images: dict) -> list[dict]:
+    return [
+        logo
+        for logo in images.get("logos") or []
+        if str(logo.get("file_path") or "").lower().endswith(".png")
+    ]
+
+
+def _logo_tiers(primary_language: str, original_language: str | None) -> list[str | None]:
+    return resolve_image_languages(
+        ("meta", "en", "orig", "null"),
+        primary_language=primary_language,
+        original_language=original_language,
+    )
 
 
 def _tier_ordered(images: list[dict], langs: Sequence[str | None], min_width: int) -> list[dict]:

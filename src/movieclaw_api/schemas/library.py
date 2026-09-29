@@ -204,7 +204,7 @@ class LastOrganizeView(BaseModel):
     renamed: int = Field(description="改名归位的主文件数")
     sidecars_renamed: int = Field(description="跟随改名的附属文件数（字幕、分集剧照等）")
     entry_assets_moved: int = Field(
-        default=0, description="跟随条目目录改名的镜像资产数（海报/背景/季海报/条目 NFO）"
+        default=0, description="跟随条目目录改名的镜像资产数（海报/背景/Logo/季海报/条目 NFO）"
     )
     already_ok: int = Field(description="本就符合规范、无需动作的文件数")
     skipped: int = Field(description="计划阶段跳过的文件数（原因见预览）")
@@ -1093,18 +1093,27 @@ class ArtworkCandidatesView(BaseModel):
 
     posters: list[ArtworkCandidateView] = Field(default_factory=list)
     backdrops: list[ArtworkCandidateView] = Field(default_factory=list)
+    logos: list[ArtworkCandidateView] = Field(
+        default_factory=list, description="片名徽标（透明底 PNG，镜像为 clearlogo.png）"
+    )
     current_poster: str | None = Field(default=None, description="当前在用的海报路径")
     current_backdrop: str | None = Field(default=None, description="当前在用的背景路径")
+    current_logo: str | None = Field(
+        default=None, description="当前在用的徽标路径；null=没有（TMDB 无合适徽标）"
+    )
     poster_locked: bool = Field(default=False, description="海报已手动选定，刷新不覆盖")
     backdrop_locked: bool = Field(default=False, description="背景已手动选定，刷新不覆盖")
+    logo_locked: bool = Field(default=False, description="徽标已手动选定，刷新不覆盖")
 
 
 class ArtworkSelectPayload(BaseModel):
-    """选图请求：kind 指海报还是背景；file_path 为 null 表示恢复自动选图。"""
+    """选图请求：kind 指哪种图；file_path 为 null 表示恢复自动选图。"""
 
-    kind: Literal["poster", "backdrop"] = Field(description="poster=海报 / backdrop=背景图")
+    kind: Literal["poster", "backdrop", "logo"] = Field(
+        description="poster=海报 / backdrop=背景图 / logo=片名徽标"
+    )
     file_path: str | None = Field(
-        default=None, description="TMDB 图片路径；null=解锁并恢复自动选图"
+        default=None, min_length=1, description="TMDB 图片路径；null=解锁并恢复自动选图"
     )
 
 
@@ -1693,7 +1702,7 @@ class OrganizePreviewView(BaseModel):
     entry_assets: list[OrganizeSidecarView] = Field(
         default_factory=list,
         description=(
-            "条目目录改名时跟着搬的镜像资产（poster.jpg / fanart.jpg / "
+            "条目目录改名时跟着搬的镜像资产（poster.jpg / fanart.jpg / clearlogo.png / "
             "seasonNN-poster.jpg / movie.nfo / tvshow.nfo）——不搬走旧目录就清不掉"
         ),
     )

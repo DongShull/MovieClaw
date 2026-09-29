@@ -21,7 +21,7 @@
 - **只清理自己搬空的目录**：改名后仅对被搬走文件的原目录（及其空祖先）
   尝试 rmdir——非空即停，绝不触碰与本次整理无关的目录，绝不删除文件；
 - **条目目录改名时镜像资产一起搬**：``poster.jpg`` / ``fanart.jpg`` /
-  ``seasonNN-poster.jpg`` / ``movie.nfo`` / ``tvshow.nfo`` 这些镜像产物不以
+  ``clearlogo.png`` / ``seasonNN-poster.jpg`` / ``movie.nfo`` / ``tvshow.nfo`` 这些镜像产物不以
   主文件名开头，附属文件规则认不出它们。不搬的话旧目录永远非空、清不掉，
   用户每调一次命名模板就多留一层只剩图片的空壳目录——这与"用户会反复调
   模板试效果"的产品预期直接冲突。只在**旧条目目录会被彻底搬空**时搬（还留
@@ -91,7 +91,9 @@ _VIDEO_LIKE_EXTS = SIDECAR_SKIP_EXTS
 # 条目目录级镜像资产的固定文件名（media_scrape.mirror_media_dir_assets 写出）。
 # 它们不以主文件名开头，附属文件规则（"主文件名."前缀）认不出来，条目目录
 # 改名时必须单独搬——见模块头"条目目录改名时镜像资产一起搬"
-_ENTRY_ASSET_NAMES = frozenset({"poster.jpg", "fanart.jpg", "movie.nfo", "tvshow.nfo"})
+_ENTRY_ASSET_NAMES = frozenset(
+    {"poster.jpg", "fanart.jpg", "clearlogo.png", "movie.nfo", "tvshow.nfo"}
+)
 _SEASON_POSTER_RE = re.compile(r"^season(?:\d{2}|-specials)-poster\.jpg$")
 
 
@@ -154,7 +156,7 @@ class RenameAction:
 
 @dataclass
 class EntryAssetMove:
-    """条目目录改名时跟着搬的镜像资产（海报/背景/季海报/条目 NFO）。"""
+    """条目目录改名时跟着搬的镜像资产（海报/背景/Logo/季海报/条目 NFO）。"""
 
     source_path: str
     target_path: str
@@ -319,7 +321,7 @@ def _build_plan_sync(
 
 
 def _plan_entry_assets(renames: list[RenameAction], roots: list[str]) -> list[EntryAssetMove]:
-    """条目目录变了 → 把该目录里的镜像资产（海报/背景/季海报/NFO）一起搬走。
+    """条目目录变了 → 把该目录里的镜像资产（海报/背景/Logo/季海报/NFO）一起搬走。
 
     两道守门（都是"宁可留着也不搬错"）：
     - 旧目录里还留着**不在本次计划里**的视频 → 不搬，图要留给那些文件；

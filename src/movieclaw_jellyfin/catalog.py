@@ -240,11 +240,12 @@ def _list_load_columns(
     ]
     if options.enable_images:
         # TMDB 路径兜底出 tag（资产未落地时）也在列表路径读，短字符串列
-        item_columns.extend([MediaItem.poster_path, MediaItem.backdrop_path])
+        item_columns.extend([MediaItem.poster_path, MediaItem.backdrop_path, MediaItem.logo_path])
         metadata_columns.extend(
             [
                 MediaMetadata.poster_file,
                 MediaMetadata.backdrop_file,
+                MediaMetadata.logo_file,
                 MediaMetadata.poster_width,
                 MediaMetadata.poster_height,
                 MediaMetadata.updated_at,
@@ -1323,6 +1324,19 @@ def _tmdb_tag(tmdb_path: str | None) -> str | None:
     return hashlib.md5(f"tmdb:{tmdb_path}".encode()).hexdigest()
 
 
+def _logo_tag(bundle: ItemBundle) -> str | None:
+    """片名 Logo 的 tag：与海报同一口径（资产派生，未落地按 TMDB 路径兜底）。
+
+    电影/剧集自身的 ``ImageTags.Logo`` 与季/集的 ``ParentLogoImageTag`` 共用它
+    ——客户端进到季、集页面时按 Parent* 字段退到剧集的 Logo（真 Jellyfin 的
+    DtoService 同样这么填）。路径空串（TMDB 确认没有）不出 tag。
+    """
+    meta = bundle.metadata
+    return _asset_tag(
+        meta.logo_file if meta else None, meta.updated_at if meta else None
+    ) or _tmdb_tag(bundle.item.logo_path)
+
+
 def _apply_item_images(
     dto: dict[str, Any], ctx: DtoContext, bundle: ItemBundle, options: DtoOptions
 ) -> None:
@@ -1345,11 +1359,22 @@ def _apply_item_images(
             meta.poster_width if meta else None,
             meta.poster_height if meta else None,
         )
+    logo = _logo_tag(bundle)
+    if logo:
+        tags["Logo"] = logo
     dto["ImageTags"] = tags
     backdrop = _asset_tag(
         meta.backdrop_file if meta else None, meta.updated_at if meta else None
     ) or _tmdb_tag(bundle.item.backdrop_path)
     dto["BackdropImageTags"] = [backdrop] if backdrop else []
+
+
+def _apply_parent_logo(dto: dict[str, Any], bundle: ItemBundle) -> None:
+    """季/集没有自己的 Logo：按 Parent* 字段指向剧集那张（与真 Jellyfin 同口径）。"""
+    logo = _logo_tag(bundle)
+    if logo:
+        dto["ParentLogoItemId"] = item_guid(bundle.item.id)
+        dto["ParentLogoImageTag"] = logo
 
 
 # 标称分辨率 → 常见宽高（探测层未落 width/height，与 _video_stream 同源）
@@ -1570,6 +1595,7 @@ def season_dto(
         if series_backdrop:
             dto["ParentBackdropItemId"] = item_guid(bundle.item.id)
             dto["ParentBackdropImageTags"] = [series_backdrop]
+        _apply_parent_logo(dto, bundle)
     if options.enable_user_data:
         dto["UserData"] = _folder_user_data(bundle, guid, season=season)
     return dto
@@ -1634,6 +1660,7 @@ def episode_dto(
         if series_backdrop:
             dto["ParentBackdropItemId"] = item_guid(bundle.item.id)
             dto["ParentBackdropImageTags"] = [series_backdrop]
+        _apply_parent_logo(dto, bundle)
     if options.has("Path"):
         files = bundle.files.get((season, episode), [])
         if files:

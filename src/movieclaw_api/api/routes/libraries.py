@@ -1799,7 +1799,7 @@ async def refresh_item_metadata(
 @router.get(
     "/{library_id}/items/{media_item_id}/artwork/candidates",
     response_model=ApiResponse[ArtworkCandidatesView],
-    summary="条目的候选海报/背景图列表（选图前先看这里）",
+    summary="条目的候选海报/背景图/徽标列表（选图前先看这里）",
     operation_id="library.artwork.list-candidates",
     dependencies=[Depends(require_admin)],
 )
@@ -1809,25 +1809,23 @@ async def list_artwork_candidates_route(
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[ArtworkCandidatesView]:
     """TMDB 全量候选图，按与自动选图一致的规则排序（背景无文字优先、
-    海报中文优先），首张即当前自动策略会选的那张。"""
+    海报中文优先、徽标与片名同语言优先），首张即当前自动策略会选的那张。"""
 
     await LibraryConfigService(session).get(library_id)  # 404 检查
     await _metadata_item(session, library_id, media_item_id)  # 404 检查（不要求文件）
-    (
-        posters,
-        backdrops,
-        current_poster,
-        current_backdrop,
-    ) = await media_scrape.list_artwork_candidates(media_item_id)
+    candidates = await media_scrape.list_artwork_candidates(media_item_id)
     meta = await MediaItemRepository(session).get_metadata(media_item_id)
     return ok(
         ArtworkCandidatesView(
-            posters=[ArtworkCandidateView(**p) for p in posters],
-            backdrops=[ArtworkCandidateView(**b) for b in backdrops],
-            current_poster=current_poster,
-            current_backdrop=current_backdrop,
+            posters=[ArtworkCandidateView(**p) for p in candidates.posters],
+            backdrops=[ArtworkCandidateView(**b) for b in candidates.backdrops],
+            logos=[ArtworkCandidateView(**logo) for logo in candidates.logos],
+            current_poster=candidates.current_poster,
+            current_backdrop=candidates.current_backdrop,
+            current_logo=candidates.current_logo,
             poster_locked=bool(meta and meta.poster_locked),
             backdrop_locked=bool(meta and meta.backdrop_locked),
+            logo_locked=bool(meta and meta.logo_locked),
         )
     )
 
@@ -1835,7 +1833,7 @@ async def list_artwork_candidates_route(
 @router.post(
     "/{library_id}/items/{media_item_id}/artwork/select",
     response_model=ApiResponse[dict],
-    summary="选定海报/背景（当场落盘并覆盖媒体目录；此后刷新不再覆盖）",
+    summary="选定海报/背景/徽标（当场落盘并覆盖媒体目录；此后刷新不再覆盖）",
     operation_id="library.artwork.select",
     dependencies=[Depends(require_admin)],
 )
@@ -1851,7 +1849,7 @@ async def select_artwork_route(
     await LibraryConfigService(session).get(library_id)  # 404 检查
     await _metadata_item(session, library_id, media_item_id)  # 404 检查（不要求文件）
     await media_scrape.select_artwork(media_item_id, kind=payload.kind, file_path=payload.file_path)
-    label = "海报" if payload.kind == "poster" else "背景图"
+    label = {"poster": "海报", "backdrop": "背景图", "logo": "徽标"}[payload.kind]
     message = (
         f"已恢复{label}的自动选图（下次刷新元数据时重新挑选）"
         if payload.file_path is None

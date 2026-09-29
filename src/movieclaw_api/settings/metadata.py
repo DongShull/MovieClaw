@@ -99,7 +99,7 @@ class MetadataScrapeSetting(SettingSchema):
     # —— STEP 4 目录写入（细项；库上的 write_media_assets 是总闸）——————
     # 默认全开 = 拆分之前的行为：总闸开着就三样都写
     mirror_images: bool = Field(
-        default=True, description="镜像条目图片到媒体目录（poster/fanart/季海报）"
+        default=True, description="镜像条目图片到媒体目录（poster/fanart/clearlogo/季海报）"
     )
     mirror_nfo: bool = Field(default=True, description="镜像 NFO 元数据到媒体目录")
     mirror_episode_thumbs: bool = Field(

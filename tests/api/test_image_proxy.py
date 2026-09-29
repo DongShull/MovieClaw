@@ -47,6 +47,23 @@ async def test_proxy_sends_provider_headers_and_returns_image() -> None:
     await proxy.aclose()
 
 
+async def test_proxy_accept_defaults_to_browser_and_can_be_overridden() -> None:
+    """默认浏览器式 Accept（带 webp）；要落成指定格式文件的调用方可以点名——
+    TMDB 的 CDN 按 Accept 协商，带着 webp 就回有损 WebP，片名 Logo 要的是原版 PNG。"""
+    seen: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["accept"])
+        return httpx.Response(200, headers={"Content-Type": "image/png"}, content=b"png")
+
+    proxy = _proxy(handler)
+    await proxy.fetch("https://image.tmdb.org/t/p/original/logo.png")
+    await proxy.fetch("https://image.tmdb.org/t/p/original/logo.png", accept="image/png")
+    assert "image/webp" in seen[0]
+    assert seen[1] == "image/png"
+    await proxy.aclose()
+
+
 async def test_proxy_allows_arbitrary_public_hosts_with_hotlink_headers() -> None:
     """图床域名不可枚举：任意公网域名都可代理；默认带同源 Referer 和浏览器 UA 过防盗链。"""
 

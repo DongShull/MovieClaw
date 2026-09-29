@@ -16,8 +16,8 @@
    写入新集都必须走同一段 diff，否则先写库的入口会"吃掉"新集信号，
    定时刷新再也发现不了它们）；
 4. 图片资产下载（data/metadata/images/{条目 id}/，缺失才下，force 覆盖）；
-5. 媒体目录镜像（poster.jpg/fanart.jpg/分集 thumb + 完整 NFO，Kodi/Emby
-   规范，**只增不覆盖不删除**）。按库开关：``write_media_assets`` 是总闸，
+5. 媒体目录镜像（poster.jpg/fanart.jpg/clearlogo.png/分集 thumb + 完整 NFO，
+   Kodi/Emby 规范，**只增不覆盖不删除**）。按库开关：``write_media_assets`` 是总闸，
    图片/NFO/分集剧照三项另可按库细分（library.scrape_overrides）。
 
 图片与镜像失败均不阻断（保持 NULL/缺失，任一后续入口自愈）。
@@ -663,9 +663,9 @@ def _merge_identity(
         item.poster_path = profile.poster_path or item.poster_path
     if meta is None or not meta.backdrop_locked:
         item.backdrop_path = profile.backdrop_path or item.backdrop_path
-    # 片名 Logo 没有手动换图入口，不受选图锁约束；存量条目同样靠刷新自然回填。
+    # 片名 Logo 同受选图锁保护；存量条目同样靠刷新自然回填。
     # None=本次档案没带图片集（未知），保留旧值；空串=确实没有，照写
-    if profile.logo_path is not None:
+    if profile.logo_path is not None and (meta is None or not meta.logo_locked):
         item.logo_path = profile.logo_path
     item.aliases = merged_aliases
     item.imdb_id = item.imdb_id or profile.imdb_id
@@ -1283,6 +1283,13 @@ async def _sync_movie_schedule(
 # ---------------------------------------------------------------------------
 
 
+# 片名 Logo 的资产档位固定取原图：TMDB 的 logo 档位在 w500 之上只有 original，
+# 而镜像出去的 clearlogo.png 是给电视端播放器用的（Kodi 的 clearlogo 规格是
+# 800 宽，w500 在 4K 电视上发糊）。透明底 PNG 的原图与背景原图同一量级；
+# Jellyfin 客户端按 maxWidth 取缩放变体，不会每次都拉原图
+LOGO_ASSET_SIZE = "original"
+
+
 def _asset_sizes(setting: MetadataScrapeSetting | None = None) -> tuple[str, str, str]:
     """生效的 (海报, 背景, 剧照) 尺寸档位（库覆盖 > 设置页 > 环境变量）。
 
@@ -1513,16 +1520,25 @@ def file_version(path: Path | None) -> int:
 
 
 async def download_item_assets(
-    media_item_id: int, *, force: bool = False, ignore_locks: bool = False
+    media_item_id: int,
+    *,
+    force: bool = False,
+    ignore_locks: bool = False,
+    only: str | None = None,
 ) -> None:
     """下载条目的全部图片资产（缺失才下，force 覆盖重下）。
 
     分集剧照只给**在库条目**下（订阅了几百集但一集未入库的剧，几百张
     剧照没有消费方，白占磁盘与请求量）；TMDB 没有剧照的在库分集从视频
     抓一帧顶上（``_grab_missing_stills``）。单张失败保持 NULL 不阻断，
-    任一后续刷新入口自愈。手动选定（locked）的海报/背景 force 也不重下
+    任一后续刷新入口自愈。手动选定（locked）的海报/背景/Logo force 也不重下
     ——那张图就是用户要的（docs/design/metadata.md 6.3）；``ignore_locks``
     是选图动作自己的通道：刚选的图必须落盘，此时锁就是它自己加的。
+
+    ``only``（poster/backdrop/logo）：只同步这一张条目图，同样是选图动作的通道。
+    用户换一张海报，不该连带 force 重下整季海报、全部分集剧照、再对没有
+    TMDB 剧照的集重新解码视频抓帧——长剧动辄几百集，同步的选图接口要等
+    几十秒以上。不传即全量（刷新与入库补齐的常态）。
     """
     db = get_database()
     async with db.session() as session:
@@ -1536,8 +1552,9 @@ async def download_item_assets(
             # 理论上建档即有档案行；兜底建一行以承载图片路径
             meta = MediaMetadata(media_item_id=media_item_id)
             session.add(meta)
-        seasons = await repo.list_seasons(media_item_id)
-        episodes = await repo.list_episodes(media_item_id)
+        # only 时不查季/集：后面的季海报、分集剧照与抓帧兜底随之全部跳过
+        seasons = await repo.list_seasons(media_item_id) if only is None else []
+        episodes = await repo.list_episodes(media_item_id) if only is None else []
         has_files = (
             await session.execute(
                 select(LibraryFile.id).where(LibraryFile.media_item_id == media_item_id).limit(1)
@@ -1553,28 +1570,53 @@ async def download_item_assets(
         saved_sources = dict(sources)
 
         async with _asset_semaphore:
-            meta.poster_file = await _sync_asset(
-                base,
-                poster_size,
-                item.poster_path,
-                item_dir / "poster.jpg",
-                meta.poster_file,
-                force and (ignore_locks or not meta.poster_locked),
-                sources,
-                "poster",
-                locked=meta.poster_locked and not ignore_locks,
-            )
-            meta.backdrop_file = await _sync_asset(
-                base,
-                backdrop_size,
-                item.backdrop_path,
-                item_dir / "backdrop.jpg",
-                meta.backdrop_file,
-                force and (ignore_locks or not meta.backdrop_locked),
-                sources,
-                "backdrop",
-                locked=meta.backdrop_locked and not ignore_locks,
-            )
+            if only in (None, "poster"):
+                meta.poster_file = await _sync_asset(
+                    base,
+                    poster_size,
+                    item.poster_path,
+                    item_dir / "poster.jpg",
+                    meta.poster_file,
+                    force and (ignore_locks or not meta.poster_locked),
+                    sources,
+                    "poster",
+                    locked=meta.poster_locked and not ignore_locks,
+                )
+            if only in (None, "backdrop"):
+                meta.backdrop_file = await _sync_asset(
+                    base,
+                    backdrop_size,
+                    item.backdrop_path,
+                    item_dir / "backdrop.jpg",
+                    meta.backdrop_file,
+                    force and (ignore_locks or not meta.backdrop_locked),
+                    sources,
+                    "backdrop",
+                    locked=meta.backdrop_locked and not ignore_locks,
+                )
+            if only in (None, "logo"):
+                if item.logo_path == "":
+                    # 空串 = TMDB 看过、这部片没有合适的 Logo（上游撤图，或刮削语言
+                    # 改了而新语言没有）：旧资产作废。海报/背景的路径永远不会被清空，
+                    # 只有 Logo 有这一步——不清的话 Jellyfin 接口与目录镜像会一直用
+                    # 那张过期的图
+                    meta.logo_file = None
+                    sources.pop("logo", None)
+                    with contextlib.suppress(OSError):
+                        await asyncio.to_thread((item_dir / "logo.png").unlink, missing_ok=True)
+                else:
+                    meta.logo_file = await _sync_asset(
+                        base,
+                        LOGO_ASSET_SIZE,
+                        item.logo_path,
+                        item_dir / "logo.png",
+                        meta.logo_file,
+                        force and (ignore_locks or not meta.logo_locked),
+                        sources,
+                        "logo",
+                        locked=meta.logo_locked and not ignore_locks,
+                        png=True,
+                    )
             session.add(meta)
             for season in seasons:
                 season.poster_file = await _sync_asset(
@@ -1722,12 +1764,17 @@ async def _sync_asset(
     key: str,
     *,
     locked: bool = False,
+    png: bool = False,
 ) -> str | None:
     """下载单张图到资产目录，返回落库的相对路径（失败保留现值/None）。
 
     跳过条件（普通刷新）：文件在**且溯源与当前来源一致**——TMDB 换图
     （poster_path 变更）或档位配置调整都会触发重下，资产随刷新保持最新。
     ``locked``（手动选定）：只要文件还在就不动，上游换图与它无关。
+    ``png``：资产必须是真 PNG（片名 Logo 要镜像成 clearlogo.png 给外部播放器
+    读）。图片代理默认的浏览器式 Accept 带着 webp，TMDB 的 CDN 会据此协商出
+    **有损** WebP（实测：原版透明 PNG 被换成 VP8 + ALPH），所以点名要 PNG；
+    图床镜像不认 Accept、照样回别的格式时转成 PNG 兜底（透明通道保留）。
     """
     if not tmdb_path:
         return current
@@ -1746,8 +1793,14 @@ async def _sync_asset(
         return current
     from movieclaw_api.services.image_proxy import get_image_proxy
 
+    url = f"{base}/{size}{tmdb_path}"
     try:
-        data, _content_type = await get_image_proxy().fetch(f"{base}/{size}{tmdb_path}")
+        if png:
+            data, _content_type = await get_image_proxy().fetch(url, accept="image/png")
+            if not data.startswith(_PNG_SIGNATURE):
+                data = await asyncio.to_thread(_to_png, data)
+        else:
+            data, _content_type = await get_image_proxy().fetch(url)
     except Exception as exc:  # noqa: BLE001 -- 单张失败不阻断
         logger.warning("图片资产下载失败（保持缺失，下次刷新自愈）：%s（%s）", tmdb_path, exc)
         return current
@@ -1758,6 +1811,21 @@ async def _sync_asset(
         return current
     sources[key] = want
     return rel
+
+
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def _to_png(data: bytes) -> bytes:
+    """Pillow 能解的任意图片 → PNG，透明通道原样保留（解不了就抛，按下载失败处理）。"""
+    import io
+
+    from PIL import Image
+
+    with Image.open(io.BytesIO(data)) as image:
+        buffer = io.BytesIO()
+        image.convert("RGBA").save(buffer, "PNG")
+    return buffer.getvalue()
 
 
 def _atomic_write(dest: Path, data: bytes) -> None:
@@ -1772,10 +1840,20 @@ def _atomic_write(dest: Path, data: bytes) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def list_artwork_candidates(
-    media_item_id: int,
-) -> tuple[list[dict], list[dict], str | None, str | None]:
-    """条目的候选图 (海报, 背景, 当前海报路径, 当前背景路径)。
+@dataclass(frozen=True)
+class ArtworkCandidates:
+    """「更换图片」弹层的数据：三种图的候选（排序同自动选图）与各自在用的路径。"""
+
+    posters: list[dict]
+    backdrops: list[dict]
+    logos: list[dict]
+    current_poster: str | None
+    current_backdrop: str | None
+    current_logo: str | None
+
+
+async def list_artwork_candidates(media_item_id: int) -> ArtworkCandidates:
+    """条目的候选图（海报、背景、片名 Logo）与当前在用的路径。
 
     排序按自动选图的同一套规则；**"当前"由实际在用的路径判定**而非"列表
     第一张"——策略上线前刮的条目、手动锁定的条目、TMDB 新增了更高票的图，
@@ -1785,6 +1863,7 @@ async def list_artwork_candidates(
     from movieclaw_media.library import (
         image_language_param,
         list_image_candidates,
+        list_logo_candidates,
         resolve_image_languages,
     )
 
@@ -1794,10 +1873,12 @@ async def list_artwork_candidates(
         item = await session.get(MediaItem, media_item_id)
         if item is None or item.source != MediaSource.TMDB:
             # 本地来源条目没有在线候选图（前端按 capabilities.scraped 隐藏入口）
-            return [], [], None, None
+            return ArtworkCandidates([], [], [], None, None, None)
         kind = MediaKind(item.kind)
         current_poster = item.poster_path
         current_backdrop = item.backdrop_path
+        # 空串 = TMDB 确认没有合适的 Logo，此时没有"当前"可标
+        current_logo = item.logo_path or None
         meta = await repo.get_metadata(media_item_id)
         original_language = meta.original_language if meta else None
         # 候选图的排序规则必须与自动选图完全同源，所以同样按归属库解析
@@ -1828,6 +1909,9 @@ async def list_artwork_candidates(
         poster_min_width=prefs.poster_min_width,
         backdrop_min_width=prefs.backdrop_min_width,
     )
+    logos = list_logo_candidates(
+        {"images": data}, primary_language=language, original_language=original_language
+    )
     base = settings.tmdb_image_base_url.rstrip("/")
 
     def _view(image: dict, preview_size: str) -> dict:
@@ -1850,22 +1934,23 @@ async def list_artwork_candidates(
             views.insert(0, _view({"file_path": current}, size))
         return views
 
-    return (
-        _with_current(posters, current_poster, "w185"),
-        _with_current(backdrops, current_backdrop, "w300"),
-        current_poster,
-        current_backdrop,
+    return ArtworkCandidates(
+        posters=_with_current(posters, current_poster, "w185"),
+        backdrops=_with_current(backdrops, current_backdrop, "w300"),
+        logos=_with_current(logos, current_logo, "w300"),
+        current_poster=current_poster,
+        current_backdrop=current_backdrop,
+        current_logo=current_logo,
     )
 
 
 async def select_artwork(media_item_id: int, *, kind: str, file_path: str | None) -> bool:
-    """把用户选中的图设为该条目的海报/背景，并**加锁**（刷新不再覆盖）。
+    """把用户选中的图设为该条目的海报/背景/片名 Logo，并**加锁**（刷新不再覆盖）。
 
     ``file_path=None`` 表示"恢复自动"：解锁并让下次刷新按策略重选。
     选定后立即下载到资产目录并**覆盖镜像**到媒体目录——用户刚点的图要
     当场生效，包括 Emby 那侧。返回是否成功。
     """
-    is_poster = kind == "poster"
     db = get_database()
     async with db.session() as session:
         repo = MediaItemRepository(session)
@@ -1875,10 +1960,14 @@ async def select_artwork(media_item_id: int, *, kind: str, file_path: str | None
         meta = await repo.get_metadata(media_item_id)
         if meta is None:
             meta = MediaMetadata(media_item_id=media_item_id)
-        if is_poster:
+        if kind == "poster":
             meta.poster_locked = file_path is not None
             if file_path is not None:
                 item.poster_path = file_path
+        elif kind == "logo":
+            meta.logo_locked = file_path is not None
+            if file_path is not None:
+                item.logo_path = file_path
         else:
             meta.backdrop_locked = file_path is not None
             if file_path is not None:
@@ -1892,9 +1981,10 @@ async def select_artwork(media_item_id: int, *, kind: str, file_path: str | None
         # 恢复自动：解锁即可，图片留到下次刷新按新策略重选（不立刻打 TMDB）
         return True
     # 选定的图当场落盘并覆盖镜像（force：这正是"替换现有图片"的语义；
-    # ignore_locks：锁是这次选图刚加的，不能反过来挡住它自己落盘）
-    await download_item_assets(media_item_id, force=True, ignore_locks=True)
-    await mirror_media_dir_assets(media_item_id, force=True)
+    # ignore_locks：锁是这次选图刚加的，不能反过来挡住它自己落盘；
+    # only：只动选中的那一张，季海报、分集剧照与 NFO 原样不碰）
+    await download_item_assets(media_item_id, force=True, ignore_locks=True, only=kind)
+    await mirror_media_dir_assets(media_item_id, force=True, only=kind)
     return True
 
 
@@ -1903,13 +1993,17 @@ async def select_artwork(media_item_id: int, *, kind: str, file_path: str | None
 # ---------------------------------------------------------------------------
 
 
-async def mirror_media_dir_assets(media_item_id: int, *, force: bool = False) -> None:
+async def mirror_media_dir_assets(
+    media_item_id: int, *, force: bool = False, only: str | None = None
+) -> None:
     """把刮削成果镜像写入媒体目录：条目图片 + 完整 NFO + 分集 thumb/NFO。
 
     铁律（2026-08-04 完整性决策改版，docs/design/metadata.md 6.2）：镜像随
     库内档案**保持更新**——图片"资产比镜像新才覆盖"（_copy_asset），NFO 每次
     刷新按 media_metadata 重写（内容比对，无变化不落盘）；**绝不删除**；
     写失败只告警。``force``（单条目手动刷新）：图片无条件覆盖写。
+    ``only``（poster/backdrop/logo）：选图动作只镜像选中的那一张（同
+    ``download_item_assets``），季海报、分集剧照与 NFO 都不碰。
 
     NFO 只在身份**高置信**时写（人工认领 / 目录 tmdbid 标记 / 既有 NFO /
     入库管线锚定）：扫描的名称收敛（RESOLVED）是机器结论，写成 NFO 会被
@@ -1939,10 +2033,10 @@ async def mirror_media_dir_assets(media_item_id: int, *, force: bool = False) ->
             # 缩略图只存资产目录（docs/design/library-other-kind.md 4.7）
             return
         meta = await repo.get_metadata(media_item_id)
-        seasons = await repo.list_seasons(media_item_id)
-        episodes = {
-            (e.season_number, e.episode_number): e for e in await repo.list_episodes(media_item_id)
-        }
+        # only 时不查季/集：季海报与分集 thumb/NFO 的镜像随之全部跳过
+        seasons = await repo.list_seasons(media_item_id) if only is None else []
+        episode_rows = await repo.list_episodes(media_item_id) if only is None else []
+        episodes = {(e.season_number, e.episode_number): e for e in episode_rows}
         rows = list(
             (
                 await session.execute(
@@ -1998,8 +2092,15 @@ async def mirror_media_dir_assets(media_item_id: int, *, force: bool = False) ->
                 continue
             write_images, write_nfo, _ = effective_mirror_flags(library)
             if write_images:
-                _copy_asset(item_dir / "poster.jpg", entry / "poster.jpg", force)
-                _copy_asset(item_dir / "backdrop.jpg", entry / "fanart.jpg", force)
+                if only in (None, "poster"):
+                    _copy_asset(item_dir / "poster.jpg", entry / "poster.jpg", force)
+                if only in (None, "backdrop"):
+                    _copy_asset(item_dir / "backdrop.jpg", entry / "fanart.jpg", force)
+                # clearlogo.png：Kodi 与 Jellyfin 共认的片名 Logo 文件名。看档案里的
+                # logo_file 而不是只看资产文件在不在——TMDB 撤掉 Logo 后资产作废
+                # （见 download_item_assets），不能再把旧图写出去
+                if only in (None, "logo") and meta is not None and meta.logo_file:
+                    _copy_asset(item_dir / "logo.png", entry / "clearlogo.png", force)
                 if item.kind == MediaKind.TV.value:
                     for season in seasons:
                         name = (
@@ -2010,7 +2111,7 @@ async def mirror_media_dir_assets(media_item_id: int, *, force: bool = False) ->
                         _copy_asset(
                             item_dir / f"season-{season.season_number}.jpg", entry / name, force
                         )
-            if write_nfo and entry in trusted_entries:
+            if only is None and write_nfo and entry in trusted_entries:
                 aligned = write_full_nfo(entry, item, meta)
                 if aligned is not None:
                     aligned_nfos.append(aligned)

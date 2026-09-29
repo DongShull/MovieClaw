@@ -913,15 +913,15 @@ async def test_artwork_candidates_mark_current_by_path(db, tmp_path) -> None:
         )
         item_id = item.id
 
-    _p, backdrops, _cp, current_backdrop = await list_artwork_candidates(item_id)
-    assert current_backdrop == "/backdrop.jpg"
-    assert [b["file_path"] for b in backdrops].count("/backdrop.jpg") == 1
+    candidates = await list_artwork_candidates(item_id)
+    assert candidates.current_backdrop == "/backdrop.jpg"
+    assert [b["file_path"] for b in candidates.backdrops].count("/backdrop.jpg") == 1
 
     # 在用的图不在 TMDB 候选里（旧策略选的 / 已下架）：补进首位，仍标得出「当前」
     await select_artwork_for_test(item_id, "/legacy-pick.jpg")
-    _p, backdrops, _cp, current_backdrop = await list_artwork_candidates(item_id)
-    assert current_backdrop == "/legacy-pick.jpg"
-    assert backdrops[0]["file_path"] == "/legacy-pick.jpg"
+    candidates = await list_artwork_candidates(item_id)
+    assert candidates.current_backdrop == "/legacy-pick.jpg"
+    assert candidates.backdrops[0]["file_path"] == "/legacy-pick.jpg"
 
 
 async def select_artwork_for_test(item_id: int, file_path: str) -> None:

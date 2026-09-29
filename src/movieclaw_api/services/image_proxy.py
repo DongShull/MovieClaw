@@ -114,9 +114,9 @@ class ImageProxy:
                 raise BadRequestException("图片域名解析到内网地址，已拒绝代理")
         return host
 
-    def _headers_for(self, url: str, host: str) -> dict[str, str]:
+    def _headers_for(self, url: str, host: str, accept: str | None = None) -> dict[str, str]:
         headers = {
-            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            "Accept": accept or "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
             "User-Agent": _BROWSER_UA,
             # PT 图床普遍开防盗链（如 img.m-team.cc 无 Referer 返回 403），
             # 默认带上图片自身域名的同源 Referer——等价于"在图床自己的页面里
@@ -130,14 +130,19 @@ class ImageProxy:
                 break
         return headers
 
-    async def fetch(self, url: str) -> tuple[bytes, str]:
-        """获取并验证远端图片，返回图片字节与 Content-Type。"""
+    async def fetch(self, url: str, *, accept: str | None = None) -> tuple[bytes, str]:
+        """获取并验证远端图片，返回图片字节与 Content-Type。
+
+        ``accept`` 覆盖默认的浏览器式 Accept。默认值里带着 webp/avif，按 Accept
+        协商的图床（TMDB 的 CDN 就是）会回 WebP——给浏览器看无妨，但要落成
+        指定格式文件的调用方（片名 Logo 要的是原版透明 PNG）得自己点名。
+        """
         current = url
         try:
             for _ in range(self._max_redirects + 1):
                 host = await self._validated_host(current)
                 async with self._client.stream(
-                    "GET", current, headers=self._headers_for(current, host)
+                    "GET", current, headers=self._headers_for(current, host, accept)
                 ) as response:
                     if response.is_redirect:
                         location = response.headers.get("location")
