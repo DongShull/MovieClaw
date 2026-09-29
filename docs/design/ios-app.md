@@ -1,6 +1,6 @@
 # iOS 原生 App 设计
 
-> 状态：开发中（分支 `feat/ios-app`）。验收标准：浏览器与 iOS App 同时打开同一台服务器，
+> 状态：已合入 main（2026-09-29，#473；原开发分支 `feat/ios-app` 已删除，之后从 main 开分支）。验收标准：浏览器与 iOS App 同时打开同一台服务器，
 > `docs/design/ios-app/parity-inventory.md` 列出的全部功能两端一致。
 
 ## 1. 决策
