@@ -103,6 +103,10 @@ final class NativeEngine: NSObject, PlayerEngine {
         // -mcSegmentSeconds <秒>：点播分片目标时长（引擎补丁 P33，默认 2；真机对照用），窗口段数在装载时按比例折算
         let segmentSeconds = UserDefaults.standard.double(forKey: "mcSegmentSeconds")
         if segmentSeconds > 0 { AetherPlayback.segmentTargetSeconds = segmentSeconds }
+        // -mcSeekSnapBudget <秒>：跳转吸附关键帧的逐帧解码预算（引擎补丁 P36，默认 0.2；0 = 关，真机对照用）
+        if UserDefaults.standard.object(forKey: "mcSeekSnapBudget") != nil {
+            AetherPlayback.seekSnapDecodeBudgetSeconds = UserDefaults.standard.double(forKey: "mcSeekSnapBudget")
+        }
         #else
         AetherPlayback.installLogHandler(mirror: false)
         #endif

@@ -186,6 +186,12 @@ public final class AetherPlayback {
         set { AetherEngine.vodSegmentTargetSeconds = newValue }
     }
 
+    /// 主力通路跳转吸附关键帧的逐帧解码预算（秒，引擎补丁 P36，默认 0.2；≤ 0 关闭，真机新旧对照用）
+    public static var seekSnapDecodeBudgetSeconds: Double {
+        get { AetherEngine.seekSnapDecodeBudgetSeconds }
+        set { AetherEngine.seekSnapDecodeBudgetSeconds = newValue }
+    }
+
     /// 探测流时是否跳过第二条起的 TrueHD（引擎补丁 P34，默认开；真机新旧对照时关掉）
     public static func setParkSecondaryTrueHD(_ on: Bool) {
         AetherEngine.parkSecondaryTrueHDDuringProbe = on

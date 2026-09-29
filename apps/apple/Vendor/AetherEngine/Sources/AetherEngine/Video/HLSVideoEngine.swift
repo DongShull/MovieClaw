@@ -448,6 +448,12 @@ public final class HLSVideoEngine: @unchecked Sendable {
     /// `playlistShiftSeconds` (updated dynamically per gate open).
     public private(set) var firstKeyframeSeconds: Double = 0
 
+    /// [MovieClaw P36] 可信关键帧表（MKV Cues / MP4 stss，与关键帧对齐的分片计划同源），源时间轴上的秒，升序。
+    /// 没有可信索引（TS、均匀切分）时为空：跳转照旧精确落点。见 `KeyframeSnapPolicy`
+    private(set) var seekKeyframeSourceSeconds: [Double] = []
+    /// [MovieClaw P36] 每秒源时长逐帧解码的估计耗时（秒），按帧率与画面尺寸折算
+    private(set) var seekDecodeCostPerSecond: Double = 0
+
     /// AE#270: source PTS the container's timeline starts at, clamped at 0. The published playhead folds
     /// it out so it stays on the same 0-based axis as `duration`.
     public private(set) var sourceStartSeconds: Double = 0
@@ -1367,6 +1373,13 @@ public final class HLSVideoEngine: @unchecked Sendable {
                     sourceDurationSeconds: durationSeconds
                 )
                 planBoundariesClaimRandomAccess = true
+                // [MovieClaw P36] 留下关键帧表与解码代价，供主力通路跳转按代价吸附
+                let tbSeconds = Double(videoTimeBase.num) / Double(videoTimeBase.den)
+                seekKeyframeSourceSeconds = keyframes.sorted().map { Double($0) * tbSeconds }
+                seekDecodeCostPerSecond = KeyframeSnapPolicy.decodeCostPerSecond(
+                    frameRate: AetherEngine.detectFrameRate(stream: videoStream),
+                    width: Int(videoStream.pointee.codecpar.pointee.width),
+                    height: Int(videoStream.pointee.codecpar.pointee.height))
                 // AE#561: these boundaries ARE this container's index entries, so they carry its
                 // stamping. Read from the demuxer that produced them, never from the URL or the
                 // host's metadata: on a remux session the delivered container is the one indexed.

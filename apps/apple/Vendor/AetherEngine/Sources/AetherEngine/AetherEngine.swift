@@ -5231,6 +5231,25 @@ public final class AetherEngine: ObservableObject {
         var target: Double = isLive
             ? (liveLanding?.sessionTarget ?? seconds)
             : max(0, min(seconds, duration))
+        // [MovieClaw P36] 主力通路点播：精确落点要逐帧解太久时吸附到最近的关键帧（见 KeyframeSnapPolicy）
+        if !isLive, origin == .host, nativeHost != nil, softwareHost == nil,
+           let session = nativeVideoSession, !session.seekKeyframeSourceSeconds.isEmpty {
+            let base = sourcePresentationOrigin
+            let from = clock.currentTime
+            if let snapped = KeyframeSnapPolicy.landing(
+                target: target, from: from,
+                keyframes: session.seekKeyframeSourceSeconds.map { $0 - base },
+                costPerSecond: session.seekDecodeCostPerSecond,
+                budget: Self.seekSnapDecodeBudgetSeconds),
+               snapped <= duration {
+                EngineLog.emit(
+                    "[AetherEngine] [MovieClaw P36] seek snapped to keyframe: requested=\(String(format: "%.2f", target))s "
+                    + "landing=\(String(format: "%.2f", snapped))s from=\(String(format: "%.2f", from))s "
+                    + "cost/s=\(String(format: "%.3f", session.seekDecodeCostPerSecond))",
+                    category: .engine)
+                target = snapped
+            }
+        }
         if isLive, softwareHost != nil, nativeHost == nil, let window = liveWindow {
             let landing = Self.softwareLiveLanding(requested: target, window: window)
             if landing < target {
