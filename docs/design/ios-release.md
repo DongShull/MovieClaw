@@ -55,8 +55,14 @@ export MC_ASC_KEY_ID=… MC_ASC_ISSUER_ID=…   # 建议放本机 ~/.appstorecon
 scripts/release.sh --upload                 # 上传：同一个构建可用于内部 / 对外 TestFlight 与提审
 ```
 
-- 构建号默认取 UTC 时间 `yyyyMMddHHmm`，天然递增；营销版本号在 `project.yml` 的
-  `MARKETING_VERSION`（首发 0.1.0，之后每次提审递增）。
+- **版本号与服务器各自独立**（2026-09-29 用户决定：App 和服务器不是一回事）：
+  - 营销版本号只有一处——`project.yml` 的 `MARKETING_VERSION`（首发 0.1.0），TestFlight、App Store、
+    侧载 IPA 都读它；与服务器的 `pyproject.toml` / 发版 tag 无关，也不受「版本号三处一致」约束。
+  - 什么时候改：准备**提审**一个新版本时手动递增（App Store 要求新版本号大于已上架的）；
+    同一版本号下反复传 TestFlight 不用改，靠构建号区分。
+  - 构建号默认取 UTC 时间 `yyyyMMddHHmm`，天然递增，不用管。
+  - 随服务器 Release 附带的侧载 IPA 是那次发版提交上的 App，版本号就是当时的 `MARKETING_VERSION`，
+    所以服务器 v0.28.0 里的 IPA 可能是 App 0.1.0，这是正常的。
 - 产物与日志在 `apps/apple/build-release/`（已被 git 忽略），归档约 5 分钟，DerivedData 约 0.7 GB，
   磁盘紧时打包完可删。
 - 不带 `--upload` 只在本机导出 `.ipa`，用于验证签名；首次导出时自动签名会在账号下创建
@@ -74,6 +80,8 @@ TestFlight 的用户：用 AltStore / SideStore / Sideloadly 以自己的 Apple 
 - 与商店版**同一份代码、同一个发行版本**（§1），只是不签名；不需要任何签名密钥，fork 仓库也能产出。
 - App 没有扩展、没有特殊 entitlements，免费 Apple ID 也能签（只占 1 个 App ID）。
 - 文件名固定，`releases/latest/download/MovieClaw-iOS-unsigned.ipa` 长期指向最新版。
+- 附在服务器 Release 上而不单开 iOS Release：应用内更新按 GitHub 的 latest Release 判断服务器新版本，
+  单独的 iOS Release 会被当成最新服务器版本，打乱更新检查。App 自己的版本号见 §3。
 - 本机也能打：`apps/apple/scripts/build-unsigned-ipa.sh`，产物在 `apps/apple/build-ipa/`（已被 git 忽略）。
 - **不要**用企业证书对外分发（只允许公司内部使用，违规会被吊销）；Ad Hoc 每年每类设备限 100 台，
   只适合极少数人。
