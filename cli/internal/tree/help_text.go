@@ -43,7 +43,7 @@ var domainHelp = map[string]string{
 // 会让 items / identification / metadata 等孤立名词失去选择依据。
 var commandGroupHelp = map[string]string{
 	"dl.torrent":             "处理下载器里某一个具体的种子任务：换源、删除",
-	"library.artwork":        "查看、下载和选定媒体条目的海报或背景图",
+	"library.artwork":        "查看、下载和选定媒体条目的海报、背景图或徽标",
 	"library.identification": "处理待识别、错识别和已忽略文件，明确指定文件所属影视条目",
 	"library.items":          "查看和管理已经入库的电影、剧集条目及其物理文件",
 	"library.items.share":    "把一部影片分享给没有账号的人：生成观看链接、查看链接、撤回",

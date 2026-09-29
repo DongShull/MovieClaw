@@ -1,25 +1,61 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useState } from "react";
 
 import { BrandLoader } from "@/components/brand-loader";
 import { Modal } from "@/components/modal";
 import {
   type ArtworkCandidate,
   type ArtworkCandidates,
+  type ArtworkKind,
   listArtworkCandidates,
   selectArtwork,
 } from "@/lib/api/libraries";
 import { cachedImageUrl } from "@/lib/image-proxy";
 
+/** tab 顺序与文案：label 用在 tab 与锁定提示，noun 用在"没有候选"的句子里 */
+const TABS: { key: ArtworkKind; label: string; noun: string }[] = [
+  { key: "backdrop", label: "背景", noun: "背景图" },
+  { key: "poster", label: "海报", noun: "海报" },
+  { key: "logo", label: "徽标", noun: "徽标" },
+];
+
+/** 徽标是透明底 PNG：铺深色棋盘格衬底，透明区域一眼可见，白字徽标也看得清 */
+const CHECKERBOARD: CSSProperties = {
+  backgroundColor: "#16181d",
+  backgroundImage:
+    "linear-gradient(45deg, rgba(255,255,255,0.07) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.07) 75%), " +
+    "linear-gradient(45deg, rgba(255,255,255,0.07) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.07) 75%)",
+  backgroundSize: "16px 16px",
+  backgroundPosition: "0 0, 8px 8px",
+};
+
+/** 当前 tab 的候选、锁定状态与在用路径 */
+function tabData(data: ArtworkCandidates | null, tab: ArtworkKind) {
+  if (!data) return { candidates: [] as ArtworkCandidate[], locked: false, current: null };
+  if (tab === "poster") {
+    return { candidates: data.posters, locked: data.poster_locked, current: data.current_poster };
+  }
+  if (tab === "logo") {
+    return { candidates: data.logos, locked: data.logo_locked, current: data.current_logo };
+  }
+  return {
+    candidates: data.backdrops,
+    locked: data.backdrop_locked,
+    current: data.current_backdrop,
+  };
+}
+
 /**
  * 「更换图片」弹层（docs/design/metadata.md 6.3）——自动选图挑不中口味时的
  * 人工通道。
  *
- * 两个 tab（海报 / 背景），网格铺候选缩略图，点选即落盘 + 覆盖媒体目录 +
+ * 三个 tab（背景 / 海报 / 徽标），网格铺候选缩略图，点选即落盘 + 覆盖媒体目录 +
  * 加锁（此后刷新不再覆盖）。候选顺序与自动选图规则一致，所以**第一张就是
  * 系统默认给的那张**，用户一眼看出"我现在用的是哪张、还有什么可选"。
- * 背景候选里"无文字"的排在前面（干净的图才适合铺全屏）。
+ * 背景候选里"无文字"的排在前面（干净的图才适合铺全屏）。徽标（片名字标，
+ * 透明底 PNG）写进媒体目录为 clearlogo.png 给外部播放器读；缩略图完整显示
+ * （不裁切）在棋盘格衬底上。
  */
 export function ArtworkPickerDialog({
   open,
@@ -35,7 +71,7 @@ export function ArtworkPickerDialog({
   /** 选定/恢复后回调：调用方重拉详情呈现新图 */
   onChanged: () => void;
 }) {
-  const [tab, setTab] = useState<"poster" | "backdrop">("backdrop");
+  const [tab, setTab] = useState<ArtworkKind>("backdrop");
   const [data, setData] = useState<ArtworkCandidates | null>(null);
   const [failed, setFailed] = useState(false);
   // 正在应用的候选 file_path（"" 表示正在恢复自动）；null = 空闲
@@ -66,12 +102,10 @@ export function ArtworkPickerDialog({
     }
   };
 
-  const candidates: ArtworkCandidate[] =
-    (tab === "poster" ? data?.posters : data?.backdrops) ?? [];
-  const locked = tab === "poster" ? data?.poster_locked : data?.backdrop_locked;
   // 「当前」按**实际在用的路径**比对（后端给），不能用"列表第一张"——
   // 策略升级前刮的条目、锁定的条目、TMDB 新增更高票的图都会对不上
-  const current = tab === "poster" ? data?.current_poster : data?.current_backdrop;
+  const { candidates, locked, current } = tabData(data, tab);
+  const tabInfo = TABS.find((t) => t.key === tab) ?? TABS[0];
 
   return (
     <Modal
@@ -89,12 +123,7 @@ export function ArtworkPickerDialog({
           </p>
         </div>
         <div className="flex shrink-0 gap-1 self-start rounded-full bg-white/[0.06] p-1">
-          {(
-            [
-              ["backdrop", "背景"],
-              ["poster", "海报"],
-            ] as const
-          ).map(([key, label]) => (
+          {TABS.map(({ key, label }) => (
             <button
               key={key}
               type="button"
@@ -112,7 +141,7 @@ export function ArtworkPickerDialog({
       {locked && (
         <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] bg-[var(--info)]/[0.07] px-6 py-2.5 max-md:px-5">
           <span className="text-sub text-[var(--info)]">
-            当前{tab === "poster" ? "海报" : "背景"}由你手动选定，刷新元数据不会覆盖
+            当前{tabInfo.label}由你手动选定，刷新元数据不会覆盖
           </span>
           <button
             type="button"
@@ -142,7 +171,12 @@ export function ArtworkPickerDialog({
         )}
         {data !== null && candidates.length === 0 && (
           <p className="py-14 text-center text-ui text-[var(--text-muted)]">
-            TMDB 上没有这个条目的{tab === "poster" ? "海报" : "背景图"}
+            TMDB 上没有这个条目的{tabInfo.noun}
+          </p>
+        )}
+        {tab === "logo" && candidates.length > 0 && (
+          <p className="mb-3 text-sub leading-5 text-[var(--text-muted)]">
+            徽标是透明底的片名字标，会写入媒体目录为 clearlogo.png，供 Kodi / Jellyfin 等播放器读取
           </p>
         )}
         {candidates.length > 0 && (
@@ -150,7 +184,9 @@ export function ArtworkPickerDialog({
             className={`grid gap-3 ${
               tab === "poster"
                 ? "[grid-template-columns:repeat(auto-fill,minmax(116px,1fr))]"
-                : "[grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]"
+                : tab === "logo"
+                  ? "[grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]"
+                  : "[grid-template-columns:repeat(auto-fill,minmax(220px,1fr))]"
             }`}
           >
             {candidates.map((c) => (
@@ -170,7 +206,14 @@ export function ArtworkPickerDialog({
                   alt=""
                   loading="lazy"
                   referrerPolicy="no-referrer"
-                  className={`w-full object-cover ${tab === "poster" ? "aspect-[2/3]" : "aspect-video"}`}
+                  style={tab === "logo" ? CHECKERBOARD : undefined}
+                  className={`w-full ${
+                    tab === "poster"
+                      ? "aspect-[2/3] object-cover"
+                      : tab === "logo"
+                        ? "aspect-[5/2] object-contain px-3 pb-6 pt-3"
+                        : "aspect-video object-cover"
+                  }`}
                 />
                 {/* 标出正在用的那张，消除"我现在用的是哪张"的疑问 */}
                 {c.file_path === current && (

@@ -1813,10 +1813,20 @@ def _atomic_write(dest: Path, data: bytes) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def list_artwork_candidates(
-    media_item_id: int,
-) -> tuple[list[dict], list[dict], str | None, str | None]:
-    """条目的候选图 (海报, 背景, 当前海报路径, 当前背景路径)。
+@dataclass(frozen=True)
+class ArtworkCandidates:
+    """「更换图片」弹层的数据：三种图的候选（排序同自动选图）与各自在用的路径。"""
+
+    posters: list[dict]
+    backdrops: list[dict]
+    logos: list[dict]
+    current_poster: str | None
+    current_backdrop: str | None
+    current_logo: str | None
+
+
+async def list_artwork_candidates(media_item_id: int) -> ArtworkCandidates:
+    """条目的候选图（海报、背景、片名 Logo）与当前在用的路径。
 
     排序按自动选图的同一套规则；**"当前"由实际在用的路径判定**而非"列表
     第一张"——策略上线前刮的条目、手动锁定的条目、TMDB 新增了更高票的图，
@@ -1826,6 +1836,7 @@ async def list_artwork_candidates(
     from movieclaw_media.library import (
         image_language_param,
         list_image_candidates,
+        list_logo_candidates,
         resolve_image_languages,
     )
 
@@ -1835,10 +1846,12 @@ async def list_artwork_candidates(
         item = await session.get(MediaItem, media_item_id)
         if item is None or item.source != MediaSource.TMDB:
             # 本地来源条目没有在线候选图（前端按 capabilities.scraped 隐藏入口）
-            return [], [], None, None
+            return ArtworkCandidates([], [], [], None, None, None)
         kind = MediaKind(item.kind)
         current_poster = item.poster_path
         current_backdrop = item.backdrop_path
+        # 空串 = TMDB 确认没有合适的 Logo，此时没有"当前"可标
+        current_logo = item.logo_path or None
         meta = await repo.get_metadata(media_item_id)
         original_language = meta.original_language if meta else None
         # 候选图的排序规则必须与自动选图完全同源，所以同样按归属库解析
@@ -1869,6 +1882,9 @@ async def list_artwork_candidates(
         poster_min_width=prefs.poster_min_width,
         backdrop_min_width=prefs.backdrop_min_width,
     )
+    logos = list_logo_candidates(
+        {"images": data}, primary_language=language, original_language=original_language
+    )
     base = settings.tmdb_image_base_url.rstrip("/")
 
     def _view(image: dict, preview_size: str) -> dict:
@@ -1891,22 +1907,23 @@ async def list_artwork_candidates(
             views.insert(0, _view({"file_path": current}, size))
         return views
 
-    return (
-        _with_current(posters, current_poster, "w185"),
-        _with_current(backdrops, current_backdrop, "w300"),
-        current_poster,
-        current_backdrop,
+    return ArtworkCandidates(
+        posters=_with_current(posters, current_poster, "w185"),
+        backdrops=_with_current(backdrops, current_backdrop, "w300"),
+        logos=_with_current(logos, current_logo, "w300"),
+        current_poster=current_poster,
+        current_backdrop=current_backdrop,
+        current_logo=current_logo,
     )
 
 
 async def select_artwork(media_item_id: int, *, kind: str, file_path: str | None) -> bool:
-    """把用户选中的图设为该条目的海报/背景，并**加锁**（刷新不再覆盖）。
+    """把用户选中的图设为该条目的海报/背景/片名 Logo，并**加锁**（刷新不再覆盖）。
 
     ``file_path=None`` 表示"恢复自动"：解锁并让下次刷新按策略重选。
     选定后立即下载到资产目录并**覆盖镜像**到媒体目录——用户刚点的图要
     当场生效，包括 Emby 那侧。返回是否成功。
     """
-    is_poster = kind == "poster"
     db = get_database()
     async with db.session() as session:
         repo = MediaItemRepository(session)
@@ -1916,10 +1933,14 @@ async def select_artwork(media_item_id: int, *, kind: str, file_path: str | None
         meta = await repo.get_metadata(media_item_id)
         if meta is None:
             meta = MediaMetadata(media_item_id=media_item_id)
-        if is_poster:
+        if kind == "poster":
             meta.poster_locked = file_path is not None
             if file_path is not None:
                 item.poster_path = file_path
+        elif kind == "logo":
+            meta.logo_locked = file_path is not None
+            if file_path is not None:
+                item.logo_path = file_path
         else:
             meta.backdrop_locked = file_path is not None
             if file_path is not None:

@@ -11,8 +11,10 @@ import io
 import json
 
 import httpx
+import pytest
 import pytest_asyncio
 from PIL import Image
+from pydantic import ValidationError
 from sqlmodel import select
 
 import movieclaw_api.services.library.scan as scan_mod
@@ -245,3 +247,84 @@ async def test_locked_logo_survives_forced_refresh(env, tmp_path) -> None:
     assert item.logo_path == "/logo-en.png"
     # 锁定的资产 force 也不重下：档位与溯源都没变，那张图就是用户要的
     assert not any("logo" in url for url in proxy.fetched)
+
+
+# ---------------------------------------------------------------------------
+# 「更换图片」徽标页：候选、选定即锁、恢复自动
+# ---------------------------------------------------------------------------
+
+
+async def _library_id() -> int:
+    from movieclaw_db.models import Library
+
+    async with get_database().session() as session:
+        return (await session.execute(select(Library.id))).scalars().one()
+
+
+async def test_logo_candidates_follow_auto_pick_order(env, tmp_path) -> None:
+    """候选排序与自动选图同源：首张就是自动策略选中的中文徽标，英文其次；
+    SVG 不进候选（客户端图片管线不认）。「当前」按在用路径标出。"""
+    from movieclaw_api.api.routes.libraries import list_artwork_candidates_route
+
+    item_id, _entry = await _scan_movie(tmp_path)
+    async with get_database().session() as session:
+        resp = await list_artwork_candidates_route(await _library_id(), item_id, session)
+    view = resp.data
+    assert [c.file_path for c in view.logos] == ["/logo-zh.png", "/logo-en.png"]
+    assert view.current_logo == "/logo-zh.png"
+    assert view.logo_locked is False
+    assert view.logos[0].preview_url.endswith("/w300/logo-zh.png")
+
+
+async def test_select_logo_locks_and_syncs_only_the_logo(env, tmp_path) -> None:
+    """选定徽标：当场下载并覆盖 clearlogo.png、加锁（force 刷新不覆盖），
+    只动徽标这一张；恢复自动后下次刷新按策略换回中文徽标。"""
+    from movieclaw_api.api.routes.libraries import select_artwork_route
+    from movieclaw_api.schemas.library import ArtworkSelectPayload
+
+    _tmdb, proxy = env
+    item_id, entry = await _scan_movie(tmp_path)
+    asset = assets_root() / str(item_id) / "logo.png"
+    assert _rgba_at(asset.read_bytes(), (20, 8))[:3] == (220, 40, 40)  # 自动选的中文徽标
+    proxy.fetched.clear()
+
+    async with get_database().session() as session:
+        resp = await select_artwork_route(
+            await _library_id(),
+            item_id,
+            ArtworkSelectPayload(kind="logo", file_path="/logo-en.png"),
+            session,
+        )
+    assert resp.message == "徽标已更换，此后刷新不会覆盖"
+    assert proxy.fetched == [f"{get_settings().tmdb_image_base_url}/original/logo-en.png"]
+    item, meta = await _state(item_id)
+    assert (item.logo_path, meta.logo_locked) == ("/logo-en.png", True)
+    assert meta.poster_locked is False and meta.backdrop_locked is False
+    blue = (40, 90, 220)
+    assert _rgba_at(asset.read_bytes(), (20, 8))[:3] == blue
+    assert _rgba_at((entry / "clearlogo.png").read_bytes(), (20, 8))[:3] == blue
+
+    assert await scrape_media_item(item_id, force=True)
+    item, _meta = await _state(item_id)
+    assert item.logo_path == "/logo-en.png"
+    assert _rgba_at(asset.read_bytes(), (20, 8))[:3] == blue
+
+    async with get_database().session() as session:
+        resp = await select_artwork_route(
+            await _library_id(), item_id, ArtworkSelectPayload(kind="logo"), session
+        )
+    assert resp.data == {"locked": False}
+    assert await scrape_media_item(item_id)
+    item, meta = await _state(item_id)
+    assert (item.logo_path, meta.logo_locked) == ("/logo-zh.png", False)
+    assert _rgba_at(asset.read_bytes(), (20, 8))[:3] == (220, 40, 40)
+
+
+def test_select_payload_rejects_empty_path() -> None:
+    """空串不是"恢复自动"（那是 null），也不是合法的图片路径：直接拒掉，
+    免得写进一个"锁定但没有图"的状态。"""
+    from movieclaw_api.schemas.library import ArtworkSelectPayload
+
+    with pytest.raises(ValidationError):
+        ArtworkSelectPayload(kind="logo", file_path="")
+    assert ArtworkSelectPayload(kind="logo").file_path is None

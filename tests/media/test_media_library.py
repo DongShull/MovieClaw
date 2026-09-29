@@ -8,6 +8,7 @@ from movieclaw_media.library import (
     ResolveStatus,
     fetch_media_profile,
     list_image_candidates,
+    list_logo_candidates,
     pick_backdrop,
     pick_logo,
     pick_poster,
@@ -515,6 +516,27 @@ def test_pick_logo_skips_svg_and_unreadable_languages() -> None:
     assert pick_logo(data, primary_language="zh-CN", original_language="ja") == "/ja.png"
     # 没有图片集是「未知」（None），有图片集但没有 Logo 是「没有」（空串）
     assert pick_logo({}, primary_language="zh-CN", original_language=None) is None
+
+
+def test_logo_candidates_lead_with_the_auto_pick() -> None:
+    """换图弹层的徽标候选与自动选图同源：首张就是 pick_logo 选的那张，档内按
+    加权票数；自动策略不肯兜底的语言排在最后（用户看得懂可以手选）；SVG 不收。"""
+    data = {
+        "images": {
+            "logos": [
+                _img("/ja.png", lang="ja", width=800, avg=9.0, count=900),
+                _img("/en.png", lang="en", width=800, avg=9.0, count=500),
+                _img("/zh-low.png", lang="zh", width=800, avg=5.0, count=2),
+                _img("/zh.png", lang="zh", width=600, avg=8.0, count=40),
+                _img("/zh.svg", lang="zh", width=800, avg=9.9, count=999),
+            ]
+        }
+    }
+    kwargs = {"primary_language": "zh-CN", "original_language": "en"}
+    ordered = [c["file_path"] for c in list_logo_candidates(data, **kwargs)]
+    assert ordered == ["/zh.png", "/zh-low.png", "/en.png", "/ja.png"]
+    assert ordered[0] == pick_logo(data, **kwargs)
+    assert list_logo_candidates({}, **kwargs) == []
     assert pick_logo({"images": {}}, primary_language="zh-CN", original_language=None) == ""
 
 

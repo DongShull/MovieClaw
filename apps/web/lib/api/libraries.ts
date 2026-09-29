@@ -984,19 +984,26 @@ export interface ArtworkCandidate {
   vote_count: number | null;
 }
 
+/** 「更换图片」能换的三种图：海报 / 背景 / 片名徽标（透明底 PNG）。 */
+export type ArtworkKind = "poster" | "backdrop" | "logo";
+
 /** 条目的候选图集合（排序与自动选图一致）。 */
 export interface ArtworkCandidates {
   posters: ArtworkCandidate[];
   backdrops: ArtworkCandidate[];
+  logos: ArtworkCandidate[];
   /** 实际在用的图路径——标「当前」用它比对，不能用"列表第一张"推断 */
   current_poster: string | null;
   current_backdrop: string | null;
+  /** null = TMDB 没有合适的徽标 */
+  current_logo: string | null;
   /** 已手动选定，刷新不会覆盖 */
   poster_locked: boolean;
   backdrop_locked: boolean;
+  logo_locked: boolean;
 }
 
-/** 条目的候选海报/背景（「更换图片」弹层数据源）。 */
+/** 条目的候选海报/背景/徽标（「更换图片」弹层数据源）。 */
 export function listArtworkCandidates(
   libraryId: number,
   mediaItemId: number,
@@ -1009,13 +1016,13 @@ export function listArtworkCandidates(
 }
 
 /**
- * 选定海报/背景：当场落盘并覆盖媒体目录，此后刷新不再覆盖。
+ * 选定海报/背景/徽标：当场落盘并覆盖媒体目录，此后刷新不再覆盖。
  * `filePath` 传 null = 解锁并恢复自动选图。
  */
 export function selectArtwork(
   libraryId: number,
   mediaItemId: number,
-  kind: "poster" | "backdrop",
+  kind: ArtworkKind,
   filePath: string | null,
 ): Promise<{ locked: boolean }> {
   return unwrap(

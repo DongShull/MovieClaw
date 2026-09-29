@@ -1093,18 +1093,27 @@ class ArtworkCandidatesView(BaseModel):
 
     posters: list[ArtworkCandidateView] = Field(default_factory=list)
     backdrops: list[ArtworkCandidateView] = Field(default_factory=list)
+    logos: list[ArtworkCandidateView] = Field(
+        default_factory=list, description="片名徽标（透明底 PNG，镜像为 clearlogo.png）"
+    )
     current_poster: str | None = Field(default=None, description="当前在用的海报路径")
     current_backdrop: str | None = Field(default=None, description="当前在用的背景路径")
+    current_logo: str | None = Field(
+        default=None, description="当前在用的徽标路径；null=没有（TMDB 无合适徽标）"
+    )
     poster_locked: bool = Field(default=False, description="海报已手动选定，刷新不覆盖")
     backdrop_locked: bool = Field(default=False, description="背景已手动选定，刷新不覆盖")
+    logo_locked: bool = Field(default=False, description="徽标已手动选定，刷新不覆盖")
 
 
 class ArtworkSelectPayload(BaseModel):
-    """选图请求：kind 指海报还是背景；file_path 为 null 表示恢复自动选图。"""
+    """选图请求：kind 指哪种图；file_path 为 null 表示恢复自动选图。"""
 
-    kind: Literal["poster", "backdrop"] = Field(description="poster=海报 / backdrop=背景图")
+    kind: Literal["poster", "backdrop", "logo"] = Field(
+        description="poster=海报 / backdrop=背景图 / logo=片名徽标"
+    )
     file_path: str | None = Field(
-        default=None, description="TMDB 图片路径；null=解锁并恢复自动选图"
+        default=None, min_length=1, description="TMDB 图片路径；null=解锁并恢复自动选图"
     )
 
 
