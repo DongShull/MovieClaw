@@ -186,9 +186,12 @@ function TaskRow({
             task.enabled ? "bg-[var(--accent)]" : "bg-white/20"
           }`}
         >
+          {/* 必须显式 left：absolute 不写 left 时落在「静态位置」，而 button 内容
+              在 Chromium 系浏览器里是居中排布的，滑块会从轨道中间起步，关时贴右、
+              开时溢出轨道（#470）。与 SheetToggleRow 等开关保持同一写法。 */}
           <span
-            className={`absolute top-0.5 size-5 rounded-full bg-white transition-transform ${
-              task.enabled ? "translate-x-5" : "translate-x-0.5"
+            className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white transition-transform ${
+              task.enabled ? "translate-x-5" : ""
             }`}
           />
         </button>
