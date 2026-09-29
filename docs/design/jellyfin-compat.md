@@ -483,8 +483,10 @@ Movie/Episode=`"Video"`，Series/Season=`"Unknown"`）`IndexNumber`
 Movie/Video/Episode 输出单元首文件的有效章节——内嵌章节按起点，无内嵌时按
 时长合成的章节按图上那一帧的真实时间；无标题补 `第 N 章`；有场景图才给
 `ImageTag`/`ImageDateModified`，`ImagePath` 省略（偏离⑫）；没有章节输出空列表。
+文件所在库没开「生成章节」（2026-09-29 起默认关）时只输出内嵌/原盘章节、不给
+`ImageTag`，合成章节不出——同真 Jellyfin 关着抽图且不开虚拟章节。
 数据源 `library_file.chapters` ⋈ `chapter_images`，见
-docs/design/video-chapters.md §4.7）。
+docs/design/video-chapters.md §4.5「库开关」与 §4.7）。
 
 **绝不输出清单**（协议合法且是"明确不做"的前提）：`PartCount`（否则客户端
 调 /AdditionalParts）、`Trickplay`（否则调 Trickplay 接口）。
@@ -582,7 +584,7 @@ Backdrop 数组下标即 index，本设计每条目至多 1 张背景，只需�
 | Movie/Series `Backdrop/0` | `media_metadata.backdrop_file` |
 | Season `Primary` | `media_season.poster_file`（无 → 404，客户端自动退剧海报） |
 | Episode `Primary` | `media_episode.still_file` |
-| Movie/Video/Episode `Chapter/{index}` | 单元首文件第 index 个有效章节的场景图（`library_file.chapter_images`，路径 `{item}/chapters/{file}/{start_ms}.jpg`）；该章无图或 index 越界 → 404 text 文案 |
+| Movie/Video/Episode `Chapter/{index}` | 单元首文件第 index 个有效章节的场景图（`library_file.chapter_images`，路径 `{item}/chapters/{file}/{start_ms}.jpg`）；该章无图、index 越界或所在库没开「生成章节」→ 404 text 文案 |
 | `Logo` / `Thumb` / `Banner` | 无资产，404（合法降级） |
 
 - 缩放参数：`maxWidth/maxHeight/quality` 按需缩放（产物经 ImageCache 落图片缓存目录）；

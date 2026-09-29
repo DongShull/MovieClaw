@@ -276,9 +276,13 @@ def test_media_share_full_flow(stack) -> None:  # noqa: PLR0915
 
         # ---- 超管：建号登录，建两个库并等扫描识别出真片 ----
         _login(admin, base)
+        # 「生成章节」默认关：电影库要验分享页的章节横排，建库时显式打开
         movie_lib = api(
             admin, "post", "/libraries",
-            data={"name": "电影", "kind": "movie", "root_paths": [str(movie_root)]},
+            data={
+                "name": "电影", "kind": "movie", "root_paths": [str(movie_root)],
+                "extract_chapter_images": True,
+            },
         ).json()["data"]["id"]
         tv_lib = api(
             admin, "post", "/libraries",

@@ -2034,7 +2034,9 @@ async def build_gallery_groups(
     进去的那个库里有的"。
 
     一组就是一部作品的全部图，顺序固定为海报 → 横幅剧照 → 逐集（分集剧照 →
-    该集章节图）。只取**在位**文件名下的章节图与分集剧照，缺集的剧照不混进来。
+    该集章节图）。只取**在位**文件名下的章节图与分集剧照，缺集的剧照不混进来；
+    章节图只出自落点库开了「生成章节」的（与详情页同一口径，关着时图留在盘上
+    但不展示）。
     没有任何图的条目也占一组（``images`` 为空）——一页的组数恒等于条目数，
     前端据此判断还有没有下一页。每组还带上 ``member_id`` 这位观看者有没有
     收藏这部作品，供瓦片角标与灯箱里的心一次拿齐（详情页那样逐条目问
@@ -2105,6 +2107,16 @@ async def build_gallery_groups(
         if library_of.get(media_item_id) != file_library_id:
             continue
         files_by_item.setdefault(media_item_id, []).append(tuple(facts))
+    chapter_libraries = set(
+        (
+            await session.execute(
+                select(Library.id).where(
+                    Library.id.in_(sorted(set(library_of.values()))),  # type: ignore[union-attr]
+                    Library.extract_chapter_images.is_(True),  # type: ignore[attr-defined]
+                )
+            )
+        ).scalars()
+    )
     tv_ids = [i for i in page_ids if (item := items_by_id.get(i)) and item.kind == "tv"]
     stills_by_unit: dict[tuple[int, int, int], tuple[str, str]] = {}
     if tv_ids:
@@ -2164,6 +2176,7 @@ async def build_gallery_groups(
                 )
             )
         is_tv = item.kind == "tv"
+        show_chapters = library_of[item_id] in chapter_libraries
         seen_units: set[tuple[int, int]] = set()
         for _file_id, season, episode, duration, chapters, chapter_images in files_by_item.get(
             item_id, []
@@ -2184,8 +2197,8 @@ async def build_gallery_groups(
                             episode=episode,
                         )
                     )
-            if chapters is None:
-                continue  # 旧行没探过章节
+            if chapters is None or not show_chapters:
+                continue  # 旧行没探过章节；落点库没开「生成章节」
             image_map = chapters_mod.chapter_image_map(chapter_images)
             for chapter in chapters_mod.effective_chapters(chapters, duration):
                 entry = image_map.get(chapter.start_ms)

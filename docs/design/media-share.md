@@ -277,7 +277,8 @@ password (明文，仅此处返回), expires_at, created_at, view_count, last_ac
 保留：`title, original_title, year, kind, overview, tagline, rating, genres,
 runtime, poster_url, backdrop_url, cast, crew, seasons, files[]`。
 `files[]` 只留播放器与章节条要用的字段：`id, resolution, video_codec,
-audio_codec, hdr, size, duration_ms, chapters[]`；**不含**路径、库名、
+audio_codec, hdr, size, duration_ms, chapters[]`（`chapters` 投影自详情视图，
+所在库没开「生成章节」时为 null、章节条不渲染，见 video-chapters.md §4.5）；**不含**路径、库名、
 `scrape_library_id`、待处理 / 回收站 / 管理相关字段。
 
 地址改写规则（投影时统一处理，守护测试断言输出里不出现

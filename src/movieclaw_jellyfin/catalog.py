@@ -97,6 +97,10 @@ class ItemBundle:
     # 两段式装载时由骨架查询回填：条目归属库（多库归属取入库最早的那行文件的库，
     # 与整行装载路径下 files 的首行同义）。整行装载路径保持 None，走原逻辑。
     primary_library_id: int | None = None
+    # 开了「生成章节」的库 id（docs/design/video-chapters.md §4.7）：Chapters 按
+    # 单元首文件所在库的开关输出。只在这次响应会输出 Chapters 时才查（一条
+    # 小查询，同一请求的 bundle 共用一份）；没查就是空集，按"全关"处理
+    chapter_library_ids: frozenset[int] = frozenset()
 
     # units 的缓存。装载阶段一次性建好 files 的键集合，之后只往各键的列表里
     # 追加行、不再新增键（两段式补料用 setdefault 落在已有键上），所以键集合
@@ -273,9 +277,15 @@ def _list_load_columns(
     if options.has("ParentId"):
         file_columns.append(LibraryFile.library_id)
     if options.has("Chapters"):
-        # 章节两列是 JSON，只在客户端要 Chapters 时读；updated_at 派生 ImageTag
+        # 章节两列是 JSON，只在客户端要 Chapters 时读；updated_at 派生 ImageTag，
+        # library_id 用来查所在库开没开「生成章节」
         file_columns.extend(
-            [LibraryFile.chapters, LibraryFile.chapter_images, LibraryFile.updated_at]
+            [
+                LibraryFile.chapters,
+                LibraryFile.chapter_images,
+                LibraryFile.updated_at,
+                LibraryFile.library_id,
+            ]
         )
     if options.has("MediaSources") or options.has("MediaStreams"):
         file_columns.extend(
@@ -503,6 +513,18 @@ async def load_bundles(
             continue
         items.append(item)
         bundles[item.id] = ItemBundle(item=item, metadata=meta)
+
+    if dto_options is not None and dto_options.has("Chapters"):
+        # 「生成章节」是库级开关：一条小查询取回开着的库，整个请求共用
+        chapter_library_ids = frozenset(
+            (
+                await session.execute(
+                    select(Library.id).where(Library.extract_chapter_images.is_(True))
+                )
+            ).scalars()
+        )
+        for b in bundles.values():
+            b.chapter_library_ids = chapter_library_ids
 
     file_scope = [
         LibraryFile.media_item_id.in_(item_ids),
@@ -1341,7 +1363,12 @@ _RESOLUTION_WH = {
 }
 
 
-def _apply_chapters(dto: dict[str, Any], files: list[LibraryFile], options: DtoOptions) -> None:
+def _apply_chapters(
+    dto: dict[str, Any],
+    files: list[LibraryFile],
+    options: DtoOptions,
+    chapter_library_ids: frozenset[int],
+) -> None:
     """``Chapters``（docs/design/video-chapters.md §4.7）：受 fields 门控，单条目全开。
 
     取单元首文件的有效章节（与 MediaSources[0] / Path 同一个 files[0]）：内嵌
@@ -1349,13 +1376,21 @@ def _apply_chapters(dto: dict[str, Any], files: list[LibraryFile], options: DtoO
     没有比"图上这一帧"更好的定义）。有图才给 ImageTag，客户端据此决定要不要
     来取 ``/Items/{id}/Images/Chapter/{index}``。``ImagePath`` 省略（偏离⑫：
     服务器内部路径对客户端无意义）。没有章节输出空列表——真 Jellyfin 同款。
+
+    文件所在库没开「生成章节」（默认关）时只输出文件自带的内嵌/原盘章节、
+    不给 ImageTag：合成章节与场景图都是这个功能的产物，随开关一起收起；真章节
+    是零成本的介质事实，播放器照样能按它跳章。等价于真 Jellyfin 关着抽图
+    （EnableChapterImageExtraction）且不开虚拟章节（DummyChapterDuration=0）。
     """
     if not options.has("Chapters") or not files:
         return
     f = files[0]
-    images = chapter_image_map(f.chapter_images)
+    enabled = f.library_id in chapter_library_ids
+    images = chapter_image_map(f.chapter_images) if enabled else {}
     rows: list[dict[str, Any]] = []
     for chapter in effective_chapters(f.chapters, f.duration_seconds):
+        if chapter.synthetic and not enabled:
+            continue
         entry = images.get(chapter.start_ms)
         start_ms = chapter.start_ms
         if chapter.synthetic and entry and isinstance(entry.get("frame_ms"), int):
@@ -1449,7 +1484,7 @@ def movie_dto(ctx: DtoContext, bundle: ItemBundle, options: DtoOptions) -> dict[
             dto["MediaSources"] = sources
         if options.has("MediaStreams") and sources:
             dto["MediaStreams"] = sources[0]["MediaStreams"]
-    _apply_chapters(dto, bundle.files.get((0, 0), []), options)
+    _apply_chapters(dto, bundle.files.get((0, 0), []), options, bundle.chapter_library_ids)
     if options.enable_user_data:
         dto["UserData"] = _leaf_user_data(bundle, 0, 0, guid)
     return dto
@@ -1613,7 +1648,9 @@ def episode_dto(
             dto["MediaSources"] = sources
         if options.has("MediaStreams") and sources:
             dto["MediaStreams"] = sources[0]["MediaStreams"]
-    _apply_chapters(dto, bundle.files.get((season, episode), []), options)
+    _apply_chapters(
+        dto, bundle.files.get((season, episode), []), options, bundle.chapter_library_ids
+    )
     _apply_people(dto, bundle, options)
     if options.enable_user_data:
         dto["UserData"] = _leaf_user_data(bundle, season, episode, guid)

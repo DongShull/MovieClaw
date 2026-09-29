@@ -4,6 +4,8 @@
 - 内嵌章节按起点输出，合成章节输出图上那一帧的真实时间；无标题补「第 N 章」；
 - 有图才给 ImageTag / ImageDateModified，``ImagePath`` 省略（偏离⑫）；
 - 章节图路由 ``/Items/{id}/Images/Chapter/{index}``：有图 200、无图/越界 404；
+- 库没开「生成章节」（默认关）：只出内嵌章节、不给 ImageTag，合成章节不出，
+  章节图 404——图还在盘上，只是不展示；
 - VirtualFolders 的 EnableChapterImageExtraction 如实反映库开关。
 """
 
@@ -44,7 +46,8 @@ _EMBEDDED = [
 @pytest.fixture
 def seeded_chapters(tmp_path: Path, monkeypatch) -> dict:
     """电影：三段内嵌章节，第 2/3 章有图；剧集一集：无内嵌章节（47 分钟 → 合成 8 段），
-    首段有图。电影库开了章节开关，剧集库关了。"""
+    首段有图。这两个库都开了「生成章节」；第三个库保持默认（关），里面一部内嵌章节、
+    一部合成章节，各自都有一张以前生成的图。"""
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'jf-ch.db'}")
     monkeypatch.setenv("SECRET_KEY_FILE", str(tmp_path / ".secret_key"))
     monkeypatch.setenv("SCHEDULER_ENABLED", "false")
@@ -58,6 +61,12 @@ def seeded_chapters(tmp_path: Path, monkeypatch) -> dict:
     ep_file = media / "Breaking (2008)" / "Season 01" / "S01E01.mkv"
     ep_file.parent.mkdir(parents=True)
     ep_file.write_bytes(b"B" * 1024)
+    off_real_file = media / "The Matrix (1999)" / "The.Matrix.1999.mkv"
+    off_real_file.parent.mkdir(parents=True)
+    off_real_file.write_bytes(b"C" * 1024)
+    off_synth_file = media / "Fight Club (1999)" / "Fight.Club.1999.mkv"
+    off_synth_file.parent.mkdir(parents=True)
+    off_synth_file.write_bytes(b"D" * 1024)
 
     from PIL import Image
 
@@ -67,11 +76,14 @@ def seeded_chapters(tmp_path: Path, monkeypatch) -> dict:
         init_db(get_settings().database_url, echo=False)
         await run_migrations()
         async with get_database().session() as session:
-            movie_lib = Library(name="电影", kind="movie", root_paths=[str(media)])
-            tv_lib = Library(
-                name="剧集", kind="tv", root_paths=[str(media)], extract_chapter_images=False
+            movie_lib = Library(
+                name="电影", kind="movie", root_paths=[str(media)], extract_chapter_images=True
             )
-            session.add_all([movie_lib, tv_lib])
+            tv_lib = Library(
+                name="剧集", kind="tv", root_paths=[str(media)], extract_chapter_images=True
+            )
+            off_lib = Library(name="关章节", kind="movie", root_paths=[str(media)])
+            session.add_all([movie_lib, tv_lib, off_lib])
             await session.flush()
             movie = MediaItem(
                 kind="movie", tmdb_id=27205, title="盗梦空间", original_title="Inception", year=2010
@@ -79,11 +91,23 @@ def seeded_chapters(tmp_path: Path, monkeypatch) -> dict:
             show = MediaItem(
                 kind="tv", tmdb_id=1396, title="绝命毒师", original_title="Breaking Bad", year=2008
             )
-            session.add_all([movie, show])
+            off_real = MediaItem(
+                kind="movie", tmdb_id=603, title="黑客帝国", original_title="The Matrix", year=1999
+            )
+            off_synth = MediaItem(
+                kind="movie",
+                tmdb_id=550,
+                title="搏击俱乐部",
+                original_title="Fight Club",
+                year=1999,
+            )
+            session.add_all([movie, show, off_real, off_synth])
             await session.flush()
             session.add_all(
                 [
                     MediaMetadata(media_item_id=movie.id, runtime_minutes=148),
+                    MediaMetadata(media_item_id=off_real.id, runtime_minutes=136),
+                    MediaMetadata(media_item_id=off_synth.id, runtime_minutes=139),
                     MediaMetadata(media_item_id=show.id),
                     MediaSeason(media_item_id=show.id, season_number=1, name="第 1 季"),
                     MediaEpisode(
@@ -113,7 +137,27 @@ def seeded_chapters(tmp_path: Path, monkeypatch) -> dict:
                 chapters=[],
                 source=FileSource.SCANNED,
             )
-            session.add_all([movie_row, ep_row])
+            off_real_row = LibraryFile(
+                library_id=off_lib.id,
+                media_item_id=off_real.id,
+                file_path=str(off_real_file),
+                size_bytes=1024,
+                container="mkv",
+                duration_seconds=136 * 60,
+                chapters=_EMBEDDED,
+                source=FileSource.SCANNED,
+            )
+            off_synth_row = LibraryFile(
+                library_id=off_lib.id,
+                media_item_id=off_synth.id,
+                file_path=str(off_synth_file),
+                size_bytes=1024,
+                container="mkv",
+                duration_seconds=139 * 60,
+                chapters=[],
+                source=FileSource.SCANNED,
+            )
+            session.add_all([movie_row, ep_row, off_real_row, off_synth_row])
             await session.flush()
             assets = tmp_path / "metadata" / "images"
             movie_row.chapter_images = []
@@ -129,14 +173,24 @@ def seeded_chapters(tmp_path: Path, monkeypatch) -> dict:
             (assets / rel).parent.mkdir(parents=True, exist_ok=True)
             Image.new("RGB", (960, 540), "#553377").save(assets / rel, "JPEG")
             ep_row.chapter_images = [{"start_ms": 169_200, "frame_ms": 171_000, "image": rel}]
+            # 关着开关的库里也留着以前生成的图（开关一次不删产物）：内嵌章节第 2 章
+            # 一张；合成章节首段（139 分钟 → 10 段，起点 8340s×0.06=500.4s）一张
+            for row, start in ((off_real_row, 600_000), (off_synth_row, 500_400)):
+                rel = f"{row.media_item_id}/chapters/{row.id}/{start:010d}.jpg"
+                (assets / rel).parent.mkdir(parents=True, exist_ok=True)
+                Image.new("RGB", (960, 540), "#775533").save(assets / rel, "JPEG")
+                row.chapter_images = [{"start_ms": start, "frame_ms": start + 2000, "image": rel}]
             await session.commit()
-            await LibraryRepository(session).refresh_stats([movie_lib.id, tv_lib.id])
+            await LibraryRepository(session).refresh_stats([movie_lib.id, tv_lib.id, off_lib.id])
             ids.update(
                 {
                     "movie_lib": movie_lib.id,
                     "tv_lib": tv_lib.id,
+                    "off_lib": off_lib.id,
                     "movie": movie.id,
                     "show": show.id,
+                    "off_real": off_real.id,
+                    "off_synth": off_synth.id,
                 }
             )
         await dispose_db()
@@ -224,8 +278,41 @@ def test_chapter_image_route(client: TestClient, seeded_chapters: dict) -> None:
     assert client.get(f"/Items/{ep}/Images/Chapter/1", params={"ApiKey": token}).status_code == 404
 
 
+def test_switch_off_library_keeps_only_real_chapters_without_images(
+    client: TestClient, seeded_chapters: dict
+) -> None:
+    """库没开「生成章节」：内嵌章节照样输出（播放器靠它跳章，零成本），但不给
+    ImageTag；合成章节是这个功能的产物，整体不出；以前生成的图还在盘上，路由一律 404。
+    单条目（整行装载）与列表（最小列集装载）两条路径同一口径。"""
+    auth = {"ApiKey": jf_login(client)}
+    real_guid = item_guid(seeded_chapters["off_real"])
+    synth_guid = item_guid(seeded_chapters["off_synth"])
+
+    real = client.get(f"/Items/{real_guid}", params=auth).json()["Chapters"]
+    assert [c["Name"] for c in real] == ["Opening", "第 2 章", "Finale"]
+    assert [c["StartPositionTicks"] for c in real] == [0, 600_000 * 10_000, 3_000_000 * 10_000]
+    assert all("ImageTag" not in c for c in real)
+    assert client.get(f"/Items/{synth_guid}", params=auth).json()["Chapters"] == []
+
+    listed = client.get(
+        "/Items",
+        params={
+            **auth,
+            "parentId": library_guid(seeded_chapters["off_lib"]),
+            "fields": "Chapters",
+        },
+    ).json()["Items"]
+    by_name = {i["Name"]: i["Chapters"] for i in listed}
+    assert [c["Name"] for c in by_name["黑客帝国"]] == ["Opening", "第 2 章", "Finale"]
+    assert all("ImageTag" not in c for c in by_name["黑客帝国"])
+    assert by_name["搏击俱乐部"] == []
+
+    assert client.get(f"/Items/{real_guid}/Images/Chapter/1", params=auth).status_code == 404
+    assert client.get(f"/Items/{synth_guid}/Images/Chapter/0", params=auth).status_code == 404
+
+
 def test_virtual_folders_reflect_chapter_switch(client: TestClient, seeded_chapters: dict) -> None:
     auth = {"ApiKey": jf_login(client)}
     folders = {f["Name"]: f for f in client.get("/Library/VirtualFolders", params=auth).json()}
     assert folders["电影"]["LibraryOptions"]["EnableChapterImageExtraction"] is True
-    assert folders["剧集"]["LibraryOptions"]["EnableChapterImageExtraction"] is False
+    assert folders["关章节"]["LibraryOptions"]["EnableChapterImageExtraction"] is False

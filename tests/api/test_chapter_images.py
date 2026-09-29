@@ -250,6 +250,128 @@ async def test_detail_skips_lazy_trigger_when_library_switch_off(db, tmp_path, m
     assert view.files[0].chapters is None  # 章节未探测 → null
 
 
+async def test_detail_hides_chapters_when_library_switch_off(db, tmp_path, monkeypatch):
+    """「生成章节」管的是整个章节功能：库关着时详情页不出章节（分享页投影的是同一份
+    视图），也不报 chapters_pending——哪怕台账里探到了章节、盘上还留着以前生成的图。
+    曾经的问题：开关只管抓图，关了之后详情页照样摆出一排没有图的合成章节。"""
+    video = tmp_path / "media" / "off.mkv"
+    video.parent.mkdir()
+    video.write_bytes(b"x")
+    embedded = [
+        {"start_ms": 0, "end_ms": 20000, "title": "Opening"},
+        {"start_ms": 20000, "end_ms": None, "title": None},
+    ]
+    images = [{"start_ms": 20000, "frame_ms": 22000, "image": "1/chapters/1/0000020000.jpg"}]
+    lib_id, item_id, _file_id = await _seed(
+        db, video, chapters=embedded, chapter_images=images, enabled=False
+    )
+    monkeypatch.setattr(
+        chapters_mod, "schedule_item_chapter_images", lambda i: pytest.fail("不该触发")
+    )
+    # 刚关开关的那一刻，内存里可能还挂着这个条目的懒触发：前端也不该为它轮询
+    monkeypatch.setattr(chapters_mod, "_in_flight", {item_id})
+    async with db.session() as session:
+        view = (await get_library_item(lib_id, item_id, _ADMIN, session)).data
+    assert view.chapters_pending is False
+    assert view.files[0].chapters is None
+
+    # 重新打开：台账与图都还在，章节原样回来
+    async with db.session() as session:
+        lib = await session.get(Library, lib_id)
+        lib.extract_chapter_images = True
+        await session.commit()
+        view = (await get_library_item(lib_id, item_id, _ADMIN, session)).data
+    chapters = view.files[0].chapters
+    assert chapters is not None and [c.start_ms for c in chapters] == [0, 20000]
+    assert chapters[1].frame_ms == 22000
+
+
+async def test_refresh_file_rechecks_library_switch(db, tmp_path, monkeypatch):
+    """开关逐文件复核：调用方取目标时开着、抓到这个文件时已经关了，就不再探测也不
+    抓图，台账原样。一部剧几十集的条目作业/懒触发跑到一半用户关了开关，下一个文件
+    前就该收手。会话里早先加载的 Library 对象是旧值（会话提交不过期对象），必须
+    重新查库。"""
+    video = tmp_path / "media" / "a.mkv"
+    video.parent.mkdir()
+    video.write_bytes(b"x")
+    _lib_id, _item_id, file_id = await _seed(db, video, chapters=None)
+    monkeypatch.setattr(chapters_mod, "probe_chapters", lambda _p: pytest.fail("不该探测"))
+    async with db.session() as session:
+        row = await session.get(LibraryFile, file_id)
+        stale = await session.get(Library, row.library_id)
+        assert stale.extract_chapter_images is True
+        async with db.session() as other:
+            lib = await other.get(Library, row.library_id)
+            lib.extract_chapter_images = False
+            await other.commit()
+        assert await chapters_mod.refresh_file_chapter_images(session, row, force=True) is False
+        assert row.chapters is None and row.chapter_images is None
+
+
+async def test_toggling_library_switch_starts_and_stops_generation(db, tmp_path):
+    """编辑库切换「生成章节」：关 → 开立即排一份补缺（不必等下一次扫描），
+    开 → 关取消本库未完成的整库作业（首轮回填可能跑几个小时，关开关就是要它停）。
+    没切换的保存不动作业；图片库（不可播）打开也不排。"""
+    from movieclaw_api.api.routes.libraries import update_library
+    from movieclaw_api.schemas.library import LibraryPayload
+    from movieclaw_db.models.job import Job, JobStatus
+
+    video = tmp_path / "media" / "t.mkv"
+    video.parent.mkdir()
+    video.write_bytes(b"x")
+    lib_id, _item_id, _file_id = await _seed(db, video, chapters=[], enabled=False)
+
+    def payload(enabled: bool | None) -> LibraryPayload:
+        return LibraryPayload(
+            name="家庭录像",
+            kind="video",
+            root_paths=[str(video.parent)],
+            extract_chapter_images=enabled,
+        )
+
+    async def chapter_jobs() -> list[Job]:
+        async with db.session() as session:
+            return list(
+                (
+                    await session.execute(select(Job).where(Job.job_type == chapters_mod.JOB_TYPE))
+                ).scalars()
+            )
+
+    async with db.session() as session:
+        await update_library(lib_id, payload(True), None, session)
+    [job] = await chapter_jobs()
+    assert job.status == JobStatus.QUEUED and job.input_data["force"] is False
+    assert job.priority == -10
+
+    # 开着再保存（不改开关）：不重复排、也不取消
+    async with db.session() as session:
+        await update_library(lib_id, payload(None), None, session)
+    assert [j.status for j in await chapter_jobs()] == [JobStatus.QUEUED]
+
+    async with db.session() as session:
+        await update_library(lib_id, payload(False), None, session)
+    [job] = await chapter_jobs()
+    assert job.status == JobStatus.CANCELLED
+
+    # 图片库没有章节：打开开关也不排
+    async with db.session() as session:
+        photo = Library(
+            name="相册",
+            kind="photo",
+            source="local",
+            root_paths=[str(tmp_path / "photos")],
+            extract_chapter_images=True,
+        )
+        session.add(photo)
+        await session.commit()
+        await chapters_mod.apply_library_switch(session, photo, was_enabled=False)
+        # 这次保存改了根路径、会重扫：由扫描收尾去排，这里不重复
+        lib = await session.get(Library, lib_id)
+        lib.extract_chapter_images = True
+        await chapters_mod.apply_library_switch(session, lib, was_enabled=False, rescan_queued=True)
+    assert len(await chapter_jobs()) == 1
+
+
 async def test_job_targets_skip_done_disc_and_strm(db, tmp_path):
     video = tmp_path / "media" / "a.mkv"
     video.parent.mkdir()

@@ -222,7 +222,7 @@ class LibraryRepository:
         realtime_watch: bool = True,
         scrape_overrides: dict | None = None,
         generate_thumbnails: bool = True,
-        extract_chapter_images: bool = True,
+        extract_chapter_images: bool = False,
         exclude_from_home: bool = False,
         auto_series_collections: bool = True,
         access_mode: str = "everyone",

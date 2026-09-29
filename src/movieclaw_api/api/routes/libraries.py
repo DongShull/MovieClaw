@@ -1245,6 +1245,7 @@ async def update_library(
     # ``service.update`` 在同一 ORM 会话里原地修改实体；先取不可变快照，后台
     # 扫描才能知道这次编辑真正替换的是哪些根，而不是读到更新后的新根列表。
     previous_root_paths = list(before.root_paths)
+    chapters_were_enabled = before.extract_chapter_images
     roots_changed = previous_root_paths != [p.strip() for p in payload.root_paths if p.strip()]
     # 扫描/整理依赖根路径，只有真的改路径才需要锁库；改展示名称、收藏规则
     # 或下轮扫描策略不触碰当前任务正在使用的路径与台账，允许即时保存。
@@ -1272,6 +1273,15 @@ async def update_library(
         # **不重新联网、不重新刮削**——数据早就在 media_metadata 的列里了
         await ensure_series_collections_for_library(session, library_id)
         await session.commit()
+    # 「生成章节」开关切换：关掉就停掉进行中的整库生成，打开就立即排一份补缺
+    # （docs/design/video-chapters.md §4.5）；改了根路径的这次会重扫，由扫描收尾排
+    await chapters_mod.apply_library_switch(
+        session,
+        row,
+        was_enabled=chapters_were_enabled,
+        rescan_queued=roots_changed,
+        origin=_job_origin(client_name),
+    )
     member_ids = await MemberRepository(session).get_library_member_ids(library_id)
     # 根路径变了就自动补扫：新目录的存量立刻入账，移除目录下的文件标记 missing
     if roots_changed:
@@ -2417,12 +2427,18 @@ def _chapter_views(row: LibraryFile) -> list[ChapterView] | None:
 
 
 def _file_view(
-    row: LibraryFile, external_subs: list[str], origins: dict[int, dict] | None = None
+    row: LibraryFile,
+    external_subs: list[str],
+    origins: dict[int, dict] | None = None,
+    *,
+    chapters_enabled: bool,
 ) -> LibraryFileView:
     """台账行 → 详情页文件视图：内封字幕轨与外挂字幕文件合并成一份清单。
 
     ``origins`` 是旧行（origin 为空）的读时推导结果（``derive_origins``），
-    有落库快照的行不看它。"""
+    有落库快照的行不看它。``chapters_enabled`` 是所在库的「生成章节」开关：
+    关着时章节给 None——详情页与分享页（它投影的就是这份视图）都不出章节横排，
+    台账里探到的章节与已生成的图原样留着，重新打开开关即恢复。"""
     subtitles = [
         SubtitleStreamView(
             codec=stream.get("codec"),
@@ -2491,7 +2507,7 @@ def _file_view(
             ]
         ),
         subtitle_streams=subtitles,
-        chapters=_chapter_views(row),
+        chapters=_chapter_views(row) if chapters_enabled else None,
         added_at=row.created_at,
     )
 
@@ -2536,8 +2552,10 @@ async def get_library_item(
     # 章节场景图懒触发（docs/design/video-chapters.md §4.5）：有在位文件的图
     # 还没抓齐就后台抓这一个条目，前端按 chapters_pending 轮询几轮把图补上——
     # 升级后第一次打开旧条目不用等整库作业排到它。判据与整库作业同源
-    # （stills_complete）：半成品、图丢了的行在这里同样会被认出来
-    chapters_pending = chapters_mod.item_pending(media_item_id)
+    # （stills_complete）：半成品、图丢了的行在这里同样会被认出来。库关了「生成
+    # 章节」时一律不算在生成：章节不展示，前端没必要为它轮询（刚关开关时内存里
+    # 可能还挂着一个懒触发，它会在下一个文件前按开关自行收手）
+    chapters_pending = library.extract_chapter_images and chapters_mod.item_pending(media_item_id)
     if library.extract_chapter_images and not chapters_pending:
         # 条目菜单发起的重抓是持久化 Job（重启不丢），内存里的懒触发标记看不到它
         chapters_pending = await chapters_mod.item_job_active(session, media_item_id)
@@ -2655,7 +2673,13 @@ async def get_library_item(
     assert item.id is not None
     origins = await derive_origins(session, rows)
     file_views = [
-        _file_view(row, bundle.external_subtitles.get(row.id or -1, []), origins) for row in rows
+        _file_view(
+            row,
+            bundle.external_subtitles.get(row.id or -1, []),
+            origins,
+            chapters_enabled=library.extract_chapter_images,
+        )
+        for row in rows
     ]
     entry_dirs = bundle.entry_dirs
     if not principal.is_admin:

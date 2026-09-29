@@ -174,6 +174,8 @@ async def test_create_video_library_defaults_to_local_source(db, tmp_path) -> No
     library = await _make_video_library(db, root)
     assert library.source == "local" and library.kind == "video"
     assert library.generate_thumbnails is True and library.exclude_from_home is False
+    # 「生成章节」默认关（每个文件要 seek 抓帧若干次，按库自行打开）
+    assert library.extract_chapter_images is False
     view = LibraryView.from_model(library)
     assert view.capabilities.scraped is False
     assert view.capabilities.default_aspect == pytest.approx(16 / 9, abs=1e-3)

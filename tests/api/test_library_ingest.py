@@ -690,6 +690,11 @@ async def test_import_enqueues_chapter_images_job(db, tmp_path, monkeypatch):
     root, watch = tmp_path / "movies", tmp_path / "watch"
     watch.mkdir()
     library_id = await _make_library(db, kind=MediaKind.MOVIE, root=root)
+    async with db.session() as session:
+        library = await session.get(Library, library_id)
+        assert library is not None
+        library.extract_chapter_images = True  # 「生成章节」默认关，这里是打开了的库
+        await session.commit()
     item = await _make_item(db, kind=MediaKind.MOVIE, title="某电影", year=2020)
     _stub_identify(monkeypatch, item)
     monkeypatch.setattr(ingest_mod, "probe_media", lambda p: _FAKE_SPEC)
@@ -732,15 +737,16 @@ async def test_import_enqueues_chapter_images_job(db, tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_import_skips_chapter_images_job_when_library_disabled(db, tmp_path, monkeypatch):
-    """库关了「生成章节」开关：入库不排章节图作业（作业本身也会空转返回）。"""
+    """库没开「生成章节」开关：入库不排章节图作业（作业本身也会空转返回）。
+
+    新建库默认就是关的（抓帧成本高，按库自行打开），这里顺带钉住这个默认值。"""
     root, watch = tmp_path / "movies", tmp_path / "watch"
     watch.mkdir()
     library_id = await _make_library(db, kind=MediaKind.MOVIE, root=root)
     async with db.session() as session:
         library = await session.get(Library, library_id)
         assert library is not None
-        library.extract_chapter_images = False
-        await session.commit()
+        assert library.extract_chapter_images is False
     item = await _make_item(db, kind=MediaKind.MOVIE, title="某电影", year=2020)
     _stub_identify(monkeypatch, item)
     monkeypatch.setattr(ingest_mod, "probe_media", lambda p: _FAKE_SPEC)

@@ -38,8 +38,11 @@ class LibraryPayload(BaseModel):
     extract_chapter_images: bool | None = Field(
         default=None,
         description=(
-            "是否为视频章节抓取场景图（后台低优先级作业，每个文件按章节数 seek 若干次）；"
-            "不传表示不改动，新建时默认开启"
+            "是否生成并展示视频章节：场景图在后台低优先级作业里抓（每个文件按章节数 seek"
+            " 若干次），详情页章节横排、图廊章节图与 Jellyfin 合成章节都随它开关；"
+            "关闭时文件自带的内嵌章节仍供播放器跳章，已生成的图保留。"
+            "从关改为开会立即在后台补齐库内已有视频的章节，从开改为关会停掉进行中的章节生成。"
+            "不传表示不改动，新建时默认关闭"
         ),
     )
     exclude_from_home: bool | None = Field(
@@ -285,7 +288,9 @@ class LibraryView(BaseModel):
     generate_thumbnails: bool = Field(
         default=True, description="缺图时是否抓帧生成缩略图（本地内容封面、TMDB 无剧照的分集）"
     )
-    extract_chapter_images: bool = Field(default=True, description="是否为视频章节抓取场景图")
+    extract_chapter_images: bool = Field(
+        default=False, description="是否生成并展示视频章节（默认关，按库打开）"
+    )
     exclude_from_home: bool = Field(default=False, description="是否从首页汇总里排除")
     auto_series_collections: bool = Field(
         default=True, description="是否按作品系列自动生成合集（展示偏好）"
@@ -901,10 +906,11 @@ class LibraryFileView(BaseModel):
         default_factory=list, description="字幕列表：内封轨 + 外挂文件"
     )
     # 章节（docs/design/video-chapters.md）：内嵌章节优先，没有就按时长合成。
-    # null = 尚未探测章节（旧行未补探/ffprobe 缺失）；图未生成时 image_url 为 null，
-    # 章节本身仍可用（点击跳播）
+    # null = 所在库没开「生成章节」（默认关），或尚未探测章节（旧行未补探/ffprobe
+    # 缺失）；图未生成时 image_url 为 null，章节本身仍可用（点击跳播）
     chapters: list[ChapterView] | None = Field(
-        default=None, description="有效章节列表（内嵌或按时长合成）；null=尚未探测"
+        default=None,
+        description="有效章节列表（内嵌或按时长合成）；null=所在库未开启「生成章节」或尚未探测",
     )
     added_at: datetime
 
@@ -1002,7 +1008,8 @@ class LibraryItemDetailView(BaseModel):
     scraping: bool = Field(default=False, description="该条目正在后台刮削元数据")
     scraping_phase: str | None = Field(default=None, description="刮削当前阶段；没在刮为 null")
     # 章节场景图懒触发（docs/design/video-chapters.md §4.5）：打开详情页时发现
-    # 有文件没抓过图就后台抓，这里告诉前端"图还在生成"，前端据此轮询几轮
+    # 有文件没抓过图就后台抓，这里告诉前端"图还在生成"，前端据此轮询几轮。
+    # 库没开「生成章节」时恒为 false
     chapters_pending: bool = Field(default=False, description="章节场景图正在后台生成")
     # 所属系列：从影片页直接跳进那个系列合集（《哈利·波特》→ 整个系列）。
     # 只在这个库真的生成了那个合集时给 collection_id——给一个点了 404 的入口

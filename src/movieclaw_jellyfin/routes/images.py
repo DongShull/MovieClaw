@@ -3,7 +3,7 @@
 资产映射：Movie/Series Primary→poster_file、Backdrop/0→backdrop_file、
 Season Primary→media_season.poster_file、Episode Primary→media_episode.still_file、
 Movie/Episode Chapter/{index}→单元首文件第 index 个有效章节的场景图
-（docs/design/video-chapters.md §4.7）；
+（docs/design/video-chapters.md §4.7；所在库开了「生成章节」才有）；
 库 Primary→服务端渲染的氛围光货架拼贴（library.cover 服务，双端共用）。
 `tag` 纯缓存语义：不校验、回显进 ETag（带引号）+ 一年 immutable。
 缩放：maxWidth/maxHeight/width/height/fillWidth/fillHeight 任一存在时按
@@ -25,7 +25,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from movieclaw_api.services.library.chapters import chapter_image_map, effective_chapters
 from movieclaw_db.engine import get_database
-from movieclaw_db.models import LibraryFile, MediaEpisode, MediaMetadata, MediaSeason
+from movieclaw_db.models import Library, LibraryFile, MediaEpisode, MediaMetadata, MediaSeason
 from movieclaw_jellyfin.errors import JellyfinError, not_found
 from movieclaw_jellyfin.ids import EntityKind, decode_guid, item_guid
 
@@ -67,7 +67,10 @@ async def _person_image(person_id: int, image_type: str) -> Response:
 async def _chapter_asset(
     session: AsyncSession, media_item_id: int, season: int, episode: int, index: int
 ) -> str | None:
-    """章节图：单元首文件（与 DTO 的 files[0] 同一排序）第 index 个有效章节的图。"""
+    """章节图：单元首文件（与 DTO 的 files[0] 同一排序）第 index 个有效章节的图。
+
+    文件所在库没开「生成章节」时一律没有图（DTO 那边也不给 ImageTag）：图还在
+    盘上，但关着开关就不展示，与控制台详情页同一口径。"""
     row = (
         await session.execute(
             select(LibraryFile)
@@ -82,6 +85,9 @@ async def _chapter_asset(
         )
     ).scalar_one_or_none()
     if row is None:
+        return None
+    library = await session.get(Library, row.library_id)
+    if library is None or not library.extract_chapter_images:
         return None
     chapters = effective_chapters(row.chapters, row.duration_seconds)
     if index < 0 or index >= len(chapters):

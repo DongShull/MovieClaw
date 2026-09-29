@@ -357,9 +357,8 @@ class LibraryConfigService:
             realtime_watch=True if realtime_watch is None else bool(realtime_watch),
             scrape_overrides=overrides,
             generate_thumbnails=True if generate_thumbnails is None else bool(generate_thumbnails),
-            extract_chapter_images=(
-                True if extract_chapter_images is None else bool(extract_chapter_images)
-            ),
+            # 生成章节默认关（抓帧成本高，按库自行打开）；不传按默认
+            extract_chapter_images=bool(extract_chapter_images),
             exclude_from_home=bool(exclude_from_home),
             auto_series_collections=(
                 True if auto_series_collections is None else bool(auto_series_collections)

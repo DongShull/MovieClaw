@@ -111,12 +111,15 @@ class Library(TimestampMixin, table=True):
         default=True,
         description="缺图时是否从视频抓帧生成缩略图（本地条目主图、TMDB 无剧照的分集）",
     )
-    # 章节场景图抓取开关（docs/design/video-chapters.md §4.5）。所有形态的库
-    # 都消费：章节是文件级能力，TMDB 条目与本地条目同等享有。默认开——抓图
-    # 在低优先级后台作业里跑；网络挂载大库介意读取量可关。关掉后已生成的图
-    # 保留（与 Jellyfin 删图不同：开关一次不该丢产物）
+    # 「生成章节」开关（docs/design/video-chapters.md §4.5）。章节是文件级
+    # 能力，所有可播形态的库都能开。**默认关**（用户决策 2026-09-29）：每个
+    # 文件要 seek 抓帧 8～12 次，首轮回填在 NAS 上是小时级，多数库白付这份
+    # CPU 与读取量。它管的是整个章节功能而不只是抓图——关着时不生成、也不
+    # 展示（详情页/分享页章节横排、图廊章节图、Jellyfin 合成章节与章节图）；
+    # 只有文件自带的内嵌/原盘章节照旧供播放器跳章。关掉后已生成的图保留
+    # （与 Jellyfin 删图不同：开关一次不该丢产物），重新打开立即恢复
     extract_chapter_images: bool = Field(
-        default=True, description="是否为视频章节抓取场景图（后台作业）"
+        default=False, description="是否生成并展示视频章节（场景图走后台作业）"
     )
     # 首页排除（Plex "Include in dashboard" / Jellyfin LatestItemsExcludes 同款）：
     # 开启后本库的条目不进首页「最近添加」聚合区、不参与首页封面拼贴，

@@ -497,7 +497,10 @@ async def refresh_file_chapter_images(
 ) -> bool:
     """给一行台账补探章节（NULL 时）并抓图，写回 ``chapter_images``。
 
-    返回是否有写入。库开关由调用方判断；这里只管资格（在位/非原盘/非 strm）。
+    返回是否有写入。资格（在位/非原盘/非 strm）与所在库的「生成章节」开关都在
+    这里判：开关**逐文件复核**——条目作业、懒触发一跑就是一整部剧，调用方取
+    目标时开关还开着，不代表抓到第几十集时还开着；用户关了开关，下一个文件前
+    就该收手，而不是按开跑时的清单一路抓完。
     补缺模式只跳过**已经抓齐**的行（``stills_complete``）：半成品、图丢了的
     行都会接着抓，已有的图原样复用。抓帧失败不抛：失败的章节记墓碑并记日志，
     force 可重试；章节补探失败或 ffmpeg 缺失则什么都不写（保持 NULL），下次
@@ -506,6 +509,15 @@ async def refresh_file_chapter_images(
     from movieclaw_api.services.media_scrape import assets_root
 
     if row.id is None or row.media_item_id is None or not stills_eligible(row):
+        return False
+    # 直接查列而不是 session.get(Library)：会话不在提交时过期对象
+    # （expire_on_commit=False），同一会话里连抓几个文件时拿到的会是开跑时那份旧值
+    enabled = (
+        await session.execute(
+            select(Library.extract_chapter_images).where(Library.id == row.library_id)
+        )
+    ).scalar_one_or_none()
+    if not enabled:
         return False
     if not force and stills_complete(row, assets_root()):
         return False
@@ -658,6 +670,47 @@ async def enqueue_library_chapter_images_job(
         origin=origin,
         progress=jobs.default_progress("等待生成章节"),
     )
+
+
+async def apply_library_switch(
+    session: AsyncSession,
+    library: Library,
+    *,
+    was_enabled: bool,
+    rescan_queued: bool = False,
+    origin: str = "system",
+) -> None:
+    """编辑库保存后，按「生成章节」开关的变化收放后台作业（设计文档 §4.5）。
+
+    - **开 → 关**：取消本库未完成的整库作业（排队的直接取消，跑着的抓完手上
+      这个文件就停）。首轮回填可能跑几个小时，关开关的用户要的就是"别再抓了"，
+      而处理器只在开跑时看一次开关。条目作业与详情页懒触发不在这里找：它们
+      逐文件复核开关（``refresh_file_chapter_images``），下一个文件前自行收手；
+    - **关 → 开**：立即排一份补缺（只抓还没抓齐的，以前生成过的图原样复用）。
+      不排就要等下一次扫描作业收尾——定期对账与监听触发的增量扫描都不走那里，
+      用户打开了开关却迟迟看不到动静。这次保存改了根路径会重扫，扫描收尾自己
+      会排（``rescan_queued``），不重复；不可播的库（图片库）没有章节。
+    """
+    if library.id is None or was_enabled == library.extract_chapter_images:
+        return
+    if not library.extract_chapter_images:
+        for job in await jobs.list_jobs(
+            session,
+            active_only=True,
+            job_type=JOB_TYPE,
+            resource_type="library",
+            resource_id=library.id,
+        ):
+            await jobs.request_cancel(
+                session,
+                job.id,
+                requested_by="媒体库配置变更",
+                reason=f"「{library.name}」已关闭「生成章节」，未完成的章节生成随之取消",
+            )
+        return
+    if rescan_queued or not profile_of(library).playable:
+        return
+    await enqueue_library_chapter_images_job(session, library.id, library.name, origin=origin)
 
 
 #: Job 的未完成态：这些状态下管理页要把作业当"在跑"显示

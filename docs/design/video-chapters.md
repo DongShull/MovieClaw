@@ -14,6 +14,12 @@
 > 的「第 N 章」、菜单「生成章节」——不再叫「场景」（Jellyfin 的叫法，与菜单对不上），
 > 也不叫「片段」（项目里指花絮/预告这类独立短片，有歧义）（用户决策 2026-09-06）。
 > 下文的「场景」仅指 Jellyfin 的功能名与源码考察。
+> **2026-09-29 改为默认关闭、按库打开**（用户决策：章节生成与展示默认全开太耗
+> 资源）：库开关 `extract_chapter_images`（界面「生成章节」）新建默认关，迁移
+> `0641cc32b069` 把存量库一并置关；开关从"只管抓图"扩成"管整个章节功能"——关着
+> 时不生成、也不展示（详情页/分享页章节横排、图廊章节图、Jellyfin 合成章节与
+> 章节图），只有文件自带的内嵌/原盘章节照旧供播放器跳章；编辑库关 → 开立即排
+> 补缺作业，开 → 关取消进行中的整库作业，抓图逐文件复核开关。详见 §4.5「库开关」。
 > 本文是"按时长多抓几张剧照、
 > 每张记时间点、hover 后点击从该时间点播放"这一诉求的完整设计。核心结论：
 > 把它建模成 **章节（chapter）** 而不是"多张缩略图"——内嵌章节有则用之，
@@ -252,6 +258,9 @@ chapter_images  JSON NULL   -- 抓图状态。NULL=没抓过；[]=抓过无产�
 可见性校验与 `v=` 缓存直接可用；文件从条目下移走/转移时随条目目录处理。
 
 `library` 增一列：`extract_chapter_images BOOLEAN NOT NULL DEFAULT 1`。
+（2026-09-29 起模型默认值改为 False，迁移 `0641cc32b069` 把存量库一律置 0；
+数据库层的 `DEFAULT 1` 未重建——SQLite 改列默认值要整表重建，而 `library` 被
+十张表外键引用，ORM 写库又总是显式带上这一列，那个默认值用不到。见 §4.5「库开关」。）
 
 ### 4.4 抓图
 
@@ -373,6 +382,11 @@ ffmpeg -v info -y -skip_frame nokey -ss <t> -copyts -i <file> -an -sn \
    `trickplay.py:58` 同款）；响应里 `chapters_pending: true`，前端每 3 秒
    重拉详情、最多 20 次，图一张张补上。这是升级后第一次打开旧条目的体验
    保障——不用等整库 Job 排到它。
+6. **编辑库把开关从关打开**（`chapters.apply_library_switch`，2026-09-29）：立即
+   排一份整库补缺作业。开关默认关之后，"打开"是用户对这个库的明确表态，不排
+   就要等下一次扫描作业收尾——定期对账与监听触发的增量扫描都不走那里，打开了却
+   迟迟看不到动静。同一次保存改了根路径会重扫，由扫描收尾排（入口 1），不重复；
+   不可播的库（图片库）没有章节，不排。
 
 不放进 `ScanPhase.ASSETS`：那一阶段只覆盖本轮新挂锚条目，且一部电影
 8～12 次 seek 乘以整库会把"扫描"拖长数倍；独立 Job 让扫描进度语义不变，
@@ -393,17 +407,47 @@ ffmpeg -v info -y -skip_frame nokey -ss <t> -copyts -i <file> -an -sn \
 入库作业跟着一起等）；条目菜单「重新生成章节」保持 0——用户正站在详情页等
 这一部的图。
 
-**库开关** `extract_chapter_images` 默认开：抓图在后台低优先级 Job 里，
-网络挂载大库的用户可以关；关掉后已生成的图保留（与 Jellyfin 删图的做法
-不同——删图是破坏性的，用户开关一次不该丢产物）。
+**库开关** `extract_chapter_images`（界面「生成章节」）**默认关**（用户决策
+2026-09-29，此前默认开）：一部片 8～12 次 seek 抓帧，首轮回填在 NAS 上是小时级，
+而多数库的用户并不需要章节横排——默认全开等于让所有人白付这份 CPU 与读取量。
+新建库默认关，迁移 `0641cc32b069` 把存量库一律置关（存量几乎都是被旧默认值打开
+的，无从区分谁是主动开的）；想要的库在编辑库里打开。
+
+开关管的是**整个章节功能**，不只是抓图（此前关掉开关只停抓图，详情页照样摆出一排
+没图的合成章节，Jellyfin 也照样输出合成章节）：
+
+| | 开 | 关（默认） |
+|---|---|---|
+| 抓图（扫描收尾/入库/懒触发/库与条目菜单） | 照常 | 全部不做；菜单不给入口、接口 409 |
+| 详情页/分享页章节横排（`LibraryFileView.chapters`） | 有效章节 + 图 | `null`，不渲染；`chapters_pending` 恒 false |
+| 图廊章节图 | 有 | 不出（分集剧照照旧） |
+| Jellyfin `Chapters` | 内嵌或合成，有图给 `ImageTag` | 只出内嵌/原盘章节、不给 `ImageTag`；合成章节不出 |
+| Jellyfin `Images/Chapter/{index}` | 有图 200 | 一律 404 |
+| 网页播放器进度条刻度 | 只画内嵌章节 | 同左，不受开关影响 |
+| 探测 `-show_chapters`（入库/扫描） | 照常 | 照常（零额外 IO，打开开关后无需重探） |
+
+关着时仍输出真章节，是因为它是零成本的介质事实（原盘的 PlayListMark 章节同理），
+播放器靠它跳章；合成章节与场景图才是"生成"出来的东西，随开关收起。这与真
+Jellyfin 关着抽图（`EnableChapterImageExtraction`）且不开虚拟章节
+（`DummyChapterDuration=0`）时的行为一致。
+
+切换时的收放（`apply_library_switch`）：**关 → 开**立即排整库补缺（入口 6）；
+**开 → 关**取消本库未完成的整库作业——处理器只在开跑时看一次开关，不取消它会按
+开跑时的目标清单抓完首轮回填。条目作业与详情页懒触发不必逐个找出来取消：抓图
+入口 `refresh_file_chapter_images` **逐文件复核开关**（直接查列：会话不在提交时
+过期对象，早先加载的 `Library` 是旧值），下一个文件前自行收手。
+
+关掉后已生成的图保留（与 Jellyfin 删图的做法不同——删图是破坏性的，用户开关一次
+不该丢产物），只是不展示；重新打开立即恢复显示，补缺作业只抓缺的那部分。代价是
+关着期间文件被删/洗版留下的孤儿 chapters 目录要等重新打开、整库作业收尾时才清。
 
 ### 4.6 控制台接口与前端
 
 `LibraryFileView` 增字段：
 
 ```
-chapters: list[ChapterView] | None    # null=尚未探测（ffprobe 缺失/文件不可达）
-chapters_pending: bool                # 正在后台抓图（§4.5 懒触发），前端据此轮询
+chapters: list[ChapterView] | None    # null=所在库没开「生成章节」，或尚未探测（ffprobe 缺失/文件不可达）
+chapters_pending: bool                # 正在后台抓图（§4.5 懒触发），前端据此轮询；库开关关着恒 false
 ChapterView = {index, start_ms, end_ms, frame_ms, title, synthetic, image_url}
 image_url = "/images/assets/{path}?v={mtime}" | null
 ```
@@ -434,12 +478,16 @@ Agent 工具无需改动：`spec.json` 重导出后 `library.items.get` 自动�
 
   合成章节同样输出（等价于 Jellyfin 打开了 DummyChapterDuration），
   这正是"让播放器捕捉到章节"的诉求；Infuse 的章节跳转会按这些点跳。
-- `_list_load_columns()` 仅在 `has("Chapters")` 时加载两列，列表请求不
-  多读 JSON。
+  **前提是文件所在库开了「生成章节」**（2026-09-29 起默认关）：关着时只输出
+  内嵌/原盘章节、不给 `ImageTag`，合成章节不出（§4.5「库开关」）。开着的库 id
+  由 `load_bundles` 在请求要 `Chapters` 时一条小查询取回，挂在
+  `ItemBundle.chapter_library_ids` 上供同一请求的 DTO 共用。
+- `_list_load_columns()` 仅在 `has("Chapters")` 时加载两列（外加判开关用的
+  `library_id`），列表请求不多读 JSON。
 - `routes/images.py:_resolve_asset` 增 `chapter` 分支：ITEM/EPISODE GUID +
-  `image_index` → 单元首文件 → 有效列表 `[index].image`；越界或无图
-  404 `Item does not have an image of type Chapter`。缩放参数与变体缓存
-  沿用 `_maybe_scaled`。不需要新的 `EntityKind`。
+  `image_index` → 单元首文件 → 有效列表 `[index].image`；越界、无图或所在库
+  没开「生成章节」404 `Item does not have an image of type Chapter`。缩放参数
+  与变体缓存沿用 `_maybe_scaled`。不需要新的 `EntityKind`。
 - `routes/library.py` 的 `LibraryOptions.EnableChapterImageExtraction`
   改为反映库开关；`ExtractChapterImagesDuringLibraryScan` 保持 False。
 - jellyfin-compat.md 更新：5.3 的 fields 门控清单加 `Chapters`；偏离清单
@@ -468,7 +516,8 @@ Agent 工具无需改动：`spec.json` 重导出后 `library.items.get` 自动�
 
 - **首轮回填成本**：存量 1000 部电影 ≈ 8000～12000 次 seek，本地盘约
   20 分钟，NAS 可能一两小时。在低优先级 Job 里、可停、可关开关，可接受；
-  发版说明要写明。
+  发版说明要写明。2026-09-29 起改为按库自愿打开（默认关），这笔成本只由打开
+  开关的库承担，打开时的补缺作业同样低优先级、可停。
 - **合成章节输出给 Jellyfin 客户端**：Infuse 的"下一章"会跳到等距点而
   不是真实场景切换。这与 Jellyfin 开虚拟章节的体验一致，且不输出就没有
   章节跳转可用。若评审倾向保守，改为"仅内嵌章节输出、合成章节只在控制台
@@ -502,6 +551,10 @@ Agent 工具无需改动：`spec.json` 重导出后 `library.items.get` 自动�
 | `Chapters` 受 fields 门控、单条目全开 | `tests/jellyfin` |
 | 列表请求不加载章节 JSON 列 | `_list_load_columns` |
 | 详情接口不触发 ffprobe | `build_item_detail` |
+| 「生成章节」默认关，存量库迁移后一律关 | `test_library_chapters_default_off_migration.py`、`test_import_skips_chapter_images_job_when_library_disabled` |
+| 开关关着：详情/分享不出章节、不轮询；图廊不出章节图 | `test_detail_hides_chapters_when_library_switch_off`、`test_library_gallery_flattens_posters_stills_and_chapters` |
+| 开关关着：Jellyfin 只出内嵌章节、无 ImageTag，章节图 404 | `test_switch_off_library_keeps_only_real_chapters_without_images` |
+| 关 → 开立即排补缺，开 → 关取消整库作业；抓图逐文件复核开关 | `test_toggling_library_switch_starts_and_stops_generation`、`test_refresh_file_rechecks_library_switch` |
 
 ## 附录：测试片与实测
 

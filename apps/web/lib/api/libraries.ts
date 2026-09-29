@@ -77,7 +77,7 @@ export interface MediaLibrary {
   capabilities: LibraryCapabilities;
   /** 缺图时是否从视频抓帧生成缩略图（本地内容封面、TMDB 无剧照的分集） */
   generate_thumbnails: boolean;
-  /** 是否为视频章节抓取场景图（后台低优先级作业） */
+  /** 是否生成并展示视频章节（默认关；关着时详情页没有章节横排、也不抓图） */
   extract_chapter_images: boolean;
   /** 是否从首页「最近添加」等汇总里排除 */
   exclude_from_home: boolean;
@@ -391,7 +391,7 @@ export interface LibraryPayload {
   root_paths: string[];
   /** 缺图时是否从视频抓帧生成缩略图；不传=不改动（新建时默认开） */
   generate_thumbnails?: boolean;
-  /** 是否为视频章节抓取场景图；不传=不改动（新建时默认开） */
+  /** 是否生成并展示视频章节；不传=不改动（新建时默认关） */
   extract_chapter_images?: boolean;
   /** 是否从首页汇总里排除该库；不传=不改动（新建时默认关） */
   exclude_from_home?: boolean;
@@ -1346,7 +1346,7 @@ export interface LibraryItemFile {
   audio_streams: AudioStream[] | null;
   /** 字幕列表：内封轨 + 外挂文件 */
   subtitle_streams: SubtitleStream[];
-  /** 有效章节（内嵌或按时长合成）；null=尚未探测章节 */
+  /** 有效章节（内嵌或按时长合成）；null=所在库没开「生成章节」或尚未探测章节 */
   chapters: LibraryChapter[] | null;
   added_at: string;
 }

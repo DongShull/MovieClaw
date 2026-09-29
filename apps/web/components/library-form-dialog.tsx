@@ -535,11 +535,12 @@ function CreateLibraryDialog({
       kind,
       root_paths: roots,
       match_rules: hasScope ? buildMatchRules(validGenres(kind, genres, routingOptions), regions) : [],
-      // 开关全按推荐值：监控开、自动清理关、封面开、场景图开、首页展示；建好后在编辑里调
+      // 开关全按推荐值：监控开、自动清理关、封面开、章节关（抓帧成本高，按需在
+      // 编辑里打开）、首页展示；建好后在编辑里调
       auto_clear_missing: false,
       realtime_watch: true,
       generate_thumbnails: true,
-      extract_chapter_images: true,
+      extract_chapter_images: false,
       exclude_from_home: kindExcludedFromHome(kind),
       scrape_overrides: {},
       access_mode: accessMode,
@@ -1376,7 +1377,7 @@ function EditLibraryDialog({
               title="生成章节"
               checked={extractChapterImages}
               onChange={setExtractChapterImages}
-              detail="每个视频按章节（有内嵌章节用内嵌，没有按时长切成 3～12 段）各抓一张画面：条目页出「章节」横排、点一张从那里开始播，Infuse 等播放器也能按章节跳转。扫描后在后台低优先级生成，每个文件要定位读取若干次，网络挂载的大库介意读取量可关闭；关闭后已生成的图保留。"
+              detail="每个视频按章节（有内嵌章节用内嵌，没有按时长切成 3～12 段）各抓一张画面：条目页出「章节」横排、点一张从那里开始播，Infuse 等播放器也能按这些章节跳转。每个文件要定位读取若干次，比较耗 CPU 与读取量，所以默认关闭。打开后立即在后台低优先级补齐库内已有的视频，之后随扫描与入库自动生成；关闭后不再生成也不再展示，进行中的生成随之停止，已生成的图保留、再打开即恢复。视频自带的章节不受影响，播放器进度条上照常显示。"
             />
           )}
           <SwitchRow

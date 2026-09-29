@@ -40,6 +40,7 @@ from movieclaw_db.engine import dispose_db, get_database, init_db
 from movieclaw_db.migrations import run_migrations
 from movieclaw_db.models import (
     FileState,
+    Library,
     LibraryFile,
     MediaItem,
     RuleSet,
@@ -209,6 +210,7 @@ def test_file_view_parses_generated_subtitle_names() -> None:
     view = _file_view(
         row,
         ["Movie.ai-bilingual-chs-eng.chi.srt", "Movie.pgs-ocr.eng.srt"],
+        chapters_enabled=False,
     )
 
     bilingual, ocr = view.subtitle_streams
@@ -1948,7 +1950,8 @@ async def test_library_refresh_targets_include_fileless_tracked_items(db, tmp_pa
 async def test_library_gallery_flattens_posters_stills_and_chapters(db, tmp_path) -> None:
     """图廊按条目分组铺平：海报 → 剧照 → 逐集（分集剧照 → 该集章节图），
     章节图带起播秒数与季集号；分页按条目数走，与海报墙同口径；每组还带
-    当前观看者的收藏态（瀑布流角标与灯箱的心）。"""
+    当前观看者的收藏态（瀑布流角标与灯箱的心）。章节图只出自开了「生成章节」
+    的库：关掉开关，图还在台账与盘上，图廊里就不再出现。"""
     from movieclaw_api.api.routes.libraries import list_library_gallery
     from movieclaw_api.services.playback import marks as playback_marks
     from movieclaw_playback import state as playback_state
@@ -1960,7 +1963,7 @@ async def test_library_gallery_flattens_posters_stills_and_chapters(db, tmp_path
     (show / "测试剧集.S01E02.1080p.mkv").write_bytes(b"e2")
     async with db.session() as session:
         library = await LibraryRepository(session).create(
-            name="剧集库", kind="tv", root_paths=[str(root)]
+            name="剧集库", kind="tv", root_paths=[str(root)], extract_chapter_images=True
         )
     summary = await scan_library(library.id)
     assert summary.identified == 2
@@ -2015,6 +2018,23 @@ async def test_library_gallery_flattens_posters_stills_and_chapters(db, tmp_path
         assert (
             await list_library_gallery(library.id, 1, 1, "title", session=session, principal=_ADMIN)
         ).data == []
+
+    # 关掉「生成章节」：章节图退出图廊，分集剧照照旧
+    async with db.session() as session:
+        row = await session.get(Library, library.id)
+        assert row is not None
+        row.extract_chapter_images = False
+        await session.commit()
+    async with db.session() as session:
+        off = (
+            await list_library_gallery(
+                library.id, None, 0, "title", session=session, principal=_ADMIN
+            )
+        ).data
+        assert [(i.kind, i.season, i.episode) for i in off[0].images] == [
+            ("still", 1, 1),
+            ("still", 1, 2),
+        ]
 
     async with db.session() as session:
         item_id = groups[0].media_item_id
