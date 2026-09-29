@@ -26,6 +26,7 @@ from movieclaw_llm.exceptions import (
     LlmError,
     LlmRateLimitError,
     LlmRequestError,
+    LlmServerError,
 )
 from movieclaw_llm.models import (
     ChatMessage,
@@ -342,6 +343,10 @@ class OpenAIChatProtocol(BaseLlmProtocol):
                 return LlmContentFilterError(f"内容被供应商合规审查拦截：{exc}", provider=name)
             return LlmRequestError(f"请求参数错误：{exc}", provider=name)
         if isinstance(exc, openai.APIStatusError):
+            if exc.status_code >= 500:
+                return LlmServerError(
+                    f"模型服务暂时出错（HTTP {exc.status_code}）：{exc}", provider=name
+                )
             return LlmRequestError(
                 f"模型服务返回错误（HTTP {exc.status_code}）：{exc}", provider=name
             )

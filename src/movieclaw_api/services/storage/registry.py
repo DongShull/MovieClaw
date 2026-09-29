@@ -209,11 +209,11 @@ DATA_DIRS: tuple[DataDir, ...] = (
     DataDir(
         key="cache.subtitle_gen",
         title="AI 字幕中间品",
-        summary="AI 字幕生成的 PGS 图片与翻译断点",
+        summary="AI 字幕生成的图片字幕识别结果与翻译断点",
         description=(
-            "AI 字幕生成过程中的 PGS 图片与翻译断点（内封轨的抽取产物在「内封字幕"
-            "缓存」里，与播放器共用）。正在运行的字幕任务所属文件会被跳过；"
-            "已完成任务的中间品可放心清理。"
+            "AI 字幕生成过程中的图片字幕（PGS）识别结果与翻译断点（内封轨的抽取产物，"
+            "包括 PGS 图片，都在「内封字幕缓存」里，与播放器共用）。正在运行的字幕任务"
+            "所属文件会被跳过；已完成任务的中间品可放心清理。"
         ),
         default="data/cache/subtitle_gen",
         resolve=lambda s: Path(s.subtitle_gen_cache_dir),

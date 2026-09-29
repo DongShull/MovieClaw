@@ -1190,9 +1190,35 @@ async def test_uncached_embedded_preview_defers_instead_of_blocking(
         )
 
 
-async def test_preview_pending_does_not_masquerade_as_a_blocker(monkeypatch) -> None:
-    """等待期间绝不能显示「这份片源没有参考字幕」——那与事实相反。"""
-    row = _file([{"codec": "subrip", "language": "eng"}], [])
+def _refuse_reading(monkeypatch, cache: Path) -> None:
+    """预检/发起路径绝不能读视频：抽取入口一碰就让用例失败。"""
+    from movieclaw_api.services import media_extract
+
+    monkeypatch.setattr(media_extract, "cache_dir", lambda: cache)
+
+    def no_schedule(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        pytest.fail("预检不该起后台抽取")
+
+    async def no_extract(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        pytest.fail("预检/发起不该等 ffmpeg 通读视频")
+
+    monkeypatch.setattr(media_extract, "schedule_extraction", no_schedule)
+    monkeypatch.setattr(media_extract, "extract_track_async", no_extract)
+
+
+async def test_preview_of_unread_embedded_track_never_touches_the_video(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """内封轨没读过时，预检当场给结论：选中它、按片长粗估、说明任务会先读取。
+
+    issue #432 之后预检改成回 pending 让客户端轮询，但 iOS 与网页仍会撞 20 秒
+    超时，读取也不在任务体系里（看不到、停不了、重启就丢）。现在预检只读数据库
+    与现成产物，读取整个交给生成任务第一步。
+    """
+    video = tmp_path / "Movie.mkv"
+    video.write_bytes(b"x" * (3 * 1024 * 1024))
+    row = _embedded_file(video)  # 片长 6000 秒
+    _refuse_reading(monkeypatch, tmp_path / "cache")
 
     async def fake_load_row(_session, _file_id):  # noqa: ANN001
         return row
@@ -1200,21 +1226,190 @@ async def test_preview_pending_does_not_masquerade_as_a_blocker(monkeypatch) -> 
     async def fake_context(_session, _row):  # noqa: ANN001
         return CTX, "eng"
 
-    async def pending(_row, _candidate, **_kwargs):  # noqa: ANN001
-        raise extract.SourceExtractionPending("正在读取内封字幕", candidate_key="embedded:0")
+    monkeypatch.setattr(tasks, "_load_row", fake_load_row)
+    monkeypatch.setattr(tasks, "_film_context", fake_context)
+
+    pv = await tasks.preview(None, 77, "chs")  # type: ignore[arg-type]
+
+    assert pv.blocker is None, "还没读过不等于做不了"
+    assert pv.chosen is not None and tasks.candidate_key(pv.chosen) == "embedded:0"
+    assert pv.event_count == 0
+    # 100 分钟 × 每分钟 12 条 × 每条 40 字符 = 48000 字符 → 按每千字符 2600 token
+    assert pv.estimated_tokens == 124_800
+    assert pv.reference_notice is not None
+    assert "3 MB" in pv.reference_notice and "不调用 AI" in pv.reference_notice
+    assert pv.output_filename
+
+    bilingual = await tasks.preview(None, 77, "chs", secondary_language="eng")  # type: ignore[arg-type]
+    assert bilingual.estimated_tokens == int(124_800 * 1.8)
+
+
+async def test_enqueue_accepts_unread_embedded_track_without_waiting(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """点「确认生成」的 POST 同样秒回：此前这里要等 ffmpeg 读完整个文件，iOS
+    60 秒就超时；入库自动生成也得逐个文件读完才能排下一个。"""
+    from movieclaw_api.services import llm_config
+
+    video = tmp_path / "Movie.mkv"
+    video.write_bytes(b"fake")
+    row = _embedded_file(video)
+    _refuse_reading(monkeypatch, tmp_path / "cache")
+
+    async def fake_load_row(_session, _file_id):  # noqa: ANN001
+        return row
+
+    async def fake_context(_session, _row):  # noqa: ANN001
+        return CTX, "eng"
+
+    async def fake_router(_session):  # noqa: ANN001
+        return object()
 
     monkeypatch.setattr(tasks, "_load_row", fake_load_row)
     monkeypatch.setattr(tasks, "_film_context", fake_context)
-    monkeypatch.setattr(extract, "load_candidate_events", pending)
+    monkeypatch.setattr(llm_config, "acquire_llm_router", fake_router)
 
-    pv = await tasks.preview(None, 7, "chs", wait=False)  # type: ignore[arg-type]
+    pv, initial = await tasks._prepare_generation(None, 77, "chs")  # type: ignore[arg-type]
 
-    assert pv.pending is not None
-    assert pv.pending.candidate_key == "embedded:0"
-    assert pv.blocker is None, "pending 期间不能给出「做不了」的结论"
-    assert pv.chosen is None and pv.event_count == 0
-    # 输出文件名与「已生成过」这类不依赖抽取的信息仍要照常给出
-    assert pv.output_filename
+    assert pv.reference_notice is not None
+    assert pv.selected_source_key == "embedded:0"
+    assert "读取内封字幕" in initial.message
+
+
+async def test_preview_explains_why_the_reference_could_not_be_read(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """读取失败时直接告诉用户原因（如超时），而不是一句笼统的「参考字幕不完整」。"""
+    from movieclaw_api.services import media_extract
+
+    video = tmp_path / "Movie.mkv"
+    video.write_bytes(b"fake")
+    row = _embedded_file(video)
+    monkeypatch.setattr(media_extract, "cache_dir", lambda: tmp_path / "cache")
+    spec = media_extract._extraction_spec(row, 0)
+    assert spec is not None
+    media_extract._remember_failure(spec, 0, "读取超时：13 分钟内没读完整个视频")
+
+    async def fake_load_row(_session, _file_id):  # noqa: ANN001
+        return row
+
+    async def fake_context(_session, _row):  # noqa: ANN001
+        return CTX, "eng"
+
+    monkeypatch.setattr(tasks, "_load_row", fake_load_row)
+    monkeypatch.setattr(tasks, "_film_context", fake_context)
+    try:
+        pv = await tasks.preview(None, 77, "chs")  # type: ignore[arg-type]
+    finally:
+        media_extract._FAILED_EXTRACTIONS.clear()
+        media_extract._FAILURE_REASONS.clear()
+
+    assert pv.reference_notice is None, "失败过就是结论，不是「还没读」"
+    assert pv.blocker is not None and pv.blocker.code == "unusable_text"
+    assert "读取超时" in pv.blocker.message
+    assert "重启 MovieClaw" in pv.blocker.message
+
+
+async def test_reading_phase_reports_queue_and_position(monkeypatch) -> None:
+    """读取几分钟的大文件，任务要说清楚在排队还是读到了哪，而不是一直转圈。"""
+    from movieclaw_api.services import media_extract
+
+    row = _file([{"codec": "subrip", "language": "eng"}], [])
+    row.duration_seconds = 7200
+    snapshots = iter(
+        [
+            media_extract.ReadProgress(queued=True),
+            media_extract.ReadProgress(queued=False, position_seconds=3600.0),
+        ]
+    )
+    latest = media_extract.ReadProgress(queued=False, position_seconds=3600.0)
+    monkeypatch.setattr(media_extract, "read_progress", lambda _file: next(snapshots, latest))
+    monkeypatch.setattr(tasks, "_READ_PROGRESS_INTERVAL", 0.01)
+    state = tasks.GenState()
+    seen: list[dict[str, object]] = []
+
+    async def slow_read() -> str:
+        for _ in range(20):
+            seen.append(tasks._job_progress(state))
+            await asyncio.sleep(0.01)
+        return "done"
+
+    assert await tasks._reading(state, row, slow_read()) == "done"
+
+    assert any("排队等待读取" in snap["message"] for snap in seen)
+    reading = [snap for snap in seen if snap["percent"] is not None]
+    assert reading, "读取阶段应给出确定进度"
+    assert reading[-1]["percent"] == 50.0
+    assert reading[-1]["phase"] == "extracting"
+    assert "已读到 01:00:00 / 02:00:00" in reading[-1]["message"]
+    assert reading[-1]["details"]["extract_duration_seconds"] == 7200
+    # 读完回到准备阶段，不把读取进度条带进后面的阶段
+    assert state.phase == "preparing" and tasks._job_progress(state)["percent"] is None
+
+
+class _StopContext:
+    """第一次查询后就报告「用户点了停止」的任务上下文。"""
+
+    def __init__(self) -> None:
+        self.checks = 0
+
+    async def update_progress(self, **_kwargs):  # noqa: ANN003
+        return None
+
+    async def cancel_requested(self) -> bool:
+        self.checks += 1
+        return self.checks > 1
+
+
+async def test_stop_takes_effect_at_once_while_reading(monkeypatch) -> None:
+    """读取 / 识别 / 同步检查只在等外部进程：点停止要秒级生效并结束子进程。
+
+    此前取消只设一个标志，要等 ffmpeg 或 seconv 自己跑完（识别最长一小时），
+    任务一直停在「正在停止」。
+    """
+    from movieclaw_api.services import jobs
+
+    interrupted = asyncio.Event()
+
+    async def reading_forever(_file_id, _target, state, **_kwargs):  # noqa: ANN001, ANN003
+        state.phase = "extracting"
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            interrupted.set()  # 真实实现里 ffmpeg 进程组在这里被结束
+            raise
+
+    monkeypatch.setattr(tasks, "_run", reading_forever)
+    with pytest.raises(jobs.JobCancelled):
+        await asyncio.wait_for(
+            tasks._run_generation_job(_StopContext(), {"file_id": 101}), timeout=5
+        )
+    assert interrupted.is_set()
+
+
+async def test_stop_while_translating_stays_cooperative(monkeypatch) -> None:
+    """翻译阶段不强行取消：让在途、已付费的块先写进断点，再按停止收尾。"""
+    from movieclaw_api.services import jobs
+
+    hard_cancelled = False
+
+    async def translating(_file_id, _target, state, *, cancelled, **_kwargs):  # noqa: ANN001, ANN003
+        nonlocal hard_cancelled
+        state.phase = "translating"
+        try:
+            while not cancelled():
+                await asyncio.sleep(0.01)
+        except asyncio.CancelledError:
+            hard_cancelled = True
+            raise
+        raise translate.TranslationAborted("任务被用户取消（已完成块已暂存，可续传）")
+
+    monkeypatch.setattr(tasks, "_run", translating)
+    with pytest.raises(jobs.JobCancelled):
+        await asyncio.wait_for(
+            tasks._run_generation_job(_StopContext(), {"file_id": 101}), timeout=5
+        )
+    assert not hard_cancelled
 
 
 async def test_subtitle_job_handler_allows_different_files_to_run_concurrently(
@@ -1271,6 +1466,44 @@ async def test_subtitle_job_handler_maps_model_configuration_error_to_blocked(
     with pytest.raises(jobs.JobBlocked, match="尚未配置模型供应商") as captured:
         await tasks._run_generation_job(Context(), {"file_id": 101})
     assert captured.value.code == "SUBTITLE_MODEL_UNAVAILABLE"
+
+
+@pytest.mark.parametrize(
+    ("error_name", "outcome_name", "code"),
+    [
+        ("LlmServerError", "JobRetry", "SUBTITLE_MODEL_TEMPORARILY_UNAVAILABLE"),
+        ("LlmConnectError", "JobRetry", "SUBTITLE_MODEL_TEMPORARILY_UNAVAILABLE"),
+        ("LlmAuthError", "JobBlocked", "SUBTITLE_MODEL_AUTH_FAILED"),
+        ("LlmRequestError", "JobFailed", "SUBTITLE_MODEL_REQUEST_FAILED"),
+    ],
+)
+async def test_model_errors_become_clear_job_outcomes(
+    monkeypatch, error_name: str, outcome_name: str, code: str
+) -> None:
+    """模型服务出错时说清是模型服务的问题：暂时故障稍后自动重试（断点续传），
+    Key 失效停下等用户修，请求被拒直接说明原因——不再落成「发生未知错误」。"""
+    import movieclaw_llm
+    from movieclaw_api.services import jobs
+
+    error = getattr(movieclaw_llm, error_name)("模型服务返回了一个错误（HTTP 503）")
+    outcome = getattr(jobs, outcome_name)
+
+    class Context:
+        async def update_progress(self, **_kwargs):  # noqa: ANN003
+            return None
+
+        async def cancel_requested(self) -> bool:
+            return False
+
+    async def failing(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        raise error
+
+    monkeypatch.setattr(tasks, "_run", failing)
+    with pytest.raises(outcome) as caught:
+        await tasks._run_generation_job(Context(), {"file_id": 101})
+    assert type(caught.value) is outcome
+    assert caught.value.code == code
+    assert "HTTP 503" in caught.value.message
 
 
 async def test_subtitle_job_handler_leaves_unknown_error_to_dispatcher(monkeypatch) -> None:

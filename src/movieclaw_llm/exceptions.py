@@ -43,6 +43,16 @@ class LlmConnectError(LlmError):
     retryable = True
 
 
+class LlmServerError(LlmError):
+    """模型服务端故障（HTTP 5xx）：供应商自身出错或过载，稍后重试通常能恢复。
+
+    此前 5xx 与 400 一起归成 ``LlmRequestError``（不可重试），上层只能把一次
+    供应商抖动当成未知错误处理，用户也看不出是模型服务的问题。
+    """
+
+    retryable = True
+
+
 class LlmRequestError(LlmError):
     """请求参数错误（400）：如模型不存在、上下文超长，重试无意义。"""
 

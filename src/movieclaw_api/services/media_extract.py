@@ -30,6 +30,9 @@ pysubs2 从 ASS 里取（``plaintext``），不需要为它再抽一份 SRT。
    等待者离开才真的取消，避免播放器与预检互相误杀。
 6. **不留残片**：先写临时文件再原子替换，失败/超时/取消都不会把半成品留成
    下一次的「缓存命中」。
+7. **看得见进度**：ffmpeg 用 ``-progress`` 把已处理到的时间点写进一个小文件，
+   AI 字幕任务据此显示「排队中 / 已读到 01:12:33」，失败时带上原因。大文件
+   在 NAS 上要读几分钟，用户得知道它在动、为什么慢。
 """
 
 from __future__ import annotations
@@ -118,6 +121,28 @@ _BACKGROUND_TASKS: dict[_JobKey, asyncio.Task[None]] = {}
 # 不记就会每隔两三秒催起一个新的 ffmpeg 去读同一个坏轨，一条读不出来的轨
 # 足以把 CPU 吃满。只有视频本体变了（洗版、重新压制）才值得再试一次。
 _FAILED_EXTRACTIONS: dict[_JobKey, int] = {}
+# 失败原因（超时 / ffmpeg 报错 / 启动失败）：任务失败时直接告诉用户，而不是
+# 一句「具体原因见服务端日志」。随失败结论一起失效。
+_FAILURE_REASONS: dict[_JobKey, str] = {}
+
+
+@dataclass(frozen=True)
+class ReadProgress:
+    """整文件通读的实时状态：还在排队等闸门，或已经读到片中的哪个时间点。"""
+
+    queued: bool
+    position_seconds: float | None = None
+
+
+@dataclass
+class _ReadState:
+    queued: bool = True
+    progress_path: Path | None = None
+
+
+# 正在通读（或排队等闸门）的视频 → 实时状态。进度只读 ffmpeg 写的进度文件
+# 末尾，不碰子进程管道，``communicate()`` 的收尾与取消逻辑保持原样。
+_READ_STATES: dict[str, _ReadState] = {}
 
 
 def cache_dir() -> Path:
@@ -198,11 +223,13 @@ def _read_gate() -> asyncio.Semaphore:
     return _READ_GATE[1]
 
 
-def _remember_failure(spec: _ExtractionSpec, index: int) -> None:
-    """记下这条轨在当前视频版本上抽不出来；视频换了（mtime 变）自然作废。"""
+def _remember_failure(spec: _ExtractionSpec, index: int, reason: str) -> None:
+    """记下这条轨在当前视频版本上抽不出来及原因；视频换了（mtime 变）自然作废。"""
     stamp = _video_stamp(spec)
     if stamp is not None:
-        _FAILED_EXTRACTIONS[_job_key(spec, index)] = stamp
+        key = _job_key(spec, index)
+        _FAILED_EXTRACTIONS[key] = stamp
+        _FAILURE_REASONS[key] = reason
 
 
 def _is_fresh(out_path: Path, video: Path) -> bool:
@@ -239,6 +266,50 @@ def cached_track(file: LibraryFile, index: int) -> ExtractedTrack | None:
     return _cached_track(spec)
 
 
+def needs_extraction(file: LibraryFile, index: int) -> bool:
+    """这条轨要拿到内容，是否还得通读一遍视频（能抽、没缓存、也没失败过）。
+
+    AI 字幕预检据此决定「现在就能给结论」还是「交给任务第一步去读」。
+    """
+    spec = _extraction_spec(file, index)
+    return spec is not None and _cached_track(spec) is None and not _known_failed(spec, index)
+
+
+def read_progress(file: LibraryFile) -> ReadProgress | None:
+    """这个视频当前的整文件通读进度；既没在读也没在排队时返回 None。"""
+    state = _READ_STATES.get(str(Path(file.file_path)))
+    if state is None:
+        return None
+    if state.queued:
+        return ReadProgress(queued=True)
+    path = state.progress_path
+    return ReadProgress(queued=False, position_seconds=_last_position(path) if path else None)
+
+
+def _last_position(path: Path) -> float | None:
+    """进度文件末尾最后一个有效的 ``out_time_us``（秒）；刚起步时 ffmpeg 写的是 N/A。"""
+    try:
+        with path.open("rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            fh.seek(max(0, fh.tell() - 4096))
+            tail = fh.read().decode("ascii", errors="replace")
+    except OSError:
+        return None
+    for line in reversed(tail.splitlines()):
+        key, _, value = line.partition("=")
+        if key == "out_time_us" and value.strip().isdigit():
+            return int(value) / 1_000_000
+    return None
+
+
+def failure_reason(file: LibraryFile, index: int) -> str | None:
+    """这条轨上次抽取失败的原因（视频没换才有效）；没失败过返回 None。"""
+    spec = _extraction_spec(file, index)
+    if spec is None or not _known_failed(spec, index):
+        return None
+    return _FAILURE_REASONS.get(_job_key(spec, index))
+
+
 def _can_extract(spec: _ExtractionSpec) -> bool:
     if shutil.which("ffmpeg") is None:
         logger.warning(
@@ -271,9 +342,19 @@ def _extract_command(spec: _ExtractionSpec, index: int, tmp_path: Path) -> list[
     ]
 
 
-def _batch_command(video: Path, outputs: list[tuple[int, _ExtractionSpec, Path]]) -> list[str]:
-    """一次读入、多路输出：每条轨一组 ``-map … 输出文件``，ffmpeg 只通读一遍。"""
-    argv = ["ffmpeg", "-nostdin", "-v", "error", "-y", "-i", str(video)]
+def _batch_command(
+    video: Path, outputs: list[tuple[int, _ExtractionSpec, Path]], progress_path: Path
+) -> list[str]:
+    """一次读入、多路输出：每条轨一组 ``-map … 输出文件``，ffmpeg 只通读一遍。
+
+    ``-progress`` 让 ffmpeg 每半秒把已处理到的时间点追加进一个小文件，任务读它
+    的末尾展示进度（见 ``read_progress``）。
+    """
+    argv = [
+        "ffmpeg", "-nostdin", "-v", "error", "-y",
+        "-progress", str(progress_path), "-nostats",
+        "-i", str(video),
+    ]
     for index, spec, tmp_path in outputs:
         argv += ["-map", f"0:s:{index}", *_codec_args(spec), str(tmp_path)]
     return argv
@@ -422,6 +503,7 @@ def _known_failed(spec: _ExtractionSpec, index: int) -> bool:
     current = _video_stamp(spec)
     if current is not None and current != stamp:
         _FAILED_EXTRACTIONS.pop(key, None)
+        _FAILURE_REASONS.pop(key, None)
         return False
     return True
 
@@ -472,8 +554,10 @@ def schedule_extraction(file: LibraryFile, index: int) -> bool:
             stamp = _video_stamp(spec)
             if stamp is not None:
                 _FAILED_EXTRACTIONS[key] = stamp
+                _FAILURE_REASONS.setdefault(key, "读取过程中出错（详见服务端日志）")
         else:
             _FAILED_EXTRACTIONS.pop(key, None)
+            _FAILURE_REASONS.pop(key, None)
 
     task = loop.create_task(_run(), name=f"subtitle-extract-{spec.out_path.name}")
     _BACKGROUND_TASKS[key] = task
@@ -520,22 +604,30 @@ async def _terminate_async_process(
 
 async def _extract_batch(batch: list[tuple[int, _ExtractionSpec]]) -> None:
     """排队过全局闸门，一趟 ffmpeg 抽出这个文件所有还缺缓存的轨。"""
-    async with _read_gate():
-        # 排队期间可能已有别人抽完，也可能刚被判了失败：到手再筛一遍。
-        pending = [
-            (index, spec)
-            for index, spec in batch
-            if _cached_track(spec) is None and not _known_failed(spec, index)
-        ]
-        if not pending or not _can_extract(pending[0][1]):
-            return
-        if await _run_extraction(pending) or len(pending) == 1:
-            return
-        # 多轨一趟失败，多半是某一条坏轨连累了整趟：退回逐轨抽，好轨照常出
-        # 产物、坏轨单独记失败。多读几遍，但只发生在罕见的坏片上。
-        logger.warning("多轨一次抽取失败，改为逐轨重试：%s", pending[0][1].video)
-        for item in pending:
-            await _run_extraction([item])
+    # 同一视频同一时刻只有一个批次（``_shared_extract`` 按视频单飞），状态按视频记
+    key = str(batch[0][1].video)
+    state = _READ_STATES[key] = _ReadState()
+    try:
+        async with _read_gate():
+            state.queued = False
+            # 排队期间可能已有别人抽完，也可能刚被判了失败：到手再筛一遍。
+            pending = [
+                (index, spec)
+                for index, spec in batch
+                if _cached_track(spec) is None and not _known_failed(spec, index)
+            ]
+            if not pending or not _can_extract(pending[0][1]):
+                return
+            if await _run_extraction(pending) or len(pending) == 1:
+                return
+            # 多轨一趟失败，多半是某一条坏轨连累了整趟：退回逐轨抽，好轨照常出
+            # 产物、坏轨单独记失败。多读几遍，但只发生在罕见的坏片上。
+            logger.warning("多轨一次抽取失败，改为逐轨重试：%s", pending[0][1].video)
+            for item in pending:
+                await _run_extraction([item])
+    finally:
+        if _READ_STATES.get(key) is state:
+            _READ_STATES.pop(key, None)
 
 
 async def _run_extraction(pending: list[tuple[int, _ExtractionSpec]]) -> bool:
@@ -545,26 +637,55 @@ async def _run_extraction(pending: list[tuple[int, _ExtractionSpec]]) -> bool:
     调用方逐轨重试）；其余结局（成功、超时、单轨失败）都已就地记账。
     """
     video = pending[0][1].video
+    state = _READ_STATES.get(str(video))
+    progress_path = _new_progress_path()
+    if state is not None:
+        state.progress_path = progress_path
+    try:
+        return await _run_ffmpeg(pending, progress_path)
+    finally:
+        if state is not None:
+            state.progress_path = None
+        _cleanup(progress_path)
+
+
+def _new_progress_path() -> Path:
+    directory = cache_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory / f".read-{uuid.uuid4().hex}.progress"
+
+
+def _ffmpeg_failure(returncode: int | None, stderr: bytes) -> str:
+    """把 ffmpeg 的结局收敛成一句给用户看的原因。"""
+    if returncode not in (0, None):
+        text = stderr.decode(errors="replace").strip().replace("\n", " ")[:200]
+        return f"ffmpeg 报错：{text}" if text else f"ffmpeg 异常退出（退出码 {returncode}）"
+    return "没有读出任何字幕内容，或写入缓存失败（详见服务端日志）"
+
+
+async def _run_ffmpeg(pending: list[tuple[int, _ExtractionSpec]], progress_path: Path) -> bool:
+    video = pending[0][1].video
     outputs = [(index, spec, _new_tmp_path(spec.out_path)) for index, spec in pending]
     timeout = _extract_timeout(video)
 
-    def _discard(*, remember: bool) -> None:
+    def _discard(reason: str | None) -> None:
+        # reason 为空 = 不记失败（取消、多轨整趟失败待逐轨重试）
         for index, spec, tmp_path in outputs:
             _cleanup(tmp_path)
-            if remember:
-                _remember_failure(spec, index)
+            if reason is not None:
+                _remember_failure(spec, index, reason)
 
     started_at = time.monotonic()
     try:
         proc = await asyncio.create_subprocess_exec(
-            *_batch_command(video, outputs),
+            *_batch_command(video, outputs, progress_path),
             stdin=subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             start_new_session=True,
         )
     except OSError as exc:
-        _discard(remember=True)
+        _discard(f"ffmpeg 无法启动：{exc}")
         logger.warning("内封字幕抽取进程启动失败：%s（%s）", video, exc)
         return True
 
@@ -573,13 +694,16 @@ async def _run_extraction(pending: list[tuple[int, _ExtractionSpec]]) -> bool:
         _, stderr = await asyncio.wait_for(asyncio.shield(communicate), timeout)
     except asyncio.CancelledError:
         await asyncio.shield(_terminate_async_process(proc, communicate))
-        _discard(remember=False)
+        _discard(None)
         logger.info("内封字幕抽取已取消：%s（%d 条轨）", video, len(outputs))
         raise
     except TimeoutError:
         await _terminate_async_process(proc, communicate)
         # 超时也要记住：不记的话每次打开播放器都会把这个文件再白读一遍。
-        _discard(remember=True)
+        _discard(
+            f"读取超时：{timeout / 60:.0f} 分钟内没读完整个视频（按每秒 20 MB 估算的上限），"
+            "存储读取太慢或文件损坏都会这样"
+        )
         logger.warning(
             "内封字幕抽取超时（%.0f 秒）：%s（%d 条轨），视频文件不变就不再重试",
             timeout, video, len(outputs),
@@ -587,12 +711,12 @@ async def _run_extraction(pending: list[tuple[int, _ExtractionSpec]]) -> bool:
         return True
 
     if proc.returncode != 0 and len(outputs) > 1:
-        _discard(remember=False)
+        _discard(None)
         return False
     for index, spec, tmp_path in outputs:
         _finish_extraction(spec, index, tmp_path, proc.returncode, stderr, started_at)
         if _cached_track(spec) is None:
-            _remember_failure(spec, index)
+            _remember_failure(spec, index, _ffmpeg_failure(proc.returncode, stderr))
     return True
 
 

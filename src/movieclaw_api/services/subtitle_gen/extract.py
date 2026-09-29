@@ -43,11 +43,11 @@ class SourceLoadError(Exception):
 
 
 class SourceExtractionPending(Exception):
-    """内封轨仍在抽取，本次还给不出结论——调用方稍后重试（issue #432）。
+    """内封轨还没有抽取产物，本次还给不出结论（issue #432）。
 
-    这**不是失败**：大文件通读是分钟级，预检把请求挂在那里等，iPhone Safari
-    约 60 秒就掐断连接、对话框显示浏览器原话 ``Load failed``，而服务端照跑到
-    底。改成抛这个信号、接口立刻回「正在读取」，前端轮询等它落缓存。
+    这**不是失败**：大文件通读是分钟级，把 HTTP 请求挂在那里等，iPhone 与网页
+    20 秒就超时，而服务端照跑到底。详情页的字幕内容预览收到它就回「正在读取」
+    并轮询；AI 字幕预检则干脆不读，把读取交给生成任务的第一步。
     """
 
     def __init__(self, message: str, *, candidate_key: str) -> None:
@@ -153,19 +153,39 @@ def parse_events(
     return events
 
 
+def needs_extraction(file: LibraryFile, candidate: SourceCandidate) -> bool:
+    """这条候选要拿到内容，是否还得先通读视频（内封轨且没有可复用的产物）。"""
+    if candidate.kind != "embedded":
+        return False
+    try:
+        index = int(candidate.key)
+    except ValueError:
+        return False
+    return media_extract.needs_extraction(file, index)
+
+
+def _failed_message(file: LibraryFile, index: int) -> str:
+    reason = media_extract.failure_reason(file, index) or "具体原因见服务端日志"
+    return (
+        f"内封字幕读取失败：{Path(file.file_path).name} 字幕轨 {index + 1}（{reason}）。"
+        "视频文件没变就不会自动重读，以免反复白读整片；替换文件或重启 MovieClaw 后可以再试"
+    )
+
+
 async def load_candidate_events(
     file: LibraryFile,
     candidate: SourceCandidate,
     *,
     preserve_linebreaks: bool = False,
     wait: bool = True,
+    schedule: bool = True,
 ) -> list[SubEvent]:
     """加载候选事件；预览保留换行，字幕生成继续使用单行文本。
 
-    ``wait=False``（预检/详情页预览用）时，内封轨没有现成产物就**不等**：
-    转后台抽取并抛 ``SourceExtractionPending``，由调用方回一个「正在读取」
-    让前端轮询。``wait=True``（发起生成、任务执行）仍然等到底——CLI 与后台
-    任务没有浏览器的 60 秒上限，等一次比让用户自己重试合理。
+    ``wait=False`` 时内封轨没有现成产物就**不等**，抛 ``SourceExtractionPending``：
+    ``schedule=True``（详情页字幕内容预览）顺手转后台抽取，前端轮询等它落缓存；
+    ``schedule=False``（AI 字幕预检）连后台抽取也不起，读取留给生成任务第一步。
+    ``wait=True``（生成任务执行）等到底，任务在后台，没有浏览器超时。
     """
     if candidate.kind == "external":
         path = Path(file.file_path).parent / candidate.key
@@ -189,17 +209,20 @@ async def load_candidate_events(
         # 轮询路径：上次已经失败过就直接报错。不拦的话，前端每隔两三秒就会
         # 催起一个新的 ffmpeg 去读同一条读不出来的轨。
         if media_extract.extraction_failed(file, index):
-            raise SourceLoadError(
-                f"内封字幕抽取失败：{file.file_path} 轨 {index}（具体原因见服务端日志）"
-            )
-        if media_extract.schedule_extraction(file, index):
+            raise SourceLoadError(_failed_message(file, index))
+        pending = (
+            media_extract.schedule_extraction(file, index)
+            if schedule
+            else media_extract.needs_extraction(file, index)
+        )
+        if pending:
             raise SourceExtractionPending(
                 "正在读取内封字幕，大文件可能需要一两分钟",
                 candidate_key=f"{candidate.kind}:{candidate.key}",
             )
     if track is None:
-        # 走到这里：要么 wait=True（发起生成/后台任务，等到底），要么这条轨
-        # 压根没法调度（不支持的编码、没有事件循环）——都按原行为就地抽取。
+        # 走到这里：要么 wait=True（生成任务执行，等到底），要么这条轨不用再读
+        # （不支持的编码、刚好读完、刚判了失败）——就地拿结论，不会通读视频。
         track = await media_extract.extract_track_async(file, index)
     if track is None:
         if not ffmpeg_available():
@@ -207,9 +230,7 @@ async def load_candidate_events(
                 "系统中未找到 ffmpeg，无法抽取内封字幕轨——请安装 ffmpeg，"
                 "或为该影片放置外挂字幕后重试（官方 Docker 镜像已内置 ffmpeg）"
             )
-        raise SourceLoadError(
-            f"内封字幕抽取失败：{file.file_path} 轨 {index}（具体原因见服务端日志）"
-        )
+        raise SourceLoadError(_failed_message(file, index))
     if track.format not in media_extract.TEXT_FORMATS:
         raise SourceLoadError(
             f"内封轨 {index} 是图形字幕（{track.format}），不能直接当作参考文本"

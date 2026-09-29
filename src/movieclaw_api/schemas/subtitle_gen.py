@@ -29,10 +29,10 @@ class GenPreviewBlockerView(BaseModel):
 
 
 class GenPreviewPendingView(BaseModel):
-    """预检还没有结论：内封轨正在后台抽取，稍后重试同一个接口即可。
+    """旧版服务端的「预检还没有结论，稍后重试」信号。
 
-    与 ``blocker`` 互斥语义：blocker 说「这份片源做不了」，pending 说
-    「再等一会儿」。前端据此显示进度文案并轮询，而不是把用户挡在错误里。
+    新版预检不再读视频，永远当场给结论，这个字段恒为 null；保留它是为了让
+    新版 App 连到旧版服务端时，仍能识别旧服务端返回的 pending 并照旧轮询。
     """
 
     message: str = Field(description="面向用户的等待文案")
@@ -79,8 +79,17 @@ class GenPreviewView(BaseModel):
     pgs_conversion: PgsConversionView | None = None
     blocker: GenPreviewBlockerView | None = None
     output_filename: str | None = None
-    #: 非空 = 本次还没有结论，内封轨正在后台抽取，前端轮询等它落缓存。
+    #: 恒为 null（新版预检不读视频）；只为新 App 兼容旧服务端的轮询协议保留。
     pending: GenPreviewPendingView | None = None
+    # 可为 null 才能兼容：iOS 模型由生成器按「非 null 即必有」生成，旧服务端
+    # 不返回这个字段时新 App 也要能解码。
+    reference_notice: str | None = Field(
+        default=None,
+        description=(
+            "非空 = 参考字幕还没读取过（内封轨首次使用），确认后由任务先读取；"
+            "此时 event_count 为 0，estimated_tokens 按片长粗估"
+        ),
+    )
 
 
 class GenStartPayload(BaseModel):

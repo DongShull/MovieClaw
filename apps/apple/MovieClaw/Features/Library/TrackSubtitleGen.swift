@@ -247,7 +247,8 @@ private final class TrackGenModel {
                     )
                     guard let self, !Task.isCancelled else { return }
                     if let pending = result.pending {
-                        // 内封轨还在后台抽取：保持「正在检查」并按后端给的间隔重拉。
+                        // 只有旧版服务端会回 pending（新版预检不读视频，没读过的内封轨
+                        // 带 referenceNotice 当场给结论）：保持「正在检查」并按间隔重拉。
                         // 这里**不能**写入 preview——那份快照里 chosen/blocker 都是空的，
                         // 渲染出来就成了「这份片源没有参考字幕」，与事实相反。
                         self.pendingNotice = pending.message
@@ -476,6 +477,8 @@ private struct TrackGenProgress {
     var modelRequests: Int
     var modelTokens: Int
     var usesOcr: Bool
+    /// 读取阶段还在排队等别的文件读完（同一时间只通读一个视频）
+    var extractQueued: Bool
     var targetLanguage: String?
     var secondaryLanguage: String?
     var sourceCandidateKey: String?
@@ -514,6 +517,7 @@ private struct TrackGenProgress {
         modelRequests = number(job.usage, "request_count")
         modelTokens = number(job.usage, "total_tokens")
         usesOcr = details["uses_ocr"]?.boolValue == true
+        extractQueued = details["extract_queued"]?.boolValue == true
         targetLanguage = string("target_language")
         secondaryLanguage = string("secondary_language")
         sourceCandidateKey = string("source_candidate_key")
@@ -541,7 +545,7 @@ private enum TrackGenText {
     ]
 
     static let stages: [(phases: [String], label: String)] = [
-        (["preparing", "ocr", "syncing"], "准备并检查字幕"),
+        (["preparing", "extracting", "ocr", "syncing"], "准备并检查字幕"),
         (["glossary"], "统一人名与术语"),
         (["translating"], "翻译对白"),
         (["validating", "compressing"], "检查字幕质量"),
@@ -612,6 +616,16 @@ private enum TrackGenText {
         return tokens < 10_000 ? "约 \(String(format: "%.1f", k))k token" : "约 \(Int(k.rounded()))k token"
     }
 
+    /// 确认区的成本行：读过的字幕按实际对白估算；内封轨还没读过时按片长粗估（同 Web）
+    static func costLine(_ preview: API.GenPreviewView) -> String {
+        if preview.referenceNotice != nil {
+            return preview.estimatedTokens > 0
+                ? "按片长粗估\(tokenEstimate(preview.estimatedTokens))"
+                : "读取字幕后按实际对白估算"
+        }
+        return "\(grouped(preview.eventCount)) 条对白 · \(tokenEstimate(preview.estimatedTokens))"
+    }
+
     static func elapsed(_ seconds: Int) -> String {
         let safe = max(0, seconds)
         if safe < 60 { return "\(safe) 秒" }
@@ -637,6 +651,11 @@ private enum TrackGenText {
         if progress?.phase == "translating" {
             if let percent = progress?.percentValue { return "AI \(percent)%" }
             return "翻译中"
+        }
+        if let progress, progress.phase == "extracting" {
+            if progress.extractQueued { return "排队读取" }
+            if let percent = progress.percentValue { return "读取 \(percent)%" }
+            return "读取字幕"
         }
         return phaseLabels[progress?.phase ?? "preparing"] ?? "生成中"
     }
@@ -954,12 +973,18 @@ private struct TrackGenSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(Text(TrackGenText.candidateLabel(chosen)).foregroundStyle(Theme.text))\(Text("  →  ").foregroundStyle(Theme.textFaint))\(Text(model.currentOutputLabel).foregroundStyle(Theme.info))")
                     .font(.subheadline.weight(.semibold))
-                Text("\(TrackGenText.grouped(preview.eventCount)) 条对白 · \(TrackGenText.tokenEstimate(preview.estimatedTokens))")
+                Text(TrackGenText.costLine(preview))
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(Theme.textMuted)
             }
         } footer: {
             Text("生成同目录 \(preview.outputFilename ?? "规范命名的 AI 字幕文件")，原字幕不变；离开页面不影响生成。")
+        }
+        // 内封字幕首次使用：说清楚任务第一步要通读整个视频、可能要几分钟、这一步不花钱
+        if let notice = preview.referenceNotice {
+            Section {
+                SubsNoticeRow(text: notice, tone: .info)
+            }
         }
         if preview.alreadyGenerated {
             Section {
@@ -1120,8 +1145,9 @@ private struct TrackGenProgressView: View {
 nonisolated extension APIClient {
     /// 生成预检（`GET /libraries/files/{id}/subtitles/generation-preview`）。
     ///
-    /// 与生成函数同参，但带 20 秒超时（同 Web `PREVIEW_TIMEOUT_MS`）：后端保证不在请求里
-    /// 等 ffmpeg 通读大文件（没抽好就回 pending），超过 20 秒就是真的不对劲。
+    /// 与生成函数同参，但带 20 秒超时（同 Web `PREVIEW_TIMEOUT_MS`）：后端保证预检只读数据库
+    /// 与现成产物、不读视频（没读过的内封轨交给任务第一步；旧版服务端则回 pending），
+    /// 超过 20 秒就是真的不对劲。
     fileprivate func trackRowsGenerationPreview(
         fileId: Int, targetLanguage: String, secondaryLanguage: String?, sourceCandidateKey: String?
     ) async throws -> API.GenPreviewView {

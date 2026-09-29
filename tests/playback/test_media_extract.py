@@ -493,3 +493,140 @@ def test_signalling_never_reaches_pid_one(monkeypatch) -> None:
         media_extract._signal_process_group(pid, media_extract.signal.SIGTERM)
     media_extract._signal_process_group(4321, media_extract.signal.SIGTERM)
     assert sent == [4321]
+
+
+# ---------------------------------------------------------------------------
+# 读取进度与失败原因：AI 字幕任务据此告诉用户「排队中 / 读到哪 / 为什么失败」
+# ---------------------------------------------------------------------------
+
+
+def test_last_position_skips_placeholders(tmp_path: Path) -> None:
+    progress = tmp_path / "read.progress"
+    progress.write_text(
+        "out_time_us=N/A\nprogress=continue\n"
+        "out_time_us=1500000\nprogress=continue\n"
+        "out_time_us=N/A\nprogress=continue\n",
+        encoding="ascii",
+    )
+    assert media_extract._last_position(progress) == 1.5
+    assert media_extract._last_position(tmp_path / "missing.progress") is None
+
+
+def test_needs_extraction_only_when_there_is_something_to_read(video: Path) -> None:
+    file = make_file(video)
+    assert media_extract.needs_extraction(file, 0) is True
+    _fresh_product(video, video.parent / "cache", "7.s0.srt")
+    assert media_extract.needs_extraction(file, 0) is False  # 有缓存
+    assert media_extract.needs_extraction(make_file(video, codec="dvd_subtitle"), 0) is False
+
+
+@pytest.mark.asyncio
+async def test_read_progress_follows_the_queue_then_the_position(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """排在别的文件后面时报「排队中」，轮到了报 ffmpeg 已处理到的时间点。"""
+    monkeypatch.setattr(media_extract, "cache_dir", lambda: tmp_path / "cache")
+    releases: dict[str, asyncio.Event] = {}
+
+    class BlockingProcess(_DoneProcess):
+        def __init__(self, key: str) -> None:
+            super().__init__()
+            self.key = key
+
+        async def communicate(self):
+            await releases[self.key].wait()
+            return await super().communicate()
+
+    async def fake_exec(*argv, **_kwargs):
+        # 真 ffmpeg 会周期性往 -progress 文件里追加 out_time_us
+        progress = Path(argv[list(argv).index("-progress") + 1])
+        progress.write_text("out_time_us=1800000000\nprogress=continue\n", encoding="ascii")
+        for out in _outputs(argv):
+            Path(out).write_text(_SRT, encoding="utf-8")
+        key = argv[list(argv).index("-i") + 1]
+        releases.setdefault(key, asyncio.Event())
+        return BlockingProcess(key)
+
+    monkeypatch.setattr(media_extract.shutil, "which", lambda _n: "/fake/ffmpeg")
+    monkeypatch.setattr(media_extract.asyncio, "create_subprocess_exec", fake_exec)
+
+    first, second = tmp_path / "a.mkv", tmp_path / "b.mkv"
+    for path in (first, second):
+        path.write_bytes(b"source")
+    file_a = make_multi_file(first, ["subrip"], file_id=201)
+    file_b = make_multi_file(second, ["subrip"], file_id=202)
+
+    task_a = asyncio.create_task(media_extract.extract_track_async(file_a, 0))
+    for _ in range(200):
+        progress_a = media_extract.read_progress(file_a)
+        if progress_a is not None and progress_a.position_seconds is not None:
+            break
+        await asyncio.sleep(0.01)
+    task_b = asyncio.create_task(media_extract.extract_track_async(file_b, 0))
+    await asyncio.sleep(0.05)
+
+    assert media_extract.read_progress(file_a) == media_extract.ReadProgress(
+        queued=False, position_seconds=1800.0
+    )
+    assert media_extract.read_progress(file_b) == media_extract.ReadProgress(queued=True)
+
+    releases[str(first)].set()
+    assert await task_a is not None
+    for _ in range(200):
+        if str(second) in releases:
+            break
+        await asyncio.sleep(0.01)
+    releases[str(second)].set()
+    assert await task_b is not None
+
+    assert media_extract.read_progress(file_a) is None
+    assert media_extract.read_progress(file_b) is None
+    assert not list((tmp_path / "cache").glob(".read-*.progress")), "进度文件没清掉"
+
+
+@pytest.mark.asyncio
+async def test_failure_reason_tells_timeout_from_ffmpeg_error(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """任务失败时直接告诉用户是读超时还是文件本身有问题，而不是「见服务端日志」。"""
+    monkeypatch.setattr(media_extract, "cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(media_extract.shutil, "which", lambda _n: "/fake/ffmpeg")
+
+    class HangingProcess(_DoneProcess):
+        async def communicate(self):
+            await asyncio.Event().wait()
+
+    slow = tmp_path / "slow.mkv"
+    slow.write_bytes(b"source")
+
+    async def hanging_exec(*_argv, **_kwargs):
+        return HangingProcess()
+
+    monkeypatch.setattr(media_extract.asyncio, "create_subprocess_exec", hanging_exec)
+    monkeypatch.setattr(media_extract, "_extract_timeout", lambda _v: 0.01)
+    monkeypatch.setattr(media_extract, "_signal_process_group", lambda _pid, _sig: None)
+    monkeypatch.setattr(media_extract, "_PROCESS_TERM_TIMEOUT", 0.01)
+    monkeypatch.setattr(media_extract, "_PROCESS_KILL_TIMEOUT", 0.01)
+    slow_file = make_multi_file(slow, ["subrip"], file_id=301)
+    assert await media_extract.extract_track_async(slow_file, 0) is None
+    assert "读取超时" in (media_extract.failure_reason(slow_file, 0) or "")
+
+    broken = tmp_path / "broken.mkv"
+    broken.write_bytes(b"source")
+
+    async def failing_exec(*_argv, **_kwargs):
+        return _DoneProcess(returncode=1)
+
+    monkeypatch.setattr(media_extract.asyncio, "create_subprocess_exec", failing_exec)
+    broken_file = make_multi_file(broken, ["subrip"], file_id=302)
+    assert await media_extract.extract_track_async(broken_file, 0) is None
+    assert media_extract.failure_reason(broken_file, 0) == "ffmpeg 报错：boom"
+    assert media_extract.needs_extraction(broken_file, 0) is False, "失败过就不再算「待读取」"
+
+    # 换了片子（mtime 变了）就忘掉旧结论与原因，值得再读一次
+    import os
+
+    stat = broken.stat()
+    os.utime(broken, ns=(stat.st_atime_ns, stat.st_mtime_ns + 10**9))
+    assert media_extract.failure_reason(broken_file, 0) is None
+    assert media_extract.needs_extraction(broken_file, 0) is True

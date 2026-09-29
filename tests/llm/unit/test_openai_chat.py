@@ -14,6 +14,8 @@ from movieclaw_llm import (
     LlmContentFilterError,
     LlmProviderConfig,
     LlmRateLimitError,
+    LlmRequestError,
+    LlmServerError,
     ModelSettings,
     TextPart,
     ThinkingPart,
@@ -378,6 +380,16 @@ def test_error_translation():
         http_error(openai.BadRequestError, 400, body={"code": "data_inspection_failed"})
     )
     assert isinstance(filtered, LlmContentFilterError)
+
+
+def test_server_errors_are_retryable_and_client_errors_are_not():
+    """5xx 是供应商自己暂时出错，值得稍后重试；4xx 是请求本身的问题，重试无意义。"""
+    p = make_protocol()
+    outage = p._translate_error(http_error(openai.InternalServerError, 503))
+    assert isinstance(outage, LlmServerError) and outage.retryable
+    assert "HTTP 503" in str(outage)
+    rejected = p._translate_error(http_error(openai.UnprocessableEntityError, 422))
+    assert isinstance(rejected, LlmRequestError) and not rejected.retryable
 
 
 def test_error_message_contains_provider_and_chinese_hint():

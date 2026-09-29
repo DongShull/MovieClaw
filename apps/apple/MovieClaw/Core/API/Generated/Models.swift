@@ -2850,9 +2850,9 @@ nonisolated extension API {
         }
     }
 
-    /// 预检还没有结论：内封轨正在后台抽取，稍后重试同一个接口即可。
-    /// 与 ``blocker`` 互斥语义：blocker 说「这份片源做不了」，pending 说
-    /// 「再等一会儿」。前端据此显示进度文案并轮询，而不是把用户挡在错误里。
+    /// 旧版服务端的「预检还没有结论，稍后重试」信号。
+    /// 新版预检不再读视频，永远当场给结论，这个字段恒为 null；保留它是为了让
+    /// 新版 App 连到旧版服务端时，仍能识别旧服务端返回的 pending 并照旧轮询。
     struct GenPreviewPendingView: Codable, Hashable, Sendable {
         /// 面向用户的等待文案
         var message: String
@@ -2881,6 +2881,8 @@ nonisolated extension API {
         var blocker: API.GenPreviewBlockerView?
         var outputFilename: String?
         var pending: API.GenPreviewPendingView?
+        /// 非空 = 参考字幕还没读取过（内封轨首次使用），确认后由任务先读取；此时 event_count 为 0，estimated_tokens 按片长粗估
+        var referenceNotice: String?
 
         enum CodingKeys: String, CodingKey {
             case candidates
@@ -2894,6 +2896,7 @@ nonisolated extension API {
             case blocker
             case outputFilename = "output_filename"
             case pending
+            case referenceNotice = "reference_notice"
         }
     }
 
@@ -3863,7 +3866,7 @@ nonisolated extension API {
         var audioStreams: [API.AudioStreamView]?
         /// 字幕列表：内封轨 + 外挂文件
         var subtitleStreams: [API.SubtitleStreamView]
-        /// 有效章节列表（内嵌或按时长合成）；null=尚未探测
+        /// 有效章节列表（内嵌或按时长合成）；null=所在库未开启「生成章节」或尚未探测
         var chapters: [API.ChapterView]?
         var addedAt: String
 
@@ -4152,7 +4155,7 @@ nonisolated extension API {
         var source: String?
         /// 缺图时是否从视频抓帧生成缩略图：本地来源内容的封面、剧集库里 TMDB 没有剧照的分集（网络挂载库抓帧等于全量下载，可关）；不传表示不改动，新建时默认开启
         var generateThumbnails: Bool?
-        /// 是否为视频章节抓取场景图（后台低优先级作业，每个文件按章节数 seek 若干次）；不传表示不改动，新建时默认开启
+        /// 是否生成并展示视频章节：场景图在后台低优先级作业里抓（每个文件按章节数 seek 若干次），详情页章节横排、图廊章节图与 Jellyfin 合成章节都随它开关；关闭时文件自带的内嵌章节仍供播放器跳章，已生成的图保留。从关改为开会立即在后台补齐库内已有视频的章节，从开改为关会停掉进行中的章节生成。不传表示不改动，新建时默认关闭
         var extractChapterImages: Bool?
         /// 是否从首页「最近添加」等汇总里排除该库；不传表示不改动，新建时默认关闭
         var excludeFromHome: Bool?
@@ -4332,7 +4335,7 @@ nonisolated extension API {
         var capabilities: API.LibraryCapabilitiesView
         /// 缺图时是否抓帧生成缩略图（本地内容封面、TMDB 无剧照的分集）
         var generateThumbnails: Bool
-        /// 是否为视频章节抓取场景图
+        /// 是否生成并展示视频章节（默认关，按库打开）
         var extractChapterImages: Bool
         /// 是否从首页汇总里排除
         var excludeFromHome: Bool

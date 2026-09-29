@@ -73,16 +73,10 @@ export interface SubtitleGenerationPreview {
   /** 规范化后的最终外挂字幕文件名。 */
   output_filename: string | null;
   /**
-   * 非空 = 这次还没有结论：内封轨正在后台抽取，按 retry_after_ms 重拉即可。
-   *
-   * 与 blocker 是两回事——blocker 说「这份片源做不了」，pending 说「再等
-   * 一会儿」。等待期间绝不能把 blocker 的文案显示出来。
+   * 非空 = 参考字幕还没读取过（内封轨首次使用）：确认后由任务第一步读取。
+   * 此时 event_count 为 0，estimated_tokens 按片长粗估。
    */
-  pending: {
-    message: string;
-    candidate_key: string;
-    retry_after_ms: number;
-  } | null;
+  reference_notice: string | null;
 }
 
 export interface CalibrateResult {
@@ -96,9 +90,9 @@ export interface CalibrateResult {
 /**
  * 生成预检：选源结果 + 成本估算（确认框素材，不动 LLM）。
  *
- * 后端保证这个接口**不会**在里面等 ffmpeg 通读大文件：内封轨没抽好就回
- * `pending`，抽取转后台（issue #432）。所以这里可以放心给一个短超时——
- * 超过它就是真的不对劲，而不是「文件大，再等等」。
+ * 后端保证这个接口只读数据库与现成产物，**不会**读视频：内封轨没读过就照常
+ * 选中、按片长粗估，读取交给生成任务第一步（issue #432 及其后续）。所以这里
+ * 可以放心给一个短超时——超过它就是真的不对劲，而不是「文件大，再等等」。
  */
 const PREVIEW_TIMEOUT_MS = 20_000;
 
@@ -121,7 +115,7 @@ export function previewSubtitleGeneration(
   );
 }
 
-/** 发起生成（后台执行；同文件已在跑时后端 400）。 */
+/** 发起生成（后台执行，不在请求里读视频；相同文件与输出语言已在跑时返回已有任务）。 */
 export function generateSubtitles(
   fileId: number,
   targetLanguage = "chs",

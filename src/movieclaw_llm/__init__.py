@@ -20,6 +20,7 @@ from movieclaw_llm.exceptions import (
     LlmRateLimitError,
     LlmRequestError,
     LlmRoutingError,
+    LlmServerError,
 )
 from movieclaw_llm.models import (
     ChatMessage,
@@ -59,6 +60,7 @@ __all__ = [
     "LlmRequestError",
     "LlmRouter",
     "LlmRoutingError",
+    "LlmServerError",
     "ModelInfo",
     "ModelSettings",
     "ProviderInfo",

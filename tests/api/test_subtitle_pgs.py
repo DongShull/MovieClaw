@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from dataclasses import replace
 from pathlib import Path
 
@@ -288,34 +287,90 @@ async def test_plan_revalidates_confirmed_track_and_language(monkeypatch) -> Non
     assert missing is None
 
 
-async def test_convert_pgs_uses_atomic_cache(tmp_path: Path, monkeypatch) -> None:
+async def test_pgs_reuses_shared_extraction_and_caches_ocr_atomically(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """.sup 走与播放器共用的整文件抽取（不再单独把整片再读一遍），OCR 结果
+    原子落缓存，临时目录不留残片，第二次直接命中缓存。"""
+    from movieclaw_api.services import media_extract
+    from movieclaw_api.services.subtitle_gen import process
+
     monkeypatch.chdir(tmp_path)
     video = tmp_path / "Movie.mkv"
     video.write_bytes(b"video")
     row = _file(video)
-    calls: list[list[str]] = []
+    sup = tmp_path / "shared" / "42.s0.sup"
+    sup.parent.mkdir()
+    sup.write_bytes(b"PG")
+    extracted: list[int] = []
+    runs: list[list[str]] = []
 
-    def fake_run(argv, **_kwargs):  # noqa: ANN001
-        calls.append(argv)
-        if argv[0] == "ffmpeg":
-            Path(argv[-1]).write_bytes(b"sup")
-            return subprocess.CompletedProcess(argv, 0, stdout=b"", stderr=b"")
+    async def shared_extract(_file, index):  # noqa: ANN001
+        extracted.append(index)
+        return media_extract.ExtractedTrack(path=sup, format="sup")
+
+    async def fake_seconv(argv, *, timeout):  # noqa: ANN001
+        runs.append(argv)
         output_folder = next(v.split(":", 1)[1] for v in argv if v.startswith("--output-folder:"))
         Path(output_folder, "converted.srt").write_text(
-            "1\n00:00:01,000 --> 00:00:02,000\nhello\n",
-            encoding="utf-8",
+            "1\n00:00:01,000 --> 00:00:02,000\nhello\n", encoding="utf-8"
         )
-        return subprocess.CompletedProcess(argv, 0, stdout="ok", stderr="")
+        return process.Completed(returncode=0, stdout=b"ok", stderr=b"")
 
-    monkeypatch.setattr(pgs.subprocess, "run", fake_run)
+    monkeypatch.setattr(media_extract, "extract_track_async", shared_extract)
+    monkeypatch.setattr(pgs.process, "run", fake_seconv)
 
-    result = await pgs.convert_embedded_pgs(row, _candidate(), _capability())
+    sup_path = await pgs.extract_sup(row, _candidate())
+    result = await pgs.ocr_to_srt(row, _candidate(), _capability(), "eng", sup_path)
 
-    assert result.is_file()
+    assert extracted == [0] and sup_path == sup
     assert "hello" in result.read_text(encoding="utf-8")
-    assert calls[0][0] == "ffmpeg"
-    assert "--ocr-engine:tesseract" in calls[1]
-    assert not list(result.parent.glob("*.part.sup"))
+    assert runs[0][1] == str(sup) and "--ocr-engine:tesseract" in runs[0]
+    assert not list(result.parent.glob("pgs-ocr-*")), "临时目录要清掉"
+
+    again = await pgs.ocr_to_srt(row, _candidate(), _capability(), "eng", sup_path)
+    assert again == result and len(runs) == 1, "缓存命中不该再跑 OCR"
+
+
+async def test_pgs_extraction_failure_carries_the_reason(tmp_path: Path, monkeypatch) -> None:
+    from movieclaw_api.services import media_extract
+
+    row = _file(tmp_path / "Movie.mkv")
+
+    async def failed(_file, _index):  # noqa: ANN001
+        return None
+
+    monkeypatch.setattr(media_extract, "extract_track_async", failed)
+    monkeypatch.setattr(media_extract, "failure_reason", lambda _f, _i: "读取超时：13 分钟")
+
+    with pytest.raises(pgs.PgsConversionError, match="读取超时：13 分钟"):
+        await pgs.extract_sup(row, _candidate())
+
+
+async def test_stopping_ocr_cleans_up_its_temp_dir(tmp_path: Path, monkeypatch) -> None:
+    """停止任务时 OCR 随之取消（进程组由 process.run 结束），临时目录也不留。"""
+    import asyncio
+
+    monkeypatch.chdir(tmp_path)
+    video = tmp_path / "Movie.mkv"
+    video.write_bytes(b"video")
+    row = _file(video)
+    started = asyncio.Event()
+
+    async def hanging_seconv(_argv, *, timeout):  # noqa: ANN001
+        started.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(pgs.process, "run", hanging_seconv)
+    task = asyncio.create_task(
+        pgs.ocr_to_srt(row, _candidate(), _capability(), "eng", tmp_path / "x.sup")
+    )
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    cache = pgs.cached_srt_path(row, _candidate(), "eng").parent
+    assert not list(cache.glob("pgs-ocr-*"))
 
 
 def test_preview_offers_confirmed_pgs_conversion() -> None:
@@ -469,3 +524,126 @@ async def test_generation_preflight_rejects_unconfirmed_ocr_language(monkeypatch
             "chs",
             convert_pgs=True,
         )  # type: ignore[arg-type]
+
+
+def _stub_bundled_environment(monkeypatch) -> dict[str, int]:
+    """模拟官方镜像：seconv 可用、Tesseract 装齐 11 种语言；返回各探针的调用次数。"""
+    calls = {"seconv": 0, "tesseract": 0}
+    monkeypatch.setattr(pgs.sys, "platform", "linux")
+    monkeypatch.setattr(pgs.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(
+        pgs.shutil,
+        "which",
+        lambda name: {"ffmpeg": "/usr/bin/ffmpeg", "tesseract": "/usr/bin/tesseract"}.get(name),
+    )
+    monkeypatch.setattr(pgs, "_resolve_seconv", lambda: "/opt/seconv")
+
+    def seconv_probe(*_args):  # noqa: ANN002
+        calls["seconv"] += 1
+        return True, "5.1.0"
+
+    def tesseract_probe(_path):  # noqa: ANN001
+        calls["tesseract"] += 1
+        return set(pgs._TESSERACT_LANGUAGES.values()), None
+
+    monkeypatch.setattr(pgs, "_run_probe", seconv_probe)
+    monkeypatch.setattr(pgs, "_tesseract_languages", tesseract_probe)
+    return calls
+
+
+def test_environment_is_probed_once_for_all_languages(monkeypatch) -> None:
+    """列出可选识别语言曾对 11 种语言逐个起 seconv + tesseract（24 个子进程）。
+
+    NAS 上 seconv 冷启动一两秒，一次预检就超过 iOS/网页的 20 秒超时。环境是
+    部署时定下的，整个进程只该探测一次。
+    """
+    calls = _stub_bundled_environment(monkeypatch)
+
+    pgs.detect_capability("chs")
+    options, representative = pgs.available_ocr_languages()
+    pgs.detect_capability("eng")
+
+    assert calls == {"seconv": 1, "tesseract": 1}
+    assert len(options) == len(pgs.OCR_LANGUAGE_LABELS)
+    assert representative is not None and representative.available
+
+
+def test_concurrent_first_detection_shares_one_probe(monkeypatch) -> None:
+    """预检、确认生成、后台任务可能同时撞上首次探测，只能起一批子进程。"""
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    calls = _stub_bundled_environment(monkeypatch)
+    lock = threading.Lock()
+
+    def slow_seconv(*_args):  # noqa: ANN002
+        with lock:
+            calls["seconv"] += 1
+        time.sleep(0.2)
+        return True, "5.1.0"
+
+    monkeypatch.setattr(pgs, "_run_probe", slow_seconv)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(pgs.detect_capability, ["eng", "chs", "jpn", "kor"]))
+
+    assert calls["seconv"] == 1
+    assert all(result.available for result in results)
+
+
+async def test_preview_of_ambiguous_pgs_spawns_no_probe(monkeypatch) -> None:
+    """环境预热之后，语言待确认的 PGS 预检不再现场起任何子进程。"""
+    calls = _stub_bundled_environment(monkeypatch)
+    pgs._environment()  # 相当于启动预热（conftest 已把 warm_capability 换成空操作）
+    row = LibraryFile(
+        id=42,
+        library_id=1,
+        media_item_id=1,
+        file_path="/media/Movie.mkv",
+        duration_seconds=6000,
+        subtitle_streams=[{"codec": "hdmv_pgs_subtitle", "language": "chi"}],
+        external_subtitles=[],
+        source="scanned",
+    )
+
+    async def fake_load_row(_session, _file_id):  # noqa: ANN001
+        return row
+
+    async def fake_context(_session, _row):  # noqa: ANN001
+        from movieclaw_api.services.subtitle_gen import translate
+
+        return translate.FilmContext(title="Movie", year=None, genres=[], overview=None), "zh"
+
+    monkeypatch.setattr(tasks, "_load_row", fake_load_row)
+    monkeypatch.setattr(tasks, "_film_context", fake_context)
+    before = dict(calls)
+
+    for _ in range(3):  # 拨双语开关、换语言、重新检查都会再发一次预检
+        pv = await tasks.preview(
+            None,  # type: ignore[arg-type]
+            42,
+            "chs",
+            secondary_language="eng",
+        )
+        assert pv.pgs_conversion is not None
+        assert pv.pgs_conversion.language.confirmation_required
+        assert len(pv.pgs_conversion.language_options) == len(pgs.OCR_LANGUAGE_LABELS)
+
+    assert calls == before, "预检不该再起 seconv/tesseract"
+
+
+def test_missing_component_tells_user_to_restart(monkeypatch) -> None:
+    """环境只在启动时检测：缺组件的提示要说清楚装好后重启才生效。"""
+    monkeypatch.setattr(pgs.sys, "platform", "linux")
+    monkeypatch.setattr(pgs.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(
+        pgs.shutil,
+        "which",
+        lambda name: "/usr/bin/ffmpeg" if name == "ffmpeg" else None,
+    )
+    monkeypatch.setattr(pgs, "_resolve_seconv", lambda: None)
+
+    result = pgs.detect_capability("eng")
+
+    assert any("重启" in item for item in result.suggestions)

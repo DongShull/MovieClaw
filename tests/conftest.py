@@ -286,3 +286,19 @@ def _offline_image_proxy(monkeypatch):
     monkeypatch.setattr(
         "movieclaw_api.services.image_proxy.get_image_proxy", lambda: _Offline()
     )
+
+
+@pytest.fixture(autouse=True)
+def _fresh_pgs_capability(monkeypatch):
+    """PGS 识别环境在进程内只探测一次（subtitle_gen/pgs.py 的 ``_Environment``）。
+
+    测试逐个打桩 seconv/Tesseract 的探测结果，缓存必须按用例清空，否则前一个
+    用例的环境会串进后一个。启动流程的后台预热也换成空操作：它在线程池里跑
+    真实探测，用例结束后才写回缓存的话，会覆盖下一个用例打的桩。
+    """
+    from movieclaw_api.services.subtitle_gen import pgs
+
+    pgs.reset_capability_cache()
+    monkeypatch.setattr(pgs, "warm_capability", lambda: None)
+    yield
+    pgs.reset_capability_cache()

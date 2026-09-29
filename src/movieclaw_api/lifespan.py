@@ -42,6 +42,14 @@ async def _warm_hardware_probe(probe) -> None:  # noqa: ANN001
         logger.warning("硬件加速自检未能完成，按「无可用硬件」处理", exc_info=True)
 
 
+async def _warm_pgs_capability(probe) -> None:  # noqa: ANN001
+    """后台预热 PGS 识别能力检测。失败不阻断启动，首次预检时会再探测一次。"""
+    try:
+        await asyncio.to_thread(probe)
+    except Exception:  # noqa: BLE001
+        logger.warning("PGS 图片字幕识别自检未能完成，将在首次预检时再检测", exc_info=True)
+
+
 async def _reset_stale_verifying() -> None:
     """把上次进程遗留在 VERIFYING 的记录重置为 PENDING（崩溃/重启自愈）。"""
     async with get_database().session() as session:
@@ -299,6 +307,11 @@ def build_lifespan(settings: Settings):
         from movieclaw_api.services.playback.hwprobe import probe_backends_async
 
         asyncio.create_task(_warm_hardware_probe(probe_backends_async))
+        # PGS 图片字幕识别能力同理：seconv/Tesseract 是部署环境的属性，启动时
+        # 在后台探测一次，AI 字幕预检只查缓存，不在请求里现起子进程。
+        from movieclaw_api.services.subtitle_gen import pgs
+
+        asyncio.create_task(_warm_pgs_capability(pgs.warm_capability))
         logger.info("应用启动完成，数据库就绪")
         try:
             yield

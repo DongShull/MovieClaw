@@ -12,17 +12,18 @@ import contextlib
 import logging
 import re as _re
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.exceptions import AppException, BadRequestException, NotFoundException
 from movieclaw_api.schemas.base import utc_isoformat
-from movieclaw_api.services import jobs
+from movieclaw_api.services import jobs, media_extract
 from movieclaw_api.services.library.subtitles import discover_external_subtitles
 from movieclaw_api.services.subtitle_gen import extract, pgs, source, sync, translate, validate
 from movieclaw_db.engine import get_database
@@ -33,6 +34,10 @@ logger = logging.getLogger("movieclaw_api.subtitle_gen")
 #: 每千字符对白的估算 token 量（原文+译文+提示词开销的经验粗估，
 #: 只用于发起前的确认展示，不参与任何限额判断）
 _TOKENS_PER_KCHAR = 2600
+#: 内封轨还没读出来时按片长粗估：常见影视剧每分钟约 12 条对白、每条约 40 字符。
+#: 只给确认前一个量级参考，读出字幕后按实际对白翻译。
+_EVENTS_PER_MINUTE = 12
+_CHARS_PER_EVENT = 40
 
 
 @dataclass
@@ -151,6 +156,10 @@ class GenState:
     target_language: str = "chs"
     secondary_language: str | None = None
     source_candidate_key: str | None = None
+    # 读取阶段（extracting）：排队等全局读取闸门，或已读到片中的哪个时间点
+    extract_queued: bool = False
+    extract_position_seconds: float | None = None
+    extract_duration_seconds: int | None = None
     llm_usage: SubtitleLlmUsage = field(default_factory=SubtitleLlmUsage)
 
 
@@ -282,7 +291,12 @@ def _pgs_sidecar_path(row: LibraryFile, source_language: str) -> Path:
 
 @dataclass
 class Preview:
-    """发起前的确认素材（§6：展示选源结果与成本估算）。"""
+    """发起前的确认素材（§6：展示选源结果与成本估算）。
+
+    预检只读数据库和现成产物，永远是毫秒级：内封轨还没读取过时不在请求里读
+    （大文件在 NAS 上要几分钟，iOS 与网页 20 秒就超时），而是照常选中它、按
+    片长粗估成本，并用 ``reference_notice`` 讲清楚「任务第一步会先读取」。
+    """
 
     candidates: list[source.RankedCandidate]
     chosen: source.RankedCandidate | None
@@ -294,19 +308,8 @@ class Preview:
     blocker: PreviewBlocker | None
     output_filename: str | None = None
     selected_source_key: str | None = None
-    pending: PreviewPending | None = None
-
-
-@dataclass(frozen=True)
-class PreviewPending:
-    """预检还没有结论：内封轨正在后台抽取，稍后重试即可（issue #432）。
-
-    与 ``blocker`` 是两回事——blocker 说「这份片源做不了」，pending 说
-    「再等一会儿」。混成一个会让用户在等待期间看到「这份片源没有参考字幕」。
-    """
-
-    message: str
-    candidate_key: str
+    #: 非空 = 参考字幕还没读取过：event_count 为 0，estimated_tokens 按片长粗估
+    reference_notice: str | None = None
 
 
 @dataclass(frozen=True)
@@ -497,8 +500,13 @@ def _preview_blocker(
     pgs_plan: PgsConversionPlan | None = None,
     target_language: str = "chs",
     secondary_language: str | None = None,
+    detail: str | None = None,
 ) -> PreviewBlocker:
-    """把选源失败归纳为用户能理解、能继续处理的原因。"""
+    """把选源失败归纳为用户能理解、能继续处理的原因。
+
+    ``detail`` 是所选参考字幕加载失败的具体原因（读取超时、完整度不够等），
+    有就直接告诉用户，不再只给一句笼统的「不完整」。
+    """
     output_label = subtitle_output_label(target_language, secondary_language)
     add_sidecar = "添加与当前片源匹配的 SRT、ASS 或 VTT 外挂字幕"
     rescan = "重新扫描媒体库后再试"
@@ -568,8 +576,8 @@ def _preview_blocker(
     if any(c.excluded is None for c in ranked):
         return PreviewBlocker(
             code="unusable_text",
-            title="参考字幕不完整",
-            message="文本字幕无法解析，或对白数量、时间覆盖不足。",
+            title="参考字幕不能用于翻译" if detail else "参考字幕不完整",
+            message=detail or "文本字幕无法解析，或对白数量、时间覆盖不足。",
             suggestions=[
                 "换用与当前片源匹配、内容完整的文本字幕",
                 rescan,
@@ -597,13 +605,11 @@ async def preview(
     secondary_language: str | None = None,
     source_candidate_key: str | None = None,
     pgs_ocr_language: str | None = None,
-    wait: bool = True,
 ) -> Preview:
-    """选源 + 加载最优候选做成本估算（不动 LLM）。
+    """选源 + 用现成产物做成本估算（不动 LLM，也不读视频）。
 
-    ``wait=False`` 供 HTTP 预检使用：内封轨没有现成产物就立刻返回 pending，
-    把分钟级的通读放到后台（issue #432）。发起生成与后台任务用默认的
-    ``wait=True``，等到底。
+    HTTP 预检与发起生成共用它：两者都必须秒回。内封轨还没读取过时照常选中、
+    按片长粗估，读取留给生成任务第一步（任务里有进度、可取消、重启可续）。
     """
     target_language, secondary_language = ensure_output_languages(
         target_language, secondary_language
@@ -633,24 +639,14 @@ async def preview(
     )
     selected_key = candidate_key(selected) if selected is not None else None
 
+    reference_notice: str | None = None
     try:
-        chosen, events = await _pick_loadable(row, selected_candidates, warnings, wait=wait)
-    except extract.SourceExtractionPending as exc:
-        # 还没有结论，但也不是「做不了」：blocker 必须留空，否则用户在等待
-        # 期间会看到「这份片源没有参考字幕」这种与事实相反的结论。
-        return Preview(
-            candidates=ranked,
-            chosen=None,
-            event_count=0,
-            estimated_tokens=0,
-            already_generated=already_generated,
-            warnings=warnings,
-            pgs_conversion=None,
-            blocker=None,
-            output_filename=output_filename,
-            selected_source_key=selected_key,
-            pending=PreviewPending(message=exc.message, candidate_key=exc.candidate_key),
-        )
+        chosen, events = await _pick_loadable(row, selected_candidates, warnings, wait=False)
+    except extract.SourceExtractionPending:
+        # 还没读过不等于「做不了」：照常选中它，blocker 留空；读取与完整度检查
+        # 都在任务里做，不合格会在调用模型之前停下。
+        chosen, events = selected, []
+        reference_notice = await _reading_notice(row)
 
     pgs_conversion = (
         await _pgs_plan(
@@ -665,11 +661,10 @@ async def preview(
     )
     est = 0
     if events:
-        chars = sum(len(t) for _, _, t in events)
-        est = int(chars / 1000 * _TOKENS_PER_KCHAR)
-        if secondary_language is not None:
-            # 同一个请求同时产出两种语言，共享提示词和上下文，但输出量接近翻倍。
-            est = int(est * 1.8)
+        est = _estimate_tokens(sum(len(t) for _, _, t in events), secondary_language)
+    elif reference_notice is not None and row.duration_seconds:
+        chars = row.duration_seconds / 60 * _EVENTS_PER_MINUTE * _CHARS_PER_EVENT
+        est = _estimate_tokens(chars, secondary_language)
     return Preview(
         candidates=ranked,
         chosen=chosen,
@@ -679,12 +674,49 @@ async def preview(
         warnings=warnings,
         pgs_conversion=pgs_conversion,
         blocker=(
-            _preview_blocker(ranked, pgs_conversion, target_language, secondary_language)
+            _preview_blocker(
+                ranked,
+                pgs_conversion,
+                target_language,
+                secondary_language,
+                detail=warnings[-1] if warnings else None,
+            )
             if chosen is None
             else None
         ),
         output_filename=output_filename,
         selected_source_key=selected_key,
+        reference_notice=reference_notice,
+    )
+
+
+def _estimate_tokens(chars: float, secondary_language: str | None) -> int:
+    est = int(chars / 1000 * _TOKENS_PER_KCHAR)
+    if secondary_language is not None:
+        # 同一个请求同时产出两种语言，共享提示词和上下文，但输出量接近翻倍。
+        est = int(est * 1.8)
+    return est
+
+
+def _format_size(size: int) -> str:
+    """文件体积的人话写法：15.2 GB / 830 MB。"""
+    if size >= 1024**3:
+        return f"{size / 1024**3:.1f} GB"
+    if size >= 1024**2:
+        return f"{size / 1024**2:.0f} MB"
+    return f"{max(1, size // 1024)} KB"
+
+
+async def _reading_notice(row: LibraryFile) -> str:
+    """内封轨还没读取过时给用户的说明：会发生什么、为什么可能慢、花不花钱。"""
+    try:
+        size = (await asyncio.to_thread(Path(row.file_path).stat)).st_size
+    except OSError:
+        size = 0
+    whole = f"整个视频文件（{_format_size(size)}）" if size else "整个视频文件"
+    return (
+        f"这条内封字幕还没读取过：开始后会先通读{whole}把字幕读出来，大文件可能要几分钟，"
+        "这一步不调用 AI；读出后先检查完整度，不合格就停下，不产生模型费用。"
     )
 
 
@@ -697,14 +729,17 @@ async def _pick_loadable(
 ) -> tuple[source.RankedCandidate | None, list[extract.SubEvent]]:
     """按排序逐个加载候选，返回第一个完整度合格的（§2：加载后评估）。
 
-    ``SourceExtractionPending`` 不在这里吞掉——它不是「这条候选不能用」，
+    ``wait=False``（预检）只用现成产物；内封轨还没读过时抛
+    ``SourceExtractionPending``，且不在这里吞掉——它不是「这条候选不能用」，
     而是「这条候选还没读出来」，必须原样上抛给预检。
     """
     for cand in ranked:
         if cand.excluded:
             continue
         try:
-            events = await extract.load_candidate_events(row, cand.candidate, wait=wait)
+            events = await extract.load_candidate_events(
+                row, cand.candidate, wait=wait, schedule=False
+            )
         except extract.SourceLoadError as exc:
             warnings.append(str(exc))
             continue
@@ -733,7 +768,12 @@ async def _prepare_generation(
     convert_pgs: bool = False,
     pgs_ocr_language: str | None = None,
 ) -> tuple[Preview, GenState]:
-    """完成所有同步预检并生成首个进度快照，随后由 Job 原子入队。"""
+    """发起前的秒级校验（不读视频）并生成首个进度快照，随后由 Job 原子入队。
+
+    内封轨还没读取过也照样入队：读取是任务第一步，有进度、可取消；完整度不
+    合格会在调用模型之前停下。此前这里要等 ffmpeg 通读整个文件，POST 在 iOS
+    60 秒就超时，入库自动生成也得逐个文件读完才能排下一个。
+    """
     target_language, secondary_language = ensure_output_languages(
         target_language, secondary_language
     )
@@ -777,6 +817,7 @@ async def _prepare_generation(
         )
     else:
         initial = GenState(
+            message="等待开始，第一步先读取内封字幕" if pv.reference_notice else "正在准备",
             target_language=target_language,
             secondary_language=secondary_language,
             source_candidate_key=pv.selected_source_key,
@@ -877,6 +918,7 @@ async def enqueue_generation_job(
 
 _PHASE_INDEX = {
     "preparing": 1,
+    "extracting": 1,
     "ocr": 1,
     "syncing": 1,
     "glossary": 2,
@@ -899,6 +941,15 @@ def _job_progress(state: GenState) -> dict[str, object]:
         "refreshing",
     }:
         percent = round(min(100.0, state.done_blocks / state.total_blocks * 100), 1)
+    elif (
+        state.phase == "extracting"
+        and state.extract_position_seconds is not None
+        and state.extract_duration_seconds
+    ):
+        # 读到哪个时间点 / 片长。片尾常没有字幕包，位置会停在九十几，读完前
+        # 不报 100%，免得「满了却还在转」。
+        ratio = state.extract_position_seconds / state.extract_duration_seconds
+        percent = round(min(99.0, ratio * 100), 1)
     return {
         "mode": "determinate" if percent is not None else "indeterminate",
         "phase": state.phase,
@@ -923,6 +974,9 @@ def _job_progress(state: GenState) -> dict[str, object]:
             "target_language": state.target_language,
             "secondary_language": state.secondary_language,
             "source_candidate_key": state.source_candidate_key,
+            "extract_queued": state.extract_queued,
+            "extract_position_seconds": state.extract_position_seconds,
+            "extract_duration_seconds": state.extract_duration_seconds,
         },
     }
 
@@ -942,11 +996,31 @@ def _result_payload(result: GenResult) -> dict[str, object]:
     }
 
 
+#: 这些阶段只在等外部进程或读盘，收到停止请求就立即取消（见 _run_generation_job）
+_STOP_AT_ONCE_PHASES = frozenset({"preparing", "extracting", "ocr", "syncing"})
+#: 模型服务暂时不可用时，隔多久自动重试一次（从断点继续，不重复花钱）
+_MODEL_RETRY_DELAY_SECONDS = 30
+
+
+def _brief(exc: Exception, limit: int = 200) -> str:
+    """错误原文可能带整段响应体：给用户看的截到够判断原因的长度。"""
+    text = str(exc).strip()
+    return text if len(text) <= limit else text[:limit] + "…"
+
+
 @jobs.register_job_handler("subtitle.generate")
 async def _run_generation_job(
     context: jobs.JobContext, input_data: dict[str, object]
 ) -> dict[str, object]:
     """Job 原生处理器：直接执行领域管线并持久化进度，不维护影子任务状态。"""
+    from movieclaw_llm import (
+        LlmAuthError,
+        LlmConnectError,
+        LlmError,
+        LlmRateLimitError,
+        LlmServerError,
+    )
+
     file_id = int(input_data["file_id"])
     target_language = str(input_data.get("target_language") or "chs")
     secondary_language = input_data.get("secondary_language")
@@ -991,6 +1065,11 @@ async def _run_generation_job(
         while not runner.done():
             if await context.cancel_requested():
                 cancelled.set()
+                # 读取 / 识别 / 同步检查都在等外部进程，没有要保住的模型结果：
+                # 直接取消执行协程，ffmpeg、seconv 随之整组结束，「停止」秒级
+                # 生效。翻译阶段仍走协作式停止，让在途、已付费的块写进断点。
+                if state.phase in _STOP_AT_ONCE_PHASES and not runner.cancelling():
+                    runner.cancel()
             snapshot = _job_progress(state)
             usage = state.llm_usage.snapshot()
             if snapshot != last_snapshot or usage != last_usage:
@@ -1000,10 +1079,10 @@ async def _run_generation_job(
                 )
                 last_snapshot = snapshot
                 last_usage = usage
-            try:
-                await asyncio.wait_for(asyncio.shield(runner), timeout=0.75)
-            except TimeoutError:
-                continue
+            # asyncio.wait 只等不取消，也不把执行协程的异常或取消抛到这里
+            await asyncio.wait({runner}, timeout=0.75)
+        if runner.cancelled():
+            raise jobs.JobCancelled
         result = await runner
     except translate.TranslationAborted as exc:
         if cancelled.is_set() or await context.cancel_requested():
@@ -1036,6 +1115,40 @@ async def _run_generation_job(
             exc.message,
             code="SUBTITLE_GENERATION_FAILED",
             actions=[{"type": "handoff_agent", "label": "交给 Agent"}],
+        ) from exc
+    except (LlmConnectError, LlmServerError, LlmRateLimitError) as exc:
+        # 连不上、供应商 5xx：多半过一会儿自己恢复。说清楚是模型服务的问题、已完成
+        # 的块都在断点里，交给调度器稍后自动重试——此前这里落进「未知错误」，
+        # 用户只看到一句「任务遇到临时异常」，重试用尽后是「发生未知错误」。
+        raise jobs.JobRetry(
+            f"模型服务暂时不可用：{_brief(exc)}。已完成的字幕块已保存，稍后自动重试会从断点继续",
+            delay_seconds=_MODEL_RETRY_DELAY_SECONDS,
+            code="SUBTITLE_MODEL_TEMPORARILY_UNAVAILABLE",
+            actions=[
+                {"type": "retry_job", "label": "重试"},
+                {"type": "handoff_agent", "label": "交给 Agent"},
+            ],
+        ) from exc
+    except LlmAuthError as exc:
+        # API Key 失效重试多少次都一样：停在 blocked，引导去设置里修
+        raise jobs.JobBlocked(
+            f"模型服务认证失败：{_brief(exc)}",
+            code="SUBTITLE_MODEL_AUTH_FAILED",
+            actions=[
+                {"type": "open_settings", "label": "检查 AI 模型设置", "target": "llm"},
+                {"type": "retry_job", "label": "修改后重试"},
+                {"type": "handoff_agent", "label": "交给 Agent"},
+            ],
+        ) from exc
+    except LlmError as exc:
+        # 请求被拒（参数、上下文超长、内容审查）：原样说明原因，不做无意义的自动重试
+        raise jobs.JobFailed(
+            f"模型服务拒绝了请求：{_brief(exc)}",
+            code="SUBTITLE_MODEL_REQUEST_FAILED",
+            actions=[
+                {"type": "retry_job", "label": "重试"},
+                {"type": "handoff_agent", "label": "交给 Agent"},
+            ],
         ) from exc
     finally:
         # 进度持久化失败等异常也必须回收领域协程；否则 dispatcher 已把 Job
@@ -1072,6 +1185,56 @@ async def _run_generation_job(
             )
         raise jobs.JobFailed(result.message, code="SUBTITLE_GENERATION_FAILED", actions=actions)
     return _result_payload(result)
+
+
+_T = TypeVar("_T")
+_READ_PROGRESS_INTERVAL = 1.0
+
+
+def _clock(seconds: float) -> str:
+    hours, rest = divmod(int(seconds), 3600)
+    minutes, secs = divmod(rest, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+async def _reading(state: GenState, row: LibraryFile, work: Awaitable[_T]) -> _T:
+    """等待整文件通读，同时把「排队中 / 已读到哪」同步进任务进度。
+
+    大文件在 NAS 上要读几分钟：用户得看见它在动、读到了哪、为什么慢——同一
+    时间只通读一个文件，排在别的文件后面时明说。取消任务时读取随之取消。
+    """
+    state.phase = "extracting"
+    state.message = "正在读取内封字幕"
+    state.extract_duration_seconds = row.duration_seconds
+    follower = asyncio.create_task(
+        _follow_read_progress(state, row), name="subtitle-read-progress"
+    )
+    try:
+        return await work
+    finally:
+        follower.cancel()
+        state.extract_queued = False
+        state.phase = "preparing"
+        state.message = "正在检查参考字幕"
+
+
+async def _follow_read_progress(state: GenState, row: LibraryFile) -> None:
+    duration = row.duration_seconds
+    while True:
+        progress = await asyncio.to_thread(media_extract.read_progress, row)
+        if progress is not None and progress.queued:
+            state.extract_queued = True
+            state.message = "排队等待读取：同一时间只通读一个视频文件，前面的读完就轮到这里"
+        elif progress is not None:
+            state.extract_queued = False
+            state.extract_position_seconds = progress.position_seconds
+            state.message = (
+                f"正在读取内封字幕：已读到 {_clock(progress.position_seconds)} / "
+                f"{_clock(duration)}"
+                if progress.position_seconds is not None and duration
+                else "正在读取内封字幕"
+            )
+        await asyncio.sleep(_READ_PROGRESS_INTERVAL)
 
 
 async def _run(
@@ -1114,7 +1277,17 @@ async def _run(
     warnings: list[str] = []
     state.phase = "preparing"
     state.message = "正在选择参考字幕"
-    chosen, events = await _pick_loadable(row, selected_candidates, warnings)
+    needs_reading = (
+        selected is not None
+        and not selected.excluded
+        and await asyncio.to_thread(extract.needs_extraction, row, selected.candidate)
+    )
+    if needs_reading:
+        chosen, events = await _reading(
+            state, row, _pick_loadable(row, selected_candidates, warnings)
+        )
+    else:
+        chosen, events = await _pick_loadable(row, selected_candidates, warnings)
     source_desc: str | None = None
     if chosen is None and convert_pgs:
         plan = await _pgs_plan(
@@ -1133,15 +1306,19 @@ async def _run(
             )
         if not plan.capability.cached and plan.language.code is None:
             return GenResult(ok=False, message="原字幕语言尚未确认，请重新检查后再试")
-        state.phase = "ocr"
-        state.message = "正在识别图片字幕，可能需要一些时间"
+        pgs_candidate = plan.candidate.candidate
         try:
-            ocr_path = await pgs.convert_embedded_pgs(
-                row,
-                plan.candidate.candidate,
-                plan.capability,
-                plan.language.code,
-            )
+            if plan.capability.cached:
+                ocr_path = pgs.cached_srt_path(row, pgs_candidate, plan.language.code)
+            else:
+                # .sup 走与播放器共用的整文件抽取：同一趟通读、同一份缓存，
+                # 读取阶段同样有进度、可取消。
+                sup_path = await _reading(state, row, pgs.extract_sup(row, pgs_candidate))
+                state.phase = "ocr"
+                state.message = "正在识别图片字幕，可能需要一些时间"
+                ocr_path = await pgs.ocr_to_srt(
+                    row, pgs_candidate, plan.capability, plan.language.code, sup_path
+                )
             raw = await asyncio.to_thread(ocr_path.read_bytes)
             events = extract.parse_events(
                 extract.decode_subtitle_bytes(raw, str(ocr_path)), str(ocr_path)
@@ -1523,14 +1700,11 @@ async def _audio_reference_intervals(
         window = float(_CALIBRATE_WINDOW_S)
     intervals: list[tuple[int, int]] = []
     for start in starts:
-        pcm = await asyncio.to_thread(
-            sync._extract_pcm_sync, Path(row.file_path), float(start), window
-        )
+        pcm = await sync.extract_pcm(Path(row.file_path), float(start), window)
         if pcm is None:
             return intervals if intervals else None  # 首窗就失败=不可用
-        intervals.extend(
-            (s + start * 1000, e + start * 1000) for s, e in sync.speech_intervals(pcm)
-        )
+        speech = await asyncio.to_thread(sync.speech_intervals, pcm)
+        intervals.extend((s + start * 1000, e + start * 1000) for s, e in speech)
     return intervals
 
 

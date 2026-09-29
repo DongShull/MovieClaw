@@ -17,12 +17,12 @@ import functools
 import logging
 import os
 import shutil
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
+from movieclaw_api.services.subtitle_gen import process
 from movieclaw_api.services.subtitle_gen.extract import SubEvent
 
 logger = logging.getLogger("movieclaw_api.subtitle_gen")
@@ -39,29 +39,34 @@ def _ffmpeg() -> str | None:
     return shutil.which("ffmpeg")
 
 
-def _extract_pcm_sync(video: Path, start_s: float, duration_s: float) -> np.ndarray | None:
-    """（线程池）抽一段 16k 单声道 PCM；失败返回 None（无音轨/坏文件）。"""
+async def extract_pcm(video: Path, start_s: float, duration_s: float) -> np.ndarray | None:
+    """抽一段 16k 单声道 PCM；失败返回 None（无音轨/坏文件/超时）。
+
+    ffmpeg 起在独立进程组里：停止任务时随之结束，不必等它把这一段解码完。
+    """
     ffmpeg = _ffmpeg()
     if ffmpeg is None:
         return None
     try:
-        proc = subprocess.run(
+        result = await process.run(
             [
-                ffmpeg, "-v", "error",
+                ffmpeg, "-nostdin", "-v", "error",
                 "-ss", str(start_s), "-t", str(duration_s),
                 "-i", str(video),
                 "-map", "0:a:0", "-ac", "1", "-ar", str(SAMPLE_RATE),
                 "-f", "s16le", "-",
             ],
-            capture_output=True,
             timeout=_FFMPEG_TIMEOUT,
         )
-    except subprocess.TimeoutExpired:
+    except process.ProcessTimeout:
         logger.warning("同步检测的音频抽样超时：%s @%ss", video, start_s)
         return None
-    if proc.returncode != 0 or len(proc.stdout) < SAMPLE_RATE:  # 至少 0.5 秒
+    except OSError as exc:
+        logger.warning("同步检测的音频抽样无法启动 ffmpeg：%s（%s）", video, exc)
         return None
-    return np.frombuffer(proc.stdout, dtype=np.int16).astype(np.float32) / 32768.0
+    if result.returncode != 0 or len(result.stdout) < SAMPLE_RATE:  # 至少 0.5 秒
+        return None
+    return np.frombuffer(result.stdout, dtype=np.int16).astype(np.float32) / 32768.0
 
 
 # ---------------------------------------------------------------------------
@@ -198,12 +203,12 @@ async def sample_sync_score(
         ]
         if len(window_events) < 5:
             continue
-        pcm = await asyncio.to_thread(
-            _extract_pcm_sync, video_path, start_s, float(_WINDOW_SECONDS)
-        )
+        pcm = await extract_pcm(video_path, start_s, float(_WINDOW_SECONDS))
         if pcm is None:
             return None  # 音频抽不出来：整个检测按未知处理
-        rate = event_hit_rate(speech_intervals(pcm), window_events)
+        # VAD（尤其 silero 逐帧推理）放线程池：事件循环同时在服务所有请求
+        speech = await asyncio.to_thread(speech_intervals, pcm)
+        rate = event_hit_rate(speech, window_events)
         if rate is not None:
             scores.append(rate)
     if not scores:
