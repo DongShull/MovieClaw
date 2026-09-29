@@ -344,7 +344,7 @@ data/metadata/images/{media_item_id}/
 | 背景 | `original` | 全屏沉浸底图，最显眼的一张；w1280 在 2K/4K 屏上是放大糊图 |
 | 海报 | `w780` | 详情页 186px、墙 148px，2 倍屏下足够锐利 |
 | 分集剧照 | `w300` | 小卡片，且一部剧动辄几百集 |
-| 片名 Logo | `original`（固定，不随环境变量） | TMDB 的 logo 档位在 w500 之上只有 original；它镜像成 `clearlogo.png` 给电视端播放器用（Kodi clearlogo 规格 800 宽，w500 在 4K 电视上发糊）。Jellyfin 客户端按 maxWidth 取缩放变体 |
+| 片名 Logo | `original`（固定，不随环境变量） | TMDB 的 logo 档位在 w500 之上只有 original；它镜像成 `clearlogo.png` 给电视端播放器用（Kodi clearlogo 规格 800 宽，w500 在 4K 电视上发糊）。Jellyfin 客户端按 maxWidth 取缩放变体。**下载时按 Accept 点名要 PNG**：图片代理默认的浏览器式 Accept 带 webp，TMDB 的 CDN 会协商成有损 WebP（实测 VP8 + ALPH）；镜像站不认 Accept 时落盘前转 PNG 兜底 |
 
 估算：1000 部电影 ≈ 1000×(0.3+2)MB ≈ **2.3GB**；分集剧照 7200×30KB ≈ 220MB。
 比原档位（w500/w1280/w300，约 550MB）大一个量级，但相对媒体文件本身

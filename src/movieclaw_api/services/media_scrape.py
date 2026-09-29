@@ -1615,6 +1615,7 @@ async def download_item_assets(
                         sources,
                         "logo",
                         locked=meta.logo_locked and not ignore_locks,
+                        png=True,
                     )
             session.add(meta)
             for season in seasons:
@@ -1763,12 +1764,17 @@ async def _sync_asset(
     key: str,
     *,
     locked: bool = False,
+    png: bool = False,
 ) -> str | None:
     """下载单张图到资产目录，返回落库的相对路径（失败保留现值/None）。
 
     跳过条件（普通刷新）：文件在**且溯源与当前来源一致**——TMDB 换图
     （poster_path 变更）或档位配置调整都会触发重下，资产随刷新保持最新。
     ``locked``（手动选定）：只要文件还在就不动，上游换图与它无关。
+    ``png``：资产必须是真 PNG（片名 Logo 要镜像成 clearlogo.png 给外部播放器
+    读）。图片代理默认的浏览器式 Accept 带着 webp，TMDB 的 CDN 会据此协商出
+    **有损** WebP（实测：原版透明 PNG 被换成 VP8 + ALPH），所以点名要 PNG；
+    图床镜像不认 Accept、照样回别的格式时转成 PNG 兜底（透明通道保留）。
     """
     if not tmdb_path:
         return current
@@ -1787,8 +1793,14 @@ async def _sync_asset(
         return current
     from movieclaw_api.services.image_proxy import get_image_proxy
 
+    url = f"{base}/{size}{tmdb_path}"
     try:
-        data, _content_type = await get_image_proxy().fetch(f"{base}/{size}{tmdb_path}")
+        if png:
+            data, _content_type = await get_image_proxy().fetch(url, accept="image/png")
+            if not data.startswith(_PNG_SIGNATURE):
+                data = await asyncio.to_thread(_to_png, data)
+        else:
+            data, _content_type = await get_image_proxy().fetch(url)
     except Exception as exc:  # noqa: BLE001 -- 单张失败不阻断
         logger.warning("图片资产下载失败（保持缺失，下次刷新自愈）：%s（%s）", tmdb_path, exc)
         return current
@@ -1799,6 +1811,21 @@ async def _sync_asset(
         return current
     sources[key] = want
     return rel
+
+
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def _to_png(data: bytes) -> bytes:
+    """Pillow 能解的任意图片 → PNG，透明通道原样保留（解不了就抛，按下载失败处理）。"""
+    import io
+
+    from PIL import Image
+
+    with Image.open(io.BytesIO(data)) as image:
+        buffer = io.BytesIO()
+        image.convert("RGBA").save(buffer, "PNG")
+    return buffer.getvalue()
 
 
 def _atomic_write(dest: Path, data: bytes) -> None:

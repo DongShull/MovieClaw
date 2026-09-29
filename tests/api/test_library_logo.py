@@ -99,28 +99,36 @@ class _Tmdb:
 _COLORS = {"/logo-zh.png": (220, 40, 40), "/logo-en.png": (40, 90, 220)}
 
 
-def _transparent_png(rgb: tuple[int, int, int]) -> bytes:
-    """40×16 的透明底 PNG，中间一块不透明色条（模拟片名字标）。"""
+def _transparent_logo(rgb: tuple[int, int, int], fmt: str = "PNG") -> bytes:
+    """40×16 的透明底字标图，中间一块不透明色条（模拟片名字标）。"""
     image = Image.new("RGBA", (40, 16), (0, 0, 0, 0))
     for x in range(8, 32):
         for y in range(4, 12):
             image.putpixel((x, y), (*rgb, 255))
     buffer = io.BytesIO()
-    image.save(buffer, "PNG")
+    image.save(buffer, fmt, **({"lossless": True} if fmt == "WEBP" else {}))
     return buffer.getvalue()
 
 
 class _Proxy:
-    """假图床：记下请求的 URL；.png 回透明底 PNG，其余回占位字节。"""
+    """假图床：记下请求的 URL 与 Accept；Logo 回透明底 PNG，其余回占位字节。
+
+    ``webp=True`` 模拟不认 Accept 的图床镜像：Logo 一律回 WebP。
+    """
 
     def __init__(self) -> None:
         self.fetched: list[str] = []
+        self.accepts: list[str | None] = []
+        self.webp = False
 
-    async def fetch(self, url: str):
+    async def fetch(self, url: str, *, accept: str | None = None):
         self.fetched.append(url)
+        self.accepts.append(accept)
         for path, rgb in _COLORS.items():
             if url.endswith(path):
-                return _transparent_png(rgb), "image/png"
+                if self.webp:
+                    return _transparent_logo(rgb, "WEBP"), "image/webp"
+                return _transparent_logo(rgb), "image/png"
         return b"jpeg:" + url.encode(), "image/jpeg"
 
 
@@ -191,14 +199,32 @@ async def test_scan_downloads_logo_and_mirrors_clearlogo(env, tmp_path) -> None:
     assert item.logo_path == "/logo-zh.png"  # 主语言档优先，SVG 不参选
     assert meta.logo_file == f"{item_id}/logo.png"
     asset = assets_root() / str(item_id) / "logo.png"
-    assert any(url.endswith("/original/logo-zh.png") for url in proxy.fetched)
+    logo_fetch = next(i for i, url in enumerate(proxy.fetched) if url.endswith("/logo-zh.png"))
+    assert proxy.fetched[logo_fetch].endswith("/original/logo-zh.png")
+    # 点名要 PNG：默认的浏览器式 Accept 会被 TMDB 的 CDN 协商成有损 WebP
+    assert proxy.accepts[logo_fetch] == "image/png"
     # 透明底原样落盘：四角全透明，色条不透明（没有被转成 JPEG 压成黑底）
     data = asset.read_bytes()
+    assert data.startswith(b"\x89PNG")
     assert _rgba_at(data, (0, 0))[3] == 0
     assert _rgba_at(data, (20, 8)) == (220, 40, 40, 255)
     sources = json.loads((asset.parent / "sources.json").read_text(encoding="utf-8"))
     assert sources["logo"] == "original/logo-zh.png"
 
+    assert (entry / "clearlogo.png").read_bytes() == data
+
+
+async def test_logo_saved_as_real_png_even_if_mirror_answers_webp(env, tmp_path) -> None:
+    """图床镜像不认 Accept、照样回 WebP 时：落盘前转成真 PNG，透明通道保留——
+    clearlogo.png 里装的必须是 PNG，外部播放器按扩展名认格式的不在少数。"""
+    _tmdb, proxy = env
+    proxy.webp = True
+    item_id, entry = await _scan_movie(tmp_path)
+
+    data = (assets_root() / str(item_id) / "logo.png").read_bytes()
+    assert data.startswith(b"\x89PNG")
+    assert _rgba_at(data, (0, 0))[3] == 0
+    assert _rgba_at(data, (20, 8)) == (220, 40, 40, 255)
     assert (entry / "clearlogo.png").read_bytes() == data
 
 
