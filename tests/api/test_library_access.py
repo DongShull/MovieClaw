@@ -352,35 +352,33 @@ async def test_clear_history_since_only_touches_recent_plays(client: TestClient)
 
 
 # ---------------------------------------------------------------------------
-# 5. 令牌主体只看 everyone 库
+# 5. 令牌主体：设备令牌等同主人；Agent 只看 everyone 库
 # ---------------------------------------------------------------------------
 
 
-async def test_token_principals_only_see_everyone_libraries(client: TestClient) -> None:
+async def test_token_principals_see_what_they_should(client: TestClient) -> None:
+    """登录设备的令牌（命令行、App）就是主人本人：看得到的库与他在网页上一致。
+
+    改造前（docs/design/login-devices.md 之前）命令行令牌是「半个超管」：管理权
+    按超管算，浏览却只给全员库——超管用 mclaw 看不到自己在网页上看得到的片。
+    Agent 工作区令牌不属于任何人，仍只看对全员开放的库。
+    """
     shared = _create_library(client, "电影", "/m/movies")
     selected = _create_library(
         client, "私藏", "/m/private", access_mode="selected", admin_visible=True
     )
     async with get_database().session() as session:
-        pat = Principal(kind="pat", name="cli", is_admin=True, client_type="cli")
-        assert await visible_library_ids(session, pat) == {shared}
+        agent = Principal(kind="agent", name="agent:s", is_admin=True, agent_session_id="s")
+        assert await visible_library_ids(session, agent) == {shared}
         admin = Principal(kind="admin", name="admin", member_id=0, is_admin=True)
         assert len(await visible_library_ids(session, admin)) == 2
 
-    # 走 HTTP（模拟 CLI / Agent）：库列表默认与令牌随后能访问的内容一致——
-    # 列出来的库就是能浏览的库，不会出现「list 有、items 却 404」
+    # 走 HTTP（模拟超管的命令行）：库列表与超管本人一致，范围内的库能浏览
     token = client.post(f"{_AUTH}/tokens", json={"name": "cli"}).json()["data"]["token"]
     cli = TestClient(client.app)
     cli.headers["Authorization"] = f"Bearer {token}"
-    assert [r["id"] for r in cli.get(_LIBS).json()["data"]] == [shared]
-    assert cli.get(f"{_LIBS}/{selected}/items").status_code == 404
-    # 明确要看全部可管理的库：范围外的以 viewer_access=false 标出；库配置仍可读（管理权）
-    rows = {
-        r["id"]: r["viewer_access"] for r in cli.get(_LIBS, params={"scope": "all"}).json()["data"]
-    }
-    assert rows == {shared: True, selected: False}
-    assert cli.get(f"{_LIBS}/{selected}").status_code == 200
-    # 超管会话本人在浏览范围内：默认口径两个库都列出
+    assert {r["id"] for r in cli.get(_LIBS).json()["data"]} == {shared, selected}
+    assert cli.get(f"{_LIBS}/{selected}/items").status_code == 200
     assert {r["id"] for r in client.get(_LIBS).json()["data"]} == {shared, selected}
 
 

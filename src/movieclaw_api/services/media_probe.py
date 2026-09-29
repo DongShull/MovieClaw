@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from movieclaw_api.services.library.layout import IMAGE_EXTS
+from movieclaw_playback.decide import MAX_KEYFRAME_INTERVAL_S
+from movieclaw_playback.keyframes import read_keyframe_index
 
 logger = logging.getLogger("movieclaw_api.media_probe")
 
@@ -425,12 +427,39 @@ def probe_keyframe_interval(path: str | Path, duration_seconds: int | None) -> f
     cached = _keyframe_cache.get(key)
     if cached is not None:
         return cached
-    value = _probe_keyframe_interval(str(path), duration_seconds)
+    value = _cues_keyframe_interval(path, duration_seconds)
+    if value is None:
+        value = _probe_keyframe_interval(str(path), duration_seconds)
     if value is not None:
         if len(_keyframe_cache) >= _KEYFRAME_CACHE_MAX:
             _keyframe_cache.clear()
         _keyframe_cache[key] = value
     return value
+
+
+def _cues_keyframe_interval(path: Path, duration_seconds: int | None) -> float | None:
+    """Matroska 先看容器自带的 Cues 关键帧索引，不去采样码流。
+
+    Cues 只有几十 KB、SeekHead 直接给出偏移（``keyframes.read_keyframe_index``，
+    毫秒级；开会话时本来就要读它来切分片，结果有缓存）。采样却要从网络挂载上
+    读三段各 30 秒的码流——NAS 实测每个文件第一次播放在这里卡 0.4~1.4 秒。
+
+    只在索引可信时采用，否则返回 None 交给采样：索引要覆盖片子的大部分
+    （残缺的 Cues 说明不了全片），平均间隔要在直通门槛以内——Cues 只可能比
+    实际关键帧稀（有的封装器每隔几秒才记一个），稀了就老老实实采样核实。
+    """
+    if path.suffix.lower() not in {".mkv", ".webm"}:
+        return None
+    index = read_keyframe_index(path)
+    if index is None or len(index.times_s) < 2:
+        return None
+    times = index.times_s
+    if duration_seconds and times[-1] < duration_seconds * 0.8:
+        return None
+    interval = (times[-1] - times[0]) / (len(times) - 1)
+    if interval > MAX_KEYFRAME_INTERVAL_S:
+        return None
+    return interval
 
 
 # (路径, mtime_ns, 大小) -> 平均间隔秒。满了整体清空——这是纯加速缓存，

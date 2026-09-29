@@ -509,6 +509,32 @@ final class MovieClawAppDelegate: NSObject, NSApplicationDelegate {
         menuBar.update(status: latestStatus, configured: isConfigured)
     }
 
+    /// 「断开并重新配置」时在服务端注销这台 Mac 的凭证（尽力而为，docs/design/login-devices.md §6）。
+    ///
+    /// 只删本机钥匙串的话，服务端那枚凭证仍然有效。令牌只从内存、或不弹窗的钥匙串读取里拿：
+    /// 为了注销专门弹一次钥匙串密码框，用户只会更糊涂——拿不到就跳过，由网页「设置 → 设备」
+    /// 兜底。服务器连不上同样只记一笔日志：断开配对不能被一台关着的 NAS 卡住。
+    private func revokeServerCredential() async {
+        guard isConfigured else { return }  // 没配对完，服务端没有这台 Mac 的凭证
+        guard let current = configuration ?? (try? configurationStore.loadConfiguration(interactive: false)) else {
+            AppLogger.shared.info(
+                "没有拿到连接密钥（钥匙串需要授权或读取失败），跳过服务端注销；"
+                    + "要停用这台 Mac 的旧授权，请到网页「设置 → 设备」里注销"
+            )
+            return
+        }
+        do {
+            try await DevicePairing(nasURL: current.nasURL).revokeCurrentDevice(token: current.workerToken)
+            AppLogger.shared.info("已在服务端注销这台 Mac 的凭证")
+        } catch {
+            AppLogger.shared.warning(
+                "服务端注销失败（本机配置照常清除）：\(error.localizedDescription)。"
+                    + "要停用这台 Mac 的旧授权，请到网页「设置 → 设备」里注销",
+                secret: current.workerToken
+            )
+        }
+    }
+
     private func stopWorkerAndWait() async {
         await supervisor.stop()
         latestStatus = WorkerStatus.offline(
@@ -563,7 +589,10 @@ final class MovieClawAppDelegate: NSObject, NSApplicationDelegate {
             }
             controller.onClear = { [weak self] in
                 guard let self else { return }
-                self.stopWorker()
+                // 先停内核、再去服务端注销：反过来的话，服务端注销时会当场用 1008
+                // 断开连接，内核把它当成「授权失效」报到面板上，像是出了故障
+                await self.stopWorkerAndWait()
+                await self.revokeServerCredential()
                 try self.configurationStore.clear()
                 self.configuration = nil
                 self.isConfigured = false

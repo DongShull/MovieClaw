@@ -138,6 +138,7 @@ class DisconnectAwareFileResponse(FileResponse):
         on_close: Callable[[], None] | None = None,
         byte_sink: Callable[[int], None] | None = None,
         byte_patches: tuple[BytePatch, ...] = (),
+        probe=None,
         **kwargs,
     ) -> None:
         super().__init__(path, **kwargs)
@@ -150,6 +151,12 @@ class DisconnectAwareFileResponse(FileResponse):
         # mp4_sample_entry）。长度不变，Content-Length / Range 语义都不受影响；
         # 磁盘上的文件一个字节都不动
         self._byte_patches = byte_patches
+        # 播放体验打点的取流计时（docs/design/playback-qoe.md §5.3）：读出第一块时调
+        # ``first_chunk()``，结束时调 ``finish(字节数, disconnected=…)``；两者都只改内存，近零开销
+        self._probe = probe
+        #: 这条响应是否没发完就停了（客户端断开 / 播放器上报停止）。不能拿 ``_disconnected`` 判：
+        #: 响应正常发完后服务器也会给一条 http.disconnect，每个请求都会被误记成「中途断开」
+        self._stopped_early = False
         self._disconnected = asyncio.Event()
         self._bytes_read = 0
         self._stop_logged = False
@@ -167,6 +174,7 @@ class DisconnectAwareFileResponse(FileResponse):
             detail = ""
         else:
             return False
+        self._stopped_early = True
         if not self._stop_logged:
             self._stop_logged = True
             logger.info(
@@ -213,6 +221,8 @@ class DisconnectAwareFileResponse(FileResponse):
             await super().__call__(scope, receive, send)
         finally:
             watcher.cancel()
+            if self._probe is not None:
+                self._probe.finish(self._bytes_read, disconnected=self._stopped_early)
             if self._on_close is not None:
                 self._on_close()
 
@@ -230,6 +240,8 @@ class DisconnectAwareFileResponse(FileResponse):
                 return
             size = self.chunk_size if end is None else min(self.chunk_size, end - start)
             chunk = await file.read(size)
+            if self._probe is not None:
+                self._probe.first_chunk()
             self._bytes_read += len(chunk)
             if self._byte_sink is not None:
                 self._byte_sink(len(chunk))
@@ -320,6 +332,8 @@ class DisconnectAwareFileResponse(FileResponse):
                     if self._should_stop_reading():
                         return
                     chunk = await file.read(min(self.chunk_size, end - start))
+                    if self._probe is not None:
+                        self._probe.first_chunk()
                     self._bytes_read += len(chunk)
                     if self._byte_sink is not None:
                         self._byte_sink(len(chunk))

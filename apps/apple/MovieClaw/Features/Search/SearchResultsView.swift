@@ -1,0 +1,451 @@
+import SwiftUI
+
+/// 搜索结果页（对应 Web `app/(app)/search/page.tsx`）：`/search?q=&tab=&scope=&snapshot=&for_sub=`。
+///
+/// 顶栏按 iOS 26 液态玻璃的做法（同「照片」看大图时顶部居中的玻璃胶囊）：
+/// - 居中是写着搜索词的玻璃胶囊，点它回到搜索首页、关键词已填好并弹出键盘，改完再搜（`Router.editSearch`）；
+/// - 站点资源垂直时右上角是范围按钮（同发现页的筛选按钮：默认「全部」，选了就写分类名），
+///   点开是系统玻璃菜单，列全部 / 内置分类 / 自定义分类，切换即按新范围重新搜索；
+///   旁边是视图切换键（分组 / 列表 / 图览，见 `TorrentViewModeMenu`）；
+/// - 下面一行是垂直选项卡「影视 | 站点资源 | 媒体库」（按权限裁剪）。各垂直**惰性挂载 + 切换保活**：站点资源的跨站搜索是秒级重操作，
+/// 只有真正切到它才发起；切走后流式搜索照常进行、结果保留，切回来不重搜。
+///
+/// 关键词为空 = 浏览模式：只逛站点资源的分类列表页（影视/媒体库没有「浏览」语义）。
+/// 快照（snapshot）属于打开它的那个垂直；在快照态切到另一个垂直即丢掉快照、全部重来
+/// （同 Web：切垂直会去掉地址里的 snapshot，搜索身份变了整体重挂载），切回原垂直也是实时搜索。
+/// 路由的 `scope` 参数是 `SearchScope.encoded` 的查询串（label / cats / sites / poster / private）。
+struct SearchResultsView: View {
+    let query: AppRoute.SearchQuery
+
+    @Environment(\.api) private var api
+    @Environment(\.permissions) private var permissions
+    @Environment(Router.self) private var router
+
+    @State private var vertical: SearchVertical = .torrent
+    @State private var scope = SearchScope.all
+    @State private var access = SearchAccess()
+    @State private var tabs: [SearchTab] = []
+    @State private var visited: Set<SearchVertical> = []
+    @State private var torrentModel: TorrentSearchModel?
+    @State private var torrentSnapshot: Int?
+    @State private var mediaSnapshot: Int?
+    @State private var grabTarget: (id: Int, title: String)?
+    @State private var initialized = false
+
+    private var keyword: String { query.q.trimmingCharacters(in: .whitespaces) }
+    private var browsing: Bool { keyword.isEmpty }
+
+    private var visibleVerticals: [SearchVertical] {
+        access.available.filter { !browsing || $0 == .torrent }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if access.ready, visibleVerticals.isEmpty {
+                // 同 Web：只有一行说明，不带标题与图标
+                Text("当前账号没有可用的搜索入口，请联系管理员调整成员权限。")
+                    .font(.body)
+                    .foregroundStyle(Theme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityIdentifier("search-no-access")
+            } else {
+                selector
+                ZStack(alignment: .top) {
+                    if visited.contains(.media), access.canMedia {
+                        MediaSearchResultsView(
+                            keyword: keyword,
+                            snapshotId: mediaSnapshot,
+                            onResearch: { mediaSnapshot = nil },
+                            onSwitchToTorrent: access.canTorrent ? { switchTo(.torrent) } : nil
+                        )
+                        .id("media-\(mediaSnapshot ?? -1)")
+                        .opacity(vertical == .media ? 1 : 0)
+                        .allowsHitTesting(vertical == .media)
+                    }
+                    if visited.contains(.torrent), access.canTorrent, let torrentModel {
+                        TorrentResultsView(model: torrentModel, grabTarget: grabTarget, onResearch: {
+                            torrentSnapshot = nil
+                            rebuildTorrentModel()
+                        })
+                        .id(ObjectIdentifier(torrentModel))
+                        .opacity(vertical == .torrent ? 1 : 0)
+                        .allowsHitTesting(vertical == .torrent)
+                    }
+                    if visited.contains(.library), access.canLibrary {
+                        LibrarySearchResultsView(keyword: keyword, onSwitchToMedia: access.canMedia ? { switchTo(.media) } : nil)
+                            .opacity(vertical == .library ? 1 : 0)
+                            .allowsHitTesting(vertical == .library)
+                    }
+                    if !access.ready {
+                        ProgressView().padding(.top, 60)
+                    }
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
+        }
+        .appBackground()
+        .navigationTitle(browsing ? "最新资源" : "搜索“\(keyword)”")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // 居中位没有系统玻璃底（打开 sharedBackgroundVisibility 也不画，真机/模拟器实测），
+            // 胶囊自己画玻璃；关掉共享背景，免得哪天系统开始画时叠两层
+            ToolbarItem(placement: .principal) { keywordCapsule }
+                .sharedBackgroundVisibility(.hidden)
+            if showsScopeMenu {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu { scopeMenu } label: {
+                        Text(scope.label ?? "全部").lineLimit(1)
+                    }
+                    .accessibilityLabel("搜索范围：\(scope.label ?? "全部分类")")
+                    .accessibilityIdentifier("search-scope-menu")
+                }
+            }
+            if showsScopeMenu, let torrentModel {
+                ToolbarItem(placement: .topBarTrailing) { TorrentViewModeMenu(model: torrentModel) }
+            }
+        }
+        .tracksSubscriptionIndex()
+        .task { await initialize() }
+    }
+
+    private func initialize() async {
+        guard !initialized else { return }
+        initialized = true
+        scope = SearchScope(encoded: query.scope)
+        var target = browsing ? .torrent : SearchVertical(routeTab: query.tab)
+        access = await SearchAccess.resolve(api: api, permissions: permissions)
+        // 当前垂直不可用：落到第一个可用垂直（快照属于原垂直，丢掉）
+        var snapshot = query.snapshot
+        if !browsing, !access.available.contains(target), let first = access.available.first {
+            target = first
+            snapshot = nil
+        }
+        vertical = target
+        mediaSnapshot = target == .media ? snapshot : nil
+        torrentSnapshot = target == .torrent ? snapshot : nil
+        rebuildTorrentModel()
+        visited.insert(target)
+        tabs = await SearchTabs.visible(api: api, isAdmin: permissions.isAdmin)
+        if let subId = query.forSubscription, let detail = try? await api.subscriptionsGet(subscriptionId: subId) {
+            grabTarget = (detail.id, detail.media.title)
+        }
+    }
+
+    // MARK: 顶部选择器
+
+    private var selector: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if visibleVerticals.count > 1 {
+                Picker("搜索垂直类别", selection: Binding(get: { vertical }, set: { switchTo($0) })) {
+                    ForEach(visibleVerticals, id: \.self) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("search-vertical")
+            }
+        }
+        .padding(.horizontal, Theme.pagePadding)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+    }
+
+    /// 顶部居中的搜索词胶囊：点它回搜索首页改词重搜。浏览模式没有关键词，写「最新资源」
+    private var keywordCapsule: some View {
+        Button {
+            router.editSearch(SearchDraft(keyword: keyword, mode: vertical, scope: vertical == .torrent ? scope : nil))
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textMuted)
+                Text(browsing ? "最新资源" : keyword)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.text)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 16)
+            // 与两侧工具栏玻璃键同高（实测 44pt）
+            .frame(height: 44)
+            .frame(maxWidth: 240)
+            .glassEffect(.regular.interactive(), in: .capsule)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(browsing ? "最新资源，点按重新搜索" : "搜索词：\(keyword)，点按修改")
+        .accessibilityIdentifier("search-keyword-capsule")
+    }
+
+    /// 站点资源垂直才有范围可切（无权限的空态页不出）
+    private var showsScopeMenu: Bool {
+        vertical == .torrent && visibleVerticals.contains(.torrent)
+    }
+
+    /// 范围菜单：全部分类 / 内置分类 / 自定义分类，当前范围打勾。分类是真实搜索范围而非结果筛选，
+    /// 选中即按该范围重新请求站点。从历史回放进来的范围可能不在当前可见分类里（已隐藏的分类、
+    /// 改过名的预设），单列一项「当前」，否则菜单里没有打勾项、看不出正在搜什么
+    @ViewBuilder
+    private var scopeMenu: some View {
+        let presets = tabs.filter(\.isPreset)
+        Picker("搜索范围", selection: Binding(get: { scope }, set: { switchScope($0) })) {
+            Label("全部分类", systemImage: TorrentCategories.allSymbol).tag(SearchScope.all)
+            if scope != .all, !tabs.contains(where: { $0.scope == scope }) {
+                Label(scope.label ?? "当前范围", systemImage: "clock.arrow.circlepath").tag(scope)
+            }
+            Section {
+                ForEach(tabs.filter { !$0.isPreset }, id: \.key) { tab in
+                    Label(tab.label, systemImage: tab.symbol).tag(tab.scope)
+                }
+            }
+            if !presets.isEmpty {
+                Section("自定义分类") {
+                    ForEach(presets, id: \.key) { tab in
+                        Label(tab.label, systemImage: tab.symbol).tag(tab.scope)
+                    }
+                }
+            }
+        }
+        .pickerStyle(.inline)
+    }
+
+    /// 切换垂直：只切显示，范围与已出的结果保留；快照态例外——丢掉快照、各垂直重新挂载
+    private func switchTo(_ target: SearchVertical) {
+        guard target != vertical else { return }
+        vertical = target
+        if torrentSnapshot != nil || mediaSnapshot != nil {
+            torrentSnapshot = nil
+            mediaSnapshot = nil
+            visited = []
+            rebuildTorrentModel()
+        }
+        visited.insert(target)
+    }
+
+    /// 切换分类范围：关键词不变，按新范围重新搜索（丢掉快照）
+    private func switchScope(_ next: SearchScope) {
+        guard next != scope || torrentSnapshot != nil else { return }
+        scope = next
+        torrentSnapshot = nil
+        rebuildTorrentModel()
+    }
+
+    private func rebuildTorrentModel() {
+        torrentModel = TorrentSearchModel(keyword: keyword, scope: scope, snapshotId: torrentSnapshot)
+    }
+}
+
+// MARK: - 影视垂直
+
+/// 「影视」垂直（对应 Web `media-search-results.tsx`）：`POST /search/titles` 同时搜豆瓣与 TMDB，
+/// 两个来源分区并列（没有可靠对齐键，不合并去重），单边失败只在该分区提示。
+/// 快照回放读历史留存结果，不访问上游；两边都空时给「搜索站点资源」逃生入口。
+struct MediaSearchResultsView: View {
+    let keyword: String
+    let snapshotId: Int?
+    let onResearch: () -> Void
+    let onSwitchToTorrent: (() -> Void)?
+
+    @Environment(\.api) private var api
+    @State private var douban: [DiscoverPosterItem]?
+    @State private var doubanError: String?
+    @State private var tmdb: [DiscoverPosterItem]?
+    @State private var tmdbError: String?
+    @State private var snapshotAt: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // 关键词不在这里重复（顶栏的搜索词胶囊已经写着），只在快照回放时给快照时间与「重新搜索」
+                if let snapshotAt {
+                    HStack(spacing: 8) {
+                        Label("\(SubsFormat.relative(snapshotAt))的快照", systemImage: "clock")
+                            .font(.caption).foregroundStyle(Theme.textMuted)
+                        Button("重新搜索", action: onResearch)
+                            .font(.caption.weight(.semibold))
+                            .accessibilityIdentifier("media-research")
+                    }
+                }
+                let settled = (douban != nil || doubanError != nil) && (tmdb != nil || tmdbError != nil)
+                let empty = (douban?.isEmpty ?? true) && (tmdb?.isEmpty ?? true)
+                if settled, empty {
+                    let error = doubanError ?? tmdbError
+                    VStack(spacing: 8) {
+                        Text(error != nil ? "影视搜索出错" : "没有找到相关影视条目").font(.headline).foregroundStyle(.white)
+                        Text(error ?? "换个关键词试试；如果找的是非影视资源，可以直接搜索站点。")
+                            .font(.subheadline).foregroundStyle(Theme.textMuted).multilineTextAlignment(.center)
+                        if let onSwitchToTorrent {
+                            Button("搜索站点资源", action: onSwitchToTorrent)
+                                .discoverProminentButton()
+                                .padding(.top, 8)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 60)
+                    .discoverContainer("media-empty")
+                } else {
+                    section("豆瓣", items: douban, error: doubanError)
+                    section("TMDB", items: tmdb, error: tmdbError)
+                }
+            }
+            .padding(.horizontal, Theme.pagePadding)
+            .padding(.bottom, 40)
+        }
+        .task { await load() }
+        .accessibilityIdentifier("media-results")
+    }
+
+    private func section(_ label: String, items: [DiscoverPosterItem]?, error: String?) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                DiscoverTag(text: label, foreground: Theme.accent, background: .black.opacity(0.3))
+                if let items, !items.isEmpty {
+                    Text("共 \(items.count) 条结果").font(.subheadline).foregroundStyle(Theme.textMuted)
+                }
+            }
+            if items == nil, error == nil {
+                LazyVGrid(columns: DiscoverGrid.wideColumns, spacing: 28) {
+                    ForEach(0 ..< 6, id: \.self) { _ in
+                        DiscoverSkeletonBlock(cornerRadius: Theme.posterRadius).aspectRatio(2 / 3, contentMode: .fit)
+                    }
+                }
+            }
+            if let error {
+                Text(error).font(.subheadline).foregroundStyle(Theme.textMuted)
+            }
+            if let items {
+                if items.isEmpty {
+                    Text("该来源没有找到相关条目").font(.subheadline).foregroundStyle(Theme.textMuted)
+                } else {
+                    LazyVGrid(columns: DiscoverGrid.wideColumns, spacing: 28) {
+                        ForEach(items) { DiscoverPosterCard(item: $0) }
+                    }
+                }
+            }
+        }
+    }
+
+    private func load() async {
+        if let snapshotId {
+            if let snap = try? await api.titleSearchSnapshot(historyId: snapshotId) {
+                snapshotAt = snap.snapshotAt
+                douban = snap.items.filter { $0.source == "douban" }
+                tmdb = snap.items.filter { $0.source == "tmdb" }
+                return
+            }
+            // 快照缺失（被清理/老数据）回退实时搜索
+        }
+        do {
+            let result = try await api.searchTitles(body: .init(query: keyword, provider: "all", saveHistory: true))
+            let items = result.titles.map(DiscoverPosterItem.init)
+            douban = items.filter { $0.source == "douban" }
+            tmdb = items.filter { $0.source == "tmdb" }
+            if let status = result.providers.first(where: { $0.provider == "douban" }), !status.success {
+                doubanError = status.message ?? "豆瓣搜索失败"
+            }
+            if let status = result.providers.first(where: { $0.provider == "tmdb" }), !status.success {
+                tmdbError = status.message ?? "TMDB 搜索失败"
+            }
+        } catch is CancellationError {
+        } catch {
+            let message = error.localizedDescription.isEmpty ? "影视搜索失败，请稍后重试" : error.localizedDescription
+            doubanError = message
+            tmdbError = message
+        }
+    }
+}
+
+// MARK: - 媒体库垂直
+
+/// 「媒体库」垂直（对应 Web `library-search-results.tsx`）：`GET /search/library-items`，
+/// 跨全部可见媒体库按标题/原名匹配，按库分组；格下标注库存概况。空态出口指向「影视」。
+struct LibrarySearchResultsView: View {
+    let keyword: String
+    let onSwitchToMedia: (() -> Void)?
+
+    @Environment(\.api) private var api
+    @Environment(Router.self) private var router
+    @State private var groups: [API.LibrarySearchGroupView]?
+    @State private var error: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                if groups == nil, error == nil {
+                    LazyVGrid(columns: DiscoverGrid.wideColumns, spacing: 28) {
+                        ForEach(0 ..< 6, id: \.self) { _ in
+                            DiscoverSkeletonBlock(cornerRadius: Theme.posterRadius).aspectRatio(2 / 3, contentMode: .fit)
+                        }
+                    }
+                }
+                if error != nil || groups?.isEmpty == true {
+                    VStack(spacing: 8) {
+                        Text(error != nil ? "媒体库搜索出错" : "媒体库中没有找到相关影片").font(.headline).foregroundStyle(.white)
+                        Text(error ?? "已入库条目按标题和原名匹配；库里还没有的片子，去影视条目里找。")
+                            .font(.subheadline).foregroundStyle(Theme.textMuted).multilineTextAlignment(.center)
+                        if let onSwitchToMedia {
+                            Button("搜索影视条目", action: onSwitchToMedia)
+                                .discoverProminentButton()
+                                .padding(.top, 8)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 60)
+                    .discoverContainer("library-empty")
+                }
+                ForEach(groups ?? [], id: \.libraryId) { group in
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 10) {
+                            DiscoverTag(text: group.libraryName, foreground: Theme.accent, background: .black.opacity(0.3))
+                            Text("共 \(group.items.count) 条结果").font(.subheadline).foregroundStyle(Theme.textMuted)
+                        }
+                        LazyVGrid(columns: DiscoverGrid.wideColumns, spacing: 28) {
+                            ForEach(group.items, id: \.mediaItemId) { item in
+                                cell(item, libraryId: group.libraryId)
+                            }
+                        }
+                    }
+                    .discoverContainer("library-group")
+                }
+            }
+            .padding(.horizontal, Theme.pagePadding)
+            .padding(.bottom, 40)
+        }
+        .task {
+            do {
+                groups = try await api.searchLibraryItems(keyword: keyword)
+            } catch is CancellationError {
+            } catch {
+                self.error = error.localizedDescription.isEmpty ? "媒体库搜索失败，请稍后重试" : error.localizedDescription
+            }
+        }
+        .accessibilityIdentifier("library-results")
+    }
+
+    private func cell(_ item: API.LibraryItemView, libraryId: Int) -> some View {
+        let visual = DiscoverPosterItem(
+            externalId: item.tmdbId.map(String.init) ?? "local:\(item.mediaItemId)",
+            source: "tmdb",
+            mediaType: item.kind == "movie" || item.kind == "tv" ? item.kind : nil,
+            title: item.title,
+            year: item.year,
+            posterUrl: item.posterUrl,
+            aspect: CGFloat(item.primaryAspect)
+        )
+        var parts: [String] = []
+        if item.kind == "tv", !item.seasons.isEmpty {
+            parts.append(item.seasons.count == 1 ? "第 \(item.seasons[0]) 季 · \(item.episodeCount) 集" : "\(item.seasons.count) 季 · \(item.episodeCount) 集")
+        }
+        if !item.resolutions.isEmpty { parts.append(item.resolutions.joined(separator: "/")) }
+        // 与单库海报墙同口径：剧集按季集完整度给「自动续订 / 补齐缺集」
+        let action: DiscoverPosterAction = {
+            guard item.kind == "tv", let summary = item.inventorySummary else { return .none }
+            return summary.allSeasonsOwned && summary.allEpisodesOwned ? .follow : .backfill
+        }()
+        return DiscoverPosterCard(
+            item: visual,
+            action: action,
+            onOpen: { router.push(.libraryItem(libraryId: libraryId, itemId: item.mediaItemId)) },
+            footnote: parts.isEmpty ? nil : parts.joined(separator: " · ")
+        )
+    }
+}

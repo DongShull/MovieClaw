@@ -11,11 +11,20 @@ import {
   useRef,
   useState,
 } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
 import type { Route } from "next";
 
 import { useToast } from "@/components/feedback";
-import { ChevronLeftIcon, LayersIcon, ListIcon, PhotoIcon, XIcon } from "@/components/icons";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  LayersIcon,
+  ListIcon,
+  PhotoIcon,
+  XIcon,
+} from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { useTileWindow } from "@/components/photo-wall";
 import { PosterImage } from "@/components/poster-image";
@@ -51,6 +60,8 @@ import { cachedImageUrl } from "@/lib/image-proxy";
 import { layoutPosterGrid } from "@/lib/wall-window";
 import { usePermissions } from "@/lib/permissions";
 import { formatDateTime, formatRelativeTime } from "@/lib/time";
+import { useTheme } from "@/lib/ui-prefs";
+import { useIsMobile } from "@/lib/use-media-query";
 import { useScrollRestoration } from "@/lib/use-scroll-restoration";
 
 /**
@@ -69,6 +80,12 @@ import { useScrollRestoration } from "@/lib/use-scroll-restoration";
  *    chips 多选（组内=或，组间=且），底部实时显示命中数；服务重度组合场景；
  * 3. **已应用条件回显行**：弹层里激活的条件以可摘除 chip 回显在结果上方，
  *    用户不用打开弹层就知道列表被什么约束着。
+ *
+ * 银玻璃手机端换成原生 App 的形态（apps/apple/.../TorrentResultsView.swift 的 conditionChips）：
+ * 一排可横滑的玻璃条件胶囊（ConditionChips）取代上面三层——排序 + 结果里出现过的每个维度
+ * 各一颗单维度下拉，已启用的高亮写出所选值；有条件时最左钉一颗「清空」。关键词不在页头
+ * 重复（结果页顶栏的关键词胶囊已写着），视图切换收成状态行右侧一颗图标菜单，站点状态详情
+ * 改为底部弹层。桌面与 Netflix 主题维持原样。
  *
  * 筛选与排序都是纯前端操作，不重新发起搜索；新搜索重置筛选、保留排序偏好。
  * 流式期间新到的结果实时并入当前筛选/排序视图。
@@ -739,6 +756,9 @@ function collectEntities(items: TorrentHit[]): Map<string, EntityGroup> {
 export function SearchResults({ query, onResearch, grabForSubscriptionId }: SearchResultsProps) {
   // 保存位置记忆只对能一键下载的人有意义，没权限就不拉
   const { canDirectDownload: pageCanDirectDownload } = usePermissions();
+  // 银玻璃手机端：条件胶囊行 / 去掉关键词标题 / 站点详情走底部弹层（见文件头注释）
+  const isNf = useTheme().structural;
+  const silverMobile = useIsMobile() && !isNf;
   const scrollRef = useScrollRestoration(
     `search:torrent:${query.keyword}:${query.scope.label ?? "all"}:${query.scope.categories.join(",")}:${query.scope.siteIds.join(",")}:${query.snapshotId ?? "live"}`,
   );
@@ -1093,11 +1113,14 @@ export function SearchResults({ query, onResearch, grabForSubscriptionId }: Sear
       {/* pt-4：上方还有 /search 页的垂直选项卡行（影视 | 站点资源），间距略收 */}
       <header className={`relative z-20 shrink-0 pb-3 pt-4 page-inset max-md:pt-3`}>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-          <h1 className="text-on-image text-title-lg font-semibold tracking-[-0.01em] text-white">
-            {/* 浏览模式（无关键词）标题落在动作上，具体范围由右边的分类药丸交代 */}
-            {query.keyword ? `“${query.keyword}”` : "最新资源"}
-          </h1>
-          {query.scope.label && (
+          {/* 银玻璃手机不重复关键词与范围：顶栏的关键词胶囊与范围菜单已写着 */}
+          {!silverMobile && (
+            <h1 className="text-on-image text-title-lg font-semibold tracking-[-0.01em] text-white">
+              {/* 浏览模式（无关键词）标题落在动作上，具体范围由右边的分类药丸交代 */}
+              {query.keyword ? `“${query.keyword}”` : "最新资源"}
+            </h1>
+          )}
+          {!silverMobile && query.scope.label && (
             <span className="rounded-full bg-black/30 px-2.5 py-0.5 text-caption text-[var(--accent)] backdrop-blur-sm">
               {query.scope.label}
             </span>
@@ -1149,11 +1172,15 @@ export function SearchResults({ query, onResearch, grabForSubscriptionId }: Sear
                 )}
               </>
             )}
+            {silverMobile && siteProgress.length > 0 && (
+              <ViewModeMenu view={view} onChange={setView} />
+            )}
             <SiteStatusSummary
               sites={siteProgress}
               streaming={streaming}
               onRetrySite={snapshotAt ? undefined : retrySite}
               totalElapsedMs={totalElapsedMs}
+              asSheet={silverMobile}
             />
           </div>
         </div>
@@ -1162,7 +1189,18 @@ export function SearchResults({ query, onResearch, grabForSubscriptionId }: Sear
             当前没有「已启用且验证通过」的站点，请先在设置里配置站点。
           </p>
         )}
-        {siteProgress.length > 0 && (
+        {siteProgress.length > 0 && silverMobile && (
+          <ConditionChips
+            sites={settledStatuses}
+            facets={facets}
+            filters={filters}
+            onChange={setFilters}
+            sort={sort}
+            smartSortKeys={smartSortKeys}
+            onSortChange={setSort}
+          />
+        )}
+        {siteProgress.length > 0 && !silverMobile && (
           <>
             <FilterToolbar
               sites={settledStatuses}
@@ -1602,13 +1640,7 @@ function FilterToolbar({
         {/* 视图分段切换：只切换当次搜索的展示方式，图览的长期默认值在自定义分类里
             设置。纯图标 + tooltip：设置一次就不常动的偏好，不配占文字标签的宽度 */}
         <div className="flex items-center rounded-full border border-white/[0.08] bg-black/[0.16] p-0.5">
-          {(
-            [
-              { v: "group", label: "分组", Icon: LayersIcon, hint: "分组：按作品聚合，组内是各版本" },
-              { v: "list", label: "列表", Icon: ListIcon, hint: "列表：平铺展示每条种子" },
-              { v: "poster", label: "图览", Icon: PhotoIcon, hint: "图览：带海报的结果以图墙展示" },
-            ] as const
-          ).map(({ v, label, Icon, hint }) => (
+          {VIEW_OPTIONS.map(({ v, label, Icon, hint }) => (
             <button
               key={v}
               type="button"
@@ -2090,6 +2122,387 @@ function AppliedChips({
   );
 }
 
+/* —— 银玻璃手机端：条件胶囊行（取代上面三层） —— */
+
+/** 条件胶囊行的维度顺序与标题（同 iOS TorrentFilterDim.allCases，与筛选弹层同口径）。 */
+const CHIP_DIMS: { dim: FilterDim; title: string }[] = [
+  { dim: "resolution", title: "分辨率" },
+  { dim: "site", title: "站点" },
+  { dim: "year", title: "年份" },
+  { dim: "season", title: "季" },
+  { dim: "episode", title: "集" },
+  { dim: "source", title: "片源" },
+  { dim: "platform", title: "流媒体平台" },
+  { dim: "codec", title: "视频编码" },
+  { dim: "hdr", title: "HDR" },
+  { dim: "audio", title: "音频" },
+  { dim: "subtitle", title: "字幕" },
+  { dim: "group", title: "压制组" },
+];
+
+/** 某维度在当前结果里的可选值与计数；站点只列成功返回的站点（顺序同站点状态），同 iOS dimValues。 */
+function dimOptions(
+  dim: FilterDim,
+  facets: Facets,
+  okSites: SiteSearchStatus[],
+): { value: string | number; count: number }[] {
+  switch (dim) {
+    case "resolution":
+      return facets.resolution;
+    case "site":
+      return okSites.map((s) => ({ value: s.site_id, count: facets.sites.get(s.site_id) ?? 0 }));
+    case "year":
+      return facets.years;
+    case "season":
+      return facets.seasons;
+    case "episode":
+      return facets.episodes;
+    case "source":
+      return facets.source;
+    case "platform":
+      return facets.platform;
+    case "codec":
+      return facets.codec;
+    case "hdr":
+      return facets.hdr;
+    case "audio":
+      return facets.audio;
+    case "subtitle":
+      return facets.subtitles;
+    case "group":
+      return facets.groups;
+  }
+}
+
+/** 取值的展示名（胶囊摘要与菜单项共用；与筛选弹层 / 条件回显行同一套叫法）。 */
+function facetLabel(dim: FilterDim, value: string | number, siteName: (id: string) => string): string {
+  if (dim === "site") return siteName(String(value));
+  if (dim === "season") return `第${value}季`;
+  if (dim === "episode") return `第${value}集`;
+  if (dim === "subtitle") return subtitleLanguageLabel(String(value));
+  if (dim === "platform") return platformLabel(String(value));
+  return String(value);
+}
+
+/** 玻璃条件胶囊的外观（与顶栏玻璃圆钮同一种材质）；启用态加粗、叠一层白。 */
+const GLASS_CHIP_CLS =
+  "flex h-[34px] shrink-0 items-center gap-1 rounded-full border px-3 text-sub backdrop-blur-md transition active:scale-[0.97]";
+const GLASS_CHIP_IDLE_CLS =
+  "border-white/[0.09] bg-black/30 text-[var(--text-muted)] data-[state=open]:bg-black/50";
+const GLASS_CHIP_ACTIVE_CLS =
+  "border-white/[0.2] bg-white/[0.16] font-semibold text-[var(--text)] data-[state=open]:bg-white/[0.22]";
+
+/** 菜单项的公共类（menu-surface 里的行，与媒体库排序菜单同款）。 */
+const MENU_ITEM_CLS =
+  "glass-row nav-item flex cursor-pointer items-center justify-between gap-4 px-3 py-2 text-sub outline-none data-[highlighted]:!bg-[var(--glass-fill-hover)]";
+
+/**
+ * 横滑行里的 Radix 下拉：Radix 的 Trigger 在 pointerdown 就打开菜单，手指按在胶囊上横滑
+ * 整排胶囊时会误开菜单。触屏改成「抬手成点击才开」：非鼠标的 pointerdown 先 preventDefault
+ * （Radix 的处理随之跳过），click 再打开——横滑手势不产生 click。鼠标与键盘照旧由 Radix 处理。
+ */
+function useTouchSafeMenu() {
+  const [open, setOpen] = useState(false);
+  const touchRef = useRef(false);
+  const triggerProps = {
+    onPointerDown: (event: React.PointerEvent) => {
+      touchRef.current = event.pointerType !== "mouse";
+      if (touchRef.current) event.preventDefault();
+    },
+    onClick: () => {
+      if (!touchRef.current) return;
+      touchRef.current = false;
+      setOpen(true);
+    },
+  };
+  return { open, setOpen, triggerProps };
+}
+
+/**
+ * 条件胶囊行（银玻璃手机端，对齐 iOS TorrentResultsView.conditionChips）。
+ *
+ * - 第一颗是排序，写当前键与方向；
+ * - 其后按固定顺序列本次结果里出现过取值的维度，没有取值的不出（已选的例外，免得选中项凭空消失）；
+ *   每颗点开是单维度菜单，选一项即生效并收起，已启用的高亮写出所选值、菜单末尾多「移除此条件」；
+ * - 有筛选条件时，最左边钉一颗「✕ 清空」：在横滑容器外、不随胶囊滑走，条件再多也不用滑到末尾去找
+ *   （排序不算筛选条件）。
+ * 顺序固定、不按启用与否重排——改完一项胶囊原地变亮，手指下的东西不会跑位。
+ * 横滑区域向两侧出血到屏幕边缘（page-inset-bleed），胶囊滑到屏幕边再消失，而不是在页边距处被一刀切掉。
+ */
+function ConditionChips({
+  sites,
+  facets,
+  filters,
+  onChange,
+  sort,
+  smartSortKeys,
+  onSortChange,
+}: {
+  sites: SiteSearchStatus[];
+  facets: Facets;
+  filters: Filters;
+  onChange: (f: Filters) => void;
+  sort: SortState;
+  smartSortKeys: SortKey[];
+  onSortChange: (s: SortState) => void;
+}) {
+  const okSites = sites.filter((s) => !s.error);
+  const siteName = (id: string) => sites.find((s) => s.site_id === id)?.site_name ?? id;
+  const clearing = hasActiveFilters(filters);
+  const dims = CHIP_DIMS.filter(
+    ({ dim }) => dimOptions(dim, facets, okSites).length > 0 || filters[dim].size > 0,
+  );
+  // 当前选中的智能键即使不在注入列表里（URL 还原的偏好残留）也要保留，同 FilterToolbar
+  const smartOptions = SMART_SORT_OPTIONS.filter(
+    (o) => smartSortKeys.includes(o.key) || o.key === sort.key,
+  );
+
+  return (
+    <div className="page-inset-bleed mt-2 flex items-center">
+      {clearing && (
+        <div className="shrink-0 py-1 pl-[var(--page-inset)]">
+          <button
+            type="button"
+            onClick={() => onChange(emptyFilters())}
+            aria-label="清空全部筛选条件"
+            className={`${GLASS_CHIP_CLS} ${GLASS_CHIP_IDLE_CLS}`}
+          >
+            <XIcon className="size-3.5" />
+            清空
+          </button>
+        </div>
+      )}
+      <div
+        className={`scroll-none flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1 pr-[var(--page-inset)] ${
+          clearing ? "pl-2" : "pl-[var(--page-inset)]"
+        }`}
+      >
+        <SortChip sort={sort} smartOptions={smartOptions} onChange={onSortChange} />
+        {dims.map(({ dim, title }) => (
+          <FilterChip
+            key={dim}
+            title={title}
+            options={dimOptions(dim, facets, okSites).map((o) => ({
+              ...o,
+              label: facetLabel(dim, o.value, siteName),
+            }))}
+            selected={filters[dim] as Set<string | number>}
+            labelOf={(value) => facetLabel(dim, value, siteName)}
+            onToggle={(value) =>
+              onChange({ ...filters, [dim]: toggleIn(filters[dim] as Set<string | number>, value) })
+            }
+            onRemove={() => onChange({ ...filters, [dim]: new Set() })}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 排序胶囊：写当前键与方向；菜单分「常规 / 智能」，点当前项翻转升降序（同 SortDropdown）。 */
+function SortChip({
+  sort,
+  smartOptions,
+  onChange,
+}: {
+  sort: SortState;
+  smartOptions: { key: SortKey; label: string }[];
+  onChange: (s: SortState) => void;
+}) {
+  const menu = useTouchSafeMenu();
+  const label =
+    [...SORT_OPTIONS, ...SMART_SORT_OPTIONS].find((o) => o.key === sort.key)?.label ?? sort.key;
+  const arrow = sort.dir === "desc" ? "↓" : "↑";
+  const isDefault = sort.key === "seeders" && sort.dir === "desc";
+  const item = (o: { key: SortKey; label: string }) => (
+    <DropdownMenu.Item
+      key={o.key}
+      onSelect={() =>
+        onChange(
+          o.key === sort.key
+            ? { key: o.key, dir: sort.dir === "desc" ? "asc" : "desc" }
+            : { key: o.key, dir: "desc" },
+        )
+      }
+      className={MENU_ITEM_CLS}
+    >
+      {o.label}
+      {o.key === sort.key && <span className="text-sub text-[var(--info)]">{arrow}</span>}
+    </DropdownMenu.Item>
+  );
+  return (
+    <DropdownMenu.Root open={menu.open} onOpenChange={menu.setOpen}>
+      <DropdownMenu.Trigger asChild {...menu.triggerProps}>
+        <button
+          type="button"
+          aria-label={`排序：${label}${sort.dir === "desc" ? "降序" : "升序"}`}
+          className={`${GLASS_CHIP_CLS} ${isDefault ? GLASS_CHIP_IDLE_CLS : GLASS_CHIP_ACTIVE_CLS}`}
+        >
+          {label}
+          <span>{arrow}</span>
+          <ChevronDownIcon className="size-3 opacity-60" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className="menu-surface z-50 min-w-[11rem] p-1"
+        >
+          <DropdownMenu.Label className="px-3 pb-1 pt-1.5 text-micro text-[var(--text-faint)]">
+            常规
+          </DropdownMenu.Label>
+          {SORT_OPTIONS.map(item)}
+          {smartOptions.length > 0 && (
+            <>
+              <DropdownMenu.Label className="px-3 pb-1 pt-2 text-micro text-[var(--text-faint)]">
+                智能
+              </DropdownMenu.Label>
+              {smartOptions.map(item)}
+            </>
+          )}
+          <DropdownMenu.Separator className="my-1 h-px bg-white/[0.08]" />
+          <p className="px-3 pb-1 pt-0.5 text-micro text-[var(--text-faint)]">点当前项可切换升降序</p>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+/**
+ * 单维度筛选胶囊：菜单里每个取值一行（右侧是命中条数），组内多选 = 或；选一项菜单即收起
+ * （同 iOS，要再加一个就再点开一次）；已启用时末尾多一项「移除此条件」。
+ * 胶囊上一两个值直接写名字，多了写「首个等 N 个」，不至于被撑成一长条。
+ */
+function FilterChip({
+  title,
+  options,
+  selected,
+  labelOf,
+  onToggle,
+  onRemove,
+}: {
+  title: string;
+  options: { value: string | number; label: string; count: number }[];
+  selected: Set<string | number>;
+  labelOf: (value: string | number) => string;
+  onToggle: (value: string | number) => void;
+  onRemove: () => void;
+}) {
+  const menu = useTouchSafeMenu();
+  const labels = [...selected].map(labelOf).sort((a, b) => a.localeCompare(b));
+  const summary =
+    labels.length === 0
+      ? null
+      : labels.length <= 2
+        ? labels.join("、")
+        : `${labels[0]}等 ${labels.length} 个`;
+  return (
+    <DropdownMenu.Root open={menu.open} onOpenChange={menu.setOpen}>
+      <DropdownMenu.Trigger asChild {...menu.triggerProps}>
+        <button
+          type="button"
+          aria-label={summary ? `${title}：${summary}` : title}
+          className={`${GLASS_CHIP_CLS} ${summary ? GLASS_CHIP_ACTIVE_CLS : GLASS_CHIP_IDLE_CLS}`}
+        >
+          <span className="max-w-[12rem] truncate">{summary ?? title}</span>
+          <ChevronDownIcon className="size-3 opacity-60" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className="menu-surface z-50 max-h-[min(60dvh,var(--radix-dropdown-menu-content-available-height))] min-w-[11rem] overflow-y-auto p-1"
+        >
+          {options.map((o) => (
+            <DropdownMenu.CheckboxItem
+              key={o.value}
+              checked={selected.has(o.value)}
+              onCheckedChange={() => onToggle(o.value)}
+              className={MENU_ITEM_CLS}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="grid size-3.5 shrink-0 place-items-center">
+                  <DropdownMenu.ItemIndicator>
+                    <CheckIcon className="size-3.5 text-[var(--info)]" />
+                  </DropdownMenu.ItemIndicator>
+                </span>
+                <span className="truncate">{o.label}</span>
+              </span>
+              <span className="tnum shrink-0 text-caption text-[var(--text-faint)]">{o.count} 条</span>
+            </DropdownMenu.CheckboxItem>
+          ))}
+          {selected.size > 0 && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-white/[0.08]" />
+              <DropdownMenu.Item onSelect={onRemove} className={`${MENU_ITEM_CLS} text-[#ff9a9a]`}>
+                <span className="flex items-center gap-2">
+                  <XIcon className="size-3.5" />
+                  移除此条件
+                </span>
+              </DropdownMenu.Item>
+            </>
+          )}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+/** 结果视图三选一的文案与图标（桌面工具栏分段与手机视图菜单共用）。 */
+const VIEW_OPTIONS = [
+  { v: "group", label: "分组", Icon: LayersIcon, hint: "分组：按作品聚合，组内是各版本" },
+  { v: "list", label: "列表", Icon: ListIcon, hint: "列表：平铺展示每条种子" },
+  { v: "poster", label: "图览", Icon: PhotoIcon, hint: "图览：带海报的结果以图墙展示" },
+] as const;
+
+/**
+ * 视图切换菜单（银玻璃手机端）：一颗写着当前视图图标的玻璃圆钮，点开选分组 / 列表 / 图览。
+ * iOS 放在顶栏右上角（TorrentViewModeMenu）；网页顶栏右侧已挂范围菜单与全局搜索键，
+ * 这里收在状态行右侧、站点状态胶囊旁边。
+ */
+function ViewModeMenu({ view, onChange }: { view: ResultView; onChange: (v: ResultView) => void }) {
+  const current = VIEW_OPTIONS.find((o) => o.v === view) ?? VIEW_OPTIONS[0];
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          aria-label={`结果视图：${current.label}`}
+          className="grid size-7 place-items-center rounded-full border border-white/[0.12] bg-white/[0.05] text-[var(--text-muted)] backdrop-blur-sm transition-colors data-[state=open]:text-[var(--text)]"
+        >
+          <current.Icon className="size-3.5" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          collisionPadding={12}
+          className="menu-surface z-50 min-w-[10rem] p-1"
+        >
+          <DropdownMenu.RadioGroup value={view} onValueChange={(v) => onChange(v as ResultView)}>
+            {VIEW_OPTIONS.map(({ v, label, Icon }) => (
+              <DropdownMenu.RadioItem key={v} value={v} className={MENU_ITEM_CLS}>
+                <span className="flex items-center gap-2">
+                  <Icon className="size-3.5" />
+                  {label}
+                </span>
+                <DropdownMenu.ItemIndicator>
+                  <CheckIcon className="size-3.5 text-[var(--info)]" />
+                </DropdownMenu.ItemIndicator>
+              </DropdownMenu.RadioItem>
+            ))}
+          </DropdownMenu.RadioGroup>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
 /* —— 站点状态：状态行右侧的聚合 chip + 逐站详情弹层 —— */
 
 /**
@@ -2100,18 +2513,24 @@ function AppliedChips({
  * 点击弹出逐站详情，每站一行三要素齐全：**状态**（色点+文字）、**命中条数**、
  * **耗时**——成功失败都有耗时，十几秒后才失败的一眼可辨是超时，秒失败的多半
  * 是认证/解析问题。底部汇总行给出整次搜索的总耗时；快照回放时数据同样齐全。
+ *
+ * 银玻璃手机端（asSheet）详情改为底部弹层（Modal 在手机上的贴底形态，同 iOS SiteStatusSheet），
+ * 内容不变；桌面与 Netflix 主题仍是 chip 下方的浮层。
  */
 function SiteStatusSummary({
   sites,
   streaming,
   totalElapsedMs,
   onRetrySite,
+  asSheet = false,
 }: {
   sites: SiteProgress[];
   streaming: boolean;
   totalElapsedMs: number | null;
   /** 单站重试（失败行的行动出口）；不传则失败行只读 */
   onRetrySite?: (siteId: string) => void;
+  /** 详情用底部弹层呈现（银玻璃手机端） */
+  asSheet?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -2124,6 +2543,94 @@ function SiteStatusSummary({
     : failed > 0
       ? "bg-[#ff6b6b]"
       : "bg-[var(--ok)]";
+
+  // 逐站详情（浮层与底部弹层共用同一份内容）
+  const details = (
+    <>
+      <ul className="flex flex-col">
+        {sites.map((s) => (
+          <li key={s.site_id} className="rounded-lg px-2 py-1.5">
+            <div className="flex items-center gap-2">
+              <span
+                className={`size-1.5 shrink-0 rounded-full ${
+                  s.phase === "searching"
+                    ? "animate-pulse bg-[var(--accent)]"
+                    : s.phase === "error"
+                      ? "bg-[#ff6b6b]"
+                      : "bg-[var(--ok)]"
+                }`}
+              />
+              <span className="min-w-0 flex-1 truncate text-sub text-[var(--text)]">
+                {s.site_name}
+              </span>
+              {/* 右侧固定：状态 + 条数/耗时。失败也带耗时——超时一眼可辨 */}
+              {s.phase === "searching" && (
+                <span className="shrink-0 text-caption text-[var(--text-faint)]">
+                  搜索中…
+                </span>
+              )}
+              {s.phase === "ok" && (
+                <span className="tnum shrink-0 text-caption text-[var(--text-muted)]">
+                  {s.count} 条
+                  {s.elapsed_ms !== null && (
+                    <span className="text-[var(--text-faint)]">
+                      {" "}· {formatElapsed(s.elapsed_ms)}
+                    </span>
+                  )}
+                </span>
+              )}
+              {s.phase === "error" && (
+                <span className="tnum shrink-0 text-caption text-[#ff9a9a]">
+                  失败
+                  {s.elapsed_ms !== null && (
+                    <span className="opacity-75"> · {formatElapsed(s.elapsed_ms)}</span>
+                  )}
+                </span>
+              )}
+            </div>
+            {/* 失败原因独立成行，不再和站名挤在一行里被截断到没法读 */}
+            {s.phase === "error" && s.error && (
+              <p
+                title={s.error}
+                className="mt-0.5 line-clamp-2 pl-3.5 text-caption leading-4 text-[#ff9a9a]/80"
+              >
+                {s.error}
+              </p>
+            )}
+            {/* 失败行的行动出口：就地重试 / 去站点设置修凭据——此前只能
+                读完错误自己记住站名再去设置里翻（订阅体检早有 fix 跳转，
+                这里拉齐同一标准） */}
+            {s.phase === "error" && (
+              <div className="mt-1 flex gap-2 pl-3.5">
+                {onRetrySite && (
+                  <button
+                    type="button"
+                    onClick={() => onRetrySite(s.site_id)}
+                    className="rounded-md bg-white/[0.08] px-2 py-0.5 text-caption font-medium text-white/80 transition hover:bg-white/[0.15]"
+                  >
+                    重试该站
+                  </button>
+                )}
+                <Link
+                  href={"/settings/sites" as Route}
+                  className="rounded-md bg-white/[0.08] px-2 py-0.5 text-caption font-medium text-white/80 transition hover:bg-white/[0.15]"
+                >
+                  去站点设置 ›
+                </Link>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {/* 汇总行：整次搜索的总耗时（≈ 最慢站点耗时）；快照回放同样有值 */}
+      {totalElapsedMs !== null && (
+        <div className="mt-1 border-t border-white/[0.08] px-2 pb-0.5 pt-1.5 text-caption text-[var(--text-faint)]">
+          总耗时 {formatElapsed(totalElapsedMs)}
+          <span className="opacity-70">（以最慢的站点为准）</span>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="relative">
@@ -2149,93 +2656,19 @@ function SiteStatusSummary({
         <span className="text-micro opacity-70">▾</span>
       </button>
 
-      {open && (
+      {asSheet ? (
+        <Modal open={open} onClose={() => setOpen(false)} label="各站点的搜索详情">
+          <div className="p-3">
+            <p className="px-2 pb-2 pt-1 text-body font-semibold text-[var(--text)]">站点状态</p>
+            {details}
+          </div>
+        </Modal>
+      ) : open && (
         <>
           {/* 点击空白处关闭（与筛选弹层同款交互） */}
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
           <div className="solid-popover absolute right-0 top-full z-30 mt-2 w-[320px] max-w-[82vw] rounded-2xl border border-white/[0.12] bg-[rgba(14,16,22,0.94)] p-2 shadow-2xl backdrop-blur-2xl">
-            <ul className="flex flex-col">
-              {sites.map((s) => (
-                <li key={s.site_id} className="rounded-lg px-2 py-1.5">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`size-1.5 shrink-0 rounded-full ${
-                        s.phase === "searching"
-                          ? "animate-pulse bg-[var(--accent)]"
-                          : s.phase === "error"
-                            ? "bg-[#ff6b6b]"
-                            : "bg-[var(--ok)]"
-                      }`}
-                    />
-                    <span className="min-w-0 flex-1 truncate text-sub text-[var(--text)]">
-                      {s.site_name}
-                    </span>
-                    {/* 右侧固定：状态 + 条数/耗时。失败也带耗时——超时一眼可辨 */}
-                    {s.phase === "searching" && (
-                      <span className="shrink-0 text-caption text-[var(--text-faint)]">
-                        搜索中…
-                      </span>
-                    )}
-                    {s.phase === "ok" && (
-                      <span className="tnum shrink-0 text-caption text-[var(--text-muted)]">
-                        {s.count} 条
-                        {s.elapsed_ms !== null && (
-                          <span className="text-[var(--text-faint)]">
-                            {" "}· {formatElapsed(s.elapsed_ms)}
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    {s.phase === "error" && (
-                      <span className="tnum shrink-0 text-caption text-[#ff9a9a]">
-                        失败
-                        {s.elapsed_ms !== null && (
-                          <span className="opacity-75"> · {formatElapsed(s.elapsed_ms)}</span>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                  {/* 失败原因独立成行，不再和站名挤在一行里被截断到没法读 */}
-                  {s.phase === "error" && s.error && (
-                    <p
-                      title={s.error}
-                      className="mt-0.5 line-clamp-2 pl-3.5 text-caption leading-4 text-[#ff9a9a]/80"
-                    >
-                      {s.error}
-                    </p>
-                  )}
-                  {/* 失败行的行动出口：就地重试 / 去站点设置修凭据——此前只能
-                      读完错误自己记住站名再去设置里翻（订阅体检早有 fix 跳转，
-                      这里拉齐同一标准） */}
-                  {s.phase === "error" && (
-                    <div className="mt-1 flex gap-2 pl-3.5">
-                      {onRetrySite && (
-                        <button
-                          type="button"
-                          onClick={() => onRetrySite(s.site_id)}
-                          className="rounded-md bg-white/[0.08] px-2 py-0.5 text-caption font-medium text-white/80 transition hover:bg-white/[0.15]"
-                        >
-                          重试该站
-                        </button>
-                      )}
-                      <Link
-                        href={"/settings/sites" as Route}
-                        className="rounded-md bg-white/[0.08] px-2 py-0.5 text-caption font-medium text-white/80 transition hover:bg-white/[0.15]"
-                      >
-                        去站点设置 ›
-                      </Link>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {/* 汇总行：整次搜索的总耗时（≈ 最慢站点耗时）；快照回放同样有值 */}
-            {totalElapsedMs !== null && (
-              <div className="mt-1 border-t border-white/[0.08] px-2 pb-0.5 pt-1.5 text-caption text-[var(--text-faint)]">
-                总耗时 {formatElapsed(totalElapsedMs)}
-                <span className="opacity-70">（以最慢的站点为准）</span>
-              </div>
-            )}
+            {details}
           </div>
         </>
       )}

@@ -46,6 +46,25 @@ export function rememberPlayerReturnPath(path: string): void {
   }
 }
 
+/**
+ * 最近一次「点播放」的时刻（`performance.now()`）。站内跳转不换页面，时间原点不变，
+ * 播放页据此把起播计时的起点对到用户点下去的那一刻（含跳路由、挂载），与 iOS 同一口径。
+ */
+let playIntentAt: number | null = null;
+
+/** 播放键被点下：记下时刻（紧接着 `router.push` 进播放页） */
+export function markPlayIntent(): void {
+  playIntentAt = performance.now();
+}
+
+/** 取走点播放的时刻，只给紧接着的那次起播用；超过 10 秒没被取走视为过期（用户中途去了别处） */
+export function consumePlayIntent(): number | null {
+  const at = playIntentAt;
+  playIntentAt = null;
+  if (at === null || performance.now() - at > 10_000) return null;
+  return at;
+}
+
 /** 退出播放时读「回哪去」；没有（直开链接 / 隐私模式）返回 null 走兜底。 */
 export function playerReturnPath(): string | null {
   try {

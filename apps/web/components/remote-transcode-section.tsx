@@ -3,12 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { CheckIcon } from "@/components/icons";
-import {
-  type DeviceRequestView,
-  type DeviceTokenView,
-  listDeviceRequests,
-  listDevices,
-} from "@/lib/api/devices";
+import { type LoginDeviceView, listLoginDevices } from "@/lib/api/devices";
 import { relativeTime } from "@/lib/devices-display";
 import {
   type RemoteTranscodeConfigView,
@@ -39,7 +34,7 @@ const INPUT_CLASS =
   "focus:border-[var(--accent)]/50";
 
 export interface RemoteTranscodeSectionProps {
-  /** 去「设备」分区审批或吊销 Worker。批准是这条链路的必经一步，得能一键到。 */
+  /** 去「设备」分区批准或注销 Worker。批准是这条链路的必经一步，得能一键到。 */
   onOpenDevices?: () => void;
 }
 
@@ -63,15 +58,15 @@ export function RemoteTranscodeSection({ onOpenDevices }: RemoteTranscodeSection
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [status, setStatus] = useState<RemoteTranscodeStatus | null>(null);
-  // 等待批准的 Worker 接入请求。用户在 Mac 上点完「请求接入」通常会切回浏览器，
-  // 而他多半落在这一页（他是来配远程转码的）——不在这里提示，他看到的就是
-  // 「还没有 Worker 连上来」，完全不知道有个请求正等他批。
-  const [pendingWorkers, setPendingWorkers] = useState<DeviceRequestView[]>([]);
-  // 已授权的 Worker。运行时注册表在断线时会把 Worker 整个摘掉
-  // （remote_worker.py 的 unregister），所以只看 status.workers 的话，Mac
-  // 一关机这台设备就从页面上凭空消失，用户会以为自己从来没配过、跟着引导
-  // 又配一遍。授权是持久的，这份清单补上「配过但现在没连着」的那些。
-  const [authorizedWorkers, setAuthorizedWorkers] = useState<DeviceTokenView[]>([]);
+  // 已授权的 Worker：「设备」里 scope=transcode 的那些（配对出来的转码器，以及
+  // 给命令行模式转码器用的「仅限转码」手工令牌）。运行时注册表在断线时会把
+  // Worker 整个摘掉（remote_worker.py 的 unregister），所以只看 status.workers
+  // 的话，Mac 一关机这台设备就从页面上凭空消失，用户会以为自己从来没配过、跟着
+  // 引导又配一遍。授权是持久的，这份清单补上「配过但现在没连着」的那些。
+  //
+  // 待批准的请求这里看不到了：服务端不再列出待批准请求（只能按配对码查），
+  // 转码器发起配对时会直接打开带码的批准页（docs/design/login-devices.md §4）。
+  const [authorizedWorkers, setAuthorizedWorkers] = useState<LoginDeviceView[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,15 +99,13 @@ export function RemoteTranscodeSection({ onOpenDevices }: RemoteTranscodeSection
         if (alive) setStatus(null);
       }
       try {
-        const [requests, devices] = await Promise.all([listDeviceRequests(), listDevices()]);
-        if (!alive) return;
-        setPendingWorkers(requests.filter((r) => r.client_type === "worker"));
-        setAuthorizedWorkers(devices.filter((d) => d.client_type === "worker"));
+        // all=true 按全体取：转码凭证眼下都归超管（只有超管能批准转码器、创建
+        // 令牌），但这一页要回答的是「这台服务器配过哪些转码器」，不该依赖
+        // 「都归超管」这条假设。本分区只对超管开放，all=true 可用
+        const devices = await listLoginDevices(true);
+        if (alive) setAuthorizedWorkers(devices.filter((d) => d.scope === "transcode"));
       } catch {
-        if (alive) {
-          setPendingWorkers([]);
-          setAuthorizedWorkers([]);
-        }
+        if (alive) setAuthorizedWorkers([]);
       }
     }
     void poll();
@@ -167,7 +160,8 @@ export function RemoteTranscodeSection({ onOpenDevices }: RemoteTranscodeSection
   // 已授权但此刻没连上的：按名字和运行时列表对齐。名字两边都取 Mac 设置里的
   // 「Worker 名称」（配对时提交的 client_name 就是它），正常情况对得上；
   // 用户配对后又改了名字才会多出一条，那种情况显示两行也不算错——确实有一份
-  // 旧授权还挂着，去设备页吊销即可。
+  // 旧授权还挂着，去设备页注销即可。手工令牌的名字是创建时起的，要与命令行
+  // 模式转码器的 --worker-id 同名才对得上（创建表单里有提示）。
   const liveNames = new Set((status?.workers ?? []).map((w) => w.worker_id));
   const offlineWorkers = authorizedWorkers.filter((d) => !liveNames.has(d.name));
   const hasAnyWorker = (status?.workers.length ?? 0) > 0 || offlineWorkers.length > 0;
@@ -246,28 +240,6 @@ export function RemoteTranscodeSection({ onOpenDevices }: RemoteTranscodeSection
       <section>
         <h3 className="group-label mb-2.5 px-1">Worker</h3>
         <div className="css-glass space-y-4 !rounded-2xl p-5 max-sm:p-4">
-          {/* 有请求在等批准时置顶。这是新授权流程下最容易卡住的一步：
-              Mac 那边已经点了「请求接入」，人却在这一页找不到任何线索。 */}
-          {pendingWorkers.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/25 bg-amber-300/[0.07] px-4 py-3">
-              <p className="text-sub leading-relaxed text-amber-100">
-                有 {pendingWorkers.length} 台 Worker 正在等待批准
-                <span className="ml-1.5 font-mono text-caption text-amber-200/80">
-                  {pendingWorkers.map((r) => r.user_code).join(" · ")}
-                </span>
-              </p>
-              {onOpenDevices && (
-                <button
-                  type="button"
-                  onClick={onOpenDevices}
-                  className="btn-glass shrink-0 rounded-full px-3.5 py-1.5 text-sub font-medium"
-                >
-                  去审批
-                </button>
-              )}
-            </div>
-          )}
-
           {/* Worker 的 WebSocket 被 remote_worker_enabled（开关打开 AND 地址
               合法）挡着。做成横幅而不是替换整块内容：已授权的设备该照常列出来，
               用户需要同时看到「我配过哪几台」和「现在为什么连不上」。 */}
@@ -334,21 +306,21 @@ export function RemoteTranscodeSection({ onOpenDevices }: RemoteTranscodeSection
                       <span className="text-caption text-[var(--text-faint)]">未连接</span>
                     </div>
                     <p className="mt-1 text-caption leading-5 text-[var(--text-faint)]">
-                      已授权 · 最近活跃 {relativeTime(device.last_used_at)}
+                      已授权 · 最近活跃 {relativeTime(device.last_seen_at)}
                       {config.ready ? " · Mac 没开机或没联网时属正常" : ""}
                     </p>
                   </li>
                 ))}
               </ul>
-              {/* 这一页只回答「现在连着吗、在干什么」；「授权还在不在、要不要
-                  吊销」是设备页的事，两页各管一段，互相指路。 */}
+              {/* 这一页只回答「现在连着吗、在干什么」；「批准新的、授权还在不在、
+                  要不要注销」是设备页的事，两页各管一段，互相指路。 */}
               {onOpenDevices && (
                 <button
                   type="button"
                   onClick={onOpenDevices}
                   className="text-caption text-[var(--accent)] underline decoration-dotted underline-offset-2"
                 >
-                  在「设备」里查看授权或吊销
+                  在「设备」里批准新的转码器、查看授权或注销
                 </button>
               )}
             </>
@@ -357,9 +329,9 @@ export function RemoteTranscodeSection({ onOpenDevices }: RemoteTranscodeSection
               <p className="text-sub text-[var(--text-muted)]">还没有 Worker 接入。在 Mac 上：</p>
               <ol className="space-y-1 pl-4">
                 <li>1. 打开 MovieClaw 转码器，选择它在局域网里找到的 movieclaw，或直接填地址；</li>
-                <li>2. 点「连接并配对」，它会显示一段配对码；</li>
+                <li>2. 点「连接并配对」，它会显示一段配对码，并打开网页上的批准页；</li>
                 <li>
-                  3. 回到网页的「设置 → 设备」，核对配对码后批准
+                  3. 核对配对码后批准；批准页没打开的话，到「设置 → 设备」输入它显示的配对码
                   {onOpenDevices && (
                     <>
                       {" "}

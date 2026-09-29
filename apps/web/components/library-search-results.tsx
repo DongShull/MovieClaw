@@ -8,6 +8,8 @@ import { libraryCardAction } from "@/components/library-view";
 import type { LibraryItem, LibrarySearchGroup } from "@/lib/api/libraries";
 import { searchLibraryItems } from "@/lib/api/search";
 import { imageUrl } from "@/lib/image-proxy";
+import { useTheme } from "@/lib/ui-prefs";
+import { useIsMobile } from "@/lib/use-media-query";
 import { useScrollRestoration } from "@/lib/use-scroll-restoration";
 
 /**
@@ -29,6 +31,10 @@ export function LibrarySearchResults({
   onSwitchToMedia?: () => void;
 }) {
   const scrollRef = useScrollRestoration(`search:library:${keyword}`);
+  // 银玻璃手机端不重复关键词大标题：结果页顶栏的关键词胶囊已写着（同原生 App）；
+  // 页头留空作与垂直选项卡之间的间距
+  const isNf = useTheme().structural;
+  const hideKeyword = useIsMobile() && !isNf;
   // null = 加载中；[] = 无结果；error 非空 = 请求失败
   const [groups, setGroups] = useState<LibrarySearchGroup[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +61,11 @@ export function LibrarySearchResults({
     <div className="relative flex h-full flex-col">
       {/* 状态行：与另外两个垂直的头部同构（关键词） */}
       <header className={`shrink-0 pb-3 pt-4 page-inset max-md:pt-3`}>
-        <h1 className="text-on-image text-title-lg font-semibold tracking-[-0.01em] text-white">
-          “{keyword}”
-        </h1>
+        {!hideKeyword && (
+          <h1 className="text-on-image text-title-lg font-semibold tracking-[-0.01em] text-white">
+            “{keyword}”
+          </h1>
+        )}
       </header>
 
       <div

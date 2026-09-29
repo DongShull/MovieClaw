@@ -23,14 +23,18 @@ from movieclaw_playback.subtitles import (
 
 
 def media_profile_from_file(
-    file: LibraryFile, *, keyframe_interval_s: float | None = None, disc_clips: int = 0
+    file: LibraryFile,
+    *,
+    keyframe_interval_s: float | None = None,
+    disc_clips: int = 0,
+    disc_playlist: str | None = None,
 ) -> MediaProfile:
     """把一行台账装配成决策输入。
 
     ``keyframe_interval_s`` 由调用方从关键帧索引算出（§3.5）；未就绪时传 None，
     决策引擎会保守地不走 remux——档 1/2 的分片只能切在源片已有的 IDR 上，
     索引未知就赌不起。``disc_clips`` 是原盘主播放列表的段数（非原盘为 0），
-    由调用方从播放源解析器取——本模块不碰磁盘。
+    由调用方从播放源解析器取——本模块不碰磁盘；``disc_playlist`` 是它的文件名。
     """
     return MediaProfile(
         file_id=file.id or 0,
@@ -46,6 +50,8 @@ def media_profile_from_file(
         keyframe_interval_s=keyframe_interval_s,
         is_strm=is_strm(file.file_path),
         disc_clips=disc_clips,
+        disc_playlist=disc_playlist,
+        dvd_folder=(file.container or "") == "dvd",
     )
 
 

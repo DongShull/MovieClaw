@@ -77,6 +77,10 @@ final class FaultToleranceTests: XCTestCase {
     func testRejectionReasonsFromServerAreClassified() {
         // 这几句是服务端 transcode_worker.py 里写死的原文
         XCTAssertEqual(NASRejection(reason: "凭证无效或已被吊销，请在网页「设置 → 设备」重新配对"), .authRejected)
+        // 在网页「设置 → 设备」注销这台转码器时，服务端当场断开连接用的那句（login_devices.py）
+        XCTAssertEqual(NASRejection(reason: "转码器凭证已被注销，请重新配对"), .authRejected)
+        // 措辞改成只说「注销」、不带「凭证」时也得认出来，否则会按「其他」每分钟重试一次
+        XCTAssertEqual(NASRejection(reason: "这台转码器已被注销，请重新配对"), .authRejected)
         XCTAssertEqual(
             NASRejection(reason: "服务端尚未启用远程转码，请在网页「应用 → 远程转码」打开开关并确认地址"),
             .remoteDisabled

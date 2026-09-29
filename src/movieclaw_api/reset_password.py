@@ -148,9 +148,9 @@ async def _run(args: argparse.Namespace) -> int:
             print(f"   新密码：{new_password}")
             print("   （随机生成，请立即登录后到「个人信息」里改成自己的密码）")
         print(
-            "\n提示：为让其他设备上已登录的会话彻底失效，请重启一次服务"
-            "（docker restart movieclaw）。\n"
-            "      不重启也能用新密码登录。"
+            "\n提示：网页与 App 上用旧密码的登录已立即失效；升级前签发的旧网页会话"
+            "要重启一次服务才会失效（docker restart movieclaw）。\n"
+            "      命令行与转码器的配对不受影响；不重启也能用新密码登录。"
         )
         return 0
     finally:

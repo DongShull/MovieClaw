@@ -36,6 +36,8 @@ struct WorkerSettingsSnapshot: Sendable {
     let autoConnect: Bool
     let tokenConfigured: Bool
     let startupDownloadPromptDismissed: Bool
+    /// 本机安装标识，配对时上报（见 ``ConfigurationStore/installationID()``）。
+    let installationID: String
 }
 
 /// 非敏感配置使用 UserDefaults，令牌只通过 KeychainStore 读写。
@@ -140,8 +142,24 @@ final class ConfigurationStore: @unchecked Sendable {
             maxJobs: max(1, min(4, defaults.integer(forKey: Keys.maxJobs) == 0 ? 1 : defaults.integer(forKey: Keys.maxJobs))),
             autoConnect: defaults.object(forKey: Keys.autoConnect) as? Bool ?? true,
             tokenConfigured: tokenConfigured,
-            startupDownloadPromptDismissed: defaults.bool(forKey: Keys.startupDownloadPromptDismissed)
+            startupDownloadPromptDismissed: defaults.bool(forKey: Keys.startupDownloadPromptDismissed),
+            installationID: installationID()
         )
+    }
+
+    /// 本机的安装标识（docs/design/login-devices.md §4）。第一次用到时生成，之后一直复用。
+    ///
+    /// 配对时上报：同一台 Mac 重新配对（断开后重配、在网页上被注销后重配）时，服务端
+    /// 据此替换旧凭证，而不是在「设置 → 设备」里越积越多。它不是秘密，放 UserDefaults
+    /// 即可；``clear()`` 刻意不清它——断开重配之后仍是同一台机器，服务端那边
+    /// 万一没注销成功，重配时也能替换掉旧的那枚。
+    func installationID() -> String {
+        if let existing = defaults.string(forKey: Keys.installationID), !existing.isEmpty {
+            return existing
+        }
+        let created = UUID().uuidString
+        defaults.set(created, forKey: Keys.installationID)
+        return created
     }
 
     func loadConfiguration(interactive: Bool = true) throws -> WorkerConfiguration? {
@@ -235,5 +253,7 @@ final class ConfigurationStore: @unchecked Sendable {
         /// 「配过令牌」的布尔标记。存的不是令牌，只是「钥匙串里有没有那一条」，
         /// 免得每次看一眼状态都要去敲钥匙串、招来一次授权弹窗。
         static let tokenConfigured = "movieclaw.tokenConfigured"
+        /// 本机安装标识（UUID），``clear()`` 不清。
+        static let installationID = "movieclaw.installationID"
     }
 }

@@ -23,12 +23,21 @@ var knownNonGenerated = []string{
 	"skills.list",
 	"auth.device.authorize",
 	"auth.device.token",
+	// 原生 App 的账号密码登录：客户端之间的协议端点，mclaw 走配对码
+	"auth.device.login",
 	"auth.tokens.create",
-	"auth.tokens.list",
-	"auth.tokens.revoke",
-	"auth.devices.requests",
+	// 登录设备（docs/design/login-devices.md）：管理设备、批准配对只能由人在网页或
+	// App 里做；「当前设备」与「注销自己」由精选命令 mclaw status / logout 承担
+	"auth.devices.list",
+	"auth.devices.current",
+	"auth.devices.revoke-current",
+	"auth.devices.rename",
+	"auth.devices.revoke",
+	"auth.devices.request",
 	"auth.devices.approve",
 	"auth.devices.deny",
+	// 让成员在全部设备上下线：同属管理别人的设备，只在网页或 App 的成员管理里做
+	"members.sign-out",
 	"images.asset",
 	"images.proxy",
 	"libraries.cover",
@@ -50,6 +59,9 @@ var knownNonGenerated = []string{
 	"playback.session.master",
 	"playback.session.subtitle-playlist",
 	"playback.file.stream",
+	// 原盘目录直推（disc-direct-play.md）：目录清单与盘内文件的 Range 取流，只给播放引擎用
+	"playback.file.disc.list",
+	"playback.file.disc.file",
 	"playback.file.subtitle",
 	"playback.file.fonts",
 	"playback.file.font",
@@ -107,6 +119,8 @@ var knownNonGenerated = []string{
 	"session.follow",
 	"jobs.stream",
 	"playback.up-next",
+	// 订阅首页「刚刚入库」：与接下来继续同类的 App 首页展示聚合，按观看进度过滤
+	"subscriptions.list-recent-arrivals",
 	"ui.discovery.get",
 	"discover.get-person-details",
 	"ui.subscriptions.preview-title",
@@ -371,6 +385,7 @@ func TestDangerousAndLongTaskAnnotations(t *testing.T) {
 	}
 	for id, want := range map[string]string{
 		"library.items.delete":                     "destructive",
+		"site.boost-pool.cleanup":                  "destructive",
 		"subscriptions.cleanup-seasons":            "confirm",
 		"subscriptions.delete":                     "confirm",
 		"subscriptions.unsubscribe":                "confirm",

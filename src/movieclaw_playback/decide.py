@@ -139,8 +139,15 @@ class MediaProfile:
     keyframe_interval_s: float | None = None
     is_strm: bool = False
     #: 原盘（BDMV）主播放列表的剪辑段数；0 = 不是原盘。多剪辑原盘没有可直出
-    #: 的单个文件，全解码播放器也只能走 concat remux（disc-playback.md §3.4）。
+    #: 的单个文件：能读原盘目录的播放器（App 的自研引擎）按目录直推，其余全解码
+    #: 播放器只能走 concat remux（disc-playback.md §3.4、disc-direct-play.md §2.2）。
     disc_clips: int = 0
+    #: 原盘主播放列表的文件名（如 ``00800.mpls``）：目录直推时随计划下发，播放器按名字
+    #: 选同一部主片——服务端的诱饵判定与台账时长同一口径
+    disc_playlist: str | None = None
+    #: DVD 目录（VIDEO_TS 文件夹）：没有单个文件可直连，服务端也不解析它的结构；
+    #: 能读目录的播放器按目录直推，自己读 IFO 选正片、拼接 VOB（disc-direct-play.md §2.7）
+    dvd_folder: bool = False
 
     @property
     def height(self) -> int | None:
@@ -243,6 +250,11 @@ class PlaybackPlan:
     reason: str = ""
     #: 若为自动降档的结果，记录原档位（§6.3）。
     degraded_from: PlaybackTier | None = None
+    #: 光盘直推的形态（disc-direct-play.md）："image" = ISO 原字节、"folder" = 原盘目录
+    #: 按文件直推；None = 普通文件。只发给申报了能在本机读光盘的播放器
+    disc: str | None = None
+    #: 目录直推时服务端选中的主播放列表文件名
+    disc_playlist: str | None = None
 
 
 @dataclass(frozen=True)
@@ -314,9 +326,81 @@ def decide_playback(
     if media.is_strm:
         return _decide_strm(media, failed_tiers)
 
+    # 光盘镜像（ISO）：服务端读不了盘内结构（没有 UDF / ISO9660 解析，ffprobe 读 ISO
+    # 只是碰巧嗅探到盘内字节，规格不可信），换封装、转码都无从谈起——但自己拉原文件的
+    # 全解码播放器未必放不了（Infuse、带 libbluray 的播放器都认 ISO），所以不拦：一律给
+    # 原字节直推，放不放得了由播放器自己决定。申报了能读镜像的（App 的自研引擎）额外标上
+    # disc="image"，它据此按镜像装载（disc-direct-play.md §2.2）。
+    # 只有指望服务端换封装 / 转码的客户端（浏览器）明确告知放不了——服务端确实无能为力，
+    # 与其开一个注定 404 的会话，不如直接说清原因和出路。
+    if media.container == "iso":
+        if capability.universal:
+            return PlaybackPlan(
+                tier=PlaybackTier.DIRECT_PLAY,
+                file_id=media.file_id,
+                container="mp4",
+                video=VideoPlan(action="copy"),
+                audio=_copy_audio_plan(
+                    _preferred_audio(media.audio_tracks) if media.audio_tracks else None
+                ),
+                subtitles=plan_subtitles(media),
+                audio_tracks=media.audio_tracks,
+                reason="光盘镜像原字节直推，盘内结构由播放器在本机读取",
+                disc="image" if capability.disc_image else None,
+            )
+        return PlaybackRejected(
+            reason="服务端读不了光盘镜像（ISO）的盘内结构，没法为这个播放器换封装或转码",
+            suggestion="请用能直接播放 ISO 的播放器（MovieClaw 的 iOS App、Infuse 等）；"
+            "或把镜像里的 BDMV 目录解出来后重新入库",
+        )
+
     # 2. 恒等快照（全解码播放器）：永远直连，与 jellyfin-compat.md 行为一致。
-    #    例外：多剪辑原盘没有单个文件可直连，只能把主播放列表各段 copy 拼成
+    #    例外：多剪辑原盘没有单个文件可直连。能读原盘目录的播放器（App 的自研引擎）
+    #    按目录直推——服务端只按文件供字节，拼接与时间轴折叠在播放器里做
+    #    （disc-direct-play.md §2.2）；其余全解码播放器只能把主播放列表各段 copy 拼成
     #    HLS——仍然不重编码（disc-playback.md §2 硬边界 1）。
+    #    单剪辑原盘对能读目录的播放器同样按目录给：播放器读得到 CLPI 的 EP map，
+    #    续播起点与拖动一次按字节定位，不用在几十 GB 的 m2ts 里按时间二分（真机每次
+    #    约 0.5 秒），音轨与字幕的语言也从播放列表读到。
+    #    字幕清单照常给：App 的自研引擎直出原文件时，字幕菜单靠它。
+    if capability.universal and media.disc_clips >= 1 and capability.disc_folder:
+        chosen = next((t for t in media.audio_tracks if t.ref == preferred_audio), None)
+        return PlaybackPlan(
+            tier=PlaybackTier.DIRECT_PLAY,
+            file_id=media.file_id,
+            container="mp4",
+            video=VideoPlan(action="copy"),
+            audio=_copy_audio_plan(
+                chosen or (_preferred_audio(media.audio_tracks) if media.audio_tracks else None)
+            ),
+            subtitles=plan_subtitles(media),
+            audio_tracks=media.audio_tracks,
+            reason=(
+                f"原盘主片由 {media.disc_clips} 段剪辑组成，播放器按播放列表在本机拼接，"
+                "服务端只按文件供字节"
+                if media.disc_clips > 1
+                else "原盘目录直推：播放器读播放列表与剪辑信息在本机定位，服务端只按文件供字节"
+            ),
+            disc="folder",
+            disc_playlist=media.disc_playlist,
+        )
+    # DVD 目录同理按目录直推：播放器读 VIDEO_TS.IFO 挑正片标题集、按 cell 折叠时间轴（与读 DVD
+    # 镜像同一套），服务端只按文件供字节。原来落到下面「原文件直连」，取的却是个文件夹，一律 404
+    if capability.universal and media.dvd_folder and capability.disc_folder:
+        chosen = next((t for t in media.audio_tracks if t.ref == preferred_audio), None)
+        return PlaybackPlan(
+            tier=PlaybackTier.DIRECT_PLAY,
+            file_id=media.file_id,
+            container="mp4",
+            video=VideoPlan(action="copy"),
+            audio=_copy_audio_plan(
+                chosen or (_preferred_audio(media.audio_tracks) if media.audio_tracks else None)
+            ),
+            subtitles=plan_subtitles(media),
+            audio_tracks=media.audio_tracks,
+            reason="DVD 目录直推：播放器读 IFO 选正片、在本机拼接 VOB，服务端只按文件供字节",
+            disc="folder",
+        )
     if capability.universal and media.disc_clips > 1:
         return PlaybackPlan(
             tier=PlaybackTier.REMUX,
@@ -326,7 +410,7 @@ def decide_playback(
                 action="copy", codec=media.video_codec, source_bit_depth=media.bit_depth
             ),
             audio=_copy_audio_plan(fmp4_copy_audio_track(media.audio_tracks, preferred_audio)),
-            subtitles=(),
+            subtitles=plan_subtitles(media),
             audio_tracks=media.audio_tracks,
             reason=(
                 f"原盘主片由 {media.disc_clips} 段剪辑拼接而成，"
@@ -334,15 +418,17 @@ def decide_playback(
             ),
         )
     if capability.universal:
+        # 全解码播放器在本机切音轨：计划里带上用户点选 / 记住的那条，客户端据此选轨
+        chosen = next((t for t in media.audio_tracks if t.ref == preferred_audio), None)
         return PlaybackPlan(
             tier=PlaybackTier.DIRECT_PLAY,
             file_id=media.file_id,
             container="mp4",
             video=VideoPlan(action="copy"),
             audio=_copy_audio_plan(
-                _preferred_audio(media.audio_tracks) if media.audio_tracks else None
+                chosen or (_preferred_audio(media.audio_tracks) if media.audio_tracks else None)
             ),
-            subtitles=(),
+            subtitles=plan_subtitles(media),
             audio_tracks=media.audio_tracks,
             reason="播放器自述具备完整解码能力，原文件直连播放",
         )
@@ -1127,5 +1213,10 @@ def _decide_strm(
 
 
 def _preferred_audio(tracks: tuple[AudioTrack, ...]) -> AudioTrack:
-    """首选音轨：标了 default 的优先，否则取第一条。"""
-    return next((t for t in tracks if t.is_default), tracks[0])
+    """首选音轨：标了 default 的优先，否则取第一条。
+
+    探测认不出编码的轨（codec 为空，如国产 4K 剧的菁彩声 Audio Vivid「av3a」）谁也解不了——
+    客户端（含 App 的自研引擎）、服务端转码用的 FFmpeg 都没有它的解码器——有别的轨时不选它。
+    """
+    usable = tuple(t for t in tracks if t.codec) or tracks
+    return next((t for t in usable if t.is_default), usable[0])

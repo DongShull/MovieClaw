@@ -3,8 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { MediaSourceAnnotationDialog } from "@/components/media-source-annotation-dialog";
+import { PlusIcon } from "@/components/icons";
 import { Modal } from "@/components/modal";
 import { RuleSetEditorDialog, upgradeTargetLabel } from "@/components/rule-sets-panel";
+import {
+  SheetChoiceRow,
+  SheetNotice,
+  SheetRow,
+  SheetScaffold,
+  SheetSection,
+  useSheetForm,
+} from "@/components/sheet-scaffold";
 import {
   listRuleSets,
   runSubscriptionUpgradeRound,
@@ -41,6 +50,7 @@ export function UpgradeRunDialog({
   onFinished: () => void;
 }) {
   const { canManageSubscriptions } = usePermissions();
+  const sheetForm = useSheetForm();
   const isMovie = detail.media.kind === "movie";
   const [ruleSets, setRuleSets] = useState<RuleSet[] | null>(null);
   const [ruleSetId, setRuleSetId] = useState<number | null>(null);
@@ -116,6 +126,116 @@ export function UpgradeRunDialog({
       setBusy(false);
     }
   };
+
+  // 快捷新建规则组（叠在本弹层之上）：桌面与手机两套形态共用
+  const ruleSetEditor = creatingRuleSet && (
+    <RuleSetEditorDialog
+      ruleSet={null}
+      raised
+      onClose={() => setCreatingRuleSet(false)}
+      onSaved={(saved) => {
+        setCreatingRuleSet(false);
+        setRuleSets((prev) => [...(prev ?? []), saved]);
+        // 新建组带洗版目标时自动选中它（快捷新建的动机就是没得选）
+        if (upgradeTargetLabel(saved.spec)) setRuleSetId(saved.id);
+      }}
+    />
+  );
+
+  const toggleOpted = (n: number) =>
+    setOptedSeasons((prev) => {
+      const next = new Set(prev);
+      if (next.has(n)) next.delete(n);
+      else next.add(n);
+      return next;
+    });
+
+  // 银玻璃手机端确认段：表单弹层（对齐 iOS UpgradeRunSheet）——触发放头部 ✓，
+  // 规则组是对勾单选行、「新建规则组…」是组内末行，范围外库存季是对勾多选行。
+  // 报告段内容长且自带出口，仍走下方原弹窗
+  if (sheetForm && !report) {
+    return (
+      <>
+        <SheetScaffold
+          onClose={onClose}
+          title="洗一轮版"
+          subtitle={`逐集检查《${detail.media.title}》库里已有的版本，低于洗版目标的立即排入搜索；洗到新版本入库并验证通过后，旧文件自动替换。`}
+          confirm={{
+            label: paused ? "恢复并触发洗版" : "开始体检并洗版",
+            enabled: !!selectedRule,
+            busy,
+            onConfirm: () => void run(),
+          }}
+        >
+          {error && <SheetNotice tone="error">{error}</SheetNotice>}
+          {paused && (
+            <SheetNotice tone="warn">该订阅已暂停。触发洗版会先恢复追踪，随后开始搜索。</SheetNotice>
+          )}
+          <SheetSection
+            title="洗版目标"
+            footer={
+              ruleSets === null
+                ? null
+                : upgradeRules.length === 0
+                  ? `还没有配置洗版目标的规则组。${
+                      canManageSubscriptions
+                        ? "新建一个，在编辑器里选择「洗到哪一档」即可。"
+                        : "请联系管理员在「设置 → 订阅规则 → 规则组」中配置「洗到哪一档」。"
+                    }`
+                  : !currentHasTarget &&
+                    "当前规则组未配置洗版目标，选一个带洗版目标的组，确认后一并换用。"
+            }
+          >
+            {ruleSets === null ? (
+              <SheetRow label={<span className="text-[var(--text-muted)]">正在加载规则组…</span>} />
+            ) : (
+              <>
+                {upgradeRules.map((rs) => (
+                  <SheetChoiceRow
+                    key={rs.id}
+                    label={`${rs.name}${rs.id === detail.rule_set_id ? "（当前使用）" : ""}`}
+                    detail={`洗到 ${upgradeTargetLabel(rs.spec)}`}
+                    selected={rs.id === ruleSetId}
+                    disabled={busy}
+                    onSelect={() => setRuleSetId(rs.id)}
+                  />
+                ))}
+                {canManageSubscriptions && (
+                  <SheetRow
+                    icon={<PlusIcon className="size-[18px]" />}
+                    label="新建规则组…"
+                    onClick={() => setCreatingRuleSet(true)}
+                  />
+                )}
+              </>
+            )}
+          </SheetSection>
+          {outOfScopeOwned.length > 0 && (
+            <SheetSection
+              title="范围外的库存季"
+              footer="这些季库里有文件但不在订阅范围内，勾选后并入订阅一起洗版；季内缺集会一并搜索补齐。"
+            >
+              {outOfScopeOwned.map((s) => (
+                <SheetChoiceRow
+                  key={s.season_number}
+                  label={s.season_number === 0 ? "特别篇" : `第 ${s.season_number} 季`}
+                  detail={`库存 ${s.owned_count}${
+                    s.episode_count != null && s.owned_count < s.episode_count
+                      ? ` / ${s.episode_count}`
+                      : ""
+                  }`}
+                  selected={optedSeasons.has(s.season_number)}
+                  disabled={busy}
+                  onSelect={() => toggleOpted(s.season_number)}
+                />
+              ))}
+            </SheetSection>
+          )}
+        </SheetScaffold>
+        {ruleSetEditor}
+      </>
+    );
+  }
 
   return (
     <Modal
@@ -248,14 +368,7 @@ export function UpgradeRunDialog({
                         type="button"
                         disabled={busy}
                         aria-pressed={picked}
-                        onClick={() =>
-                          setOptedSeasons((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(s.season_number)) next.delete(s.season_number);
-                            else next.add(s.season_number);
-                            return next;
-                          })
-                        }
+                        onClick={() => toggleOpted(s.season_number)}
                         className={`rounded-full border px-3 py-1.5 text-sub transition disabled:opacity-50 ${
                           picked
                             ? "border-[#2dd4bf]/40 bg-[#2dd4bf]/[0.12] text-white"
@@ -301,19 +414,7 @@ export function UpgradeRunDialog({
         </>
       )}
 
-      {creatingRuleSet && (
-        <RuleSetEditorDialog
-          ruleSet={null}
-          raised
-          onClose={() => setCreatingRuleSet(false)}
-          onSaved={(saved) => {
-            setCreatingRuleSet(false);
-            setRuleSets((prev) => [...(prev ?? []), saved]);
-            // 新建组带洗版目标时自动选中它（快捷新建的动机就是没得选）
-            if (upgradeTargetLabel(saved.spec)) setRuleSetId(saved.id);
-          }}
-        />
-      )}
+      {ruleSetEditor}
     </Modal>
   );
 }

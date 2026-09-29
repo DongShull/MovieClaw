@@ -1,7 +1,7 @@
 """CLI API 令牌（PAT）与 Bearer 鉴权、spec 偏斜通道的端到端测试。
 
 覆盖 docs/design/cli.md §8.1 / §6.2 / §2.1 的后端侧：
-- PAT 创建（明文仅一次）/ 列表（无明文）/ 吊销（立即失效）；
+- 手工令牌创建（明文仅一次）/ 设备列表（无明文）/ 注销（立即失效）；
 - require_login 双通道：Cookie 与 Bearer 等效，坏令牌 401；
 - Agent 短时效签名令牌：有效可用、改密（轮换签名密钥）后全体失效；
 - /spec 受鉴权 + ETag 304；/health 携带 spec_hash；响应头带偏斜指纹。
@@ -61,8 +61,10 @@ def test_pat_full_lifecycle(client: TestClient) -> None:
     token = body["token"]
     assert token.startswith("mclaw_")
 
-    # 列表只有元信息，绝不含明文/哈希
-    listed = client.get(f"{_AUTH}/tokens").json()["data"]
+    # 「我的设备」列表只有元信息，绝不含明文/哈希
+    listed = [
+        d for d in client.get(f"{_AUTH}/devices").json()["data"] if d["kind"] == "manual"
+    ]
     assert [t["name"] for t in listed] == ["nas-cron"]
     assert "token" not in listed[0] and "token_hash" not in listed[0]
 
@@ -70,8 +72,8 @@ def test_pat_full_lifecycle(client: TestClient) -> None:
     cli = _bearer_client(client, token)
     assert cli.get("/api/v1/subscriptions").status_code == 200
 
-    # 吊销后立即失效，其余接口回到 401
-    assert client.delete(f"{_AUTH}/tokens/{body['id']}").status_code == 200
+    # 注销后立即失效，其余接口回到 401
+    assert client.delete(f"{_AUTH}/devices/{body['id']}").status_code == 200
     assert cli.get("/api/v1/subscriptions").status_code == 401
 
 

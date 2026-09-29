@@ -10,12 +10,18 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { BrandLoader } from "@/components/brand-loader";
 import { useConfirm, useToast } from "@/components/feedback";
 import {
+  BellIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   FilmIcon,
+  ListIcon,
   MoreIcon,
+  PencilIcon,
+  PlayIcon,
   RefreshIcon,
   SearchIcon,
+  TrashIcon,
+  UpgradeIcon,
 } from "@/components/icons";
 import { MediaSourceAnnotationDialog } from "@/components/media-source-annotation-dialog";
 import { Modal } from "@/components/modal";
@@ -24,6 +30,14 @@ import { useBackNavigation } from "@/lib/back-navigation";
 import { useResolvedTheme } from "@/themes/registry";
 import { PosterImage } from "@/components/poster-image";
 import { specSummary, upgradeTargetLabel } from "@/components/rule-sets-panel";
+import {
+  SheetChoiceRow,
+  SheetNotice,
+  SheetRow,
+  SheetScaffold,
+  SheetSection,
+  useSheetForm,
+} from "@/components/sheet-scaffold";
 import { useSubscribeEntry } from "@/components/subscribe-entry";
 import { SubscriptionAdjustDialog } from "@/components/subscription-adjust-dialog";
 import { SubscriptionCancelDialog } from "@/components/subscription-cancel-dialog";
@@ -789,9 +803,66 @@ function SubscriptionManageSheet({
   onTogglePause,
   onRemove,
 }: SubscriptionManageActionsProps & { open: boolean; onClose: () => void }) {
+  const sheetForm = useSheetForm();
   const rowClass =
     "flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left text-ui " +
     "font-medium text-white/85 transition hover:bg-white/[0.07] disabled:opacity-40";
+
+  // 银玻璃：表单弹层骨架（对齐 iOS SubscriptionManageSheet）——行带图标，左上 ✕ 关闭、
+  // 不再有底部「关闭」大按钮；破坏性的「取消订阅」单独一组红色垫底。
+  // Netflix 主题保留下方原抽屉形态
+  if (sheetForm) {
+    const icon = "size-[18px]";
+    return (
+      <SheetScaffold open={open} onClose={onClose} title="管理订阅">
+        <SheetSection>
+          {canSubscribe && (
+            <SheetRow icon={<PencilIcon className={icon} />} label="调整订阅" chevron onClick={onAdjust} />
+          )}
+          {canSubscribe && (
+            <SheetRow
+              icon={<UpgradeIcon className={icon} />}
+              label="洗一轮版"
+              chevron
+              disabled={busy}
+              onClick={onUpgradeRun}
+            />
+          )}
+          {canSubscribe && followFuture !== null && (
+            <SheetRow
+              icon={<BellIcon className={icon} />}
+              label={followFuture ? "关闭自动续订" : "开启自动续订"}
+              disabled={busy}
+              onClick={onToggleFollowFuture}
+            />
+          )}
+          {canManageSubscriptions && (
+            <SheetRow icon={<ListIcon className={icon} />} label="更换规则组" chevron onClick={onSwitchRule} />
+          )}
+          {canSubscribe && (
+            <SheetRow
+              icon={paused ? <PlayIcon className={icon} /> : <PauseGlyph className={icon} />}
+              label={paused ? "恢复追踪" : "暂停追踪"}
+              chevron
+              disabled={busy || completed}
+              onClick={onTogglePause}
+            />
+          )}
+        </SheetSection>
+        {canSubscribe && (
+          <SheetSection>
+            <SheetRow
+              destructive
+              icon={<TrashIcon className={icon} />}
+              label="取消订阅"
+              disabled={busy}
+              onClick={onRemove}
+            />
+          </SheetSection>
+        )}
+      </SheetScaffold>
+    );
+  }
 
   return (
     <Modal open={open} onClose={onClose} label="管理订阅">
@@ -861,6 +932,23 @@ function SubscriptionManageSheet({
   );
 }
 
+/** 暂停记号（图标集里没有暂停，只在管理抽屉用一处，就地画两竖） */
+function PauseGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      className={className}
+    >
+      <path d="M9 6v12M15 6v12" />
+    </svg>
+  );
+}
+
 /**
  * 换规则组弹窗：列出全部规则组（含条件摘要），点选即应用。
  * 只影响之后的资源评估——已投递/已入库的工单不追溯，弹窗里说清楚。
@@ -878,6 +966,7 @@ function RuleSetSwitchDialog({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const sheetForm = useSheetForm();
 
   const pick = async (id: number) => {
     if (id === currentId) {
@@ -893,6 +982,34 @@ function RuleSetSwitchDialog({
       setBusy(false);
     }
   };
+
+  // 银玻璃手机端：表单弹层（对齐 iOS RuleSetSwitchSheet）——对勾单选行，点选即应用
+  if (sheetForm) {
+    return (
+      <SheetScaffold
+        onClose={onClose}
+        title="更换规则组"
+        subtitle="点选即应用，只影响之后的资源评估；已下载/已入库的内容不受影响。需要新的组合条件可去「设置 → 订阅规则 → 规则组」新建。"
+      >
+        {error && <SheetNotice tone="error">{error}</SheetNotice>}
+        <SheetSection>
+          {ruleSets.map((rs) => {
+            const chips = specSummary(rs.spec);
+            return (
+              <SheetChoiceRow
+                key={rs.id}
+                label={`${rs.name}${rs.is_default ? "（默认）" : ""}`}
+                detail={chips.length === 0 ? "全不限" : chips.join(" · ")}
+                selected={rs.id === currentId}
+                disabled={busy}
+                onSelect={() => void pick(rs.id)}
+              />
+            );
+          })}
+        </SheetSection>
+      </SheetScaffold>
+    );
+  }
 
   return (
     <Modal open onClose={onClose} label="更换规则组" width="lg">

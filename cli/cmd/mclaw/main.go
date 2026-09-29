@@ -41,11 +41,19 @@ const rootLong = `movieclaw 命令行工具：发现电影/剧集、搜索和下
 mclaw login，请在网页「设置 → 设备 → 手工创建令牌」建一枚，用上面两个变量注入。
 不确定当前用的是哪套地址和凭证时，跑 mclaw status 看 credential 那一行。`
 
+// version 是 mclaw 的版本号，构建时用 -ldflags "-X main.version=<版本>" 注入：
+// goreleaser（cli/.goreleaser.yaml）与应用内更新产物（scripts/build-release-artifacts.sh）
+// 注入的是仓库版本号（pyproject 的 version，与服务端同版）；镜像里自带的那份
+// （Dockerfile）与本地 go build 保持 "dev"。
+var version = "dev"
+
 func main() {
 	os.Exit(run())
 }
 
 func run() int {
+	// 放在最前面：之后的每个请求（含局域网发现的探测）都要带上版本
+	api.Version = version
 	settings := &overlay.Settings{Timeout: 30 * time.Second}
 	root := newRootCommand(settings)
 

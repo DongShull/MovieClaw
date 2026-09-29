@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # 容器重启 / 升级镜像日志不丢。超过保留天数的旧日志自动删除。
     log_dir: str = Field(default="./data/logs", alias="LOG_DIR")
     log_retention_days: int = Field(default=30, alias="LOG_RETENTION_DAYS")
+    # 播放体验记录（playback_metric）按时间保留：统计看的是近期体验，更早的记录只会拖慢
+    # data 卷上的 SQLite（docs/design/playback-qoe.md §5.1）
+    playback_metric_retention_days: int = Field(
+        default=90, alias="PLAYBACK_METRIC_RETENTION_DAYS"
+    )
     api_v1_prefix: str = "/api/v1"
 
     # ------------------------------------------------------------------

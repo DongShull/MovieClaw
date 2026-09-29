@@ -13,8 +13,18 @@
 后已登录的管理员不掉线。
 
 会话失效语义的差异（谁改密踢谁）：
-- 超管改密 → 轮换全局签名密钥，所有端全部下线（密钥可能泄露时这是正确行为）；
-- 成员改密/停用/重置 → 该成员 ``token_version+1``，只踢这一个人。
+- 超管改密 → 注销超管自己的其他登录设备，并轮换全局签名密钥（升级前签发的
+  签名会话、取流 token 等短时凭证一并作废）；
+- 成员改密/停用/重置 → 注销该成员的登录设备，``token_version+1`` 让升级前签发的
+  签名会话失效，只踢这一个人。
+
+★ 登录设备（docs/design/login-devices.md）
+-----------------------------------------
+网页会话、原生 App、命令行、转码器的长期凭证都是 ``login_device`` 表里的一行
+（``services/login_devices.py``）。本模块负责把验签结果装配成 ``Principal``：
+设备令牌的主体与网页登录的主体**完全同构**（kind 是 admin / member，只多带一个
+``device``），全站按「超管 / 成员」分支的授权代码因此一行都不用改。升级前签发的
+签名会话 Cookie（没有 ``mclaw_`` 前缀）仍被接受直至自然过期。
 
 ★ 一次性初始化锁（本模块最核心的安全保证）
 ------------------------------------------
@@ -50,18 +60,19 @@ from movieclaw_api.exceptions import (
     AppException,
     BadRequestException,
     ConflictException,
+    ForbiddenException,
     NotFoundException,
     UnauthorizedException,
 )
+from movieclaw_api.services import login_devices
 from movieclaw_api.settings import (
     AdminAccountSetting,
-    ApiTokenRecord,
-    ApiTokensSetting,
     SessionSecretSetting,
     get_descriptor_by_model,
     get_setting_store,
 )
 from movieclaw_db.engine import get_database
+from movieclaw_db.models.login_device import LoginDevice
 from movieclaw_db.models.member import Member
 from movieclaw_db.repositories.member_repo import MemberRepository
 
@@ -97,26 +108,43 @@ class ShareGrant:
 
 
 @dataclass(frozen=True)
+class DeviceRef:
+    """请求来自哪台登录设备（``login_device`` 行的快照）。"""
+
+    id: int
+    #: 客户端类型：web / ios / tvos / android / cli / worker / manual
+    kind: str
+    #: full=等同本人；transcode=只能转码（转码器凭证的形态上限）
+    scope: str
+    name: str
+
+    @property
+    def interactive(self) -> bool:
+        """是不是人直接操作的第一方客户端（浏览器、App）。"""
+        return login_devices.spec_of(self.kind).interactive
+
+
+@dataclass(frozen=True)
 class Principal:
     """请求主体。``require_login`` 的返回值，全站授权判定的唯一依据。
 
-    - ``kind``：``admin``（超管会话）/ ``member``（成员会话）/
-      ``pat``（CLI 长期令牌）/ ``agent``（Agent 工作区令牌）/
-      ``mcp``（MCP 端点为一次工具调用现签的短时令牌）/
-      ``share``（影片分享访客，只由分享路由自己的依赖产出，进不了
-      ``require_login``）；
-    - ``is_admin``：admin / pat / agent / mcp 均为 True——PAT 与 Agent 令牌只能由
-      超管创建，等价管理员（PAT 创建接口已收口为管理员专属，防止成员提权）；
+    - ``kind``：``admin``（超管）/ ``member``（成员）/
+      ``agent``（Agent 工作区令牌）/ ``mcp``（MCP 端点为一次工具调用现签的
+      短时令牌）/ ``share``（影片分享访客，只由分享路由自己的依赖产出，进不了
+      ``require_login``）。**登录设备的令牌也产出 admin / member**——网页、App、
+      命令行、转码器都是「这个人」，差别只在 ``device``；
+    - ``is_admin``：admin / agent / mcp 为 True（Agent 与 MCP 令牌只能由超管开启）；
     - ``member``：kind == "member" 时携带已加载的成员行（验签时顺路查库拿到），
       供能力开关判定（allow_subscribe 等）免二次查库。
     - ``agent_session_id``：kind == "agent" 时携带令牌所属会话，供会话级
       自保护授权使用；其他主体恒为 None。
-    - ``client_type``：仅令牌主体有值（worker / cli / manual）。它是**客户端
-      形态**而非权限等级——权限完全来自 ``is_admin`` / ``member``，全站既有的
-      授权依赖对令牌主体自动生效。它只用来把 Worker 令牌挡在业务接口之外
-      （docs/design/device-auth.md §4.3）。
+    - ``device``：请求所用的登录设备（docs/design/login-devices.md）。升级前签发的
+      签名会话 Cookie、Agent / MCP / 分享主体恒为 None。它是**客户端形态**而非
+      权限等级：权限完全来自 ``is_admin`` / ``member``；形态只决定两件事——
+      转码器凭证（scope=transcode）被挡在业务接口之外，以及程序类客户端不能
+      签发新凭证（见 ``interactive``）。
 
-    ``__str__`` 返回与旧字符串身份一致的格式，日志归因处零改造。
+    ``__str__`` 返回身份名（用户名 / agent:会话），日志归因处零改造。
     """
 
     kind: str
@@ -126,11 +154,28 @@ class Principal:
     member: Member | None = None
     #: 仅 Agent 工作区短时令牌携带，用于阻止当前 Agent 停止承载自己的会话。
     agent_session_id: str | None = None
-    #: 仅设备/手工令牌携带：worker | cli | manual。会话 Cookie 主体恒为 None。
-    client_type: str | None = None
+    #: 请求所用的登录设备；签名会话 Cookie / Agent / MCP / 分享主体为 None。
+    device: DeviceRef | None = None
     #: 仅影片分享访客携带：可见面收窄到分享的那一个库、那一个条目
     #: （services/library/access.py）。其他主体恒为 None。
     share: ShareGrant | None = None
+
+    @property
+    def interactive(self) -> bool:
+        """是不是「人在第一方客户端里亲自操作」——签发新凭证的唯一资格。
+
+        按客户端类型判断，不按登录方式：浏览器与 App 能批准配对、创建令牌；
+        命令行、转码器、手工令牌、Agent、MCP 不能（它们只能注销自己）。
+        升级前签发的签名会话 Cookie 只可能来自浏览器，按人在操作处理。
+        """
+        if self.kind not in ("admin", "member"):
+            return False
+        return self.device is None or self.device.interactive
+
+    @property
+    def owner_id(self) -> int:
+        """凭证归属的人：成员 id；超管为 0（与成员级表的哨兵值一致）。"""
+        return self.member_id if self.kind == "member" and self.member_id is not None else 0
 
     def __str__(self) -> str:  # pragma: no cover - 纯格式化
         return self.name
@@ -360,20 +405,39 @@ async def update_nickname(nickname: str) -> AdminAccountSetting:
     return admin
 
 
-async def change_password(old_password: str, new_password: str) -> None:
-    """修改管理员密码（校验原密码），并强制全端下线。"""
+async def change_password(
+    old_password: str,
+    new_password: str,
+    *,
+    keep_device_id: int | None = None,
+    sign_out_paired: bool = False,
+) -> list[LoginDevice]:
+    """修改管理员密码（校验原密码），其他登录下线；返回被注销的设备。
+
+    ``keep_device_id`` 是操作者当前所用的设备，保留不踢；``sign_out_paired``
+    为真时命令行、转码器、手工令牌一并注销（默认保留，见 login_devices 模块说明）。
+    """
     admin = await get_setting_store().get(AdminAccountSetting)
     if not admin.password_hash:
         raise BadRequestException("系统尚未初始化，无法修改密码")
     if not _password_hash.verify(old_password, admin.password_hash):
         raise UnauthorizedException("原密码错误")
 
-    await reset_admin_password(new_password)
-    logger.info("管理员密码已修改，所有登录会话与播放器凭据已强制下线")
+    revoked = await reset_admin_password(
+        new_password, keep_device_id=keep_device_id, sign_out_paired=sign_out_paired
+    )
+    logger.info("管理员密码已修改，其他登录会话与播放器凭据已强制下线")
+    return revoked
 
 
-async def reset_admin_password(new_password: str) -> AdminAccountSetting:
-    """**不校验原密码**直接重写管理员密码，并轮换会话签名密钥、吊销播放器凭据。
+async def reset_admin_password(
+    new_password: str,
+    *,
+    keep_device_id: int | None = None,
+    sign_out_paired: bool = False,
+) -> list[LoginDevice]:
+    """**不校验原密码**直接重写管理员密码，注销超管的登录设备、轮换会话签名密钥、
+    吊销播放器凭据；返回被注销的设备。
 
     ⚠️ 安全红线：本函数是"忘记密码"的最后一道后门，绝不可挂到任何 HTTP 路由上
     （挂上去等于任何人都能改管理员密码）。它的唯一调用方是离线维护入口
@@ -382,6 +446,9 @@ async def reset_admin_password(new_password: str) -> AdminAccountSetting:
     配置，再多一个改密能力不降低任何安全性。
 
     只覆写 ``password_hash`` 一个字段，用户名、昵称与其余所有配置域原样保留。
+
+    离线入口（忘记密码）不传 ``keep_device_id``：超管密码换来的登录全部注销，
+    配对的命令行与转码器保留——忘了密码不等于它们泄露了，停掉转码只会添乱。
     """
     store = get_setting_store()
     # 绕开缓存取最新账号：离线入口是独立进程，缓存里可能是空的默认实例，
@@ -396,7 +463,11 @@ async def reset_admin_password(new_password: str) -> AdminAccountSetting:
     # 他人持有的会话一并踢掉才是正确语义）
     await rotate_session_secret()
     await _drop_admin_jellyfin_devices()
-    return admin
+    families = ("login", "paired") if sign_out_paired else ("login",)
+    async with get_database().session() as session:
+        return await login_devices.revoke_for_member(
+            session, 0, families=families, except_id=keep_device_id
+        )
 
 
 async def _drop_admin_jellyfin_devices() -> None:
@@ -506,6 +577,50 @@ async def verify_session_token(token: str | None) -> Principal:
     )
 
 
+async def _device_principal(resolved: login_devices.ResolvedDevice) -> Principal:
+    """登录设备 → 请求主体：与网页登录的主体同构，只多带一个 ``device``。"""
+    device = resolved.device
+    assert device.id is not None
+    ref = DeviceRef(id=device.id, kind=device.kind, scope=device.scope, name=device.name)
+    member = resolved.member
+    if member is None:
+        admin = await get_admin_account()
+        return Principal(kind="admin", name=admin.username, is_admin=True, device=ref)
+    return Principal(
+        kind="member",
+        name=member.username,
+        member_id=member.id,
+        is_admin=False,
+        member=member,
+        device=ref,
+    )
+
+
+async def verify_cookie_token(
+    token: str | None,
+    *,
+    ip: str | None = None,
+    user_agent: str | None = None,
+    touch: bool = True,
+) -> Principal:
+    """校验网页会话 Cookie：表内令牌（``mclaw_`` 前缀）或升级前签发的签名令牌。
+
+    Cookie 通道**只认网页会话**：把一枚命令行令牌塞进 Cookie 不会让它变成
+    「人在浏览器里」——能不能签发凭证看的是设备行的客户端类型，不看令牌从哪条
+    通道进来。``touch=False`` 用于解析账号袋：列出袋里的其他账号不算它们活跃。
+    """
+    if not token:
+        raise UnauthorizedException("未登录，请先登录")
+    if not login_devices.is_device_token(token):
+        return await verify_session_token(token)
+    resolved = await login_devices.resolve(token)
+    if resolved is None or resolved.device.kind != "web":
+        raise UnauthorizedException("登录状态已失效，请重新登录")
+    if touch:
+        await login_devices.touch(resolved.device, ip=ip, user_agent=user_agent)
+    return await _device_principal(resolved)
+
+
 # ---------------------------------------------------------------------------
 # 多账号：一个浏览器同时持有多个会话令牌（docs/design/account-switching.md）
 # ---------------------------------------------------------------------------
@@ -581,7 +696,7 @@ async def resolve_saved_accounts(
     result: list[SavedAccount] = []
     for token in candidates:
         try:
-            principal = await verify_session_token(token)
+            principal = await verify_cookie_token(token, touch=False)
         except UnauthorizedException:
             continue
         key = account_key(principal)
@@ -605,14 +720,14 @@ def merge_saved_account(
 
 
 # ---------------------------------------------------------------------------
-# Bearer 令牌：CLI 长期令牌（PAT）+ 产品内 Agent 短时效令牌
+# Bearer 令牌：登录设备令牌 + 产品内 Agent / MCP 短时效令牌
 # ---------------------------------------------------------------------------
-# 两类令牌共用同一个验签入口 verify_bearer_token（docs/design/cli.md §6.2/§8.1）：
-# - PAT：面向用户脚本/远程 CLI，落库只存 sha256 哈希，明文创建时返回一次，
-#   可按 id 单独吊销；
+# 共用同一个验签入口 verify_bearer_token：
+# - 登录设备令牌（App、命令行、转码器、手工令牌）：落库只存 sha256 哈希，
+#   见 services/login_devices.py；
 # - Agent 令牌：产品内 AI 助手工作区专用，itsdangerous 签名（复用会话签名
 #   密钥 + 独立 salt），无状态不落库，过期自动作废；管理员改密轮换签名
-#   密钥时与会话一起全体失效（全局熔断免费获得）。
+#   密钥时一起全体失效（全局熔断免费获得）。
 
 _AGENT_TOKEN_SALT = "movieclaw.agent-token.v1"
 AGENT_TOKEN_TTL_SECONDS = 2 * 3600  # 一次 Agent 运行的令牌有效期上限
@@ -621,13 +736,6 @@ AGENT_TOKEN_TTL_SECONDS = 2 * 3600  # 一次 Agent 运行的令牌有效期上�
 # 工具调用」给——它只在进程内活到这次调用结束，给一刻钟纯粹是容错。
 _MCP_TOKEN_SALT = "movieclaw.mcp-token.v1"
 MCP_TOKEN_TTL_SECONDS = 900
-_PAT_PREFIX = "mclaw_"  # 令牌明文前缀：肉眼可辨认来源，误提交扫描器也好识别
-
-#: 令牌「最近使用」的落盘节流间隔：精度够回答「这台机器还活着吗」，又不至于
-#: 让每个请求都写一次设置项。
-_TOKEN_TOUCH_INTERVAL_S = 60
-#: token_id → 上次落盘时刻（time.monotonic）。纯进程内缓存，重启即重来。
-_token_touched_at: dict[str, float] = {}
 
 #: 配对码有效期：够人从设备走到浏览器，又不让未决请求长期挂着。
 DEVICE_CODE_TTL_SECONDS = 300
@@ -647,84 +755,20 @@ _DEVICE_MAX_PENDING_PER_IP = 5
 _DEVICE_MAX_PENDING_TOTAL = 20
 #: 配对码字母表：去掉 0/O/1/I 等易混淆字符，人要念得出、抄得对。
 _USER_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-#: 允许的客户端形态。worker 有形态上限（只能转码），cli 没有。
-_DEVICE_CLIENT_TYPES = ("worker", "cli")
-
-
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
-
-
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-async def create_api_token(
-    name: str,
-    *,
-    client_type: str = "manual",
-    owner_kind: str = "admin",
-) -> tuple[str, ApiTokenRecord]:
-    """创建一枚 API 令牌，返回 (明文, 落库记录)。明文仅此一次，服务端不可再回显。
+async def create_manual_token(name: str, *, scope: str = "full") -> tuple[str, LoginDevice]:
+    """网页手工创建一枚令牌（给没有人能按批准的无人值守环境），返回 (明文, 行)。
 
-    ``client_type`` 决定这枚令牌能用在哪：``worker`` 只能走转码链路（业务接口
-    在 ``require_login`` 里直接拒绝），``cli`` / ``manual`` 无形态上限。
-    令牌不设过期（``expires_at`` 恒为 None）——失效只靠显式吊销，理由见
-    docs/design/device-auth.md §8「凭证生命周期的独立性」。
+    归属超管（只有超管能在网页上手工创建）。``scope=transcode`` 给命令行模式的
+    转码器用——它和配对来的转码器凭证一样只能转码。令牌不设过期，失效只靠注销。
     """
-    store = get_setting_store()
-    setting = await store.get(ApiTokensSetting)
-    plaintext = _PAT_PREFIX + secrets.token_urlsafe(32)
-    record = ApiTokenRecord(
-        id=secrets.token_hex(8),
-        name=name,
-        token_hash=_hash_token(plaintext),
-        created_at=_now_iso(),
-        client_type=client_type,
-        owner_kind=owner_kind,
-    )
-    setting.tokens.append(record)
-    await store.set(setting)
-    logger.info("已创建 API 令牌「%s」（id=%s，形态=%s）", name, record.id, client_type)
-    return plaintext, record
-
-
-async def list_api_tokens() -> list[ApiTokenRecord]:
-    return (await get_setting_store().get(ApiTokensSetting)).tokens
-
-
-async def revoke_api_token(token_id: str) -> bool:
-    """按 id 吊销令牌；返回是否真的删掉了一枚。"""
-    store = get_setting_store()
-    setting = await store.get(ApiTokensSetting)
-    remaining = [t for t in setting.tokens if t.id != token_id]
-    if len(remaining) == len(setting.tokens):
-        return False
-    setting.tokens = remaining
-    await store.set(setting)
-    _token_touched_at.pop(token_id, None)
-    logger.info("已吊销 API 令牌 id=%s", token_id)
-    return True
-
-
-async def _touch_api_token(token_id: str) -> None:
-    """记录令牌的最近使用时间，按分钟粒度落盘。
-
-    设备列表要能回答「这台机器还活着吗」，但每次请求都写设置项等于每次请求
-    一次磁盘写。这里做进程内节流：同一枚令牌 60 秒内只落一次盘，精度对
-    「最近活跃」这个用途绰绰有余。
-    """
-    now = time.monotonic()
-    if now - _token_touched_at.get(token_id, 0.0) < _TOKEN_TOUCH_INTERVAL_S:
-        return
-    _token_touched_at[token_id] = now
-    store = get_setting_store()
-    setting = await store.get(ApiTokensSetting)
-    for record in setting.tokens:
-        if record.id == token_id:
-            record.last_used_at = _now_iso()
-            await store.set(setting)
-            return
+    async with get_database().session() as session:
+        return await login_devices.issue(
+            session, member_id=0, kind="manual", name=name, scope=scope
+        )
 
 
 async def issue_agent_token(session_id: str) -> str:
@@ -747,13 +791,16 @@ async def issue_mcp_token(endpoint_id: str) -> str:
     )
 
 
-async def verify_bearer_token(token: str) -> Principal:
-    """校验 Bearer 令牌（Agent 签名令牌或设备/手工令牌），装配 Principal。
+async def verify_bearer_token(
+    token: str,
+    *,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> Principal:
+    """校验 Bearer 令牌（Agent / MCP 签名令牌或登录设备令牌），装配 Principal。
 
-    权限**在这里按批准者装配，而不是从令牌里读出来**——当前只有超管能批准
-    设备，因此落库令牌一律 ``is_admin=True``；将来开放成员批准时在这里加一个
-    成员分支即可，能力开关的事后调整会立刻对令牌生效
-    （docs/design/device-auth.md §4.2）。
+    登录设备的权限**在这里按主人装配，而不是从令牌里读出来**：成员的能力开关
+    事后调整立刻对他的 App、命令行生效，成员被停用则全部立刻失效。
     """
     # 先试无状态的 Agent 签名令牌（无 IO），再查落库的设备/手工令牌
     serializer = URLSafeSerializer(await _get_session_secret(), salt=_AGENT_TOKEN_SALT)
@@ -782,17 +829,14 @@ async def verify_bearer_token(token: str) -> Principal:
             raise UnauthorizedException("MCP 调用令牌已过期")
         return Principal(kind="mcp", name=f"mcp:{payload.get('eid', '')}", is_admin=True)
 
-    provided_hash = _hash_token(token)
-    for record in await list_api_tokens():
-        if hmac.compare_digest(provided_hash, record.token_hash):
-            await _touch_api_token(record.id)
-            return Principal(
-                kind="pat",
-                name=f"token:{record.name}",
-                is_admin=True,
-                client_type=record.client_type,
-            )
-    raise UnauthorizedException("令牌无效或已吊销，请在网页「设备」页重新配对")
+    resolved = await login_devices.resolve(token)
+    if resolved is None:
+        raise UnauthorizedException(
+            "登录凭证无效或已被注销：App 请重新登录；命令行与转码器请重新配对"
+            "（网页「设置 → 设备」）"
+        )
+    await login_devices.touch(resolved.device, ip=ip, user_agent=user_agent)
+    return await _device_principal(resolved)
 
 
 # ---------------------------------------------------------------------------
@@ -807,6 +851,14 @@ async def verify_bearer_token(token: str) -> Principal:
 # 2. **未获批准的请求不落库**。磁盘上不该出现「有人试图接入」的记录被当成
 #    凭据来源。进程重启则未决请求全部作废，客户端重发即可。
 # 3. **令牌在批准那一刻才生成，在兑换那一刻才交付，且只交付一次**。
+#
+# 登录设备改造后（docs/design/login-devices.md）又多了两条：
+#
+# 4. **谁批准，令牌就是谁的**。成员也能批准自己的命令行，令牌的权限等于他在
+#    网页上的权限；转码器只能由超管批准（转码是整台服务器的资源）。
+# 5. **按配对码批准，不列出所有待批准请求**。设备打开的链接自带配对码，批准页
+#    只显示这一条——成员之间看不到彼此的请求，管理员也不会误批一个成员的
+#    命令行、让它拿到超管权限。
 
 
 @dataclass(slots=True)
@@ -825,10 +877,17 @@ class DeviceAuthChallenge:
     client_type: str
     client_name: str
     source_ip: str
+    #: 客户端自报的安装标识 / 系统 / 版本：批准页上给人看，签发时写进设备行
+    installation_id: str | None = None
+    platform: str | None = None
+    client_version: str | None = None
     status: Literal["pending", "approved", "denied", "expired", "consumed"] = "pending"
     #: 仅 approved → consumed 之间短暂持有；兑换后立即清空
     granted_token: str | None = None
-    token_id: str | None = None
+    #: 批准时签发的登录设备 id，兑换时核对它还在（批准后、兑换前被注销则按拒绝处理）
+    device_id: int | None = None
+    #: 批准者的用户名：兑换响应里回显「你现在是谁」
+    approver_name: str | None = None
     created_at: float = field(default_factory=time.monotonic)
     expires_at: float = field(default_factory=lambda: time.monotonic() + DEVICE_CODE_TTL_SECONDS)
     #: 终态进入时刻，用于 linger 清理
@@ -842,7 +901,8 @@ class DeviceTokenResult:
 
     status: Literal["pending", "granted", "denied", "expired", "slow_down"]
     token: str | None = None
-    record: ApiTokenRecord | None = None
+    device: LoginDevice | None = None
+    approver_name: str | None = None
 
 
 #: user_code → 挑战。进程级内存，刻意不落库（见上方设计注释第 2 条）。
@@ -852,7 +912,7 @@ _device_challenges: dict[str, DeviceAuthChallenge] = {}
 def _new_user_code() -> str:
     """生成人能念出、能抄对的配对码，形如 ``MCLW-7F3K``。
 
-    低熵是可接受的：它只能在**管理员已登录的浏览器里**用于批准，猜中也调不动
+    低熵是可接受的：它只能在**已登录的浏览器或 App 里**用于批准，猜中也调不动
     批准端点。真正需要高熵的是 device_code。
     """
     body = "".join(secrets.choice(_USER_CODE_ALPHABET) for _ in range(4))
@@ -876,7 +936,13 @@ def _purge_settled_challenges() -> None:
 
 
 def authorize_device(
-    *, client_type: str, client_name: str, source_ip: str
+    *,
+    client_type: str,
+    client_name: str,
+    source_ip: str,
+    installation_id: str | None = None,
+    platform: str | None = None,
+    client_version: str | None = None,
 ) -> tuple[str, DeviceAuthChallenge]:
     """受理一次接入请求，返回 (device_code 明文, 挑战)。
 
@@ -886,7 +952,7 @@ def authorize_device(
     地址 NAT 掉了，见 ``api/client_address.py``）。空串不参与按来源分桶，
     只受总数上限约束。
     """
-    if client_type not in _DEVICE_CLIENT_TYPES:
+    if client_type not in login_devices.PAIRING_KINDS:
         raise BadRequestException(f"未知的客户端类型：{client_type}")
     _purge_settled_challenges()
 
@@ -911,6 +977,9 @@ def authorize_device(
         client_type=client_type,
         client_name=client_name.strip() or "未命名设备",
         source_ip=source_ip,
+        installation_id=(installation_id or "").strip()[:128] or None,
+        platform=(platform or "").strip()[:128] or None,
+        client_version=(client_version or "").strip()[:64] or None,
     )
     _device_challenges[user_code] = challenge
     logger.info(
@@ -923,11 +992,13 @@ def authorize_device(
     return device_code, challenge
 
 
-def list_device_requests() -> list[DeviceAuthChallenge]:
-    """列出仍待批准的请求（供网页展示），按发起时间从新到旧。"""
-    _purge_settled_challenges()
-    pending = [ch for ch in _device_challenges.values() if ch.status == "pending"]
-    return sorted(pending, key=lambda ch: ch.created_at, reverse=True)
+def get_device_request(user_code: str) -> DeviceAuthChallenge:
+    """按配对码取一条待批准的请求（批准页展示用）。
+
+    刻意没有「列出全部待批准请求」：批准页只显示用户手里那个码对应的一条，
+    见本节开头的第 5 条。
+    """
+    return _get_pending(user_code)
 
 
 def _get_pending(user_code: str) -> DeviceAuthChallenge:
@@ -940,27 +1011,40 @@ def _get_pending(user_code: str) -> DeviceAuthChallenge:
     return challenge
 
 
-async def approve_device_request(user_code: str) -> DeviceAuthChallenge:
-    """批准一次接入请求：此刻才生成并落库令牌，等客户端来兑换。
+async def approve_device_request(user_code: str, approver: Principal) -> DeviceAuthChallenge:
+    """批准一次接入请求：此刻才生成并落库令牌（归属批准者），等客户端来兑换。
 
-    **先改状态再签发**：``create_api_token`` 要 await（读写设置项），如果放在
-    状态变更之前，两个并发的批准请求会双双通过 ``_get_pending`` 的检查、
-    给同一条请求签出两枚令牌，其中一枚永远没人兑换也没人知道它存在。
-    签发失败则退回 pending，让用户能重试。
+    **先改状态再签发**：签发要 await（写库），如果放在状态变更之前，两个并发
+    的批准请求会双双通过 ``_get_pending`` 的检查、给同一条请求签出两枚令牌，
+    其中一枚永远没人兑换也没人知道它存在。签发失败则退回 pending，让用户能重试。
     """
     challenge = _get_pending(user_code)
+    if challenge.client_type == "worker" and not approver.is_admin:
+        raise ForbiddenException("转码器只能由管理员批准，请让管理员在网页或 App 上输入这个配对码")
     challenge.status = "approved"
     try:
-        plaintext, record = await create_api_token(
-            challenge.client_name, client_type=challenge.client_type
-        )
+        async with get_database().session() as session:
+            plaintext, device = await login_devices.issue(
+                session,
+                member_id=approver.owner_id,
+                kind=challenge.client_type,
+                name=challenge.client_name,
+                scope="transcode" if challenge.client_type == "worker" else "full",
+                installation_id=challenge.installation_id,
+                client_version=challenge.client_version,
+                platform=challenge.platform,
+                ip=challenge.source_ip or None,
+            )
     except Exception:
         challenge.status = "pending"
         raise
     challenge.granted_token = plaintext
-    challenge.token_id = record.id
+    challenge.device_id = device.id
+    challenge.approver_name = approver.name
     challenge.settled_at = time.monotonic()
-    logger.info("已批准设备接入：%s（令牌 id=%s）", challenge.client_name, record.id)
+    logger.info(
+        "%s 已批准设备接入：%s（设备 id=%s）", approver.name, challenge.client_name, device.id
+    )
     return challenge
 
 
@@ -1003,11 +1087,11 @@ async def redeem_device_code(device_code: str) -> DeviceTokenResult:
 
     if challenge.status == "approved":
         token = challenge.granted_token
-        record = next(
-            (r for r in await list_api_tokens() if r.id == challenge.token_id),
-            None,
-        )
-        if token is None or record is None:  # 令牌在兑换前被吊销
+        device = None
+        if challenge.device_id is not None:
+            async with get_database().session() as session:
+                device = await login_devices.get_device(session, challenge.device_id)
+        if token is None or device is None:  # 令牌在兑换前被注销
             challenge.status = "denied"
             challenge.settled_at = now
             return DeviceTokenResult(status="denied")
@@ -1015,7 +1099,9 @@ async def redeem_device_code(device_code: str) -> DeviceTokenResult:
         challenge.granted_token = None
         challenge.settled_at = now
         logger.info("设备已完成配对：%s", challenge.client_name)
-        return DeviceTokenResult(status="granted", token=token, record=record)
+        return DeviceTokenResult(
+            status="granted", token=token, device=device, approver_name=challenge.approver_name
+        )
 
     if challenge.status == "denied":
         return DeviceTokenResult(status="denied")
@@ -1023,10 +1109,10 @@ async def redeem_device_code(device_code: str) -> DeviceTokenResult:
 
 
 def reset_auth_state() -> None:
-    """清空模块级可变状态（登录限速分桶、设备挑战、令牌活跃缓存）。
+    """清空模块级可变状态（登录限速分桶、设备挑战、设备活跃缓存）。
 
     仅供测试在用例间隔离——这些状态都在进程内存里，生产环境靠重启自然清零。
     """
     _throttles.clear()
     _device_challenges.clear()
-    _token_touched_at.clear()
+    login_devices.reset_state()

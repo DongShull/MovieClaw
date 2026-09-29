@@ -274,7 +274,9 @@ final class OnboardingViewController: NSViewController, NSTextFieldDelegate {
         case let .pairing(grant):
             stepIndicator.current = 1
             titleLabel.stringValue = "在网页上批准这台 Mac"
-            subtitleLabel.stringValue = "浏览器已打开设备页。用你平时登录 movieclaw 的账号核对下面的配对码并批准。"
+            // 成员如今也能打开批准页（批准自己的命令行），但转码器只有管理员能批准：
+            // 这里说清楚，免得成员照做后在网页上碰壁
+            subtitleLabel.stringValue = "浏览器已打开批准页。用管理员账号核对下面的配对码并批准（转码器只能由管理员批准）。"
             pairingView.isHidden = false
             codeLabel.attributedStringValue = Self.trackedCode(grant.userCode)
             codeLink.title = "打开批准页面（\(Self.displayHost(grant.verificationURI))）"
@@ -457,7 +459,7 @@ final class OnboardingViewController: NSViewController, NSTextFieldDelegate {
     }
 
     @objc private func openVerificationPage() {
-        guard case let .pairing(grant) = step, let url = URL(string: grant.verificationURI) else { return }
+        guard case let .pairing(grant) = step, let url = URL(string: grant.pageToOpen) else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -507,12 +509,14 @@ final class OnboardingViewController: NSViewController, NSTextFieldDelegate {
     /// 发起接入请求并轮询兑换，直到拿到令牌或得到确定的失败结论。
     private func startPairing(pairing: DevicePairing, fallbackURL: URL) {
         let name = nameField.stringValue
+        let installationID = state.snapshot.installationID
         pollTask?.cancel()
         pollTask = Task { @MainActor in
             do {
-                let grant = try await pairing.authorize(clientName: name)
+                let grant = try await pairing.authorize(clientName: name, installationID: installationID)
                 transition(to: .pairing(grant))
-                NSWorkspace.shared.open(URL(string: grant.verificationURI) ?? fallbackURL)
+                // 带配对码的链接打开就是这一条请求，不用在网页上再输一遍配对码
+                NSWorkspace.shared.open(URL(string: grant.pageToOpen) ?? fallbackURL)
                 try await awaitApproval(pairing: pairing, grant: grant)
             } catch is CancellationError {
                 // 用户点了返回或关了窗口，界面已经切走

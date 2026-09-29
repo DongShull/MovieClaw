@@ -21,6 +21,8 @@ audio_streams 三态/added_batch_id …），读路径的成本就与真实部�
 用法::
 
     python scripts/perf/seed_library_dataset.py --db data/movieclaw.db
+    # 「重度但真实的家庭用户」档：12 个库、约 1.8 万个媒体资源（iOS 性能实验室用）
+    python scripts/perf/seed_library_dataset.py --db data/movieclaw.db --profile home
 """
 
 from __future__ import annotations
@@ -96,6 +98,28 @@ LIBRARY_PLAN = [
 ]
 
 
+# 「重度但真实的家庭用户」档（scripts/perf/ios_lab.sh 用）：一个家庭按题材 /
+# 成员分出的 12 个库、约 1.8 万个媒体资源；再叠加 seed_subscriptions_dataset.py
+# 订阅入库的约 7 千个文件，合计约 2.5 万。电影、剧集是两个 5000+ 的大库，其余
+# 是中小库。与上面的默认档（几十个库、近 7 万资源的极限体量）互不影响。
+HOME_LIBRARY_PLAN = [
+    ("电影", "movie", 1, (5000, 5000)),
+    ("剧集", "tv", 1, (3000, 3000)),
+    ("动画", "tv", 1, (2200, 2200)),
+    ("4K 电影", "movie", 1, (1500, 1500)),
+    ("华语电影", "movie", 1, (1300, 1300)),
+    ("美剧", "tv", 1, (1000, 1000)),
+    ("日韩剧", "tv", 1, (700, 700)),
+    ("纪录片", "movie", 1, (900, 900)),
+    ("经典老片", "movie", 1, (700, 700)),
+    ("综艺", "tv", 1, (600, 600)),
+    ("儿童", "tv", 1, (300, 300)),
+    ("演唱会", "movie", 1, (150, 150)),
+]
+
+LIBRARY_PLANS = {"default": LIBRARY_PLAN, "home": HOME_LIBRARY_PLAN}
+
+
 def _title(rng: random.Random, used: set[str]) -> str:
     for _ in range(60):
         if rng.random() < 0.22:
@@ -120,7 +144,7 @@ def _dt(rng: random.Random, days_back: int = 900) -> datetime:
     )
 
 
-def seed(db_path: str) -> None:
+def seed(db_path: str, plan: list[tuple] = LIBRARY_PLAN) -> None:
     rng = random.Random(SEED)
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA journal_mode=WAL")
@@ -134,7 +158,7 @@ def seed(db_path: str) -> None:
     libraries: list[tuple] = []
     lib_id = 0
     sort_order = 0
-    for prefix, kind, count, (lo, hi) in LIBRARY_PLAN:
+    for prefix, kind, count, (lo, hi) in plan:
         for index in range(count):
             lib_id += 1
             sort_order += 1
@@ -407,4 +431,7 @@ def _unidentified_row(rng, file_id, lib_id, path, size, *,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--db", default="data/movieclaw.db")
-    seed(parser.parse_args().db)
+    parser.add_argument("--profile", choices=sorted(LIBRARY_PLANS), default="default",
+                        help="库规模档位：default=极限体量（默认），home=重度家庭用户")
+    args = parser.parse_args()
+    seed(args.db, LIBRARY_PLANS[args.profile])

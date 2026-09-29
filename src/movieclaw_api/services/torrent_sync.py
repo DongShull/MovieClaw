@@ -24,6 +24,8 @@ import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
+# 同步写入的新种与刷新都要维护检索文本（见 services/torrent_match_text.py）
+import movieclaw_api.services.torrent_match_text  # noqa: F401
 from movieclaw_api.services.site_access import (
     get_site_access,
     invalidate_site_access,

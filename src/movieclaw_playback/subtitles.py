@@ -95,7 +95,9 @@ SUBTITLE_MIME = {
 # 对齐真 Jellyfin"无该格式转换器即失败"的语义）
 #: ass→vtt 是给画中画的降级：PiP 窗口只认原生 VTT cue，特效在小窗里本来
 #: 也看不清，丢样式保文本是正确取舍。反向（vtt→ass）没有意义，不开。
-_CONVERTIBLE = {("srt", "vtt"), ("vtt", "srt"), ("ass", "vtt")}
+#: ssa 是 ass 的前身（SSA v4 / ASS v4+），pysubs2 同样读得懂，取舍一致
+#: （实测外挂 .ssa《启示》原来 404，iOS 叠加层与系统播放器都拿不到字幕）。
+_CONVERTIBLE = {("srt", "vtt"), ("vtt", "srt"), ("ass", "vtt"), ("ssa", "vtt")}
 
 
 class SubtitleServeError(Exception):
@@ -160,6 +162,13 @@ def _decode_to_utf8_text(raw: bytes, path: Path) -> str:
     样本下高度歧义，charset-normalizer 的首选时常判错、中文字幕全成乱码。
     直接用 gb18030/big5hkscs 各解一遍按高频字占比打分取优（错误编码解出
     的字几乎不命中高频集）；都不像中文再退探测器（韩/日/西文编码）。
+
+    **按行分开解**：字幕站（OpenSubtitles 一类）会往 Big5 / GBK 字幕里插一两行
+    UTF-8 的推广语，整份文件于是任何一种编码都严格解不开——原先整份退回 UTF-8
+    宽容解码、满屏「�」（2026-09-28 NAS 普查：15 个中文外挂字幕，含《权力的游戏》
+    S01E09/E10、《盗梦空间》《功夫熊猫》）。现在本身是 UTF-8 的行照 UTF-8 解，
+    其余行合起来判编码、宽容解码，个别坏字节只坏那一个字。
+    UTF-16（满篇 \\x00）按行拆会切碎两字节的字符，整份交给探测器。
     全部失败退 errors="replace" 保底出字——出错的字幕也比 404 强。
     """
     try:
@@ -167,29 +176,67 @@ def _decode_to_utf8_text(raw: bytes, path: Path) -> str:
     except UnicodeDecodeError:
         pass
 
+    if b"\x00" not in raw:
+        lines = raw.splitlines(keepends=True)
+        utf8_texts = [_utf8_line(line) for line in lines]
+        pairs = list(zip(lines, utf8_texts, strict=True))
+        legacy = b"".join(line for line, text in pairs if text is None)
+        encoding = _chinese_encoding(legacy) or _detected_encoding(legacy)
+        if encoding is not None:
+            return "".join(
+                text if text is not None else line.decode(encoding, errors="replace")
+                for line, text in pairs
+            )
+
+    encoding = _detected_encoding(raw)
+    if encoding is not None:
+        return raw.decode(encoding, errors="replace")
+    logger.warning("字幕文件编码无法确定，已按 UTF-8 宽容解码（可能出现乱码字符）：%s", path)
+    return raw.decode("utf-8", errors="replace")
+
+
+def _utf8_line(line: bytes) -> str | None:
+    """这一行本身是 UTF-8 就返回文本，否则 None。
+
+    GBK / Big5 的一两个字偶尔也凑得成合法 UTF-8（解出来是拉丁、西里尔字母），
+    所以非 ASCII 字符必须都落在中日韩文字、标点与全角字符里才算。
+    """
+    try:
+        text = line.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    if all(ch < "\x80" or "\u2000" <= ch <= "\u9fff" or "\uff00" <= ch <= "\uffef" for ch in text):
+        return text
+    return None
+
+
+def _chinese_encoding(raw: bytes) -> str | None:
+    """gb18030 / big5hkscs 各宽容解一遍按高频字打分；坏字节多于 2%（至少容忍 8 个）的不算。"""
     scored: list[tuple[float, str]] = []
     for encoding in ("gb18030", "big5hkscs"):
-        try:
-            text = raw.decode(encoding)
-        except (UnicodeDecodeError, LookupError):
+        text = raw.decode(encoding, errors="replace")
+        if text.count("\ufffd") > max(8, len(text) // 50):
             continue
-        scored.append((_chinese_score(text), text))
+        scored.append((_chinese_score(text), encoding))
     if scored:
-        scored.sort(key=lambda t: t[0], reverse=True)
-        best_score, best_text = scored[0]
+        best_score, best = max(scored)
         if best_score >= 0.25:
-            return best_text
+            return best
+    return None
 
+
+def _detected_encoding(raw: bytes) -> str | None:
+    """不像中文时退 charset-normalizer（韩 / 日 / 西文编码）。"""
     from charset_normalizer import from_bytes
 
     match = from_bytes(raw).best()
-    if match is not None:
-        try:
-            return raw.decode(match.encoding)
-        except (UnicodeDecodeError, LookupError):
-            pass
-    logger.warning("字幕文件编码无法确定，已按 UTF-8 宽容解码（可能出现乱码字符）：%s", path)
-    return raw.decode("utf-8", errors="replace")
+    if match is None:
+        return None
+    try:
+        raw.decode(match.encoding)
+    except (UnicodeDecodeError, LookupError):
+        return None
+    return match.encoding
 
 
 def serve_subtitle(ref: SubtitleRef, out_format: str | None) -> tuple[bytes, str]:

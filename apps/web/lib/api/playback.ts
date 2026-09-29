@@ -212,9 +212,26 @@ export interface PlaybackFileSpec {
   size_bytes: number | null;
 }
 
+/**
+ * 这台设备此刻是怎么在播的（后端 schemas/playback.py 的 PlaybackDeliveryView）：
+ * 活动页「正在播放」行的播放方式小标、转码规格行与「为什么是 X」都取自这里。
+ */
+export interface PlaybackDelivery {
+  /** direct=直连原文件；remux=重封装；audio=只转音频（视频直通）；transcode=视频转码 */
+  mode: string;
+  /** 简短中文标识：直连 / 重封装 / 音频转码 / 硬件转码 / 软件转码 / 远程转码 */
+  label: string;
+  /** 转码输出规格，如「1080p · H.264 · 8 Mbps」；直连 / 重封装为 null */
+  target: string | null;
+  /** 在哪转、用什么转，如「NAS · Intel 核显（QSV）」 */
+  executor: string | null;
+  /** 服务端为什么选这个播放方式 */
+  reason: string | null;
+}
+
 export interface ActivePlaybackSession {
   device_id: string;
-  /** 能否「注销此设备」：只有持 Jellyfin 设备凭据的会话可以；网页播放器不行。 */
+  /** 能否「注销此设备」：Jellyfin 播放器与登录设备（新的网页会话、App）可以；升级前的旧网页会话不行。 */
   revocable: boolean;
   member_name: string;
   client: string;
@@ -231,6 +248,8 @@ export interface ActivePlaybackSession {
   bytes_sent: number | null;
   connections: number;
   file: PlaybackFileSpec | null;
+  /** 播放方式；旧版服务端没有这个字段 */
+  delivery?: PlaybackDelivery | null;
   started_at: string;
   last_report_at: string;
 }

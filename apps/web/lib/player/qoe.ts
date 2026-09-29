@@ -119,7 +119,9 @@ export function liveStats(state: State): QoeLiveStats {
 export function reduceQoe(state: State, event: QoeEvent): State {
   switch (event.type) {
     case "play-requested":
-      return { ...state, requestedAt: event.at };
+      // 只记这一集的第一次：起播途中降档重来、开播后换轨 / 画质 / 按带宽重开都会再进一次
+      // 「要地址」，覆盖起点会让首帧早于起点、被夹成 0 上报（首帧只记第一次，见下）
+      return state.requestedAt === null ? { ...state, requestedAt: event.at } : state;
     case "first-frame":
       // 只记第一次——降档重来时的第二次出画不是"首帧"
       return state.firstFrameAt === null ? { ...state, firstFrameAt: event.at } : state;
@@ -144,8 +146,10 @@ export function reduceQoe(state: State, event: QoeEvent): State {
     case "seeked":
       return state;
     case "waiting":
-      // seek 期间的等待不是卡顿，是用户自己要求的跳转
+      // seek 期间的等待不是卡顿，是用户自己要求的跳转；起播请求发出后、首帧出来前的
+      // 等待是起播本身（play() 在数据到之前就调了，按规范先报 waiting），算进首帧不算卡顿
       if (state.inSeek || state.waitingSince !== null) return state;
+      if (state.requestedAt !== null && state.firstFrameAt === null) return state;
       return { ...state, waitingSince: event.at };
     case "playing": {
       const seekSettled =

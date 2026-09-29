@@ -47,6 +47,24 @@ class SegmentPlan:
             return 0
         return min(self.count - 1, bisect.bisect_right(self.boundaries, position_s) - 1)
 
+    def start_offset(self, position_s: float) -> float:
+        """写进 ``EXT-X-START`` 的起播位置：夹进 ``segment_for`` 那一段的内部。
+
+        播放器按 EXTINF（6 位小数）逐段累加来找「起播点在哪一段」，累加误差会让
+        正好压在分片边界上的位置（``?t=600`` 这种整秒、恰好又是关键帧）被算进
+        **前一段**；服务端却从后一段起转——播放器要的那段在转码头后面，要熬完
+        3 秒宽限期再重启一轮才供得出来（本机实测续播首帧 3.7 秒）。离两端各留
+        2 毫秒，远大于累加误差，画面上看不出差别。
+        """
+        head = self.segment_for(position_s)
+        low = self.boundaries[head] + _START_MARGIN_S
+        high = self.boundaries[head] + self.duration_of(head) - _START_MARGIN_S
+        return min(max(position_s, low), max(low, high))
+
+
+#: EXT-X-START 离分片两端的余量（秒），见 ``SegmentPlan.start_offset``
+_START_MARGIN_S = 0.002
+
 
 def compute_segment_plan(
     keyframes_s: tuple[float, ...] | list[float],
@@ -92,10 +110,17 @@ def build_media_playlist(
     init_name: str | None,
     segment_name: str,
     query: str = "",
+    start_s: float | None = None,
 ) -> str:
     """媒体播放列表（VOD）。``segment_name`` 是含 %05d 的文件名模板；
     ``query`` 形如 ``?token=xxx``，逐条附在 URI 上（HLS 客户端不继承查询串）。
     ``init_name=None`` 即 MPEG-TS 分片：自含 PAT/PMT，没有 init 段，不写 EXT-X-MAP。
+
+    ``start_s``：起播位置（续播点，文件绝对时间）。大于 0 时写
+    ``EXT-X-START``，让播放器**第一个请求就取起播点所在的分片**。不写的话
+    AVPlayer 会先按 0 秒去取第 0 段、就绪后才 seek 过去：服务端的转码此时正从
+    续播点起转，第 0 段的请求会把它拉回片头重启一轮、seek 过来再重启一轮
+    （NAS 实测远程转码续播首片因此多等 5 秒）。hls.js 与 Safari 同样认这个标签。
     """
     max_duration = max((plan.duration_of(i) for i in range(plan.count)), default=1.0)
     lines = [
@@ -106,6 +131,8 @@ def build_media_playlist(
         "#EXT-X-PLAYLIST-TYPE:VOD",
         "#EXT-X-INDEPENDENT-SEGMENTS",
     ]
+    if start_s is not None and start_s > 0:
+        lines.append(f"#EXT-X-START:TIME-OFFSET={plan.start_offset(start_s):.3f},PRECISE=YES")
     if init_name is not None:
         lines.append(f'#EXT-X-MAP:URI="{init_name}{query}"')
     for i in range(plan.count):

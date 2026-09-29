@@ -37,7 +37,7 @@ from movieclaw_api.services.playback.session import (
     get_session_manager,
     reset_session_manager,
 )
-from movieclaw_api.services.playback.signing import issue_stream_token
+from movieclaw_api.services.playback.signing import issue_stream_token, verify_stream_token
 from movieclaw_api.settings.store import reset_setting_store
 from movieclaw_db.crypto import reset_secret_box
 from movieclaw_db.engine import get_database
@@ -190,6 +190,21 @@ def test_transcoded_session_master_codecs_are_explicit():
     assert routes_playback._master_playlist_codecs(session) == "avc1.640029,mp4a.40.2"
 
 
+def test_startup_trace_is_logged_as_one_readable_line():
+    """App 首帧后报的起播分段：按时间先后排成一行，描述字段不混进计时点。"""
+    line = routes_playback._startup_summary(
+        {
+            "engine": "mpv", "tier": 0, "original": True, "start_ms": 524_267,
+            "media_item_id": 7180, "file_id": 24776,
+            "首帧": 540, "出现": 30, "会话": 160, "决策": 120,
+        }
+    )
+    assert line == (
+        "mpv 档 0 原文件 · 出现 30 → 决策 120 → 会话 160 → 首帧 540 毫秒"
+        "（条目 7180 · 文件 24776 · 起点 524 秒）"
+    )
+
+
 def test_master_codecs_are_omitted_when_source_audio_is_copied():
     session = SimpleNamespace(
         plan=PlaybackPlan(
@@ -319,6 +334,124 @@ def test_direct_play_supports_range_requests(client, tmp_path):
     assert resp.content == b"FAKE-MEDIA-BYTES"
 
 
+def _attempt_row(client, attempt_id):
+    from movieclaw_api.services.playback import qoe
+
+    async def load():
+        async with get_database().session() as session:
+            return await qoe.get_attempt(session, attempt_id)
+
+    return client.portal.call(load)  # type: ignore[attr-defined]
+
+
+def test_session_with_attempt_id_records_start_and_returns_server_timing(client, tmp_path):
+    """带播放编号开会话：响应头回传服务端耗时，后台记「已开始」，取流令牌带上编号
+    （docs/design/playback-qoe.md §2）。"""
+    file_id = seed(client, tmp_path, container="mp4")
+    resp = client.post(
+        f"{_PB}/sessions",
+        json={"file_id": file_id, "capability": CAPABILITY, "attempt_id": "att-1", "client": "ios"},
+    )
+    assert resp.status_code == 200, resp.text
+    timing = resp.headers["server-timing"]
+    assert "total;dur=" in timing and "decide;dur=" in timing
+
+    row = _attempt_row(client, "att-1")
+    assert row is not None
+    assert (row.status, row.tier, row.client, row.library_file_id) == ("started", 0, "ios", file_id)
+    assert row.source_class == "1080p"
+    assert row.detail["server"]["sessions"][0]["outcome"] == "plan"
+
+    url = resp.json()["data"]["stream_url"]
+    token = url.split("token=", 1)[1]
+    grant = client.portal.call(verify_stream_token, token)  # type: ignore[attr-defined]
+    assert grant is not None and grant.attempt_id == "att-1"
+
+
+def test_session_without_attempt_id_records_nothing(client, tmp_path):
+    file_id = seed(client, tmp_path, container="mp4")
+    resp = client.post(f"{_PB}/sessions", json={"file_id": file_id, "capability": CAPABILITY})
+    assert resp.status_code == 200
+    assert "server-timing" in resp.headers  # 服务端耗时照样回传，只是不记录
+
+
+def test_direct_play_requests_are_tallied_into_the_attempt(client, tmp_path):
+    """原文件直出的 Range 请求按令牌里的编号计时，App 收尾时一次写进记录。"""
+    file_id = seed(client, tmp_path, container="mp4")
+    data = client.post(
+        f"{_PB}/sessions",
+        json={"file_id": file_id, "capability": CAPABILITY, "attempt_id": "att-2"},
+    ).json()["data"]
+    assert client.get(data["stream_url"], headers={"Range": "bytes=0-15"}).status_code == 206
+    assert client.get(data["stream_url"], headers={"Range": "bytes=16-31"}).status_code == 206
+
+    resp = client.post(
+        f"{_PB}/metrics",
+        json={
+            "attempt_id": "att-2",
+            "outcome": "watched",
+            "tier": 0,
+            "library_file_id": file_id,
+            "client": "ios",
+            "route": "loopback",
+            "first_frame_ms": 640,
+            "watched_ms": 30_000,
+            "detail": {"seeks": [{"ms": 180, "buffered": True, "outcome": "landed"}]},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"] == {"recorded": True, "undisturbed": True}
+
+    row = _attempt_row(client, "att-2")
+    assert row.status == "finished"
+    assert row.ttff_ms == 640  # 旧的 /playback/stats 汇总照样有首帧
+    serve = row.detail["server"]["serve"]
+    assert serve["requests"] == 2
+    assert serve["bytes"] == 32
+    # 正常发完的响应不是「中途断开」（服务器发完后也会给一条 http.disconnect）
+    assert serve["disconnects"] == 0
+
+    stats = client.get(f"{_PB}/stats/qoe", params={"days": 7}).json()["data"]
+    assert stats["overall"]["attempts"] == 1
+    assert stats["overall"]["small_sample"] is True
+
+    detail = client.get(f"{_PB}/attempts/att-2").json()["data"]
+    assert detail["attempt_id"] == "att-2"
+    assert detail["detail"]["server"]["serve"]["requests"] == 2
+    assert client.get(f"{_PB}/attempts/nope").status_code == 404
+
+
+def test_legacy_metric_report_still_works(client, tmp_path):
+    """网页播放器的旧口径整行上报（不带编号）原样落库。"""
+    resp = client.post(f"{_PB}/metrics", json={"tier": 1, "ttff_ms": 900, "watched_ms": 1000})
+    assert resp.status_code == 200
+    assert resp.json()["data"] == {"recorded": True}
+
+
+def test_direct_play_releases_the_db_connection_before_streaming(client, tmp_path, monkeypatch):
+    """直出流开始发字节时，这个请求已经不占数据库连接。
+
+    直出播放器按 Range 长连接续拉，一条流能挂几十分钟；FastAPI 的 yield 依赖要等响应发完才收尾，
+    若取流期间一直占着连接，十几条并发流就会耗尽连接池，整个服务的接口一起超时
+    （2026-09-27 NAS 实测）。
+    """
+    file_id = seed(client, tmp_path, container="mp4")
+    url = start_session(client, file_id)["stream_url"]
+    pool = get_database().engine.sync_engine.pool
+    checked_out: list[int] = []
+    original = routes_playback.DisconnectAwareFileResponse
+
+    class ProbeResponse(original):
+        async def __call__(self, scope, receive, send):
+            checked_out.append(pool.checkedout())
+            await super().__call__(scope, receive, send)
+
+    monkeypatch.setattr(routes_playback, "DisconnectAwareFileResponse", ProbeResponse)
+    resp = client.get(url, headers={"Range": "bytes=0-15"})
+    assert resp.status_code == 206
+    assert checked_out == [0]
+
+
 def test_strm_entry_redirects_to_cloud_url(client, tmp_path):
     """strm 只允许直连，服务器零流量（硬边界 2）。"""
     file_id = seed(client, tmp_path, container="strm", strm=True)
@@ -413,6 +546,17 @@ def test_session_lifecycle_playlist_segment_ping_stop(client, tmp_path):
     assert client.post(f"{_PB}/sessions/{session_id}/ping").status_code == 404
 
 
+def test_full_decode_client_gets_the_original_file_without_a_session(client, tmp_path):
+    """App 的自研引擎申报全解码（universal）：MKV 也直接给档 0 原文件地址，不建换封装会话、
+    不拉起 ffmpeg——原来要先起一路 remux（冷启动还要采样关键帧）再被客户端丢掉。"""
+    file_id = seed(client, tmp_path, container="mkv")
+    data = start_session(client, file_id, capability={**CAPABILITY, "universal": True})
+    assert data["decision"]["tier"] == 0
+    assert data["session_id"] is None
+    assert data["stream_url"].startswith(f"{_PB}/files/{file_id}/stream?token=")
+    assert client.get(data["stream_url"]).status_code == 200
+
+
 def _item_id_of(client: TestClient, file_id: int) -> int:
     async def _lookup():
         async with get_database().session() as session:
@@ -439,7 +583,8 @@ def test_direct_play_bytes_are_metered_for_the_browser_session(client, tmp_path)
 
     live = client.get(f"{_PB}/activity").json()["data"]["sessions"]
     assert len(live) == 1
-    assert live[0]["device_id"] == "web-0-browser-x"
+    # 已登录的网页会话：播放挂在这次登录的登录设备名下（docs/design/login-devices.md）
+    assert live[0]["device_id"].startswith("ld-")
     assert live[0]["play_method"] == "local"
     # 连接已结束，字节结转进会话累计
     assert live[0]["bytes_sent"] == len(resp.content)
@@ -462,7 +607,7 @@ def test_hls_segments_are_metered_per_session_and_released_on_stop(client, tmp_p
 
     _, meters = activity.snapshot()
     assert len(meters) == 1
-    assert meters[0].device_id == "web-0-browser-y"
+    assert meters[0].device_id.startswith("ld-")
     assert meters[0].kind == activity.STREAM_KIND_PLAY
     assert meters[0].bytes_sent == len(b"SEGMENT-DATA") + len(b"INIT")
 
@@ -493,7 +638,8 @@ def test_admin_end_playback_blocks_streams_and_new_sessions(client, tmp_path):
         },
     )
 
-    resp = client.post(f"{_PB}/activity/sessions/web-0-browser-z/end")
+    device_id = client.get(f"{_PB}/activity").json()["data"]["sessions"][0]["device_id"]
+    resp = client.post(f"{_PB}/activity/sessions/{device_id}/end")
     assert resp.status_code == 200, resp.text
 
     assert client.get(direct_url).status_code == 404
@@ -508,8 +654,10 @@ def test_admin_end_playback_blocks_streams_and_new_sessions(client, tmp_path):
     )
     assert refused.status_code == 409
     assert "管理员已结束" in refused.json()["message"]
-    # 别的浏览器不受影响
-    assert start_session(client, direct, device_id="browser-other")["stream_url"]
+    # 别的浏览器（另一次登录，是另一台登录设备）不受影响
+    other = TestClient(client.app)
+    assert other.post("/api/v1/auth/login", json=_ADMIN).status_code == 200
+    assert start_session(other, direct, device_id="browser-other")["stream_url"]
     activity.reset()
 
 
@@ -1418,6 +1566,165 @@ def _mpls_bytes(*items: tuple[str, int, int]) -> bytes:
         body += len(core).to_bytes(2, "big") + core
     header = bytearray(b"MPLS0100" + (20).to_bytes(4, "big") + b"\0" * 8)
     return bytes(header + len(body).to_bytes(4, "big") + body)
+
+
+_DISC_NATIVE = {**CAPABILITY, "universal": True, "disc_image": True, "disc_folder": True}
+
+
+def test_disc_capable_player_gets_the_folder_listing_and_clip_bytes(client, tmp_path):
+    """多剪辑原盘对能读目录的播放器（自研引擎）目录直推：会话给目录清单地址与主播放列表名，
+    清单里每个文件自带取流地址，按 Range 出字节——不建会话、不起 ffmpeg（disc-direct-play.md）。"""
+    file_id = client.portal.call(partial(_seed_disc, tmp_path))
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    assert data["decision"]["tier"] == 0 and data["session_id"] is None
+    assert data["decision"]["disc"] == "folder"
+    assert data["decision"]["disc_playlist"] == "00001.mpls"
+    assert data["stream_url"].startswith(f"{_PB}/files/{file_id}/disc?token=")
+
+    # 引擎的读取器不带登录凭据，只凭地址里的签名 token（与原文件直出同一个公开取流区）
+    client.cookies.clear()
+    listing = client.get(data["stream_url"])
+    assert listing.status_code == 200, listing.text
+    body = listing.json()["data"]
+    assert body["playlist"] == "00001.mpls"
+    files = {f["path"]: f for f in body["files"]}
+    assert set(files) == {
+        "BDMV/PLAYLIST/00001.mpls",
+        "BDMV/CLIPINF/00001.clpi",
+        "BDMV/CLIPINF/00002.clpi",
+        "BDMV/STREAM/00001.m2ts",
+        "BDMV/STREAM/00002.m2ts",
+    }
+    clip = files["BDMV/STREAM/00001.m2ts"]
+    assert clip["size"] == 256
+    part = client.get(clip["url"], headers={"Range": "bytes=0-3"})
+    assert part.status_code == 206 and part.content == b"M2TS"
+
+
+def test_disc_folder_only_serves_whitelisted_files_of_this_disc(client, tmp_path):
+    """目录取流是路径穿越的防线：只认白名单里、清单中真实存在的文件；别的文件的令牌不通用。"""
+    file_id = client.portal.call(partial(_seed_disc, tmp_path))
+    other_id = client.portal.call(partial(_seed_disc, tmp_path))
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    token = data["stream_url"].split("token=", 1)[1]
+    base = f"{_PB}/files/{file_id}/disc"
+    bad = (
+        "BDMV/STREAM/..%2FPLAYLIST/00001.mpls",
+        "BDMV/META/DL/bdmt_eng.xml",
+        "BDMV/STREAM/99999.m2ts",
+    )
+    for rel in bad:
+        assert client.get(f"{base}/{rel}?token={token}").status_code == 404, rel
+    assert client.get(f"{_PB}/files/{other_id}/disc?token={token}").status_code == 404
+    assert client.get(f"{base}/BDMV/STREAM/00001.m2ts?token=forged").status_code == 404
+
+
+def test_disc_with_upper_case_stream_names_is_served(client, tmp_path):
+    """扩展名是 .M2TS 的盘：区分大小写的 NAS 上按小写拼路径就是 404。清单保留盘上的真实名字，
+    取文件大小写不敏感；单剪辑直出与 concat 用的剪辑路径也按实际目录项解析。"""
+    from movieclaw_api.services.playback.disc_source import disc_source_for_file
+
+    file_id = client.portal.call(partial(_seed_disc, tmp_path))
+
+    async def _rename():
+        async with get_database().session() as session:
+            row = await session.get(LibraryFile, file_id)
+            stream = Path(row.file_path) / "BDMV" / "STREAM"
+            for clip in ("00001", "00002"):
+                (stream / f"{clip}.m2ts").rename(stream / f"{clip}.M2TS")
+            return row
+
+    row = client.portal.call(_rename)
+    names = [c.path.name for c in disc_source_for_file(row).clips]
+    assert names == ["00001.M2TS", "00002.M2TS"]
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    paths = [f["path"] for f in client.get(data["stream_url"]).json()["data"]["files"]]
+    assert "BDMV/STREAM/00001.M2TS" in paths
+    token = data["stream_url"].split("token=", 1)[1]
+    response = client.get(f"{_PB}/files/{file_id}/disc/BDMV/STREAM/00001.m2ts?token={token}")
+    assert response.status_code == 200 and response.content == b"M2TS" * 64
+
+
+async def _seed_dvd_folder(tmp_path: Path) -> int:
+    """落一个最小的 DVD 目录：菜单与一个标题集的信息文件、两段节目流，外加一个不该直推的文件。"""
+    n = next(_seed_counter)
+    disc = tmp_path / f"dvds{n}" / "Old Movie (1979)"
+    video_ts = disc / "VIDEO_TS"
+    video_ts.mkdir(parents=True)
+    for name in ("VIDEO_TS.IFO", "VIDEO_TS.BUP", "VTS_01_0.IFO", "VTS_01_0.BUP"):
+        (video_ts / name).write_bytes(b"DVDVIDEO" * 8)
+    (video_ts / "VTS_01_1.VOB").write_bytes(b"VOB1" * 64)
+    (video_ts / "VTS_01_2.VOB").write_bytes(b"VOB2" * 32)
+    (video_ts / "notes.txt").write_bytes(b"x")
+    async with get_database().session() as session:
+        library = await LibraryRepository(session).create(
+            name=f"DVD 库{n}", kind="movie", root_paths=[str(disc.parent)]
+        )
+        item = MediaItem(kind="movie", tmdb_id=7000 + n, title=f"DVD{n}", original_title=f"DVD{n}")
+        session.add(item)
+        await session.flush()
+        row = LibraryFile(
+            library_id=library.id,
+            media_item_id=item.id,
+            file_path=str(disc),
+            size_bytes=4096,
+            source=FileSource.SCANNED,
+            state=FileState.IN_PLACE,
+            container="dvd",
+            video_codec="mpeg2video",
+            resolution="480p",
+            duration_seconds=5400,
+            audio_streams=[{"codec": "ac3", "channels": 6, "default": True}],
+        )
+        session.add(row)
+        await session.commit()
+        return row.id
+
+
+def test_dvd_folder_is_pushed_as_a_folder_listing(client, tmp_path):
+    """DVD 目录对能读目录的播放器（自研引擎）目录直推：清单只列 VIDEO_TS 里的 IFO / BUP / VOB，
+    按 Range 出字节。原来落到「原文件直连」，取的是个文件夹，一律 404、App 只好降级。"""
+    file_id = client.portal.call(partial(_seed_dvd_folder, tmp_path))
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    assert data["decision"]["tier"] == 0 and data["decision"]["disc"] == "folder"
+    assert data["decision"]["disc_playlist"] is None
+    assert data["stream_url"].startswith(f"{_PB}/files/{file_id}/disc?token=")
+
+    client.cookies.clear()
+    listing = client.get(data["stream_url"])
+    assert listing.status_code == 200, listing.text
+    files = {f["path"]: f for f in listing.json()["data"]["files"]}
+    assert set(files) == {
+        "VIDEO_TS/VIDEO_TS.IFO",
+        "VIDEO_TS/VIDEO_TS.BUP",
+        "VIDEO_TS/VTS_01_0.IFO",
+        "VIDEO_TS/VTS_01_0.BUP",
+        "VIDEO_TS/VTS_01_1.VOB",
+        "VIDEO_TS/VTS_01_2.VOB",
+    }
+    vob = files["VIDEO_TS/VTS_01_2.VOB"]
+    assert vob["size"] == 128
+    part = client.get(vob["url"], headers={"Range": "bytes=0-3"})
+    assert part.status_code == 206 and part.content == b"VOB2"
+    token = data["stream_url"].split("token=", 1)[1]
+    base = f"{_PB}/files/{file_id}/disc"
+    assert client.get(f"{base}/VIDEO_TS/notes.txt?token={token}").status_code == 404
+
+
+def test_iso_is_streamed_as_raw_bytes_and_explained_to_browsers(client, tmp_path):
+    """ISO：全解码播放器拿到原字节直推（引擎用 bytes=0-0 取总长），申报了能读镜像的标 disc=image；
+    指望服务端换封装的浏览器拿到明确的「放不了」，而不是开会话后 404。"""
+    file_id = seed(client, tmp_path, container="iso", codec=None)
+    data = start_session(client, file_id, capability=_DISC_NATIVE)
+    assert data["decision"]["tier"] == 0 and data["decision"]["disc"] == "image"
+    assert data["stream_url"].startswith(f"{_PB}/files/{file_id}/stream?token=")
+    head = client.get(data["stream_url"], headers={"Range": "bytes=0-0"})
+    assert head.status_code == 206
+    assert head.headers["content-range"] == "bytes 0-0/1024"
+
+    browser = start_session(client, file_id)
+    assert browser["decision"]["outcome"] == "rejected"
+    assert "ISO" in browser["decision"]["reason"]
 
 
 async def _seed_disc(tmp_path: Path) -> int:

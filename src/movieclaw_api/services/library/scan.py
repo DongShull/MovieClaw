@@ -47,6 +47,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field, replace
 from enum import StrEnum
+from functools import cached_property, lru_cache
 from itertools import islice
 from pathlib import Path
 from uuid import uuid4
@@ -123,7 +124,7 @@ from movieclaw_db.models.library_file import (
     UnidentifiedCode,
 )
 from movieclaw_db.models.scheduled_task import TriggerType
-from movieclaw_db.repositories.library_file_repo import LibraryFileRepository
+from movieclaw_db.repositories.library_file_repo import LedgerPresence, LibraryFileRepository
 from movieclaw_db.repositories.library_repo import LibraryRepository
 from movieclaw_enrich import enrich
 from movieclaw_enrich.models import TorrentAttrs
@@ -906,6 +907,29 @@ async def _resolve_scope(
     return by_root if all_dirs else None
 
 
+async def _load_known(
+    repo: LibraryFileRepository,
+    library_id: int,
+    pending: list[tuple[Path, Path, bool]],
+    *,
+    whole_library: bool,
+) -> dict[str, LibraryFile]:
+    """扫描的台账快照（路径 → 行），只装配逐文件处理真正要查的行。
+
+    逐文件处理（跳过、入账、身份复核、预取）只查本轮遍历到的路径：监听触发的
+    范围扫描只看得见一两个条目目录，6 小时对账（目录 mtime 增量）只列出变过的
+    目录。此前每轮开场都把整库台账（几万行、每行好几个 JSON 列）装配成 ORM
+    对象，NAS 上要在事件循环里连续卡好几秒，而用到的只是其中一小撮。丢失判定
+    与自动清理要的整库视图另走轻量切片（LibraryFileRepository.list_presence）。
+    改根路径（``whole_library``）要拿全部旧行与新路径配对，仍装整库。
+    """
+    if whole_library:
+        rows = await repo.list_by_library(library_id)
+    else:
+        rows = await repo.list_by_paths(library_id, (str(file) for _root, file, _disc in pending))
+    return {row.file_path: row for row in rows}
+
+
 async def _scan(
     library_id: int,
     summary: ScanSummary,
@@ -927,7 +951,8 @@ async def _scan(
             summary.errors.append("媒体库不存在（可能已被删除）")
             return summary
         repo = LibraryFileRepository(session)
-        known = {row.file_path: row for row in await repo.list_by_library(library_id)}
+        # 台账快照（路径 → 行）：遍历完成、知道本轮看到了哪些文件之后才装载，见 _load_known
+        known: dict[str, LibraryFile] = {}
         # 显式历史修复只给出一个目标根；普通根路径编辑则默认取完整的新配置。
         # 后续两个阶段必须使用同一组根，才能正确判断「旧根对应哪个新根」。
         effective_reconcile_new_roots = reconcile_new_root_paths or list(library.root_paths)
@@ -963,7 +988,9 @@ async def _scan(
             await session.rollback()
             await session.refresh(library)
             known.clear()
-            known.update({row.file_path: row for row in await repo.list_by_library(library_id)})
+            known.update(
+                await _load_known(repo, library_id, pending, whole_library=reconcile_root_change)
+            )
             resolve_cache.clear()
 
         # 先盘点全部待处理文件：总数定下来，进度才有分母。遍历的每一次
@@ -1079,6 +1106,12 @@ async def _scan(
                     len(snapshot_walk.skipped),
                     snapshot_walk.listed,
                 )
+
+        # 台账快照：逐文件处理只查本轮遍历到的路径，只装配这些行（丢失判定在收尾
+        # 另行现查轻量切片）；改根路径要拿全部旧行与新路径配对，仍装整库
+        known.update(
+            await _load_known(repo, library_id, pending, whole_library=reconcile_root_change)
+        )
 
         # 根路径编辑后的同实体收敛：用户可能把 ``/media/movies`` 改成指向
         # 同一目录的挂载别名/软链接。此时磁盘对象没有变，台账里的旧路径却已
@@ -1348,14 +1381,17 @@ async def _scan(
         # 原盘内部的行（存量嵌套/手动放入）：_walk_videos 不进原盘目录，
         # seen 恒不含它们，按 seen 判会误标缺失且永不自愈——这类行改按
         # 物理存在性对账（docs/design/disc-version-layout.md §4）。正常库
-        # 这类行为零，逐行 stat 成本可忽略
+        # 这类行为零，逐行 stat 成本可忽略。原盘本身可能落在范围外（库根
+        # 就是一张原盘），所以原盘路径按整库取，不受范围限制
         disc_prefixes = [
             f"{row.file_path.rstrip('/')}/"
-            for row in known.values()
-            if row.container in ("bluray", "dvd")
+            for row in await repo.list_presence(library_id, containers=("bluray", "dvd"))
         ]
         now = utcnow()
-        for row in known.values():
+        # 丢失判定的对象在逐文件处理**之后**现查：改名归并、新入账、缺失回归都已
+        # 落库，读到的就是行的当前路径与状态。只取判定要用的几列（LedgerPresence），
+        # 范围扫描只取范围内的行——不再为此把整库台账装配成 ORM 对象
+        for row in await repo.list_presence(library_id, under=scope_prefixes):
             path_str = row.file_path
             if path_str in seen_paths:
                 continue
@@ -1393,7 +1429,8 @@ async def _scan(
                 repo,
                 library,
                 summary,
-                known=list(known.values()),
+                # 丢失标记刚写完，现查一次：本轮新标记的行也按当前状态参与判定
+                known=await repo.list_presence(library_id),
                 scanned_roots=scanned_roots,
                 # 本轮真的遍历出文件的根：空根是"挂载掉了但挂载点还在"的典型
                 # 症状，自动清理不能把它当"用户把片子删光了"（见 _auto_clear_missing）
@@ -1622,7 +1659,7 @@ async def _auto_clear_missing(
     library: Library,
     summary: ScanSummary,
     *,
-    known: list[LibraryFile],
+    known: list[LedgerPresence],
     scanned_roots: list[str],
     roots_with_files: set[str],
     unreadable_dirs: list[str],
@@ -3494,34 +3531,55 @@ async def _refresh_local_identity(
 
 @dataclass
 class _SubtitleHint:
-    """``download_hint`` 行的解析形态（每轮扫描解析一次，同目录多文件复用）。"""
+    """``download_hint`` 行的解析形态（同目录多文件复用，解析按需、每轮最多一次）。
+
+    副标题要跑一遍 enrich（含 NER 推理，缓存未命中时单条十几毫秒）才能得到中文
+    片名。此前每轮扫描开场就把**全部**线索逐条解析——线索表只增不删，重启后第一轮
+    （NER 缓存为空）几千条要在事件循环里连续算好几秒，其间所有接口一起卡住；而绝大
+    多数扫描一条线索都用不上（线索只服务于落在其目录下、真正要走识别链的文件）。
+    现在开场只取两列字符串，第一次读 alt_title 时才解析，工作量与"本轮要识别的
+    文件"成正比。
+    """
 
     save_path: str
-    alt_title: str | None  # 副标题里的中文片名（enrich 提取）
-    total_episodes: int | None  # 副标题「全N集」
+    subtitle: str
+
+    @cached_property
+    def alt_title(self) -> str | None:
+        """副标题里的中文片名（enrich 提取）。"""
+        attrs = enrich(self.subtitle)
+        return attrs.titles_zh[0] if attrs.titles_zh else None
+
+    @cached_property
+    def total_episodes(self) -> int | None:
+        """副标题「全N集」。"""
+        return parse_total_episodes(self.subtitle)
 
 
-async def _load_hints(session) -> list[_SubtitleHint]:
-    """加载并解析全部下载线索；最长路径在前，嵌套目录时取最具体的一条。"""
-    rows = list((await session.execute(select(DownloadHint))).scalars().all())
-    hints = []
-    for row in rows:
-        attrs = enrich(row.subtitle)
-        hints.append(
-            _SubtitleHint(
-                save_path=row.save_path.rstrip("/"),
-                alt_title=attrs.titles_zh[0] if attrs.titles_zh else None,
-                total_episodes=parse_total_episodes(row.subtitle),
-            )
+async def _load_hints(session) -> dict[str, _SubtitleHint]:
+    """加载全部下载线索（不解析），按规范化后的目录建索引，供 _hint_for 逐级上溯查找。"""
+    rows = (
+        await session.execute(
+            select(DownloadHint.save_path, DownloadHint.subtitle).order_by(DownloadHint.id)
         )
-    hints.sort(key=lambda h: len(h.save_path), reverse=True)
+    ).all()
+    hints: dict[str, _SubtitleHint] = {}
+    for save_path, subtitle in rows:
+        # 与旧的「Path(save_path.rstrip("/")) in file.parents」判定同一口径（去尾斜杠、
+        # 折叠重复分隔符；"/" 规范成 "." 永不命中）；规范化后重名的线索保留先写入的
+        # 一条，与旧排序的结果一致
+        hints.setdefault(str(Path(save_path.rstrip("/"))), _SubtitleHint(save_path, subtitle))
     return hints
 
 
-def _hint_for(file: Path, hints: list[_SubtitleHint]) -> _SubtitleHint | None:
-    """文件落在某条线索的目录之下 → 该线索适用（列表已按最具体优先排序）。"""
-    for hint in hints:
-        if Path(hint.save_path) in file.parents:
+def _hint_for(file: Path, hints: dict[str, _SubtitleHint]) -> _SubtitleHint | None:
+    """文件落在某条线索的目录之下 → 该线索适用；嵌套目录时取最具体（最深）的一条。
+
+    从文件所在目录逐级向上查字典：开销只与目录深度有关，与线索条数无关。
+    """
+    for parent in file.parents:
+        hint = hints.get(str(parent))
+        if hint is not None:
             return hint
     return None
 
@@ -3655,6 +3713,9 @@ async def _resolve_by_name(
     # 下载线索补强：副标题中文名作备选查询词，「全N集」作集数佐证；
     # 文件/目录名完全解析不出条目名时，中文名直接顶为主查询词
     if hint is not None:
+        # 中文名要对副标题跑一次 NER（首次读取时解析并缓存）：与下面的集号统计
+        # 一样放线程池先算好，不在事件循环里推理
+        await asyncio.to_thread(lambda: hint.alt_title)
         if evidence is None:
             if hint.alt_title:
                 evidence = LocalEvidence(title=hint.alt_title)
@@ -4008,11 +4069,24 @@ def local_episode_count(directory: Path) -> int | None:
             continue
         if any(marker in name.lower() for marker in _IGNORE_MARKERS):
             continue
-        attrs = enrich(entry.stem)
-        episode = attrs.episodes[0] if attrs.episodes else trailing_index_episode(entry.stem)
+        episode = _stem_episode(entry.stem)
         if episode:
             episodes.add(episode)
     return len(episodes) if len(episodes) >= 2 else None
+
+
+@lru_cache(maxsize=16384)
+def _stem_episode(stem: str) -> int | None:
+    """文件名 → 集号（纯函数，进程内同一文件名只解析一次）。
+
+    local_episode_count 每遇到一个待识别的新文件，就要把同目录全部视频文件的
+    集号数一遍：往一季目录里每放进一集，之前那十几二十个文件都要重跑一次 NER，
+    而它们的文件名和集号都不会变。NER 自己的缓存与站点同步共用、几小时就被挤掉，
+    这里单独记住结论（只是一个小整数）。NER 模型整个进程只加载一次、不会热替换，
+    所以结论在进程内始终有效。
+    """
+    attrs = enrich(stem)
+    return attrs.episodes[0] if attrs.episodes else trailing_index_episode(stem)
 
 
 def _unit_for(kind: MediaKind, file: Path) -> tuple[int, int]:

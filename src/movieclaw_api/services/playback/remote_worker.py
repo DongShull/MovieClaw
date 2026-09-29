@@ -111,6 +111,9 @@ class WorkerConnection:
     observed_base_url: str = ""
     worker_version: str | None = None
     arch: str | None = None
+    #: 握手所用凭证对应的登录设备 id：在「设备」页注销这台转码器时据此当场断开
+    #: 它的连接——只删凭证不断连接，被注销的转码器会一直干活到下次重连。
+    login_device_id: int | None = None
     connected_at: float = field(default_factory=time.monotonic)
     last_seen: float = field(default_factory=time.monotonic)
     jobs: set[str] = field(default_factory=set)
@@ -145,6 +148,7 @@ class RemoteWorkerRegistry:
         hello: dict[str, Any],
         *,
         observed_base_url: str = "",
+        login_device_id: int | None = None,
     ) -> WorkerConnection:
         """校验 hello 并登记 Worker；同 ID 的旧连接会被替换。"""
         raw_worker_id = hello.get("worker_id")
@@ -159,6 +163,7 @@ class RemoteWorkerRegistry:
             websocket=websocket,
             capabilities=capabilities,
             observed_base_url=observed_base_url,
+            login_device_id=login_device_id,
             worker_version=str(hello.get("worker_version"))
             if hello.get("worker_version")
             else None,
@@ -215,6 +220,31 @@ class RemoteWorkerRegistry:
             self._job_states.clear()
         for connection in workers:
             await self._close_quietly(connection.websocket, code=1001, reason="服务端关闭")
+
+    def connected_login_device_ids(self) -> set[int]:
+        """此刻有活控制连接的登录设备 id（「设置 → 设备」据此把转码器标成「已连接」）。
+
+        转码器只在握手时验一次凭证，之后整条连接靠心跳维持；只看凭证最近一次验签
+        的时间，连着的转码器 5 分钟后就会被显示成离线。连没连着以这里为准。
+        """
+        with self._lock:
+            return {
+                c.login_device_id for c in self._workers.values() if c.login_device_id is not None
+            }
+
+    async def disconnect_device(self, login_device_id: int, reason: str) -> int:
+        """断开用某台登录设备的凭证连上来的 Worker（注销转码器时调用），返回断开数。"""
+        with self._lock:
+            victims = [
+                c for c in self._workers.values() if c.login_device_id == login_device_id
+            ]
+            for connection in victims:
+                self._mark_jobs_lost(connection, reason)
+                self._workers.pop(connection.worker_id, None)
+        for connection in victims:
+            logger.warning("远程转码 Worker %s 的凭证已被注销，断开连接", connection.worker_id)
+            await self._close_quietly(connection.websocket, code=1008, reason=reason)
+        return len(victims)
 
     async def disconnect_all(self, reason: str) -> None:
         """配置变更时断开所有 Worker，使旧令牌不再保持有效连接。"""

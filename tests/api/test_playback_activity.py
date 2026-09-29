@@ -479,7 +479,11 @@ async def test_native_app_progress_is_labelled_by_platform(
 
 async def test_web_player_progress_feeds_live_session(client: TestClient) -> None:
     """网页播放器的上报走与 Jellyfin 同一条服务：开始后立刻出现在「正在播放」，
-    带浏览器推导的设备名、不可注销；停止后从实时视图消失、留在播放记录。"""
+    带浏览器推导的设备名；停止后从实时视图消失、留在播放记录。
+
+    播放挂在这次网页登录的登录设备名下（``ld-<n>``，docs/design/login-devices.md），
+    所以活动页上可以「注销此设备」——改造前网页播放用浏览器自报的 id，与任何
+    凭证都对不上，永远注销不了。"""
     movie_id, library_id = await _seed_movie_in_library(
         title="盗梦空间", tmdb_id=27205, library_name="电影"
     )
@@ -506,14 +510,14 @@ async def test_web_player_progress_feeds_live_session(client: TestClient) -> Non
     data = client.get("/api/v1/playback/activity").json()["data"]
     assert len(data["sessions"]) == 1
     live = data["sessions"][0]
-    assert live["device_id"] == "web-0-browser-a"
+    assert live["device_id"].startswith("ld-")
     assert live["client"] == "MovieClaw Web"
     assert live["device_name"] == "Safari · iPhone"
     assert live["member_name"] == "admin"
     assert live["position_ms"] == 600_000
     assert live["paused"] is True
-    # 网页会话没有可撤销的设备凭据
-    assert live["revocable"] is False
+    # 网页登录是一台登录设备：可注销
+    assert live["revocable"] is True
     assert live["media"]["library_id"] == library_id
 
     client.post(
@@ -590,13 +594,15 @@ async def test_end_playback_drops_live_session_and_signals_the_player(client: Te
         "/api/v1/playback/progress",
         json={**body, "event": "progress", "position_ms": 300_000},
     )
-    assert len(client.get("/api/v1/playback/activity").json()["data"]["sessions"]) == 1
+    sessions = client.get("/api/v1/playback/activity").json()["data"]["sessions"]
+    assert len(sessions) == 1
+    device_id = sessions[0]["device_id"]
 
     # 没在播的设备：404
     assert (
         client.post("/api/v1/playback/activity/sessions/web-0-nobody/end").status_code == 404
     )
-    resp = client.post("/api/v1/playback/activity/sessions/web-0-browser-a/end")
+    resp = client.post(f"/api/v1/playback/activity/sessions/{device_id}/end")
     assert resp.status_code == 200, resp.text
     assert "已结束" in resp.json()["message"]
     assert client.get("/api/v1/playback/activity").json()["data"]["sessions"] == []
@@ -924,3 +930,76 @@ async def test_unit_contexts_fetch_only_the_played_units(client: TestClient) -> 
     assert ctx.episode_title == "第 7 集"
     assert ctx.duration_ms == 2_007 * 1000
     assert ctx.file is not None and ctx.file.file_path == "/media/tv/S01E07.mkv"
+
+
+# ---------------------------------------------------------------------------
+# 播放方式标识（活动页「直连 / 转码」）：按设备在跑的会话分类，口径同播放诊断面板
+# ---------------------------------------------------------------------------
+
+
+def _fake_transcode(video, audio, *, hw=None, remote=False, worker=None, file_id=1, created=0.0):
+    from types import SimpleNamespace
+
+    from movieclaw_playback.decide import PlaybackPlan, PlaybackTier
+
+    plan = PlaybackPlan(
+        tier=PlaybackTier.HARDWARE_TRANSCODE, file_id=file_id, container="hls-fmp4",
+        video=video, audio=audio, reason="浏览器不支持 HEVC",
+    )
+    return SimpleNamespace(
+        plan=plan, hw_backend=hw, remote=remote, remote_worker_id=worker,
+        file_id=file_id, created_at=created, device_id="dev", state="ready",
+    )
+
+
+def test_delivery_direct_when_no_session_and_none_for_cloud_link() -> None:
+    from movieclaw_api.services.playback_activity import _delivery_view
+
+    direct = _delivery_view(None, streaming=True)
+    assert (direct.mode, direct.label) == ("direct", "直连")
+    assert _delivery_view(None, streaming=False) is None
+
+
+def test_delivery_labels_transcode_by_where_it_runs() -> None:
+    from movieclaw_api.services.playback_activity import _delivery_view
+    from movieclaw_playback.decide import AudioPlan, VideoPlan
+
+    video = VideoPlan(action="transcode", codec="h264", height=1080, bitrate_cap_bps=8_000_000)
+    audio = AudioPlan(action="copy")
+    remote_session = _fake_transcode(video, audio, hw="videotoolbox", remote=True, worker="studio")
+    remote = _delivery_view(remote_session, streaming=True)
+    assert (remote.mode, remote.label) == ("transcode", "远程转码")
+    assert remote.target == "1080p · H.264 · 8 Mbps"
+    assert remote.executor == "远程 Worker「studio」 · Apple 芯片（VideoToolbox）"
+    assert remote.reason == "浏览器不支持 HEVC"
+
+    hardware = _delivery_view(_fake_transcode(video, audio, hw="qsv"), streaming=True)
+    assert (hardware.label, hardware.executor) == ("硬件转码", "NAS · Intel 核显（QSV）")
+
+    software = _delivery_view(_fake_transcode(video, audio), streaming=True)
+    assert (software.label, software.executor) == ("软件转码", "NAS · 软件编码（CPU）")
+
+
+def test_delivery_remux_and_audio_only() -> None:
+    from movieclaw_api.services.playback_activity import _delivery_view
+    from movieclaw_playback.decide import AudioPlan, VideoPlan
+
+    copy = VideoPlan(action="copy")
+    audio_plan = AudioPlan(action="transcode", codec="aac", downmix=True)
+    audio = _delivery_view(_fake_transcode(copy, audio_plan), streaming=True)
+    assert (audio.mode, audio.label) == ("audio", "音频转码")
+    assert audio.target == "音频 → AAC · 降混立体声"
+    remux = _delivery_view(_fake_transcode(copy, AudioPlan(action="copy")), streaming=True)
+    assert (remux.mode, remux.label, remux.target) == ("remux", "重封装", None)
+
+
+def test_pick_transcode_prefers_playing_file_then_newest() -> None:
+    from movieclaw_api.services.playback_activity import _pick_transcode
+    from movieclaw_playback.decide import AudioPlan, VideoPlan
+
+    copy, audio = VideoPlan(action="copy"), AudioPlan(action="copy")
+    old_same = _fake_transcode(copy, audio, file_id=7, created=1.0)
+    new_other = _fake_transcode(copy, audio, file_id=8, created=5.0)
+    assert _pick_transcode([old_same, new_other], 7) is old_same
+    assert _pick_transcode([old_same, new_other], 99) is new_other
+    assert _pick_transcode([], 7) is None

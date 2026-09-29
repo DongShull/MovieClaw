@@ -282,7 +282,8 @@ def test_marks_emit_webhook_events_with_web_client(client, tmp_path, emitted):
     fav = next(e for e in emitted if e.event == "item.favorited")
     assert fav.data["media"]["type"] == "series"
     assert fav.data["client"]["name"] == "MovieClaw Web"
-    assert fav.data["client"]["device_id"] == "web-0-browser-a"
+    # 已登录的网页会话：设备标识是这次登录的登录设备（docs/design/login-devices.md §7）
+    assert fav.data["client"]["device_id"].startswith("ld-")
     batch_ids = {e.batch_id for e in emitted if e.event == "playback.marked_played"}
     assert len(batch_ids) == 1 and None not in batch_ids
 

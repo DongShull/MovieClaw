@@ -797,6 +797,19 @@ def test_picking_default_audio_keeps_direct_play():
     assert decision.tier is PlaybackTier.DIRECT_PLAY
 
 
+def test_unrecognized_audio_codec_is_never_the_automatic_pick():
+    """探测认不出编码的轨谁也解不了：自动挑选跳过它。
+
+    《交锋》的菁彩声 av3a 排第一、没标 default，按「否则取第一条」就会选中它。
+    """
+    vivid = AudioTrack(ref="embedded:0", codec=None, channels=10, language="chi")
+    aac = AudioTrack(ref="embedded:1", codec="aac", channels=2, language="chi")
+    profile = media(container="mp4", audio_tracks=(vivid, aac))
+    decision = decide_playback(profile, CHROME_HEVC, WITH_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.audio.track_ref == "embedded:1"
+
+
 def test_preferred_audio_transcodes_instead_of_switching_away():
     """用户点的轨放不了就转它，**绝不能**替他换回另一条能直通的。
 
@@ -1011,6 +1024,27 @@ def test_real_degrade_still_marks_the_origin_tier():
     assert "已自动降档" in decision.reason
 
 
+def test_universal_capability_keeps_subtitles_and_the_chosen_audio_track():
+    """App 的自研引擎直出原文件：字幕菜单与叠加层靠计划里的字幕清单，本机切音轨靠计划里的
+    音轨引用——全解码分支也得带上它们，且认用户点选 / 记住的那条音轨。"""
+    subs = (
+        SubtitleTrack(ref="embedded:2", codec="subrip", language="chi", is_default=True),
+        SubtitleTrack(ref="embedded:3", codec="hdmv_pgs_subtitle", language="eng"),
+    )
+    profile = media(audio_tracks=(TRUEHD_71, CHI_DTS), subtitle_tracks=subs)
+    full = universal_capability()
+    decision = decide_playback(profile, full, NO_GPU, preferred_audio="embedded:2")
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY
+    assert [(s.track_ref, s.kind) for s in decision.subtitles] == [
+        ("embedded:2", "vtt"), ("embedded:3", "pgs"),
+    ]
+    assert decision.audio.track_ref == "embedded:2" and decision.audio.codec == "dts"
+    # 没点选（或点了不存在的轨）：用默认轨
+    decision = decide_playback(profile, full, NO_GPU, preferred_audio="embedded:9")
+    assert decision.audio.track_ref == "embedded:1"
+
+
 def test_universal_capability_remuxes_multi_clip_disc_but_direct_plays_single_clip():
     """原盘（disc-playback.md §3.4）：多剪辑主片没有单文件可直连，全解码播放器也只能
     走 concat copy 到 HLS——仍然不重编码；单剪辑原盘照旧档 0。"""
@@ -1027,6 +1061,80 @@ def test_universal_capability_remuxes_multi_clip_disc_but_direct_plays_single_cl
     decision = decide_playback(single, universal_capability(), NO_GPU)
     assert isinstance(decision, PlaybackPlan)
     assert decision.tier is PlaybackTier.DIRECT_PLAY
+
+
+def test_multi_clip_disc_is_direct_played_as_folder_for_disc_capable_player():
+    """能读原盘目录的播放器（App 的自研引擎）：多剪辑原盘给档 0 目录直推并带主播放列表名，
+    NAS 不起 ffmpeg；没申报的全解码播放器照旧 concat remux（disc-direct-play.md §2.2）。"""
+    from dataclasses import replace
+
+    multi = media(container="bluray", video_codec="hevc", disc_clips=3, disc_playlist="00800.mpls")
+    native = replace(universal_capability(), disc_folder=True)
+    decision = decide_playback(multi, native, NO_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY
+    assert decision.disc == "folder" and decision.disc_playlist == "00800.mpls"
+    assert "3 段" in decision.reason
+
+    decision = decide_playback(multi, universal_capability(), NO_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.REMUX and decision.disc is None
+
+
+def test_dvd_folder_is_pushed_as_a_folder_to_disc_capable_players():
+    """DVD 目录（VIDEO_TS）没有单个文件可直连：能读目录的播放器按目录直推（自己读 IFO、拼 VOB）；
+    原来落到「原文件直连」，取的是个文件夹，一律 404。别的播放器不受影响。"""
+    from dataclasses import replace
+
+    dvd = media(container="dvd", video_codec="mpeg2video", resolution="480p", dvd_folder=True)
+    native = replace(universal_capability(), disc_folder=True)
+    decision = decide_playback(dvd, native, NO_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY
+    assert decision.disc == "folder" and decision.disc_playlist is None
+    assert "DVD" in decision.reason
+
+    decision = decide_playback(dvd, universal_capability(), NO_GPU)
+    assert isinstance(decision, PlaybackPlan) and decision.disc is None
+
+
+def test_single_clip_disc_is_folder_for_disc_capable_player_and_plain_file_otherwise():
+    """单剪辑原盘：能读目录的播放器同样按目录直推（EP map 一次定位、播放列表里的语言），
+    其余全解码播放器照旧直出那一个 m2ts。"""
+    from dataclasses import replace
+
+    single = media(container="bluray", video_codec="hevc", disc_clips=1, disc_playlist="00001.mpls")
+    native = replace(universal_capability(), disc_folder=True)
+    decision = decide_playback(single, native, NO_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY
+    assert decision.disc == "folder" and decision.disc_playlist == "00001.mpls"
+    assert "段剪辑" not in decision.reason
+
+    decision = decide_playback(single, universal_capability(), NO_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY and decision.disc is None
+
+
+def test_iso_is_raw_bytes_for_full_decode_players_and_explained_to_browsers():
+    """光盘镜像：服务端读不了盘内结构。自己拉原文件的全解码播放器一律给原字节直推（Infuse、
+    带 libbluray 的播放器未必放不了），申报了能读镜像的额外标 disc="image"；指望服务端换封装的
+    浏览器明确告知放不了，而不是开一个注定 404 的会话。"""
+    from dataclasses import replace
+
+    iso = media(container="iso", video_codec=None)
+    native = replace(universal_capability(), disc_image=True)
+    decision = decide_playback(iso, native, NO_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY and decision.disc == "image"
+
+    decision = decide_playback(iso, universal_capability(), NO_GPU)
+    assert isinstance(decision, PlaybackPlan)
+    assert decision.tier is PlaybackTier.DIRECT_PLAY and decision.disc is None
+
+    decision = decide_playback(iso, SAFARI_MAC, WITH_GPU)
+    assert isinstance(decision, PlaybackRejected)
+    assert "ISO" in decision.reason and "Infuse" in decision.suggestion
 
 
 def test_fmp4_copy_audio_track_avoids_truehd_and_prefers_same_language():

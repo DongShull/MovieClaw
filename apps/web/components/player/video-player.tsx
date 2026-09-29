@@ -82,6 +82,8 @@ import {
   reduceQoe,
   summarize,
 } from "@/lib/player/qoe";
+import { consumePlayIntent } from "@/lib/player/play-links";
+import { StartupTrace } from "@/lib/player/startup-trace";
 import { type TrickplayIndex, tileAt } from "@/lib/player/trickplay";
 import { FALLBACK_FRAME_RATE, isEditableTarget, resolveShortcut } from "@/lib/player/shortcuts";
 import {
@@ -306,6 +308,19 @@ export function VideoPlayer(props: VideoPlayerProps) {
   trickplayRef.current = trickplay;
   // 播放质量累计。放 ref 而不是 state：每秒都在变，进渲染只会白重绘。
   const qoeRef = useRef(initialQoe());
+  /** 这一集的起播分段计时（lib/player/startup-trace.ts）：首帧上屏且开始播放后上报一次 */
+  const startupRef = useRef<StartupTrace | null>(null);
+  /**
+   * 最近挂上的引擎名。退出播放器时挂引擎的 effect 先清理（engineRef 已置空）、
+   * 上报质量快照的 effect 后执行——直接读 engineRef 会报出空串
+   */
+  const engineLabelRef = useRef("");
+  /**
+   * 这一集开始播放过没有：字幕等到开播之后才挂。起播窗口里拉字幕会和首片抢资源——
+   * 内封轨第一次要服务端整文件抽取（和首片转码读同一块盘），VTT 还会被自绘层与画中画
+   * 补丁轨各拉一遍；晚零点几秒出字幕，换首帧早出来
+   */
+  const [subtitlesArmed, setSubtitlesArmed] = useState(false);
   // 快照函数放 ref：卸载与切集的 effect 都不依赖 state.session，
   // 直接闭包会拿到过期的会话，上报到错误的档位上。
   const qoeSnapshotRef = useRef<() => PlaybackMetricPayload | null>(() => null);
@@ -842,13 +857,14 @@ export function VideoPlayer(props: VideoPlayerProps) {
    * 由自绘层负责；进 PiP 才切 showing——两层同显会出双字幕。
    */
   const pipSubtitleUrl = useMemo(() => {
+    if (!subtitlesArmed) return null; // 开播之后才挂，理由见 subtitlesArmed
     if (!mode?.pipPatchTrack) return null; // system-track：字幕组已是系统轨
     if (!activeSubtitle) return null;
     if (activeSubtitle.ref === burnedSubtitle) return null; // 已烧进画面，哪里都带着
     if (activeSubtitle.kind === "vtt") return activeSubtitle.url;
     if (activeSubtitle.kind === "ass") return `${activeSubtitle.url}&format=vtt`;
     return null;
-  }, [activeSubtitle, burnedSubtitle, mode?.pipPatchTrack]);
+  }, [activeSubtitle, burnedSubtitle, mode?.pipPatchTrack, subtitlesArmed]);
 
   // ---------------------------------------------------------------------
   // 起播链路
@@ -876,6 +892,9 @@ export function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     startedKeyRef.current = null;
     reportedStartRef.current = null;
+    startupRef.current = new StartupTrace(consumePlayIntent() ?? performance.now());
+    startupRef.current.mark("进入");
+    setSubtitlesArmed(false);
     setPositionMs(0);
     setBufferedEndMs(null);
     setResume(null);
@@ -925,6 +944,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
     void (async () => {
       try {
         if (!capabilityRef.current) capabilityRef.current = await getCapabilitySnapshot();
+        startupRef.current?.mark("能力");
         pendingFileMsRef.current = state.startMs ?? 0;
         // 首帧从"用户要求播放"这一刻算起，而不是从会话就位算起——
         // 决策与起会话的耗时正是首帧延迟的大头
@@ -958,6 +978,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
           }
           return;
         }
+        startupRef.current?.mark("会话");
         if (session.decision.outcome === "consent") {
           // 刚点过「开启并播放」、开关也保存成功，服务端却仍要求同意：这是
           // 异常闭环（设置没生效/后端异常），绝不能把一模一样的弹窗原样闪
@@ -1138,8 +1159,10 @@ export function VideoPlayer(props: VideoPlayerProps) {
       },
     });
     engineRef.current = engine;
+    engineLabelRef.current = engine.stats().engine;
 
     void engine.attach().then(() => {
+      startupRef.current?.mark("引擎");
       // hls.js 是动态 import；切档恰好发生在 import 完成前时，destroy() 会
       // 早于真正 attach。attach 完成后再补一次销毁，避免旧引擎变成孤儿。
       if (disposed) {
@@ -1280,6 +1303,29 @@ export function VideoPlayer(props: VideoPlayerProps) {
     qoeRef.current = reduceQoe(qoeRef.current, event);
   }, []);
 
+  /**
+   * 首帧上屏且已开始播放：把这一集的起播分段上报一次（服务端记成 INFO 一行「起播分段」，
+   * 与 iOS App 同一口径，见 docs/design/playback-startup.md）。`force`：开播后迟迟没有首帧信号
+   */
+  const reportStartup = useCallback(
+    (force = false) => {
+      const marks = startupRef.current?.finish(force);
+      if (!marks) return;
+      const decision = activeSessionRef.current?.decision;
+      const detail: Record<string, unknown> = {
+        engine: engineLabelRef.current,
+        tier: decision?.tier ?? null,
+        original: decision?.tier === 0,
+        start_ms: pendingFileMsRef.current,
+        media_item_id: unit.media_item_id,
+        file_id: decision?.file_id ?? null,
+      };
+      for (const mark of marks) detail[mark.name] = mark.ms;
+      reportPlaybackClientLog("startup", detail, apiRef.current);
+    },
+    [unit.media_item_id],
+  );
+
   /** video 元素事件 → 状态机 / 进度 / 质量采集；每个会话单独绑定并校验身份。 */
   useEffect(() => {
     const session = state.session;
@@ -1290,6 +1336,13 @@ export function VideoPlayer(props: VideoPlayerProps) {
       setPaused(false);
       qoe({ type: "playing", at: performance.now() });
       dispatch({ type: "playing" });
+      setSubtitlesArmed(true);
+      if (startupRef.current && !startupRef.current.has("播放")) {
+        startupRef.current.mark("播放");
+        reportStartup();
+        // 首帧信号迟迟不来（少数浏览器没有 requestVideoFrameCallback）：开播 3 秒后照样报
+        window.setTimeout(() => reportStartup(true), 3000);
+      }
     };
     const onPause = () => {
       if (isCurrentSession()) setPaused(true);
@@ -1340,8 +1393,10 @@ export function VideoPlayer(props: VideoPlayerProps) {
       onBuffered();
     };
     // 「现在应该能播了」的两个时机：挂流那一次可能太早，这两次是补刀
-    const onReady = () => {
-      if (isCurrentSession()) void tryAutoplay();
+    const onReady = (event: Event) => {
+      if (!isCurrentSession()) return;
+      if (event.type === "loadedmetadata") startupRef.current?.mark("元数据");
+      void tryAutoplay();
     };
 
     video.addEventListener("playing", onPlaying);
@@ -1371,7 +1426,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
       video.removeEventListener("loadedmetadata", onReady);
       video.removeEventListener("canplay", onReady);
     };
-  }, [state.session, video, qoe, tryAutoplay]);
+  }, [state.session, video, qoe, tryAutoplay, reportStartup]);
 
   // ---------------------------------------------------------------------
   // 字幕：轨记忆来自 playback_state，用户明确关掉过就不要再自作主张打开
@@ -1498,7 +1553,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
       library_file_id: decision.file_id ?? null,
       tier: decision.tier,
       degraded_from: decision.degraded_from ?? null,
-      engine: engineRef.current?.stats().engine ?? "",
+      engine: engineRef.current?.stats().engine ?? engineLabelRef.current,
       hw_backend: state.session?.hw_backend ?? "",
       ...summary,
     };
@@ -1578,9 +1633,11 @@ export function VideoPlayer(props: VideoPlayerProps) {
     if (!withFrameCallback.requestVideoFrameCallback) return;
     const handle = withFrameCallback.requestVideoFrameCallback(() => {
       qoe({ type: "first-frame", at: performance.now() });
+      startupRef.current?.mark("首帧");
+      reportStartup();
     });
     return () => withFrameCallback.cancelVideoFrameCallback?.(handle);
-  }, [video, state.session?.session_id, qoe]);
+  }, [video, state.session?.session_id, qoe, reportStartup]);
 
   /**
    * 每秒采一次观看时长与掉帧。掉帧既进 QoE 指标，也是**降档回路的真实证据**：
@@ -3313,7 +3370,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
           // （原生全屏/画中画只渲染视频帧，位图字幕跟不进去——ASS 特效
           // 在那两个面上同样只剩降级文本，属于同一类既有限制）
           track={
-            activeSubtitle?.ref === burnedSubtitle
+            !subtitlesArmed || activeSubtitle?.ref === burnedSubtitle
               ? null
               : systemSubtitles && activeSubtitle?.kind !== "pgs"
                 ? null

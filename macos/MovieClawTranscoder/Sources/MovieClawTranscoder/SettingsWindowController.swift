@@ -50,8 +50,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     var onSave: ((WorkerSettingsDraft) throws -> Void)?
     /// 配对成功，把令牌交给调用方落钥匙串并启动 Worker。
     var onPaired: ((String) throws -> Void)?
-    /// 清除本机配置与令牌。
-    var onClear: (() throws -> Void)?
+    /// 断开配对：尽力在服务端注销这台 Mac 的凭证，再清除本机配置与令牌。
+    var onClear: (() async throws -> Void)?
     /// 下载 / 更新 Jellyfin-ffmpeg。参数为 true 表示装好后要切换过去用它
     /// （用户在「转码」页选了 Jellyfin-ffmpeg，但还没下载过）。
     var onManageFFmpeg: ((Bool) -> Void)?
@@ -236,12 +236,12 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    /// 稳态下唯一的「推倒重来」：清掉地址与令牌，回到引导第一步。
+    /// 稳态下唯一的「推倒重来」：在服务端注销（尽力而为）、清掉地址与令牌，回到引导第一步。
     func confirmAndClear() async {
         let alert = NSAlert()
         alert.messageText = "断开并重新配置？"
-        alert.informativeText = "这会删除本机保存的地址与授权，需要重新配对才能继续转码。"
-            + "服务端的授权记录不会一起删除——要彻底停用，请到网页「设置 → 设备」里吊销。"
+        alert.informativeText = "这会在服务端注销这台 Mac 的授权，并删除本机保存的地址，需要重新配对才能继续转码。"
+            + "服务器暂时连不上时只清本机，之后可以到网页「设置 → 设备」里注销它。"
         alert.alertStyle = .warning
         // 破坏性动作标红，并把「取消」设为默认回车项——HIG：确认框里
         // 回车应当落在安全的那一侧，别让手快的人一路回车删掉配置
@@ -251,7 +251,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         alert.addButton(withTitle: "取消").keyEquivalent = "\r"
         guard await runSheet(alert) == .alertFirstButtonReturn else { return }
         do {
-            try onClear?()
+            try await onClear?()
             showOnboarding()
             render()
             onboarding?.didAppear()

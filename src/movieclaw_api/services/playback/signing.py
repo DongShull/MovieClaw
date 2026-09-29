@@ -11,6 +11,8 @@
 token 负载只放**授权范围**，不放任何秘密：成员 id、文件 id、可选的会话 id、
 过期时间。拿到 token 也只能取这一个文件/会话的流。另带一个可选的浏览器设备
 标识——它不是授权范围，只用来把取流字节记到活动页上对应会话的名下。
+同理还可带 App 的播放编号（docs/design/playback-qoe.md §2）：取流统计据此归到
+这一次播放，不用改引擎发请求的方式。
 
 影片分享访客（docs/design/media-share.md §4.3）的 token 再多带分享 id：验签
 之后回查一次分享行是否仍有效，「取消分享」对直连档也在下一个 Range 请求就
@@ -45,6 +47,8 @@ class StreamGrant:
     device_id: str | None = None
     #: 影片分享访客签出的 token 带分享 id；成员 token 为 None
     share_id: int | None = None
+    #: App 的播放编号（playback-qoe.md §2）；旧 token 与不报编号的客户端没有
+    attempt_id: str | None = None
 
 
 async def issue_stream_token(
@@ -55,6 +59,7 @@ async def issue_stream_token(
     device_id: str | None = None,
     ttl_seconds: int = STREAM_TOKEN_TTL_S,
     share_id: int | None = None,
+    attempt_id: str | None = None,
 ) -> str:
     serializer = URLSafeSerializer(await get_signing_secret(), salt=_STREAM_SALT)
     payload = {
@@ -67,6 +72,8 @@ async def issue_stream_token(
         payload["d"] = device_id
     if share_id is not None:
         payload["sh"] = share_id
+    if attempt_id:
+        payload["a"] = attempt_id
     return serializer.dumps(payload)
 
 
@@ -91,6 +98,7 @@ async def verify_stream_token(
     try:
         device_id = payload.get("d")
         share_id = payload.get("sh")
+        attempt_id = payload.get("a")
         grant = StreamGrant(
             member_id=int(payload["m"]),
             file_id=int(payload["f"]),
@@ -98,6 +106,7 @@ async def verify_stream_token(
             expires_at=int(payload["exp"]),
             device_id=str(device_id) if device_id else None,
             share_id=int(share_id) if share_id is not None else None,
+            attempt_id=str(attempt_id)[:64] if attempt_id else None,
         )
     except (KeyError, TypeError, ValueError):
         return None

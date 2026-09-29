@@ -38,11 +38,12 @@ export function NewTask({ flat = false }: { flat?: boolean } = {}) {
   const isMobile = useIsMobile();
   const theme = useTheme();
   const chatPage = isMobile && !theme.structural;
-  // 顶栏标题「新会话」+ 返回键，返回落点与会话页一致（/my：手机上会话列表在「更多」）
+  // 顶栏标题「新会话」+ 返回键，返回落点与会话页一致（/my：手机上会话列表在「我的」）；
+  // 右上角什么都不放（同原生 App 的新会话页：搜索在这里用不上）
   const chrome = usePageChrome();
   useEffect(() => {
     if (!chrome || !chatPage) return;
-    return chrome.setTopBarTitle("新会话", { backHref: "/my" as Route });
+    return chrome.setTopBarTitle("新会话", { backHref: "/my" as Route, hideSearch: true });
   }, [chrome, chatPage]);
   // 新会话没有可沿用的历史：以本浏览器记住的上次选择为起点（null 即「默认」），
   // 用户一改就记下、并显式随消息提交。首帧按默认渲染、挂载后再读记忆，避免

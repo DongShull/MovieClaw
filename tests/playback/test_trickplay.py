@@ -240,6 +240,44 @@ class _StoreStub:
         return self._policy
 
 
+def test_generation_runs_one_file_at_a_time(tmp_path, monkeypatch):
+    """全局同时只跑一个生成任务：连着开播几部片不能同时拉起一串整片解码的 ffmpeg
+    （2026-09-27 真机语料：8 个并发任务把 NAS CPU 打满、拖垮全站接口）。"""
+    import threading
+    import time
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(trickplay, "_in_flight", set())
+    monkeypatch.setattr(trickplay, "get_setting_store", lambda: _StoreStub(_PolicyStub(True)))
+    files = []
+    for name in ("a.mp4", "b.mp4", "c.mp4"):
+        video = tmp_path / name
+        video.write_bytes(b"x")
+        files.append(make_file(video, file_id=len(files) + 1))
+    lock = threading.Lock()
+    running, peak, done = [0], [0], []
+
+    def fake_generate(f):
+        with lock:
+            running[0] += 1
+            peak[0] = max(peak[0], running[0])
+        time.sleep(0.05)
+        with lock:
+            running[0] -= 1
+            done.append(f.id)
+
+    monkeypatch.setattr(trickplay, "generate", fake_generate)
+
+    async def drive():
+        for f in files:
+            trickplay.schedule(f)
+        await asyncio.sleep(0.5)
+
+    asyncio.run(drive())
+    assert peak[0] == 1
+    assert sorted(done) == [1, 2, 3]
+
+
 def test_schedule_is_noop_when_disabled(tmp_path, monkeypatch):
     """总开关关闭就不再生成新预览——已生成的照常可读，这是开关而不是删除。"""
     monkeypatch.chdir(tmp_path)

@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -86,6 +87,63 @@ func TestUnauthorizedPassesServerMessageThrough(t *testing.T) {
 	server := unauthorized(t, `{"success":false,"code":"UNAUTHORIZED","message":"令牌无效或已吊销"}`)
 	if got := requestErr(t, server).Message; got != "令牌无效或已吊销" {
 		t.Errorf("服务端的具体原因被盖掉了：%q", got)
+	}
+}
+
+// recorder 起一个总是成功的服务端，记下最近一次请求的请求头。
+func recorder(t *testing.T) (string, *http.Header) {
+	t.Helper()
+	var seen http.Header
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = r.Header.Clone()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"code":"OK","message":"","data":{}}`))
+	}))
+	t.Cleanup(server.Close)
+	return server.URL, &seen
+}
+
+// TestRequestsCarryUserAgent 校验每个请求都报上 mclaw 自己的名字、版本与平台。
+//
+// 服务端把登录设备最近一次请求的 User-Agent 记在设备行上；不设的话记下来的是
+// Go 标准库的 Go-http-client/1.1，设备列表里看不出这是哪个客户端、哪个版本。
+func TestRequestsCarryUserAgent(t *testing.T) {
+	server, seen := recorder(t)
+	t.Setenv("MOVIECLAW_TOKEN", "mclaw_x")
+	previous := Version
+	Version = "9.9.9"
+	t.Cleanup(func() { Version = previous })
+
+	client, err := New(server, 5*time.Second, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Request(http.MethodGet, "/auth/me", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	want := "mclaw/9.9.9 (" + runtime.GOOS + "/" + runtime.GOARCH + ")"
+	if got := seen.Get("User-Agent"); got != want {
+		t.Errorf("User-Agent = %q，期望 %q", got, want)
+	}
+}
+
+// TestNewWithTokenIgnoresEnvironment 校验指定令牌的客户端不被环境变量遮蔽。
+//
+// mclaw logout 靠它注销凭证文件里的那一枚：环境变量里的令牌可能属于 Agent 或
+// CI，要是被 logout 顺手注销，别处会莫名其妙掉线。
+func TestNewWithTokenIgnoresEnvironment(t *testing.T) {
+	server, seen := recorder(t)
+	t.Setenv("MOVIECLAW_TOKEN", "mclaw_env")
+
+	client, err := NewWithToken(server, "mclaw_local", 5*time.Second, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Request(http.MethodDelete, "/auth/devices/current", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := seen.Get("Authorization"); got != "Bearer mclaw_local" {
+		t.Errorf("带错了令牌：%q", got)
 	}
 }
 

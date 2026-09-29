@@ -197,8 +197,10 @@ notices list
 people show
 playback activity
 playback activity end
+playback attempt get
 playback device revoke
 playback history
+playback stats qoe
 playback stats watch
 rules create
 rules default
@@ -229,6 +231,8 @@ session stop
 shares list
 shares revoke
 site add
+site boost-pool cleanup
+site boost-pool show
 site boost-stats
 site catalog
 site delete

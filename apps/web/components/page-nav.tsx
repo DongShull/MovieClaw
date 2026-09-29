@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
 
@@ -91,6 +91,7 @@ export function PageNav({
   fallback,
   actions,
   toolbar,
+  revealAfter,
   className = "",
 }: {
   title: string;
@@ -104,6 +105,15 @@ export function PageNav({
    * 硬塞只会把整行挤出屏幕；页面正文里本来就有同名大标题。
    */
   toolbar?: React.ReactNode;
+  /**
+   * 按「页面大标题滚出视野」显形（可选；不传 = 默认的按滚动距离淡入）。
+   *
+   * 给大标题压在剧照上、离顶栏很远的页面（银玻璃影片详情页）：按滚动距离算，
+   * 小标题和雾层会在大标题还清清楚楚躺在剧照上时就出来，同一个片名同时出现两遍。
+   * 传入大标题元素后，改由 IntersectionObserver 盯着它：整个滚到顶栏底下才显出小标题
+   * 与雾层，滚回来再隐去（同原生 App 的导航栏标题）。传 null 表示元素还没挂上，保持隐藏。
+   */
+  revealAfter?: HTMLElement | null;
   className?: string;
 }) {
   const back = useBackNavigation(fallback.href);
@@ -126,9 +136,12 @@ export function PageNav({
     return registerPageNav();
   }, [registerPageNav]);
 
+  const followsTitle = revealAfter !== undefined;
+  const [titleGone, setTitleGone] = useState(false);
+
   useEffect(() => {
     const root = rootRef.current;
-    if (!root) return;
+    if (!root || followsTitle) return;
     const scroller = scrollParentOf(root);
     const target: HTMLElement | Window = scroller ?? window;
     const sync = () => {
@@ -139,7 +152,27 @@ export function PageNav({
     sync();
     target.addEventListener("scroll", sync, { passive: true });
     return () => target.removeEventListener("scroll", sync);
-  }, []);
+  }, [followsTitle]);
+
+  // 大标题模式：观察区的上沿压到顶栏底边，大标题整个滚进顶栏底下（且在观察区上方）才算「滚走了」
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !revealAfter) {
+      setTitleGone(false);
+      return;
+    }
+    const scroller = scrollParentOf(root);
+    const barBottom = root.getBoundingClientRect().bottom - (scroller?.getBoundingClientRect().top ?? 0);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const top = entry.rootBounds?.top ?? barBottom;
+        setTitleGone(!entry.isIntersecting && entry.boundingClientRect.bottom <= top);
+      },
+      { root: scroller, rootMargin: `-${Math.max(0, Math.round(barBottom))}px 0px 0px 0px` },
+    );
+    observer.observe(revealAfter);
+    return () => observer.disconnect();
+  }, [revealAfter]);
 
   // —— 防遮挡硬约束（渲染入口短路）——
   // Netflix 桌面主题下，全出血（isHome）路由的主区不为顶栏让位，本组件
@@ -157,6 +190,11 @@ export function PageNav({
   }
 
   const backClass = PAGE_NAV_BUTTON_CLASS;
+  // 显形程度：默认跟滚动距离走（--nav-reveal，不加过渡）；大标题模式是开 / 关两态，
+  // 用普通 opacity 过渡淡入淡出
+  const revealStyle: React.CSSProperties = followsTitle
+    ? { opacity: titleGone ? 1 : 0, transition: "opacity 200ms ease, transform 200ms ease" }
+    : { opacity: "var(--nav-reveal, 0)" };
   const backLabel = `返回上一页；无历史时返回${fallback.label}`;
 
   return (
@@ -181,7 +219,7 @@ export function PageNav({
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 -bottom-5 top-0 backdrop-blur-md"
         style={{
-          opacity: "var(--nav-reveal, 0)",
+          ...revealStyle,
           /* 雾层色相走 --page-fog（:root 银玻璃 / netflix 覆盖组纯黑）：
              内联 style 无法被 CSS 选择器压过，主题换肤必须经变量 */
           background: "var(--page-fog)",
@@ -212,8 +250,10 @@ export function PageNav({
             aria-hidden="true"
             className="min-w-0 truncate text-body-lg font-semibold tracking-[-0.01em] text-white/90"
             style={{
-              opacity: "var(--nav-reveal, 0)",
-              transform: "translateY(calc((1 - var(--nav-reveal, 0)) * 5px))",
+              ...revealStyle,
+              transform: followsTitle
+                ? `translateY(${titleGone ? 0 : 5}px)`
+                : "translateY(calc((1 - var(--nav-reveal, 0)) * 5px))",
             }}
           >
             {title}

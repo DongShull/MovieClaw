@@ -85,6 +85,11 @@ class ClientCapability:
     # uses_native_hls_player，见该属性的说明。
     native_hls: bool = False
     universal: bool = False
+    #: 全解码播放器能在本机读光盘镜像（蓝光 UDF / DVD ISO9660）：ISO 给档 0 原字节直推
+    #: （disc-direct-play.md）。目前只有 App 的自研引擎申报
+    disc_image: bool = False
+    #: 全解码播放器能经目录取流接口读原盘目录：多剪辑原盘给档 0 目录直推，NAS 不起 ffmpeg
+    disc_folder: bool = False
 
     @property
     def uses_native_hls_player(self) -> bool:

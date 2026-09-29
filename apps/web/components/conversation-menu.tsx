@@ -1,33 +1,102 @@
 "use client";
 
+import type { Route } from "next";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { ChatIcon, CopyIcon, MoreIcon, PencilIcon, TrashIcon } from "@/components/icons";
+import { useConfirm, usePrompt, useToast } from "@/components/feedback";
+import { BranchIcon, MoreIcon, PencilIcon, TrashIcon } from "@/components/icons";
+import { PAGE_NAV_BUTTON_CLASS } from "@/components/page-nav";
+import { useAgentConversations } from "@/lib/agent-conversations";
 
 /**
- * 会话行尾的「⋯」操作菜单：在新会话中继续 / 复制会话 ID / 重命名 / 删除会话。
+ * 会话菜单三个动作的完整流程（确认 / 输入 / 失败提示），「我的」页与会话页共用一份，
+ * 文案同原生 App（MorePage.swift / AgentConversationView.swift）：
+ *   - 续接：先确认，再开新会话并跳过去（原会话保留不变）；
+ *   - 重命名：输入框初值是当前标题，去空白、截 80 字，没变化不发请求；
+ *   - 删除：确认后删除；``onRemoved`` 给会话页用来离开这张已不存在的页。
+ */
+export function useConversationActions() {
+  const router = useRouter();
+  const { fork, rename, remove } = useAgentConversations();
+  const prompt = usePrompt();
+  const confirm = useConfirm();
+  const toast = useToast();
+
+  const forkConversation = async (id: string, title: string, fromHere = false) => {
+    const ok = await confirm({
+      title: fromHere ? "从此处创建新会话？" : `在新会话中继续「${title}」？`,
+      description: "会带上这段对话的上下文开一个新会话接着聊，原会话保留不变。",
+      confirmLabel: "创建新会话",
+    });
+    if (!ok) return;
+    try {
+      const targetId = await fork(id);
+      router.push(`/sessions/${targetId}` as Route);
+    } catch (error) {
+      toast.error(`创建新会话失败：${(error as Error).message}`);
+    }
+  };
+
+  const renameConversation = async (id: string, currentTitle: string) => {
+    const input = await prompt({ title: "重命名会话", initialValue: currentTitle, maxLength: 80 });
+    if (input == null) return;
+    const title = input.trim().slice(0, 80);
+    if (!title || title === currentTitle) return;
+    void rename(id, title).catch((error) => {
+      toast.error(`重命名失败：${(error as Error).message}`);
+    });
+  };
+
+  const removeConversation = async (id: string, title: string, onRemoved?: () => void) => {
+    const ok = await confirm({
+      title: `彻底删除会话「${title}」？`,
+      description: "服务器上的完整对话记录将一并删除，此操作不可恢复。",
+      confirmLabel: "彻底删除",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      await remove(id);
+      onRemoved?.();
+    } catch (error) {
+      toast.error(`删除失败：${(error as Error).message}`);
+    }
+  };
+
+  return { forkConversation, renameConversation, removeConversation };
+}
+
+/**
+ * 会话的「⋯」操作菜单：在新会话中继续 / 重命名 /（分隔）/ 删除会话。
  *
- * 从侧栏会话行（sidebar.tsx 的 RunRow）同一套交互抽出来给「更多」页的最近会话
- * 复用：抽屉侧栏在手机上退役后，会话列表搬到了「更多」页，这些操作跟着一起
- * 搬过来，否则手机上就没有改名和删除的入口。菜单 Portal 到 body：所在卡片
- * 有 overflow 裁剪，行内弹层会被切掉。点击外部、Esc、滚动都关闭。
+ * 两处用：「我的」页最近会话的行尾，以及手机会话页顶栏右上角（操作的是当前会话，
+ * 续接项写作「从此处创建新会话」）。菜单项、图标与顺序对齐原生 App 的会话菜单
+ * （apps/apple/.../AgentConversationView.swift 的 sessionMenu、MorePage.swift 的 sessionActions）：
+ * 续接放第一位（聊天记录页最常用），删除用分隔线隔开垫底；「复制会话 ID」随 App 一起去掉
+ * （桌面侧栏的 RunRow 另有一份内联菜单，保留复制 ID——桌面上配合 mclaw 命令行用得到）。
+ * 续接与删除的确认由调用方负责。
  *
- * 侧栏的 RunRow 仍保留它自己那份内联实现（它的触发键要与行尾时间标签互相让位，
- * 开合状态得留在行里），两处菜单项须保持一致。
+ * 菜单 Portal 到 body：所在卡片有 overflow 裁剪，行内弹层会被切掉。
+ * 点击外部、Esc、滚动都关闭。
  */
 export function ConversationMenu({
   onFork,
-  onCopyId,
   onRename,
   onDelete,
+  forkLabel = "在新会话中继续",
+  variant = "row",
   triggerClassName = "",
   iconClassName = "size-5",
 }: {
   onFork: () => void;
-  onCopyId: () => void;
   onRename: () => void;
   onDelete: () => void;
+  /** 续接项的文案：会话页里写「从此处创建新会话」 */
+  forkLabel?: string;
+  /** row = 列表行尾的小键（默认）；nav = 顶栏圆形玻璃键（会话页右上角，与搜索键同一副） */
+  variant?: "row" | "nav";
   /** 触发键的定位/尺寸由所在行决定（默认只给基础皮肤） */
   triggerClassName?: string;
   iconClassName?: string;
@@ -83,7 +152,11 @@ export function ConversationMenu({
           // 菜单宽 176px（w-44），右缘与触发键右缘对齐；窄屏上不会越出左边
           setMenuPos({ left: Math.max(8, rect.right - 176), top: rect.bottom + 6 });
         }}
-        className={`glass-row touch-target justify-center !rounded-md !p-0 ${triggerClassName}`}
+        className={
+          variant === "nav"
+            ? `${PAGE_NAV_BUTTON_CLASS} ${triggerClassName}`
+            : `glass-row touch-target justify-center !rounded-md !p-0 ${triggerClassName}`
+        }
       >
         <MoreIcon className={iconClassName} />
       </button>
@@ -102,16 +175,8 @@ export function ConversationMenu({
               onClick={() => pick(onFork)}
               className="glass-row px-2.5 py-2 text-ui font-medium max-md:py-2.5"
             >
-              <ChatIcon className="size-4 shrink-0 opacity-80 max-md:size-5" />
-              <span className="flex-1">在新会话中继续</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => pick(onCopyId)}
-              className="glass-row px-2.5 py-2 text-ui font-medium max-md:py-2.5"
-            >
-              <CopyIcon className="size-4 shrink-0 opacity-80 max-md:size-5" />
-              <span className="flex-1">复制会话 ID</span>
+              <BranchIcon className="size-4 shrink-0 opacity-80 max-md:size-5" />
+              <span className="flex-1">{forkLabel}</span>
             </button>
             <button
               type="button"
@@ -121,6 +186,7 @@ export function ConversationMenu({
               <PencilIcon className="size-4 shrink-0 opacity-80 max-md:size-5" />
               <span className="flex-1">重命名</span>
             </button>
+            <div role="separator" className="mx-2 my-1 h-px bg-[var(--line)]" />
             <button
               type="button"
               onClick={() => pick(onDelete)}

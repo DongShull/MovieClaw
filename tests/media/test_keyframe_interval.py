@@ -105,3 +105,58 @@ def test_last_keyframe_at_or_before_picks_nearest():
     # 坏数据不炸：缺 pts / N/A 直接跳过
     broken = [{"flags": "K__"}, {"pts_time": "N/A", "flags": "K__"}]
     assert last_keyframe_at_or_before(broken, 5) is None
+
+
+class TestMatroskaCuesFastPath:
+    """Matroska 的关键帧间隔先看容器自带的 Cues，不去网络挂载上采样三段码流
+    （NAS 上每个文件第一次播放在这里卡 0.4~1.4 秒）；索引不可信时才退回采样。"""
+
+    @staticmethod
+    def _setup(tmp_path, monkeypatch, suffix, times):
+        import movieclaw_api.services.media_probe as media_probe
+        from movieclaw_playback.keyframes import KeyframeIndex
+
+        path = tmp_path / f"movie{suffix}"
+        path.write_bytes(b"x")
+        media_probe._keyframe_cache.clear()
+        index = KeyframeIndex(times_s=tuple(times)) if times else None
+        monkeypatch.setattr(media_probe, "read_keyframe_index", lambda _path: index)
+        probed: list[str] = []
+
+        def fake_probe(file_path, _duration):
+            probed.append(file_path)
+            return 4.2
+
+        monkeypatch.setattr(media_probe, "_probe_keyframe_interval", fake_probe)
+        return media_probe, path, probed
+
+    def test_dense_cues_answer_without_sampling(self, tmp_path, monkeypatch):
+        media_probe, path, probed = self._setup(
+            tmp_path, monkeypatch, ".mkv", [i * 2.0 for i in range(500)]
+        )
+        assert media_probe.probe_keyframe_interval(path, 1000) == 2.0
+        assert probed == []
+
+    def test_sparse_cues_are_verified_by_sampling(self, tmp_path, monkeypatch):
+        """有的封装器每隔几十秒才记一个 CuePoint：稀了不代表关键帧真稀，采样核实。"""
+        media_probe, path, probed = self._setup(
+            tmp_path, monkeypatch, ".mkv", [i * 20.0 for i in range(50)]
+        )
+        assert media_probe.probe_keyframe_interval(path, 1000) == 4.2
+        assert probed == [str(path)]
+
+    def test_partial_cues_are_verified_by_sampling(self, tmp_path, monkeypatch):
+        media_probe, path, probed = self._setup(
+            tmp_path, monkeypatch, ".mkv", [i * 2.0 for i in range(200)]
+        )
+        assert media_probe.probe_keyframe_interval(path, 1000) == 4.2
+        assert probed == [str(path)]
+
+    def test_missing_cues_and_other_containers_sample(self, tmp_path, monkeypatch):
+        media_probe, path, probed = self._setup(tmp_path, monkeypatch, ".mkv", [])
+        assert media_probe.probe_keyframe_interval(path, 1000) == 4.2
+        media_probe, path, probed = self._setup(
+            tmp_path, monkeypatch, ".mp4", [i * 2.0 for i in range(500)]
+        )
+        assert media_probe.probe_keyframe_interval(path, 1000) == 4.2
+        assert probed == [str(path)]

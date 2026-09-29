@@ -192,7 +192,12 @@ serve_subtitle(ref: SubtitleRef, out_format: str | None) -> tuple[bytes, str]
 1. **编码归一（中文用户核心价值）**：charset-normalizer 探测，非
    UTF-8/ASCII（GBK/GB18030/BIG5 常见）→ 统一按 `gb18030` 超集解码重编
    UTF-8，失败退 `errors="replace"` 保底出字；同格式直出也过这步——
-   真 Jellyfin 同款行为，乱码字幕比没字幕更劝退；
+   真 Jellyfin 同款行为，乱码字幕比没字幕更劝退。**按行分开解**（2026-09-28）：
+   字幕站（OpenSubtitles 一类）会往 Big5 / GBK 字幕里插一两行 UTF-8 推广语，
+   整份文件任何编码都严格解不开，原先整份退回 UTF-8 宽容解码、满屏「�」——NAS
+   普查 15 个中文外挂字幕中招（《权力的游戏》S01E09/E10、《盗梦空间》等）。
+   现在本身是 UTF-8 的行照 UTF-8 解，其余行合起来按高频字打分判 GBK / Big5
+   （宽容解码，个别坏字节只坏一个字），不像中文再退探测器；UTF-16 整份交探测器；
 2. **格式转换**：pysubs2 解析 → 目标格式序列化，v1 仅 `srt↔vtt`
    （ass/ssa 不跨格式转换，对齐 Jellyfin"无转换器即失败"）；
 3. **不做磁盘缓存**（有意简化）：文本字幕 <1MB、解析毫秒级，现读现转；

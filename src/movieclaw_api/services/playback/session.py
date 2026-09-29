@@ -55,6 +55,7 @@ from movieclaw_api.services.playback.ffmpeg_args import (
     segment_type,
 )
 from movieclaw_api.services.playback.limits import auto_quota_bytes
+from movieclaw_api.services.playback.qoe import note_transcode_session
 from movieclaw_api.services.playback.remote_signing import issue_remote_grant
 from movieclaw_api.services.playback.remote_worker import (
     RemoteWorkerUnavailable,
@@ -225,6 +226,10 @@ class TranscodeSession:
     #: VOD 模式（§12）：非 None 表示播放列表由服务端按关键帧表预生成，
     #: seek 由分片请求驱动（ensure_segment），ffmpeg 可在会话内多次重启。
     segment_plan: SegmentPlan | None = None
+    #: 开会话时客户端要的起播位置（毫秒，未对齐分片边界）。写进 VOD 列表的
+    #: ``EXT-X-START``，播放器第一个请求就取它所在的分片；``start_ms`` 会随
+    #: seek 重启改成新的边界，这个值开会话后不再变。
+    playlist_start_ms: int = 0
     #: 本轮 ffmpeg 的 -start_number：它正从这个分片号往后转
     head_segment: int = 0
     #: 跨轮次累计的已完成分片号。分片文件在会话目录里从不删除，重启只是换
@@ -322,6 +327,10 @@ class TranscodeSession:
     #: 起会话的浏览器设备标识（web-<成员>-<浏览器>），管理员「结束播放」按它
     #: 找到并停掉这台浏览器的全部会话。
     device_id: str = ""
+    #: App 的播放编号（docs/design/playback-qoe.md §2）：会话结束时把摘要交给这次播放的记录
+    attempt_id: str | None = None
+    #: 首个分片距会话创建的毫秒数（起播最后一公里），交给播放记录用
+    first_segment_ms: int | None = None
     #: 跨会话复用的台账（§B）：非 None 表示目录按指纹命名、结束时不删而是
     #: 落台账供下一次认领；None = 旧行为（目录按会话 id 命名，结束即删）。
     manifest: Manifest | None = None
@@ -763,6 +772,7 @@ class TranscodeSessionManager:
         device_id: str = "",
         cache: bool = True,
         source_concat: str | None = None,
+        attempt_id: str | None = None,
     ) -> TranscodeSession:
         """起一个会话。playlist 出现即返回，不等全部分片转完。
 
@@ -788,7 +798,9 @@ class TranscodeSessionManager:
 
         session_id = new_ulid()
         head_segment = 0
+        playlist_start_ms = 0
         if segment_plan is not None:
+            playlist_start_ms = start_ms
             head_segment = segment_plan.segment_for(start_ms / 1000)
             # 起播点对齐到分片边界：VOD 列表的时间轴是文件绝对时间，客户端
             # 想到哪就 seek 到哪，服务端只按边界供片
@@ -798,6 +810,7 @@ class TranscodeSessionManager:
             file_id=plan.file_id,
             display_name=display_name,
             device_id=device_id,
+            attempt_id=attempt_id,
             member_id=member_id,
             tier=plan.tier,
             # 目录名默认就用会话 id：排查问题时看一眼盘上的目录就知道是哪个
@@ -806,6 +819,7 @@ class TranscodeSessionManager:
             start_ms=start_ms,
             plan=plan,
             segment_plan=segment_plan,
+            playlist_start_ms=playlist_start_ms,
             head_segment=head_segment,
             source_path=source_path,
             hw_backend=hw_backend,
@@ -1130,9 +1144,14 @@ class TranscodeSessionManager:
                 "转码缓存与数据库同在 data 目录，写满会导致整个应用不可用。"
                 "请清理磁盘后重试。"
             )
-        if quota_bytes is not None and self.usage_bytes() >= quota_bytes:
-            self.evict_cold(quota_bytes=quota_bytes)
-        if quota_bytes is not None and self.usage_bytes() >= quota_bytes:
+        if quota_bytes is None:
+            return
+        # 统计占用要把整个转码缓存 stat 一遍（NAS 上两千多个分片），开会话的必经路上只做一次，
+        # 真淘汰过才重算
+        usage = self.usage_bytes()
+        if usage >= quota_bytes and self.evict_cold(quota_bytes=quota_bytes):
+            usage = self.usage_bytes()
+        if usage >= quota_bytes:
             raise DiskQuotaError(
                 f"转码缓存已达配额上限（{quota_bytes / 1024**3:.1f} GB，"
                 "按磁盘剩余空间自动设定）。请稍候——正在播放的会话结束后会"
@@ -1365,14 +1384,17 @@ class TranscodeSessionManager:
                 session.served_segments += 1
             if result is not None and not session.first_segment_served:
                 session.first_segment_served = True
+                session.first_segment_ms = int((time.monotonic() - session.created_at) * 1000)
                 # 起播链路的最后一公里：「会话就绪」只等到 playlist，画面
                 # 能动还要等首个分片转出来。首帧慢但「会话就绪」各段都快时，
                 # 差值就在这里（ffmpeg 起转到首片落盘 + 客户端发现延迟）
                 logger.info(
-                    "首片供给：session=%s seg=%05d 距会话创建 %.1f 秒（本次请求等待 %d 毫秒）",
+                    "首片供给：session=%s seg=%05d 距会话创建 %.1f 秒"
+                    "（本次请求等待 %d 毫秒 attempt=%s）",
                     session.id, index,
                     time.monotonic() - session.created_at,
                     int((time.monotonic() - waited_from) * 1000),
+                    session.attempt_id or "-",
                 )
             return result
         finally:
@@ -1985,7 +2007,7 @@ class TranscodeSessionManager:
         log = logger.warning if (error or session.segment_timeouts) else logger.info
         log(
             "转码会话结束：session=%s（%s）原因=%s · 档 %d %s · 持续 %.1f 分钟 · 供片 %d 段"
-            " · 重启 %d 次 · 等待超时 %d 次 · 最后请求第 %s 段%s",
+            " · 重启 %d 次 · 等待超时 %d 次 · 最后请求第 %s 段%s（attempt=%s）",
             session.id,
             session.display_name or "-",
             reason,
@@ -1997,6 +2019,24 @@ class TranscodeSessionManager:
             session.segment_timeouts,
             "-" if session.last_requested_segment is None else session.last_requested_segment,
             f" · 错误：{error[:500]}" if error else "",
+            session.attempt_id or "-",
+        )
+        # 播放体验打点（playback-qoe.md §5.3）：会话摘要交给这次播放，收尾时写进记录
+        note_transcode_session(
+            session.attempt_id,
+            {
+                "session_id": session.id,
+                "reason": reason,
+                "tier": int(session.tier),
+                "where": where,
+                "duration_s": round(time.monotonic() - session.created_at, 1),
+                "first_segment_ms": session.first_segment_ms,
+                "served_segments": session.served_segments,
+                "restarts": session.restart_generation,
+                "timeouts": session.segment_timeouts,
+                "last_segment_wait_ms": session.last_segment_wait_ms,
+                "error": error[:300] or None,
+            },
         )
 
     def touch_for_device(self, device_id: str) -> int:
@@ -2104,13 +2144,37 @@ class TranscodeSessionManager:
     # -- 观测 -------------------------------------------------------------
 
     def usage_bytes(self) -> int:
-        """当前转码缓存占盘。设置页展示用，也是配额判定的依据。"""
+        """当前转码缓存占盘。设置页展示用，也是配额判定的依据。
+
+        用 scandir 逐层走：目录项自带文件类型，每个文件只 stat 一次（rglob +
+        is_file + stat 要两次）。NAS 上两千多个缓存分片实测 50 毫秒 → 15 毫秒，
+        开会话的必经路上省下来的就是起播时间。
+        """
         if not self._root.exists():
             return 0
-        return sum(f.stat().st_size for f in self._root.rglob("*") if f.is_file())
+        return _tree_bytes(self._root)
 
     def active(self) -> list[TranscodeSession]:
         return list(self._sessions.values())
+
+
+def _tree_bytes(path: Path) -> int:
+    """目录树下所有普通文件的字节数之和（不跟随符号链接；读不到的目录项跳过）。"""
+    total = 0
+    try:
+        entries = os.scandir(path)
+    except OSError:
+        return 0
+    with entries:
+        for entry in entries:
+            try:
+                if entry.is_dir(follow_symlinks=False):
+                    total += _tree_bytes(Path(entry.path))
+                elif entry.is_file(follow_symlinks=False):
+                    total += entry.stat(follow_symlinks=False).st_size
+            except OSError:
+                continue
+    return total
 
 
 _manager: TranscodeSessionManager | None = None

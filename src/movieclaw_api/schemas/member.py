@@ -84,6 +84,9 @@ class MemberView(BaseModel):
     )
     allow_unrated: bool = Field(default=False, description="设了上限时未分级的作品是否可见")
     created_at: datetime
+    device_count: int = Field(
+        default=0, description="登录着这个账号的设备数（网页、App、命令行、播放器）"
+    )
 
 
 class MemberPasswordResetView(BaseModel):

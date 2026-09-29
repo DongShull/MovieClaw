@@ -24,6 +24,7 @@ import {
   listMembers,
   resetMemberPassword,
   setMemberStatus,
+  signOutMember,
   updateMember,
   type MemberUpdatePayload,
   type MemberView,
@@ -70,7 +71,10 @@ export function MembersSection() {
   const resetPassword = async (member: MemberView) => {
     const accepted = await confirm({
       title: `重置「${member.nickname}」的密码？`,
-      description: "旧密码和该成员的全部登录会立即失效。新密码只显示一次。",
+      // 重置多半是忘了密码：密码换来的登录下线，配对的命令行保留
+      // （docs/design/login-devices.md「失效联动」），要一并收回走「全部下线」
+      description:
+        "旧密码立即失效，该成员在网页、App 和播放器上的登录会全部下线；命令行不受影响，要一并收回请用「全部下线」。新密码只显示一次。",
       confirmLabel: "重置密码",
     });
     if (!accepted) return;
@@ -81,8 +85,29 @@ export function MembersSection() {
         username: result.username,
         password: result.password,
       });
+      // 重置接口不回成员视图，设备数变了得重拉一次
+      void reload().catch(() => undefined);
     } catch (error) {
       toast.error(`重置失败：${(error as Error).message}`);
+    }
+  };
+
+  /** 全部下线：借出去的账号要收回、设备丢了——账号本身不动，重新登录即可。 */
+  const signOutEverywhere = async (member: MemberView) => {
+    const accepted = await confirm({
+      title: `让「${member.nickname}」在全部设备上下线？`,
+      description:
+        "该成员的网页、App、命令行、播放器都会立即下线，账号本身不受影响，之后用密码重新登录即可。",
+      confirmLabel: "全部下线",
+      tone: "danger",
+    });
+    if (!accepted) return;
+    try {
+      const { member: next, message } = await signOutMember(member.id);
+      replaceMember(next);
+      toast.success(message);
+    } catch (error) {
+      toast.error(`操作失败：${(error as Error).message}`);
     }
   };
 
@@ -172,6 +197,7 @@ export function MembersSection() {
                 libraries={libraries}
                 onEdit={() => setEditing(member)}
                 onResetPassword={() => void resetPassword(member)}
+                onSignOut={() => void signOutEverywhere(member)}
                 onToggleStatus={() => void toggleStatus(member)}
                 onDelete={() => void removeMember(member)}
               />
@@ -215,6 +241,7 @@ function MemberTableRow({
   libraries,
   onEdit,
   onResetPassword,
+  onSignOut,
   onToggleStatus,
   onDelete,
 }: {
@@ -222,6 +249,7 @@ function MemberTableRow({
   libraries: MediaLibrary[];
   onEdit: () => void;
   onResetPassword: () => void;
+  onSignOut: () => void;
   onToggleStatus: () => void;
   onDelete: () => void;
 }) {
@@ -279,13 +307,20 @@ function MemberTableRow({
       <p className="min-w-0 truncate text-sub text-[var(--text-muted)] max-md:col-start-1" title={libraryScope}>
         {libraryScope}
       </p>
-      <p className="min-w-0 truncate text-caption text-[var(--text-faint)] max-md:col-start-1">
-        {member.last_login_at ? formatRelativeTime(member.last_login_at) : "从未登录"}
-      </p>
+      <div className="min-w-0 max-md:col-start-1">
+        <p className="truncate text-caption text-[var(--text-faint)]">
+          {member.last_login_at ? formatRelativeTime(member.last_login_at) : "从未登录"}
+        </p>
+        {/* 网页、App、命令行、播放器合计；要逐台看在「设备」的「全部成员」视图里 */}
+        <p className="truncate text-caption text-[var(--text-faint)]">
+          {member.device_count > 0 ? `${member.device_count} 台设备登录中` : "无登录中的设备"}
+        </p>
+      </div>
       <MemberActionsMenu
         member={member}
         onEdit={onEdit}
         onResetPassword={onResetPassword}
+        onSignOut={onSignOut}
         onToggleStatus={onToggleStatus}
         onDelete={onDelete}
       />
@@ -297,12 +332,14 @@ function MemberActionsMenu({
   member,
   onEdit,
   onResetPassword,
+  onSignOut,
   onToggleStatus,
   onDelete,
 }: {
   member: MemberView;
   onEdit: () => void;
   onResetPassword: () => void;
+  onSignOut: () => void;
   onToggleStatus: () => void;
   onDelete: () => void;
 }) {
@@ -335,6 +372,12 @@ function MemberActionsMenu({
           <DropdownMenu.Item onSelect={onResetPassword} className={itemClass}>
             重置密码
           </DropdownMenu.Item>
+          {/* 停用的成员设备早已全部注销，这一项对他没有意义 */}
+          {member.status === "active" && (
+            <DropdownMenu.Item onSelect={onSignOut} className={itemClass}>
+              全部下线
+            </DropdownMenu.Item>
+          )}
           <DropdownMenu.Separator className="my-1 h-px bg-white/[0.07]" />
           <DropdownMenu.Item
             onSelect={onToggleStatus}

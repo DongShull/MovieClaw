@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Sequence
 from datetime import datetime
+from typing import NamedTuple
 
-from sqlalchemy import distinct, func
+from sqlalchemy import and_, distinct, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -16,6 +18,23 @@ logger = logging.getLogger("movieclaw_db.library_file")
 # 哨兵：区分「调用方没提供同路径旧行」与「调用方已确认该路径没有旧行」。
 # 用 None 当默认值就没法区分这两种情况，前者必须自己去查，后者查了是白查
 _LOOKUP: LibraryFile = object()  # type: ignore[assignment]
+
+# IN 查询每批的路径数：留一个参数给 library_id，兼容 SQLite 旧版 999 的绑定参数上限
+_PATH_BATCH = 900
+
+
+class LedgerPresence(NamedTuple):
+    """台账行的「在不在位」切片：扫描收尾的丢失判定与自动清理只需要这几列。
+
+    不装配 ORM 对象、不解析音轨/字幕/章节这些 JSON 列——整库几万行时，完整装配
+    要在事件循环里连续花掉近一秒（NAS 上数秒），而这里只看路径与状态。
+    """
+
+    id: int
+    library_id: int
+    file_path: str
+    state: str
+    container: str | None
 
 
 class LibraryFileRepository:
@@ -42,6 +61,64 @@ class LibraryFileRepository:
             select(LibraryFile).where(LibraryFile.library_id == library_id).order_by(LibraryFile.id)
         )
         return list(result.scalars().all())
+
+    async def list_by_paths(self, library_id: int, paths: Iterable[str]) -> list[LibraryFile]:
+        """某库中路径落在给定集合里的台账行（按唯一索引分批 IN，只装配需要的行）。"""
+        unique = list(dict.fromkeys(paths))
+        rows: list[LibraryFile] = []
+        for offset in range(0, len(unique), _PATH_BATCH):
+            batch = unique[offset : offset + _PATH_BATCH]
+            result = await self._session.execute(
+                select(LibraryFile).where(
+                    LibraryFile.library_id == library_id,
+                    LibraryFile.file_path.in_(batch),  # type: ignore[attr-defined]
+                )
+            )
+            rows.extend(result.scalars().all())
+        return rows
+
+    async def list_presence(
+        self,
+        library_id: int,
+        *,
+        under: Sequence[str] | None = None,
+        containers: Sequence[str] | None = None,
+    ) -> list[LedgerPresence]:
+        """某库台账的轻量切片（见 LedgerPresence）。
+
+        ``under`` 只取这些目录（含自身）下的行：目录范围用路径区间表达（``d/`` ≤
+        path < ``d0``，'0' 紧跟在 '/' 之后），能走 file_path 的唯一索引，与
+        ``path == d or path.startswith(d + "/")`` 同一口径。``containers`` 只取这些
+        容器类型的行（如原盘 bluray/dvd）。
+        """
+        statement = select(
+            LibraryFile.id,
+            LibraryFile.library_id,
+            LibraryFile.file_path,
+            LibraryFile.state,
+            LibraryFile.container,
+        ).where(LibraryFile.library_id == library_id)
+        if containers is not None:
+            statement = statement.where(LibraryFile.container.in_(containers))  # type: ignore[union-attr]
+        if under is not None:
+            if not under:
+                return []
+            statement = statement.where(
+                or_(
+                    *(
+                        or_(
+                            LibraryFile.file_path == directory,
+                            and_(
+                                LibraryFile.file_path >= f"{directory}/",
+                                LibraryFile.file_path < f"{directory}0",
+                            ),
+                        )
+                        for directory in under
+                    )
+                )
+            )
+        result = await self._session.execute(statement.order_by(LibraryFile.id))
+        return [LedgerPresence(*row) for row in result.all()]
 
     async def list_unidentified(self, *, library_id: int | None = None) -> list[LibraryFile]:
         """待识别清单：**在位**、识别失败（``unidentified_code`` 非空）、且用户没忽略过的文件。

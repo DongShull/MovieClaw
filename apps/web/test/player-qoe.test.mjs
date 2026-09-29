@@ -28,6 +28,37 @@ test("降档重来时的第二次出画不算首帧", () => {
   assert.equal(s.ttff_ms, 500);
 });
 
+test("开播后重开会话不覆盖起点——否则首帧早于起点、被夹成 0 上报", () => {
+  const s = run([
+    { type: "play-requested", at: 0 },
+    { type: "first-frame", at: 500 },
+    { type: "play-requested", at: 9000 }, // 换轨 / 按带宽重开
+  ]);
+  assert.equal(s.ttff_ms, 500);
+});
+
+test("起播前降档重来：首帧从第一次要地址算起（用户等的是整段）", () => {
+  const s = run([
+    { type: "play-requested", at: 0 },
+    { type: "play-requested", at: 3000 }, // 这一档放不了，降档
+    { type: "first-frame", at: 3800 },
+  ]);
+  assert.equal(s.ttff_ms, 3800);
+});
+
+test("起播请求后、首帧前的等待是起播本身，不算卡顿", () => {
+  const s = run([
+    { type: "play-requested", at: 0 },
+    { type: "waiting", at: 100 }, // play() 先于数据调用，按规范先报 waiting
+    { type: "first-frame", at: 400 },
+    { type: "playing", at: 420 },
+    { type: "waiting", at: 5000 }, // 开播之后的才是卡顿
+    { type: "playing", at: 5600 },
+  ]);
+  assert.equal(s.rebuffer_count, 1);
+  assert.equal(s.rebuffer_ms, 600);
+});
+
 test("没出画就没有首帧读数，不能填 0", () => {
   assert.equal(run([{ type: "play-requested", at: 0 }]).ttff_ms, null);
 });

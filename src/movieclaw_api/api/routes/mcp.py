@@ -3,7 +3,7 @@
 这里是**管理面**：进业务 OpenAPI，挂在管理区（成员一律 403），因而 CLI 也自动
 长出 `mclaw mcp …` 命令。协议面（`/mcp/<slug>`）在 movieclaw_mcp 包里，不进 spec。
 
-令牌的签发与轮换额外挂 ``require_admin_session``——**人在浏览器里**才能签发凭证，
+令牌的签发与轮换额外挂 ``require_admin_session``——**人在网页或 App 里**才能签发凭证，
 这是 docs/design/device-auth.md §8 已确立的红线：泄漏的令牌无法自我复制，
 Agent 也不能给自己造一个 MCP 端点。
 """

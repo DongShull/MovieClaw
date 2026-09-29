@@ -112,6 +112,31 @@ class PlaybackFileSpec(BaseModel):
     size_bytes: int | None
 
 
+class PlaybackDeliveryView(BaseModel):
+    """这台设备此刻是怎么在播的：直连原文件，还是经服务器重封装 / 转码（活动页的播放方式标识）。"""
+
+    mode: str = Field(
+        description=(
+            "direct=直连原文件；remux=重封装（音视频都不重编码）；"
+            "audio=只转音频（视频直通）；transcode=视频转码"
+        )
+    )
+    label: str = Field(
+        description="简短中文标识：直连 / 重封装 / 音频转码 / 硬件转码 / 软件转码 / 远程转码"
+    )
+    target: str | None = Field(
+        default=None, description="转码输出规格，如「1080p · H.264 · 8 Mbps」；直连 / 重封装为 null"
+    )
+    executor: str | None = Field(
+        default=None,
+        description=(
+            "在哪转、用什么转，如「NAS · Intel 核显（QSV）」"
+            "「远程 Worker「studio」· Apple 芯片（VideoToolbox）」"
+        ),
+    )
+    reason: str | None = Field(default=None, description="服务端为什么选这个播放方式（中文）")
+
+
 class ActivePlaybackSessionView(BaseModel):
     """一台设备正在进行的播放会话。"""
 
@@ -134,6 +159,10 @@ class ActivePlaybackSessionView(BaseModel):
     bytes_sent: int | None
     connections: int
     file: PlaybackFileSpec | None
+    # 播放方式：按设备在服务端有没有在跑的重封装 / 转码会话判定；
+    # 网盘直链（play_method=remote）为 null。seek 重启的一瞬间会话可能正在重建，
+    # 这一轮会短暂显示成直连，下一轮轮询即恢复
+    delivery: PlaybackDeliveryView | None = None
     started_at: datetime
     last_report_at: datetime
 
@@ -321,6 +350,17 @@ class ClientCapabilityIn(BaseModel):
     mse: str = "full"
     is_mobile: bool = False
     native_hls: bool = False
+    #: 全解码播放器自己拉原文件（App 的自研引擎）：决策直接给档 0 原文件直连，
+    #: 不逐项比对、不采样关键帧、不起 ffmpeg。只有多剪辑原盘（没有单个文件可拉）
+    #: 例外，照样拼成不转码的 HLS。用户限了画质或线路不够、需要服务端压码率时
+    #: 客户端不带它。
+    universal: bool = False
+    #: 能在本机读光盘镜像（蓝光 UDF / DVD ISO9660）：ISO 给档 0 原字节直推。
+    #: 只有 App 的自研引擎申报（disc-direct-play.md）
+    disc_image: bool = False
+    #: 能经目录取流接口读原盘目录：多剪辑原盘给档 0 目录直推（会话的 ``stream_url``
+    #: 是目录清单地址，决策带主播放列表名），NAS 不起 ffmpeg
+    disc_folder: bool = False
 
 
 class PlaybackDecideRequest(BaseModel):
@@ -416,6 +456,11 @@ class PlaybackDecisionView(BaseModel):
     audio_tracks: list[AudioTrackView] = []
     subtitles: list[SubtitlePlanView] = []
     degraded_from: int | None = None
+    #: 光盘直推的形态（disc-direct-play.md）："image" = ISO 原字节（``stream_url`` 即原文件）、
+    #: "folder" = 原盘目录按文件直推（``stream_url`` 是目录清单）；普通文件为 None
+    disc: str | None = None
+    #: 目录直推时服务端选中的主播放列表文件名（如 ``00800.mpls``），播放器按名字选主片
+    disc_playlist: str | None = None
 
     # outcome == "consent"
     cost_hint: str | None = None
@@ -531,6 +576,24 @@ class PlaybackChapterMarkView(BaseModel):
     title: str | None = None
 
 
+class PlaybackDiscFileView(BaseModel):
+    """原盘目录里可直推的一个文件（disc-direct-play.md §2.3）。"""
+
+    #: 相对原盘根目录的路径，保留盘上实际的大小写（如 ``BDMV/STREAM/00001.M2TS``）
+    path: str
+    size: int
+    #: 按 Range 取这个文件的地址，已带签名 token
+    url: str
+
+
+class PlaybackDiscListingView(BaseModel):
+    """原盘目录清单：自研引擎据此在本机解析播放列表、拼接剪辑，服务端只按文件供字节。"""
+
+    files: list[PlaybackDiscFileView]
+    #: 服务端选中的主播放列表文件名（诱饵判定与台账时长同一口径）；读不出时为 None
+    playlist: str | None = None
+
+
 class PlaybackSessionView(BaseModel):
     """开会话的结果。
 
@@ -582,6 +645,11 @@ class PlaybackSessionRequest(PlaybackDecideRequest):
     #: 没看完的接续播点——分享出去的链接因此天然「各看各的进度」。显式给值
     #: （含 0）原样照办：seek 重开、「从头开始」都走这条路。
     start_ms: int | None = None
+    #: 播放编号（docs/design/playback-qoe.md §2）：App 在用户点下时生成，断线重连、原位重开、
+    #: 降级、换画质都沿用同一个。服务端据此建「已开始」的记录，并写进取流令牌
+    attempt_id: str | None = Field(default=None, max_length=64)
+    #: 客户端类型（ios / web），只用于播放记录分组
+    client: str | None = Field(default=None, max_length=16)
 
 
 class PlaybackItemView(BaseModel):
@@ -755,13 +823,22 @@ class PlaybackClientLogPayload(BaseModel):
 
 
 class PlaybackMetricPayload(BaseModel):
-    """一次播放结束时上报的质量快照。指标口径按 CTA-2066，不自创。"""
+    """一次播放结束时上报的记录。指标口径按 CTA-2066，不自创。
+
+    带 ``attempt_id`` 的是 docs/design/playback-qoe.md 口径的收尾上报：按编号合并进服务端在
+    会话接口建好的那一行，**所有结局都报**（看完、中途退出、出画前退出、失败、异常退出）。
+    不带编号的是网页播放器的旧口径整行快照，原样落库。
+
+    数值超出上下界会被夹住、列表与明细超限会被截断（记一行警告），不拒收。
+    """
 
     library_file_id: int | None = None
+    #: 最终档位；还没定档就结束记 -1
     tier: int
     degraded_from: int | None = None
     engine: str = ""
     hw_backend: str = ""
+    #: 旧口径：点击播放 → 首帧（网页）。新口径看 ``first_frame_ms``
     ttff_ms: int | None = None
     rebuffer_ms: int = 0
     rebuffer_count: int = 0
@@ -769,6 +846,41 @@ class PlaybackMetricPayload(BaseModel):
     dropped_frames: int | None = None
     total_frames: int | None = None
     watched_ms: int = 0
+
+    # —— playback-qoe.md 口径 ——
+    attempt_id: str | None = Field(default=None, max_length=64)
+    #: watched / exited / exit_before_start / failed / abnormal_exit
+    outcome: str = ""
+    media_item_id: int | None = None
+    season_number: int | None = None
+    episode_number: int | None = None
+    #: tap / auto_next / deeplink
+    origin: str = ""
+    #: ios / web
+    client: str = ""
+    #: 实验室场景名（启动参数 -mcLab）；空 = 真实使用
+    lab_scenario: str = ""
+    #: loopback / software / remote_bypass / server_transcode
+    route: str = ""
+    #: home / away / unknown
+    network_class: str = ""
+    #: wifi / cellular / wired / other
+    interface: str = ""
+    app_version: str = ""
+    #: 点下 → 首帧出画 / 开始走（毫秒，已扣除 user_wait_ms）
+    first_frame_ms: int | None = None
+    playing_ms: int | None = None
+    user_wait_ms: int = 0
+    #: 最后一次错误：引擎错误类型原值、归类（network / source_missing / storage_full /
+    #: decode）、阶段
+    error_kind: str = ""
+    error_category: str = ""
+    error_stage: str = ""
+    #: 逐条明细：startup / seeks / switches / interruptions / delivery / behaviors / context /
+    #: resources / timeline（字段见 playback-qoe.md §3）
+    detail: dict = {}
+    #: 失败、异常退出或冻帧时附带的引擎日志尾巴（≤ 32 KB）
+    log_tail: str = ""
 
 
 class PlaybackStatsView(BaseModel):
@@ -786,3 +898,137 @@ class PlaybackStatsView(BaseModel):
     rebuffer_ratio: float | None = None
     dropped_ratio: float | None = None
     tier_counts: dict[int, int] = {}
+
+
+class QoePercentilesView(BaseModel):
+    """一组毫秒数的分位（最近秩法）。"""
+
+    p50: int | None = None
+    p90: int | None = None
+    p99: int | None = None
+    count: int = 0
+
+
+class QoeAttemptBriefView(BaseModel):
+    """一次播放的摘要（统计里的「最差 N 条」与小样本明细）。"""
+
+    attempt_id: str | None = None
+    created_at: str | None = None
+    status: str | None = None
+    outcome: str | None = None
+    client: str | None = None
+    media_item_id: int | None = None
+    season_number: int | None = None
+    episode_number: int | None = None
+    library_file_id: int | None = None
+    tier: int | None = None
+    source_class: str | None = None
+    route: str | None = None
+    network_class: str | None = None
+    first_frame_ms: int | None = None
+    seek_max_ms: int | None = None
+    interrupt_count: int | None = None
+    error_kind: str | None = None
+    avoidable_loss: bool | None = None
+    misguess_count: int | None = None
+    undisturbed: bool | None = None
+
+
+class QoeGroupStatsView(BaseModel):
+    """一组播放的体验统计。样本少于 30 条时各项为 null，改列 ``samples`` 明细——不编数字。"""
+
+    attempts: int = 0
+    reported: int = 0
+    unreported: int = 0
+    in_progress: int = 0
+    small_sample: bool = False
+    #: 北极星：无打扰播放率（只算已收尾且判定过的）
+    undisturbed_rate: float | None = None
+    first_frame_ms: QoePercentilesView | None = None
+    seek_in_buffer_ms: QoePercentilesView | None = None
+    seek_out_buffer_ms: QoePercentilesView | None = None
+    interrupts_per_hour: float | None = None
+    failure_rate: float | None = None
+    exit_before_start_rate: float | None = None
+    abnormal_exit_rate: float | None = None
+    avoidable_loss_rate: float | None = None
+    misguess_rate: float | None = None
+    samples: list[QoeAttemptBriefView] | None = None
+
+
+class QoeGroupView(QoeGroupStatsView):
+    key: str
+    label: str
+
+
+class QoeReasonView(BaseModel):
+    """打扰原因的帕累托：一种原因打扰了多少次播放。"""
+
+    reason: str
+    label: str
+    count: int
+
+
+class PlaybackQoeStatsView(BaseModel):
+    """播放体验统计（docs/design/playback-qoe.md §5.5）：北极星、快 / 稳 / 对、打扰原因、
+    最差的播放。"""
+
+    days: int
+    since: str
+    include_lab: bool
+    group_by: str | None = None
+    overall: QoeGroupStatsView
+    groups: list[QoeGroupView] = []
+    reasons: list[QoeReasonView] = []
+    worst: list[QoeAttemptBriefView] = []
+
+
+class PlaybackAttemptView(BaseModel):
+    """一次播放的完整记录与时间线（docs/design/playback-qoe.md §5.5）。"""
+
+    attempt_id: str
+    status: str
+    outcome: str
+    client: str
+    origin: str
+    lab_scenario: str
+    member_id: int
+    media_item_id: int | None = None
+    season_number: int | None = None
+    episode_number: int | None = None
+    library_file_id: int | None = None
+    tier: int
+    degraded_from: int | None = None
+    engine: str
+    route: str
+    source_class: str
+    network_class: str
+    interface: str
+    app_version: str
+    first_frame_ms: int | None = None
+    playing_ms: int | None = None
+    user_wait_ms: int
+    seek_in_count: int
+    seek_in_p90_ms: int | None = None
+    seek_in_max_ms: int | None = None
+    seek_out_count: int
+    seek_out_p90_ms: int | None = None
+    seek_out_max_ms: int | None = None
+    rebuffer_count: int
+    rebuffer_ms: int
+    freeze_count: int
+    freeze_ms: int
+    reconnect_count: int
+    reconnect_ms: int
+    interrupt_count: int
+    error_kind: str
+    error_category: str
+    error_stage: str
+    avoidable_loss: bool | None = None
+    misguess_count: int
+    undisturbed: bool | None = None
+    watched_ms: int
+    created_at: str
+    ended_at: str | None = None
+    detail: dict = {}
+    log_tail: str = ""

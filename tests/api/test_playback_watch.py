@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.services.auth import reset_auth_state
@@ -44,6 +45,13 @@ def client(tmp_path, monkeypatch):
     # 硬件探测不能在测试里真去摸 /dev/dri
     monkeypatch.setattr(
         "movieclaw_api.api.routes.playback.available_backends", lambda: ()
+    )
+    # 关键帧探测：假媒体读不出关键帧会返回 None，换了非默认音轨（要重封装）的用例
+    # 就被保守降到转码档、要求同意——测不到记忆轨。给它一个正常 GOP 的值
+    # （同 test_playback_stream）。
+    monkeypatch.setattr(
+        "movieclaw_api.services.playback.plan.probe_keyframe_interval",
+        lambda path, duration: 4.0,
     )
 
     from movieclaw_api.app import create_app
@@ -349,6 +357,114 @@ def test_session_reuses_remembered_audio_track(client, tmp_path):
     data = start_session(client, item_id)
     assert data["watch"]["audio_track"] == "embedded:0"
     assert data["decision"]["audio"]["track_ref"] == "embedded:0"
+
+
+async def _give_second_audio_track(item_id: int) -> None:
+    """给种子文件补一条非默认音轨（同为 AAC，免得牵出转码），用来区分「记住的轨」与「默认轨」。"""
+    async with get_database().session() as session:
+        file = (
+            await session.execute(select(LibraryFile).where(LibraryFile.media_item_id == item_id))
+        ).scalar_one()
+        file.audio_streams = [
+            {"codec": "aac", "channels": 2, "default": True},
+            {"codec": "aac", "channels": 2, "default": False},
+        ]
+        await session.commit()
+
+
+def test_decide_applies_remembered_tracks_like_session_start(client, tmp_path):
+    """decide 与开会话同一口径套用观看记忆（上次的音轨 / 字幕），显式指定的照旧优先。
+
+    否则探测和真开会话判出两种计划：App 的自动选引擎按探测结果先开系统播放器
+    会话，真开出来却是转码档（记住的 PGS 字幕要整片压制），再改走 MPV，白白
+    拉起又掐掉一路转码（2026-09-27 NAS 实测）。
+    """
+    _, item_id = seed(client, tmp_path)
+    client.portal.call(partial(_give_second_audio_track, item_id))  # type: ignore[attr-defined]
+    report(client, item_id, event="start", audio_track="embedded:1")
+
+    def decide(**extra) -> dict:
+        resp = client.post(
+            f"{_PB}/decide",
+            json={"media_item_id": item_id, "capability": _CAPABILITY, **extra},
+        )
+        assert resp.status_code == 200, resp.text
+        return resp.json()["data"]
+
+    assert decide()["audio"]["track_ref"] == "embedded:1"
+    assert decide(audio_track="embedded:0")["audio"]["track_ref"] == "embedded:0"
+
+
+async def _seed_show(tmp_path: Path) -> int:
+    """两集的剧：第 1 集英语在前、国语第 2 条，第 2 集国语挪到第 1 条；
+    外挂字幕（中文、英文）文件名每集不同。
+
+    第 2 集的国语恰是默认轨——换算后直出，开会话不牵出重封装（测试里没有 ffmpeg）。
+    外挂字幕按文件名排序，中文在前，是默认字幕。
+    """
+    n = next(_seed_counter)
+    root = tmp_path / f"show{n}"
+    root.mkdir(exist_ok=True)
+    async with get_database().session() as session:
+        library = await LibraryRepository(session).create(
+            name=f"剧集库{n}", kind="tv", root_paths=[str(root)]
+        )
+        show = MediaItem(kind="tv", tmdb_id=900 + n, title=f"追剧{n}", original_title="S")
+        session.add(show)
+        await session.flush()
+        eng = {"codec": "aac", "channels": 2, "language": "eng", "default": True}
+        chi = {"codec": "aac", "channels": 2, "language": "chi", "default": False}
+        second = [{**chi, "default": True}, {**eng, "default": False}]
+        for episode, audio in ((1, [eng, chi]), (2, second)):
+            path = root / f"Show.S01E0{episode}.mp4"
+            path.write_bytes(b"FAKE-MEDIA-BYTES" * 64)
+            externals = []
+            for tag, language in (("chs", "chi"), ("en", "eng")):
+                name = f"Show.S01E0{episode}.{tag}.srt"
+                (root / name).write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n")
+                externals.append({"filename": name, "format": "srt", "language": language,
+                                  "title": None, "forced": False})
+            session.add(
+                LibraryFile(
+                    library_id=library.id,
+                    media_item_id=show.id,
+                    season_number=1,
+                    episode_number=episode,
+                    file_path=str(path),
+                    size_bytes=path.stat().st_size,
+                    source=FileSource.SCANNED,
+                    state=FileState.IN_PLACE,
+                    container="mp4",
+                    video_codec="h264",
+                    resolution="1080p",
+                    duration_seconds=_DURATION_S,
+                    audio_streams=audio,
+                    external_subtitles=externals,
+                )
+            )
+        await session.commit()
+        return show.id
+
+
+def test_new_episode_inherits_the_series_track_choice(client, tmp_path):
+    """第 1 集换成国语 + 英文字幕，第 2 集没看过：开会话按语言沿用（轨序、文件名都换算），
+    并随观看状态带回，App 据此提示「已沿用上次的选择」。"""
+    show_id = client.portal.call(partial(_seed_show, tmp_path))  # type: ignore[attr-defined]
+    episode = {"season_number": 1, "episode_number": 1}
+    report(client, show_id, event="start", audio_track="embedded:1",
+           subtitle_track="external:Show.S01E01.en.srt", **episode)
+
+    data = start_session(client, show_id, season_number=1, episode_number=2)
+    assert data["decision"]["audio"]["track_ref"] == "embedded:0"
+    assert data["watch"]["audio_track"] == "embedded:0"
+    assert data["watch"]["subtitle_track"] == "external:Show.S01E02.en.srt"
+    # 这次明确点了别的轨：照点的来
+    resp = client.post(
+        f"{_PB}/decide",
+        json={"media_item_id": show_id, "season_number": 1, "episode_number": 2,
+              "capability": _CAPABILITY, "audio_track": "embedded:1"},
+    )
+    assert resp.json()["data"]["audio"]["track_ref"] == "embedded:1"
 
 
 # ---------------------------------------------------------------------------

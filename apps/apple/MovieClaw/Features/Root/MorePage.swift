@@ -1,0 +1,317 @@
+import SwiftUI
+
+/// 「我的」页：标签栏最右的头像页签（Web `/my` 与 components/more-page.tsx）。
+///
+/// iOS 设置式分组列表：
+/// - 用户头：头像 + 昵称 + `@用户名 · 角色`，整张卡可点进「个人信息」（同 iOS 设置 App 顶部的账户卡），
+///   返回直接回到本页，不再像 Web 那样垫一层设置列表；因此常用组里不再单列「个人信息」行；
+/// - 常用：待处理（管理员且有事项时，30 秒轮询）/ 设置（仅管理员——成员的设置里只有个人信息，
+///   已由头像卡覆盖）/ 应用更新（管理员且有待更新时，文案「新版本 vX」或「新识别模型 X」）；
+/// - 账号：切换账号（可跨服务器，也在那里添加账号）/ 退出登录（同一台服务器上还有账号就自动切过去，
+///   新主界面弹提示说明换成了谁；都退完了回欢迎页）；
+/// - 最近会话（管理员）：首行「新会话」（顶栏的「+」已去掉，这里是发起新会话的入口），下面是 AI 会话，
+///   每页 20 条、滑到末尾自动加载下一页（用户决定不要「显示全部 / 收起」，与 Web 的差异）；
+///   操作走 iOS 列表惯例：左滑出续接 / 重命名 / 删除三个图标按钮，长按出完整菜单（与会话页右上角同图标、同顺序）。
+///
+/// 原先是点左上角头像弹出的 sheet（右上「完成」关闭），2026-09-26 头像挪进标签栏后改为标签根页；
+/// 站内链接 `/my` 也切到这个标签（Router.tabRoot）。
+struct MorePage: View {
+    @Environment(AppModel.self) private var model
+    @Environment(Router.self) private var router
+    @Environment(Feedback.self) private var feedback
+    @Environment(ShellBadges.self) private var badges
+    @Environment(\.permissions) private var permissions
+    @Environment(\.api) private var api
+
+    @State private var sessions: [API.SessionSummary] = []
+    @State private var notices: [API.NoticeView] = []
+    /// 还有更早的会话没取回（上一页取满了一整页）
+    @State private var hasMoreSessions = false
+    @State private var loadingMoreSessions = false
+    /// 会话列表每页条数（Web agent-conversations 的 PAGE_SIZE）
+    private static let pageSize = 20
+
+    var body: some View {
+        List {
+            if let session = model.session {
+                Section {
+                    // 用 push 而不是 open：open 会先垫一层设置列表，这里要的是返回直接回「我的」
+                    Button {
+                        router.push(.settingsSection(.profile))
+                    } label: {
+                        HStack(spacing: 14) {
+                            AvatarBadge(session: session, size: 56)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(session.nickname).font(.title3.weight(.semibold))
+                                Text("@\(session.username) · \(session.roleLabel)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.textMuted)
+                                // 本机登录了不止一台服务器时标出当前是哪台，免得分不清自己在哪台上
+                                if let server = model.server, model.savedServers.filter({ !$0.accounts.isEmpty }).count > 1 {
+                                    Label(server.hostLabel, systemImage: "server.rack")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.textFaint)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Theme.textFaint)
+                        }
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
+                    }
+                    .foregroundStyle(Theme.text)
+                    .accessibilityIdentifier("more-profile-card")
+                    .accessibilityHint("查看和修改个人信息")
+                }
+            }
+
+            Section("常用") {
+                if permissions.isAdmin, !notices.isEmpty {
+                    NavigationLink {
+                        NoticeCenterView()
+                    } label: {
+                        Label {
+                            HStack {
+                                Text("待处理").fontWeight(.medium)
+                                Spacer()
+                                Text("\(notices.count)")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Theme.danger, in: .capsule)
+                            }
+                        } icon: {
+                            Image(systemName: "bell")
+                        }
+                        .foregroundStyle(Theme.danger)
+                    }
+                    .accessibilityIdentifier("more-notices")
+                }
+                // 成员也有设置：个人信息与自己的设备（设置首页按身份过滤分区）
+                MoreRouteRow(routes: [.settings]) {
+                    Label("设置", systemImage: "gearshape")
+                }
+                .accessibilityIdentifier("more-settings")
+                if permissions.isAdmin, let label = badges.updateLabel {
+                    MoreRouteRow(routes: [.settingsSection(.app)], tint: Theme.info) {
+                        Label(label, systemImage: "arrow.down.app")
+                    }
+                    .accessibilityIdentifier("more-update")
+                }
+                // 版本、开源许可与数据来源声明（上架必需，人人可见）。不放在列表末尾：
+                // 管理员的末尾是按需续取的会话列表，放那里就滑不到了
+                NavigationLink {
+                    AboutView()
+                } label: {
+                    Label("关于 MovieClaw", systemImage: "info.circle")
+                }
+                .accessibilityIdentifier("more-about")
+            }
+
+            Section("账号") {
+                Button {
+                    router.present(.accountSwitcher)
+                } label: {
+                    Label("切换账号", systemImage: "person.2")
+                }
+                Button(role: .destructive) {
+                    Task { await model.logout() }
+                } label: {
+                    Label("退出登录", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+                .accessibilityIdentifier("logout")
+            }
+
+            if permissions.isAdmin {
+                Section("最近会话") {
+                    MoreRouteRow(routes: [.newSession], tint: Theme.accentStrong) {
+                        Label("新会话", systemImage: "square.and.pencil").fontWeight(.medium)
+                    }
+                    .accessibilityIdentifier("more-new-session")
+                    if sessions.isEmpty {
+                        Text("还没有会话，点上方的「新会话」开始。")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textFaint)
+                    }
+                    ForEach(sessions, id: \.id) { item in
+                        sessionRow(item)
+                            // 滑到最后一条时接着取下一页，不再要「显示全部」
+                            .onAppear {
+                                if item.id == sessions.last?.id { Task { await loadMoreSessions() } }
+                            }
+                    }
+                    if loadingMoreSessions {
+                        HStack { Spacer(); ProgressView(); Spacer() }
+                    }
+                }
+            }
+        }
+        .appBackground()
+        .navigationTitle("我的")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await loadSessions() }
+        // 待处理事项与 Web NoticeCenter 同频 30 秒轮询（首轮立即拉）
+        .polling(every: 30, immediately: true) { await loadNotices() }
+        // 最近会话的入口页：空闲时预热一次输入框，点进会话时首屏不再被它拖慢
+        .agentComposerWarmup()
+    }
+
+    /// 会话行按 iOS 列表惯例处理操作（同邮件 / 信息）：行上不放「⋯」，左滑出三个纯图标按钮——
+    /// 分支（在新会话中继续）/ 铅笔（重命名）/ 垃圾桶（删除）；续接与删除点了先确认、重命名先弹输入框，
+    /// 所以不带文字也不怕误触。长按出同样三项的完整菜单（与会话页右上角同图标、同顺序）。
+    /// 删除不允许一滑到底直接触发。
+    private func sessionRow(_ item: API.SessionSummary) -> some View {
+        MoreRouteRow(routes: [.session(id: item.id)]) {
+            HStack(spacing: 10) {
+                if item.running {
+                    MoreRunningDot()
+                }
+                Text(title(of: item)).lineLimit(1)
+            }
+        }
+        .accessibilityIdentifier("more-session-row")
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) { Task { await remove(item) } } label: { Image(systemName: "trash") }
+                .tint(.red)
+                .accessibilityLabel("删除会话")
+            Button { Task { await rename(item) } } label: { Image(systemName: "pencil") }
+                .tint(.gray)
+                .accessibilityLabel("重命名")
+            Button { Task { await fork(item) } } label: { Image(systemName: "arrow.triangle.branch") }
+                .tint(.blue)
+                .accessibilityLabel("在新会话中继续")
+        }
+        .contextMenu { sessionActions(item) }
+    }
+
+    @ViewBuilder
+    private func sessionActions(_ item: API.SessionSummary) -> some View {
+        Button("在新会话中继续", systemImage: "arrow.triangle.branch") { Task { await fork(item) } }
+        Button("重命名", systemImage: "pencil") { Task { await rename(item) } }
+        Divider()
+        Button("删除会话", systemImage: "trash", role: .destructive) { Task { await remove(item) } }
+    }
+
+    private func title(of item: API.SessionSummary) -> String {
+        if let title = item.title, !title.isEmpty { return title }
+        if let prompt = item.lastPrompt, !prompt.isEmpty { return prompt }
+        return "未命名会话"
+    }
+
+    /// 取第一页（进页、从会话里回来时刷新）；失败保留上次结果
+    private func loadSessions() async {
+        guard permissions.isAdmin, let first = try? await api.sessionList(limit: Self.pageSize) else { return }
+        sessions = first
+        hasMoreSessions = first.count == Self.pageSize
+    }
+
+    /// 接着取下一页；按 id 去重（翻页期间有新会话插到最前，偏移会错开一条）
+    private func loadMoreSessions() async {
+        guard hasMoreSessions, !loadingMoreSessions else { return }
+        loadingMoreSessions = true
+        defer { loadingMoreSessions = false }
+        guard let page = try? await api.sessionList(limit: Self.pageSize, offset: sessions.count) else { return }
+        let known = Set(sessions.map(\.id))
+        sessions += page.filter { !known.contains($0.id) }
+        hasMoreSessions = page.count == Self.pageSize
+    }
+
+    private func loadNotices() async {
+        guard permissions.isAdmin else { return }
+        // 拉取失败保留上次结果，下一轮轮询自愈（同 Web）
+        if let list = try? await api.noticesList() {
+            notices = NoticeCenterView.visible(list)
+        }
+    }
+
+    private func fork(_ item: API.SessionSummary) async {
+        guard await feedback.confirm(
+            "在新会话中继续「\(title(of: item))」？",
+            message: "会带上这段对话的上下文开一个新会话接着聊，原会话保留不变。",
+            confirmTitle: "创建新会话"
+        ) else { return }
+        do {
+            let forked = try await api.sessionFork(sessionId: item.id)
+            router.open(.session(id: forked.session.id))
+        } catch {
+            feedback.error("创建续接会话失败：\(error.localizedDescription)")
+        }
+    }
+
+    private func rename(_ item: API.SessionSummary) async {
+        // 初值是界面上显示的标题；去空白、截 80 字，没变化就不发请求（同 Web）
+        let current = title(of: item)
+        guard let input = await feedback.prompt("重命名会话", placeholder: "会话标题（最多 80 字）", initial: current, maxLength: 80) else { return }
+        let name = String(input.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+        guard !name.isEmpty, name != current else { return }
+        do {
+            let updated = try await api.sessionRename(sessionId: item.id, body: .init(title: name))
+            if let index = sessions.firstIndex(where: { $0.id == item.id }) { sessions[index] = updated }
+        } catch {
+            feedback.error("重命名失败：\(error.localizedDescription)")
+        }
+    }
+
+    private func remove(_ item: API.SessionSummary) async {
+        guard await feedback.confirm(
+            "彻底删除会话「\(title(of: item))」？",
+            message: "服务器上的完整对话记录将一并删除，此操作不可恢复。",
+            confirmTitle: "彻底删除", destructive: true
+        ) else { return }
+        do {
+            _ = try await api.sessionDelete(sessionId: item.id)
+            sessions.removeAll { $0.id == item.id }
+        } catch {
+            feedback.error("删除失败：\(error.localizedDescription)")
+        }
+    }
+}
+
+/// 运行中会话的提示点：信息蓝 + 呼吸（Web `bg-[var(--info)] animate-pulse`）
+private struct MoreRunningDot: View {
+    @State private var dim = false
+
+    var body: some View {
+        Circle()
+            .fill(Theme.info)
+            .frame(width: 6, height: 6)
+            .opacity(dim ? 0.35 : 1)
+            .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: dim)
+            .onAppear { dim = true }
+            .accessibilityLabel("运行中")
+    }
+}
+
+/// 「我的」页的跳转行：经 Router 在主导航里打开目标页（设置、会话这类不归属任何标签的页面，
+/// 就压在「我的」标签自己的栈里）。
+/// `routes` 依次压栈（第一个走 `open` 定标签，其余 `push`），用于还原 Web 的返回链。
+private struct MoreRouteRow<Content: View>: View {
+    let routes: [AppRoute]
+    var tint: Color = Theme.text
+    var showsChevron = true
+    @ViewBuilder let label: () -> Content
+    @Environment(Router.self) private var router
+
+    var body: some View {
+        Button {
+            guard let first = routes.first else { return }
+            router.open(first)
+            for route in routes.dropFirst() { router.push(route) }
+        } label: {
+            HStack {
+                label()
+                Spacer()
+                if showsChevron {
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Theme.textFaint)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .foregroundStyle(tint)
+    }
+}

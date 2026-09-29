@@ -24,7 +24,6 @@ import {
   simulateSpring,
   type SpringFrame,
 } from "@/lib/liquid-spring";
-import { usePageChrome } from "@/lib/page-chrome";
 import { usePermissions } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 import { taskActivityBadge, useTaskActivity, type TaskActivityBadge } from "@/lib/task-activity";
@@ -90,7 +89,7 @@ function MoreTabAvatar() {
   );
 }
 
-const MORE_TAB = { id: "more", label: "更多", href: "/my", Icon: MoreTabAvatar } as const;
+const MORE_TAB = { id: "more", label: "我的", href: "/my", Icon: MoreTabAvatar } as const;
 
 /** pathname → 当前页签 id（详情等子页落在所属的顶层页签上；无归属返回空串） */
 function activeTabId(pathname: string): string {
@@ -149,8 +148,6 @@ function glowOff(event: ReactPointerEvent<HTMLElement>) {
 export function GlassTabBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const chrome = usePageChrome();
-  const accessory = chrome?.tabBarAccessory ?? null;
   const { canSubscribe, isAdmin } = usePermissions();
   const { session } = useSession();
   const tabs = [
@@ -173,18 +170,9 @@ export function GlassTabBar() {
   const ActiveIcon = activeIndex >= 0 ? tabs[activeIndex].Icon : null;
 
   const [minimized, setMinimized] = useState(false);
-  // 有底部附件的页面（发现页）：页面在顶部时正常展开主菜单（附件隐藏）；向下滑
-  // 一小段就收成圆钮、附件在圆钮与搜索圆钮之间露出并常驻；往回滑**不**展开，
-  // 只有滚回顶部或点圆钮才展开；选完页签 / 再点当前页签也收回。这是用户拍板的
-  // 形态：附件不浮到底栏上方去挤内容，进页面第一眼看到的仍是完整菜单。
-  const hasAccessory = accessory != null;
-  const [expandedOverAccessory, setExpandedOverAccessory] = useState(true);
-  const hasAccessoryRef = useRef(hasAccessory);
-  hasAccessoryRef.current = hasAccessory;
-  // 换页即回默认态（新页面从顶部开始）：两种模式都展开
+  // 换页即回默认态（新页面从顶部开始）：展开
   useEffect(() => {
     setMinimized(false);
-    setExpandedOverAccessory(true);
   }, [pathname]);
 
   /**
@@ -203,12 +191,6 @@ export function GlassTabBar() {
       const dy = top - (lastTop.get(el) ?? top);
       lastTop.set(el, top);
       if (dy === 0) return;
-      if (hasAccessoryRef.current) {
-        // 附件模式：回到顶部展开；向下滑一小段收起露出附件；往回滑不展开
-        if (top <= 8) setExpandedOverAccessory(true);
-        else if (dy > 6 && top > MINIMIZE_MIN_SCROLL) setExpandedOverAccessory(false);
-        return;
-      }
       if (top <= 8) setMinimized(false);
       else if (dy > 6 && top > MINIMIZE_MIN_SCROLL) setMinimized(true);
       else if (dy < -10) setMinimized(false);
@@ -219,11 +201,10 @@ export function GlassTabBar() {
 
   // 没有归属页签的路由（/search 等）不收缩：收起后只剩「当前页签」的
   // 圆钮，而这里没有当前页签可显示
-  const isMinimized = (hasAccessory ? !expandedOverAccessory : minimized) && ActiveIcon !== null;
+  const isMinimized = minimized && ActiveIcon !== null;
 
   // ———— WebGL 玻璃厚边 ————
   const barRef = useRef<HTMLDivElement>(null);
-  const accessoryRef = useRef<HTMLDivElement>(null);
   const rimRef = useRef<GlassRim | null>(null);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-transparency: reduce)").matches) return;
@@ -236,7 +217,7 @@ export function GlassTabBar() {
     }
     rimRef.current = rim;
     rim.start(() =>
-      [barRef, accessoryRef].flatMap((ref): RimTarget[] => {
+      [barRef].flatMap((ref): RimTarget[] => {
         const capsule = ref.current;
         const canvas = capsule?.querySelector<HTMLCanvasElement>(":scope > canvas.glass-rim");
         return capsule && canvas ? [{ capsule, canvas }] : [];
@@ -247,10 +228,10 @@ export function GlassTabBar() {
       rimRef.current = null;
     };
   }, []);
-  // 换页、收缩 / 展开、附件显隐：重新出几帧（新页面的海报、胶囊新形状）
+  // 换页、收缩 / 展开：重新出几帧（新页面的海报、胶囊新形状）
   useEffect(() => {
     rimRef.current?.wake();
-  }, [pathname, isMinimized, hasAccessory]);
+  }, [pathname, isMinimized]);
 
   // ———— 液态选中胶囊 ————
   const navRef = useRef<HTMLElement>(null);
@@ -411,22 +392,6 @@ export function GlassTabBar() {
       {/* 滚动边缘效果：内容滚到底栏下方时渐暗渐糊，把玻璃托起来（iOS 26
           scroll edge effect）。属于内容层之上、玻璃之下，不与玻璃叠玻璃 */}
       <div className="glass-tabbar-edge" data-minimized={isMinimized} aria-hidden="true" />
-      {/* 底部附件（iOS 26 tab bar bottom accessory）：常驻在收起圆钮右侧，
-          主菜单展开时隐藏（样式见 .glass-tabbar-accessory） */}
-      {accessory != null && (
-        <div
-          ref={accessoryRef}
-          className="glass-tabbar-accessory glass-capsule"
-          data-minimized={isMinimized}
-          onPointerDown={glowAt}
-          onPointerUp={glowOff}
-          onPointerCancel={glowOff}
-          onPointerLeave={glowOff}
-        >
-          <canvas className="glass-rim" aria-hidden="true" />
-          {accessory}
-        </div>
-      )}
       <nav ref={navRef} aria-label="主导航" className="glass-tabbar" data-minimized={isMinimized}>
         <div
           ref={barRef}
@@ -476,15 +441,7 @@ export function GlassTabBar() {
                 className="glass-tabbar__tab"
                 style={{ "--i": index } as CSSProperties}
                 // 点击即起跳，不等路由真正切换完（新页面渲染可能要几百毫秒）
-                onClick={(e) => {
-                  // 附件模式下再点当前页签 = 收回主菜单（不导航）
-                  if (hasAccessory && index === activeIndex) {
-                    e.preventDefault();
-                    setExpandedOverAccessory(false);
-                    return;
-                  }
-                  slideTo(index * cellWidth());
-                }}
+                onClick={() => slideTo(index * cellWidth())}
                 draggable={false}
               >
                 <Icon />
@@ -509,7 +466,7 @@ export function GlassTabBar() {
               钉在胶囊左端而不是居中，胶囊收窄时图标原地不动 */}
           <button
             type="button"
-            onClick={() => (hasAccessory ? setExpandedOverAccessory(true) : setMinimized(false))}
+            onClick={() => setMinimized(false)}
             aria-label="展开标签栏"
             aria-hidden={!isMinimized}
             tabIndex={isMinimized ? 0 : -1}
@@ -523,39 +480,3 @@ export function GlassTabBar() {
   );
 }
 
-/**
- * 底部附件里的分段切换（相册「年 / 月 / 全部」的形态）：撑满附件胶囊、各段等宽，
- * 选中段一枚白系药丸。页面用 chrome.setTabBarAccessory 挂进来。
- */
-export function AccessorySegmented<T extends string>({
-  options,
-  value,
-  onChange,
-  label,
-}: {
-  options: ReadonlyArray<{ value: T; label: string }>;
-  value: T;
-  onChange: (value: T) => void;
-  label: string;
-}) {
-  return (
-    <div
-      role="group"
-      aria-label={label}
-      className="glass-tabbar-accessory__seg"
-      style={{ "--seg-count": options.length } as CSSProperties}
-    >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={value === option.value}
-          data-active={value === option.value}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}

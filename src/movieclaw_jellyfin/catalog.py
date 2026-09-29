@@ -2138,9 +2138,11 @@ def media_source_dto(f: LibraryFile, *, resolve_strm: bool = False) -> dict[str,
     if audio_index is not None:
         source["DefaultAudioStreamIndex"] = audio_index
 
-    if f.is_disc():
+    if f.is_disc() and (f.container or "") != "iso":
         # 原盘（docs/design/disc-playback.md §3.3）：播放协商时允许回盘上读主
-        # 播放列表（存量未补探的行），读不出即"无可播源"；浏览态只认台账清单
+        # 播放列表（存量未补探的行），读不出即"无可播源"；浏览态只认台账清单。
+        # ISO 不进这个分支：按普通文件原字节直推，Infuse 这类播放器自己认镜像
+        # （disc-direct-play.md §2.2）
         disc = disc_source_for_file(f, read_disc=resolve_strm)
         if disc is None and resolve_strm:
             return None

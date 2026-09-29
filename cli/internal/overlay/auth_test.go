@@ -1,14 +1,21 @@
 package overlay
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/movieclaw/movieclaw/cli/internal/api"
 	"github.com/movieclaw/movieclaw/cli/internal/clierr"
+	"github.com/movieclaw/movieclaw/cli/internal/config"
 	"github.com/movieclaw/movieclaw/cli/internal/discover"
 	"github.com/movieclaw/movieclaw/cli/internal/output"
+	"github.com/spf13/cobra"
 )
 
 func quiet(t *testing.T) {
@@ -303,5 +310,356 @@ func TestLoginNonTTYPointsAtManualToken(t *testing.T) {
 		if !strings.Contains(cliErr.Hint, want) {
 			t.Errorf("提示里缺少 %q：%s", want, cliErr.Hint)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 登录设备（docs/design/login-devices.md §4、§8）
+// ---------------------------------------------------------------------------
+
+// captureStderr 把过程提示收进缓冲区，供断言「对用户说了什么」。
+func captureStderr(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	previous := output.Stderr
+	output.Stderr = &buf
+	t.Cleanup(func() { output.Stderr = previous })
+	return &buf
+}
+
+// fakePairing 是一台能完成配对的模拟服务端，记下客户端发来的关键请求。
+type fakePairing struct {
+	URL string
+	// authorize 收到的请求体
+	authorize map[string]any
+	// DELETE /auth/devices/current 收到的 Authorization，按到达顺序
+	revokes []string
+}
+
+// pairingServer 模拟一台能完成配对的服务端：authorize 回执与兑换结果由用例给出，
+// DELETE /auth/devices/current 一律回 revokeStatus。
+func pairingServer(t *testing.T, grant, token string, revokeStatus int) *fakePairing {
+	t.Helper()
+	fake := &fakePairing{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/api/v1/health":
+			_, _ = w.Write([]byte(`{"status":"ok","service":"movieclaw"}`))
+		case r.URL.Path == "/api/v1/auth/device/authorize":
+			_ = json.NewDecoder(r.Body).Decode(&fake.authorize)
+			_, _ = w.Write([]byte(`{"success":true,"code":"OK","message":"","data":` + grant + `}`))
+		case r.URL.Path == "/api/v1/auth/device/token":
+			_, _ = w.Write([]byte(`{"success":true,"code":"OK","message":"","data":` + token + `}`))
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/v1/auth/devices/current":
+			fake.revokes = append(fake.revokes, r.Header.Get("Authorization"))
+			w.WriteHeader(revokeStatus)
+			if revokeStatus < 400 {
+				_, _ = w.Write([]byte(`{"success":true,"code":"OK","message":"已注销","data":null}`))
+			} else {
+				_, _ = w.Write([]byte(`{"success":false,"code":"UNAUTHORIZED","message":"登录凭证无效或已被注销"}`))
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	fake.URL = server.URL
+	return fake
+}
+
+// startPairing 以「有终端、不真等」的方式跑一遍 mclaw login。配置目录由用例
+// 自己指定（要预置旧令牌的用例得先写进去）。
+func startPairing(t *testing.T, server string) error {
+	t.Helper()
+	t.Setenv("MOVIECLAW_TOKEN", "")
+	previousTTY, previousSleep := stdinIsTTY, sleep
+	stdinIsTTY = func() bool { return true }
+	sleep = func(time.Duration) {}
+	t.Cleanup(func() { stdinIsTTY, sleep = previousTTY, previousSleep })
+	return runLogin(&Settings{Server: server, Timeout: 5 * time.Second}, "mclaw@test")
+}
+
+// TestLoginReportsDeviceAndEchoesApprover 走一遍完整配对：authorize 带上安装标识、
+// 系统架构与版本；给人的是带配对码的链接；成功后说清令牌是谁的身份。
+func TestLoginReportsDeviceAndEchoesApprover(t *testing.T) {
+	stderr := captureStderr(t)
+	t.Setenv("MOVIECLAW_CONFIG_DIR", t.TempDir())
+	fake := pairingServer(t,
+		`{"user_code":"MCLW-7F3K","device_code":"dc-1","interval":1,"expires_in":60,
+		  "verification_uri":"http://nas/settings/devices",
+		  "verification_uri_complete":"http://nas/settings/devices?code=MCLW-7F3K"}`,
+		`{"token":"mclaw_new","client_name":"mclaw@test","client_type":"cli","granted_by":"alice"}`,
+		http.StatusOK,
+	)
+
+	if err := startPairing(t, fake.URL); err != nil {
+		t.Fatalf("配对失败：%v", err)
+	}
+
+	id, err := config.InstallationID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"client_type":     "cli",
+		"client_name":     "mclaw@test",
+		"installation_id": id,
+		"platform":        clientPlatform(runtime.GOOS, runtime.GOARCH),
+		"client_version":  api.Version,
+	}
+	for key, value := range want {
+		if got := fake.authorize[key]; got != value {
+			t.Errorf("authorize 的 %s = %v，期望 %q", key, got, value)
+		}
+	}
+	out := stderr.String()
+	if !strings.Contains(out, "http://nas/settings/devices?code=MCLW-7F3K") {
+		t.Errorf("没有给出带配对码的链接：\n%s", out)
+	}
+	if !strings.Contains(out, "由 alice 批准") {
+		t.Errorf("没有回显批准者（令牌就是他的身份）：\n%s", out)
+	}
+	if token, _ := config.LoadToken(fake.URL); token != "mclaw_new" {
+		t.Errorf("令牌没有落盘：%q", token)
+	}
+	if len(fake.revokes) != 0 {
+		t.Errorf("首次配对没有旧令牌，不该发注销请求：%v", fake.revokes)
+	}
+}
+
+// TestClientPlatformIsReadable 校验上报的平台是人认得出的写法：批准页和设备列表上
+// 写着 darwin，多数人认不出这是一台 Mac。
+func TestClientPlatformIsReadable(t *testing.T) {
+	for _, tc := range []struct{ goos, goarch, want string }{
+		{"darwin", "arm64", "macOS · arm64"},
+		{"linux", "amd64", "Linux · amd64"},
+		{"windows", "arm64", "Windows · arm64"},
+		{"freebsd", "amd64", "freebsd · amd64"}, // 分发目标之外的系统保持原名
+	} {
+		if got := clientPlatform(tc.goos, tc.goarch); got != tc.want {
+			t.Errorf("clientPlatform(%q, %q) = %q，期望 %q", tc.goos, tc.goarch, got, tc.want)
+		}
+	}
+}
+
+// TestLoginRevokesPreviousLocalToken 校验重新配对时，覆盖本地之前先用旧令牌注销它自己。
+//
+// 同一个人重配，服务端已按安装标识替换掉旧令牌（这里回 401）；换了人批准，旧令牌
+// 不会被替换，不注销就成了本机再也拿不出来、却一直有效的孤儿。注销成不成都不能
+// 影响这次登录。
+func TestLoginRevokesPreviousLocalToken(t *testing.T) {
+	grant := `{"user_code":"MCLW-7F3K","device_code":"dc-1","interval":1,"expires_in":60,
+	  "verification_uri":"http://nas/settings/devices"}`
+	token := `{"token":"mclaw_new","client_name":"mclaw@test","client_type":"cli","granted_by":"bob"}`
+	for _, tc := range []struct {
+		name   string
+		status int
+	}{
+		{"换了人批准：旧令牌仍有效", http.StatusOK},
+		{"同一个人重配：旧令牌已被服务端替换", http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			quiet(t)
+			t.Setenv("MOVIECLAW_CONFIG_DIR", t.TempDir())
+			fake := pairingServer(t, grant, token, tc.status)
+			if err := config.SaveToken(fake.URL, "mclaw_old"); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := startPairing(t, fake.URL); err != nil {
+				t.Fatalf("注销旧令牌的结果不该影响登录：%v", err)
+			}
+			if len(fake.revokes) != 1 || fake.revokes[0] != "Bearer mclaw_old" {
+				t.Errorf("应当用旧令牌注销一次：%v", fake.revokes)
+			}
+			if saved, _ := config.LoadToken(fake.URL); saved != "mclaw_new" {
+				t.Errorf("新令牌没有落盘：%q", saved)
+			}
+		})
+	}
+}
+
+// TestLoginFallsBackForOlderServer 校验老版本服务端（回执里没有带码链接、兑换结果
+// 没有批准者）照样能配对，链接退回不带码的批准页。
+func TestLoginFallsBackForOlderServer(t *testing.T) {
+	stderr := captureStderr(t)
+	t.Setenv("MOVIECLAW_CONFIG_DIR", t.TempDir())
+	fake := pairingServer(t,
+		`{"user_code":"MCLW-7F3K","device_code":"dc-1","interval":1,"expires_in":60,
+		  "verification_uri":"http://nas/settings/devices"}`,
+		`{"token":"mclaw_new","client_name":"mclaw@test","client_type":"cli"}`,
+		http.StatusNotFound, // 老服务端没有注销接口（本用例也没有旧令牌，不会用到）
+	)
+
+	if err := startPairing(t, fake.URL); err != nil {
+		t.Fatalf("配对失败：%v", err)
+	}
+	out := stderr.String()
+	if !strings.Contains(out, "请在浏览器打开：http://nas/settings/devices\n") {
+		t.Errorf("没有退回不带码的批准页：\n%s", out)
+	}
+	if strings.Contains(out, "批准，") {
+		t.Errorf("没有批准者时不该编一个出来：\n%s", out)
+	}
+}
+
+// runCommand 以给定的全局标志执行一条精选命令。
+func runCommand(cmd *cobra.Command, s *Settings) error {
+	WithSettings(cmd, s)
+	cmd.SetArgs([]string{})
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	return cmd.Execute()
+}
+
+// revokeServer 模拟 DELETE /auth/devices/current，记下收到的 Authorization。
+func revokeServer(t *testing.T, status int, body string) (string, *string) {
+	t.Helper()
+	var auth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete || r.URL.Path != "/api/v1/auth/devices/current" {
+			http.NotFound(w, r)
+			return
+		}
+		auth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+	return server.URL, &auth
+}
+
+// TestLogoutRevokesLocalTokenOnServer 校验 logout 先在服务端注销自己再删本地，
+// 且注销的是凭证文件里那一枚——环境变量里的令牌可能是 Agent 或 CI 在用，不能动。
+func TestLogoutRevokesLocalTokenOnServer(t *testing.T) {
+	stderr := captureStderr(t)
+	t.Setenv("MOVIECLAW_CONFIG_DIR", t.TempDir())
+	t.Setenv("MOVIECLAW_TOKEN", "mclaw_env")
+	server, auth := revokeServer(t, http.StatusOK,
+		`{"success":true,"code":"OK","message":"已注销「mclaw@test」","data":null}`)
+	if err := config.SaveToken(server, "mclaw_local"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := runCommand(NewLogoutCommand(), &Settings{Server: server, Timeout: 5 * time.Second}); err != nil {
+		t.Fatalf("logout 失败：%v", err)
+	}
+	if *auth != "Bearer mclaw_local" {
+		t.Errorf("注销用错了令牌：%q", *auth)
+	}
+	if token, _ := config.LoadToken(server); token != "" {
+		t.Errorf("本地令牌没删：%q", token)
+	}
+	out := stderr.String()
+	if strings.Contains(out, "可能仍然有效") {
+		t.Errorf("服务端已经注销了，不该再让用户去网页跑一趟：\n%s", out)
+	}
+	if !strings.Contains(out, "unset MOVIECLAW_TOKEN") {
+		t.Errorf("环境变量还在时要说破：\n%s", out)
+	}
+}
+
+// TestLogoutWorksWhenServerCannotRevoke 校验服务端注销不成也照样退出：本地令牌
+// 照删，并指向网页手动注销；令牌早已失效（401）则等同注销成功。
+func TestLogoutWorksWhenServerCannotRevoke(t *testing.T) {
+	gone := httptest.NewServer(http.NotFoundHandler())
+	unreachable := gone.URL
+	gone.Close() // 模拟 NAS 关机
+
+	for _, tc := range []struct {
+		name      string
+		server    func(t *testing.T) string
+		needsHint bool
+	}{
+		{"服务器连不上", func(*testing.T) string { return unreachable }, true},
+		{"老版本服务端没有注销接口", func(t *testing.T) string {
+			server, _ := revokeServer(t, http.StatusNotFound, `{"success":false,"code":"NOT_FOUND","message":"Not Found"}`)
+			return server
+		}, true},
+		{"令牌早已被注销", func(t *testing.T) string {
+			server, _ := revokeServer(t, http.StatusUnauthorized,
+				`{"success":false,"code":"UNAUTHORIZED","message":"登录凭证无效或已被注销"}`)
+			return server
+		}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stderr := captureStderr(t)
+			t.Setenv("MOVIECLAW_CONFIG_DIR", t.TempDir())
+			t.Setenv("MOVIECLAW_TOKEN", "")
+			server := tc.server(t)
+			if err := config.SaveToken(server, "mclaw_local"); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := runCommand(NewLogoutCommand(), &Settings{Server: server, Timeout: 5 * time.Second}); err != nil {
+				t.Fatalf("服务端注销不成不该让 logout 失败：%v", err)
+			}
+			if token, _ := config.LoadToken(server); token != "" {
+				t.Errorf("本地令牌没删：%q", token)
+			}
+			if got := strings.Contains(stderr.String(), "「设置 → 设备」里注销"); got != tc.needsHint {
+				t.Errorf("是否指向网页手动注销：%v，期望 %v\n%s", got, tc.needsHint, stderr.String())
+			}
+		})
+	}
+}
+
+// TestStatusShowsCurrentDevice 校验 status 在身份后面给出当前设备；拿不到时
+// （老版本服务端、Agent 的内部令牌）整项不出现，也不让 status 失败。
+func TestStatusShowsCurrentDevice(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		status  int
+		current string
+		want    any
+	}{
+		{"设备令牌", http.StatusOK,
+			`{"success":true,"code":"OK","message":"","data":{"id":"ld-3","kind":"cli","kind_label":"命令行","name":"mclaw@nas"}}`,
+			"mclaw@nas（命令行）"},
+		{"不是登录设备", http.StatusNotFound,
+			`{"success":false,"code":"NOT_FOUND","message":"当前登录不是设备凭证"}`,
+			nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			quiet(t)
+			t.Setenv("MOVIECLAW_CONFIG_DIR", t.TempDir())
+			t.Setenv("MOVIECLAW_TOKEN", "mclaw_x")
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/api/v1/health":
+					_, _ = w.Write([]byte(`{"status":"ok","service":"movieclaw"}`))
+				case "/api/v1/auth/me":
+					_, _ = w.Write([]byte(`{"success":true,"code":"OK","message":"","data":{"username":"alice","nickname":"Alice"}}`))
+				case "/api/v1/auth/devices/current":
+					w.WriteHeader(tc.status)
+					_, _ = w.Write([]byte(tc.current))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+			var stdout bytes.Buffer
+			previous := output.Stdout
+			output.Stdout = &stdout
+			defer func() { output.Stdout = previous }()
+
+			settings := &Settings{Server: server.URL, Output: "json", Timeout: 5 * time.Second}
+			if err := runCommand(NewStatusCommand(), settings); err != nil {
+				t.Fatalf("status 失败：%v", err)
+			}
+			var payload map[string]any
+			if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+				t.Fatalf("输出不是 JSON：%v\n%s", err, stdout.String())
+			}
+			if payload["identity"] != "Alice" {
+				t.Errorf("身份不对：%v", payload["identity"])
+			}
+			if payload["device"] != tc.want {
+				t.Errorf("device = %v，期望 %v", payload["device"], tc.want)
+			}
+		})
 	}
 }
