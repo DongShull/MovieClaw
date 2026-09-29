@@ -23,11 +23,8 @@
 
 from __future__ import annotations
 
-import keyword
 import re
 import sys
-import types
-import typing
 from pathlib import Path
 
 from fastapi import params as fastapi_params
@@ -40,12 +37,62 @@ OUT_DIR = ROOT / "apps/apple/MovieClaw/Core/API/Generated"
 API_PREFIX = "/api/v1"
 
 SWIFT_KEYWORDS = {
-    "associatedtype", "class", "deinit", "enum", "extension", "fileprivate", "func", "import", "init",
-    "inout", "internal", "let", "open", "operator", "private", "protocol", "public", "rethrows",
-    "static", "struct", "subscript", "typealias", "var", "break", "case", "continue", "default",
-    "defer", "do", "else", "fallthrough", "for", "guard", "if", "in", "repeat", "return", "switch",
-    "where", "while", "as", "catch", "false", "is", "nil", "super", "self", "Self", "throw",
-    "throws", "true", "try", "Type", "Any", "some", "any",
+    "associatedtype",
+    "class",
+    "deinit",
+    "enum",
+    "extension",
+    "fileprivate",
+    "func",
+    "import",
+    "init",
+    "inout",
+    "internal",
+    "let",
+    "open",
+    "operator",
+    "private",
+    "protocol",
+    "public",
+    "rethrows",
+    "static",
+    "struct",
+    "subscript",
+    "typealias",
+    "var",
+    "break",
+    "case",
+    "continue",
+    "default",
+    "defer",
+    "do",
+    "else",
+    "fallthrough",
+    "for",
+    "guard",
+    "if",
+    "in",
+    "repeat",
+    "return",
+    "switch",
+    "where",
+    "while",
+    "as",
+    "catch",
+    "false",
+    "is",
+    "nil",
+    "super",
+    "self",
+    "Self",
+    "throw",
+    "throws",
+    "true",
+    "try",
+    "Type",
+    "Any",
+    "some",
+    "any",
 }
 
 
@@ -161,7 +208,10 @@ def swift_type(schema: dict, defs: dict) -> tuple[str, bool]:
         extra = schema.get("additionalProperties")
         if isinstance(extra, dict) and extra:
             inner, inner_nullable = swift_type(extra, defs)
-            return f"[String: {inner}{'?' if inner_nullable and inner != 'API.JSONValue' else ''}]", False
+            return (
+                f"[String: {inner}{'?' if inner_nullable and inner != 'API.JSONValue' else ''}]",
+                False,
+            )
         if "properties" not in schema:
             return "[String: API.JSONValue]", False
     if "enum" in schema:
@@ -238,12 +288,18 @@ class RouteInfo:
         self.original = original
         self.path = path
         self.methods = original.methods
-        self.response_model = getattr(ctx, "response_model", None) if ctx is not None else original.response_model
+        self.response_model = (
+            getattr(ctx, "response_model", None) if ctx is not None else original.response_model
+        )
         if self.response_model is None:
             self.response_model = original.response_model
-        self.summary = (getattr(ctx, "summary", None) if ctx is not None else None) or original.summary
+        self.summary = (
+            getattr(ctx, "summary", None) if ctx is not None else None
+        ) or original.summary
         self.name = original.name
-        self.operation_id = (getattr(ctx, "operation_id", None) if ctx is not None else None) or original.operation_id
+        self.operation_id = (
+            getattr(ctx, "operation_id", None) if ctx is not None else None
+        ) or original.operation_id
         self.unique_id = f"{sorted(original.methods)[0]}_{path}"
         self.dependant = original.dependant
         self.body_field = original.body_field
@@ -326,7 +382,10 @@ def main() -> int:
             inputs.append((body, "validation", TypeAdapter(info.annotation)))
 
         params = []
-        for kind, fields in (("path", collect(route.dependant, "path_params")), ("query", collect(route.dependant, "query_params"))):
+        for kind, fields in (
+            ("path", collect(route.dependant, "path_params")),
+            ("query", collect(route.dependant, "query_params")),
+        ):
             for f in fields:
                 key = ("param", route.unique_id, kind, f.alias)
                 inputs.append((key, "validation", TypeAdapter(f.field_info.annotation)))
@@ -340,6 +399,7 @@ def main() -> int:
     )
     req_map, req_top = TypeAdapter.json_schemas(req_inputs, ref_template="#/$defs/{model}")
     defs = dict(resp_top.get("$defs", {}))
+
     # @computed_field 只出现在序列化口径里，而部分父模型自定义了序列化器、序列化口径下整棵 schema
     # 没有类型，按 $defs 合并会漏掉。这里直接遍历所有 Pydantic 模型类，把计算字段补进同名定义（视为必有）。
     def all_models(cls):
@@ -411,7 +471,7 @@ def main() -> int:
             name += "_"
         seen_names.add(name)
         sig = []
-        path_expr = route.path[len(API_PREFIX):]
+        path_expr = route.path[len(API_PREFIX) :]
         query_lines = []
         for kind, field, key in params:
             typ, nullable = swift_type(key_map[key], defs)
@@ -436,23 +496,31 @@ def main() -> int:
             ret = rtyp + ("?" if rnull and rtyp != "API.JSONValue" else "")
         doc = route.summary or route.name
         ep += doc_lines(doc, "    ")
-        ep.append(f"    /// `{method} {route.path[len(API_PREFIX):]}`")
+        ep.append(f"    /// `{method} {route.path[len(API_PREFIX) :]}`")
         ep.append(f"    func {name}({', '.join(sig)}) async throws -> {ret} {{")
         if query_lines:
             ep.append("        var query: [URLQueryItem] = []")
             for alias, pname, typ, optional in query_lines:
                 if typ.startswith("["):
                     src = f"{pname} ?? []" if optional else pname
-                    ep.append(f'        for value in {src} {{ query.append(URLQueryItem(name: "{alias}", value: "\\(value)")) }}')
+                    ep.append(
+                        f'        for value in {src} {{ query.append(URLQueryItem(name: "{alias}", value: "\\(value)")) }}'
+                    )
                 elif optional:
-                    ep.append(f'        if let {pname} {{ query.append(URLQueryItem(name: "{alias}", value: "\\({pname})")) }}')
+                    ep.append(
+                        f'        if let {pname} {{ query.append(URLQueryItem(name: "{alias}", value: "\\({pname})")) }}'
+                    )
                 else:
-                    ep.append(f'        query.append(URLQueryItem(name: "{alias}", value: "\\({pname})"))')
+                    ep.append(
+                        f'        query.append(URLQueryItem(name: "{alias}", value: "\\({pname})"))'
+                    )
         q = ", query: query" if query_lines else ""
         b = ", body: body" if body is not None else ""
         if ret == "Void":
             fn = "send" if enveloped else "raw"
-            ep.append(f'        let _: API.JSONValue? = try await {fn}("{method}", "{path_expr}"{q}{b})')
+            ep.append(
+                f'        let _: API.JSONValue? = try await {fn}("{method}", "{path_expr}"{q}{b})'
+            )
         else:
             fn = "send" if enveloped else "raw"
             ep.append(f'        return try await {fn}("{method}", "{path_expr}"{q}{b})')
@@ -474,7 +542,7 @@ def main() -> int:
         '@Suite("生成模型对真实服务器解码", .enabled(if: LiveServer.enabled), .serialized)',
         "struct LiveDecodeTests {",
     ]
-    for route, method, enveloped, resp_key, body, params in plans:
+    for route, method, _enveloped, resp_key, body, params in plans:
         if method != "GET" or resp_key is None or body is not None:
             continue
         if any(kind == "path" for kind, _, _ in params):
@@ -483,7 +551,9 @@ def main() -> int:
             continue
         name = op_func_name(route).strip("`")
         tests.append(f"    @Test func {name}() async throws {{")
-        tests.append(f"        try await LiveServer.check {{ try await $0.{op_func_name(route)}() }}")
+        tests.append(
+            f"        try await LiveServer.check {{ try await $0.{op_func_name(route)}() }}"
+        )
         tests.append("    }")
     tests.append("}")
     test_dir = ROOT / "apps/apple/MovieClawTests/Generated"

@@ -147,6 +147,9 @@ select = [
 # 系统提示词文件：提示词正文的自然段落不按代码行宽折行（折行会改变提示词内容）
 [tool.ruff.lint.per-file-ignores]
 "src/movieclaw_agent/prompts.py" = ["E501"]
+# iOS 开发脚本：内嵌到 NAS 上执行的 SQL / Python 源码串与中文报表格式串，拆行反而难读
+"apps/apple/scripts/devlab.py" = ["E501"]
+"apps/apple/scripts/gen_api.py" = ["E501"]
 
 # FastAPI 的 Depends()/Query() 等必须写在参数默认值里，这是官方推荐用法，
 # 因此把它们标记为"不可变调用"，豁免 B008（函数调用不应出现在默认值）告警。
