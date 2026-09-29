@@ -1293,12 +1293,6 @@ function SubtitleMenu({
           />
           <div className="flex gap-2 px-4 pb-1">
             <Toggle
-              on={style.outline}
-              onClick={() => onStyleChange({ ...style, outline: !style.outline })}
-            >
-              描边
-            </Toggle>
-            <Toggle
               on={style.background}
               onClick={() => onStyleChange({ ...style, background: !style.background })}
             >

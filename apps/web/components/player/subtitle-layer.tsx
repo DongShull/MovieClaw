@@ -317,11 +317,10 @@ export function SubtitleLayer({
             // 时容器高是画面高的好几倍，按容器算字会大得离谱。16px 下限是
             // 移动端通用做法——竖屏小画面按比例算不到 10px，谁也读不了
             fontSize: `${Math.max(16, (style.fontScale / 100) * contentBox.height)}px`,
-            // 描边用四向 text-shadow：亮画面上的白字没有描边基本读不清，
-            // 而 -webkit-text-stroke 会把笔画往里吃、中文字形直接糊掉
-            textShadow: style.outline
-              ? "0 0 0.12em #000, 0.03em 0.03em 0.1em #000, -0.03em 0.03em 0.1em #000, 0.03em -0.03em 0.1em #000, -0.03em -0.03em 0.1em #000"
-              : "none",
+            // 不开背景时靠一层柔和投影压住亮画面，与 App 同一口径（黑 60%、iOS 模糊半径 3pt，
+            // 按 App 常见的 20pt 字号折成 CSS 的 0.3em 模糊）。不做描边：-webkit-text-stroke
+            // 会把笔画往里吃，中文字形由互相重叠的笔画轮廓拼成，描边在交叉处全是黑缝
+            textShadow: style.background ? "none" : "0 0 0.3em rgba(0,0,0,0.6)",
             background: style.background ? "rgba(0,0,0,0.55)" : "transparent",
             padding: style.background ? "0.05em 0.35em" : undefined,
             borderRadius: style.background ? "0.15em" : undefined,

@@ -365,7 +365,11 @@ private struct PlayerContent: View {
                     // 条目信息都拿不到（无权访问、已删除）：同 Web player-page 整页换成原因 +「返回」
                     PlayerInfoErrorView(message: infoError, exit: exit)
                 }
-                SystemVolumeHost().frame(width: 1, height: 1).allowsHitTesting(false)
+                // 放到屏幕左上角：ZStack 默认居中，不指定的话它正好压在画面正中
+                SystemVolumeHost().frame(width: 1, height: 1)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
             .animation(.easeInOut(duration: 0.25), value: chromeVisible)
             .animation(.easeInOut(duration: 0.2), value: controller.notice)

@@ -238,7 +238,7 @@ struct SubtitleMenu: View {
     }
 }
 
-/// 字幕样式：时间轴 ±0.1 秒（夹 ±30 秒）、字号、位置、描边、背景——存本机
+/// 字幕样式：时间轴 ±0.1 秒（夹 ±30 秒）、字号、位置、背景——存本机
 private struct SubtitleStyleEditor: View {
     let controller: PlaybackController
 
@@ -262,7 +262,6 @@ private struct SubtitleStyleEditor: View {
                 controller.subtitleStyle.bottomPercent = min(40, style.bottomPercent + 2)
             }
             HStack(spacing: 8) {
-                StyleToggle(title: "描边", on: style.outline) { controller.subtitleStyle.outline.toggle() }
                 StyleToggle(title: "背景", on: style.background) { controller.subtitleStyle.background.toggle() }
                 Spacer()
             }

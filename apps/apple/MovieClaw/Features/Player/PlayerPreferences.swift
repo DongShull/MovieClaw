@@ -2,6 +2,10 @@ import Foundation
 
 /// 字幕外观（对应 Web `lib/player/subtitles.ts` 的 SubtitleStyle）。
 /// 时间轴偏移刻意不持久化：它是逐文件的修正，跨片带着只会错（同 Web）。
+///
+/// 不设「描边」（Web 同）：中文字形由互相重叠的笔画轮廓拼成，文字描边会沿每个轮廓各描一圈，
+/// 笔画交叉处全是黑缝（真机实测）。不开背景时白字统一带一层柔和投影，亮画面也读得清。
+/// 旧版本存下的 outline 键读的时候直接忽略。
 struct SubtitleStyle: Equatable, Codable {
     /// 相对视频高度的字号百分比（默认 5.2%）
     var fontScale: Double = 5.2
@@ -9,10 +13,9 @@ struct SubtitleStyle: Equatable, Codable {
     var offsetSeconds: Double = 0
     /// 距画面底部的百分比（默认 8%）
     var bottomPercent: Double = 8
-    var outline: Bool = true
     var background: Bool = false
 
-    enum CodingKeys: String, CodingKey { case fontScale, bottomPercent, outline, background }
+    enum CodingKeys: String, CodingKey { case fontScale, bottomPercent, background }
 
     init() {}
 
@@ -20,7 +23,6 @@ struct SubtitleStyle: Equatable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         fontScale = (try? container.decode(Double.self, forKey: .fontScale)) ?? 5.2
         bottomPercent = (try? container.decode(Double.self, forKey: .bottomPercent)) ?? 8
-        outline = (try? container.decode(Bool.self, forKey: .outline)) ?? true
         background = (try? container.decode(Bool.self, forKey: .background)) ?? false
     }
 

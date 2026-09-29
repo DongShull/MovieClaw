@@ -66,6 +66,9 @@ struct SystemVolumeHost: UIViewRepresentable {
     func makeUIView(context: Context) -> MPVolumeView {
         let view = SystemVolume.shared.volumeView
         view.alpha = 0.01
+        // 外面只给 1×1 点，里面的系统滑杆却不跟着缩：iOS 26 的胶囊圆钮会按原尺寸溢出来画，
+        // 暗场里能看出一个若隐若现的椭圆。裁到自身边界内，滑动时、滑完后都看不见
+        view.clipsToBounds = true
         return view
     }
 

@@ -97,7 +97,8 @@ struct SubtitleOverlay: View {
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .lineSpacing(fontSize * 0.1)
-                        .modifier(SubtitleOutline(enabled: style.outline && !style.background))
+                        // 不开背景时靠一层柔和投影压住亮画面（不做描边，原因见 SubtitleStyle）
+                        .shadow(color: style.background ? .clear : .black.opacity(0.6), radius: 3)
                         .padding(.horizontal, style.background ? fontSize * 0.35 : 0)
                         .padding(.vertical, style.background ? fontSize * 0.12 : 0)
                         .background(style.background ? Color.black.opacity(0.6) : .clear, in: .rect(cornerRadius: fontSize * 0.2))
@@ -140,23 +141,5 @@ struct SubtitleOverlay: View {
         // 开发期：真机无人值守验证外挂字幕确实拿到了、多久拿到
         FileHandle.standardError.write(Data("[Overlay] 字幕 \(cues.count) 条，耗时 \((ContinuousClock.now - startedAt) / .milliseconds(1)) 毫秒\n".utf8))
         #endif
-    }
-}
-
-/// 描边：四向硬阴影近似描边（SwiftUI 没有文字描边原语）
-private struct SubtitleOutline: ViewModifier {
-    let enabled: Bool
-
-    func body(content: Content) -> some View {
-        if enabled {
-            content
-                .shadow(color: .black, radius: 0, x: 1, y: 1)
-                .shadow(color: .black, radius: 0, x: -1, y: -1)
-                .shadow(color: .black, radius: 0, x: 1, y: -1)
-                .shadow(color: .black, radius: 0, x: -1, y: 1)
-                .shadow(color: .black.opacity(0.6), radius: 3)
-        } else {
-            content
-        }
     }
 }

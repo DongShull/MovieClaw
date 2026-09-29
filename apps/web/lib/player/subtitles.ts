@@ -156,7 +156,9 @@ export function plainCueText(text: string): string {
   return text.replace(/<[^>]*>/g, "");
 }
 
-/** 字幕外观配置。外挂字幕经常不同步、字号也常年偏小，这两项是刚需不是锦上添花。 */
+/** 字幕外观配置。外挂字幕经常不同步、字号也常年偏小，这两项是刚需不是锦上添花。
+    不设「描边」（与 App 一致）：不开背景时白字统一带一层柔和投影（见 subtitle-layer）；
+    旧版本存下的 outline 键读的时候直接忽略。 */
 export interface SubtitleStyle {
   /** 相对视频高度的字号百分比 */
   fontScale: number;
@@ -164,7 +166,6 @@ export interface SubtitleStyle {
   offsetSeconds: number;
   /** 距画面底部的百分比 */
   bottomPercent: number;
-  outline: boolean;
   background: boolean;
 }
 
@@ -182,7 +183,6 @@ export function loadSubtitleStyle(): SubtitleStyle {
       fontScale: typeof parsed.fontScale === "number" ? parsed.fontScale : DEFAULT_SUBTITLE_STYLE.fontScale,
       bottomPercent:
         typeof parsed.bottomPercent === "number" ? parsed.bottomPercent : DEFAULT_SUBTITLE_STYLE.bottomPercent,
-      outline: typeof parsed.outline === "boolean" ? parsed.outline : DEFAULT_SUBTITLE_STYLE.outline,
       background:
         typeof parsed.background === "boolean" ? parsed.background : DEFAULT_SUBTITLE_STYLE.background,
     };
@@ -208,7 +208,6 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   // 底部安全边距 8%：Apple/Netflix/BBC 的 caption safe area 都在 8~10%，
   // 字幕不贴画面底边
   bottomPercent: 8,
-  outline: true,
   background: false,
 };
 

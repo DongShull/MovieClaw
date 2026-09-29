@@ -400,7 +400,7 @@ Components: `components/player/*`, `lib/player/*`. Shares use the same player wi
 - **Subtitle menu:**
   - Tracks, including 关闭 (off).
   - Image-based subtitles (PGS) are burned in by transcoding, with a warning.
-  - Style: 时间轴 (offset, ±0.1s steps, clamped to ±30s), 字号 (size, default 5.2% of height), 位置 (bottom position, default 8%), 描边 (outline), 背景 (background). Saved to localStorage.
+  - Style: 时间轴 (offset, ±0.1s steps, clamped to ±30s), 字号 (size, default 5.2% of height), 位置 (bottom position, default 8%), 背景 (background). Saved to localStorage. (描边 outline 已删：中文笔画轮廓重叠，描边在交叉处出黑缝；不开背景时统一柔和投影)
   - When iOS renders subtitles natively, the menu says to change style in iOS Settings → Accessibility → Subtitles.
   - Rendering: ASS/SSA via jassub, using embedded fonts from `GET /playback/files/{fileId}/fonts?token=`; PGS via libbitsub.
 - **Settings menu (⋯):**

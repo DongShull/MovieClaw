@@ -554,13 +554,11 @@ public final class AetherPlayback {
     public struct TextStyle: Sendable, Equatable {
         public var fontScale: Double = 5.2
         public var bottomPercent: Double = 8
-        public var outline = true
         public var background = false
 
-        public init(fontScale: Double = 5.2, bottomPercent: Double = 8, outline: Bool = true, background: Bool = false) {
+        public init(fontScale: Double = 5.2, bottomPercent: Double = 8, background: Bool = false) {
             self.fontScale = fontScale
             self.bottomPercent = bottomPercent
-            self.outline = outline
             self.background = background
         }
     }
@@ -920,7 +918,7 @@ private final class PlaybackContainerView: UIView {
     }
 }
 
-/// 一条要画的字幕：图形字幕是位图 + 位置，文字字幕是纯文本（ASS 样式先按纯文本画，字号、位置、描边随用户设置）
+/// 一条要画的字幕：图形字幕是位图 + 位置，文字字幕是纯文本（ASS 样式先按纯文本画，字号、位置、背景随用户设置）
 struct OverlayCue {
     enum Content {
         /// 位图、在字幕画布里的位置（0～1）、画布像素尺寸（.zero = 与画面相同）
@@ -958,7 +956,7 @@ struct OverlayCue {
 /// - 图形字幕：位置是相对字幕画布的 0～1 坐标；画布与画面宽度对齐、垂直居中——裁过黑边的片子画布比画面高，
 ///   这样字幕仍落在原盘作者放的位置（包括下黑边里）。
 /// - 文字字幕：与 App 的 SwiftUI 叠加层（SubtitleOverlay）同一口径——字号是画面高度的百分比、
-///   位置是距画面底边的百分比，白字加描边或半透明底框，横竖屏切换都不影响字幕相对画面的样子。
+///   位置是距画面底边的百分比，白字带柔和投影或半透明底框，横竖屏切换都不影响字幕相对画面的样子。
 ///   ASS 用 `\pos` 指定了位置的（招牌、注释、竖排说明这类特效字）画在它指定的位置，`\an7～9` 的画在顶部，
 ///   其余对白合成一块放在底部——不然特效字会叠进对白里（真机《如果历史是一群喵》实测）。
 final class SubtitleLayerView: UIView {
@@ -1086,7 +1084,7 @@ final class SubtitleLayerView: UIView {
     }
 }
 
-/// 一块字幕文字：白字（描边或半透明底框），按 ASS 小键盘方位把自己对齐到锚点（5 = 锚点在中心）。
+/// 一块字幕文字：白字（柔和投影或半透明底框），按 ASS 小键盘方位把自己对齐到锚点（5 = 锚点在中心）。
 /// 文字、样式、位置都没变时不重排（字幕层约每秒刷新 10 次）
 final class TextBlockView: UIView {
     private let label = UILabel()
@@ -1121,10 +1119,9 @@ final class TextBlockView: UIView {
             .foregroundColor: UIColor.white,
             .paragraphStyle: paragraph,
         ]
-        if style.outline, !style.background {
-            // 描边：负的描边宽度 = 描边同时保留填充；再加一层柔和阴影压住亮背景
-            attributes[.strokeColor] = UIColor.black
-            attributes[.strokeWidth] = -3.0
+        if !style.background {
+            // 不开背景时靠一层柔和投影压住亮画面。不用文字描边（strokeWidth）：中文字形由互相重叠的
+            // 笔画轮廓拼成，描边沿每个轮廓各描一圈，笔画交叉处全是黑缝（真机实测）
             let shadow = NSShadow()
             shadow.shadowColor = UIColor.black.withAlphaComponent(0.6)
             shadow.shadowBlurRadius = 3

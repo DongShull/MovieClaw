@@ -385,8 +385,7 @@ final class NativeEngine: NSObject, PlayerEngine {
     func applySubtitleStyle(_ style: SubtitleStyle) {
         core.setSubtitleDelay(style.offsetSeconds)
         core.setTextStyle(.init(
-            fontScale: style.fontScale, bottomPercent: style.bottomPercent,
-            outline: style.outline, background: style.background
+            fontScale: style.fontScale, bottomPercent: style.bottomPercent, background: style.background
         ))
     }
 
