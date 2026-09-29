@@ -409,7 +409,9 @@ enum PlaybackNetwork: String {
     /// 家里路由器把域名解析成内网地址（分区 DNS）时，出门后结果会变：超过 5 分钟的结果先照用、同时后台重查
     private static let resolvedHosts = HostCache()
 
-    private final class HostCache: @unchecked Sendable {
+    /// 必须 nonisolated：工程默认隔离在主线程，lookup 却在后台队列里调，隔离检查会直接 trap 闪退
+    /// （2026-09-29 服务器地址填域名的账号登录后每次启动必崩；填 IP 的走不到这里）
+    private nonisolated final class HostCache: @unchecked Sendable {
         private static let freshSeconds: TimeInterval = 300
         private let lock = NSLock()
         private var resolved: [String: (ip: UInt32, at: Date)] = [:]

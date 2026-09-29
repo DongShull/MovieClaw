@@ -201,6 +201,13 @@ struct PlaybackRoutingTests {
         #expect(PlaybackNetwork.classify(serverIPv4: nil, interfaces: [homeWiFi]) == .unknown)
     }
 
+    /// 2026-09-29 回归：服务器填域名时后台查地址，曾因查询函数默认隔离在主线程而 trap，登录演示站点后每次启动必崩。
+    /// 没有断言可写——修复前这里整个测试进程直接崩掉；localhost 不走网络，查询很快结束
+    @MainActor @Test func domainServerPrewarmDoesNotTrap() async throws {
+        PlaybackNetwork.prewarm(server: try ServerAddress(parsing: "http://localhost:3000"))
+        try await Task.sleep(for: .milliseconds(500))
+    }
+
     @Test func privateRangesAndParsing() {
         #expect(PlaybackNetwork.isPrivate(ip("10.0.0.1")))
         #expect(PlaybackNetwork.isPrivate(ip("172.16.0.1")))
