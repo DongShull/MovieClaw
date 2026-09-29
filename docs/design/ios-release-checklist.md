@@ -15,6 +15,8 @@
       git clone https://github.com/movieclaw/movieclaw.git && cd movieclaw
       git checkout feat/ios-app
       ```
+      已有仓库的机器改为 `git fetch origin && git checkout feat/ios-app && git pull --ff-only`，
+      打包前 `git status` 干净、`git log -1 --oneline` 与 GitHub 上分支最新提交一致（打的就是这个提交）
 - [ ] 建本机签名配置（已被 .gitignore 忽略）：
       ```bash
       echo 'DEVELOPMENT_TEAM = <第 2 步确认的 Team ID>' > apps/apple/XcodeConfig/Signing.local.xcconfig
@@ -55,7 +57,17 @@
       ```
       首次会在账号下自动创建「Apple Distribution」证书与描述文件，属正常流程
 - [ ] 上传：`scripts/release.sh --upload`
-- [ ] 等 5～30 分钟，TestFlight 里出现构建后装到手机
+- [ ] 等 5～30 分钟，TestFlight 里出现构建后装到手机。注意：
+  - TestFlight 版与开发调试版是**同一个套装 ID**，装上会替换手机上的调试版；签名团队不同，钥匙串里的登录
+    令牌读不到，**首次打开要重新输一次服务器密码**
+  - `-mc…` 调试开关（真机实验台、故障注入）只编进调试版，TestFlight 版里没有；之后要继续真机实验得重新装调试版
+    （又会替换 TestFlight 版），见 [playback-qoe.md](playback-qoe.md) §10
+- [ ] 首测要点（这一版播放器改动较多，见 playback-qoe.md §9）：
+  - UHD 原盘续播能出画面（《黑豹2》从片中续播，修复前只有声音）
+  - 4K60 片拖进度条 / 点 ±10 秒跟手（《抓特务》，修复前 1～2.5 秒）；落点会吸附到附近关键帧，偏差最多几秒
+  - VC-1 原盘（《戴珍珠耳环》）续播位置正确、往前跳不卡住
+  - 真实观看会在服务器留下播放质量记录（`mclaw` 或 `GET /api/v1/playback/stats/qoe` 查看），
+    TestFlight 版开始积累的才是北极星「无打扰播放率」的真实数据
 - [ ] **看 Apple 发来的邮件**：若有 ITMS-91053（隐私清单缺声明）或其他警告，把邮件原文发过来处理
 - [ ] 打包产物在 `apps/apple/build-release/`（约 2 GB），确认没问题后可删
 

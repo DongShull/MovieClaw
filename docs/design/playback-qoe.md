@@ -432,3 +432,39 @@ Mac 系统硬解 Cannot Decode、0 帧，真机只放声音。只在首个样本
 
 **同步后回归**（feat/ios-app 变基到远端 ff121652 之后，App 单测 257 个全过）：9 部覆盖 P35～P38 各通路全部正常，
 《抓特务》缓冲内跳转全部 ≤ 263 毫秒、《黑豹2》首帧 1.7 秒、VC-1 原盘跳转全部落地。
+
+## 10. 残留任务与下一阶段（2026-09-29 交接）
+
+截至 be94c8a7：P32～P38 与两处打点修正已推送 feat/ios-app，**NAS 服务端未随这批改动重新部署**（这一批全是 App 侧；
+服务端打点接口与迁移 c4d9e2a7b613 已在 09-28 以 overlay 部署）。下一步先发 TestFlight 内部测试（清单见
+[ios-release-checklist.md](ios-release-checklist.md) §4），让真实观看开始积累记录。
+
+### 10.1 待办（按对北极星的影响排序）
+
+| # | 事项 | 现状 / 线索 |
+|---|---|---|
+| 1 | **长 GOP 高码率片起播与缓冲外跳转**：本机服务器边产出边送分片 | 《绝命毒师》4K H.264 77 Mbit/s 关键帧平均 8.7 秒、单段 70～120 MB，起播 3.3 秒、缓冲外跳转最长 5.3 秒；《权力的游戏》起播 2.2～2.4 秒每次判打扰。AVPlayer 要等整段产出（`served … wait=` 1.4～2.9 秒） |
+| 2 | 4K60 HDR10 MKV 起播约 2.0 秒 | 《金色》S01E01 两组对照都 ~2 秒（startup_slow），未定位 |
+| 3 | 主力通路首帧到开播约 0.6 秒 | UHD 原盘画面层就绪后 AVPlayer 还在 `WaitingToMinimizeStalls`（P28 过线才放），《黑豹2》首帧 1690 / 开播 2281 毫秒 |
+| 4 | 首帧中位 ≤ 0.5 秒 | 现约 1 秒；§9.2 列过的小头：等会话时预建引擎（约 30 毫秒）、原盘清单随会话下发（40～80 毫秒） |
+| 5 | **外网测试台** | 外网北极星（≥ 95%）零数据。方案见记忆「自研引擎测试手法」：Mac mini 互联网共享 + dnctl/pfctl 限速，需账号持有人开一次共享与 sudo |
+| 6 | AV 库格式未测 | WMV（wmv3 / VC-1 / msmpeg4v3 + wmapro）、AVI、RMVB（rv40 + cook）、FLV（vp6f）、MPG、Opus 只在 AV 库，手机登录账号看不到该库（服务端按设计 404）。需临时给测试账号开放后跑 |
+| 7 | 偶发卡顿未复现 | 1080i MPEG-2 日本广播录像（ARIB 字幕，软件通路）2653 毫秒、VC-1 TS 重封装 776 毫秒各一次，复跑无 |
+| 8 | P36 解码代价只按 iPhone Air 标定 | 单帧 4.5 毫秒（4K）是 A19 实测；Apple TV / 旧 iPhone 解码速度不同，可改为按本会话实测的跳转耗时自校准 |
+| 9 | 低存储重试前是否退避（§9.3） | 故障注入 storage-full-brief 未过，待定 |
+| 10 | 打点口径 | 「续播后 30 秒内远跳 = 猜错」会把测试者的连续拖动记成猜错（09-29 手测《抓特务》3 次）；是否排除短时间内的连续跳转待定 |
+| 11 | 杂项 | 4K 低码率 MP4 缓冲边缘一次吸附跳转 1182 毫秒（个例）；1080p60 H.264 MP4 首帧 1.1 秒、掉 62 帧；FLAC MKV 首帧 1.5 秒 |
+
+### 10.2 换机器后继续真机迭代
+
+- 调试版装手机：`xcodebuild … -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath build-device -allowProvisioningUpdates build`
+  → `xcrun devicectl device install app --device <UDID> build-device/Build/Products/Debug-iphoneos/MovieClaw.app`
+  （新工作区先建 `apps/apple/XcodeConfig/Signing.local.xcconfig`；会替换 TestFlight 版，反之亦然）。装包前先
+  `devicectl device info processes` 看 App 在不在跑，别打断正在看片的人。
+- 实验台 `apps/apple/scripts/devlab.py`（`MC_DEVICE=<UDID>`）：`run` 逐部起播按脚本跳转、`ab` 交替对照、`report` 从 NAS 只读汇总。
+  语料是个人片库条目，不入库，放 `~/.config/movieclaw/devlab-corpus.json`（旧 Mac 上有一份 53 部的，换机时拷过去）。
+  日志在 `~/workspace/.mc-lab/dl-<批次>/`。
+- 排障手法：真机分片可 `devicectl device copy from --domain-type appDataContainer --domain-identifier io.movieclaw.app
+  --source tmp/aether-segments/<会话>/seg-N.m4s` 拷出；init 只在内存（要看就临时加日志打 base64）；Mac 上用
+  AVAssetReader 走系统硬解能复现真机的「Cannot Decode」（§9.7）。
+- 测试会在 NAS 留下带 `lab_scenario` 标签的播放记录，北极星统计按标签排除即可，不要删库。

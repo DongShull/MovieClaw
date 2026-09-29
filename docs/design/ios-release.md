@@ -95,6 +95,12 @@ scripts/release.sh --store --upload         # 商店版 → 对外 TestFlight / 
   （`Features/About/Licenses/`）。升级 AetherEngine / FFmpegBuild / Nuke 等依赖时同步核对。
   AetherEngine 是 LGPL-3.0 且带 App Store 例外；FFmpeg 为 LGPL-2.1（未启用 GPL 组件），
   以动态框架随包，满足可替换要求。
+- **播放质量记录**：App 会把每次播放的起播耗时、跳转、卡顿、失败原因（失败时附最近的播放器日志，
+  引擎自带脱敏）上报给**用户自己的服务器**，供管理员排查（设计见 [playback-qoe.md](playback-qoe.md)）。
+  开发者不接收任何数据，隐私问卷仍填「不收集数据」；隐私政策已写明这一点。旧版服务器没有这个接口时
+  回 404，App 直接丢弃记录，不重试、不积压。
+- **调试开关只在调试版**：`-mc…` 启动参数（真机实验台、故障注入、强制通路）都在 `#if DEBUG` 里，
+  发布构建不含；提审前不必额外清理。
 - **TMDB 署名**：关于页已注明「本产品使用 TMDB API，但未经 TMDB 认可或认证」。
 - **5.2.3**：见 §1。若被拒，审核意见会点名具体功能，据此扩大商店版的隐藏范围。
 - **最低系统 iOS 26**：只有 iOS 26 及以上的 iPhone 能在商店里看到它。
