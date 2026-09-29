@@ -208,6 +208,44 @@ async def test_grab_skips_sidecar_disc_and_disabled_library(db, tmp_path, monkey
     assert grab.calls == []  # 库开关关闭
 
 
+async def test_select_artwork_touches_only_the_picked_image(db, tmp_path, monkeypatch) -> None:
+    """选图只同步选中的那一张：不连带 force 重下分集剧照、不重新抓帧、不重写
+    分集 thumb 镜像——长剧动辄几百集，同步的选图接口会被拖到几十秒以上。"""
+    from movieclaw_api.services.media_scrape import mirror_media_dir_assets, select_artwork
+
+    grab = _FakeGrab()
+    monkeypatch.setattr(thumbs, "build_episode_still", grab)
+    fetched: list[str] = []
+
+    class _Proxy:
+        async def fetch(self, url: str):
+            fetched.append(url)
+            return url.encode(), "image/jpeg"
+
+    monkeypatch.setattr("movieclaw_api.services.image_proxy.get_image_proxy", lambda: _Proxy())
+    async with db.session() as session:
+        _library, item, files = await _seed_show(session, tmp_path / "tv")
+        item.poster_path = "/auto.jpg"
+        session.add(item)
+        await session.commit()
+        item_id = item.id
+    await download_item_assets(item_id)
+    await mirror_media_dir_assets(item_id)
+    thumb = files[2].with_name(f"{files[2].stem}-thumb.jpg")
+    assert thumb.read_bytes() == b"frame"  # E2 的抓帧剧照已镜像到视频旁
+    # 让 E2 的资产比镜像新：全量 force 镜像会覆盖 thumb，只镜像海报则不会
+    (assets_root() / str(item_id) / "s01e02.jpg").write_bytes(b"newer frame")
+    fetched.clear()
+    grab.calls.clear()
+
+    assert await select_artwork(item_id, kind="poster", file_path="/picked.jpg")
+
+    assert len(fetched) == 1 and fetched[0].endswith("/picked.jpg")
+    assert grab.calls == []
+    assert thumb.read_bytes() == b"frame"
+    assert (tmp_path / "tv" / "剧 (2020)" / "poster.jpg").read_bytes() == fetched[0].encode()
+
+
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="需要系统 ffmpeg")
 def test_build_episode_still_grabs_frame(tmp_path) -> None:
     """真 ffmpeg：抓到帧、宽不超过 640；旁边的剧海报 sidecar 不会被误当剧照。"""

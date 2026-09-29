@@ -1513,7 +1513,11 @@ def file_version(path: Path | None) -> int:
 
 
 async def download_item_assets(
-    media_item_id: int, *, force: bool = False, ignore_locks: bool = False
+    media_item_id: int,
+    *,
+    force: bool = False,
+    ignore_locks: bool = False,
+    only: str | None = None,
 ) -> None:
     """下载条目的全部图片资产（缺失才下，force 覆盖重下）。
 
@@ -1523,6 +1527,11 @@ async def download_item_assets(
     任一后续刷新入口自愈。手动选定（locked）的海报/背景 force 也不重下
     ——那张图就是用户要的（docs/design/metadata.md 6.3）；``ignore_locks``
     是选图动作自己的通道：刚选的图必须落盘，此时锁就是它自己加的。
+
+    ``only``（poster/backdrop）：只同步这一张条目图，同样是选图动作的通道。
+    用户换一张海报，不该连带 force 重下整季海报、全部分集剧照、再对没有
+    TMDB 剧照的集重新解码视频抓帧——长剧动辄几百集，同步的选图接口要等
+    几十秒以上。不传即全量（刷新与入库补齐的常态）。
     """
     db = get_database()
     async with db.session() as session:
@@ -1536,8 +1545,9 @@ async def download_item_assets(
             # 理论上建档即有档案行；兜底建一行以承载图片路径
             meta = MediaMetadata(media_item_id=media_item_id)
             session.add(meta)
-        seasons = await repo.list_seasons(media_item_id)
-        episodes = await repo.list_episodes(media_item_id)
+        # only 时不查季/集：后面的季海报、分集剧照与抓帧兜底随之全部跳过
+        seasons = await repo.list_seasons(media_item_id) if only is None else []
+        episodes = await repo.list_episodes(media_item_id) if only is None else []
         has_files = (
             await session.execute(
                 select(LibraryFile.id).where(LibraryFile.media_item_id == media_item_id).limit(1)
@@ -1553,28 +1563,30 @@ async def download_item_assets(
         saved_sources = dict(sources)
 
         async with _asset_semaphore:
-            meta.poster_file = await _sync_asset(
-                base,
-                poster_size,
-                item.poster_path,
-                item_dir / "poster.jpg",
-                meta.poster_file,
-                force and (ignore_locks or not meta.poster_locked),
-                sources,
-                "poster",
-                locked=meta.poster_locked and not ignore_locks,
-            )
-            meta.backdrop_file = await _sync_asset(
-                base,
-                backdrop_size,
-                item.backdrop_path,
-                item_dir / "backdrop.jpg",
-                meta.backdrop_file,
-                force and (ignore_locks or not meta.backdrop_locked),
-                sources,
-                "backdrop",
-                locked=meta.backdrop_locked and not ignore_locks,
-            )
+            if only in (None, "poster"):
+                meta.poster_file = await _sync_asset(
+                    base,
+                    poster_size,
+                    item.poster_path,
+                    item_dir / "poster.jpg",
+                    meta.poster_file,
+                    force and (ignore_locks or not meta.poster_locked),
+                    sources,
+                    "poster",
+                    locked=meta.poster_locked and not ignore_locks,
+                )
+            if only in (None, "backdrop"):
+                meta.backdrop_file = await _sync_asset(
+                    base,
+                    backdrop_size,
+                    item.backdrop_path,
+                    item_dir / "backdrop.jpg",
+                    meta.backdrop_file,
+                    force and (ignore_locks or not meta.backdrop_locked),
+                    sources,
+                    "backdrop",
+                    locked=meta.backdrop_locked and not ignore_locks,
+                )
             session.add(meta)
             for season in seasons:
                 season.poster_file = await _sync_asset(
@@ -1892,9 +1904,10 @@ async def select_artwork(media_item_id: int, *, kind: str, file_path: str | None
         # 恢复自动：解锁即可，图片留到下次刷新按新策略重选（不立刻打 TMDB）
         return True
     # 选定的图当场落盘并覆盖镜像（force：这正是"替换现有图片"的语义；
-    # ignore_locks：锁是这次选图刚加的，不能反过来挡住它自己落盘）
-    await download_item_assets(media_item_id, force=True, ignore_locks=True)
-    await mirror_media_dir_assets(media_item_id, force=True)
+    # ignore_locks：锁是这次选图刚加的，不能反过来挡住它自己落盘；
+    # only：只动选中的那一张，季海报、分集剧照与 NFO 原样不碰）
+    await download_item_assets(media_item_id, force=True, ignore_locks=True, only=kind)
+    await mirror_media_dir_assets(media_item_id, force=True, only=kind)
     return True
 
 
@@ -1903,13 +1916,17 @@ async def select_artwork(media_item_id: int, *, kind: str, file_path: str | None
 # ---------------------------------------------------------------------------
 
 
-async def mirror_media_dir_assets(media_item_id: int, *, force: bool = False) -> None:
+async def mirror_media_dir_assets(
+    media_item_id: int, *, force: bool = False, only: str | None = None
+) -> None:
     """把刮削成果镜像写入媒体目录：条目图片 + 完整 NFO + 分集 thumb/NFO。
 
     铁律（2026-08-04 完整性决策改版，docs/design/metadata.md 6.2）：镜像随
     库内档案**保持更新**——图片"资产比镜像新才覆盖"（_copy_asset），NFO 每次
     刷新按 media_metadata 重写（内容比对，无变化不落盘）；**绝不删除**；
     写失败只告警。``force``（单条目手动刷新）：图片无条件覆盖写。
+    ``only``（poster/backdrop）：选图动作只镜像选中的那一张（同
+    ``download_item_assets``），季海报、分集剧照与 NFO 都不碰。
 
     NFO 只在身份**高置信**时写（人工认领 / 目录 tmdbid 标记 / 既有 NFO /
     入库管线锚定）：扫描的名称收敛（RESOLVED）是机器结论，写成 NFO 会被
@@ -1939,10 +1956,10 @@ async def mirror_media_dir_assets(media_item_id: int, *, force: bool = False) ->
             # 缩略图只存资产目录（docs/design/library-other-kind.md 4.7）
             return
         meta = await repo.get_metadata(media_item_id)
-        seasons = await repo.list_seasons(media_item_id)
-        episodes = {
-            (e.season_number, e.episode_number): e for e in await repo.list_episodes(media_item_id)
-        }
+        # only 时不查季/集：季海报与分集 thumb/NFO 的镜像随之全部跳过
+        seasons = await repo.list_seasons(media_item_id) if only is None else []
+        episode_rows = await repo.list_episodes(media_item_id) if only is None else []
+        episodes = {(e.season_number, e.episode_number): e for e in episode_rows}
         rows = list(
             (
                 await session.execute(
@@ -1998,8 +2015,10 @@ async def mirror_media_dir_assets(media_item_id: int, *, force: bool = False) ->
                 continue
             write_images, write_nfo, _ = effective_mirror_flags(library)
             if write_images:
-                _copy_asset(item_dir / "poster.jpg", entry / "poster.jpg", force)
-                _copy_asset(item_dir / "backdrop.jpg", entry / "fanart.jpg", force)
+                if only in (None, "poster"):
+                    _copy_asset(item_dir / "poster.jpg", entry / "poster.jpg", force)
+                if only in (None, "backdrop"):
+                    _copy_asset(item_dir / "backdrop.jpg", entry / "fanart.jpg", force)
                 if item.kind == MediaKind.TV.value:
                     for season in seasons:
                         name = (
@@ -2010,7 +2029,7 @@ async def mirror_media_dir_assets(media_item_id: int, *, force: bool = False) ->
                         _copy_asset(
                             item_dir / f"season-{season.season_number}.jpg", entry / name, force
                         )
-            if write_nfo and entry in trusted_entries:
+            if only is None and write_nfo and entry in trusted_entries:
                 aligned = write_full_nfo(entry, item, meta)
                 if aligned is not None:
                     aligned_nfos.append(aligned)
