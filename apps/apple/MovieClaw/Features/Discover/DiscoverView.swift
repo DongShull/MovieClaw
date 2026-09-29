@@ -127,6 +127,14 @@ struct DiscoverView: View {
             .padding(.top, immersive || skeleton ? -topInset : 8)
             .padding(.bottom, 32)
         }
+        // 滚动视图铺到屏幕顶边，顶部内边距按顶栏高度手动给定，不交给系统按安全区自动让。
+        // iOS 26 上自动让的内边距会跟着导航栏高度走，而导航栏会在「大标题展开 / 收起」之间无限来回
+        // （约 1.8 秒一个来回，内边距在 122 与 174 之间变）：大图顶边随之在 0 与 52pt 之间跳，
+        // 又被下拉拉伸放大，看起来忽高忽低一直闪。触发条件是负顶部留白 + 下面的行用 LazyVStack
+        // （订阅首页没用懒加载，不受影响；iOS 27 只在启动时切一次）。内边距改成手动给定后循环断开；
+        // 不能只铺满不给内边距——那样下拉刷新的转圈会跑到状态栏正中、被灵动岛挡住
+        .contentMargins(.top, topInset, for: .scrollContent)
+        .ignoresSafeArea(.container, edges: .top)
         // 沉浸 Hero 从状态栏与顶栏底下穿过：关掉顶部滚动边缘雾化，由 Hero 自带的顶部压暗保证控件可读
         .scrollEdgeEffectHidden(immersive, for: .top)
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
