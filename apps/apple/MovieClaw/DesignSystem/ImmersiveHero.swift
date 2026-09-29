@@ -45,6 +45,23 @@ extension View {
     }
 }
 
+extension View {
+    /// 轮播首尾两张被拉过头时横向拉伸剧照（同下拉拉伸的思路），边缘不露出页面底色。
+    ///
+    /// 分页轮播在第一张再往右拖、最后一张再往左拖时会橡皮筋回弹，整页被拉离屏幕边缘，
+    /// 空出来的那条原先露着页面氛围底色。静止时每页左边缘贴住屏幕左边缘（轮播铺满整屏宽），
+    /// 所以第一张的 minX > 0、最后一张的 minX < 0 就是拉过头的距离；中间几张左右滑时两侧都有相邻页盖着，不处理。
+    /// 以另一侧的底角为锚点等比放大：底边不动（与下面的渐隐、页面底色对得上），多出来的高度往屏幕顶边之外长。
+    func stretchesOnEdgeOverscroll(first: Bool, last: Bool) -> some View {
+        visualEffect { content, proxy in
+            let minX = proxy.frame(in: .global).minX
+            let width = max(1, proxy.size.width)
+            let overscroll = first && minX > 0 ? minX : (last && minX < 0 ? -minX : 0)
+            return content.scaleEffect(1 + overscroll / width, anchor: minX > 0 ? .bottomTrailing : .bottomLeading)
+        }
+    }
+}
+
 /// 把所在纵向滚动视图的下拉刷新转圈（`.refreshable` 装上的 UIRefreshControl）提到滚动内容上层。
 ///
 /// UIKit 把转圈插在滚动视图最底层，平时靠内容被拉下后露出的空白看见它；顶部大图下拉拉伸后
@@ -98,6 +115,9 @@ struct ImmersiveHeroBackdrop: View {
     let scrollOffset: CGFloat
     /// 剧照显示高度（即 Hero 高度）；所在的页比它高出 `pullReserve`，剧照贴页底
     let height: CGFloat
+    /// 是不是轮播的第一张 / 最后一张：只有它们会被拉过头，见 `stretchesOnEdgeOverscroll`
+    let isFirst: Bool
+    let isLast: Bool
 
     /// 慢速推近：切到这一张时从 1 开始，12 秒推到 1.1
     @State private var zoom: CGFloat = 1
@@ -131,6 +151,7 @@ struct ImmersiveHeroBackdrop: View {
             }
             .frame(height: height)
             .stretchesOnPull()
+            .stretchesOnEdgeOverscroll(first: isFirst, last: isLast)
             .frame(maxHeight: .infinity, alignment: .bottom)
             .onChange(of: active, initial: true) { old, isActive in
                 // 页签切走再切回时，initial 这一次会随页面重新出现再调一遍（新旧值相同）。

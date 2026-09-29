@@ -427,6 +427,8 @@ struct DiscoverHero: View {
     @Environment(\.api) private var api
     /// 指示器当前胶囊的填充进度 0...1
     @State private var fill: CGFloat = 0
+    /// 左右安全区：轮播铺满整屏宽（横屏不让出灵动岛那侧），文字与指示器要自己躲开
+    @State private var sideInsets = EdgeInsets()
 
     /// 预载下一张剧照：原图约 400KB～1MB，等轮到它才下载会闪一下空底；只预载下一张，蜂窝网络下不白烧流量
     private static let prefetcher = ImagePrefetcher()
@@ -438,18 +440,22 @@ struct DiscoverHero: View {
             // 按条目认页（同订阅首页）：先画快照、再换成新数据时，同一下标换了一张图，
             // 按下标认会把上一张没走完的推近状态带到新图上
             ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
-                DiscoverHeroSlide(item: item, active: i == index, scrollOffset: scrollOffset, fade: fade)
+                DiscoverHeroSlide(item: item, active: i == index, isFirst: i == 0, isLast: i == items.count - 1,
+                                  scrollOffset: scrollOffset, fade: fade, sideInsets: sideInsets)
                     .tag(i)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
+        // 横屏时剧照也铺满整屏宽：不铺的话两侧安全区（灵动岛、圆角那一截）露出页面底色
+        .ignoresSafeArea(.container, edges: .horizontal)
+        .onGeometryChange(for: EdgeInsets.self, of: \.safeAreaInsets) { sideInsets = $0 }
         // 向屏幕顶边之外多占一截给下拉拉伸用（分页 TabView 会裁掉页外内容，见 ImmersiveHeroBackdrop），布局高度仍是 height
         .frame(height: DiscoverHero.height + ImmersiveHeroBackdrop.pullReserve)
         .padding(.top, -ImmersiveHeroBackdrop.pullReserve)
         .overlay(alignment: .bottomTrailing) {
             if items.count > 1 {
                 ImmersiveHeroIndicator(count: items.count, index: $index, fill: fill) { "切换到《\(items[$0].title)》" }
-                    .padding(.trailing, 20)
+                    .padding(.trailing, 20 + sideInsets.trailing)
                     .padding(.bottom, 16)
                     .opacity(fade)
             }
@@ -489,8 +495,12 @@ private struct DiscoverAmbientHost: View {
 struct DiscoverHeroSlide: View {
     let item: DiscoverPosterItem
     let active: Bool
+    let isFirst: Bool
+    let isLast: Bool
     let scrollOffset: CGFloat
     let fade: Double
+    /// 左右安全区（轮播铺满整屏宽，文字自己躲开）
+    let sideInsets: EdgeInsets
     @Environment(\.api) private var api
     @Environment(\.permissions) private var permissions
     @Environment(Router.self) private var router
@@ -498,7 +508,8 @@ struct DiscoverHeroSlide: View {
     var body: some View {
         let sub = SubscriptionIndex.shared.subscription(for: item)
         ZStack(alignment: .bottomLeading) {
-            ImmersiveHeroBackdrop(url: Self.imageURL(item, api: api), active: active, scrollOffset: scrollOffset, height: DiscoverHero.height)
+            ImmersiveHeroBackdrop(url: Self.imageURL(item, api: api), active: active, scrollOffset: scrollOffset, height: DiscoverHero.height,
+                                  isFirst: isFirst, isLast: isLast)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("今日精选 · \(item.mediaType == "tv" ? "剧集" : "电影")")
@@ -538,6 +549,8 @@ struct DiscoverHeroSlide: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 28)
             .padding(.trailing, 60)
+            .padding(.leading, sideInsets.leading)
+            .padding(.trailing, sideInsets.trailing)
             .opacity(fade)
             .offset(y: max(0, scrollOffset) * 0.15)
         }

@@ -30,6 +30,8 @@ struct SubsHomeHero: View {
     @Environment(\.api) private var api
     /// 指示器当前胶囊的填充进度 0...1
     @State private var fill: CGFloat = 0
+    /// 左右安全区：轮播铺满整屏宽（横屏不让出灵动岛那侧），文字要自己躲开
+    @State private var sideInsets = EdgeInsets()
 
     /// 预载下一张的剧照与 Logo：原图约 1MB，等轮到它才下载会闪一下空底；
     /// 只预载下一张而不是全部，蜂窝网络下不白烧流量
@@ -40,11 +42,15 @@ struct SubsHomeHero: View {
     var body: some View {
         TabView(selection: $index) {
             ForEach(Array(slides.enumerated()), id: \.element.id) { offset, slide in
-                SubsHomeHeroSlideView(slide: slide, active: offset == index, scrollOffset: scrollOffset, fade: fade)
+                SubsHomeHeroSlideView(slide: slide, active: offset == index, isFirst: offset == 0, isLast: offset == slides.count - 1,
+                                      scrollOffset: scrollOffset, fade: fade, sideInsets: sideInsets)
                     .tag(offset)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
+        // 横屏时剧照也铺满整屏宽：不铺的话两侧安全区（灵动岛、圆角那一截）露出页面底色
+        .ignoresSafeArea(.container, edges: .horizontal)
+        .onGeometryChange(for: EdgeInsets.self, of: \.safeAreaInsets) { sideInsets = $0 }
         // 向屏幕顶边之外多占一截给下拉拉伸用（分页 TabView 会裁掉页外内容，见 ImmersiveHeroBackdrop），布局高度仍是 height
         .frame(height: Self.height + ImmersiveHeroBackdrop.pullReserve)
         .padding(.top, -ImmersiveHeroBackdrop.pullReserve)
@@ -89,8 +95,12 @@ struct SubsHomeHeroSkeleton: View {
 private struct SubsHomeHeroSlideView: View {
     let slide: SubsHomeHeroSlide
     let active: Bool
+    let isFirst: Bool
+    let isLast: Bool
     let scrollOffset: CGFloat
     let fade: Double
+    /// 左右安全区（轮播铺满整屏宽，文字自己躲开）
+    let sideInsets: EdgeInsets
 
     @Environment(\.api) private var api
     @Environment(Router.self) private var router
@@ -113,7 +123,8 @@ private struct SubsHomeHeroSlideView: View {
     }
 
     private var backdrop: some View {
-        ImmersiveHeroBackdrop(url: imageURL, active: active, scrollOffset: scrollOffset, height: SubsHomeHero.height)
+        ImmersiveHeroBackdrop(url: imageURL, active: active, scrollOffset: scrollOffset, height: SubsHomeHero.height,
+                              isFirst: isFirst, isLast: isLast)
     }
 
     private var content: some View {
@@ -152,6 +163,8 @@ private struct SubsHomeHeroSlideView: View {
         }
         .multilineTextAlignment(.center)
         .padding(.horizontal, 28)
+        .padding(.leading, sideInsets.leading)
+        .padding(.trailing, sideInsets.trailing)
         .padding(.bottom, 44)
         .opacity(fade)
         .offset(y: max(0, scrollOffset) * 0.15)
