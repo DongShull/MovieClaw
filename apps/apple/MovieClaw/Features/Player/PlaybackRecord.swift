@@ -287,6 +287,9 @@ final class PlaybackRecord {
     func noteFirstFrame() {
         if firstFrameAt == nil {
             firstFrameAt = now()
+            // 起播同跳转落地：首帧上屏后播放头要 0.6～0.8 秒才看得出在走（软件通路 250 毫秒发布一次 + P30 停钟），
+            // 给同样的起步宽限。NTSC DVD 镜像两批都记了一次起播「卡顿」774～814 毫秒，引擎时钟其实在走
+            awaitingResumeSince = firstFrameAt
             event("first_frame", "首帧出画")
         }
         closeSwitch()
@@ -395,7 +398,8 @@ final class PlaybackRecord {
         if let open = openSeek, now - open.startedAt > .seconds(30) {
             closeSeek(outcome: "timeout")
         }
-        guard active, openSeek == nil, openSwitch == nil else {
+        // 首帧之前是起播，等待算在首帧耗时里，不判卡顿
+        guard active, firstFrameAt != nil, openSeek == nil, openSwitch == nil else {
             closeStall()
             lastAdvanceAt = now
             if active == false { awaitingResumeSince = nil }

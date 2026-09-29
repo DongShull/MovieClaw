@@ -182,6 +182,38 @@ struct PlaybackRecordTests {
         #expect(record.rebufferCount == 0)
     }
 
+    @Test func playheadWarmingUpAfterTheFirstFrameIsNotAStall() {
+        // 起播：引擎先报在播、首帧稍后上屏，播放头 0.75 秒后才看得出在走（NTSC DVD 镜像真机两批各误报一次）
+        let clock = FakeClock()
+        let record = makeRecord(clock)
+        for _ in 0 ..< 3 {            // 首帧之前：不判
+            clock.advance(250)
+            record.samplePlayhead(600_000, active: true) { "decode" }
+        }
+        record.noteFirstFrame()
+        for _ in 0 ..< 3 {
+            clock.advance(250)
+            record.samplePlayhead(600_000, active: true) { "decode" }
+        }
+        clock.advance(250)
+        record.samplePlayhead(600_250, active: true) { "decode" }
+        #expect(record.rebufferCount == 0)
+    }
+
+    @Test func aPictureStuckAfterTheFirstFrameCountsFromTheFirstFrame() {
+        let clock = FakeClock()
+        let record = makeRecord(clock)
+        record.noteFirstFrame()
+        for _ in 0 ..< 10 {           // 首帧后 2.5 秒不走：过了宽限，从首帧起算
+            clock.advance(250)
+            record.samplePlayhead(600_000, active: true) { "decode" }
+        }
+        clock.advance(250)
+        record.samplePlayhead(600_250, active: true) { "decode" }
+        #expect(record.rebufferCount == 1)
+        #expect(record.rebufferMs == 2750)
+    }
+
     @Test func aPictureStuckAfterTheSeekLandsCountsFromTheLanding() {
         let clock = FakeClock()
         let record = makeRecord(clock)
