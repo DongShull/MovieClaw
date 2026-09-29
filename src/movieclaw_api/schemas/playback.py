@@ -688,9 +688,13 @@ class PlaybackProgressRequest(BaseModel):
     #: （拖回开头）语义不同——别把「不知道」和「零」合并。
     position_ms: int | None = None
     #: 中性轨引用（external:<文件名> / embedded:<下标> / 字幕的 "off"）。
-    #: None = 本次不报该轨，服务端保持原值不动。
+    #: None = 本次不报该轨，服务端保持原值不动。只报**用户亲手选的**轨：
+    #: 服务端只把和默认挑选不同的当作用户的选择记下（见 apply_track_selection）。
     audio_track: str | None = None
     subtitle_track: str | None = None
+    #: 正在放的版本（会话决策的 decision.file_id）。多版本时据此判断上报的轨是不是
+    #: 这个版本的默认挑选；不给则按这一集的全部在位文件判断。
+    file_id: int | None = None
     #: 浏览器的稳定标识（前端生成、存 localStorage），语义对齐 Jellyfin 客户端
     #: 的 DeviceId：活动页「正在播放」按它区分同一成员的不同浏览器。
     device_id: str | None = Field(default=None, max_length=128)

@@ -186,11 +186,12 @@ struct PlaybackAPI {
     /// 请求包在后台任务里：切后台、暂停、退出时发出的上报不会因为 App 被挂起而丢在半路。
     @discardableResult
     func progress(_ unit: PlaybackUnit, event: String, positionMs: Int?, durationMs: Int? = nil, paused: Bool? = nil,
-                  audio: String?, subtitle: String?) async -> API.PlaybackStateView? {
+                  audio: String?, subtitle: String?, fileId: Int? = nil) async -> API.PlaybackStateView? {
         #if DEBUG
         if Self.progressDisabled { return nil }
         #endif
-        let body = progressBody(unit, event: event, positionMs: positionMs, paused: paused, audio: audio, subtitle: subtitle)
+        let body = progressBody(unit, event: event, positionMs: positionMs, paused: paused, audio: audio, subtitle: subtitle,
+                                fileId: fileId)
         let background = UIApplication.shared.beginBackgroundTask(withName: "playback-progress")
         defer { if background != .invalid { UIApplication.shared.endBackgroundTask(background) } }
         if let shareSlug {
@@ -201,11 +202,13 @@ struct PlaybackAPI {
     }
 
     /// App 即将被结束：同步补发一次 stop，最多等 1.5 秒（异步任务在进程退出前跑不完）
-    func stopBeforeTermination(_ unit: PlaybackUnit, positionMs: Int, durationMs: Int?, audio: String?, subtitle: String?) {
+    func stopBeforeTermination(_ unit: PlaybackUnit, positionMs: Int, durationMs: Int?, audio: String?, subtitle: String?,
+                               fileId: Int? = nil) {
         #if DEBUG
         if Self.progressDisabled { return }
         #endif
-        let body = progressBody(unit, event: "stop", positionMs: positionMs, paused: nil, audio: audio, subtitle: subtitle)
+        let body = progressBody(unit, event: "stop", positionMs: positionMs, paused: nil, audio: audio, subtitle: subtitle,
+                                fileId: fileId)
         let path: String
         if let shareSlug {
             ShareLocalProgress.write(shareSlug, unit, positionMs: Self.localResume(positionMs, durationMs: durationMs), audio: audio, subtitle: subtitle)
@@ -223,12 +226,13 @@ struct PlaybackAPI {
         _ = done.wait(timeout: .now() + 1.5)
     }
 
+    /// `audio` / `subtitle` 只给用户亲手选的轨（见 PlaybackController.audioMemory）；`fileId` 是正在放的版本
     private func progressBody(_ unit: PlaybackUnit, event: String, positionMs: Int?, paused: Bool?,
-                              audio: String?, subtitle: String?) -> API.PlaybackProgressRequest {
+                              audio: String?, subtitle: String?, fileId: Int?) -> API.PlaybackProgressRequest {
         API.PlaybackProgressRequest(
             mediaItemId: unit.mediaItemId, seasonNumber: unit.season, episodeNumber: unit.episode,
             event: event, positionMs: positionMs, audioTrack: audio, subtitleTrack: subtitle,
-            deviceId: deviceId, paused: paused
+            fileId: fileId, deviceId: deviceId, paused: paused
         )
     }
 

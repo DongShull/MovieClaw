@@ -6508,6 +6508,7 @@ nonisolated extension API {
         var positionMs: Int?
         var audioTrack: String?
         var subtitleTrack: String?
+        var fileId: Int?
         var deviceId: String?
         var paused: Bool?
 
@@ -6519,6 +6520,7 @@ nonisolated extension API {
             case positionMs = "position_ms"
             case audioTrack = "audio_track"
             case subtitleTrack = "subtitle_track"
+            case fileId = "file_id"
             case deviceId = "device_id"
             case paused
         }

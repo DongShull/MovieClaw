@@ -964,8 +964,11 @@ export interface PlaybackProgressBody extends PlaybackUnit {
   event: "start" | "progress" | "stop";
   /** 播到文件的哪个位置。**不报（undefined）视同播到结尾**，与报 0 不同。 */
   position_ms?: number;
+  /** 只报用户亲手选的轨（见 lib/player/track-memory.ts）；不报 = 服务端记忆保持原值 */
   audio_track?: string;
   subtitle_track?: string;
+  /** 正在放的版本（decision.file_id）：多版本时服务端据此判断报的轨是不是默认挑选 */
+  file_id?: number;
   /** 暂停态；不报 = 实时会话保持原值 */
   paused?: boolean;
 }

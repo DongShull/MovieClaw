@@ -2097,6 +2097,7 @@ async def report_playback_progress(
             client=client,
             audio_track=payload.audio_track,
             subtitle_track=payload.subtitle_track,
+            file_id=payload.file_id,
         )
     else:
         row = await playback_watch.record_progress(
@@ -2109,6 +2110,7 @@ async def report_playback_progress(
             paused=payload.paused,
             audio_track=payload.audio_track,
             subtitle_track=payload.subtitle_track,
+            file_id=payload.file_id,
         )
     # 管理员已结束本次播放：进度照常落库（位置不能丢），但响应里带上信号让
     # 播放器退出。「开始」是用户亲手的动作，上面的落库已经解除了拒绝窗口；

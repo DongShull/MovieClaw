@@ -74,6 +74,7 @@ import {
 } from "@/lib/player/playback-mode";
 import { loadQualityPreference, saveQualityPreference } from "@/lib/player/quality";
 import { createSessionReleaser } from "@/lib/player/session-release";
+import { reportedTracks } from "@/lib/player/track-memory";
 import {
   type QoeEvent,
   initialQoe,
@@ -1450,11 +1451,14 @@ export function VideoPlayer(props: VideoPlayerProps) {
   // ---------------------------------------------------------------------
 
   const trackRefs = useCallback(
-    () => ({
-      audio_track: state.session?.decision.audio?.track_ref ?? undefined,
-      subtitle_track: selectedSubtitle ?? "off",
-    }),
-    [state.session, selectedSubtitle],
+    () =>
+      reportedTracks({
+        requestedAudio,
+        subtitleTouched: subtitleTouchedRef.current,
+        selectedSubtitle,
+        fileId: state.session?.decision.file_id,
+      }),
+    [requestedAudio, selectedSubtitle, state.session],
   );
   /** 供停止上报的 cleanup/pagehide 闭包读**当下**的轨选择。停止上报若不带
    * 轨，用户「切完字幕就退出」的那次选择会丢——下一次进来又回到旧轨

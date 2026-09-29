@@ -375,6 +375,13 @@ def resolve_default_subtitle(file: LibraryFile, remembered: str | None) -> str |
     return pick_default_subtitle(file)
 
 
+def default_audio_index(streams: list[dict]) -> int | None:
+    """不经用户选择时放的那条音轨的下标（全端同一口径，同 decide 的 ``_preferred_audio``）：
+    认得出编码的轨里标了默认的，否则第一条；没有音轨返回 None。"""
+    usable = [i for i, t in enumerate(streams) if t.get("codec")] or list(range(len(streams)))
+    return next((i for i in usable if streams[i].get("default")), usable[0] if usable else None)
+
+
 def resolve_default_audio(file: LibraryFile, remembered: str | None) -> int | None:
     """记忆的音轨 → audio_streams 下标；无记忆/失效返回 None
     （调用方维持现状算法：default 旗标优先）。"""

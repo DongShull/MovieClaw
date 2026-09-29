@@ -664,8 +664,11 @@ def _judge_audio(
             )
         return _transcode_audio(chosen, capability, prefix=f"选中的音轨 {label}")
 
-    # 用户没表态：首选轨能直通最好；否则在其它轨里找一条能直通的（换轨优于转码）。
-    for track, is_preferred in ((default, True), *((t, False) for t in tracks)):
+    # 用户没表态：首选轨能直通最好；否则在**同语言**的其它轨里找一条能直通的（换轨优于转码）。
+    # 只在同语言里换（2026-09-29）：为省一路音频转码把国语换成英语，是拿听感换服务器的 CPU，
+    # 而音频转码本来就便宜；换过去的轨还会被当成记忆带到别的设备上。都没标语言的轨视为同一种。
+    alternatives = (t for t in tracks if _same_language(t, default))
+    for track, is_preferred in ((default, True), *((t, False) for t in alternatives)):
         support = capability.audio_support(track.codec)
         if support is None:
             continue
@@ -682,6 +685,19 @@ def _judge_audio(
 
     # 都不能直通 → 转码首选轨。
     return _transcode_audio(default, capability, prefix=f"音轨 {(default.codec or '未知').upper()}")
+
+
+def _same_language(a: AudioTrack, b: AudioTrack) -> bool:
+    """两条音轨的语言标记是否相同（大小写不敏感）。
+
+    没标或标 und 的算「不知道」，只和同样不知道的相同。
+    """
+
+    def norm(language: str | None) -> str | None:
+        value = (language or "").strip().lower()
+        return None if value in {"", "und"} else value
+
+    return norm(a.language) == norm(b.language)
 
 
 def _transcode_audio(

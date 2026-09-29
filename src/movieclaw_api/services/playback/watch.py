@@ -28,7 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.services.webhook import emit_events
-from movieclaw_db.models import MediaItem, PlaybackLog, PlaybackState
+from movieclaw_db.models import LibraryFile, MediaItem, PlaybackLog, PlaybackState
 from movieclaw_db.models.base import utcnow
 from movieclaw_playback import activity
 from movieclaw_playback import state as playback_state
@@ -360,6 +360,13 @@ async def restore_session_from_stream(
     )
 
 
+def _played_files(files: list[LibraryFile], file_id: int | None) -> list[LibraryFile]:
+    """正在放的那个版本；上报没说是哪个（或已不在位）就给这个单元的全部在位文件。"""
+    if file_id is None:
+        return files
+    return [f for f in files if f.id == file_id] or files
+
+
 async def record_start(
     session: AsyncSession,
     unit: Unit,
@@ -368,17 +375,27 @@ async def record_start(
     client: ClientInfo,
     audio_track: str | None = None,
     subtitle_track: str | None = None,
+    file_id: int | None = None,
 ) -> PlaybackState:
     """开始播放：建实时会话、play_count +1、刷新最近播放时间，并发 ``playback.started``。
 
     计数点放在开始而不是结束——关页面不会发任何信号，放结束会漏计（这也是
     Jellyfin 的取舍，见 movieclaw_playback.progress 模块文档）。
+    ``file_id`` 是正在放的版本（知道就给），用来判断上报的轨是不是它的默认挑选。
     """
     activity.report_start(client.device_id, member_id=member_id, client=client, unit=unit)
     row = await playback_state.record_playback_start(session, unit, member_id=member_id)
-    playback_state.apply_track_selection(
+    if playback_state.track_report_changes(
         row, audio_track=audio_track, subtitle_track=subtitle_track
-    )
+    ):
+        # 轨和已记的不同才要判断是不是默认挑选；开始上报本身不取文件，只在这时取一次
+        files = await playback_state.unit_files(session, unit)
+        playback_state.apply_track_selection(
+            row,
+            audio_track=audio_track,
+            subtitle_track=subtitle_track,
+            files=_played_files(files, file_id),
+        )
     # 起点记续播位置：看完的从头播（position 已被清零），没看完的接着播
     await _log_start(session, unit, member_id=member_id, client=client, position_ms=row.position_ms)
     await session.commit()
@@ -398,12 +415,14 @@ async def record_progress(
     paused: bool | None = None,
     audio_track: str | None = None,
     subtitle_track: str | None = None,
+    file_id: int | None = None,
 ) -> PlaybackState:
     """进度上报（心跳与停止同入口，按阈值三分支落库）。
 
     ``position_ms=None`` 表示客户端没报位置（视同播到结尾，标已看），与报 0
     （拖回开头）语义不同——这条区分由 ``resolve_progress`` 承担，本层原样透传。
     Jellyfin 侧不带位置的心跳不该走到这里，用 :func:`report_heartbeat`。
+    ``file_id`` 同 :func:`record_start`。
     """
     if stopped:
         end_session(client.device_id)
@@ -416,7 +435,9 @@ async def record_progress(
             position_ms=position_ms,
             paused=paused,
         )
-    runtime_ms = await playback_state.unit_runtime_ms(session, unit)
+    # 片长与轨选择判断共用同一次取文件（心跳很频繁，不为判断轨多查一次库）
+    files = await playback_state.unit_files(session, unit)
+    runtime_ms = await playback_state.unit_runtime_ms(session, unit, files=files)
     row, newly_played = await playback_state.record_playback_progress(
         session,
         unit,
@@ -425,7 +446,10 @@ async def record_progress(
         runtime_ms=runtime_ms,
     )
     playback_state.apply_track_selection(
-        row, audio_track=audio_track, subtitle_track=subtitle_track
+        row,
+        audio_track=audio_track,
+        subtitle_track=subtitle_track,
+        files=_played_files(files, file_id),
     )
     await _log_progress(
         session,

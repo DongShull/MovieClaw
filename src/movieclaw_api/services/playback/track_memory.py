@@ -7,9 +7,11 @@
 每集文件的轨序不一定相同（某集多一条评论音轨，下标就错位），外挂字幕的文件名更是每集不同，
 只有「语言 + 类型」跨集稳定。换算不出来（本集没有同语言的轨）就不给，交回默认选择策略。
 
-只沿用**用户改过的**选择：进度上报每次都把正在放的轨记下来，记着 ≠ 用户选过。那一集用的就是它的
-默认轨（服务端的默认挑选）、或那一集本来就没有默认字幕而记着「关闭」，都不是用户的意思，
-新的一集照自己的默认走——否则第 1 集没字幕，第 2 集自带的默认中文字幕也会被一并关掉。
+只沿用**用户改过的**选择。记忆本身已经只记用户的选择（上报的就是默认轨时不落库，见
+``movieclaw_playback.state.apply_track_selection``）；这里仍按「和那一集的默认挑选一样就不沿用」
+再筛一遍，兜住原盘这类服务端判断不了、照原样记下的轨——那一集用的就是它的默认轨、或那一集本来
+就没有默认字幕而记着「关闭」，都不是用户的意思，新的一集照自己的默认走——否则第 1 集没字幕，
+第 2 集自带的默认中文字幕也会被一并关掉。
 
 本集自己有记忆时永远以本集为准（用户在这一集里特意换过的轨不被别的集覆盖）；
 用户在新的一集里一换轨，进度上报就把本集的选择记下来，之后这一集按自己的走。
@@ -26,6 +28,7 @@ from movieclaw_api.services.library.subtitles import LANGUAGE_TOKENS
 from movieclaw_db.models import FileState, LibraryFile, PlaybackState
 from movieclaw_playback.subtitles import (
     SUBTITLE_OFF,
+    default_audio_index,
     parse_embedded_track,
     parse_external_track,
     pick_default_subtitle,
@@ -50,18 +53,11 @@ def _is_bitmap(codec: Any) -> bool:
     return isinstance(codec, str) and codec.lower() in _BITMAP_CODECS
 
 
-def _default_audio_index(streams: list[dict]) -> int | None:
-    """不经用户选择时放的那条（同 decide 的 ``_preferred_audio``）：
-    认得出编码的轨里标了默认的，否则第一条"""
-    usable = [i for i, t in enumerate(streams) if t.get("codec")] or list(range(len(streams)))
-    return next((i for i in usable if streams[i].get("default")), usable[0] if usable else None)
-
-
 def translate_audio(ref: str | None, source: LibraryFile, target: LibraryFile) -> str | None:
     """上一集用户换过的音轨 → 本集同语言的音轨（编码、声道也一样的优先）；用的就是默认轨时不沿用"""
     k = parse_embedded_track(ref) if ref else None
     streams = source.audio_streams or []
-    if k is None or k >= len(streams) or k == _default_audio_index(streams):
+    if k is None or k >= len(streams) or k == default_audio_index(streams):
         return None
     wanted = streams[k]
     language = _language(wanted.get("language"))

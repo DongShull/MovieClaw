@@ -280,6 +280,40 @@ def test_track_memory_roundtrip(sclient: TestClient, subtitle_env: dict) -> None
     assert source["DefaultSubtitleStreamIndex"] == -1
 
 
+def test_reporting_the_default_tracks_is_not_a_choice(
+    sclient: TestClient, subtitle_env: dict
+) -> None:
+    """客户端报上来的就是服务端给的默认轨（多数客户端每次进度都带着当前轨）：
+    不是用户的选择，不落记忆——以后默认策略调整，这部片也跟得上。"""
+    from movieclaw_db.models import PlaybackState
+
+    token = jf_login(sclient)
+    guid = item_guid(subtitle_env["movie"])
+    source = _playback_info(sclient, token, guid)["MediaSources"][0]
+    resp = sclient.post(
+        "/Sessions/Playing/Progress",
+        headers={"X-Emby-Token": token},
+        json={
+            "ItemId": guid,
+            "MediaSourceId": source["Id"],
+            "PositionTicks": 60 * 10_000_000,
+            "AudioStreamIndex": source["DefaultAudioStreamIndex"],
+            "SubtitleStreamIndex": source["DefaultSubtitleStreamIndex"],
+        },
+    )
+    assert resp.status_code == 204
+
+    async def _tracks() -> list[tuple[str | None, str | None]]:
+        async with get_database().session() as session:
+            query = select(PlaybackState).where(
+                PlaybackState.media_item_id == subtitle_env["movie"]
+            )
+            rows = (await session.execute(query)).scalars()
+            return [(row.audio_track, row.subtitle_track) for row in rows]
+
+    assert sclient.portal.call(_tracks) == [(None, None)]  # type: ignore[attr-defined]
+
+
 def test_track_memory_ignores_dangling_index(sclient: TestClient, subtitle_env: dict) -> None:
     """悬空序号（指到不存在的流）丢弃不落库，默认轨回到选择策略。"""
     token = jf_login(sclient)

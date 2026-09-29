@@ -195,6 +195,130 @@ def test_track_selection_is_remembered_and_partial_reports_keep_it(client, tmp_p
     assert state["audio_track"] == "embedded:1"  # 没报的音轨没被清掉
 
 
+async def _set_tracks(item_id: int, **fields) -> int:
+    """改种子文件的轨（音轨 / 内封字幕 / 外挂字幕），返回文件 id。"""
+    async with get_database().session() as session:
+        file = (
+            await session.execute(select(LibraryFile).where(LibraryFile.media_item_id == item_id))
+        ).scalar_one()
+        for key, value in fields.items():
+            setattr(file, key, value)
+        await session.commit()
+        assert file.id is not None
+        return file.id
+
+
+_EN_ZH_AUDIO = [
+    {"codec": "aac", "channels": 2, "language": "eng", "default": True},
+    {"codec": "aac", "channels": 2, "language": "chi", "default": False},
+]
+_EN_ZH_SUBS = [
+    {"codec": "subrip", "language": "eng", "default": False, "forced": False},
+    {"codec": "subrip", "language": "chi", "default": True, "forced": False},
+]
+
+
+def test_only_choices_that_differ_from_the_default_are_remembered(client, tmp_path):
+    """播放器报上来的是默认挑选（英语音轨、标了默认的中文字幕）：不记，交回默认策略；
+    换过的照记；选回默认就清空。"""
+    _, item_id = seed(client, tmp_path)
+    client.portal.call(  # type: ignore[attr-defined]
+        partial(_set_tracks, item_id, audio_streams=_EN_ZH_AUDIO,
+                subtitle_streams=_EN_ZH_SUBS, external_subtitles=[])
+    )
+    report(client, item_id, event="start", audio_track="embedded:0", subtitle_track="embedded:1")
+    state = resume(client, item_id)
+    assert (state["audio_track"], state["subtitle_track"]) == (None, None)
+
+    report(client, item_id, event="progress", position_ms=60_000,
+           audio_track="embedded:1", subtitle_track="off")
+    state = resume(client, item_id)
+    assert (state["audio_track"], state["subtitle_track"]) == ("embedded:1", "off")
+
+    report(client, item_id, event="stop", position_ms=90_000,
+           audio_track="embedded:0", subtitle_track="embedded:1")
+    state = resume(client, item_id)
+    assert (state["audio_track"], state["subtitle_track"]) == (None, None)
+
+
+async def _add_version(item_id: int, audio_streams: list[dict]) -> int:
+    """给同一部片再落一个在位版本（多版本），返回它的文件 id。"""
+    async with get_database().session() as session:
+        first = (
+            await session.execute(select(LibraryFile).where(LibraryFile.media_item_id == item_id))
+        ).scalar_one()
+        version = LibraryFile(
+            library_id=first.library_id,
+            media_item_id=item_id,
+            file_path=first.file_path + ".v2.mkv",
+            size_bytes=1,
+            source=FileSource.SCANNED,
+            state=FileState.IN_PLACE,
+            container="mkv",
+            duration_seconds=_DURATION_S,
+            audio_streams=audio_streams,
+        )
+        session.add(version)
+        await session.commit()
+        assert version.id is not None
+        return version.id
+
+
+def test_the_version_being_played_decides_what_the_default_is(client, tmp_path):
+    """两个版本默认音轨不同：同一条 embedded:1，在「默认是第 0 条」的版本上是用户换的，
+    在「默认就是第 1 条」的版本上只是默认挑选——按上报的 file_id 对准正在放的版本。"""
+    _, item_id = seed(client, tmp_path)
+    first_id = client.portal.call(  # type: ignore[attr-defined]
+        partial(_set_tracks, item_id, audio_streams=_EN_ZH_AUDIO)
+    )
+    zh_default = [
+        {"codec": "aac", "channels": 2, "language": "eng", "default": False},
+        {"codec": "aac", "channels": 2, "language": "chi", "default": True},
+    ]
+    second_id = client.portal.call(partial(_add_version, item_id, zh_default))  # type: ignore[attr-defined]
+
+    report(client, item_id, event="start", audio_track="embedded:1", file_id=second_id)
+    assert resume(client, item_id)["audio_track"] is None
+    report(client, item_id, event="progress", position_ms=60_000,
+           audio_track="embedded:1", file_id=first_id)
+    assert resume(client, item_id)["audio_track"] == "embedded:1"
+
+
+def test_judging_reported_tracks_adds_no_queries(client, tmp_path):
+    """心跳很频繁：判断「是不是默认挑选」复用片长那次取文件，每次进度上报的 SQL 条数
+    不因带不带轨、报的是不是默认轨而变。"""
+    from sqlalchemy import event
+
+    _, item_id = seed(client, tmp_path)
+    client.portal.call(  # type: ignore[attr-defined]
+        partial(_set_tracks, item_id, audio_streams=_EN_ZH_AUDIO,
+                subtitle_streams=_EN_ZH_SUBS, external_subtitles=[])
+    )
+    report(client, item_id, event="start")
+    # 开始后的第一次心跳会多发一次事件（按单元节流），先走掉它，后面几次口径一致
+    report(client, item_id, event="progress", position_ms=30_000)
+    engine = get_database().engine.sync_engine
+
+    def statements_for(**tracks) -> list[str]:
+        captured: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany) -> None:
+            captured.append(statement.split()[0].upper())
+
+        event.listen(engine, "before_cursor_execute", capture)
+        try:
+            report(client, item_id, event="progress", position_ms=60_000 + len(captured), **tracks)
+        finally:
+            event.remove(engine, "before_cursor_execute", capture)
+        return captured
+
+    plain = statements_for()
+    default_tracks = statements_for(audio_track="embedded:0", subtitle_track="embedded:1")
+    changed_tracks = statements_for(audio_track="embedded:1", subtitle_track="off")
+    assert len(default_tracks) == len(plain), (plain, default_tracks)
+    assert len(changed_tracks) == len(plain), (plain, changed_tracks)
+
+
 # ---------------------------------------------------------------------------
 # 可见性
 # ---------------------------------------------------------------------------
@@ -349,13 +473,22 @@ def test_session_replays_finished_unit_from_zero(client, tmp_path):
     assert data["watch"]["played"] is True
 
 
-def test_session_reuses_remembered_audio_track(client, tmp_path):
-    """audio_track 缺省时用上次听的那条轨（记忆轨并入决策）。"""
+def test_session_carries_remembered_tracks(client, tmp_path):
+    """开会话把观看记忆整份带回（前端据此恢复字幕选择，省掉一次 /resume 往返）。
+
+    记忆只记用户换过的轨。音轨换到非默认会让会话重封装（要起 ffmpeg），记忆音轨并入
+    决策由 decide 的用例覆盖；这里用字幕：文件带默认中文字幕、用户关掉了——文本字幕
+    不改变视频策略，会话仍是直出。
+    """
     _, item_id = seed(client, tmp_path)
-    report(client, item_id, event="start", audio_track="embedded:0")
+    client.portal.call(  # type: ignore[attr-defined]
+        partial(_set_tracks, item_id, subtitle_streams=_EN_ZH_SUBS, external_subtitles=[])
+    )
+    report(client, item_id, event="start", subtitle_track="off")
 
     data = start_session(client, item_id)
-    assert data["watch"]["audio_track"] == "embedded:0"
+    assert data["watch"]["subtitle_track"] == "off"
+    assert data["watch"]["audio_track"] is None
     assert data["decision"]["audio"]["track_ref"] == "embedded:0"
 
 

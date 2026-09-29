@@ -376,9 +376,11 @@ final class PlaybackController {
         if reportedStart {
             reportedStart = false
             let unit = self.unit, position = positionMs, audio = audioMemory, subtitle = subtitleMemory, duration = durationMs
+            let fileId = reportedFileId
             let scope = self.scope
             enqueueReport {
-                await scope.progress(unit, event: "stop", positionMs: position, durationMs: duration, audio: audio, subtitle: subtitle)
+                await scope.progress(unit, event: "stop", positionMs: position, durationMs: duration, audio: audio, subtitle: subtitle,
+                                     fileId: fileId)
                 NotificationCenter.default.post(name: .playbackStopReported, object: nil, userInfo: ["mediaItemId": unit.mediaItemId])
             }
         }
@@ -733,7 +735,8 @@ final class PlaybackController {
         resetWatchdogs()
         let startSeconds = Double(max(0, positionMs - originMs)) / 1000
         // 起播音轨：用户这次选过、或记着的轨不是容器默认轨（说明是用户以前换过的）→ 必须照办；
-        // 否则只是默认挑选，引擎可以按实际更合适的同语言轨放（服务端每次都会把放过的轨记下来，记着 ≠ 用户选过）
+        // 否则只是默认挑选，引擎可以按实际更合适的同语言轨放（服务端只记和默认不同的选择，但原盘这类
+        // 服务端读不到轨的文件照原样记，所以仍按「和容器默认轨比」判断）
         var initialAudio: (index: Int, explicit: Bool)?
         // 光盘镜像与 DVD 目录的轨以引擎读到的为准（见 adoptEngineTracks）：服务端决策里的音轨序号对不上引擎的
         let engineOwnsDiscTracks = discKind == "image" || (discKind == "folder" && session.source?.container == "dvd")
@@ -954,10 +957,10 @@ final class PlaybackController {
             }
             if !reportedStart {
                 reportedStart = true
-                let unit = self.unit, audio = audioMemory, subtitle = subtitleMemory
+                let unit = self.unit, audio = audioMemory, subtitle = subtitleMemory, fileId = reportedFileId
                 let scope = self.scope
                 enqueueReport { [weak self] in
-                    let state = await scope.progress(unit, event: "start", positionMs: nil, audio: audio, subtitle: subtitle)
+                    let state = await scope.progress(unit, event: "start", positionMs: nil, audio: audio, subtitle: subtitle, fileId: fileId)
                     self?.handleProgressResponse(state)
                 }
                 startProgressLoop()
@@ -1502,9 +1505,10 @@ final class PlaybackController {
         #endif
     }
 
-    /// 上报用的字幕记忆："off" = 用户明确关掉
+    /// 上报用的字幕记忆：只报用户这次动过的（"off" = 用户明确关掉）。自动开着的字幕、
+    /// 文件没有默认字幕所以没开，都不是用户的选择，不报；不报时服务端保持原记忆不动
     private var subtitleMemory: String? {
-        guard session != nil || subtitleTouched else { return nil }
+        guard subtitleTouched else { return nil }
         return selectedSubtitle ?? "off"
     }
 
@@ -1656,9 +1660,11 @@ final class PlaybackController {
     private func sendProgress(paused: Bool?) {
         guard reportedStart else { return }
         let unit = self.unit, position = positionMs, audio = audioMemory, subtitle = subtitleMemory, duration = durationMs
+        let fileId = reportedFileId
         let scope = self.scope
         enqueueReport { [weak self] in
-            let state = await scope.progress(unit, event: "progress", positionMs: position, durationMs: duration, paused: paused, audio: audio, subtitle: subtitle)
+            let state = await scope.progress(unit, event: "progress", positionMs: position, durationMs: duration, paused: paused,
+                                             audio: audio, subtitle: subtitle, fileId: fileId)
             self?.handleProgressResponse(state)
         }
     }
@@ -1677,11 +1683,17 @@ final class PlaybackController {
         endRecord(terminating: true)
         guard reportedStart else { return }
         reportedStart = false
-        scope.stopBeforeTermination(unit, positionMs: positionMs, durationMs: durationMs, audio: audioMemory, subtitle: subtitleMemory)
+        scope.stopBeforeTermination(unit, positionMs: positionMs, durationMs: durationMs, audio: audioMemory, subtitle: subtitleMemory,
+                                    fileId: reportedFileId)
     }
 
-    /// 上报用的音轨记忆：刚换了音轨、新会话还没建好就退出时，也要记住用户的选择
-    private var audioMemory: String? { requestedAudio ?? currentAudio }
+    /// 上报用的音轨记忆：只报用户点选的（刚换了音轨、新会话还没建好就退出时也要记住）。
+    /// 服务端默认挑选、自研引擎按设备自己挑的同语言轨都不报——报了会被当成用户的选择记下，
+    /// 以后默认策略改了这部片也跟不上，还会被带到别的设备上（docs/design/jellyfin-subtitle.md §3.3）
+    private var audioMemory: String? { requestedAudio }
+
+    /// 上报时带上正在放的版本：多版本时服务端据此判断报上来的轨是不是这个版本的默认挑选
+    private var reportedFileId: Int? { session?.decision.fileId }
 
     /// 管理员在活动页结束了本次播放：退出并说明（服务端同时进入拒绝窗口，不能走「会话没了就重开」）
     private func handleProgressResponse(_ state: API.PlaybackStateView?) {

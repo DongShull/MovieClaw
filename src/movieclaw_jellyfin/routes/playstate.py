@@ -128,20 +128,21 @@ def _decode_item_ref(raw: Any) -> EntityRef | None:
 
 async def _tracks_from_body(
     ref: EntityRef, body: dict[str, Any], member_id: int
-) -> tuple[str | None, str | None]:
-    """上报里的轨序号 → 中性轨引用（jellyfin-subtitle.md §4.5）。
+) -> tuple[str | None, str | None, int | None]:
+    """上报里的轨序号 → 中性轨引用（jellyfin-subtitle.md §4.5），外加正在放的文件 id。
 
     序号是相对某个 MediaSource 的合成编号，换算要落到具体文件行：按
     body 的 mediaSourceId 定位版本，缺省第一个。字幕 -1 → "off"（用户
     明确关闭也要记住）；换算失败（悬空索引/版本不见了）返回 None 丢弃。
-    None = 本次没报该轨，领域层保持原值。
+    None = 本次没报该轨，领域层保持原值。文件 id 交给领域层判断上报的轨
+    是不是这个版本的默认挑选（是就不记，见 apply_track_selection）。
     """
     audio_raw = body.get("audiostreamindex")
     subtitle_raw = body.get("subtitlestreamindex")
     if audio_raw is None and subtitle_raw is None:
-        return None, None
+        return None, None, None
     if ref.kind not in (EntityKind.ITEM, EntityKind.EPISODE):
-        return None, None
+        return None, None, None
     # 复用播放路由的装载点：库可见性同一套约束
     from movieclaw_jellyfin.routes.playback import _files_for_ref, _select_source
 
@@ -150,7 +151,7 @@ async def _tracks_from_body(
     selected = _select_source(files, str(raw_ms) if raw_ms else None, "")
     f = selected[0] if selected else (files[0] if files else None)
     if f is None:
-        return None, None
+        return None, None, None
 
     def _to_int(raw: Any) -> int | None:
         try:
@@ -169,7 +170,7 @@ async def _tracks_from_body(
         subtitle_track = (
             SUBTITLE_OFF if subtitle_index == -1 else subtitle_track_for_index(f, subtitle_index)
         )
-    return audio_track, subtitle_track
+    return audio_track, subtitle_track, f.id
 
 
 async def _record_start(
@@ -178,6 +179,7 @@ async def _record_start(
     *,
     audio_track: str | None = None,
     subtitle_track: str | None = None,
+    file_id: int | None = None,
 ) -> None:
     """开始播放：实时会话、落库与 ``playback.started`` 事件统一交给 watch。"""
     async with get_database().session() as session:
@@ -188,6 +190,7 @@ async def _record_start(
             client=_client_info(identity),
             audio_track=audio_track,
             subtitle_track=subtitle_track,
+            file_id=file_id,
         )
 
 
@@ -200,6 +203,7 @@ async def _record_progress(
     paused: bool | None = None,
     audio_track: str | None = None,
     subtitle_track: str | None = None,
+    file_id: int | None = None,
 ) -> None:
     """进度 / 停止：实时会话、落库与 stopped / completed / progress 事件统一交给 watch。"""
     async with get_database().session() as session:
@@ -213,6 +217,7 @@ async def _record_progress(
             paused=paused,
             audio_track=audio_track,
             subtitle_track=subtitle_track,
+            file_id=file_id,
         )
 
 
@@ -223,11 +228,11 @@ async def playing_start(
     body = await _read_body(request)
     ref = _decode_item_ref(body.get("itemid"))
     if ref is not None:
-        audio_track, subtitle_track = await _tracks_from_body(
+        audio_track, subtitle_track, file_id = await _tracks_from_body(
             ref, body, identity.device.member_id
         )
         await _record_start(
-            ref, identity, audio_track=audio_track, subtitle_track=subtitle_track
+            ref, identity, audio_track=audio_track, subtitle_track=subtitle_track, file_id=file_id
         )
     return Response(status_code=204)
 
@@ -255,7 +260,7 @@ async def playing_progress(
                 paused=paused,
             )
         else:
-            audio_track, subtitle_track = await _tracks_from_body(
+            audio_track, subtitle_track, file_id = await _tracks_from_body(
                 ref, body, identity.device.member_id
             )
             await _record_progress(
@@ -265,6 +270,7 @@ async def playing_progress(
                 paused=paused,
                 audio_track=audio_track,
                 subtitle_track=subtitle_track,
+                file_id=file_id,
             )
     return Response(status_code=204)
 
@@ -287,7 +293,7 @@ async def playing_stopped(
     if ref is None:
         playback_watch.end_session(identity.device.device_id)
         return Response(status_code=204)
-    audio_track, subtitle_track = await _tracks_from_body(
+    audio_track, subtitle_track, file_id = await _tracks_from_body(
         ref, body, identity.device.member_id
     )
     await _record_progress(
@@ -297,6 +303,7 @@ async def playing_stopped(
         stopped=True,
         audio_track=audio_track,
         subtitle_track=subtitle_track,
+        file_id=file_id,
     )
     return Response(status_code=204)
 
