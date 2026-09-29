@@ -64,10 +64,13 @@ struct PhotoWallView: View {
     private func reload() async {
         let libraryId = libraryId
         let api = api
-        await feed.reload(fetch: fetch, index: grouped ? {
-            // 月份索引：段标题的全库张数与跳转落点（与服务端 release_date 分档同口径）
-            try await api.uiLibraryItemsIndex(libraryId: libraryId, sort: "release_date")
-        } : nil)
+        // 月份索引：段标题的全库张数与跳转落点（与服务端 release_date 分档同口径）。
+        // 不写成「grouped ? { … } : nil」：可选闭包的三元表达式 Xcode 26 推断不出类型
+        var index: (() async throws -> [API.LibraryIndexEntryView])?
+        if grouped {
+            index = { try await api.uiLibraryItemsIndex(libraryId: libraryId, sort: "release_date") }
+        }
+        await feed.reload(fetch: fetch, index: index)
     }
 
     @ViewBuilder

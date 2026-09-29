@@ -1,0 +1,40 @@
+# =============================================================================
+# iOS App 编译检查
+#
+# 改到 apps/apple 的 PR 在 GitHub 的 macOS runner（默认 Xcode 26.x）上把 App 按发版方式
+# 完整编一遍（与 release.yml 的 ios-ipa 作业同一个脚本，只编不传）。
+# 为什么要有：本机开发用的是更新的 Xcode，它能推断通过的写法（隔离一致性、长表达式），
+# Xcode 26 会编译失败——v0.28.0 发版时 ios-ipa 作业就因此没产出 IPA（2026-09-29）。
+# 在 PR 阶段拦下，发版时就不会再缺 IPA。
+# =============================================================================
+name: ios
+
+on:
+  pull_request:
+    paths:
+      - "apps/apple/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # 与 release.yml 的 ios-ipa 作业同一个 runner 镜像
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 准备工具链
+        run: |
+          brew install xcodegen
+          xcodebuild -version
+
+      - name: 编译（未签名 Release，与发版 IPA 同口径）
+        run: apps/apple/scripts/build-unsigned-ipa.sh
+
+      - name: 失败时输出编译错误
+        if: failure()
+        run: grep -E "error:" apps/apple/build-ipa/build.log | sort -u | head -80 || true

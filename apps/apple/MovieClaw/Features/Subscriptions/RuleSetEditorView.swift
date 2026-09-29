@@ -472,7 +472,10 @@ struct RuleSetEditorSheet: View {
                             .padding(.horizontal, 8).padding(.vertical, 2).background(Theme.accent2.opacity(0.25), in: .capsule)
                         Text(preview.target).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                     }
-                    Text("到手即停，不再洗版" + (preview.ceiling.map { "；比它更高的档（最高 \($0)）同样算达标，也会停" } ?? "") + "。" + (upgradeKeepOld ? "旧版本保留共存。" : "旧版本进回收站保留 7 天。"))
+                    // 分段拼好再交给 Text：一整串 + 与 map/?? 混写，Xcode 26 类型推断超时
+                    let ceilingNote: String = preview.ceiling.map { "；比它更高的档（最高 \($0)）同样算达标，也会停" } ?? ""
+                    let keepNote: String = upgradeKeepOld ? "旧版本保留共存。" : "旧版本进回收站保留 7 天。"
+                    Text("到手即停，不再洗版\(ceilingNote)。\(keepNote)")
                         .font(.caption).foregroundStyle(Theme.textFaint)
                 }
                 .padding(10)

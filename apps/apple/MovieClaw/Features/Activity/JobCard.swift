@@ -79,12 +79,16 @@ struct JobCard: View {
             if !compact, !details.isEmpty {
                 DiscoverFlowLayout(spacing: 6, lineSpacing: 6) {
                     ForEach(details, id: \.self) { item in
+                        // 颜色先落成显式 Color：三个三元表达式串在修饰链里，Xcode 26 类型推断超时
+                        let fg: Color = item.alert ? Color(red: 1, green: 0.95, blue: 0.8).opacity(0.75) : Theme.textFaint
+                        let bg: Color = item.alert ? Theme.warning.opacity(0.05) : Color.white.opacity(0.035)
+                        let border: Color = item.alert ? Theme.warning.opacity(0.15) : Color.white.opacity(0.07)
                         Text(item.label)
                             .font(.caption).lineLimit(1)
-                            .foregroundStyle(item.alert ? Color(red: 1, green: 0.95, blue: 0.8).opacity(0.75) : Theme.textFaint)
+                            .foregroundStyle(fg)
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(item.alert ? Theme.warning.opacity(0.05) : Color.white.opacity(0.035), in: .rect(cornerRadius: 6))
-                            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(item.alert ? Theme.warning.opacity(0.15) : Color.white.opacity(0.07)))
+                            .background(bg, in: .rect(cornerRadius: 6))
+                            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(border))
                     }
                 }
                 .padding(.top, 12)

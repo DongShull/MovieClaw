@@ -138,22 +138,27 @@ struct LibraryDetailView: View {
 
     // MARK: 视图
 
-    var body: some View {
-        Group {
-            if loadFailed, libraries == nil {
-                ErrorState(title: "媒体库加载失败", message: "与后端通信失败") { await reload() }
-            } else if libraries == nil {
-                VStack(spacing: 10) {
-                    ProgressView()
-                    Text("正在加载媒体库…").font(.subheadline).foregroundStyle(Theme.textMuted)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let library {
-                page(library)
-            } else {
-                EmptyState(systemImage: "questionmark.folder", title: "这个媒体库不存在（可能已被删除）", actionTitle: "返回媒体库") { router.pop() }
+    /// 加载中 / 失败 / 不存在 / 正常页的分支。单独成一个 ViewBuilder：和下面一长串修饰写在一起，
+    /// Xcode 26 类型推断超时
+    @ViewBuilder
+    private var stateContent: some View {
+        if loadFailed, libraries == nil {
+            ErrorState(title: "媒体库加载失败", message: "与后端通信失败") { await reload() }
+        } else if libraries == nil {
+            VStack(spacing: 10) {
+                ProgressView()
+                Text("正在加载媒体库…").font(.subheadline).foregroundStyle(Theme.textMuted)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let library {
+            page(library)
+        } else {
+            EmptyState(systemImage: "questionmark.folder", title: "这个媒体库不存在（可能已被删除）", actionTitle: "返回媒体库") { router.pop() }
         }
+    }
+
+    var body: some View {
+        stateContent
         .appBackground()
         .navigationTitle(library?.name ?? "")
         .navigationBarTitleDisplayMode(.inline)
