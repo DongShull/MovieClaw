@@ -1,6 +1,6 @@
-"""全局 HTTP 中间件：spec 指纹头与访问日志。
+"""全局 HTTP 中间件：安全响应头、spec 指纹头与访问日志。
 
-两者都以**纯 ASGI 中间件**实现，而不是 ``@app.middleware("http")``
+三者都以**纯 ASGI 中间件**实现，而不是 ``@app.middleware("http")``
 （``BaseHTTPMiddleware``）。原因是 2026-08 NAS 现场事故：
 
 - ``BaseHTTPMiddleware`` 会把响应体的每一块经 anyio 内存流再转发一跳，
@@ -25,6 +25,52 @@ from movieclaw_api.services import foreground
 from movieclaw_api.spec_state import SPEC_HASH_HEADER, get_spec_hash
 
 logger = logging.getLogger("movieclaw_api.access")
+
+
+#: 后端响应统一附加的安全头。取值针对「API 与文件直出」这一形态，
+#: 页面侧的同类头由 Next 在 apps/web/next.config.ts 里设置（两处都要有：
+#: 容器内 nginx 把 /api/v1 与 Jellyfin 命名空间直接转给后端，不经过 Next）。
+_SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
+    # 关掉 MIME 嗅探。对图片代理尤其重要：它把远端字节落盘后直出，虽然回源时
+    # 已校验过 Content-Type 是 image/*，但浏览器一旦按嗅探结果改判成 HTML，
+    # 就等于把第三方图床的内容当同源文档执行。
+    (b"x-content-type-options", b"nosniff"),
+    # 后端响应（JSON / 视频 / 字幕 / 图片）没有任何被 iframe 嵌套的正当理由。
+    # 页面侧用 SAMEORIGIN（应用自身有同源弹窗与播放器），这里可以更严。
+    (b"x-frame-options", b"DENY"),
+    (b"content-security-policy", b"frame-ancestors 'none'; object-src 'none'; base-uri 'none'"),
+    # 取流 URL 的查询参数里带签名 token，绝不能跟着 Referer 漏到外站去。
+    (b"referrer-policy", b"no-referrer"),
+)
+
+
+class SecurityHeadersMiddleware:
+    """给所有后端响应补齐安全头（纯 ASGI，只包 send，不碰 body）。
+
+    只在响应头里**缺失**该字段时才补，不覆盖路由自己显式设置的值——
+    个别端点若有特殊需要（例如将来要开放某个可嵌入的公开页），在路由层
+    自行设置即可，中间件不会把它改回去。
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_security_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                present = {name.lower() for name, _ in headers}
+                headers.extend(
+                    (name, value) for name, value in _SECURITY_HEADERS if name not in present
+                )
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_security_headers)
 
 
 class SpecHashHeaderMiddleware:
@@ -141,7 +187,10 @@ class ForegroundPressureMiddleware:
 
 
 def register_middlewares(app: FastAPI, settings: Settings) -> None:
-    # add_middleware 后注册者在外层：访问日志最外层，与原 @app.middleware 顺序一致
+    # add_middleware 后注册者在外层：访问日志最外层，与原 @app.middleware 顺序一致。
+    # 安全头挂在最内层：它只补自己那几个字段，与另外两层互不干扰；放最内可以
+    # 覆盖到经由异常处理器产出的响应。
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(SpecHashHeaderMiddleware, api_prefix=settings.api_v1_prefix)
     app.add_middleware(AccessLogMiddleware, enabled=settings.access_log_enabled)
     # 最外层：从请求进门到响应头出门都算在途，不受访问日志开关影响

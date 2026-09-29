@@ -28,6 +28,34 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   // 关闭左下角 Next.js 开发指示器（dev tools 浮动按钮）
   devIndicators: false,
+  async headers() {
+    // 页面侧安全头。后端另有一份（src/movieclaw_api/middleware.py）：容器内
+    // nginx 把 /api/v1 与 Jellyfin 命名空间直接转给后端，不经过 Next，
+    // 两边都设才没有缺口。
+    //
+    // CSP 这里**刻意只写 frame-ancestors / object-src / base-uri 三条**，
+    // 不写 default-src 或 script-src：
+    // - Next 的注水脚本与 app/layout.tsx 里恢复背景图的内联脚本都需要
+    //   'unsafe-inline'，真要收紧得先给 Next 铺一套 nonce，属于另一件事；
+    // - 预告片弹窗内嵌 YouTube iframe，一旦写了 default-src 就会连带把
+    //   frame-src 收死，预告片直接放不出来。
+    // 当前这三条解决的是「管理后台被第三方页面 iframe 套住做点击劫持」，
+    // 也就是本次真正要堵的洞。
+    const securityHeaders = [
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      {
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+      },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      // 只关本应用完全用不到的三项。autoplay / encrypted-media / fullscreen /
+      // picture-in-picture 等必须留着——顶层策略一旦拒绝，iframe 上的 allow
+      // 属性也再授不回来，预告片与播放器会一起坏掉。
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+    ];
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   async rewrites() {
     // API 走同源路径时，由 Next 服务器反代到后端。开发和生产（单容器部署，
     // 前端进程反代到同容器内 127.0.0.1:8000 的后端）都依赖这条规则，

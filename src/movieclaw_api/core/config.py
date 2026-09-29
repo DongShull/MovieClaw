@@ -36,7 +36,12 @@ def normalize_tmdb_base_url(value: str, suffix: str) -> str:
 
 class Settings(BaseSettings):
     app_name: str = Field(default="movieclaw", alias="APP_NAME")
-    app_env: str = Field(default="local", alias="APP_ENV")
+    # 默认值必须是 production：它决定 /docs、/redoc 与 openapi.json 是否对外
+    # 开放（app.py::create_app）。Docker 镜像与 entrypoint 都不设 APP_ENV，
+    # 之前默认 local 等于「所有容器部署都在开发模式下跑」，把完整接口面白送给
+    # 匿名访问者。安全开关的默认值应当是「忘了配也不会敞开」。
+    # 本地开发在 .env 里显式写 APP_ENV=local 打开文档（见 .env.example）。
+    app_env: str = Field(default="production", alias="APP_ENV")
     host: str = Field(default="0.0.0.0", alias="APP_HOST")
     port: int = Field(default=8000, alias="APP_PORT")
     reload: bool = Field(default=True, alias="APP_RELOAD")

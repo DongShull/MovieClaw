@@ -215,7 +215,7 @@ def test_start_rejects_removed_history_field(client) -> None:
 
 def test_session_openapi_describes_capabilities_and_destructive_retry(client) -> None:
     """Session 描述是 Agent 的操作合同，关键能力、ID 与副作用不能退化。"""
-    spec = client.get("/api/v1/openapi.json").json()
+    spec = client.app.openapi()
     start = spec["paths"]["/api/v1/sessions"]["post"]
     transcript = spec["paths"]["/api/v1/sessions/{session_id}"]["get"]
     retry = spec["paths"]["/api/v1/sessions/{session_id}/retry"]["post"]
