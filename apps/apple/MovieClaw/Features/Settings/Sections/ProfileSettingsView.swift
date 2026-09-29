@@ -8,13 +8,17 @@ import SwiftUI
 /// - 账号信息：昵称原地编辑（≤32 字，`PUT /auth/profile`）、用户名只读；
 /// - 安全：修改密码（当前 / 新（≥8 位）/ 确认，`PUT /auth/password`）：用密码登录的其他设备随即下线，
 ///   配对的命令行与转码器默认保留，可勾选一并注销（docs/design/login-devices.md「失效联动」）；
-/// - 观看历史：清空自己的全部观看记录（二次确认，`DELETE /playback/history?scope=all`）。
+/// - 观看历史：清空自己的全部观看记录（二次确认，`DELETE /playback/history?scope=all`）；
+/// - 切换账号 / 退出登录：按 iOS 惯例放在账户详情页最底部（原先在「我的」页，2026-09-29 挪来）。
+///   切换账号的快捷路径是底部头像页签的长按 / 双击，这里是看得见的兜底入口。退出时同一台服务器上还有账号
+///   就自动切过去、新主界面弹提示说明换成了谁；都退完了回欢迎页。
 ///
 /// 头像与昵称改完立即写回全局会话（`AppModel.update(session:)`），「更多」面板与头像按钮同步换新。
 struct ProfileSettingsView: View {
     @Environment(\.api) private var api
     @Environment(AppModel.self) private var model
     @Environment(Feedback.self) private var feedback
+    @Environment(Router.self) private var router
 
     // 头像
     @State private var avatarItem: PhotosPickerItem?
@@ -46,6 +50,22 @@ struct ProfileSettingsView: View {
                 accountSection(session)
                 securitySection
                 historySection
+                Section {
+                    Button {
+                        router.present(.accountSwitcher)
+                    } label: {
+                        Label("切换账号", systemImage: "person.2")
+                    }
+                    .accessibilityIdentifier("profile-switch-account")
+                } footer: {
+                    Text("长按底部的头像也能切换账号，双击头像切回上一个账号。")
+                }
+                // 退出单独一组、居中红字（同 iOS 设置 App 账户页最底部的「退出登录」）
+                Section {
+                    Button("退出登录", role: .destructive) { Task { await model.logout() } }
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("logout")
+                }
             }
             .task { await loadPairedCount() }
             .scrollDismissesKeyboard(.interactively)

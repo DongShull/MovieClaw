@@ -2,14 +2,18 @@ import SwiftUI
 
 /// 「我的」页：标签栏最右的头像页签（Web `/my` 与 components/more-page.tsx）。
 ///
-/// iOS 设置式分组列表：
-/// - 用户头：头像 + 昵称 + `@用户名 · 角色`，整张卡可点进「个人信息」（同 iOS 设置 App 顶部的账户卡），
-///   返回直接回到本页，不再像 Web 那样垫一层设置列表；因此常用组里不再单列「个人信息」行；
-/// - 常用：待处理（管理员且有事项时，30 秒轮询）/ 设置（仅管理员——成员的设置里只有个人信息，
-///   已由头像卡覆盖）/ 应用更新（管理员且有待更新时，文案「新版本 vX」或「新识别模型 X」）；
-/// - 账号：切换账号（可跨服务器，也在那里添加账号）/ 退出登录（同一台服务器上还有账号就自动切过去，
-///   新主界面弹提示说明换成了谁；都退完了回欢迎页）；
-/// - 最近会话（管理员）：首行「新会话」（顶栏的「+」已去掉，这里是发起新会话的入口），下面是 AI 会话，
+/// iOS 设置式分组列表（2026-09-29 按 iOS 设置 App 的惯例重排：分组不写标题，靠间距区分）：
+/// - 账户卡：头像 + 昵称 + 身份小字（和昵称不同时才带 `@用户名`、角色）。不显示服务器（2026-09-29 用户决定）；
+///   点进「个人信息」，同 iOS 设置 App 顶部的账户卡；返回直接回到本页，不垫设置列表。
+///   切换账号是高频操作，走底部头像页签的长按 / 双击（见 TabBarAccountGestures），不在这里占一行；
+///   能看见的兜底入口「切换账号」与「退出登录」一起放在个人信息页最底部（iOS 账户详情页惯例）；
+/// - 提醒组（仅管理员、有事才出现，同 iOS 设置 App 账户卡下的「有可用更新」）：待处理（30 秒轮询）/
+///   应用更新（文案「新版本 vX」或「新识别模型 X」）；
+/// - 服务器设置：标题下面一行小字写当前服务器地址（iOS 副标题行，与账户卡「昵称 / 超级管理员」、服务器设置页
+///   各分区的「标题 / 说明」同一写法），回答「这些设置改的是哪台」，也让人一眼看到 App 连的是哪个地址。
+///   试过分组下方的说明文字（footer，悬在卡片外没有一体感）和同一行右侧灰字，用户选了副标题（2026-09-29）。
+///   「关于 MovieClaw」不占这里的位置（低频，用户认为太重），放在服务器设置页最底部；
+/// - 最近会话（管理员）：首行「新会话」（加号，顶栏的「+」已去掉，这里是发起新会话的入口），下面是 AI 会话，
 ///   每页 20 条、滑到末尾自动加载下一页（用户决定不要「显示全部 / 收起」，与 Web 的差异）；
 ///   操作走 iOS 列表惯例：左滑出续接 / 重命名 / 删除三个图标按钮，长按出完整菜单（与会话页右上角同图标、同顺序）。
 ///
@@ -43,15 +47,12 @@ struct MorePage: View {
                             AvatarBadge(session: session, size: 56)
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(session.nickname).font(.title3.weight(.semibold))
-                                Text("@\(session.username) · \(session.roleLabel)")
+                                // 一行小字，不带图标：列表会把行里的 Label 当成这一行的图标 + 正文来排，
+                                // 图标被撑到行首图标列、分割线也改对齐到它（2026-09-29 真机截图）
+                                Text(identityLine(session))
                                     .font(.subheadline)
                                     .foregroundStyle(Theme.textMuted)
-                                // 本机登录了不止一台服务器时标出当前是哪台，免得分不清自己在哪台上
-                                if let server = model.server, model.savedServers.filter({ !$0.accounts.isEmpty }).count > 1 {
-                                    Label(server.hostLabel, systemImage: "server.rack")
-                                        .font(.caption)
-                                        .foregroundStyle(Theme.textFaint)
-                                }
+                                    .lineLimit(1)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
@@ -63,73 +64,74 @@ struct MorePage: View {
                     }
                     .foregroundStyle(Theme.text)
                     .accessibilityIdentifier("more-profile-card")
-                    .accessibilityHint("查看和修改个人信息")
+                    .accessibilityHint("查看和修改个人信息；长按底部头像可以切换账号")
                 }
             }
 
-            Section("常用") {
-                if permissions.isAdmin, !notices.isEmpty {
-                    NavigationLink {
-                        NoticeCenterView()
-                    } label: {
-                        Label {
-                            HStack {
-                                Text("待处理").fontWeight(.medium)
-                                Spacer()
-                                Text("\(notices.count)")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Theme.danger, in: .capsule)
+            if permissions.isAdmin, !notices.isEmpty || badges.updateLabel != nil {
+                Section {
+                    if !notices.isEmpty {
+                        NavigationLink {
+                            NoticeCenterView()
+                        } label: {
+                            Label {
+                                HStack {
+                                    Text("待处理").fontWeight(.medium)
+                                    Spacer()
+                                    Text("\(notices.count)")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Theme.danger, in: .capsule)
+                                }
+                            } icon: {
+                                Image(systemName: "bell")
                             }
-                        } icon: {
-                            Image(systemName: "bell")
+                            .foregroundStyle(Theme.danger)
                         }
-                        .foregroundStyle(Theme.danger)
+                        .accessibilityIdentifier("more-notices")
                     }
-                    .accessibilityIdentifier("more-notices")
+                    if let label = badges.updateLabel {
+                        MoreRouteRow(routes: [.settingsSection(.app)], tint: Theme.info) {
+                            Label(label, systemImage: "arrow.down.app")
+                        }
+                        .accessibilityIdentifier("more-update")
+                    }
                 }
-                // 成员也有设置：个人信息与自己的设备（设置首页按身份过滤分区）
+            }
+
+            Section {
+                // 这里改的都是服务器上的配置，与 App 本机偏好区分开；成员进去只看得到自己的设备
                 MoreRouteRow(routes: [.settings]) {
-                    Label("设置", systemImage: "gearshape")
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("服务器设置")
+                            if let server = model.server {
+                                // 太长时中间省略：开头认得出是哪台，结尾保住端口
+                                Text(server.hostLabel)
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.textMuted)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .accessibilityLabel("当前服务器 \(server.hostLabel)")
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: "gearshape")
+                    }
                 }
                 .accessibilityIdentifier("more-settings")
-                if permissions.isAdmin, let label = badges.updateLabel {
-                    MoreRouteRow(routes: [.settingsSection(.app)], tint: Theme.info) {
-                        Label(label, systemImage: "arrow.down.app")
-                    }
-                    .accessibilityIdentifier("more-update")
-                }
-                // 版本、开源许可与数据来源声明（上架必需，人人可见）。不放在列表末尾：
-                // 管理员的末尾是按需续取的会话列表，放那里就滑不到了
-                NavigationLink {
-                    AboutView()
-                } label: {
-                    Label("关于 MovieClaw", systemImage: "info.circle")
-                }
-                .accessibilityIdentifier("more-about")
-            }
-
-            Section("账号") {
-                Button {
-                    router.present(.accountSwitcher)
-                } label: {
-                    Label("切换账号", systemImage: "person.2")
-                }
-                Button(role: .destructive) {
-                    Task { await model.logout() }
-                } label: {
-                    Label("退出登录", systemImage: "rectangle.portrait.and.arrow.right")
-                }
-                .accessibilityIdentifier("logout")
             }
 
             if permissions.isAdmin {
                 Section("最近会话") {
                     MoreRouteRow(routes: [.newSession], tint: Theme.accentStrong) {
-                        Label("新会话", systemImage: "square.and.pencil").fontWeight(.medium)
+                        Label("新会话", systemImage: "plus").fontWeight(.medium)
                     }
+                    // 这一组只有首行带图标：分割线默认对齐到图标后的文字，比下面会话行的短一截、像没画全，
+                    // 对齐到行首与下面一致
+                    .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
                     .accessibilityIdentifier("more-new-session")
                     if sessions.isEmpty {
                         Text("还没有会话，点上方的「新会话」开始。")
@@ -158,6 +160,12 @@ struct MorePage: View {
         // 最近会话的入口页：空闲时预热一次输入框，点进会话时首屏不再被它拖慢
         .agentComposerWarmup()
     }
+
+    /// 账户卡的身份小字：昵称和用户名不同时带上「@用户名」（相同就不重复），再带角色
+    private func identityLine(_ session: API.SessionView) -> String {
+        session.nickname != session.username ? "@\(session.username) · \(session.roleLabel)" : session.roleLabel
+    }
+
 
     /// 会话行按 iOS 列表惯例处理操作（同邮件 / 信息）：行上不放「⋯」，左滑出三个纯图标按钮——
     /// 分支（在新会话中继续）/ 铅笔（重命名）/ 垃圾桶（删除）；续接与删除点了先确认、重命名先弹输入框，

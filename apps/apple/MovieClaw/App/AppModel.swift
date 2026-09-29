@@ -278,18 +278,53 @@ final class AppModel {
     /// 切到某台服务器上一个已登录的账号（可以跨服务器），不用输密码——换用它的令牌即可。
     /// 本机没有它的令牌、或令牌已失效（被注销、改了密码）时抛 `AccountError.needsPassword`，
     /// 界面据此打开登录卡片，服务器与用户名都预填好。
-    func switchAccount(to username: String, on address: ServerAddress) async throws {
+    /// `landingOn` 给了就落在那个页签（主界面整棵重建，不给则落在新账号的默认首页）：从头像页签手势、
+    /// 切换抽屉换账号时落在「我的」——人本来就在那儿（同 Instagram 切完停在个人页），也省得切一次账号就
+    /// 把发现页这种重页面整页画一遍（2026-09-29 模拟器实测，从双击到新界面首帧：落在发现页 600～930ms，
+    /// 落在「我的」100～160ms；其中向服务器确认身份只占 10ms 上下）。
+    func switchAccount(to username: String, on address: ServerAddress, landingOn tab: MainTab? = nil) async throws {
         guard let saved = TokenVault.token(server: address, username: username) else {
             throw AccountError.needsPassword(server: address, username: username)
         }
         do {
             let session = try await APIClient(server: address, token: saved).authMe()
-            resumePoint = nil
+            resumePoint = tab.map { ResumePoint(tab: $0, path: []) }
+            // 换完弹「已切换到「某某」」（主界面整棵重建，只能经 pendingNotice 带过去）；换到另一台服务器时
+            // 写上是哪台——账户卡上不显示服务器，只在切换提示与切换抽屉里出现（2026-09-29 用户决定）
+            let changesServer = address != server
+            pendingNotice = "已切换到「\(session.nickname)」" + (changesServer ? " · \(address.hostLabel)" : "")
             activate(address, session: session, token: saved)
         } catch let error as APIError where error.isUnauthorized {
             TokenVault.delete(server: address, username: username)
             throw AccountError.needsPassword(server: address, username: username)
         }
+    }
+
+    /// 双击头像页签：切回上一个账号（上一次从它切走的那个，跨服务器也算），在最近用的两个账号之间来回切
+    /// ——结果可预期，再双击一次就回来（同 Instagram）。上一个账号已不在本机、或就是当前账号时，改切本机
+    /// 另一个还能用的账号。本机只有当前这一个账号时返回 false、什么都不做；登录失效照样抛 `needsPassword`。
+    /// 切过去后新主界面会弹「已切换到「某某」」（见 `switchAccount`）。
+    func switchToPreviousAccount() async throws -> Bool {
+        let others = savedServers.flatMap { saved in
+            saved.accounts.map { SavedAccount(server: saved.address, account: $0) }
+        }.filter { !($0.server == server && $0.account.username == session?.username) }
+        let previous = Self.previousAccount
+        guard let target = others.first(where: {
+            $0.server.origin == previous?.origin && $0.account.username == previous?.username
+        }) ?? others.first(where: { hasToken(for: $0.account.username, on: $0.server) }) ?? others.first
+        else { return false }
+        try await switchAccount(to: target.account.username, on: target.server, landingOn: .more)
+        return true
+    }
+
+    /// 上一个账号（换账号时记下切走的那个）：存本机，冷启动后照样能双击切回去
+    private static let previousAccountKey = "movieclaw.previousAccount"
+
+    private static var previousAccount: (origin: URL, username: String)? {
+        guard let stored = UserDefaults.standard.dictionary(forKey: previousAccountKey),
+              let origin = (stored["origin"] as? String).flatMap(URL.init(string:)),
+              let username = stored["username"] as? String else { return nil }
+        return (origin, username)
     }
 
     /// 从本机移除一个账号：在服务端注销这台设备上它的登录，再删掉本机的令牌与快照。
@@ -433,6 +468,12 @@ final class AppModel {
 
     /// 进入某台服务器上的某个账号：记下服务器（置顶）与当前令牌、清掉过期 / 连不上的提示，更新本机快照
     private func activate(_ address: ServerAddress, session: API.SessionView, token: String) {
+        // 换了账号（含换到另一台服务器）：记下切走的那个，双击头像页签据此切回来
+        if case let .ready(current) = phase, let from = server,
+           from != address || current.username != session.username {
+            UserDefaults.standard.set(["origin": from.origin.absoluteString, "username": current.username],
+                                      forKey: Self.previousAccountKey)
+        }
         server = address
         self.token = token
         AuthTokenRegistry.shared.setCurrent(token, server: address)

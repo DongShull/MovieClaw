@@ -183,9 +183,9 @@ enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
     /// 就是它的入口（2026-09-27 用户要求去掉重复入口），分区本身与 /settings/profile 深链照旧可用
     static let groups: [(title: String, items: [SettingsSection])] = [
         ("", [.overview]),
-        // 「设备」人人可用（成员看自己的设备，docs/design/login-devices.md）；「个人信息」走「我的」页头像卡
-        ("账号", [.devices]),
-        ("成员", [.members]),
+        // 「设备」人人可用（成员看自己的设备，docs/design/login-devices.md）；「个人信息」走「我的」页头像卡。
+        // 「成员」并进这一组（原先各自单成一组、每组只有一行，2026-09-29 用户要求合并）；成员身份只看得到「设备」
+        ("账号", [.devices, .members]),
         ("资源与下载", [.subscription, .sites, .downloaders, .importWatch]),
         ("媒体库", [.scrape, .playback]),
         ("通知与集成", [.imPush, .webhook, .llm, .mcp, .ai]),

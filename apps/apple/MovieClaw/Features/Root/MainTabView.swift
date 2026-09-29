@@ -31,6 +31,14 @@ struct MainTabView: View {
     /// 主界面出现之后是否已经在前台过：冷启动用快照直接进主界面时，主界面比场景「变成前台」还早，
     /// 那一次激活不是「回到前台」，不补做身份校验与更新检查（冷启动那份由 AppModel.revalidate、角标轮询首轮做）
     @State private var wasActive = false
+    /// 头像页签在窗口里的位置（账号手势提示气泡对准它，见 TabBarAccountGestures）
+    @State private var avatarTabFrame: CGRect = .zero
+    @State private var showAccountTip = false
+    /// 账号手势提示看过没有（只提示一次）。只在气泡真的显示出来时才记：头像页签的位置还没找到时
+    /// 气泡画不出来，照样记下就等于没提示过却再也不提示了（v1 键在测试包里就这样被误记过，换了新键）
+    @AppStorage("movieclaw.tips.accountGestures.v2") private var accountTipShown = false
+    /// 双击切换进行中：切换要向服务器校验一次令牌，期间再双击不重复发起
+    @State private var switchingAccount = false
 
     var body: some View {
         let session = model.session
@@ -81,6 +89,28 @@ struct MainTabView: View {
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .background { PageWarmup(tabs: warmupTabs) }
+        // 头像页签：长按弹切换账号抽屉、双击切回上一个账号（仿 Instagram，见 AccountGestureHub）
+        .background(TabBarAccountGestures(onAvatarFrame: { if avatarTabFrame != $0 { avatarTabFrame = $0 } }))
+        .onReceive(NotificationCenter.default.publisher(for: .avatarTabLongPressed)) { _ in openAccountSwitcher() }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarTabDoubleTapped)) { _ in
+            Task { await switchToPreviousAccount() }
+        }
+        .overlay {
+            if showAccountTip, avatarTabFrame != .zero {
+                AccountGestureTip(avatarFrame: avatarTabFrame) { withAnimation { showAccountTip = false } }
+            }
+        }
+        // 本机账号超过一个时才提示账号手势（一个账号时这两个手势都没意义），只提示一次；
+        // 等找到头像页签的位置再提示（气泡要对准它）
+        .task(id: "\(model.savedAccountCount)|\(avatarTabFrame != .zero)") {
+            guard model.savedAccountCount > 1, !accountTipShown, avatarTabFrame != .zero else { return }
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled, avatarTabFrame != .zero else { return }
+            accountTipShown = true
+            withAnimation { showAccountTip = true }
+            try? await Task.sleep(for: .seconds(6))
+            withAnimation { showAccountTip = false }
+        }
         // 活动页签（红 > 绿 > 蓝，同网页）与头像页签（有待安装的更新）的状态点：
         // SwiftUI 的 .badge 只能红底文字，下到 UIKit 画小圆点
         .background(TabBarDotBridge(
@@ -229,6 +259,31 @@ struct MainTabView: View {
 }
 
 extension MainTabView {
+    /// 长按头像页签：弹出切换账号抽屉（已经有弹层开着时不叠第二个）
+    private func openAccountSwitcher() {
+        guard router.sheet == nil, router.player == nil else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        withAnimation { showAccountTip = false }
+        router.present(.accountSwitcher)
+    }
+
+    /// 双击头像页签：切回上一个账号。本机只有一个账号时什么都不做——那只是两下普通的点选
+    private func switchToPreviousAccount() async {
+        guard model.savedAccountCount > 1, !switchingAccount, router.player == nil else { return }
+        switchingAccount = true
+        defer { switchingAccount = false }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        do {
+            _ = try await model.switchToPreviousAccount()
+        } catch AppModel.AccountError.needsPassword {
+            // 那个账号的登录已失效：打开切换抽屉，它在那里标着「需要重新登录」，点一下输密码
+            feedback.error("那个账号的登录已失效，点它重新输入密码")
+            router.present(.accountSwitcher)
+        } catch {
+            feedback.error(error)
+        }
+    }
+
     /// 当前账号能看到的页签，按标签栏上从左到右的顺序（与上面 TabView 的声明顺序一致，
     /// TabBarDotBridge 靠这个顺序找页签）
     static func visibleTabs(_ permissions: Permissions) -> [MainTab] {

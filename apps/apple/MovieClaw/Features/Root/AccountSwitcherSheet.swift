@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// 切换账号（Web components/account-switcher-dialog.tsx，设计见 docs/design/account-switching.md）。
+/// 入口：长按底部头像页签（半屏抽屉，见 TabBarAccountGestures）、个人信息页的「切换账号」。
 ///
 /// 列出本机登录过的全部账号，**可以跨服务器**：每台服务器一个分组（只有一台时不显示服务器名）。
 /// 每个账号在本机是一枚设备令牌（docs/design/login-devices.md），切换就是换用它的令牌，没有账号数上限。
@@ -83,6 +84,8 @@ struct AccountSwitcherSheet: View {
             }
         }
         .task { refreshAll() }
+        // 半屏抽屉（长按头像页签弹出，同 Instagram）：账号一般就几个，半屏放得下；多了可以上拉到全屏
+        .presentationDetents([.medium, .large])
     }
 
     /// 要列出的服务器：有账号的，外加当前服务器（快照还没取回来时也要占个位转圈）；当前服务器排第一
@@ -186,7 +189,8 @@ struct AccountSwitcherSheet: View {
         busy = true
         defer { busy = false }
         do {
-            try await model.switchAccount(to: username, on: address)
+            // 落在「我的」：长按头像页签松手时底下已经是「我的」、从个人信息页打开时人也在「我的」
+            try await model.switchAccount(to: username, on: address, landingOn: .more)
             dismiss()
         } catch AppModel.AccountError.needsPassword(let server, let username) {
             // 登录过期：打开登录卡片，预填服务器与用户名，只需输密码

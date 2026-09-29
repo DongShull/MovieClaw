@@ -61,7 +61,7 @@ final class ShellParityUITests: XCTestCase {
 
     // MARK: 外壳
 
-    /// 「我的」页（标签栏最右的头像页签）：「新会话」入口、会话行长按菜单（三项）、切换账号弹层文案
+    /// 「我的」页（标签栏最右的头像页签）：「新会话」入口、会话行长按菜单（三项）、个人信息页进切换账号弹层的文案
     @MainActor
     func testMoreTabAndAccountSwitcher() throws {
         let app = try launch(route: "/library")
@@ -86,7 +86,11 @@ final class ShellParityUITests: XCTestCase {
         let again = try launch(route: "/library")
         XCTAssertTrue(again.tabBars.buttons["open-more"].waitForExistence(timeout: 15), "标签栏最右应有头像页签")
         again.tabBars.buttons["open-more"].tap()
-        tapSafely(again, again.buttons["切换账号"], "切换账号")
+        // 「切换账号」的看得见的入口在个人信息页最底部（快捷路径是长按 / 双击头像页签）
+        tapSafely(again, again.buttons["more-profile-card"], "个人信息")
+        let switchEntry = again.buttons["profile-switch-account"]
+        for _ in 0 ..< 6 where !(switchEntry.exists && switchEntry.isHittable) { again.swipeUp() }
+        tapSafely(again, switchEntry, "切换账号")
         XCTAssertTrue(again.staticTexts["本机已登录的账号，点击即可切换，不用再输密码。"].waitForExistence(timeout: 10))
         XCTAssertTrue(again.staticTexts["当前"].waitForExistence(timeout: 5), "当前账号应标「✓ 当前」")
         snapshot("切换账号")
