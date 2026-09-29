@@ -1,35 +1,36 @@
 # iOS App 打包与上架
 
 > 2026-09-28 开发者账号开通后整理。首发路线：TestFlight 内部测试 → TestFlight 对外公开链接 → App Store。
-> 首版只上 iPhone；商店版不在 App 里提供资源站点 / 下载器 / 自动入库 / 订阅规则的配置（改在网页端管理）。
+> 首版只上 iPhone；只有一个发行版本，App 里不提供资源站点 / 下载器 / 自动入库 / 订阅规则的配置（在网页端管理）。
 > **要亲手做的事按顺序列在 [ios-release-checklist.md](ios-release-checklist.md)（含新机器搭环境）。**
 > 相关：App 设计 [ios-app.md](ios-app.md)，Mac 转码器的签名公证见 `macos/MovieClawTranscoder/README.md`。
 
-## 1. 两个发行版本
+## 1. 只有一个发行版本
 
-| | 完整版 | 商店版 |
-|---|---|---|
-| 编译条件 | 无 | `MC_STORE`（`App/AppEdition.swift`） |
-| 打包命令 | `scripts/release.sh [--upload]` | `scripts/release.sh --store [--upload]` |
-| 用于 | 开发调试、自行构建、**内部** TestFlight | **对外** TestFlight、App Store |
-| 差异 | 与网页端一致 | 设置首页不列「资源与下载」组（订阅规则、资源站点、下载器、自动入库）；其他页面里去这几项的跳转与深链落到「请在网页端管理」页，给出直达网页的按钮 |
+同一个构建既进内部 / 对外 TestFlight，也用于提审和上架；开发调试版与发布版功能相同（只差 `#if DEBUG` 的调试开关）。
 
-为什么只藏设置里的配置：审核条款 5.2.3（不得便利非法文件共享）是这类 App 最常见的拒审点，
-站点、Cookie、下载器接入是最显眼的一块（2026-09-28 用户决定的范围，种子搜索、订阅操作、
-下载任务等其余功能商店版照常保留）。如果审核仍以 5.2.3 拒审，再按审核意见扩大隐藏范围。
+App 里**不提供**「资源与下载」这组配置（订阅规则、资源站点、下载器、自动入库，见
+`SettingsSection.availableInApp`）：设置首页不列出；其他页面里去这几项的跳转与深链落到
+「请在网页端管理」页，给出直达网页对应分区的按钮。种子搜索、订阅操作、下载任务等其余功能照常。
 
-完整版上传时导出选项带 `testFlightInternalTestingOnly`：App Store Connect 会拒绝把它用于
-对外测试或提交审核，两个版本不会传错渠道。
+为什么这样划：审核条款 5.2.3（不得便利非法文件共享）是这类 App 最常见的拒审点，
+站点、Cookie、下载器接入是最显眼的一块。如果审核仍以 5.2.3 拒审，按审核意见扩大不提供的范围。
+
+历史：2026-09-28 起曾分「完整版 / 商店版」两个编译版本（`MC_STORE` 与 `release.sh --store`），
+2026-09-29 用户决定只维护一个版本，统一按原商店版的范围，编译开关与 App 内这几页配置代码一并删除
+（需要时从 git 历史找回）。**不要**用远程开关在过审后再打开隐藏功能：违反审核条款 2.3.1，
+处罚可到终止开发者账号。
 
 ## 2. 一次性准备（需要账号持有人在网页上操作）
 
 1. **确认团队 ID**：developer.apple.com → Membership 里的 Team ID，写进本机
    `apps/apple/XcodeConfig/Signing.local.xcconfig` 的 `DEVELOPMENT_TEAM`（不入库）。
    付费团队和之前的个人免费团队 ID 不同，别混用。
-2. **Xcode 登录账号**（Xcode → 设置 → 账户）或准备 API 密钥（下一条），二选一；
-   都没有时导出报 `No Accounts`。
+2. **Xcode 登录账号**（Xcode → 设置 → 账户）：真机调试要用。打包导出靠下一条的 API 密钥——
+   Xcode 27 的 xcodebuild 读不到 Xcode 里登录的账号，不给密钥时导出报 `No Accounts`。
 3. **App Store Connect API 密钥**：App Store Connect → 用户和访问 → 集成 → App Store Connect API，
-   新建一个「App 管理」角色的团队密钥，下载 `.p8`（只能下载一次）。
+   新建一个**「管理」**角色的团队密钥（「App 管理」用不了云端托管的发布证书，导出报
+   `Cloud signing permission error`），下载 `.p8`（只能下载一次）。
    放到 `~/.appstoreconnect/private_keys/AuthKey_<密钥 ID>.p8`，记下密钥 ID 与 Issuer ID。
    同一把密钥也用于 Mac 转码器的公证。**不要提交进仓库、不要贴进聊天或日志。**
 4. **建 App 记录**：App Store Connect → App → 新建 App
@@ -43,15 +44,15 @@
    - 类别：娱乐（或摄影与录像）；价格：免费；
    - App 隐私问卷：**不收集任何数据**（数据都在用户自己的服务器上，见隐私政策）；
    - 年龄分级：内容来自用户自己的服务器，按问卷如实填写（「不受限制的网络访问」选是）。
-6. **TestFlight 内部测试组**：把自己（和需要的团队成员）加进内部测试组，iPhone 上装 TestFlight App。
+6. **TestFlight 测试组**：内部测试组只能加团队成员（最多 100 人，免审）；朋友等外部测试员加进对外测试组
+   （邮箱或公开链接，最多 1 万人），组里第一个构建要过一次 Beta 审核（见 §4）。iPhone 上装 TestFlight App。
 
 ## 3. 打包与上传
 
 ```bash
 cd apps/apple
-export MC_ASC_KEY_ID=… MC_ASC_ISSUER_ID=…   # 或者不设，改用 Xcode 里登录的账号
-scripts/release.sh --upload                 # 完整版 → 内部 TestFlight
-scripts/release.sh --store --upload         # 商店版 → 对外 TestFlight / 提审
+export MC_ASC_KEY_ID=… MC_ASC_ISSUER_ID=…   # 建议放本机 ~/.appstoreconnect/ 下的 env 文件里 source，不入库
+scripts/release.sh --upload                 # 上传：同一个构建可用于内部 / 对外 TestFlight 与提审
 ```
 
 - 构建号默认取 UTC 时间 `yyyyMMddHHmm`，天然递增；营销版本号在 `project.yml` 的
@@ -102,7 +103,7 @@ scripts/release.sh --store --upload         # 商店版 → 对外 TestFlight / 
 - **调试开关只在调试版**：`-mc…` 启动参数（真机实验台、故障注入、强制通路）都在 `#if DEBUG` 里，
   发布构建不含；提审前不必额外清理。
 - **TMDB 署名**：关于页已注明「本产品使用 TMDB API，但未经 TMDB 认可或认证」。
-- **5.2.3**：见 §1。若被拒，审核意见会点名具体功能，据此扩大商店版的隐藏范围。
+- **5.2.3**：见 §1。若被拒，审核意见会点名具体功能，据此扩大 App 内不提供的范围。
 - **最低系统 iOS 26**：只有 iOS 26 及以上的 iPhone 能在商店里看到它。
 
 ## 6. Mac 转码器

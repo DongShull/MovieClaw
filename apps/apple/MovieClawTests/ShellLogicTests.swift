@@ -72,20 +72,6 @@ struct ShellLogicTests {
         #expect(router.guarded(.discover()) == .discover())
     }
 
-    /// 映射建议：已被某条映射的本机侧覆盖（相同或子目录）就不再追加（Web withSuggestedMapping）
-    @Test func suggestedMappingSkipsCoveredPaths() {
-        let existing = [SettingsBDlMappingDraft(local: "/data/downloads/", remote: "/downloads")]
-        #expect(SettingsBDlEditorSheet.withSuggestedMapping(existing, "/data/downloads/movies").count == 1)
-        #expect(SettingsBDlEditorSheet.withSuggestedMapping(existing, "/data/downloads").count == 1)
-        let added = SettingsBDlEditorSheet.withSuggestedMapping(existing, "/volume1/media")
-        #expect(added.count == 2)
-        #expect(added.last?.local == "/volume1/media")
-        #expect(added.last?.remote == "")
-        // 根目录映射不算覆盖
-        let root = [SettingsBDlMappingDraft(local: "/", remote: "/")]
-        #expect(SettingsBDlEditorSheet.withSuggestedMapping(root, "/x").count == 2)
-    }
-
     /// 设置分区深链：查询参数原样透传（分区页经 routeQuery 读取），旧地址按 Web 重定向
     @Test func settingsDeepLinksKeepQuery() {
         #expect(AppRoute(webPath: "/settings/downloaders?limits=3") == .settingsSection(.downloaders, query: ["limits": "3"]))

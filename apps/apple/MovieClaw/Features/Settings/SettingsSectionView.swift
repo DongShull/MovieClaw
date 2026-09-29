@@ -9,18 +9,9 @@ struct SettingsSectionView: View {
 
     var body: some View {
         let effective = permissions.isAdmin || section.memberVisible ? section : .profile
-        content(effective)
+        sectionView(effective)
             .navigationTitle(effective.title)
             .navigationBarTitleDisplayMode(.inline)
-    }
-
-    @ViewBuilder
-    private func content(_ section: SettingsSection) -> some View {
-        if section.availableInApp {
-            sectionView(section)
-        } else {
-            WebManagedSectionView(section: section)
-        }
     }
 
     @ViewBuilder
@@ -30,10 +21,7 @@ struct SettingsSectionView: View {
         case .profile: ProfileSettingsView()
         case .members: MembersSettingsView()
         case .devices: DevicesSettingsView()
-        case .subscription: SubscriptionRulesSettingsView()
-        case .sites: SitesSettingsView()
-        case .downloaders: DownloadersSettingsView()
-        case .importWatch: ImportWatchSettingsView()
+        case .subscription, .sites, .downloaders, .importWatch: WebManagedSectionView(section: section)
         case .scrape: ScrapeSettingsView()
         case .playback: PlaybackSettingsView()
         case .imPush: PushSettingsView()
@@ -48,7 +36,7 @@ struct SettingsSectionView: View {
     }
 }
 
-/// 商店版不在 App 里提供的分区（见 AppEdition）：说明去网页端管理，并给出直达网页对应分区的按钮。
+/// App 不提供的分区（见 SettingsSection.availableInApp）：说明去网页端管理，并给出直达网页对应分区的按钮。
 /// 其他页面里「去站点设置」「去下载器设置」之类的跳转都落到这里，不会打开被隐藏的配置页。
 private struct WebManagedSectionView: View {
     let section: SettingsSection

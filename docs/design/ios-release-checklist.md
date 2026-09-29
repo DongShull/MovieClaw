@@ -52,13 +52,13 @@
   - [ ] 年龄分级问卷（「不受限制的网络访问」选是）
 - [ ] TestFlight → 内部测试：新建内部测试组，把自己加进去；手机装 TestFlight App
 
-## 4. 第一次上传（完整版 → 内部 TestFlight）
+## 4. 第一次上传（→ 内部 TestFlight）
 
 - [ ] 先只导出不上传，验证签名：
       ```bash
       cd apps/apple
       export MC_ASC_KEY_ID=<密钥 ID> MC_ASC_ISSUER_ID=<Issuer ID>
-      scripts/release.sh            # 成功会打印「已导出 完整版：build-release/…」
+      scripts/release.sh            # 成功会打印「已导出：build-release/…」
       ```
       首次会在账号下自动创建「Apple Distribution」证书与描述文件，属正常流程
 - [ ] 上传：`scripts/release.sh --upload`
@@ -80,7 +80,8 @@
 
 - [ ] 决定**演示服务器**放哪：公网可达、HTTPS，不用自己的真实 NAS；只放开放授权片源
       （Big Buck Bunny、Sintel、Tears of Steel），不接资源站点与下载器，建一个给审核员的成员账号
-- [ ] 商店版上传：`scripts/release.sh --store --upload`，这个构建才能加入对外测试组 / 提审
+- [ ] 对外测试：TestFlight → 外部测试新建测试组，加入已上传的构建（与内部测试是同一个构建，
+      不用重新打包），填测试信息后提交 Beta 审核；过审后加朋友邮箱或开公开链接
 - [ ] 6.9 英寸 iPhone 截图至少 3 张（用演示服务器内容截）
 - [ ] 审核信息填演示服务器地址、账号与备注（模板见 ios-release.md §4）
 

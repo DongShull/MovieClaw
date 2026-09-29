@@ -1,20 +1,18 @@
 #!/bin/zsh
 # 打包 iOS App（Release 归档 → 导出），可选直接上传到 App Store Connect。
-# 发版流程、两个发行版本的分工与上架清单见 docs/design/ios-release.md。
+# 只有一个发行版本：同一个构建既进内部 / 对外 TestFlight，也用于提审。发版流程与上架清单见
+# docs/design/ios-release.md。
 #
 # 用法：
-#   scripts/release.sh                   完整版：只在本机导出 .ipa，不上传（验证签名与打包）
-#   scripts/release.sh --upload          完整版上传：只能进内部 TestFlight（导出选项
-#                                        testFlightInternalTestingOnly，不能对外测试或提审）
-#   scripts/release.sh --store           商店版：只在本机导出
-#   scripts/release.sh --store --upload  商店版上传：可用于对外 TestFlight 与提交 App Store 审核
+#   scripts/release.sh           只在本机导出 .ipa，不上传（验证签名与打包）
+#   scripts/release.sh --upload  导出并上传到 App Store Connect
 #
 # 认证（二选一）：
-#   - App Store Connect API 密钥（推荐，无人值守/CI 都能用）：
+#   - App Store Connect API 密钥（推荐，无人值守/CI 都能用；角色须为「管理」，「App 管理」用不了云端发布证书）：
 #       MC_ASC_KEY_ID     密钥 ID
 #       MC_ASC_ISSUER_ID  Issuer ID
 #       MC_ASC_KEY_PATH   .p8 路径（默认 ~/.appstoreconnect/private_keys/AuthKey_<密钥 ID>.p8）
-#   - 不给密钥时用 Xcode「设置 → 账户」里登录的 Apple ID。
+#   - 不给密钥时用 Xcode「设置 → 账户」里登录的 Apple ID（Xcode 27 的命令行读不到，报 No Accounts）。
 # 其他可选环境变量：
 #   MC_BUILD_NUMBER  构建号（默认 UTC 时间 yyyyMMddHHmm：同一营销版本下每次上传必须递增）
 #   MC_DERIVED       DerivedData 目录（默认 build-release/DerivedData）
@@ -22,13 +20,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-store=0
 upload=0
 for arg in "$@"; do
   case $arg in
-    --store) store=1 ;;
     --upload) upload=1 ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
     *) echo "未知参数：$arg（用 --help 看用法）" >&2; exit 64 ;;
   esac
 done
@@ -61,9 +57,6 @@ if [[ -z $team ]]; then
 fi
 
 build="${MC_BUILD_NUMBER:-$(date -u +%Y%m%d%H%M)}"
-edition=$([[ $store == 1 ]] && echo "商店版" || echo "完整版")
-edition_args=()
-[[ $store == 1 ]] && edition_args=(MC_EDITION_CONDITIONS=MC_STORE)
 
 commit="$(git rev-parse --short HEAD)"
 if [[ -n "$(git status --porcelain -- .)" ]]; then
@@ -71,10 +64,10 @@ if [[ -n "$(git status --porcelain -- .)" ]]; then
 fi
 
 out="build-release"
-name="MovieClaw-${version}-${build}-$([[ $store == 1 ]] && echo store || echo full)"
+name="MovieClaw-${version}-${build}"
 archive="$out/$name.xcarchive"
 mkdir -p "$out"
-echo "打包 $edition：$bundle_id $version（$build），团队 $team，提交 $commit"
+echo "打包 $bundle_id $version（$build），团队 $team，提交 $commit"
 
 # 归档。-allowProvisioningUpdates 让自动签名按需创建/更新发布证书与描述文件
 echo "归档中（完整日志：$out/$name-archive.log）…"
@@ -83,15 +76,14 @@ if ! xcodebuild -project MovieClaw.xcodeproj -scheme MovieClaw -configuration Re
   -derivedDataPath "${MC_DERIVED:-$out/DerivedData}" \
   -clonedSourcePackagesDirPath "${MC_SPM:-$HOME/workspace/.mc-ios-spm}" -packageAuthorizationProvider netrc \
   -allowProvisioningUpdates "${auth[@]}" \
-  CURRENT_PROJECT_VERSION="$build" "${edition_args[@]}" \
+  CURRENT_PROJECT_VERSION="$build" \
   archive >"$out/$name-archive.log" 2>&1; then
   grep -E "error:|BUILD FAILED|ARCHIVE FAILED" "$out/$name-archive.log" | sort -u | tail -20 >&2
   echo "错误：归档失败，详见 $out/$name-archive.log" >&2
   exit 1
 fi
 
-# 导出选项。完整版一律 testFlightInternalTestingOnly：App Store Connect 会拒绝把这个构建
-# 用于对外测试或提审，避免把带资源站点/下载器配置的完整版误交审核
+# 导出选项
 export_options="$out/$name-ExportOptions.plist"
 cat >"$export_options" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -104,7 +96,6 @@ cat >"$export_options" <<EOF
   <key>signingStyle</key><string>automatic</string>
   <key>uploadSymbols</key><true/>
   <key>manageAppVersionAndBuildNumber</key><false/>
-  <key>testFlightInternalTestingOnly</key><$([[ $store == 1 ]] && echo false || echo true)/>
 </dict>
 </plist>
 EOF
@@ -119,8 +110,7 @@ if ! xcodebuild -exportArchive -archivePath "$archive" -exportPath "$out/$name" 
 fi
 
 if [[ $upload == 1 ]]; then
-  echo "✅ 已上传 $edition $version（$build）。App Store Connect 处理完（通常 5～30 分钟）后会出现在 TestFlight 里。"
-  [[ $store == 1 ]] || echo "   这是完整版，只能加给内部测试员；对外测试与提审请用 --store 重新打包上传。"
+  echo "✅ 已上传 $version（$build）。App Store Connect 处理完（通常 5～30 分钟）后会出现在 TestFlight 里。"
 else
-  echo "✅ 已导出 $edition：$out/$name/"
+  echo "✅ 已导出：$out/$name/"
 fi

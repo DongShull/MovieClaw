@@ -63,7 +63,7 @@ struct AboutView: View {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
-        return "\(version)（\(build)）\(AppEdition.isStore ? "" : " 完整版")"
+        return "\(version)（\(build)）"
     }
 }
 

@@ -100,9 +100,6 @@ targets:
         # 审核也会在 iPad 上测。iPad 上仍可按 iPhone 兼容模式安装运行
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
-        # 发行版本开关（见 App/AppEdition.swift）：打包脚本 --store 时传 MC_EDITION_CONDITIONS=MC_STORE，
-        # 默认值为空（完整版）定义在 XcodeConfig/Signing.xcconfig
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) $(MC_EDITION_CONDITIONS)
   # 自研引擎（AetherEngine）的动态框架边界。
   # 为什么不直接链进 App：这是 LGPL 组件的替换边界（用户可以用自行编译的同名框架替换）；
   # 它的 FFmpeg 引用也在这个框架链接时就绑定到自带的 AetherLib* 框架——一个进程里有两份 FFmpeg 时

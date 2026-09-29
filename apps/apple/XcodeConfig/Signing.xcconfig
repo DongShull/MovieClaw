@@ -11,7 +11,4 @@
 // CI 里也可以直接作为 xcodebuild 参数传入：MC_BUNDLE_ID_PREFIX=com.example.movieclaw
 MC_BUNDLE_ID_PREFIX = io.movieclaw
 
-// 发行版本：默认完整版（空）。商店版（对外 TestFlight / App Store）由 scripts/release.sh --store
-// 以 xcodebuild 参数 MC_EDITION_CONDITIONS=MC_STORE 打开，见 App/AppEdition.swift
-MC_EDITION_CONDITIONS =
 #include? "Signing.local.xcconfig"
