@@ -8,6 +8,7 @@ import { Markdown } from "@/components/markdown";
 import { Modal } from "@/components/modal";
 import { Tooltip } from "@/components/tooltip";
 import {
+  type GithubTokenView,
   type ModelUpdateCheckView,
   type RollbackOptionsView,
   type RollbackTargetView,
@@ -19,12 +20,14 @@ import {
   checkModelUpdate,
   checkUpdate,
   dismissLastAbnormalExit,
+  getGithubToken,
   getPendingUpdate,
   getRollbackOptions,
   getUpdateProgress,
   getUpdateStatus,
   restartApp,
   rollbackTo,
+  saveGithubToken,
   saveUpdateRetention,
 } from "@/lib/api/app";
 import { getHealth } from "@/lib/api/health";
@@ -46,6 +49,7 @@ import { formatDateTime, formatUnixDateTime } from "@/lib/time";
  *   - 更新执行：后端后台下载校验，前端 1s 轮询进度；进入 restarting 后
  *     改为轮询 /health 等服务恢复（前后端全量重启），恢复即整页刷新。
  *   - 回退：切回上一版本（可再次回退撤销）；无上一版本时回落镜像内置版本。
+ *   - GitHub 访问令牌：可选，避开匿名限流（60 次/小时/IP，走代理时被同节点用户共享）。
  *   - 维护：重启应用（二次确认走全站统一的 useConfirm 弹窗）。原本是本分区第三个
  *     「维护」标签，但那一整个标签从头到尾
  *     只有这一颗按钮；重启与更新/回退本就是同一类"让应用重来一次"的动作，也
@@ -107,6 +111,10 @@ export function AppUpdateSection() {
   const [rollback, setRollback] = useState<RollbackOptionsView | null>(null);
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const [retentionBusy, setRetentionBusy] = useState(false);
+  // GitHub 访问令牌：明文只存在于输入框，保存后后端只回打码尾号
+  const [tokenView, setTokenView] = useState<GithubTokenView | null>(null);
+  const [tokenInput, setTokenInput] = useState("");
+  const [tokenBusy, setTokenBusy] = useState(false);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   // 组件已卸载标记：waitForRestart 的长循环不能在用户离开设置页后还整页刷新
   const unmounted = useRef(false);
@@ -207,6 +215,9 @@ export function AppUpdateSection() {
           setProgress(p);
         }
       })
+      .catch(() => undefined);
+    getGithubToken()
+      .then(setTokenView)
       .catch(() => undefined);
     // 进页预填：读定时检查留下的快照，有新版就直接摆出卡片（读库不触网）
     getPendingUpdate()
@@ -332,6 +343,21 @@ export function AppUpdateSection() {
       setActionError((e as Error).message);
     } finally {
       setRetentionBusy(false);
+    }
+  };
+
+  /** 保存或清除 GitHub 访问令牌（空串 = 清除）。 */
+  const doSaveToken = async (token: string) => {
+    if (tokenBusy) return;
+    setTokenBusy(true);
+    setActionError(null);
+    try {
+      setTokenView(await saveGithubToken(token));
+      setTokenInput("");
+    } catch (e) {
+      setActionError((e as Error).message);
+    } finally {
+      setTokenBusy(false);
     }
   };
 
@@ -667,6 +693,54 @@ export function AppUpdateSection() {
           </div>
         </section>
       )}
+
+      {/* —— GitHub 访问令牌 ——（检查更新走 GitHub API，匿名按出口 IP 限 60 次/小时，
+             走代理时与同节点所有人共用，极易被"限流"；配令牌后改按自己账号计 5000 次） */}
+      <section>
+        <h3 className="group-label mb-2.5 px-1">GitHub 访问令牌</h3>
+        <div className="css-glass !rounded-2xl px-5 py-4">
+          <p className="text-sub text-[var(--text-muted)]">
+            检查更新时提示「GitHub 限流」，多半是代理出口 IP 被大量用户共用、匿名额度（60
+            次/小时）已被用光。填入自己的令牌后，额度改按你的账号计算。令牌只需能读公开仓库：在
+            GitHub 生成 Fine-grained token，不勾选任何权限即可；它仅用于检查更新，加密保存在本机。
+          </p>
+          {tokenView?.configured && (
+            <p className="mt-2 text-sub text-[var(--text)]">
+              已配置：<span className="tnum">{tokenView.masked}</span>
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              type="password"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder={tokenView?.configured ? "填写新令牌以替换" : "github_pat_… 或 ghp_…"}
+              autoComplete="new-password"
+              spellCheck={false}
+              aria-label="GitHub 访问令牌"
+              className="min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-ui text-[var(--text)] outline-none focus:border-[var(--accent)]/60"
+            />
+            <button
+              type="button"
+              onClick={() => doSaveToken(tokenInput)}
+              disabled={tokenBusy || !tokenInput.trim()}
+              className="btn-glass px-3.5 py-1.5 text-sub font-medium disabled:opacity-50"
+            >
+              保存
+            </button>
+            {tokenView?.configured && (
+              <button
+                type="button"
+                onClick={() => doSaveToken("")}
+                disabled={tokenBusy}
+                className="btn-glass px-3.5 py-1.5 text-sub font-medium disabled:opacity-50"
+              >
+                清除
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* —— 维护 ——（重启应用：与更新/回退同属"让应用重来一次"，放在本页最后，
              与上面的更新动作隔开，避免顺手误点） */}

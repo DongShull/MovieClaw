@@ -547,17 +547,30 @@ async def save_app_update_state(state: AppUpdateStateSetting) -> None:
     await get_setting_store().set(state)
 
 
-@register_setting(namespace="app.update_prefs", title="应用更新偏好")
+@register_setting(
+    namespace="app.update_prefs",
+    title="应用更新偏好",
+    # GitHub 访问令牌属于凭据，加密落库
+    secret_fields=["github_token"],
+)
 class AppUpdatePrefsSetting(SettingSchema):
     """应用内更新的用户偏好。
 
     ``keep_versions``：本地保留的历史版本目录数（含当前运行版本）。保留得越多
     可回退的范围越大，占用磁盘越多（每个版本一整份前后端产物）。范围 2~20：
     下限 2 保证「当前 + 上一版」的 A/B 兜底永远成立。
+
+    ``github_token``：可选的 GitHub 访问令牌，只用于检查更新时调 GitHub API。
+    未认证访问按出口 IP 限 60 次/小时，走代理时该额度由同一出口节点的所有用户
+    共享，很容易被别人用光；带上令牌后额度改按令牌所属账号计（5000 次/小时）。
+    空 = 不使用令牌（默认）。
     """
 
     keep_versions: int = Field(
         default=5, ge=2, le=20, description="本地保留的版本目录数（含当前版本），默认 5"
+    )
+    github_token: str = Field(
+        default="", description="检查更新时访问 GitHub API 用的令牌；空表示匿名访问"
     )
 
 

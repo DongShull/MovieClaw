@@ -159,6 +159,20 @@ class UpdateRetentionPayload(BaseModel):
     keep_versions: int = Field(ge=2, le=20, description="本地保留的版本目录数（含当前版本）")
 
 
+class GithubTokenView(BaseModel):
+    """GitHub 访问令牌的配置状态。令牌明文永不回传，只给打码后的尾号供用户辨认。"""
+
+    configured: bool
+    #: 形如 ``****abcd``；未配置为空串
+    masked: str
+
+
+class GithubTokenPayload(BaseModel):
+    """保存 GitHub 访问令牌的请求体。空串 = 清除令牌。"""
+
+    token: str = Field(default="", max_length=255, description="GitHub 访问令牌；空 = 清除")
+
+
 class UpdateProgressView(BaseModel):
     """更新执行进度（前端轮询）。"""
 

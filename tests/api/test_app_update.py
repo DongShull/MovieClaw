@@ -22,6 +22,7 @@ import pytest
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.services import app_update
+from movieclaw_api.settings.schemas import AppUpdatePrefsSetting
 
 
 @pytest.fixture
@@ -33,6 +34,19 @@ def updates_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'app.db'}")
     get_settings.cache_clear()
     app_update.reset_progress_for_tests()
+    # 更新偏好落在 SettingStore（需 DB 初始化）里，本文件不起库：换成内存里的一份，
+    # 需要令牌的用例通过 fake_prefs 直接改字段
+    prefs = AppUpdatePrefsSetting()
+
+    async def fake_get_prefs():
+        return prefs
+
+    async def fake_save_prefs(new):
+        nonlocal prefs
+        prefs = new
+
+    monkeypatch.setattr(app_update, "get_app_update_prefs", fake_get_prefs)
+    monkeypatch.setattr(app_update, "save_app_update_prefs", fake_save_prefs)
     yield updates
     get_settings.cache_clear()
 
@@ -932,6 +946,67 @@ async def test_fetch_releases_reports_rate_limit_instead_of_unreachable(
     assert "配额" in message and "60 次" in message
     assert "无法连接" not in message
     assert "分钟后自动恢复" in message
+
+
+@pytest.mark.asyncio
+async def test_github_token_sent_only_when_configured(updates_dir, monkeypatch):
+    """配了令牌才带 Authorization；清除后回到匿名请求。"""
+    import httpx
+
+    seen: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("authorization"))
+        return httpx.Response(200, json=[])
+
+    _mock_releases_client(monkeypatch, handler)
+    try:
+        await app_update._fetch_releases("更新")
+        view = await app_update.save_github_token("  ghp_abcdefghijklmn1234  ")
+        await app_update._fetch_releases("更新")
+        await app_update.save_github_token("")
+        await app_update._fetch_releases("更新")
+    finally:
+        app_update.reset_release_cache_for_tests()
+    assert seen == [None, "Bearer ghp_abcdefghijklmn1234", None]
+    assert view.configured and view.masked == "****1234"
+    assert "abcdefgh" not in view.masked
+
+
+@pytest.mark.asyncio
+async def test_save_github_token_rejects_malformed(updates_dir):
+    """含空白/非 ASCII 的令牌放进 HTTP 头会让每次请求都报编码错误，保存时就拦下。"""
+    for bad in ("ghp_abc def", "ghp_abc\ndef", "令牌abc"):
+        with pytest.raises(BadRequestException):
+            await app_update.save_github_token(bad)
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_message_points_at_token_setting(updates_dir, monkeypatch):
+    """匿名被限流时提示去配令牌；已配令牌时不再劝配，401 明确指出令牌无效。"""
+    import httpx
+
+    status = {"code": 403}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        headers = {"x-ratelimit-remaining": "0"} if status["code"] == 403 else {}
+        return httpx.Response(status["code"], headers=headers)
+
+    _mock_releases_client(monkeypatch, handler)
+    try:
+        with pytest.raises(BadRequestException) as anonymous:
+            await app_update._fetch_releases("更新")
+        await app_update.save_github_token("ghp_abcdefghijklmn1234")
+        with pytest.raises(BadRequestException) as with_token:
+            await app_update._fetch_releases("更新")
+        status["code"] = 401
+        with pytest.raises(BadRequestException) as invalid:
+            await app_update._fetch_releases("更新")
+    finally:
+        app_update.reset_release_cache_for_tests()
+    assert "访问令牌" in anonymous.value.message and "更新与维护" in anonymous.value.message
+    assert "5000" in with_token.value.message
+    assert "令牌" in invalid.value.message and "401" in invalid.value.message
 
 
 @pytest.mark.asyncio

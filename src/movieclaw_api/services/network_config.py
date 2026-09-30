@@ -45,6 +45,7 @@ from movieclaw_api.settings import (
     WebhookSetting,
     get_setting_store,
 )
+from movieclaw_api.settings.schemas import get_app_update_prefs
 from movieclaw_db.repositories.channel_account_repo import ChannelAccountRepository
 from movieclaw_db.repositories.credential_repo import CredentialRepository
 from movieclaw_net import (
@@ -238,10 +239,16 @@ async def _probe_target(service: str, session: AsyncSession) -> tuple[str, dict[
             f"{settings.update_api_base_url.rstrip('/')}"
             f"/repos/{settings.update_repo}/releases?per_page=1"
         )
-        return url, {
+        headers = {
             "Accept": "application/vnd.github+json",
             "User-Agent": "movieclaw-updater",
         }
+        # 与检查更新同口径：配置了令牌就带上，否则测试看到的是匿名配额、
+        # 检查更新用的却是令牌配额，两处结论会对不上
+        token = (await get_app_update_prefs()).github_token.strip()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        return url, headers
     if service.startswith("site:"):
         site_id = service.removeprefix("site:")
         try:

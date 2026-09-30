@@ -244,6 +244,27 @@ export async function saveUpdateRetention(keepVersions: number): Promise<void> {
   });
 }
 
+/** GitHub 访问令牌的配置状态；明文永不回传，只给打码尾号。 */
+export interface GithubTokenView {
+  configured: boolean;
+  /** 形如 ****abcd；未配置为空串 */
+  masked: string;
+}
+
+export function getGithubToken(): Promise<GithubTokenView> {
+  return unwrap(request<ApiEnvelope<GithubTokenView>>("/app/update/github-token"));
+}
+
+/** 保存 GitHub 访问令牌；传空串 = 清除。 */
+export function saveGithubToken(token: string): Promise<GithubTokenView> {
+  return unwrap(
+    request<ApiEnvelope<GithubTokenView>>("/app/update/github-token", {
+      method: "PUT",
+      body: JSON.stringify({ token }),
+    }),
+  );
+}
+
 /** 检查 NER 模型更新的结果（POST /app/update/model/check）。 */
 export interface ModelUpdateCheckView {
   /** 当前生效的模型 Release tag；老镜像无记录时为 null（显示「无法识别」） */

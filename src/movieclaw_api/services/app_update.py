@@ -49,6 +49,7 @@ from movieclaw_api import __version__
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.schemas.app_update import (
+    GithubTokenView,
     LastAbnormalExitView,
     ModelUpdateCheckView,
     PendingUpdateView,
@@ -471,7 +472,7 @@ def _proxy_hint() -> str:
     return f"当前经代理 {proxy} 访问" if proxy else "当前为直连（未对 GitHub 启用代理）"
 
 
-def _describe_github_error(exc: httpx.HTTPError, what: str) -> str:
+def _describe_github_error(exc: httpx.HTTPError, what: str, *, has_token: bool = False) -> str:
     """把底层网络异常翻译成能直接指导下一步的中文说明。
 
     原先这里不分青红皂白统一报「无法连接 GitHub，请确认网络可达」，把限流、
@@ -482,6 +483,11 @@ def _describe_github_error(exc: httpx.HTTPError, what: str) -> str:
     """
     if isinstance(exc, httpx.HTTPStatusError):
         response = exc.response
+        if response.status_code == 401 and has_token:
+            return (
+                f"GitHub 拒绝了已配置的访问令牌（HTTP 401），无法检查{what}。"
+                "令牌可能填错、已过期或被撤销，请在「设置 → 更新与维护」中更换或清除令牌"
+            )
         if response.status_code in (403, 429):
             if response.headers.get("x-ratelimit-remaining") == "0":
                 reset = response.headers.get("x-ratelimit-reset", "")
@@ -489,11 +495,16 @@ def _describe_github_error(exc: httpx.HTTPError, what: str) -> str:
                 if reset.isdigit():
                     minutes = max(0, int((int(reset) - time.time()) // 60)) + 1
                     recover = f"约 {minutes} 分钟后自动恢复，"
+                quota_hint = (
+                    "当前已使用访问令牌，令牌账号的配额（5000 次/小时）也已耗尽。"
+                    if has_token
+                    else "未认证访问限 60 次/小时/IP，走代理时该配额由出口节点的所有用户"
+                    "共享，因此可能并非本机用量所致；可在「设置 → 更新与维护」配置 "
+                    "GitHub 访问令牌，改按你自己的账号计配额。"
+                )
                 return (
-                    f"GitHub 接口配额已用尽，暂时无法检查{what}。未认证访问限 60 次/"
-                    f"小时/IP，走代理时该配额由出口节点的所有用户共享，"
-                    f"因此可能并非本机用量所致。{recover}期间不影响已装版本运行。"
-                    f"{_proxy_hint()}"
+                    f"GitHub 接口配额已用尽，暂时无法检查{what}。{quota_hint}"
+                    f"{recover}期间不影响已装版本运行。{_proxy_hint()}"
                 )
             return (
                 f"GitHub 拒绝了本次请求（HTTP {response.status_code}），无法检查{what}。"
@@ -523,6 +534,35 @@ def _describe_github_error(exc: httpx.HTTPError, what: str) -> str:
     )
 
 
+async def _read_github_token() -> str:
+    """读取用户配置的 GitHub 访问令牌（未配置为空串）。"""
+    return (await get_app_update_prefs()).github_token.strip()
+
+
+def _mask_token(token: str) -> str:
+    """令牌打码：只留末 4 位供用户辨认；太短的不露任何字符。"""
+    if not token:
+        return ""
+    return f"****{token[-4:]}" if len(token) >= 12 else "****"
+
+
+async def get_github_token_view() -> GithubTokenView:
+    token = await _read_github_token()
+    return GithubTokenView(configured=bool(token), masked=_mask_token(token))
+
+
+async def save_github_token(token: str) -> GithubTokenView:
+    """保存（或清除）GitHub 访问令牌。令牌会放进 HTTP 头，先拦掉空白与非 ASCII，
+    免得粘贴带出的换行/中文让每次请求都在底层报出难懂的编码错误。"""
+    token = token.strip()
+    if token and (not token.isascii() or any(c.isspace() for c in token)):
+        raise BadRequestException("令牌格式不正确：不能包含空格、换行或非英文字符，请重新复制")
+    prefs = await get_app_update_prefs()
+    prefs.github_token = token
+    await save_app_update_prefs(prefs)
+    return GithubTokenView(configured=bool(token), masked=_mask_token(token))
+
+
 async def _fetch_releases(what: str) -> list[dict]:
     """拉全部 Release 列表（应用与模型的 Release 混在同一个仓库里，
     必须列表过滤，绝不能用 /releases/latest——模型发布会把 latest 顶掉）。"""
@@ -534,6 +574,11 @@ async def _fetch_releases(what: str) -> list[dict]:
     base_url = settings.update_api_base_url.rstrip("/")
     api_url = f"{base_url}/repos/{settings.update_repo}/releases?per_page=100"
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "movieclaw-updater"}
+    # 令牌只加在这一处 API 调用上：清单/产物走 github.com 的下载地址，不需要也不该带；
+    # httpx 跨域重定向时会自动丢弃 Authorization，不会泄漏给 CDN
+    token = await _read_github_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     if _releases_etag and _releases_cached is not None:
         headers["If-None-Match"] = _releases_etag
     async with httpx.AsyncClient(
@@ -557,7 +602,9 @@ async def _fetch_releases(what: str) -> list[dict]:
                 resp.raise_for_status()
             except _RETRYABLE_NETWORK_ERRORS as exc:
                 if attempt == len(_RETRY_BACKOFF_SECONDS):
-                    raise BadRequestException(_describe_github_error(exc, what)) from exc
+                    raise BadRequestException(
+                        _describe_github_error(exc, what, has_token=bool(token))
+                    ) from exc
                 delay = _RETRY_BACKOFF_SECONDS[attempt]
                 logger.info(
                     "检查%s时连接 GitHub 失败（第 %d 次：%s），%.0f 秒后重试",
@@ -571,7 +618,9 @@ async def _fetch_releases(what: str) -> list[dict]:
             except httpx.HTTPError as exc:
                 # HTTP 状态错误不重试：限流/风控下重试只会加速耗尽配额，
                 # 直接交给错误分类给出准确结论
-                raise BadRequestException(_describe_github_error(exc, what)) from exc
+                raise BadRequestException(
+                        _describe_github_error(exc, what, has_token=bool(token))
+                    ) from exc
             break
         releases = resp.json()
         etag = resp.headers.get("etag")

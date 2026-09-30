@@ -8,6 +8,7 @@
 - GET  /app/update/progress  —— 更新执行进度；
 - POST /app/update/rollback  —— 回退到上一版本（或镜像基线）；
 - POST /app/update/last-exit/dismiss —— 确认异常退出告警（清除记录）；
+- GET/PUT /app/update/github-token —— 检查更新用的 GitHub 访问令牌（避开匿名限流）；
 - POST /app/update/model/check / /app/update/model/apply —— NER 模型独立更新。
 """
 
@@ -16,6 +17,8 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from movieclaw_api.schemas.app_update import (
+    GithubTokenPayload,
+    GithubTokenView,
     ModelUpdateCheckView,
     PendingUpdateView,
     RollbackOptionsView,
@@ -148,3 +151,24 @@ async def rollback_update(payload: RollbackPayload | None = None) -> ApiResponse
 async def set_update_retention(payload: UpdateRetentionPayload) -> ApiResponse[None]:
     value = await app_update.save_update_retention(payload.keep_versions)
     return ok(None, message=f"本地将保留最近 {value} 个版本")
+
+
+@router.get(
+    "/github-token",
+    response_model=ApiResponse[GithubTokenView],
+    summary="读取 GitHub 访问令牌的配置状态（只返回打码尾号）",
+    operation_id="app.update.github-token-get",
+)
+async def get_github_token() -> ApiResponse[GithubTokenView]:
+    return ok(await app_update.get_github_token_view())
+
+
+@router.put(
+    "/github-token",
+    response_model=ApiResponse[GithubTokenView],
+    summary="保存 GitHub 访问令牌（空串清除），检查更新时带上以避开匿名限流",
+    operation_id="app.update.github-token-put",
+)
+async def set_github_token(payload: GithubTokenPayload) -> ApiResponse[GithubTokenView]:
+    view = await app_update.save_github_token(payload.token)
+    return ok(view, message="GitHub 访问令牌已保存" if view.configured else "GitHub 访问令牌已清除")

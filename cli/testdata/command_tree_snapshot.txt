@@ -8,6 +8,8 @@ app tasks list
 app tasks update
 app update apply
 app update check
+app update github-token-get
+app update github-token-put
 app update last-exit-dismiss
 app update model-apply
 app update model-check
