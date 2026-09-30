@@ -275,11 +275,14 @@ SCENARIOS = {
     # 只量慢线路冷起播的首帧（不接受提议）：6 Mbit/s、每轮清片源缓存，出画即算过
     "slow-start": scenario("mkv", 60, "start", [(("start",), ("set", "link", 750_000, None, None))],
                            extra=["-mcPurgeByteCache", "YES"]),
-    # 慢线路下跳转（只量不接受提议）：全程 6 Mbit/s，打开 30 秒后往回跳到 300 秒 / 往后跳 10 分钟，看 [SeekTrace]。
+    # 慢线路下跳转（只量不接受提议）：全程 6 Mbit/s，打开 30 秒后往回跳到 300 秒 /
+    # 往后跳 10 分钟，看 [SeekTrace]。
     # MC_FAULT_MKV 用码率低于线路的片子、带 ?t=600（从第 600 秒续播），往回跳才会落到没下过的地方
-    "slow-seek-back": scenario("mkv", 75, "play", [(("start",), ("set", "link", 750_000, None, None))],
+    "slow-seek-back": scenario("mkv", 75, "play",
+                               [(("start",), ("set", "link", 750_000, None, None))],
                                extra=["-mcPurgeByteCache", "YES", "-mcAutoSeek", "30:300"]),
-    "slow-seek-fwd": scenario("mkv", 75, "play", [(("start",), ("set", "link", 750_000, None, None))],
+    "slow-seek-fwd": scenario("mkv", 75, "play",
+                              [(("start",), ("set", "link", 750_000, None, None))],
                               extra=["-mcPurgeByteCache", "YES", "-mcAutoSeek", "30:+600"]),
     # 同上但不限速：确认给慢线路做的取数调整在快线路上不退化
     "cold-start": scenario("mkv", 30, "start", extra=["-mcPurgeByteCache", "YES"]),

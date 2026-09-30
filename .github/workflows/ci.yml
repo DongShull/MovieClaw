@@ -77,6 +77,9 @@ jobs:
               - "cli/**"
               - "apps/web/app/**"
               - "macos/MovieClawTranscoder/Sources/MovieClawTranscoder/ArtifactUploadProxy.swift"
+              # ruff check . 检查全仓库的 .py（含 apps/apple/scripts 等目录外脚本），
+              # 漏掉它们会让 lint 错误悄悄进 main、卡住之后每一个 Python PR
+              - "**/*.py"
             cli-go:
               - *all
               - "cli/**"
