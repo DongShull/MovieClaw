@@ -103,6 +103,11 @@ class ContainerIndex:
 _cache: dict[tuple[str, int, int], ContainerIndex] = {}
 _CACHE_MAX = 128
 
+_MATROSKA_SUFFIXES = frozenset({".mkv", ".webm", ".mka"})
+_MP4_SUFFIXES = frozenset({".mp4", ".m4v", ".mov"})
+#: EBML 头的元素 ID，所有 Matroska / WebM 文件的开头 4 字节
+_EBML_MAGIC = b"\x1a\x45\xdf\xa3"
+
 
 def read_container_index(path: str | Path) -> ContainerIndex | None:
     """读取文件的容器索引；不支持的容器或解析失败返回 None。"""
@@ -117,12 +122,16 @@ def read_container_index(path: str | Path) -> ContainerIndex | None:
         return cached
     suffix = path.suffix.lower()
     try:
-        if suffix in {".mkv", ".webm", ".mka"}:
-            index = _read_matroska(path, stat.st_size)
-        elif suffix in {".mp4", ".m4v", ".mov"}:
-            index = _read_mp4(path, stat.st_size)
-        else:
+        if suffix not in _MATROSKA_SUFFIXES | _MP4_SUFFIXES:
             return None
+        # 以文件头魔数为准、后缀只是兜底：实际有 Matroska 内容却被命名成 .mp4 的片源
+        # （ffmpeg 靠内容嗅探照常能播），只看后缀会按 MP4 解析，报「找不到 moov」。
+        with path.open("rb") as f:
+            magic = f.read(4)
+        if magic == _EBML_MAGIC or suffix in _MATROSKA_SUFFIXES:
+            index = _read_matroska(path, stat.st_size)
+        else:
+            index = _read_mp4(path, stat.st_size)
     # ValueError 是解析器自己抛的（结构不对、缺索引），IndexError / struct.error
     # 是截断或损坏的文件让解析读越了界。这里是「按合同失败返回 None」的唯一出口。
     except (OSError, ValueError, IndexError, struct.error) as exc:

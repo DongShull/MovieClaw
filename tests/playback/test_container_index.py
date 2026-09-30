@@ -190,6 +190,21 @@ def test_matroska_cues_missing_from_seekhead_is_unsupported(tmp_path):
     assert ci.read_container_index(path) is None
 
 
+def test_matroska_content_with_mp4_suffix_sniffed_by_magic(tmp_path):
+    """后缀是 .mp4 但内容是 Matroska（NAS 上真实出现过）：按魔数走 Matroska 解析。"""
+    path = tmp_path / "disguised.mp4"
+    _build_mkv(
+        path,
+        duration_ms=600_000,
+        clusters=[(0, 1000), (2000, 3000)],
+        subtitle_ms=[],
+        chapters=[],
+    )
+    index = ci.read_container_index(path)
+    assert index is not None
+    assert index.container == "matroska"
+
+
 def test_matroska_truncated_before_cues_is_unsupported_with_clear_reason(tmp_path, caplog):
     """文件尾被截掉、截在最后一个簇中间（NAS 实测《饥饿站台》只剩 64%）：SeekHead 记的
     Cues 在文件末尾之外。按合同返回 None，日志要说清「文件不完整」而不是报越界。"""
