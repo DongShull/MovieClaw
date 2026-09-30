@@ -4098,7 +4098,8 @@ async def claim_files_batch(
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[dict]:
     """一次认领一整组（通常是一部剧的几十集），与单个认领共用
-    services/library/claim.claim_files（季集号沿用文件名解析结果）。"""
+    services/library/claim.claim_files（季集号沿用文件名解析结果；带
+    ``season_number`` 时整组统一改用该季号）。"""
 
     target_kind, tmdb_id = _assignment_target(payload.title_ref)
     item, claimed, displaced = await library_claim.claim_files(
@@ -4106,6 +4107,7 @@ async def claim_files_batch(
         payload.file_ids,
         tmdb_id=tmdb_id,
         target_kind=target_kind,
+        season_override=payload.season_number,
     )
     # 一次入库刮削的资产补齐（图片 + 媒体目录镜像），后台执行
     background_tasks.add_task(media_scrape.ensure_assets, item.id)

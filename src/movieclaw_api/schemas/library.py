@@ -1423,7 +1423,10 @@ class UnidentifiedFileView(BaseModel):
     )
     code: str | None = Field(
         default=None,
-        description="失败分类：unparsable / tmdb_unreachable / ambiguous / no_match",
+        description=(
+            "失败分类：unparsable / tmdb_unreachable / ambiguous / no_match / "
+            "kind_mismatch / unit_unresolved"
+        ),
     )
     candidates: list[UnidentifiedCandidateView] = Field(default_factory=list)
 
@@ -1464,8 +1467,9 @@ class ClaimPayload(BaseModel):
 class ClaimBatchPayload(BaseModel):
     """整组认领：一次把多个待识别文件挂到同一个 TMDB 条目。
 
-    季集号不在这里指定——每个文件沿用扫描时已从文件名解析出的季集号，
-    这正是"一部剧几十集一次认领"能成立的前提。
+    季集号默认不在这里指定——每个文件沿用扫描时已从文件名解析出的季集号，
+    这正是"一部剧几十集一次认领"能成立的前提。季号解析不出的一组（待识别
+    分类 ``unit_unresolved``）用 ``season_number`` 统一指定季号，集号照旧沿用。
     """
 
     file_ids: list[int] = Field(
@@ -1475,6 +1479,12 @@ class ClaimBatchPayload(BaseModel):
         min_length=1,
         max_length=160,
         description="Discover 返回的 TMDB 影视条目稳定引用，如 tmdb:tv:1396",
+    )
+    season_number: int | None = Field(
+        default=None,
+        ge=0,
+        le=999,
+        description="整组统一指定的季号（剧集；0=特别篇）；缺省沿用各文件解析出的季号",
     )
 
 

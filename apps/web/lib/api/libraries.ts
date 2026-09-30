@@ -361,7 +361,8 @@ export type UnidentifiedCode =
   | "tmdb_unreachable"
   | "ambiguous"
   | "no_match"
-  | "kind_mismatch";
+  | "kind_mismatch"
+  | "unit_unresolved";
 
 /** 待识别清单的一组：同一条目目录下的文件（一部剧几十集算一组）。 */
 export interface UnidentifiedGroup {
@@ -1077,17 +1078,25 @@ export function assignLibraryFileToTitle(
   );
 }
 
-/** 整组认领：一次把多个待识别文件挂到同一个 TMDB 条目（各自沿用已解析的季集号）。 */
+/**
+ * 整组认领：一次把多个待识别文件挂到同一个 TMDB 条目（各自沿用已解析的季集号）。
+ * 带 seasonNumber 时整组统一改用该季号（季号解析不出的 unit_unresolved 组必填）。
+ */
 export function assignLibraryFilesToTitle(
   fileIds: number[],
   titleRef: string,
+  seasonNumber?: number,
 ): Promise<{ claimed: number }> {
   return unwrap(
     request<ApiEnvelope<{ claimed: number }>>(
       `/libraries/identification/file-title-assignments`,
       {
         method: "POST",
-        body: JSON.stringify({ file_ids: fileIds, title_ref: titleRef }),
+        body: JSON.stringify({
+          file_ids: fileIds,
+          title_ref: titleRef,
+          ...(seasonNumber === undefined ? {} : { season_number: seasonNumber }),
+        }),
       },
     ),
   );

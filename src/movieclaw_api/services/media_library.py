@@ -248,6 +248,14 @@ class MediaLibraryService:
         ).scalar_one_or_none()
         return row
 
+    async def seasons(self, media_item_id: int) -> list[MediaSeason]:
+        """条目的季台账（TMDB 宣称存在的季，含特别季 0），按季号排序。
+
+        扫描器用它做两件事：季集解析的台账守卫/唯一季兜底，以及钉死身份
+        年份校验里的播出区间（见 library_scan._pinned_mismatch）。
+        """
+        return await self._repo.list_seasons(media_item_id)
+
     async def resolve_douban(
         self,
         kind: MediaKind,

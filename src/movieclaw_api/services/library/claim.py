@@ -36,7 +36,7 @@ from movieclaw_api.services.subscription import (
     reopen_unfulfilled_wanted,
 )
 from movieclaw_db.models import Library, LibraryFile, MediaItem, utcnow
-from movieclaw_db.models.library_file import IdentitySource
+from movieclaw_db.models.library_file import IdentitySource, UnidentifiedCode
 from movieclaw_db.repositories.library_file_repo import LibraryFileRepository
 from movieclaw_db.repositories.library_repo import LibraryRepository
 from movieclaw_media.models import MediaKind
@@ -51,6 +51,7 @@ async def claim_files(
     tmdb_id: int,
     target_kind: MediaKind | None = None,
     explicit_unit: tuple[int | None, int | None] | None = None,
+    season_override: int | None = None,
 ) -> tuple[MediaItem, int, set[int]]:
     """把一组文件认领到指定 TMDB 条目，返回 ``(条目, 认领数, 被腾空的旧条目 id)``。
 
@@ -65,6 +66,9 @@ async def claim_files(
     - 缺省（整组认领）：每个文件沿用扫描时从文件名解析出的季集号——这正是
       "一次纠正全生效"能成立的前提（片名认不出不代表季集号也认不出）；
       电影统一用 (0,0) 哨兵。
+    - ``season_override``（整组认领时指定季号）：集号仍沿用各文件解析结果。
+      「季号待确认」（``UNIT_UNRESOLVED``）的文件必须带它——它们的季号本来
+      就没解出来，沿用扫描落的 0 等于把正片认领进特别篇。
 
     约束：一次只能认领同一个媒体库内的文件（409 之外的语义用 400 表达）。
     """
@@ -88,6 +92,14 @@ async def claim_files(
         )
     if explicit_unit is not None and kind is MediaKind.MOVIE and any(explicit_unit):
         raise BadRequestException("电影文件不需要季集号")
+    if season_override is not None and kind is MediaKind.MOVIE:
+        raise BadRequestException("电影文件不需要季号")
+    if (
+        explicit_unit is None
+        and season_override is None
+        and any(row.unidentified_code == UnidentifiedCode.UNIT_UNRESOLVED for row in rows)
+    ):
+        raise BadRequestException("这些文件解析不出季号，认领时请指定第几季")
 
     # 经模块属性取 TMDB 客户端（而非 from-import 绑定名），保证测试可打桩
     tmdb = media_discover.get_tmdb_client()
@@ -118,6 +130,8 @@ async def claim_files(
         else:
             season_number = 0 if movie else row.season_number
             episode_number = 0 if movie else row.episode_number
+            if season_override is not None:
+                season_number = season_override
         # 改挂：观看状态随文件迁到新单元（临时本地身份转正、错挂纠正都适用）
         if row.media_item_id is not None and row.media_item_id != item.id:
             await migrate_watch_state(

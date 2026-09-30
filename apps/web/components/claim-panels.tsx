@@ -41,6 +41,7 @@ export function ClaimConfirmPanel({
   movie,
   fileCount,
   busy,
+  askSeason = false,
   onConfirm,
   onCancel,
 }: {
@@ -48,11 +49,15 @@ export function ClaimConfirmPanel({
   movie: boolean;
   fileCount: number;
   busy: boolean;
-  onConfirm: () => void;
+  /** 季号解析不出的一组（unit_unresolved）：认领前必须指定第几季 */
+  askSeason?: boolean;
+  onConfirm: (season?: number) => void;
   onCancel: () => void;
 }) {
   const [detail, setDetail] = useState<MediaDetailData | null>(null);
   const [failed, setFailed] = useState(false);
+  const [season, setSeason] = useState("");
+  const seasonValid = /^\d{1,3}$/.test(season.trim());
   const kind = movie ? "movie" : "tv";
 
   useEffect(() => {
@@ -156,13 +161,27 @@ export function ClaimConfirmPanel({
         {movie && fileCount > 1 && (
           <span className="text-caption text-[var(--text-faint)]">整组视为同一部片的多个版本</span>
         )}
+        {askSeason && (
+          <label className="flex items-center gap-1.5 text-caption text-[var(--text-muted)]">
+            第
+            <input
+              value={season}
+              onChange={(e) => setSeason(e.target.value)}
+              inputMode="numeric"
+              placeholder="?"
+              aria-label="季号"
+              className="w-10 rounded-md bg-white/[0.06] px-1.5 py-1 text-center text-sub text-white outline-none focus:bg-white/[0.1]"
+            />
+            季
+          </label>
+        )}
         <button type="button" disabled={busy} onClick={onCancel} className="btn-glass px-3 py-1.5 text-sub font-medium disabled:opacity-40">
           取消
         </button>
         <button
           type="button"
-          disabled={busy}
-          onClick={onConfirm}
+          disabled={busy || (askSeason && !seasonValid)}
+          onClick={() => onConfirm(askSeason ? Number(season.trim()) : undefined)}
           className="btn-accent rounded-full px-3.5 py-1.5 text-sub font-semibold disabled:opacity-40"
         >
           认领{fileCount > 1 ? `全部 ${fileCount} 个文件` : ""}

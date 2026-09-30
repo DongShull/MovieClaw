@@ -40,6 +40,7 @@ from pathlib import Path
 from movieclaw_api.services.library.layout import (
     explicit_episode,
     explicit_unit,
+    pack_season,
     season_from_dir,
     trailing_index_episode,
 )
@@ -70,7 +71,8 @@ class _Evidence:
 
     episode: int
     explicit_pilot: bool
-    # 确定性季号：显式 SxxEyy 标记或季目录名声明的，语义无歧义，不受台账守卫约束
+    # 确定性季号：显式 SxxEyy 标记、季目录名或季包目录名声明的，语义无歧义，
+    # 不受台账守卫约束
     certain_season: int | None
     # 模型季号：去噪后的候选，须经批次共识 + 台账守卫才可能被采信
     model_season: int | None
@@ -94,7 +96,10 @@ def _file_evidence(file: Path) -> _Evidence:
         )
 
     bare = explicit_episode(stem)
+    # 季目录名；父目录是带片名的季包（"House.M.D.S04.1080p"）时取它声明的季号
     dir_season = season_from_dir(file.parent)
+    if dir_season is None:
+        dir_season = pack_season(file.parent.name)
     if bare is not None and dir_season is not None:
         # 两轴都由确定性来源拿到，跳过模型（快路径）
         return _Evidence(

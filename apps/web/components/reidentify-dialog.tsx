@@ -58,6 +58,7 @@ const CODE_LABELS: Record<string, string> = {
   ambiguous: "候选之间分不出",
   no_match: "TMDB 里没找到匹配",
   unparsable: "从文件名认不出片名",
+  unit_unresolved: "认出了作品但定不了第几季",
 };
 
 export function ReidentifyDialog({

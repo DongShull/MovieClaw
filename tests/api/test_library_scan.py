@@ -3172,3 +3172,186 @@ async def test_scan_merges_sibling_version_dirs_into_one_item(db, tmp_path) -> N
     ]
     assert len({r.media_item_id for r in rows}) == 1  # 三个版本归并同一条目
     assert [i.tmdb_id for i in items] == [300]
+
+
+# ---------------------------------------------------------------------------
+# issue #497：带装饰的季目录、剧集钉死身份的年份轴、季号定不下来的去向
+# ---------------------------------------------------------------------------
+
+# 两季剧：季号解析不出的文件必须进待识别，而不是静默落进特别篇
+_ROUTES["/3/tv/203"] = {
+    "id": 203,
+    "name": "双季剧",
+    "original_name": "Two Season Show",
+    "first_air_date": "2020-01-01",
+    "status": "Ended",
+    "external_ids": {},
+    "alternative_titles": {"results": []},
+    "translations": {"translations": []},
+    "seasons": [{"season_number": 1}, {"season_number": 2}],
+}
+for _season in (1, 2):
+    _ROUTES[f"/3/tv/203/season/{_season}"] = {
+        "name": f"第 {_season} 季",
+        "air_date": f"{2019 + _season}-01-01",
+        "episodes": [
+            {"episode_number": e, "name": f"E{e}", "air_date": f"{2019 + _season}-01-0{e}"}
+            for e in (1, 2)
+        ],
+    }
+
+
+async def test_decorated_season_dir_keeps_pinned_identity(db, tmp_path) -> None:
+    """issue #497：「Season 1-第 1 季-(2027)」这类带 TMDB 季名与季播年的季目录。
+
+    修复前它不被认作季目录，于是被当成条目目录：片名证据变成「Season 1-第 1 季-」、
+    年份变成季播年，与剧集首播年相差超过 2 年，路径上正确的 tmdbid 标记被推翻，
+    整季按名字搜不到、落成一个叫「Season 1-第 1 季-(2027)」的临时条目。
+    """
+    root = tmp_path / "media" / "tv"
+    season = root / "欧美剧" / "测试剧集 (2024) [tmdbid=200]" / "Season 1-第 1 季-(2027)"
+    season.mkdir(parents=True)
+    for e in (1, 2):
+        (season / f"测试剧集 - S01E0{e} - 第 {e} 集.mkv").write_bytes(b"x" * e)
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="剧集库", kind="tv", root_paths=[str(root)]
+        )
+
+    summary = await scan_library(library.id)
+    assert summary.identified == 2 and summary.unidentified == 0
+
+    async with db.session() as session:
+        rows = list((await session.execute(select(LibraryFile))).scalars().all())
+        items = list((await session.execute(select(MediaItem))).scalars().all())
+    assert all(r.identity_source == IdentitySource.PATH_TAG for r in rows)
+    assert {(r.season_number, r.episode_number) for r in rows} == {(1, 1), (1, 2)}
+    assert [(i.tmdb_id, i.source) for i in items] == [(200, "tmdb")]
+
+
+async def test_single_season_show_places_bare_episode_in_season_one(db, tmp_path) -> None:
+    """文件名只有「第01集」、没有季目录：单季剧按台账唯一的正片季归第 1 季。
+
+    修复前扫描器解季号时不看台账，解不出就落第 0 季——正片被塞进特别篇。
+    """
+    root = tmp_path / "media" / "tv"
+    show = root / "测试剧集 (2024)"
+    show.mkdir(parents=True)
+    (show / "第01集.mp4").write_bytes(b"x")
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="剧集库", kind="tv", root_paths=[str(root)]
+        )
+
+    await scan_library(library.id)
+    async with db.session() as session:
+        row = (await session.execute(select(LibraryFile))).scalars().one()
+    assert row.unidentified_code is None
+    assert (row.season_number, row.episode_number) == (1, 1)
+
+
+async def test_unresolved_season_goes_pending_and_claims_with_season(
+    db, tmp_path, monkeypatch
+) -> None:
+    """多季剧而文件名/目录都不带季号：认出作品也定不了第几季 → 进待识别。
+
+    认出的作品作为候选带上；整组认领不指定季号会被拒（沿用落的 0 等于认领进
+    特别篇），指定季号后集号照旧沿用各文件解析结果。
+    """
+    import movieclaw_api.api.routes.libraries as routes_mod
+    from movieclaw_api.api.routes.libraries import claim_files_batch
+    from movieclaw_api.exceptions import BadRequestException
+    from movieclaw_api.schemas.library import ClaimBatchPayload
+
+    client = _fake_tmdb()
+    monkeypatch.setattr(routes_mod, "get_tmdb_client", lambda: client)
+    root = tmp_path / "media" / "tv"
+    show = root / "双季剧 (2020) [tmdbid=203]"
+    show.mkdir(parents=True)
+    for e in (1, 2):
+        (show / f"第0{e}集.mp4").write_bytes(b"x" * e)
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="剧集库", kind="tv", root_paths=[str(root)]
+        )
+
+    summary = await scan_library(library.id)
+    assert summary.identified == 0 and summary.unidentified == 2
+    async with db.session() as session:
+        rows = list((await session.execute(select(LibraryFile))).scalars().all())
+    assert {r.unidentified_code for r in rows} == {UnidentifiedCode.UNIT_UNRESOLVED}
+    assert all("无法确定是第几季" in (r.unidentified_reason or "") for r in rows)
+    assert all([c["tmdb_id"] for c in r.unidentified_candidates] == [203] for r in rows)
+
+    file_ids = [r.id for r in rows]
+    async with db.session() as session:
+        try:
+            await claim_files_batch(
+                ClaimBatchPayload(file_ids=file_ids, title_ref="tmdb:tv:203"),
+                BackgroundTasks(),
+                session,
+            )
+        except BadRequestException as exc:
+            assert "季" in str(exc)
+        else:
+            raise AssertionError("季号待确认的文件不指定季号就认领，应被拒绝")
+    async with db.session() as session:
+        resp = await claim_files_batch(
+            ClaimBatchPayload(file_ids=file_ids, title_ref="tmdb:tv:203", season_number=2),
+            BackgroundTasks(),
+            session,
+        )
+    assert resp.data["claimed"] == 2
+    async with db.session() as session:
+        rows = list((await session.execute(select(LibraryFile))).scalars().all())
+        item = await session.get(MediaItem, rows[0].media_item_id)
+    assert item is not None and item.tmdb_id == 203
+    assert all(r.unidentified_code is None for r in rows)
+    assert {(r.season_number, r.episode_number) for r in rows} == {(2, 1), (2, 2)}
+
+
+def test_pinned_mismatch_tv_year_uses_airing_span() -> None:
+    """剧集的本地年份常是季播年：落在「首播年 ~ 最后一季首播年」内不算反证；
+    远在区间之外（标记打错数字）照样推翻。"""
+    from movieclaw_api.services.library.resolve import LocalEvidence
+
+    house = MediaItem(kind="tv", tmdb_id=1408, title="豪斯医生", original_title="House", year=2004)
+    season_four = LocalEvidence(title="某个对不上的名字", year=2007)
+    assert scan_mod._pinned_mismatch(house, season_four, last_air_year=2011) is None
+    assert scan_mod._pinned_mismatch(house, season_four) is not None
+    far_off = LocalEvidence(title="某个对不上的名字", year=2020)
+    assert scan_mod._pinned_mismatch(house, far_off, last_air_year=2011) is not None
+
+
+def test_series_dir_name_beats_truncated_ner_title(tmp_path, monkeypatch) -> None:
+    """结构上确定的剧集目录（与文件之间隔着季目录）名字干净时，整名作主查询词。
+
+    NER 面向种子名训练，对孤立的干净中文名大量截断或漏抽（「人世间」→「世间」、
+    「庆余年」→ 空），不带年份的剧集目录没有「Title (Year)」惯例名兜底，截断
+    结果会直接变成查询词。这里把模型打桩成确定的截断/漏抽，只验证代码侧的兜底。
+    """
+    from movieclaw_enrich.models import TorrentAttrs
+
+    real_enrich = scan_mod.enrich
+
+    def fake_enrich(text, *args, **kwargs):
+        if text == "人世间":
+            return TorrentAttrs(titles_zh=["世间"])
+        if text == "庆余年":
+            return TorrentAttrs()
+        return real_enrich(text, *args, **kwargs)
+
+    monkeypatch.setattr(scan_mod, "enrich", fake_enrich)
+    root = tmp_path / "tv"
+    truncated = root / "国产剧" / "人世间" / "Season 1" / "S01E01.mkv"
+    evidence = scan_mod.guess_evidence(MediaKind.TV, root, truncated)
+    assert evidence is not None
+    assert (evidence.title, evidence.alt_title) == ("人世间", "世间")
+    # 没有季目录：结构上分不清剧集目录与分组目录，不抢模型的结论……
+    loose = root / "国产剧" / "人世间" / "S01E01.mkv"
+    evidence = scan_mod.guess_evidence(MediaKind.TV, root, loose)
+    assert evidence is not None and evidence.title == "世间"
+    # ……但文件名与目录名全都抽不出片名时，条目目录的干净整名是唯一候选
+    empty = root / "国产剧" / "庆余年" / "S01E01.mkv"
+    evidence = scan_mod.guess_evidence(MediaKind.TV, root, empty)
+    assert evidence is not None and evidence.title == "庆余年"

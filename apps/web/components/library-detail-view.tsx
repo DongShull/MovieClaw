@@ -2876,6 +2876,7 @@ const UNIDENTIFIED_BADGE: Record<
   ambiguous: { label: (g) => `${g.candidates.length} 个候选待定`, tone: "muted" },
   no_match: { label: () => "TMDB 无匹配", tone: "muted" },
   unparsable: { label: () => "认不出片名", tone: "muted" },
+  unit_unresolved: { label: () => "季号待确认", tone: "muted" },
 };
 
 /** 组卡片的次要动作（忽略 / 查看文件）：收进 ⋯，不跟主动作抢视线。 */
@@ -3065,6 +3066,14 @@ function UnidentifiedGroupRow({
         </p>
       )}
 
+      {/* 认出了作品、只差季号：写清两条出口，免得用户以为要重新搜索 */}
+      {group.code === "unit_unresolved" && (
+        <p className="mt-1 text-caption leading-relaxed text-[var(--text-faint)]">
+          文件名和目录里都没有季号。点下面的作品、填上第几季即可认领；或者把文件放进「Season N」目录（或按
+          S01E01 命名），下次扫描会自动归位。
+        </p>
+      )}
+
       {/* 候选：机器给出的可能匹配。点击先进详情确认面板，不直接认领 */}
       {group.candidates.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -3123,11 +3132,13 @@ function UnidentifiedGroupRow({
           movie={movie}
           fileCount={group.file_count}
           busy={busy}
-          onConfirm={() =>
+          askSeason={group.code === "unit_unresolved"}
+          onConfirm={(season) =>
             act(() =>
               assignLibraryFilesToTitle(
                 fileIds,
                 `tmdb:${movie ? "movie" : "tv"}:${panel.seed.tmdbId}`,
+                season,
               ),
             )
           }

@@ -66,6 +66,11 @@ class UnidentifiedCode(StrEnum):
     # 得换库。不识别是**故意**的：TMDB 的 movie/tv 是两套 id 空间，按错误
     # 类型拉档会静默拿到一部毫不相干的作品（见 library_scan._kind_conflict）
     KIND_MISMATCH = "kind_mismatch"
+    # 剧集作品认出来了，但文件名和各级目录里都没有季号、该剧又不止一季：
+    # 第几季没法定。以前静默落成第 0 季（特别篇）——看着像识别成功，实际
+    # 把正片塞进了特别篇。现在进待识别，由用户指定季号认领；文件挪进
+    # 「Season N」目录或按 SxxEyy 命名后，下一轮扫描也会自动归位
+    UNIT_UNRESOLVED = "unit_unresolved"
 
 
 class IdentitySource(StrEnum):
