@@ -144,6 +144,11 @@ var knownNonGenerated = []string{
 	"share.playback.progress",
 	"share.playback.item",
 	"share.playback.item.episodes",
+	// 刷片（docs/design/reels.md）：App 沉浸页的信息流、类型列表与埋点事件，
+	// 边看边滑的交互在命令行没有对应形态
+	"reels.feed",
+	"reels.genres",
+	"reels.events",
 }
 
 // TestNonGeneratedEndpointsAreAllKnown 强制新端点显式表态：进命令树，或登记豁免。
