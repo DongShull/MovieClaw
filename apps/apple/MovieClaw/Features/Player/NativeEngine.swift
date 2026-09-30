@@ -56,6 +56,8 @@ final class NativeEngine: NSObject, PlayerEngine {
     private var loadIssued = false
     /// 片源字节缓存的键（控制器装载前给，见 `PlaybackController.sourceCacheKey`）：同一个文件在 App 这次运行里每个字节只下一次
     var sourceCacheKey: String?
+    /// 服务端随会话下发的 MKV 精简索引（控制器装载前给；引擎补丁 P58）：起播时不必再下原索引
+    var matroskaCues: (offset: Int64, data: Data)?
     /// 落盘计划（控制器装载前按剩余空间给，见 `NativeStoragePlan`）：存储紧张时收小分片窗口、不开片源字节缓存
     var storagePlan = NativeStoragePlan.normal
     /// 装载时交给引擎的外挂字幕（按引用记顺序：引擎里 isExternal 的轨按 id 排序与之一一对应）
@@ -146,6 +148,12 @@ final class NativeEngine: NSObject, PlayerEngine {
         AetherPlayback.setSkipsDetourOnSlowLink(!UserDefaults.standard.bool(forKey: "mcNoDetourSkip"))
         // -mcNoIndexPriority YES：冷打开时文件头照旧一开始就要 32 MB、与索引提前取并行（引擎补丁 P56 之前的行为，对照用）
         AetherPlayback.setPrioritizesIndexPrefetch(!UserDefaults.standard.bool(forKey: "mcNoIndexPriority"))
+        // -mcNoProgressiveSegments YES：分片照旧整段写完再交付给 AVPlayer（引擎补丁 P57 之前的行为，对照用）
+        AetherPlayback.setServesSegmentsProgressively(!UserDefaults.standard.bool(forKey: "mcNoProgressiveSegments"))
+        // -mcNoHostCues YES：不用服务端给的 MKV 精简索引，照旧下载原索引（引擎补丁 P58 之前的行为，对照用）
+        AetherPlayback.setUsesHostMatroskaCues(!UserDefaults.standard.bool(forKey: "mcNoHostCues"))
+        // -mcNoMediaIndependent YES：只在主播放列表声明分片独立（引擎补丁 P59 之前的行为，对照用）
+        AetherPlayback.setDeclaresIndependentMediaSegments(!UserDefaults.standard.bool(forKey: "mcNoMediaIndependent"))
         // -mcWitnessInterval <秒>：起播 / 跳转后看缓冲过没过开播线的间隔（引擎补丁 P28，默认 0.025，原来 0.1；真机对照用）
         let witness = UserDefaults.standard.double(forKey: "mcWitnessInterval")
         if witness > 0 { AetherPlayback.vodStartWitnessIntervalSeconds = witness }
@@ -226,7 +234,8 @@ final class NativeEngine: NSObject, PlayerEngine {
                   externalSubtitles: pendingExternalSubtitles,
                   sourceCacheKey: storagePlan.sourceCache ? sourceCacheKey : nil,
                   forwardSegments: forward.map { Int((Double($0) * scale).rounded()) },
-                  backwardSegments: backward.map { Int((Double($0) * scale).rounded()) })
+                  backwardSegments: backward.map { Int((Double($0) * scale).rounded()) },
+                  matroskaCues: matroskaCues)
         emit(.buffering)
     }
 

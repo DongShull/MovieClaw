@@ -160,4 +160,23 @@ struct MatroskaCuesLocatorTests {
             _ = MatroskaCuesLocator.locate(head: Data(mutated.prefix(Int.random(in: 0 ... mutated.count, using: &generator))))
         }
     }
+
+    // MARK: - 服务端精简索引（P58）
+
+    /// 服务端给的精简索引必须正好是一个完整的 Cues 元素：读取器拿它整段顶替原索引，
+    /// 多一个字节、少一个字节，解复用器接下来读到的就全错位了
+    @Test func hostCuesAcceptOnlyOneWholeCuesElement() {
+        let point = element(0xBB, element(0xB3, [0x00]) + element(0xB7, element(0xF7, [0x01]) + element(0xF1, [0x10])))
+        let whole = element(0x1C53_BB6B, point + point)
+        #expect(MatroskaHostCues(offset: 4096, data: Data(whole)) != nil)
+        #expect(MatroskaHostCues(offset: 4096, data: Data(whole.dropLast())) == nil)
+        #expect(MatroskaHostCues(offset: 4096, data: Data(whole + [0x00])) == nil)
+        #expect(MatroskaHostCues(offset: 4096, data: Data(element(0x1654_AE6B, point))) == nil)
+        #expect(MatroskaHostCues(offset: 0, data: Data(whole)) == nil)
+        // 大小未知（数值位全 1）说明不了到哪结束，也不收
+        #expect(MatroskaHostCues(offset: 4096, data: Data([0x1C, 0x53, 0xBB, 0x6B, 0xFF] + point)) == nil)
+        // 从更大的数据里切出来的片段（下标不从 0 起）照样认
+        let padded = Data([0xAA, 0xBB] + whole)
+        #expect(MatroskaHostCues(offset: 4096, data: padded.dropFirst(2)) != nil)
+    }
 }

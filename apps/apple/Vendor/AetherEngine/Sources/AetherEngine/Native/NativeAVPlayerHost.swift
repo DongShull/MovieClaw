@@ -1432,10 +1432,18 @@ final class NativeAVPlayerHost {
             // [MovieClaw P28] VOD 采样更密：过线后每多等一个采样间隔，就是多冻一截画面
             let vod = self?.isLiveSession == false
             let interval = vod ? AetherEngine.vodStartWitnessIntervalSeconds : Self.liveJoinHoldWitnessInterval
-            let samples = vod ? Int((Self.vodHoldWitnessBudgetSeconds / interval).rounded(.up))
-                              : Self.liveJoinHoldWitnessSamples
-            for _ in 0..<samples {
-                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            // [MovieClaw P57] 分片边产出边送时，慢线路上缓冲是一个片段一个片段慢慢涨的：从长 GOP 中间续播，
+            // 6 Mbit/s 下出首帧要 6 秒、攒够 1.5 秒还要再几秒，5 秒的见证早过期了，AVPlayer 自己的码率估计又一直
+            // 觉得跟不上，要等整段下完（模拟器实测首帧 6.4 秒、25 秒才开播）。所以边送时多看一会儿：头 5 秒照旧
+            // 每 `interval` 一次，之后每 0.1 秒一次，最多 `vodProgressiveWitnessBudgetSeconds`
+            let budget = vod && AetherEngine.servesSegmentsProgressively
+                ? Self.vodProgressiveWitnessBudgetSeconds : Self.vodHoldWitnessBudgetSeconds
+            let denseSamples = vod ? Int((min(budget, Self.vodHoldWitnessBudgetSeconds) / interval).rounded(.up))
+                                   : Self.liveJoinHoldWitnessSamples
+            let sparseSamples = vod ? Int((max(0, budget - Self.vodHoldWitnessBudgetSeconds) / 0.1).rounded(.up)) : 0
+            for sample in 0..<(denseSamples + sparseSamples) {
+                let wait = sample < denseSamples ? interval : 0.1
+                try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
                 guard let self else { account(.hostGone); return }
                 if let ending = Self.liveJoinHoldWitnessEnding(
                     itemIsCurrent: self.playerItem === item,
@@ -1580,6 +1588,8 @@ final class NativeAVPlayerHost {
     nonisolated static let liveJoinHoldWitnessSamples: Int = 20
     /// [MovieClaw P28] VOD 的见证采样至多看 5 秒（间隔见 `AetherEngine.vodStartWitnessIntervalSeconds`）
     nonisolated static let vodHoldWitnessBudgetSeconds: Double = 5
+    /// [MovieClaw P57] 分片边产出边送时 VOD 见证至多看这么久（见上面采样循环里的说明）
+    nonisolated static let vodProgressiveWitnessBudgetSeconds: Double = 45
 
     nonisolated static func secondsSince(_ start: DispatchTime) -> Double {
         Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000_000

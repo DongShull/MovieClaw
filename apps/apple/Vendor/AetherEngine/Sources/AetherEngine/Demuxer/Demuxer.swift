@@ -59,6 +59,11 @@ struct DemuxerOpenProfile: Sendable {
     /// 那正是接下来要播的字节；续播时引擎马上要跳到续播点，续上文件头只会在慢线路上白占带宽。默认 true（原来的行为）
     var playbackStartsAtHead: Bool = true
 
+    /// [MovieClaw P58] 服务端给的 Matroska 精简索引：读取器在解复用器读 SeekHead 登记的 Cues 位置时直接给它。只挂在
+    /// 主播放的配置上（探测兼会话的那次打开、HLS 生成器的兜底打开与卡死重开）；旁路解复用器从 `.playback` 另起配置，
+    /// 照旧读原索引
+    var hostMatroskaCues: MatroskaHostCues? = nil
+
     /// `LoadOptions.sequentialOrigin`: the origin fabricates range answers, so the AVIO reader must
     /// run its forward-only streaming mode (one unranged GET from byte 0) and never issue a ranged
     /// request. Lives in the profile so the probe demuxer, the session demuxer, and every fresh
@@ -95,6 +100,13 @@ struct DemuxerOpenProfile: Sendable {
     func withPlaybackStartsAtHead(_ startsAtHead: Bool) -> DemuxerOpenProfile {
         var copy = self
         copy.playbackStartsAtHead = startsAtHead
+        return copy
+    }
+
+    /// [MovieClaw P58] 带上服务端给的精简索引（开关 `AetherEngine.usesHostMatroskaCues` 关着时不带），写法同上
+    func withHostMatroskaCues(_ cues: MatroskaHostCues?) -> DemuxerOpenProfile {
+        var copy = self
+        copy.hostMatroskaCues = AetherEngine.usesHostMatroskaCues ? cues : nil
         return copy
     }
 
@@ -616,7 +628,8 @@ public final class Demuxer: @unchecked Sendable {
             boundedInitialFetch: openProfile.boundedInitialFetch,
             sequentialOnly: openProfile.avioSequentialOnly,
             heldConnection: openProfile.avioHeldConnection,
-            expectsHeadPlayback: openProfile.playbackStartsAtHead
+            expectsHeadPlayback: openProfile.playbackStartsAtHead,
+            hostMatroskaCues: openProfile.hostMatroskaCues   // [MovieClaw P58]
         )
         reader.onNetworkPhaseChanged = onNetworkPhaseChanged
         reader.playIntentProvider = playIntentProvider

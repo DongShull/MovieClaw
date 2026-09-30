@@ -557,6 +557,27 @@ def test_full_decode_client_gets_the_original_file_without_a_session(client, tmp
     assert client.get(data["stream_url"]).status_code == 200
 
 
+def test_full_decode_mkv_session_carries_the_cached_video_cues(client, tmp_path, monkeypatch):
+    """MKV 精简索引（playback-qoe.md §9.12）：缓存里有就随会话下发，没有就不带；
+    两次都交给后台排队（生成这一集或下一集），开会话本身不等它。"""
+    from movieclaw_api.services.playback import video_cues
+
+    scheduled: list[int] = []
+    monkeypatch.setattr(video_cues, "schedule", lambda file: scheduled.append(file.id))
+    monkeypatch.setattr(video_cues, "cached", lambda file_id, path: None)
+    file_id = seed(client, tmp_path, container="mkv")
+    capability = {**CAPABILITY, "universal": True}
+    assert start_session(client, file_id, capability=capability)["matroska_cues"] is None
+
+    cues = video_cues.VideoCues(
+        cues_offset=4096, data=bytes.fromhex("1C53BB6B") + b"\x80", original_bytes=900_000
+    )
+    monkeypatch.setattr(video_cues, "cached", lambda fid, path: cues if fid == file_id else None)
+    data = start_session(client, file_id, capability=capability)
+    assert data["matroska_cues"] == {"offset": 4096, "data": "HFO7a4A=", "original_bytes": 900_000}
+    assert scheduled == [file_id, file_id]
+
+
 def _item_id_of(client: TestClient, file_id: int) -> int:
     async def _lookup():
         async with get_database().session() as session:

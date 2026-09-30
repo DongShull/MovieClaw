@@ -821,6 +821,20 @@ final class PlaybackController {
         }
         if let native = newEngine as? NativeEngine, original {
             native.sourceCacheKey = Self.sourceCacheKey(fileId: fileId, size: session.source?.sizeBytes)
+            // MKV 精简索引（引擎补丁 P58）：服务端缓存里有就随会话下发，起播时不必再下原索引
+            native.matroskaCues = session.matroskaCues.flatMap { cues in
+                Data(base64Encoded: cues.data).map { (offset: Int64(cues.offset), data: $0) }
+            }
+            #if DEBUG
+            // 开发期：-mcDebugMatroskaCues <文件 id>:<偏移>:<base64>，服务端还没下发精简索引时由实验台注入（P58 对照用）
+            if native.matroskaCues == nil, let spec = UserDefaults.standard.string(forKey: "mcDebugMatroskaCues") {
+                let parts = spec.split(separator: ":", maxSplits: 2).map(String.init)
+                if parts.count == 3, Int(parts[0]) == fileId, let offset = Int64(parts[1]),
+                   let data = Data(base64Encoded: parts[2]) {
+                    native.matroskaCues = (offset: offset, data: data)
+                }
+            }
+            #endif
             native.storagePlan = NativeStoragePlan.make(
                 freeBytes: NativeStoragePlan.temporaryFreeBytes,
                 bitrateBps: session.source?.bitRate.map(Double.init),

@@ -4835,6 +4835,22 @@ nonisolated extension API {
         }
     }
 
+    /// MKV 精简索引（docs/design/playback-qoe.md §9.12）：只含视频轨索引点的 Cues 元素。
+    /// App 的播放引擎在解复用器读 SeekHead 登记的 Cues 位置时直接给这份，不必再下载原索引
+    /// （字幕轨多的片子原索引有几百 KB 到几 MB，外网慢时要单独下好几秒）。
+    /// 索引点的数值与原文件逐位一致。
+    struct MatroskaCuesView: Codable, Hashable, Sendable {
+        var offset: Int
+        var data: String
+        var originalBytes: Int
+
+        enum CodingKeys: String, CodingKey {
+            case offset
+            case data
+            case originalBytes = "original_bytes"
+        }
+    }
+
     /// 播放会话 / 文件下载指向的媒体条目摘要。
     struct MediaActivityTarget: Codable, Hashable, Sendable {
         var mediaItemId: Int
@@ -6639,6 +6655,7 @@ nonisolated extension API {
         var watch: API.PlaybackStateView?
         var source: API.PlaybackSourceView?
         var chapters: [API.PlaybackChapterMarkView]
+        var matroskaCues: API.MatroskaCuesView?
 
         enum CodingKeys: String, CodingKey {
             case decision
@@ -6652,6 +6669,7 @@ nonisolated extension API {
             case watch
             case source
             case chapters
+            case matroskaCues = "matroska_cues"
         }
     }
 

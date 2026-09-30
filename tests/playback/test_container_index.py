@@ -256,6 +256,56 @@ def test_unsupported_container_returns_none(tmp_path):
     assert ci.read_container_index(path) is None
 
 
+# --- Matroska 精简索引（docs/design/playback-qoe.md §9.12） ----------------------
+
+
+def test_video_cues_keep_only_video_points_with_identical_values(tmp_path):
+    """只留视频轨的索引点，时间与簇位置原样：拿精简版原地换掉文件尾的原 Cues，解析出的
+    关键帧与原文件完全相同，字幕索引点没了——解复用器看到的视频索引不变。"""
+    path = tmp_path / "film.mkv"
+    layout = _build_mkv(
+        path,
+        duration_ms=600_000,
+        clusters=[(0, 1000), (2000, 3000), (4000, 500)],
+        subtitle_ms=[1500, 2500, 4100],
+        chapters=[],
+    )
+    cues = ci.build_matroska_video_cues(path)
+    assert cues is not None
+    start, end = layout["cues_abs"]
+    assert (cues.cues_offset, cues.original_bytes, cues.points) == (start, end - start, 3)
+    assert cues.data.startswith(bytes.fromhex("1C53BB6B"))
+    assert len(cues.data) < cues.original_bytes
+
+    original = ci.read_container_index(path)
+    swapped = tmp_path / "swapped.mkv"
+    swapped.write_bytes(path.read_bytes()[:start] + cues.data)  # 前面的字节（簇位置）都不动
+    index = ci.read_container_index(swapped)
+    assert original is not None and index is not None
+    assert index.keyframes == original.keyframes
+    assert index.subtitle_events == {3: ()}
+
+
+def test_video_cues_with_fewer_than_two_video_points_is_none(tmp_path):
+    """libavformat 见到不足两个索引点的 Cues 会整个丢弃，不能拿这样的精简版顶替原索引。"""
+    path = tmp_path / "short.mkv"
+    _build_mkv(path, duration_ms=10_000, clusters=[(0, 10)], subtitle_ms=[100, 200], chapters=[])
+    assert ci.build_matroska_video_cues(path) is None
+
+
+def test_video_cues_of_garbage_or_missing_file_is_none(tmp_path):
+    path = tmp_path / "fake.mkv"
+    path.write_bytes(b"\x00" * 4096)
+    assert ci.build_matroska_video_cues(path) is None
+    assert ci.build_matroska_video_cues(tmp_path / "missing.mkv") is None
+
+
+def test_ebml_size_avoids_the_unknown_length_marker():
+    """一字节长度全 1（0xFF）是「未知长度」的保留值：127 必须写成两字节。"""
+    assert ci._ebml_size(126) == b"\xfe"
+    assert ci._ebml_size(127) == b"\x40\x7f"
+
+
 # --- MP4 拼装 ---------------------------------------------------------------------
 
 

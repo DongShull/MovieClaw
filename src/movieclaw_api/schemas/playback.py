@@ -594,6 +594,21 @@ class PlaybackDiscListingView(BaseModel):
     playlist: str | None = None
 
 
+class MatroskaCuesView(BaseModel):
+    """MKV 精简索引（docs/design/playback-qoe.md §9.12）：只含视频轨索引点的 Cues 元素。
+
+    App 的播放引擎在解复用器读 SeekHead 登记的 Cues 位置时直接给这份，不必再下载原索引
+    （字幕轨多的片子原索引有几百 KB 到几 MB，外网慢时要单独下好几秒）。
+    索引点的数值与原文件逐位一致。"""
+
+    #: Cues 元素在文件里的绝对位置；引擎核对它与文件头里 SeekHead 登记的位置一致才用
+    offset: int
+    #: 精简后的整个 Cues 元素（含元素头），base64
+    data: str
+    #: 原 Cues 元素多少字节（诊断用）
+    original_bytes: int
+
+
 class PlaybackSessionView(BaseModel):
     """开会话的结果。
 
@@ -636,6 +651,8 @@ class PlaybackSessionView(BaseModel):
     #: 场景图用的，画到进度条上就是一排没有信息量的竖条。没有内嵌章节的
     #: 文件这里是空表，进度条照旧干净。
     chapters: list[PlaybackChapterMarkView] = Field(default_factory=list)
+    #: 档 0 直出的 MKV：服务端缓存里有精简索引时随会话下发（没有就在后台生成，给下次用）
+    matroska_cues: MatroskaCuesView | None = None
 
 
 class PlaybackSessionRequest(PlaybackDecideRequest):

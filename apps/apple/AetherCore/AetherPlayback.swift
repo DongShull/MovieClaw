@@ -230,6 +230,21 @@ public final class AetherPlayback {
         AetherEngine.skipsDetourOnSlowLink = on
     }
 
+    /// 点播分片边产出边送、分片内每 0.5 秒一个片段（引擎补丁 P57，默认开；对照时关掉）
+    public static func setServesSegmentsProgressively(_ on: Bool) {
+        AetherEngine.servesSegmentsProgressively = on
+    }
+
+    /// 点播媒体播放列表也声明分片各自独立，跳转时 AVPlayer 直接要目标段（引擎补丁 P59，默认开；对照时关掉）
+    public static func setDeclaresIndependentMediaSegments(_ on: Bool) {
+        AetherEngine.declaresIndependentMediaSegments = on
+    }
+
+    /// 服务端给了 MKV 精简索引就用它顶替原索引（引擎补丁 P58，默认开；对照时关掉）
+    public static func setUsesHostMatroskaCues(_ on: Bool) {
+        AetherEngine.usesHostMatroskaCues = on
+    }
+
     /// 冷打开时文件头先只要 512 KB，索引提前取在途时文件头不超前预读（引擎补丁 P56，默认开；对照时关掉）
     public static func setPrioritizesIndexPrefetch(_ on: Bool) {
         AetherEngine.prioritizesIndexPrefetch = on
@@ -331,9 +346,12 @@ public final class AetherPlayback {
     /// 换音轨、回前台的整场重建与往回跳都从本机拿已下过的字节。取流地址每次带新令牌，所以要给稳定的键
     /// forwardSegments / backwardSegments：分片缓存的前后窗口（段数，nil = 引擎默认 10 / 20）。存储紧张时由宿主
     /// 按剩余空间收小，自研引擎照样能放（内置引擎补丁 P25）
+    /// matroskaCues：服务端给的 MKV 精简索引（原 Cues 在文件里的位置 + 只含视频轨索引点的整个 Cues 元素，内置引擎
+    /// 补丁 P58）。主播放的解复用器读索引时直接用它，原索引不用下载；数据不完整或位置对不上时引擎当没给
     public func load(source: Source, start: Double?, autoplay: Bool, headers: [String: String] = [:],
                      audioOrdinal: Int? = nil, externalSubtitles: [ExternalSubtitle] = [],
-                     sourceCacheKey: String? = nil, forwardSegments: Int? = nil, backwardSegments: Int? = nil) {
+                     sourceCacheKey: String? = nil, forwardSegments: Int? = nil, backwardSegments: Int? = nil,
+                     matroskaCues: (offset: Int64, data: Data)? = nil) {
         loadTask?.cancel()
         lastPhase = nil
         subtitleView.cues = []
@@ -342,6 +360,7 @@ public final class AetherPlayback {
         options.sourceCacheKey = sourceCacheKey
         options.forwardBufferSegments = forwardSegments
         options.backwardBufferSegments = backwardSegments
+        options.matroskaCues = matroskaCues.flatMap { MatroskaHostCues(offset: $0.offset, data: $0.data) }
         options.autoplay = autoplay
         options.httpHeaders = headers
         // 点播起播时缓冲已够 1.5 秒就不再等 AVPlayer 的码率估计，一次性提前开播（内置引擎补丁 P2）

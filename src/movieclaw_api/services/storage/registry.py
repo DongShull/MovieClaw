@@ -223,6 +223,22 @@ DATA_DIRS: tuple[DataDir, ...] = (
         orphans=_orphans_by_id("LibraryFile"),
     ),
     DataDir(
+        key="cache.playback_cues",
+        title="MKV 精简索引",
+        summary="MKV 片子只含视频关键帧的索引，让手机起播时少下一段数据",
+        description=(
+            "字幕轨多的 MKV 片子，文件尾的索引可能有一两 MB，外网慢时起播要先把它下完。"
+            "服务端从中挑出视频关键帧，存成几 KB 到几十 KB 的精简版，播放时随会话一起发给手机。"
+            "一个文件一份。清空后播放照常，只是再次播放这部片时会在后台重新生成一次（零点几秒）。"
+        ),
+        default="data/cache/playback_cues",
+        resolve=lambda s: Path(s.playback_cues_cache_dir),
+        group=Group.CACHE,
+        rebuild_cost=RebuildCost.CHEAP,
+        clearable=True,
+        orphans=_orphans_by_id("LibraryFile"),
+    ),
+    DataDir(
         key="cache.subtitle_gen",
         title="AI 字幕中间品",
         summary="AI 字幕生成的图片字幕识别结果与翻译断点",

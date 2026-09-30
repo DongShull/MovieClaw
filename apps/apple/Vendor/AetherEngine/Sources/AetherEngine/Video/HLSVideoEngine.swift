@@ -923,7 +923,8 @@ public final class HLSVideoEngine: @unchecked Sendable {
         heldSourceConnection: Bool = false,
         declaredDurationSeconds: Double? = nil,
         forwardBufferSegments: Int? = nil,
-        backwardBufferSegments: Int? = nil
+        backwardBufferSegments: Int? = nil,
+        hostMatroskaCues: MatroskaHostCues? = nil
     ) {
         self.sourceURL = url
         self.sourceHTTPHeaders = sourceHTTPHeaders
@@ -939,6 +940,8 @@ public final class HLSVideoEngine: @unchecked Sendable {
             probesize: probesize, maxAnalyzeDuration: maxAnalyzeDuration)
             .withSequentialOrigin(sequentialOrigin, declaredDuration: declaredDurationSeconds)
             .withHeldSourceConnection(heldSourceConnection)
+            .withHostMatroskaCues(hostMatroskaCues)   // [MovieClaw P58]
+        self.hostMatroskaCues = hostMatroskaCues
         self.dvModeAvailable = dvModeAvailable
         self.displaySupportsHDR = displaySupportsHDR
         self.keepDvh1TagWithoutDV = keepDvh1TagWithoutDV
@@ -1140,6 +1143,8 @@ public final class HLSVideoEngine: @unchecked Sendable {
     let openProfile: DemuxerOpenProfile
     /// #377: opt-in held source transport, carried onto every open this session makes itself.
     let heldSourceConnection: Bool
+    /// [MovieClaw P58] 服务端给的 Matroska 精简索引：卡死重开的新解复用器也要带上，否则它得把原索引整段重新下载
+    let hostMatroskaCues: MatroskaHostCues?
 
     /// The profile the VOD scrub restart opens its replacement demuxer with. Bounded
     /// find_stream_info budget, and the same SOURCE declarations as the first open: a ranged reopen
@@ -1150,6 +1155,7 @@ public final class HLSVideoEngine: @unchecked Sendable {
         DemuxerOpenProfile.restartReopen
             .withSequentialOrigin(sequentialOrigin, declaredDuration: declaredDurationSeconds)
             .withHeldSourceConnection(heldSourceConnection)
+            .withHostMatroskaCues(hostMatroskaCues)   // [MovieClaw P58]
     }
 
     /// `LoadOptions.sequentialOrigin` for this session. Gates the VOD readError revive

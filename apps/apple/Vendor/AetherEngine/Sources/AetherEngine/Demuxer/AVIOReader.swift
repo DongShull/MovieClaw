@@ -962,6 +962,11 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     private var cuesPrefetchRange: Range<Int64>?
     private var cuesPrefetchStartedAt = DispatchTime.now()
     private var cuesSpanServeLogged = false
+    /// [MovieClaw P58] `cuesSpan` 装的是服务端给的精简索引（不是原字节）。这时它在自己的范围里压过窗口与其他常驻片段：
+    /// 同一个 Cues 元素不能前半截读原字节、后半截读精简版。随 `cuesSpan` 一起放掉
+    private var cuesSpanFromHost = false
+    /// [MovieClaw P58] 找索引时（持锁）要说的话，调用方解锁后说出去（`takePendingCuesLogLocked`）
+    private var pendingCuesLog: String?
 
     /// [MovieClaw P53] 在途的提前取（尾部预读 / 索引提前取）最近一次收到字节的时刻，没收到过为 nil。读到它们的范围时，
     /// 只要还在往回送就接着等，停下不动才放弃（`prefetchWaitDeadlineLocked`）。都受 winCond 保护
@@ -1082,6 +1087,8 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     private let heldConnectionEnabled: Bool
     /// [MovieClaw P56] 这次播放从文件头起（`DemuxerOpenProfile.playbackStartsAtHead`）
     private let expectsHeadPlayback: Bool
+    /// [MovieClaw P58] 服务端给的 Matroska 精简索引（`DemuxerOpenProfile.hostMatroskaCues`），只有主播放的读取器有
+    private let hostMatroskaCues: MatroskaHostCues?
     private var throttleVClockNs: UInt64 = 0
     private let throttleLock = NSLock()
 
@@ -1094,8 +1101,9 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     private let probeDrainLock = NSLock()
     private var drainingProbeRequest = false
 
-    init(url: URL, extraHeaders: [String: String] = [:], label: String = "source", chunkSize: Int = 4 * 1024 * 1024, prefetchEnabled: Bool = true, isLive: Bool = false, chunkRequestTimeout: TimeInterval = 35, chunkMaxRetries: Int = 3, boundedInitialFetch: Int64? = nil, sequentialOnly: Bool = false, connStallTimeout: TimeInterval = AVIOReader.connStallTimeoutDefault, windowHighWater: Int? = nil, heldConnection: Bool = false, probeControl: ProbeControl? = nil, probeRequestSession: URLSession? = nil, expectsHeadPlayback: Bool = true) {
+    init(url: URL, extraHeaders: [String: String] = [:], label: String = "source", chunkSize: Int = 4 * 1024 * 1024, prefetchEnabled: Bool = true, isLive: Bool = false, chunkRequestTimeout: TimeInterval = 35, chunkMaxRetries: Int = 3, boundedInitialFetch: Int64? = nil, sequentialOnly: Bool = false, connStallTimeout: TimeInterval = AVIOReader.connStallTimeoutDefault, windowHighWater: Int? = nil, heldConnection: Bool = false, probeControl: ProbeControl? = nil, probeRequestSession: URLSession? = nil, expectsHeadPlayback: Bool = true, hostMatroskaCues: MatroskaHostCues? = nil) {
         self.expectsHeadPlayback = expectsHeadPlayback
+        self.hostMatroskaCues = hostMatroskaCues
         self.probeControl = probeControl
         self.probeRequestSession = probeControl == nil ? nil : probeRequestSession
         self.url = url
@@ -1639,6 +1647,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         headSpan = Data()
         tailSpan = nil
         cuesSpan = nil   // [MovieClaw P49]
+        cuesSpanFromHost = false   // [MovieClaw P58]
         openPhaseActive = false
         let tailTask = tailPrefetchTask
         tailPrefetchTask = nil
@@ -1963,8 +1972,11 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             // [MovieClaw P49] 同文件头：索引只在开流与索引预热时读，之后第一次读不到它就放掉
             if !openPhaseActive, !indexPassActive, let span = cuesSpan, !span.covers(spanPos) {
                 cuesSpan = nil
+                cuesSpanFromHost = false   // [MovieClaw P58]
             }
-            if !windowCanServe, !headSpan.isEmpty || tailSpan != nil || cuesSpan != nil,
+            // [MovieClaw P58] 服务端给的精简索引覆盖这个位置时，窗口里就算有原字节也从它给
+            let hostCuesHit = cuesSpanFromHost && cuesSpan?.covers(spanPos) == true
+            if !windowCanServe || hostCuesHit, !headSpan.isEmpty || tailSpan != nil || cuesSpan != nil,
                let served = serveFromResidentSpansLocked(into: buf.advanced(by: totalRead),
                                                         maxLen: requestSize - totalRead,
                                                         at: spanPos) {
@@ -1991,19 +2003,28 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
                         + "; no reconnect for it"
                 case .cues where !cuesSpanServeLogged:
                     cuesSpanServeLogged = true
-                    spanLine = "[AVIOReader] \(label) [MovieClaw P49] 提前取的那段接住了 \(spanPos) 处的读取，"
-                        + "不用另发请求"
+                    spanLine = cuesSpanFromHost
+                        ? "[AVIOReader] \(label) [MovieClaw P58] 服务端给的精简索引（\(cuesSpan?.data.count ?? 0) 字节）"
+                            + "接住了 \(spanPos) 处的读取，原索引不用下载"
+                        : "[AVIOReader] \(label) [MovieClaw P49] 提前取的那段接住了 \(spanPos) 处的读取，"
+                            + "不用另发请求"
                 default:
                     break
                 }
                 position = spanPos + Int64(n)
                 let headContinuation = headContinuationAfterIndexLocked()   // [MovieClaw P56]
+                // [MovieClaw P58] 读到服务端精简索引的末尾就先把这次读交出去（短读）：它是一整个 Cues 元素，解复用器读完
+                // 不会再往后要。接着凑满这次读会在精简版后面另起连接，读的是原索引余下那些用不上的字节，还掐掉正在读文件头的
+                // 连接（模拟器 6 Mbit/s 实测：白下约 0.3 MB，回到文件头时又重连一次）
+                var hostCuesEnded = false
+                if case .cues = served, cuesSpanFromHost, position == cuesSpan?.end { hostCuesEnded = true }
                 winCond.broadcast()
                 winCond.unlock()
                 if let spanLine { EngineLog.emit(spanLine, category: .demux) }
                 totalRead += n
                 diag.recordDetourServe(ms: 0, fetched: false)
                 if let headContinuation { timedReconnect(seek: false, at: headContinuation) }
+                if hostCuesEnded { return Int32(totalRead) }
                 // No ladder reset, and no phase either (#410): these spans are bytes fetched earlier
                 // and kept, and the line above says so itself ("no reconnect for it"). Clearing the
                 // streaks here is the #380 window-serve mistake in the branch that runs FIRST, before
@@ -2761,7 +2782,9 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         adoptedWarmSize = warm.contentLength
         // [MovieClaw P49] 文件头是现成的：马上找索引。字节缓存里整段都有就直接装上，否则先取回来
         let cuesPrefetch = locateCuesLocked()
+        let cuesLog = takePendingCuesLogLocked()   // [MovieClaw P58]
         winCond.unlock()
+        if let cuesLog { EngineLog.emit(cuesLog, category: .demux) }
         if let cuesPrefetch { startCuesPrefetch(cuesPrefetch.range, what: cuesPrefetch.what) }
         SourceContentLengthCache.store(warm.contentLength, for: url)
         // The warm followed the redirect chain and knows where it ended. Pinning that target here
@@ -2972,7 +2995,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
                 break   // 不是 MP4：往下按 Matroska 找
             }
         }
-        guard AetherEngine.prefetchesMatroskaCues else {
+        guard AetherEngine.prefetchesMatroskaCues || hostMatroskaCues != nil else {
             cuesLocateDone = true
             return nil
         }
@@ -2987,7 +3010,19 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             return nil
         case .found(let offset):
             cuesLocateDone = true
-            guard offset >= Int64(Self.headSpanMaxBytes),
+            // [MovieClaw P58] 服务端给了精简索引、位置也与文件头登记的对得上：直接装成常驻片段，原索引一个字节都不用下
+            if let host = hostMatroskaCues {
+                if host.offset == offset {
+                    cuesSpan = ResidentSpan(start: offset, data: host.data)
+                    cuesSpanFromHost = true
+                    pendingCuesLog = "[AVIOReader] \(label) [MovieClaw P58] 索引在 \(offset)，装上服务端给的精简索引"
+                        + "（\(host.data.count) 字节），不提前取原索引"
+                    return nil
+                }
+                pendingCuesLog = "[AVIOReader] \(label) [MovieClaw P58] 服务端给的精简索引位置 \(host.offset) 与文件头登记的 "
+                    + "\(offset) 对不上，不用它"
+            }
+            guard AetherEngine.prefetchesMatroskaCues, offset >= Int64(Self.headSpanMaxBytes),
                   offset < fileSize - Int64(Self.tailPrefetchBytes),
                   fileSize - offset <= Self.cuesPrefetchMaxBytes else { return nil }
             return (offset ..< fileSize, "Matroska 索引在 \(offset)（距文件尾 \(fileSize - offset) 字节，尾部预读够不着）")
@@ -2995,8 +3030,17 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             // 开头的目录只指向文件尾附近的完整目录：Cues 在哪要读了那个目录才知道。试过盲取文件最后 1 MB，真机上这 1 MB
             // 要 90～180 毫秒，索引预热反而等得更久（按需读只要约 37 毫秒），所以不取，照旧由解复用器按需读
             cuesLocateDone = true
+            if hostMatroskaCues != nil {   // [MovieClaw P58] 核对不了位置，宁可不用
+                pendingCuesLog = "[AVIOReader] \(label) [MovieClaw P58] 文件头只指向次级目录，核对不了服务端给的索引位置，不用它"
+            }
             return nil
         }
+    }
+
+    /// [MovieClaw P58] 取走找索引时记下的话，调用方解锁后再说出去。调用方持 winCond
+    private func takePendingCuesLogLocked() -> String? {
+        defer { pendingCuesLog = nil }
+        return pendingCuesLog
     }
 
     /// [MovieClaw P49] 把「Cues 到文件尾」先取回来装成常驻片段。字节缓存（P22 / P42）里整段都有就直接装上、
@@ -3241,6 +3285,8 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     /// install, never mutate.
     private func serveFromResidentSpansLocked(into dst: UnsafeMutablePointer<UInt8>, maxLen: Int,
                                               at offset: Int64) -> SpanServe? {
+        // [MovieClaw P58] 服务端给的精简索引在自己的范围里最先给（见 `cuesSpanFromHost`）
+        if cuesSpanFromHost, let n = cuesSpan?.serve(into: dst, maxLen: maxLen, at: offset) { return .cues(n) }
         if !headSpan.isEmpty,
            let n = ResidentSpan(start: 0, data: headSpan).serve(into: dst, maxLen: maxLen, at: offset) {
             return .head(n)
@@ -3621,6 +3667,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         }
         // [MovieClaw P49] 文件头一到就找 Matroska 索引的位置，解锁后与开容器并行先取回来
         let cuesPrefetch = locateCuesLocked()
+        let cuesLog = takePendingCuesLogLocked()   // [MovieClaw P58]
         addBytesFetched(count)
         // #220: the requested range has been delivered in full. That ends the connection on
         // purpose; the read loop re-requests at the frontier once the consumer has drawn down.
@@ -3663,6 +3710,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         if let byteCacheKey {
             SourceByteCache.shared.write(key: byteCacheKey, offset: byteCacheOffset, data: data)
         }
+        if let cuesLog { EngineLog.emit(cuesLog, category: .demux) }
         if let cuesPrefetch { startCuesPrefetch(cuesPrefetch.range, what: cuesPrefetch.what) }
         if let overDeliveredTransfer {
             EngineLog.emit(
@@ -3764,6 +3812,8 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
                 + "dropping the prewarmed bytes (#551)", category: .demux)
             headSpan = Data()
             tailSpan = nil
+            cuesSpan = nil   // [MovieClaw P58] 位置同样属于另一份字节
+            cuesSpanFromHost = false
             fileSize = 0
             adoptedWarmSize = nil
         }

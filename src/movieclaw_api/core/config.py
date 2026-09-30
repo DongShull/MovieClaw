@@ -161,6 +161,11 @@ class Settings(BaseSettings):
     # 刷片挑点结果：每个文件一份 JSON（片段起止、预取范围），按 file_id 命名
     # （重建只需再读一遍容器索引，一部片零点几秒）。
     reels_cache_dir: str = Field(default="./data/cache/reels", alias="MOVIECLAW_REELS_CACHE_DIR")
+    # MKV 精简索引：只含视频轨索引点的 Cues，随播放会话下发，App 起播时不必再下原索引
+    # （docs/design/playback-qoe.md §9.12）。每个文件一份几 KB～几十 KB 的记录，按 file_id 命名。
+    playback_cues_cache_dir: str = Field(
+        default="./data/cache/playback_cues", alias="MOVIECLAW_PLAYBACK_CUES_CACHE_DIR"
+    )
     # AI 字幕生成的中间品：内封轨抽取、PGS 图片与翻译断点（断点删了任务从头翻）。
     subtitle_gen_cache_dir: str = Field(
         default="./data/cache/subtitle_gen", alias="MOVIECLAW_SUBTITLE_GEN_CACHE_DIR"

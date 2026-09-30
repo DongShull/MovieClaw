@@ -258,77 +258,89 @@ def _read_element_at(f, offset: int, expected_id: int) -> tuple[bytes, int]:
     return data, p
 
 
+def _matroska_layout(f, file_size: int, path: Path) -> tuple[int, dict[int, int], int | None]:
+    """走一遍 Matroska 的顶层结构。
+
+    返回 (Segment 正文起点, 各顶层元素的绝对位置, 第一个 Cluster 的位置)。顶层元素逐个
+    跳过直到第一个 Cluster，顺路收集 SeekHead；SeekHead 指向的位置（包括写在文件尾的
+    第二个 SeekHead）再跟一层。只读元素头与 SeekHead 正文，不读别的元素正文。
+    """
+    f.seek(0)
+    head = f.read(64 * 1024)
+    element_id, pos, _ = _vint(head, 0, keep_marker=True)
+    if element_id != _EBML_HEADER:
+        raise ValueError("不是 Matroska 文件")
+    size, pos, _ = _vint(head, pos, keep_marker=False)
+    pos += size
+    element_id, pos, _ = _vint(head, pos, keep_marker=True)
+    if element_id != _SEGMENT:
+        raise ValueError("缺少 Segment 元素")
+    _, pos, _ = _vint(head, pos, keep_marker=False)
+    segment_start = pos  # SeekHead 里的位置都相对这里
+
+    # 顶层元素逐个跳过，直到第一个 Cluster：顺路收集 SeekHead 与各元素位置。
+    # 每个元素只读 16 字节的头，正文按长度跳过。
+    positions: dict[int, int] = {}
+    seek_heads: list[int] = []
+    first_cluster = None
+    cursor = segment_start
+    for _ in range(_MAX_TOP_LEVEL_SCAN):
+        if cursor >= file_size:
+            break
+        f.seek(cursor)
+        header = f.read(16)
+        if len(header) < 2:
+            break
+        element_id, p, _ = _vint(header, 0, keep_marker=True)
+        size, p, unknown = _vint(header, p, keep_marker=False)
+        if element_id == _CLUSTER:
+            first_cluster = cursor
+            break
+        if unknown:
+            break
+        if element_id == _SEEK_HEAD:
+            seek_heads.append(cursor)
+        elif element_id in (_INFO, _TRACKS, _CHAPTERS, _CUES):
+            positions.setdefault(element_id, cursor)
+        cursor += p + size
+
+    # SeekHead 可能指向另一个 SeekHead（写在文件尾的第二索引），跟一层。
+    # SeekHead 只是目录：文件尾被截掉时第二个 SeekHead 会读不全（NAS 上见过缺尾 900 KB
+    # 的 UHD remux，Cues 完好、第二个 SeekHead 只剩半截），跳过它照样能用前面找到的
+    # Cues；Cues 真找不到或读不了，由调用方报错
+    visited: set[int] = set()
+    while seek_heads:
+        at = seek_heads.pop(0)
+        if at in visited:
+            continue
+        visited.add(at)
+        try:
+            data, body = _read_element_at(f, at, _SEEK_HEAD)
+        except ValueError as exc:
+            logger.info("Matroska 元素目录（SeekHead）读不出，跳过它继续：%s（%s）", path, exc)
+            continue
+        for child_id, c_start, c_end in _children(data, body, len(data)):
+            if child_id != _SEEK:
+                continue
+            target_id = target_pos = None
+            for g_id, g_start, g_end in _children(data, c_start, c_end):
+                if g_id == _SEEK_ID:
+                    target_id = _uint(data, g_start, g_end)
+                elif g_id == _SEEK_POSITION:
+                    target_pos = _uint(data, g_start, g_end)
+            if target_id is None or target_pos is None:
+                continue
+            absolute = segment_start + target_pos
+            if target_id == _SEEK_HEAD:
+                seek_heads.append(absolute)
+            elif target_id in (_INFO, _TRACKS, _CHAPTERS, _CUES):
+                positions.setdefault(target_id, absolute)
+    return segment_start, positions, first_cluster
+
+
 def _read_matroska(path: Path, file_size: int) -> ContainerIndex:
     with path.open("rb") as f:
-        head = f.read(64 * 1024)
-        element_id, pos, _ = _vint(head, 0, keep_marker=True)
-        if element_id != _EBML_HEADER:
-            raise ValueError("不是 Matroska 文件")
-        size, pos, _ = _vint(head, pos, keep_marker=False)
-        pos += size
-        element_id, pos, _ = _vint(head, pos, keep_marker=True)
-        if element_id != _SEGMENT:
-            raise ValueError("缺少 Segment 元素")
-        _, pos, _ = _vint(head, pos, keep_marker=False)
-        segment_start = pos  # SeekHead 里的位置都相对这里
-
-        # 顶层元素逐个跳过，直到第一个 Cluster：顺路收集 SeekHead 与各元素位置。
-        # 每个元素只读 16 字节的头，正文按长度跳过。
-        positions: dict[int, int] = {}
-        seek_heads: list[int] = []
-        first_cluster = None
-        cursor = segment_start
-        for _ in range(_MAX_TOP_LEVEL_SCAN):
-            if cursor >= file_size:
-                break
-            f.seek(cursor)
-            header = f.read(16)
-            if len(header) < 2:
-                break
-            element_id, p, _ = _vint(header, 0, keep_marker=True)
-            size, p, unknown = _vint(header, p, keep_marker=False)
-            if element_id == _CLUSTER:
-                first_cluster = cursor
-                break
-            if unknown:
-                break
-            if element_id == _SEEK_HEAD:
-                seek_heads.append(cursor)
-            elif element_id in (_INFO, _TRACKS, _CHAPTERS, _CUES):
-                positions.setdefault(element_id, cursor)
-            cursor += p + size
-
-        # SeekHead 可能指向另一个 SeekHead（写在文件尾的第二索引），跟一层。
-        # SeekHead 只是目录：文件尾被截掉时第二个 SeekHead 会读不全（NAS 上见过缺尾 900 KB
-        # 的 UHD remux，Cues 完好、第二个 SeekHead 只剩半截），跳过它照样能用前面找到的
-        # Cues；Cues 真找不到或读不了，由下面统一报错
-        visited: set[int] = set()
-        while seek_heads:
-            at = seek_heads.pop(0)
-            if at in visited:
-                continue
-            visited.add(at)
-            try:
-                data, body = _read_element_at(f, at, _SEEK_HEAD)
-            except ValueError as exc:
-                logger.info("Matroska 元素目录（SeekHead）读不出，跳过它继续：%s（%s）", path, exc)
-                continue
-            for child_id, c_start, c_end in _children(data, body, len(data)):
-                if child_id != _SEEK:
-                    continue
-                target_id = target_pos = None
-                for g_id, g_start, g_end in _children(data, c_start, c_end):
-                    if g_id == _SEEK_ID:
-                        target_id = _uint(data, g_start, g_end)
-                    elif g_id == _SEEK_POSITION:
-                        target_pos = _uint(data, g_start, g_end)
-                if target_id is None or target_pos is None:
-                    continue
-                absolute = segment_start + target_pos
-                if target_id == _SEEK_HEAD:
-                    seek_heads.append(absolute)
-                elif target_id in (_INFO, _TRACKS, _CHAPTERS, _CUES):
-                    positions.setdefault(target_id, absolute)
+        segment_start, positions, first_cluster = _matroska_layout(f, file_size, path)
         if _CUES not in positions:
             raise ValueError("找不到 Cues（此文件缺关键帧索引）")
 
@@ -462,6 +474,132 @@ def _read_matroska(path: Path, file_size: int) -> ContainerIndex:
         chapters=tuple(sorted(chapters, key=lambda c: c[0])),
         head_end=head_end,
         index_range=index_range,
+    )
+
+
+# --- Matroska 精简索引（播放起播用） -------------------------------------------
+
+
+@dataclass(frozen=True)
+class MatroskaVideoCues:
+    """只含视频轨索引点的 Matroska Cues 元素（docs/design/playback-qoe.md §9.12，引擎补丁 P58）。
+
+    App 的播放引擎打开 MKV 时要先拿到整个 Cues 才能规划分片、定位续播点。mkvmerge
+    给每条字幕轨的每个事件都写索引点，字幕轨多的片子 Cues 因此很大（片库抽样：中位
+    68 KB、九成在 560 KB 以内、最大 4.2 MB；62 条字幕轨的那部 4K 有 1.25 MB），慢线路
+    上要单独下好几秒。引擎只用得到视频轨的索引点，所以服务端从原 Cues 里挑出它们、
+    原样（同一个 CueTime、同一个 CueClusterPosition）重新编码成一个很小的 Cues 元素，
+    随播放会话下发；引擎在解复用器读 SeekHead 登记的 Cues 位置时直接给这份，不再下载
+    原索引。
+
+    只保留 libavformat 建索引用得到的三项（CueTime、CueTrack、CueClusterPosition，见
+    FFmpeg ``matroska_add_index_entries``），数值与原文件逐位一致，解复用器看到的视频
+    索引与读原 Cues 时相同。
+    """
+
+    #: Cues 元素在文件里的绝对位置（SeekHead 登记的那个位置）
+    cues_offset: int
+    #: 原 Cues 元素（含元素头）多少字节
+    original_bytes: int
+    #: 精简后的整个 Cues 元素（含元素头）
+    data: bytes
+    #: 保留了多少个索引点
+    points: int
+
+
+def _ebml_size(value: int) -> bytes:
+    """EBML 元素长度的最短写法（全 1 是「未知长度」的保留值，要让开）。"""
+    length = 1
+    while value >= (1 << (7 * length)) - 1:
+        length += 1
+    return (value | (1 << (7 * length))).to_bytes(length, "big")
+
+
+def _ebml_uint(value: int) -> bytes:
+    return value.to_bytes(max(1, (value.bit_length() + 7) // 8), "big")
+
+
+def _ebml_element(element_id: int, payload: bytes) -> bytes:
+    return (
+        element_id.to_bytes((element_id.bit_length() + 7) // 8, "big")
+        + _ebml_size(len(payload))
+        + payload
+    )
+
+
+def build_matroska_video_cues(path: str | Path) -> MatroskaVideoCues | None:
+    """读 MKV 的 Cues，只留视频轨的索引点、重新编码成一个 Cues 元素。
+
+    不是 MKV、没有 Cues、找不到视频轨、读失败时返回 None。同步阻塞 IO，调用方放进
+    单独进程或线程池。"""
+    path = Path(path)
+    try:
+        file_size = path.stat().st_size
+        with path.open("rb") as f:
+            _, positions, first_cluster = _matroska_layout(f, file_size, path)
+            if _CUES not in positions or _TRACKS not in positions:
+                return None
+            # 只处理写在簇后面（文件尾）的 Cues：写在簇前面的会被解复用器读文件头时顺序走到，
+            # 换成长度不同的精简版，它后面的元素就对不上了
+            if first_cluster is None or positions[_CUES] < first_cluster:
+                return None
+            video_numbers: set[int] = set()
+            data, body = _read_element_at(f, positions[_TRACKS], _TRACKS)
+            for child_id, c_start, c_end in _children(data, body, len(data)):
+                if child_id != _TRACK_ENTRY:
+                    continue
+                number = kind = None
+                for g_id, g_start, g_end in _children(data, c_start, c_end):
+                    if g_id == _TRACK_NUMBER:
+                        number = _uint(data, g_start, g_end)
+                    elif g_id == _TRACK_TYPE:
+                        kind = _uint(data, g_start, g_end)
+                if number is not None and kind == 1:
+                    video_numbers.add(number)
+            if not video_numbers:
+                return None
+            cues_offset = positions[_CUES]
+            cues, body = _read_element_at(f, cues_offset, _CUES)
+    except (OSError, ValueError, IndexError):
+        return None
+
+    out = bytearray()
+    kept = 0
+    for child_id, c_start, c_end in _children(cues, body, len(cues)):
+        if child_id != _CUE_POINT:
+            continue
+        cue_time = None
+        video_positions: list[tuple[int, int]] = []
+        for g_id, g_start, g_end in _children(cues, c_start, c_end):
+            if g_id == _CUE_TIME:
+                cue_time = _uint(cues, g_start, g_end)
+            elif g_id == _CUE_TRACK_POSITIONS:
+                track = cluster = None
+                for h_id, h_start, h_end in _children(cues, g_start, g_end):
+                    if h_id == _CUE_TRACK:
+                        track = _uint(cues, h_start, h_end)
+                    elif h_id == _CUE_CLUSTER_POSITION:
+                        cluster = _uint(cues, h_start, h_end)
+                if track in video_numbers and cluster is not None:
+                    video_positions.append((track, cluster))
+        if cue_time is None or not video_positions:
+            continue
+        point = _ebml_element(_CUE_TIME, _ebml_uint(cue_time))
+        for track, cluster in video_positions:
+            point += _ebml_element(
+                _CUE_TRACK_POSITIONS,
+                _ebml_element(_CUE_TRACK, _ebml_uint(track))
+                + _ebml_element(_CUE_CLUSTER_POSITION, _ebml_uint(cluster)),
+            )
+        out += _ebml_element(_CUE_POINT, point)
+        kept += 1
+    if kept < 2:
+        return None  # libavformat 见到不足两个索引点的 Cues 会整个丢弃，不如让它读原索引
+    return MatroskaVideoCues(
+        cues_offset=cues_offset,
+        original_bytes=len(cues),
+        data=_ebml_element(_CUES, bytes(out)),
+        points=kept,
     )
 
 

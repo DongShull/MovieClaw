@@ -4071,6 +4071,7 @@ public final class AetherEngine: ObservableObject {
                                           declaredDuration: options.declaredDurationSeconds)
                     .withHeldSourceConnection(options.heldSourceConnection)
                     .withPlaybackStartsAtHead(startsAtHead)   // [MovieClaw P56]
+                    .withHostMatroskaCues(options.matroskaCues)   // [MovieClaw P58]
                 switch source {
                 case .url(let u):
                     // isLive configures the AVIOReader for endless-feed mode; must be set at open time because

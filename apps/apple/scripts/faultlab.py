@@ -286,6 +286,11 @@ SCENARIOS = {
                               extra=["-mcPurgeByteCache", "YES", "-mcAutoSeek", "30:+600"]),
     # 同上但不限速：确认给慢线路做的取数调整在快线路上不退化
     "cold-start": scenario("mkv", 30, "start", extra=["-mcPurgeByteCache", "YES"]),
+    # 缓冲外跳转在快线路上的耗时（同 slow-seek-back / slow-seek-fwd，不限速）
+    "fast-seek-back": scenario("mkv", 60, "play",
+                               extra=["-mcPurgeByteCache", "YES", "-mcAutoSeek", "30:300"]),
+    "fast-seek-fwd": scenario("mkv", 60, "play",
+                              extra=["-mcPurgeByteCache", "YES", "-mcAutoSeek", "30:+600"]),
     "slow-seek": scenario("mkv", 80, "play", [(("t", 15), ("set", "link", 750_000, None, None))],
                           extra=["-mcAcceptQualityOffer", "YES", "-mcPurgeByteCache", "YES",
                                  "-mcAutoSeek", "25:+900"]),

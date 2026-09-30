@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
 import logging
 import os
@@ -32,6 +33,7 @@ from movieclaw_api.schemas.playback import (
     FavoritesView,
     HwBackendStatusView,
     HwProbeView,
+    MatroskaCuesView,
     MediaActivityView,
     PlaybackArtifactUploadView,
     PlaybackAttemptView,
@@ -74,7 +76,7 @@ from movieclaw_api.services.library.access import (
 from movieclaw_api.services.library.items import build_season_episodes, episode_view
 from movieclaw_api.services.media_probe import probe_keyframe_before
 from movieclaw_api.services.playback import marks as playback_marks
-from movieclaw_api.services.playback import metrics, qoe, track_memory, trickplay
+from movieclaw_api.services.playback import metrics, qoe, track_memory, trickplay, video_cues
 from movieclaw_api.services.playback import plan as playback_plan
 from movieclaw_api.services.playback import warmup as playback_warmup
 from movieclaw_api.services.playback import watch as playback_watch
@@ -1081,10 +1083,23 @@ async def start_playback_session(
             file.id,
             attempt_id or "-",
         )
+        # MKV 精简索引（§9.12）：缓存里有就随会话下发，引擎起播时不必再下原索引；没有就等起播
+        # 窗口过去在后台生成，给续播和下一次用。顺带把下一集也排上，追剧时点开下一集就用得上
+        matroska_cues = None
+        if view.disc is None and video_cues.is_matroska(file.file_path):
+            cues = await asyncio.to_thread(video_cues.cached, file.id, file.file_path)
+            if cues is not None:
+                matroska_cues = MatroskaCuesView(
+                    offset=cues.cues_offset,
+                    data=base64.b64encode(cues.data).decode("ascii"),
+                    original_bytes=cues.original_bytes,
+                )
+            video_cues.schedule(file)
         attempt_started(file.id, int(Tier.DIRECT_PLAY), view, decide=decide_ms)
         return ok(
             PlaybackSessionView(
                 decision=view,
+                matroska_cues=matroska_cues,
                 # 目录直推（disc-direct-play.md）：地址是目录清单，引擎按清单逐个文件取字节
                 stream_url=(
                     f"/api/v1/playback/files/{file.id}/disc?token={token}"

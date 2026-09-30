@@ -2112,7 +2112,10 @@ final class HLSSegmentProducer: @unchecked Sendable {
                 // audio stream that decodes to nothing can't buffer the whole span and fill the disk (#64).
                 // Floored at 8s (the historical 2 x 4s value): a sub-second fastZap cut target (AE#195)
                 // must not shrink the cap below typical TS A/V interleave skew.
-                maxBufferedFragmentSeconds: max(8.0, 2 * targetSegmentDurationSeconds),
+                // [MovieClaw P57] 点播边产出边送时分片内每 0.5 秒刷出一个片段：AVPlayer 收到一个片段就能用一个片段，
+                // 慢线路上不必等整个 GOP 长的分片下完才出画、开播
+                maxBufferedFragmentSeconds: servesProgressively
+                    ? AetherEngine.progressiveFragmentSeconds : max(8.0, 2 * targetSegmentDurationSeconds),
                 // AE#222 + mid-session rotation: the last frame a muxer accepted, or the host's
                 // construction-time prime while no muxer has accepted one yet.
                 audioMoovPrimeFrame: audioMoovPrimeFrame,
@@ -2140,6 +2143,7 @@ final class HLSSegmentProducer: @unchecked Sendable {
             // outgoing muxer's totals have to be folded before the reference goes.
             self.installMuxer(muxer)
             self.currentMuxerSegmentIndex = initialSegmentIndex
+            self.noteSegmentInProgress(initialSegmentIndex, muxer: muxer)   // [MovieClaw P57]
             return muxer
         } catch {
             EngineLog.emit(
@@ -2399,6 +2403,7 @@ final class HLSSegmentProducer: @unchecked Sendable {
             return nil
         case .failed:
             // Failed cut: muxer has no open staging fd, every byte is silently discarded. Fatal.
+            abandonSegmentInProgress(currentMuxerSegmentIndex)   // [MovieClaw P57]
             EngineLog.emit(
                 "[HLSSegmentProducer] seg-\(currentMuxerSegmentIndex).m4s cut FAILED; "
                 + "muxer is wedged, ending pump",
@@ -2427,6 +2432,7 @@ final class HLSSegmentProducer: @unchecked Sendable {
             )
         }
         currentMuxerSegmentIndex = newIdx
+        noteSegmentInProgress(newIdx, muxer: muxer)   // [MovieClaw P57]
         if isLive {
             // Live is source-paced: the pump only runs ahead of real time while draining the join
             // backlog, and the sliding window (notePlaylistBuild -> evictBelow) bounds resident
@@ -2565,6 +2571,19 @@ final class HLSSegmentProducer: @unchecked Sendable {
         return .syncAt(offsetSeconds: offset)
     }
 
+    /// [MovieClaw P57] 点播边产出边送：这一段开始写了，登记它的暂存文件，请求到它的连接不必等写完
+    private var servesProgressively: Bool { !isLive && AetherEngine.servesSegmentsProgressively }
+
+    private func noteSegmentInProgress(_ index: Int, muxer: MP4SegmentMuxer) {
+        guard servesProgressively else { return }
+        cache.beginInProgress(index: index, stagingPath: muxer.stagingURL)
+    }
+
+    private func abandonSegmentInProgress(_ index: Int) {
+        guard servesProgressively, index != .min else { return }
+        cache.abandonInProgress(index: index)
+    }
+
     private func finalizeSessionMuxerAndAdopt() {
         guard let muxer = currentMuxer else { return }
         let idx = currentMuxerSegmentIndex
@@ -2582,6 +2601,7 @@ final class HLSSegmentProducer: @unchecked Sendable {
                 reportSequentialSegmentFinalized(index: idx, isFinal: true)
             }
         } else {
+            abandonSegmentInProgress(idx)   // [MovieClaw P57]
             EngineLog.emit(
                 "[HLSSegmentProducer] seg-\(idx).m4s final finalize failed; not adopted",
                 category: .session
@@ -2596,6 +2616,7 @@ final class HLSSegmentProducer: @unchecked Sendable {
     private func discardSessionMuxer() {
         guard let muxer = currentMuxer else { return }
         let idx = currentMuxerSegmentIndex
+        abandonSegmentInProgress(idx)   // [MovieClaw P57] 残段不收进缓存：正在边读的一方先收到作废
         if let result = muxer.finalize() {
             try? FileManager.default.removeItem(at: result.path)
             EngineLog.emit(

@@ -3,6 +3,34 @@ import Foundation
 extension AetherEngine {
     /// [MovieClaw P49] 文件头一到就按 SeekHead 把 Matroska 索引先取回来（默认开；关掉即原样按需读，真机对照用）
     nonisolated(unsafe) public static var prefetchesMatroskaCues = true
+    /// [MovieClaw P58] 宿主给了服务端生成的精简索引（`LoadOptions.matroskaCues`）就用它顶替原索引（默认开；关掉即照旧
+    /// 下载原索引，真机对照用）
+    nonisolated(unsafe) public static var usesHostMatroskaCues = true
+}
+
+/// [MovieClaw P58] 服务端生成的 Matroska 精简索引（docs/design/playback-qoe.md §9.12）：从原 Cues 里只挑出视频轨的
+/// 索引点（时间、簇位置原样）重新编码成的一整个 Cues 元素，连同原 Cues 在文件里的位置。
+///
+/// 为什么要它：mkvmerge 给每条字幕轨的每个事件都写索引点，字幕轨多的片子原 Cues 有几百 KB 到几 MB（片库抽样九成在
+/// 560 KB 以内、最大 4.2 MB）。P49 提前取也得把它整段下完，外网 6 Mbit/s 下 1.2 MB 就是 1.6 秒，直接压在首帧前面。
+/// 主播放的解复用器只用得到视频轨的索引点（libavformat 建索引只读 CueTime、CueTrack、CueClusterPosition，跳转按视频流），
+/// 所以读取器在解复用器读这个位置时直接给精简版，原索引一个字节都不用下。
+///
+/// 只给主播放的解复用器用（`DemuxerOpenProfile.hostMatroskaCues`）：读字幕的旁路解复用器可能按字幕轨的索引点跳转，
+/// 照旧读原索引。位置必须与文件头里 SeekHead 登记的一致才装（`AVIOReader.locateCuesLocked`），对不上就当没给。
+/// 服务端只为写在簇后面（文件尾）的 Cues 生成精简版：解复用器读文件头时不会顺序走进它，换成长度不同的元素不影响别处。
+public struct MatroskaHostCues: Sendable, Equatable {
+    /// 原 Cues 元素在文件里的绝对偏移（SeekHead 登记的位置）
+    public let offset: Int64
+    /// 精简后的整个 Cues 元素（含元素头）
+    public let data: Data
+
+    /// 数据不是一个完整的 Cues 元素（ID 不对、大小未知或与字节数对不上）时返回 nil
+    public init?(offset: Int64, data: Data) {
+        guard offset > 0, MatroskaCuesLocator.isWholeCuesElement(data) else { return nil }
+        self.offset = offset
+        self.data = data
+    }
 }
 
 /// [MovieClaw P49] 从 Matroska（MKV / WebM）文件头的字节里找出索引（Cues）在文件里的位置。
@@ -74,6 +102,15 @@ enum MatroskaCuesLocator {
                 guard reader.skip(length) else { return failed() }
             }
             return .absent
+        }
+    }
+
+    /// [MovieClaw P58] `data` 正好是一个完整的 Cues 元素：以 Cues 的 ID 开头，大小已知且与余下的字节数相等
+    static func isWholeCuesElement(_ data: Data) -> Bool {
+        data.withUnsafeBytes { raw -> Bool in
+            var reader = Reader(bytes: raw.bindMemory(to: UInt8.self))
+            guard reader.readID() == cuesID, let size = reader.readSize(), let length = size.known else { return false }
+            return length == UInt64(reader.count - reader.position)
         }
     }
 

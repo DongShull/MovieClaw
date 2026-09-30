@@ -609,6 +609,10 @@ public struct LoadOptions: Sendable, Equatable {
     /// 给一个稳定的键（MovieClaw 用「文件 id + 大小」）；nil = 不缓存（上游行为）。只作用于 URL 片源
     public var sourceCacheKey: String? = nil
 
+    /// [MovieClaw P58] 服务端给的 Matroska 精简索引（只含视频轨索引点，见 `MatroskaHostCues`）：主播放的解复用器读
+    /// Cues 时直接给它，不再下载原索引。nil = 照旧（上游行为）。只作用于 URL 片源的主播放读取器
+    public var matroskaCues: MatroskaHostCues? = nil
+
     /// Whether `play()` may move a behind-live playhead by itself. Default `true`, which is the historical
     /// behaviour (AE#444).
     ///
