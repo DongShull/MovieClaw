@@ -28,7 +28,11 @@ final class NowPlayingBridge {
         let target = center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let seconds = event.positionTime
-            MainActor.assumeIsolated { self?.controller?.seek(toFileMs: Int(seconds * 1000), source: .remote) }
+            MainActor.assumeIsolated {
+                // 锁屏进度条是时间轴上的位置（片段模式从片段起点算），换回文件时间再跳
+                guard let controller = self?.controller else { return }
+                controller.seek(toFileMs: controller.timelineStartMs + Int(seconds * 1000), source: .remote)
+            }
             return .success
         }
         targets.append((center.changePlaybackPositionCommand, target))
@@ -67,11 +71,11 @@ final class NowPlayingBridge {
         loadArtwork(controller)
     }
 
-    /// 每秒一次：进度、时长、速率
+    /// 每秒一次：进度、时长、速率（按时间轴：片段模式下是这一段的进度与长度，与播放器里的进度条一致）
     func updatePosition(controller: PlaybackController) {
         var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
-        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = Double(controller.positionMs) / 1000
-        if let duration = controller.durationMs { info[MPMediaItemPropertyPlaybackDuration] = Double(duration) / 1000 }
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = Double(controller.timelineMs(fromFileMs: controller.positionMs)) / 1000
+        if let duration = controller.timelineDurationMs { info[MPMediaItemPropertyPlaybackDuration] = Double(duration) / 1000 }
         let rate = controller.paused ? 0.0 : (controller.holdSpeedActive ? 2.0 : 1.0)
         info[MPNowPlayingInfoPropertyPlaybackRate] = rate
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info

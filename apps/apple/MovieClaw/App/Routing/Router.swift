@@ -39,8 +39,29 @@ struct PlayRequest: Identifiable, Hashable {
     var shareSlug: String?
     /// 播放器内切换文件版本时指定
     var fileId: Int?
+    /// 片段模式（刷片的「全屏观看」）：只放这一段，见 `PlaybackClip`
+    var clip: PlaybackClip?
 
-    var id: String { "\(shareSlug ?? "")-\(mediaItemId)-\(season ?? -1)-\(episode ?? -1)" }
+    var id: String {
+        "\(shareSlug ?? "")-\(mediaItemId)-\(season ?? -1)-\(episode ?? -1)" + (clip.map { "-clip\($0.startMs)" } ?? "")
+    }
+}
+
+/// 播放器的片段模式（docs/design/reels.md §6）：刷片页点「全屏观看」时，这一段交给正片播放器放。
+/// 手势、控制条、换音轨字幕、画质、倍速与正片完全一样，区别只在时间轴：
+/// - 进度条、时间、锁屏进度都按片段算，**总时长是这一段的长度**，不是整部片的，免得以为在看整部；
+/// - 跳转夹在片段之内，放到终点停下（可重播，或点「看全片」原地转成正常播放）；
+/// - 不写观看记录：不报进度（不写续播点、不进「继续观看」、不上活动页），也不留播放质量记录。
+/// 起止都是文件时间（毫秒），与服务端刷片接口的 `segment` 同一口径
+struct PlaybackClip: Hashable {
+    var startMs: Int
+    var endMs: Int
+}
+
+/// 片段播放器关掉时的位置：哪个文件、停在文件的第几毫秒
+struct ClipReturn {
+    let fileId: Int
+    let positionMs: Int
 }
 
 extension PlayRequest {
@@ -124,6 +145,8 @@ final class Router {
     /// 连带全屏呈现的播放器视图被销毁重建；控制器挂在视图上会跟着重开会话、重载引擎，
     /// 横屏后画面错位、又被旧视图的收尾转回竖屏（真机《抓特务》实测）。
     var activePlayback: PlaybackController?
+    /// 片段模式的播放器关掉时停在哪：刷片页回来后从这里接着放这一段（见 `ReelsStore.resume`）
+    @ObservationIgnored var clipReturn: ClipReturn?
     /// 全局弹层
     var sheet: AppSheet?
     /// 结果页点顶部搜索词胶囊回到搜索首页时要回填的内容；搜索首页出现时取走（见 `SearchHomeView`）

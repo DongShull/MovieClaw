@@ -49,6 +49,8 @@ struct PlayerScreen: View {
             created.viewAttached = true
             created.noteViewAppeared()
             controller = created
+            // 片段模式就是刷片的「全屏观看」：只有横屏这一种样子
+            if request.clip != nil { PlayerOrientation.request(landscape: true) }
             #if DEBUG
             // 开发期：-mcPlayerDiagnostics YES 起播即打开诊断面板（截图核对用）
             if UserDefaults.standard.bool(forKey: "mcPlayerDiagnostics") { created.diagnosticsOpen = true }
@@ -225,6 +227,10 @@ struct PlayerScreen: View {
 
     /// 真正离开播放器：关会话、恢复亮度与常亮、解除方向锁
     private func finish() {
+        // 收尾会走两次（退出时一次、视图消失时再一次）：只在第一次记，免得刷片页取走后又被写回一条过期的
+        if let controller, !controller.isClosed, controller.clip != nil, let fileId = controller.request.fileId {
+            router.clipReturn = ClipReturn(fileId: fileId, positionMs: controller.positionMs)
+        }
         controller?.close()
         if router.activePlayback === controller { router.activePlayback = nil }
         UIApplication.shared.isIdleTimerDisabled = false
@@ -278,6 +284,8 @@ private struct PlayerContent: View {
     @State private var volumeUnsupported = false
     @State private var scrubMs: Int?
     @State private var scrubBase = 0
+    /// 片段模式正在退出全屏：等转回竖屏再关（见 `exitClip`）
+    @State private var exitingClip = false
     @State private var scrubbingByGesture = false
     @State private var lastTapChromeState = true
     @State private var trickplay = TrickplayImages()
@@ -387,6 +395,10 @@ private struct PlayerContent: View {
             .animation(.easeInOut(duration: 0.25), value: chromeVisible)
             .animation(.easeInOut(duration: 0.2), value: controller.notice)
             .animation(.easeInOut(duration: 0.25), value: controller.qualityOffer)
+            // 片段模式退出全屏：转回竖屏了再关（见 exitClip）
+            .onChange(of: landscape) { _, now in
+                if !now { finishExitClip() }
+            }
         }
         .onReceive(SystemVolume.shared.changes) { volume in
             showVolumeFromKeys(Double(volume))
@@ -516,10 +528,18 @@ private struct PlayerContent: View {
                 }
                 Spacer(minLength: 0)
                 // 高度 ≤480 的横屏（手机横放）不显示片名大字，免得压住中央三键（同 Web）
-                if showPaused, menu == .none, !(landscape && height <= 480) {
+                if showPaused, !clipEnded, menu == .none, !(landscape && height <= 480) {
                     PausedOverlay(title: controller.title, episodeLabel: controller.episodeLabel(controller.currentEpisode))
                         .padding(.horizontal, PlayerLayout.edge)
                         .padding(.bottom, PlayerLayout.gap)
+                }
+                if clipEnded {
+                    HStack {
+                        Spacer()
+                        PlayerClipEndCard(replay: controller.togglePlay, watchFull: controller.leaveClip)
+                    }
+                    .padding(.horizontal, PlayerLayout.edge)
+                    .padding(.bottom, PlayerLayout.gap)
                 }
                 if controller.showsUpNext, let next = controller.nextEpisode {
                     HStack {
@@ -536,7 +556,14 @@ private struct PlayerContent: View {
                 if chromeVisible {
                     PlayerBottomBar(
                         controller: controller, trickplay: trickplay, menu: $menu, scrubMs: $scrubMs,
-                        landscape: landscape, onToggleLandscape: { PlayerOrientation.request(landscape: !landscape) }
+                        landscape: landscape,
+                        onToggleLandscape: {
+                            if controller.clip != nil {
+                                exitClip(landscape: landscape)
+                            } else {
+                                PlayerOrientation.request(landscape: !landscape)
+                            }
+                        }
                     )
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { bottomBarFrame = $0 }
                     // 菜单用 overlay 挂在底栏上：不参与布局（否则高菜单会把底栏挤扁），
@@ -632,9 +659,36 @@ private struct PlayerContent: View {
         }
     }
 
-    /// 横屏时左上角是「退出横屏」，竖屏时才是「退出播放」（同 Web 的后退语义）
+    /// 片段放完了（片段模式停在终点）
+    private var clipEnded: Bool { controller.clip != nil && controller.phase == .ended }
+
+    /// 片段模式的「退出全屏」：先转回竖屏、转好了再关播放器回到刷片（刷片页从这里接着放这一段）。
+    /// 直接关的话，转屏与收起两段动画叠在一起，中间会露出横着排的信息流
+    private func exitClip(landscape: Bool) {
+        guard landscape else {
+            exit()
+            return
+        }
+        exitingClip = true
+        PlayerOrientation.request(landscape: false)
+        // 兜底：系统没转过来也别卡在这里
+        Task {
+            try? await Task.sleep(for: .seconds(1))
+            finishExitClip()
+        }
+    }
+
+    private func finishExitClip() {
+        guard exitingClip else { return }
+        exitingClip = false
+        exit()
+    }
+
+    /// 横屏时左上角是「退出横屏」，竖屏时才是「退出播放」（同 Web 的后退语义）；片段模式是「退出全屏」
     private func back(landscape: Bool) {
-        if landscape {
+        if controller.clip != nil {
+            exitClip(landscape: landscape)
+        } else if landscape {
             PlayerOrientation.request(landscape: false)
         } else {
             exit()
@@ -671,7 +725,8 @@ private struct PlayerContent: View {
             // 与中央三键同一个中心（整屏正中），拖动时三键让位，读数正好接在播放键的位置
             PlayerHUD {
                 VStack(spacing: 4) {
-                    Text(Formatters.clock(Double(scrubMs) / 1000)).font(.title2.monospacedDigit().weight(.semibold))
+                    Text(Formatters.clock(Double(controller.timelineMs(fromFileMs: scrubMs)) / 1000))
+                        .font(.title2.monospacedDigit().weight(.semibold))
                     let delta = (scrubMs - scrubBase) / 1000
                     Text("\(delta >= 0 ? "+" : "-")\(Formatters.clock(Double(abs(delta))))")
                         .font(.caption.monospacedDigit())
@@ -715,14 +770,16 @@ private struct PlayerContent: View {
 
     /// 横滑定位：满屏一划 = 90 秒（同 Web FULL_SWEEP_SEEK_S），松手才跳
     private func handleScrub(_ phase: PlayerGestureLayer.GesturePhase, _ delta: CGFloat) {
-        guard let duration = controller.durationMs else { return }
+        guard let duration = controller.timelineDurationMs else { return }
+        // 落点夹在时间轴内（片段模式就是这一段），scrubMs 仍是文件时间
+        let start = controller.timelineStartMs
         switch phase {
         case .began:
             scrubBase = controller.positionMs
             scrubMs = scrubBase
             scrubbingByGesture = true
         case .changed:
-            let target = min(max(0, scrubBase + Int(delta * 90_000)), duration)
+            let target = min(max(start, scrubBase + Int(delta * 90_000)), start + duration)
             scrubMs = target
             controller.scrubFollow(toFileMs: target)
         case .ended:

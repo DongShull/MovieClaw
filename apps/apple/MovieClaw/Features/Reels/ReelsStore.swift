@@ -14,7 +14,7 @@ import SwiftUI
 /// 按服务端给的范围写进引擎的片源字节缓存：下一条全量（文件头 + 索引 + 起点后约 4 秒），
 /// 再往后两条只取文件头与索引（都很小）。计费网络只预取下一条。滑走的条目的预取任务直接取消。
 ///
-/// **事件**：曝光、出画面（带等待时长）、滑走（带看了多久）、看完、接着看、看正片、放不出，
+/// **事件**：曝光、出画面（带等待时长）、滑走（带看了多久）、看完、全屏观看、看详情、放不出，
 /// 攒满 10 条或离开页面时批量上报；上报失败直接丢弃（只是统计，不重试）。
 ///
 /// **类型筛选**：顶部「全部 ⌄」换类型时整个信息流重来（新种子、从头抽）。
@@ -54,9 +54,11 @@ final class ReelsStore {
     @ObservationIgnored private var nextOffset = 0
     @ObservationIgnored private var prefetchTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var standbyTask: Task<Void, Never>?
+    /// 从全屏观看、详情页回来时，这一条从哪里接着放（条目 id、秒）；下一次为它现建引擎时用掉
+    @ObservationIgnored private var resumeAt: (itemID: String, seconds: Double)?
     @ObservationIgnored private var pendingEvents: [API.ReelEventIn] = []
     @ObservationIgnored private var shownAt: ContinuousClock.Instant?
-    /// 当前这条已经「接着看 / 看正片」转去播放器页了
+    /// 当前这条已经转去全屏观看 / 详情页了：挂起时不算「滑走」
     @ObservationIgnored private var handedOff = false
 
     static let pageSize = 10
@@ -137,7 +139,9 @@ final class ReelsStore {
             do {
                 let player = try ReelPlayer(item: item)
                 adopt(player, item: item, index: index)
-                player.start(server: api.server)
+                let from = resumeAt?.itemID == id ? resumeAt?.seconds : nil
+                resumeAt = nil
+                player.start(server: api.server, from: from)
             } catch {
                 playerState = .failed("播放器创建失败")
                 record(item, kind: "fail", detail: ["reason": .string("engine_init")])
@@ -158,6 +162,12 @@ final class ReelsStore {
         playerState = .loading
     }
 
+    /// 左上角标题跟的那一条：在播的这一条（滑过去、换了播放器才换）；还没有播放器时（刚进来、挂起中）按滚动位置
+    var titleItem: API.ReelItemView? {
+        if let player { return player.item }
+        return items.first { $0.id == currentID }
+    }
+
     /// 某一条现在由哪个播放器出画：当前这条，或预起好的下一条
     func player(for item: API.ReelItemView) -> ReelPlayer? {
         if let player, player.item.id == item.id { return player }
@@ -176,24 +186,32 @@ final class ReelsStore {
 
     func pause() { player?.pause() }
 
-    /// 「接着看」：从当前位置转到播放器页（同一个文件，刷片下过的字节直接复用）
-    func continueRequest() -> PlayRequest? {
+    /// 「全屏观看」：这一段交给播放器页的片段模式放（`PlaybackClip`：手势、控制、换音轨字幕与正片一致，
+    /// 时间轴只算这一段、放到终点停下、不写观看记录），从当前位置接着放
+    func fullscreenRequest() -> PlayRequest? {
         guard let player else { return nil }
         let item = player.item
         let position = player.position
-        record(item, kind: "continue", positionMs: Int(position * 1000), watchedMs: watchedMs(player))
+        record(item, kind: "fullscreen", positionMs: Int(position * 1000), watchedMs: watchedMs(player))
+        // 不是滑走：挂起时不记「离开」
         handedOff = true
         return PlayRequest(mediaItemId: item.title.mediaItemId, season: item.title.episode?.season,
                            episode: item.title.episode?.episode, startSeconds: position,
-                           fileId: item.segment.fileId)
+                           fileId: item.segment.fileId,
+                           clip: PlaybackClip(startMs: item.segment.startMs, endMs: item.segment.endMs))
     }
 
-    /// 「看正片」：按正常播放的规则起播（续播点或片头、默认版本）
-    func openRequest(for item: API.ReelItemView) -> PlayRequest {
-        record(item, kind: "open", watchedMs: player.map { watchedMs($0) })
+    /// 「详情」：去媒体库条目页看这部片（路由由页面压栈）。记一条「看详情」——刷到感兴趣的片最直接的信号；
+    /// 回来时这一条从刚才的位置接着放，不从片段起点重来
+    func openDetail(_ item: API.ReelItemView) {
+        guard let player, player.item.id == item.id else {
+            record(item, kind: "detail")
+            return
+        }
+        let position = player.position
+        record(item, kind: "detail", positionMs: Int(position * 1000), watchedMs: watchedMs(player))
         handedOff = true
-        return PlayRequest(mediaItemId: item.title.mediaItemId, season: item.title.episode?.season,
-                           episode: item.title.episode?.episode)
+        if position < player.endSeconds - 1 { resumeAt = (item.id, position) }
     }
 
     /// 页面被切走（换标签、返回、盖上播放器页）：收掉播放器与预取，把攒着的事件报上去
@@ -205,9 +223,15 @@ final class ReelsStore {
         Task { await flush() }
     }
 
-    /// 回到页面：当前这条从片段起点重新起播
-    func resume() {
+    /// 回到页面：当前这条重新起播。从全屏观看回来（`returning` 是片段播放器关掉时停的位置）且还在这一段里，
+    /// 就从那里接着放；从详情页回来接着去之前的位置（`openDetail` 记下的）；否则从片段起点放
+    func resume(returning: ClipReturn? = nil) {
         guard player == nil else { return }
+        if let returning, let id = currentID, let item = items.first(where: { $0.id == id }),
+           item.segment.fileId == returning.fileId,
+           returning.positionMs >= item.segment.startMs, returning.positionMs < item.segment.endMs - 1000 {
+            resumeAt = (id, Double(returning.positionMs) / 1000)
+        }
         settle()
     }
 
@@ -254,7 +278,7 @@ final class ReelsStore {
     ///   挂起页面时要立刻拆，把解码器与内存让给播放器页
     private func leaveCurrent(deferTeardown: Bool) {
         guard let player else { return }
-        // 已经接着看 / 看正片了：这一条是转去正片，不是滑走
+        // 转去全屏观看 / 详情页了：不是滑走
         if player.state != .ended, !handedOff {
             record(player.item, kind: "leave", positionMs: Int(player.position * 1000), watchedMs: watchedMs(player))
         }

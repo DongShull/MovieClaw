@@ -38,8 +38,10 @@ final class ReelPlayer {
 
     var startSeconds: Double { Double(item.segment.startMs) / 1000 }
     var endSeconds: Double { Double(item.segment.endMs) / 1000 }
-    /// 当前在原片上的位置（秒）；还没出画面时按起点算
-    var position: Double { hasFirstFrame ? max(core.currentTime, startSeconds) : startSeconds }
+    /// 这次从哪里起播（片段起点，或从全屏观看回来时接着的位置）
+    private var loadedFrom: Double?
+    /// 当前在原片上的位置（秒）；还没出画面时按起播点算
+    var position: Double { hasFirstFrame ? max(core.currentTime, startSeconds) : loadedFrom ?? startSeconds }
     /// 片段内的进度 0～1
     var progress: Double {
         let span = endSeconds - startSeconds
@@ -52,7 +54,8 @@ final class ReelPlayer {
         core = try AetherPlayback()
         NativeEngine.sweepStaleCachesOnce()
         self.item = item
-        setFullscreen(false)
+        // 竖屏时画面只是一条横带，字幕按画面高度的比例算会很小：放大一些
+        core.setTextStyle(.init(fontScale: 8, bottomPercent: 6, background: false))
         core.onPhase = { [weak self] phase in self?.handle(phase) }
         core.onFailure = { [weak self] failure in self?.state = .failed(failure.message) }
         core.onTracksChanged = { [weak self] in self?.applySubtitle() }
@@ -68,14 +71,17 @@ final class ReelPlayer {
         item.play.sizeBytes.map { PlaybackController.sourceCacheKey(fileId: item.segment.fileId, size: $0) }
     }
 
-    /// - Parameter autoplay: false = 预起（装载到起点、停在第一帧，等 `play()`）
-    func start(server: ServerAddress, autoplay: Bool = true) {
+    /// - Parameters:
+    ///   - autoplay: false = 预起（装载到起点、停在第一帧，等 `play()`）
+    ///   - from: 从哪里起播（秒）；nil = 片段起点
+    func start(server: ServerAddress, autoplay: Bool = true, from: Double? = nil) {
         guard let raw = item.play.streamUrl, let url = server.resolve(raw) else {
             state = .failed("这一条缺少取流地址")
             return
         }
         prerolling = !autoplay
-        core.load(source: .file(url), start: startSeconds, autoplay: autoplay,
+        loadedFrom = from
+        core.load(source: .file(url), start: from ?? startSeconds, autoplay: autoplay,
                   headers: ["User-Agent": APIClient.userAgent],
                   audioOrdinal: item.play.audioOrdinal,
                   sourceCacheKey: Self.cacheKey(for: item))
@@ -90,12 +96,6 @@ final class ReelPlayer {
                 }
             }
         }
-    }
-
-    /// 字幕字号：竖屏时画面只是一条横带，字幕按画面高度的比例算会很小，放大一些；
-    /// 全屏（横屏）时画面铺满，回到播放器页的默认字号
-    func setFullscreen(_ fullscreen: Bool) {
-        core.setTextStyle(fullscreen ? .init() : .init(fontScale: 8, bottomPercent: 6, background: false))
     }
 
     func play() {

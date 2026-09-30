@@ -53,7 +53,8 @@ struct PlayerTopBar: View {
             HStack(spacing: PlayerLayout.gap) {
                 // 返回箭头笔画细，用大一号的符号尺度，与胶囊里的图标视觉上一样重（系统返回键也是这样）
                 GlassIconButton(
-                    systemImage: "chevron.backward", label: landscape ? "退出横屏" : "退出播放",
+                    systemImage: "chevron.backward",
+                    label: controller.clip != nil ? "退出全屏" : (landscape ? "退出横屏" : "退出播放"),
                     identifier: "player-close", scale: .large, action: onBack
                 )
                 VStack(alignment: .leading, spacing: 2) {
@@ -111,9 +112,9 @@ struct PlayerCenterControls: View {
                     Image(systemName: "gobackward.10")
                         .symbolEffect(.rotate.counterClockwise.byLayer, value: backTaps)
                 }
-                TransportButton(label: controller.paused ? "播放" : "暂停", size: 76, identifier: "player-play-pause", action: controller.togglePlay) {
+                TransportButton(label: playLabel, size: 76, identifier: "player-play-pause", action: controller.togglePlay) {
                     // 播放 / 暂停两个图标之间用系统的符号替换动效过渡
-                    Image(systemName: controller.paused ? "play.fill" : "pause.fill")
+                    Image(systemName: playSymbol)
                         .contentTransition(.symbolEffect(.replace))
                 }
                 TransportButton(label: "前进 10 秒", size: 56, action: {
@@ -126,6 +127,13 @@ struct PlayerCenterControls: View {
             }
         }
     }
+}
+
+extension PlayerCenterControls {
+    /// 片段放完了：播放键就是「重播」（从片段起点再放一遍）
+    private var clipEnded: Bool { controller.clip != nil && controller.phase == .ended }
+    private var playSymbol: String { clipEnded ? "arrow.counterclockwise" : (controller.paused ? "play.fill" : "pause.fill") }
+    private var playLabel: String { clipEnded ? "重播" : (controller.paused ? "播放" : "暂停") }
 }
 
 /// 中央的玻璃圆钮：整颗圆都能点，按下由交互玻璃给出系统的形变反馈
@@ -245,7 +253,22 @@ struct PlayerBottomBar: View {
                     }
                     .glassEffect(PlayerGlass.control, in: .capsule)
                     Spacer()
-                    let rotateLabel = landscape ? "退出横屏" : "横屏"
+                    if controller.clip != nil {
+                        // 片段模式：原地转成正常播放，从这里接着放整部
+                        Button(action: controller.leaveClip) {
+                            Label("看全片", systemImage: "play.rectangle")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .frame(height: PlayerLayout.button)
+                                .contentShape(.capsule)
+                        }
+                        .buttonStyle(.plain)
+                        .glassEffect(PlayerGlass.control, in: .capsule)
+                        .accessibilityIdentifier("player-watch-full")
+                    }
+                    // 片段模式只有横屏这一种样子：转回竖屏就是退出全屏、回到刷片
+                    let rotateLabel = controller.clip != nil ? "退出全屏" : (landscape ? "退出横屏" : "横屏")
                     GlassIconButton(
                         systemImage: landscape ? "rectangle.portrait.rotate" : "rectangle.landscape.rotate",
                         label: rotateLabel, identifier: "player-\(rotateLabel)", action: onToggleLandscape
@@ -263,7 +286,7 @@ struct PlayerBottomBar: View {
             HStack {
                 Text(Formatters.clock(Double(position) / 1000))
                     .accessibilityIdentifier("player-time")
-                    .accessibilityValue(String(controller.positionMs / 1000))
+                    .accessibilityValue(String(position / 1000))
                 Spacer()
                 Text(remainingText)
             }
@@ -274,11 +297,12 @@ struct PlayerBottomBar: View {
         }
     }
 
-    private var position: Int { scrubMs ?? controller.positionMs }
+    /// 时间轴上的位置（片段模式从片段起点算）
+    private var position: Int { controller.timelineMs(fromFileMs: scrubMs ?? controller.positionMs) }
 
-    /// 剩余时长；总时长未知时显示占位
+    /// 剩余时长（片段模式是这一段还剩多少）；总时长未知时显示占位
     private var remainingText: String {
-        guard let duration = controller.durationMs else { return Formatters.clock(nil) }
+        guard let duration = controller.timelineDurationMs else { return Formatters.clock(nil) }
         return "-" + Formatters.clock(Double(max(0, duration - position)) / 1000)
     }
 
@@ -287,7 +311,8 @@ struct PlayerBottomBar: View {
     }
 }
 
-/// 进度条：文件时间轴、已缓冲区；拖动时上方浮出缩略图与落点时间（含章节名）。
+/// 进度条：时间轴（整片；片段模式只是这一段）、已缓冲区；拖动时上方浮出缩略图与落点时间（含章节名）。
+/// `scrubMs` 与跳转用文件时间，画在条上时换算到时间轴。
 /// 跳转便宜（落点在缓冲里 / 原文件直出停住时）拖动途中画面就跟过去，松手再精确落地。
 ///
 /// 细条只有 4pt，但整条带子 44pt 高都能按（系统最小触控尺寸），细条在带子正中。
@@ -314,10 +339,12 @@ struct PlayerProgressBar: View {
     var body: some View {
         GeometryReader { proxy in
             let width = proxy.size.width
-            let duration = Double(controller.durationMs ?? 0)
-            let position = Double(scrubMs ?? controller.positionMs)
+            let start = controller.timelineStartMs
+            let duration = Double(controller.timelineDurationMs ?? 0)
+            let position = Double(controller.timelineMs(fromFileMs: scrubMs ?? controller.positionMs))
             let ratio = duration > 0 ? min(1, max(0, position / duration)) : 0
-            let buffered = duration > 0 ? min(1, max(0, Double(controller.bufferedEndMs ?? 0) / duration)) : 0
+            let bufferedEnd = controller.bufferedEndMs.map { controller.timelineMs(fromFileMs: $0) } ?? 0
+            let buffered = duration > 0 ? min(1, max(0, Double(bufferedEnd) / duration)) : 0
             // 时间轴比例 ↔ 横坐标：两端各让出一个圆点半径
             let travel = max(1, width - 2 * Self.knobRadius)
             let x: (Double) -> CGFloat = { Self.knobRadius + travel * $0 }
@@ -358,7 +385,7 @@ struct PlayerProgressBar: View {
                     .onChanged { value in
                         guard duration > 0 else { return }
                         dragging = true
-                        let target = Int(min(1, max(0, (value.location.x - Self.knobRadius) / travel)) * duration)
+                        let target = start + Int(min(1, max(0, (value.location.x - Self.knobRadius) / travel)) * duration)
                         scrubMs = target
                         // 跳转便宜时画面跟着手指走（节奏见 ScrubFollow），松手再精确落地
                         controller.scrubFollow(toFileMs: target)
@@ -408,7 +435,7 @@ struct ScrubPreview: View {
     }
 
     private var label: String {
-        let clock = Formatters.clock(Double(fileMs) / 1000)
+        let clock = Formatters.clock(Double(controller.timelineMs(fromFileMs: fileMs)) / 1000)
         let chapter = controller.session?.chapters.last { $0.startMs <= fileMs }?.title
         return chapter.map { "\(clock) · \($0)" } ?? clock
     }

@@ -271,6 +271,52 @@ struct PlayerUpNextCard: View {
     }
 }
 
+/// 片段放完的卡片（片段模式，见 `PlaybackClip`）：摆在「即将播放」卡片的位置、同一套几何。
+/// 主操作「看全片」通栏大按钮（原地转成正常播放，从这里接着放整部），次操作「重播」从片段起点再放一遍
+struct PlayerClipEndCard: View {
+    let replay: () -> Void
+    let watchFull: () -> Void
+
+    private static let radius: CGFloat = 37
+    private static let buttonInset: CGFloat = 12
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("片段放完了")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+                Text("从这里接着看整部？")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            VStack(spacing: 8) {
+                Button(action: watchFull) {
+                    Label("看全片", systemImage: "play.fill").frame(maxWidth: .infinity)
+                }
+                .discoverProminentButton()
+                .controlSize(.large)
+                .accessibilityIdentifier("clipend-watch-full")
+                Button(action: replay) {
+                    Label("重播这一段", systemImage: "arrow.counterclockwise").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .accessibilityIdentifier("clipend-replay")
+            }
+            .padding(Self.buttonInset)
+            .padding(.top, 2)
+        }
+        .frame(width: 224)
+        .glassEffect(PlayerGlass.panel, in: .rect(cornerRadius: Self.radius))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("player-clip-end")
+    }
+}
+
 /// 暂停遮罩：Netflix 式大字片名，靠左下落在控制条上方（压暗画面，让人一眼看出是暂停）
 struct PausedOverlay: View {
     let title: String

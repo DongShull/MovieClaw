@@ -122,11 +122,19 @@ class ReelGenreView(BaseModel):
 
 class ReelEventIn(BaseModel):
     reel_id: str = Field(max_length=64, description="片段标识")
-    kind: Literal["impression", "first_frame", "leave", "complete", "continue", "open", "fail"] = (
-        Field(
-            description="impression 曝光 / first_frame 出画面 / leave 滑走 / complete 看完 / "
-            "continue 接着看 / open 看正片 / fail 放不出"
-        )
+    kind: Literal[
+        "impression",
+        "first_frame",
+        "leave",
+        "complete",
+        "continue",
+        "open",
+        "fullscreen",
+        "detail",
+        "fail",
+    ] = Field(
+        description="impression 曝光 / first_frame 出画面 / leave 滑走 / complete 看完 / "
+        "continue 接着看 / open 看正片 / fullscreen 全屏观看 / detail 看详情 / fail 放不出"
     )
     mode: str = Field(default="seek", max_length=16, description="当时的放法")
     media_item_id: int | None = None

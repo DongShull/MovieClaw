@@ -37,7 +37,8 @@ class ReelEvent(MemberScopedMixin, TimestampMixin, table=True):
     kind: str = Field(
         sa_column=Column(Text, nullable=False),
         description="事件：impression 曝光 / first_frame 出画面 / leave 滑走 / "
-        "complete 看完 / continue 接着看 / open 看正片 / fail 放不出",
+        "complete 看完 / continue 接着看 / open 看正片 / fullscreen 全屏观看 / detail 看详情 / "
+        "fail 放不出",
     )
     mode: str = Field(
         default="seek",

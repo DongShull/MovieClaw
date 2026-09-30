@@ -307,6 +307,18 @@ def test_events_are_recorded_without_touching_watch_history(client, tmp_path):
                 {**base, "kind": "first_frame", "wait_ms": 420},
                 {
                     **base,
+                    "kind": "fullscreen",
+                    "watched_ms": 5_000,
+                    "position_ms": item["segment"]["start_ms"] + 5_000,
+                },
+                {
+                    **base,
+                    "kind": "detail",
+                    "watched_ms": 8_000,
+                    "position_ms": item["segment"]["start_ms"] + 8_000,
+                },
+                {
+                    **base,
                     "kind": "leave",
                     "watched_ms": 12_000,
                     "position_ms": item["segment"]["start_ms"] + 12_000,
@@ -315,7 +327,7 @@ def test_events_are_recorded_without_touching_watch_history(client, tmp_path):
         },
     )
     assert resp.status_code == 200, resp.text
-    assert resp.json()["data"] == {"accepted": 3}
+    assert resp.json()["data"] == {"accepted": 5}
 
     bad = client.post("/api/v1/reels/events", json={"events": [{**base, "kind": "hack"}]})
     assert bad.status_code == 422
@@ -330,6 +342,8 @@ def test_events_are_recorded_without_touching_watch_history(client, tmp_path):
     assert events == [
         ("impression", 0, None, None),
         ("first_frame", 0, 420, None),
+        ("fullscreen", 0, None, 5_000),
+        ("detail", 0, None, 8_000),
         ("leave", 0, None, 12_000),
     ]
     assert states == 0

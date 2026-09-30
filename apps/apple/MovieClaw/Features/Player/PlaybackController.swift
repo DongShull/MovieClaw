@@ -144,6 +144,24 @@ final class PlaybackController {
     }
     var nextDismissed = false
 
+    // MARK: 片段模式（刷片的「全屏观看」，见 `PlaybackClip`）
+
+    /// 只放这一段；nil = 正常放整片。「看全片」（`leaveClip`）原地清掉它
+    private(set) var clip: PlaybackClip?
+
+    /// 时间轴起点（文件毫秒）：进度条、时间、锁屏进度都相对它显示。整片是 0，片段模式是片段起点。
+    /// 内部读数（`positionMs`、跳转、字幕）始终是文件时间，只有显示换算到时间轴上
+    var timelineStartMs: Int { clip?.startMs ?? 0 }
+
+    /// 时间轴长度：整片是片长，片段模式是这一段的长度（片长未知时为 nil）
+    var timelineDurationMs: Int? { clip.map { $0.endMs - $0.startMs } ?? durationMs }
+
+    /// 文件时间 → 时间轴上的位置（片段模式下从 0 起、不超过片段长度）
+    func timelineMs(fromFileMs fileMs: Int) -> Int {
+        guard let clip else { return fileMs }
+        return min(max(0, fileMs - clip.startMs), clip.endMs - clip.startMs)
+    }
+
     // MARK: 内部
 
     private var startMsOverride: Int?
@@ -200,6 +218,7 @@ final class PlaybackController {
         let playbackAPI = APIClient(server: api.server, token: api.token, session: APIClient.playbackSession)
         scope = PlaybackAPI(api: playbackAPI, shareSlug: request.shareSlug)
         unit = PlaybackUnit(mediaItemId: request.mediaItemId, season: request.season ?? 0, episode: request.episode ?? 0)
+        clip = request.clip
         startMsOverride = request.startSeconds.map { Int($0 * 1000) }
         network = PlaybackNetwork.current(server: api.server)
         // 分享访客不记（进度都只记本机、按分享隔离），其余按「这部片 + 网络环境」取上次的画质
@@ -420,12 +439,13 @@ final class PlaybackController {
 
     /// 下一集只在**本季且有在位文件**里找——缺集要跳过（同 Web player-page）
     var nextEpisode: API.EpisodeView? {
-        guard unit.isEpisode else { return nil }
+        // 片段模式只放这一集里的一段：不出「即将播放」、不换集（「看全片」之后恢复）
+        guard unit.isEpisode, clip == nil else { return nil }
         return episodes.filter { $0.episodeNumber > unit.episode && $0.owned }.min { $0.episodeNumber < $1.episodeNumber }
     }
 
     var previousEpisode: API.EpisodeView? {
-        guard unit.isEpisode else { return nil }
+        guard unit.isEpisode, clip == nil else { return nil }
         return episodes.filter { $0.episodeNumber < unit.episode && $0.owned }.max { $0.episodeNumber < $1.episodeNumber }
     }
 
@@ -995,14 +1015,8 @@ final class PlaybackController {
                 }
             }
             if !reportedStart {
-                reportedStart = true
-                let unit = self.unit, audio = audioMemory, subtitle = subtitleMemory, fileId = reportedFileId
-                let scope = self.scope
-                enqueueReport { [weak self] in
-                    let state = await scope.progress(unit, event: "start", positionMs: nil, audio: audio, subtitle: subtitle, fileId: fileId)
-                    self?.handleProgressResponse(state)
-                }
-                startProgressLoop()
+                // 片段模式不写观看记录：一直不报「开始」，之后的进度、停止也就都不报（它们都认 reportedStart）
+                if clip == nil { reportStart() }
             } else if wasPaused {
                 // 只在从暂停恢复时补报一次；缓冲结束、状态抖动回到播放不报（10 秒一次的进度循环照常）——
                 // 否则引擎状态一抖就一秒几十条上报（系统播放器起播时实测 20 秒 160 多条）
@@ -1244,7 +1258,7 @@ final class PlaybackController {
     func togglePlay() {
         guard let engine else { return }
         if phase == .ended {
-            seek(toFileMs: 0, source: .restart)
+            seek(toFileMs: timelineStartMs, source: .restart)
             wantsPlay = true
             engine.play()
             return
@@ -1289,6 +1303,7 @@ final class PlaybackController {
         // 先夹进片长之内：越过片尾的落点会开出一个什么也转不出来的会话
         var target = max(0, raw)
         if let durationMs, durationMs > 1000 { target = min(target, durationMs - 1000) }
+        if let clip { target = Self.clamp(target, into: clip) }
         scrubFollowTask?.cancel()
         let buffered = bufferedEndMs.map { target >= positionMs && target <= $0 } ?? false
         guard let engine, session != nil, phase != .sessionStarting, phase != .deciding, phase != .degrading else {
@@ -1327,8 +1342,9 @@ final class PlaybackController {
 
     /// 拖动进度条途中让画面跟着手指走（对应 Web scrub-follow.ts）：跳转便宜时（落点在缓冲里）10Hz 跟随，
     /// 原文件直出拖出缓冲时只在手指停住后跟一次，其余情况松手才跳。跟随不计入 seek 次数，松手那次才算
-    func scrubFollow(toFileMs target: Int) {
+    func scrubFollow(toFileMs raw: Int) {
         guard let engine, session != nil, [.playing, .buffering, .ended].contains(phase) else { return }
+        let target = clip.map { Self.clamp(raw, into: $0) } ?? raw
         // 连续拖动的跳转耗时以第一次拖动为起点（松手那次 seek 结束计时）
         record?.noteScrubActivity()
         let reachable = target >= originMs
@@ -1383,7 +1399,8 @@ final class PlaybackController {
 
     /// 画中画按钮显不显示：自研引擎两条通路（主力通路的 AVPlayerLayer、软件通路的显示层）与系统播放器都原地进出；
     /// 显示层还没就绪时先不显示，等它就绪，不为画中画改拉服务端流（那会让 NAS 起转码）
-    var pictureInPictureAvailable: Bool { engine?.supportsPictureInPicture ?? false }
+    /// 片段模式不给画中画：小窗里是系统自己的进度条，只认整部片的时长，与「这一段」的时间轴对不上
+    var pictureInPictureAvailable: Bool { clip == nil && engine?.supportsPictureInPicture ?? false }
 
     func togglePictureInPicture() {
         guard let engine, engine.supportsPictureInPicture else { return }
@@ -1657,7 +1674,54 @@ final class PlaybackController {
         }
     }
 
+    // MARK: - 片段模式
+
+    /// 片段放到终点：停在这里（可重播，或「看全片」接着放整部）
+    private func reachClipEnd() {
+        if holdSpeedActive { endHoldSpeed() }
+        engine?.pause()
+        wantsPlay = false
+        paused = true
+        phase = .ended
+    }
+
+    /// 「看全片」：原地退出片段模式，从当前位置接着放整部——同一个引擎、不重开会话；
+    /// 从这一刻起照常记观看进度（报「开始」，之后按正常播放的节奏报）
+    func leaveClip() {
+        guard clip != nil else { return }
+        clip = nil
+        nowPlaying.update(controller: self)
+        if phase == .ended {
+            // 停在片段终点：接着往下放
+            phase = .playing
+            wantsPlay = true
+            engine?.play()
+        } else if engine?.isPaused == true {
+            wantsPlay = true
+            engine?.play()
+        }
+        // 已经在放：引擎不会再报一次「开始播放」，这里补报；暂停着的等恢复播放时由引擎事件报
+        if phase == .playing, engine?.isPaused == false, !reportedStart { reportStart() }
+    }
+
+    /// 片段模式的跳转落点：夹在片段之内，离终点留半秒（落在终点上会立刻判「放完」）
+    private static func clamp(_ fileMs: Int, into clip: PlaybackClip) -> Int {
+        min(max(fileMs, clip.startMs), max(clip.startMs, clip.endMs - 500))
+    }
+
     // MARK: - 心跳 / 进度
+
+    /// 报「开始播放」并开始 10 秒一次的进度上报（每个单元一次）
+    private func reportStart() {
+        reportedStart = true
+        let unit = self.unit, audio = audioMemory, subtitle = subtitleMemory, fileId = reportedFileId
+        let scope = self.scope
+        enqueueReport { [weak self] in
+            let state = await scope.progress(unit, event: "start", positionMs: nil, audio: audio, subtitle: subtitle, fileId: fileId)
+            self?.handleProgressResponse(state)
+        }
+        startProgressLoop()
+    }
 
     private func startPingLoop() {
         pingTask?.cancel()
@@ -1773,6 +1837,7 @@ final class PlaybackController {
         bufferedEndMs = engine.bufferedEnd.map { originMs + Int($0 * 1000) }
         paused = engine.isPaused
         if phase == .playing, !engine.isPaused { qoe.tickWatched() } else { qoe.pauseWatched() }
+        if let clip, phase == .playing, !engine.isPaused, positionMs >= clip.endMs { reachClipEnd() }
     }
 
     private func tickSecond() {
@@ -1963,7 +2028,8 @@ final class PlaybackController {
 
     /// 新的一次播放：切集（含进入播放器的第一个单元）、错误页上重试
     private func beginRecord(origin: PlaybackRecord.Origin, at instant: ContinuousClock.Instant?) {
-        guard scope.telemetry else { return }
+        // 片段模式不留播放记录：刷片有自己的事件（docs/design/reels.md §5），混进来会把「无打扰播放率」算偏
+        guard scope.telemetry, clip == nil else { return }
         PlaybackReportQueue.recoverAbnormalExit()
         record = PlaybackRecord(unit: unit, origin: origin, startedAt: instant)
         recordWatchedBaseline = qoe.watchedMs
