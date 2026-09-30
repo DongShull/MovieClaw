@@ -24,11 +24,17 @@
 
 其余容器（TS / M2TS / AVI / 原盘目录 / 镜像）返回 None，由调用方跳过。
 所有入口都是同步阻塞 IO，调用方负责放进线程池。
+
+**文件尾被截掉的 Matroska**（下载或复制中断，Segment 声明的长度比文件长）：mkvmerge 把
+Cues、Tags 和可能有的第二个 SeekHead 写在文件尾，截断后最先丢的就是它们。Cues 还完整
+就照常解析——文件尾的 SeekHead 只是目录，读不出就跳过；Cues 已不在文件里则按合同返回
+None，日志写明「文件不完整」，而不是报一句看不懂的越界。
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import struct
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -223,6 +229,13 @@ def _read_element_at(f, offset: int, expected_id: int) -> tuple[bytes, int]:
     """读出 offset 处的整个元素，返回 (元素字节, 正文在其中的起点)。"""
     f.seek(offset)
     header = f.read(16)
+    if not header:
+        # SeekHead 记的位置在文件末尾之外：文件尾被截掉了（NAS 上见过只剩 64% 的 remux，
+        # Cues 在第 186 亿字节、文件只有 118 亿字节）。不拦的话下面解析空字节会越界
+        raise ValueError(
+            f"元素 0x{expected_id:X} 应在第 {offset} 字节，文件却只有 "
+            f"{os.fstat(f.fileno()).st_size} 字节：文件不完整，可能下载或复制时中断了"
+        )
     element_id, p, _ = _vint(header, 0, keep_marker=True)
     if element_id != expected_id:
         raise ValueError(f"位置 {offset} 上不是期望的元素 0x{expected_id:X}")
@@ -276,14 +289,21 @@ def _read_matroska(path: Path, file_size: int) -> ContainerIndex:
                 positions.setdefault(element_id, cursor)
             cursor += p + size
 
-        # SeekHead 可能指向另一个 SeekHead（写在文件尾的第二索引），跟一层
+        # SeekHead 可能指向另一个 SeekHead（写在文件尾的第二索引），跟一层。
+        # SeekHead 只是目录：文件尾被截掉时第二个 SeekHead 会读不全（NAS 上见过缺尾 900 KB
+        # 的 UHD remux，Cues 完好、第二个 SeekHead 只剩半截），跳过它照样能用前面找到的
+        # Cues；Cues 真找不到或读不了，由下面统一报错
         visited: set[int] = set()
         while seek_heads:
             at = seek_heads.pop(0)
             if at in visited:
                 continue
             visited.add(at)
-            data, body = _read_element_at(f, at, _SEEK_HEAD)
+            try:
+                data, body = _read_element_at(f, at, _SEEK_HEAD)
+            except ValueError as exc:
+                logger.info("Matroska 元素目录（SeekHead）读不出，跳过它继续：%s（%s）", path, exc)
+                continue
             for child_id, c_start, c_end in _children(data, body, len(data)):
                 if child_id != _SEEK:
                     continue

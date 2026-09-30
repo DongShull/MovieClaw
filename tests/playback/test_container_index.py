@@ -54,8 +54,12 @@ def _build_mkv(
     subtitle_ms: list[int],
     chapters: list[tuple[int, str]],
     cues_in_seekhead: bool = True,
+    tail_seekhead: bool = False,
 ) -> dict:
-    """clusters: [(簇起始毫秒, 簇正文字节数)]，每个簇开头一个视频关键帧。"""
+    """clusters: [(簇起始毫秒, 簇正文字节数)]，每个簇开头一个视频关键帧。
+
+    tail_seekhead：Cues 后面再写第二个 SeekHead（记各簇位置），开头的 SeekHead 指向它。
+    """
     info = _el(
         0x1549A966, _u(0x2AD7B1, 1_000_000) + _el(0x4489, struct.pack(">d", float(duration_ms)))
     )
@@ -73,8 +77,10 @@ def _build_mkv(
 
     def seekhead(pos: dict[int, int]) -> bytes:
         entries = b""
-        for element_id in (0x1549A966, 0x1654AE6B, 0x1043A770, 0x1C53BB6B):
+        for element_id in (0x1549A966, 0x1654AE6B, 0x1043A770, 0x1C53BB6B, 0x114D9B74):
             if element_id == 0x1C53BB6B and not cues_in_seekhead:
+                continue
+            if element_id == 0x114D9B74 and not tail_seekhead:
                 continue
             entries += _el(
                 0x4DBB, _el(0x53AB, _id(element_id)) + _u(0x53AC, pos.get(element_id, 0), 8)
@@ -109,7 +115,18 @@ def _build_mkv(
     ]
     cues = _el(0x1C53BB6B, b"".join(points))
     pos[0x1C53BB6B] = cursor
-    segment_body = seekhead(pos) + info + tracks + chapters_el + b"".join(cluster_bytes) + cues
+    tail = b""
+    if tail_seekhead:
+        pos[0x114D9B74] = cursor + len(cues)
+        tail = _el(
+            0x114D9B74,
+            b"".join(
+                _el(0x4DBB, _el(0x53AB, _id(0x1F43B675)) + _u(0x53AC, p, 8)) for p in cluster_pos
+            ),
+        )
+    segment_body = (
+        seekhead(pos) + info + tracks + chapters_el + b"".join(cluster_bytes) + cues + tail
+    )
     ebml = _el(0x1A45DFA3, _s(0x4282, "matroska"))
     segment_header = _id(0x18538067) + b"\x01" + len(segment_body).to_bytes(7, "big")
     path.write_bytes(ebml + segment_header + segment_body)
@@ -118,7 +135,13 @@ def _build_mkv(
         "base": base,
         "cluster_abs": [base + p for p in cluster_pos],
         "cues_abs": (base + pos[0x1C53BB6B], base + pos[0x1C53BB6B] + len(cues)),
+        "tail_seekhead_abs": base + pos[0x114D9B74] if tail_seekhead else None,
     }
+
+
+def _truncate(path: Path, size: int) -> None:
+    """模拟下载或复制中断：只留文件前 size 字节，Segment 声明的长度不变。"""
+    path.write_bytes(path.read_bytes()[:size])
 
 
 @pytest.fixture(autouse=True)
@@ -165,6 +188,45 @@ def test_matroska_cues_missing_from_seekhead_is_unsupported(tmp_path):
         cues_in_seekhead=False,
     )
     assert ci.read_container_index(path) is None
+
+
+def test_matroska_truncated_before_cues_is_unsupported_with_clear_reason(tmp_path, caplog):
+    """文件尾被截掉、截在最后一个簇中间（NAS 实测《饥饿站台》只剩 64%）：SeekHead 记的
+    Cues 在文件末尾之外。按合同返回 None，日志要说清「文件不完整」而不是报越界。"""
+    path = tmp_path / "truncated.mkv"
+    layout = _build_mkv(
+        path,
+        duration_ms=10_000,
+        clusters=[(0, 1000), (2000, 3000), (4000, 500)],
+        subtitle_ms=[1500],
+        chapters=[],
+    )
+    _truncate(path, layout["cluster_abs"][-1] + 100)
+    with caplog.at_level("WARNING", logger="movieclaw_playback.container_index"):
+        assert ci.read_container_index(path) is None
+    [message] = [r.getMessage() for r in caplog.records if "读取容器索引失败" in r.getMessage()]
+    assert "文件不完整" in message
+
+
+@pytest.mark.parametrize("keep", [20, 0], ids=["half-left", "gone"])
+def test_matroska_truncated_tail_seekhead_is_skipped(tmp_path, keep):
+    """文件尾只缺一小截（NAS 实测《搏击俱乐部》缺尾 900 KB）：Cues 完好，只有写在它后面的
+    第二个 SeekHead 读不全或整个没了。SeekHead 只是目录，跳过它照样出完整索引。"""
+    path = tmp_path / "tail.mkv"
+    layout = _build_mkv(
+        path,
+        duration_ms=10_000,
+        clusters=[(0, 1000), (2000, 3000), (4000, 500)],
+        subtitle_ms=[1500, 4100],
+        chapters=[(0, "开场")],
+        tail_seekhead=True,
+    )
+    _truncate(path, layout["tail_seekhead_abs"] + keep)
+    index = ci.read_container_index(path)
+    assert index is not None
+    assert [k.offset for k in index.keyframes] == layout["cluster_abs"]
+    assert index.subtitle_events == {3: (1.5, 4.1)}
+    assert index.index_range == layout["cues_abs"]
 
 
 def test_garbage_with_mkv_suffix_returns_none(tmp_path):
