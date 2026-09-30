@@ -205,6 +205,20 @@ public final class AetherPlayback {
     /// 引擎日志最近的若干行（最多 `maxBytes` 字节，从新往旧截），播放失败时随记录上报
     public static func recentEngineLog(maxBytes: Int = 32 * 1024) -> String { logRing.snapshot(maxBytes: maxBytes) }
 
+    /// 刷片预取（内置引擎补丁 P39）：把一个片源的若干字节范围（文件头 / 索引 / 起点后几秒，服务端算好给出）
+    /// 先写进片源字节缓存。之后用同一个 `cacheKey` 装载时，打开与跳到起点都直接读本机。
+    /// 返回这次从源站拉下来的字节数；取消任务即停止，已写进缓存的保留
+    public nonisolated static func prefetchSource(url: URL, cacheKey: String,
+                                                  ranges: [(offset: Int64, length: Int64)],
+                                                  headers: [String: String] = [:]) async -> Int64 {
+        let report = await AetherEngine.prefetchSourceRanges(
+            url: url, cacheKey: cacheKey,
+            ranges: ranges.map { SourceByteRange(offset: $0.offset, length: $0.length) },
+            httpHeaders: headers
+        )
+        return report.fetchedBytes
+    }
+
     private static let logRing = EngineLogRing()
 
     /// 日志里要打码的秘密（取流令牌）

@@ -36,6 +36,8 @@ enum AppRoute: Hashable {
     case libraryItem(libraryId: Int, itemId: Int, season: Int? = nil, episode: Int? = nil)
     /// /library/manage?create=1&tab=duplicates&item={mediaItemId}
     case libraryManage(create: Bool = false, tab: String? = nil, item: Int? = nil)
+    /// /library/reels：片段（上下滑动看片段，docs/design/reels.md）。App 独有，网页暂时没有
+    case reels
 
     // MARK: 搜索
     /// 搜索首页（输入框 + 模式 + 最近搜索，对应 Web 的搜索命令面板，没有网页地址）：
@@ -237,6 +239,7 @@ extension AppRoute {
             switch parts[1] {
             case "customize": self = .libraryCustomize
             case "favorites": self = .favorites
+            case "reels": self = .reels
             case "collections": self = .allCollections
             case "manage": self = .libraryManage(create: query["create"] == "1", tab: query["tab"], item: int(query["item"]))
             case "c":
@@ -299,7 +302,7 @@ extension AppRoute {
     var tab: MainTab? {
         switch self {
         case .discover, .discoverCollection, .mediaDetail, .person, .discoveredPerson: .discover
-        case .libraryHome, .libraryCustomize, .favorites, .allCollections, .collection, .library, .libraryItem, .libraryManage: .library
+        case .libraryHome, .libraryCustomize, .favorites, .allCollections, .collection, .library, .libraryItem, .libraryManage, .reels: .library
         case .subscriptions, .subscription, .subscriptionWall: .subscriptions
         case .activity, .activityPage: .activity
         case .my: .more

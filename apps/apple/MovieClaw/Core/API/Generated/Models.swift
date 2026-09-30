@@ -268,28 +268,37 @@ nonisolated extension API {
     struct ArtworkCandidatesView: Codable, Hashable, Sendable {
         var posters: [API.ArtworkCandidateView]
         var backdrops: [API.ArtworkCandidateView]
+        /// 片名徽标（透明底 PNG，镜像为 clearlogo.png）
+        var logos: [API.ArtworkCandidateView]
         /// 当前在用的海报路径
         var currentPoster: String?
         /// 当前在用的背景路径
         var currentBackdrop: String?
+        /// 当前在用的徽标路径；null=没有（TMDB 无合适徽标）
+        var currentLogo: String?
         /// 海报已手动选定，刷新不覆盖
         var posterLocked: Bool
         /// 背景已手动选定，刷新不覆盖
         var backdropLocked: Bool
+        /// 徽标已手动选定，刷新不覆盖
+        var logoLocked: Bool
 
         enum CodingKeys: String, CodingKey {
             case posters
             case backdrops
+            case logos
             case currentPoster = "current_poster"
             case currentBackdrop = "current_backdrop"
+            case currentLogo = "current_logo"
             case posterLocked = "poster_locked"
             case backdropLocked = "backdrop_locked"
+            case logoLocked = "logo_locked"
         }
     }
 
-    /// 选图请求：kind 指海报还是背景；file_path 为 null 表示恢复自动选图。
+    /// 选图请求：kind 指哪种图；file_path 为 null 表示恢复自动选图。
     struct ArtworkSelectPayload: Codable, Hashable, Sendable {
-        /// poster=海报 / backdrop=背景图
+        /// poster=海报 / backdrop=背景图 / logo=片名徽标
         var kind: String
         /// TMDB 图片路径；null=解锁并恢复自动选图
         var filePath: String?
@@ -3688,7 +3697,7 @@ nonisolated extension API {
         var renamed: Int
         /// 跟随改名的附属文件数（字幕、分集剧照等）
         var sidecarsRenamed: Int
-        /// 跟随条目目录改名的镜像资产数（海报/背景/季海报/条目 NFO）
+        /// 跟随条目目录改名的镜像资产数（海报/背景/Logo/季海报/条目 NFO）
         var entryAssetsMoved: Int
         /// 本就符合规范、无需动作的文件数
         var alreadyOk: Int
@@ -5207,7 +5216,7 @@ nonisolated extension API {
         var namingSeasonDir: String
         /// 剧集文件名模板；空 = 默认 {title} ({year}) - S{season:02d}E{episode:02d}
         var namingEpisodeFile: String
-        /// 镜像条目图片到媒体目录（poster/fanart/季海报）
+        /// 镜像条目图片到媒体目录（poster/fanart/clearlogo/季海报）
         var mirrorImages: Bool
         /// 镜像 NFO 元数据到媒体目录
         var mirrorNfo: Bool
@@ -5265,7 +5274,7 @@ nonisolated extension API {
         var namingSeasonDir: String?
         /// 剧集文件名模板；空 = 默认 {title} ({year}) - S{season:02d}E{episode:02d}
         var namingEpisodeFile: String?
-        /// 镜像条目图片到媒体目录（poster/fanart/季海报）
+        /// 镜像条目图片到媒体目录（poster/fanart/clearlogo/季海报）
         var mirrorImages: Bool?
         /// 镜像 NFO 元数据到媒体目录
         var mirrorNfo: Bool?
@@ -5582,7 +5591,7 @@ nonisolated extension API {
         var alreadyOk: Int
         var renames: [API.OrganizeRenameView]
         var skips: [API.OrganizeSkipView]
-        /// 条目目录改名时跟着搬的镜像资产（poster.jpg / fanart.jpg / seasonNN-poster.jpg / movie.nfo / tvshow.nfo）——不搬走旧目录就清不掉
+        /// 条目目录改名时跟着搬的镜像资产（poster.jpg / fanart.jpg / clearlogo.png / seasonNN-poster.jpg / movie.nfo / tvshow.nfo）——不搬走旧目录就清不掉
         var entryAssets: [API.OrganizeSidecarView]
 
         enum CodingKeys: String, CodingKey {
@@ -7206,6 +7215,270 @@ nonisolated extension API {
         enum CodingKeys: String, CodingKey {
             case libraryId = "library_id"
             case mediaItemId = "media_item_id"
+        }
+    }
+
+    struct ReelByteRangeView: Codable, Hashable, Sendable {
+        /// 起始字节
+        var offset: Int
+        /// 长度
+        var length: Int
+        /// head 文件头 / index 索引 / start 起点后约 4 秒
+        var purpose: String
+
+        enum CodingKeys: String, CodingKey {
+            case offset
+            case length
+            case purpose
+        }
+    }
+
+    struct ReelEpisodeView: Codable, Hashable, Sendable {
+        /// 季号
+        var season: Int
+        /// 集号
+        var episode: Int
+        /// 集名
+        var name: String?
+        /// 分集简介
+        var overview: String?
+
+        enum CodingKeys: String, CodingKey {
+            case season
+            case episode
+            case name
+            case overview
+        }
+    }
+
+    struct ReelEventBatch: Codable, Hashable, Sendable {
+        /// 一批事件
+        var events: [API.ReelEventIn]
+
+        enum CodingKeys: String, CodingKey {
+            case events
+        }
+    }
+
+    struct ReelEventIn: Codable, Hashable, Sendable {
+        /// 片段标识
+        var reelId: String
+        /// impression 曝光 / first_frame 出画面 / leave 滑走 / complete 看完 / continue 接着看 / open 看正片 / fail 放不出
+        var kind: String
+        /// 当时的放法
+        var mode: String?
+        var mediaItemId: Int?
+        var fileId: Int?
+        /// 原片上的位置
+        var positionMs: Int?
+        /// 这一条累计看了多久
+        var watchedMs: Int?
+        /// 滑到这一条到出画面等了多久
+        var waitMs: Int?
+        /// 补充信息
+        var detail: [String: API.JSONValue]?
+
+        enum CodingKeys: String, CodingKey {
+            case reelId = "reel_id"
+            case kind
+            case mode
+            case mediaItemId = "media_item_id"
+            case fileId = "file_id"
+            case positionMs = "position_ms"
+            case watchedMs = "watched_ms"
+            case waitMs = "wait_ms"
+            case detail
+        }
+    }
+
+    struct ReelEventResult: Codable, Hashable, Sendable {
+        /// 落库条数
+        var accepted: Int
+
+        enum CodingKeys: String, CodingKey {
+            case accepted
+        }
+    }
+
+    struct ReelFeedView: Codable, Hashable, Sendable {
+        /// 这次刷片的随机种子，翻页时原样带回
+        var seed: Int
+        /// 下一页的 offset
+        var nextOffset: Int
+        /// 后面还有没有
+        var hasMore: Bool
+        var items: [API.ReelItemView]
+
+        enum CodingKeys: String, CodingKey {
+            case seed
+            case nextOffset = "next_offset"
+            case hasMore = "has_more"
+            case items
+        }
+    }
+
+    struct ReelGenreView: Codable, Hashable, Sendable {
+        /// 类型名（如「剧情」）
+        var name: String
+        /// 能刷到的片有几部
+        var count: Int
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case count
+        }
+    }
+
+    struct ReelItemView: Codable, Hashable, Sendable {
+        /// 片段标识（事件上报用）
+        var id: String
+        var title: API.ReelTitleView
+        /// 封面：起点那一帧；没有时是剧照
+        var coverUrl: String?
+        var segment: API.ReelSegmentView
+        var play: API.ReelPlayView
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case title
+            case coverUrl = "cover_url"
+            case segment
+            case play
+        }
+    }
+
+    struct ReelPersonView: Codable, Hashable, Sendable {
+        /// 姓名
+        var name: String
+        /// TMDB 影人 ID（打开人物页用）；只有姓名时为空
+        var tmdbPersonId: Int?
+        /// 头像（TMDB 图床地址）
+        var avatarUrl: String?
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case tmdbPersonId = "tmdb_person_id"
+            case avatarUrl = "avatar_url"
+        }
+    }
+
+    /// 怎么放这一条。mode=seek：自研引擎打开原片、从 segment.start_ms 起播。
+    struct ReelPlayView: Codable, Hashable, Sendable {
+        /// 放法：seek=从原片中间起播（一期仅此一种）
+        var mode: String
+        /// seek：原片取流地址（带 /api/v1 的相对路径，含令牌）
+        var streamUrl: String?
+        /// seek：原片大小（片源字节缓存的键要用）
+        var sizeBytes: Int?
+        /// seek：起播音轨的同类型序号
+        var audioOrdinal: Int?
+        /// seek：要显示的中文字幕；None 不开
+        var subtitle: API.ReelSubtitleView?
+        /// seek：上一条播放期间应预取的字节范围
+        var prefetch: [API.ReelByteRangeView]
+
+        enum CodingKeys: String, CodingKey {
+            case mode
+            case streamUrl = "stream_url"
+            case sizeBytes = "size_bytes"
+            case audioOrdinal = "audio_ordinal"
+            case subtitle
+            case prefetch
+        }
+    }
+
+    /// 放原片的哪一段（原片时间轴，与怎么放无关）。
+    struct ReelSegmentView: Codable, Hashable, Sendable {
+        /// 原片文件（台账行 id）
+        var fileId: Int
+        /// 起点（落在关键帧上）
+        var startMs: Int
+        /// 终点（落在两句对白之间）
+        var endMs: Int
+        /// 原片总长（剧集是这一集）
+        var durationMs: Int?
+        /// 挑法：bitrate 码率最高段 / chapter 章节起点 / position 固定位置
+        var method: String
+
+        enum CodingKeys: String, CodingKey {
+            case fileId = "file_id"
+            case startMs = "start_ms"
+            case endMs = "end_ms"
+            case durationMs = "duration_ms"
+            case method
+        }
+    }
+
+    struct ReelSubtitleView: Codable, Hashable, Sendable {
+        /// 内封字幕的同类型序号（embedded:<k> 的 k）
+        var ordinal: Int
+        var language: String?
+        var title: String?
+        var codec: String?
+
+        enum CodingKeys: String, CodingKey {
+            case ordinal
+            case language
+            case title
+            case codec
+        }
+    }
+
+    /// 这一条属于哪部片：展示用的信息。图片地址都是不带 /api/v1 的相对路径或完整外链。
+    struct ReelTitleView: Codable, Hashable, Sendable {
+        /// 条目 id
+        var mediaItemId: Int
+        /// 这一条的文件所在的媒体库（分享要用）
+        var libraryId: Int
+        /// 电影 / 剧集
+        var kind: String
+        /// 片名
+        var name: String
+        /// 年份
+        var year: Int?
+        /// 评分（0～10）
+        var rating: Double?
+        /// 片长；剧集是这一集的时长
+        var runtimeMinutes: Int?
+        /// 类型，最多 3 个
+        var genres: [String]
+        /// 宣传语
+        var tagline: String?
+        /// 简介（剧集是整剧的，分集简介在 episode 里）
+        var overview: String?
+        /// 本人收藏了没有（电影 / 整剧）
+        var favorite: Bool
+        /// 本人看过没有（电影看整部，剧集看这一集）
+        var played: Bool
+        /// 电影是导演、剧集是主创，最多两位
+        var directors: [API.ReelPersonView]
+        /// 海报
+        var posterUrl: String?
+        /// 横版剧照
+        var backdropUrl: String?
+        /// 片名 Logo（本地资产）
+        var logoUrl: String?
+        /// 剧集：这一段出自哪一集
+        var episode: API.ReelEpisodeView?
+
+        enum CodingKeys: String, CodingKey {
+            case mediaItemId = "media_item_id"
+            case libraryId = "library_id"
+            case kind
+            case name
+            case year
+            case rating
+            case runtimeMinutes = "runtime_minutes"
+            case genres
+            case tagline
+            case overview
+            case favorite
+            case played
+            case directors
+            case posterUrl = "poster_url"
+            case backdropUrl = "backdrop_url"
+            case logoUrl = "logo_url"
+            case episode
         }
     }
 

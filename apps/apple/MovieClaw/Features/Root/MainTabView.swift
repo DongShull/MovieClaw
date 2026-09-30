@@ -40,12 +40,21 @@ struct MainTabView: View {
     /// 双击切换进行中：切换要向服务器校验一次令牌，期间再双击不重复发起
     @State private var switchingAccount = false
 
+    /// 当前停在「片段」页（媒体库页签栈顶）
+    private var onReels: Bool {
+        router.selectedTab == .library && router.paths[.library]?.last == .reels
+    }
+
     var body: some View {
         let session = model.session
         let permissions = session.map(Permissions.init(session:)) ?? .none
         let api = model.api ?? EnvironmentValues().api
 
-        TabView(selection: $router.selectedTab) {
+        TabView(selection: Binding(get: { router.selectedTab }, set: { tab in
+            // 再点一次当前页签：回到这个页签的根页（iOS 惯例）。「片段」这类不带返回键的二级页靠它回去
+            if tab == router.selectedTab { router.popToRoot() }
+            router.selectedTab = tab
+        })) {
             Tab(value: MainTab.discover) {
                 TabRoot(tab: .discover) { DiscoverView(kind: "movie") }
             } label: {
@@ -87,7 +96,8 @@ struct MainTabView: View {
             .accessibilityLabel(MainTab.more.title)
             .accessibilityIdentifier("open-more")
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
+        // 「片段」上下滑动是在换条，不是在往下读：停在它上面时标签栏不收起（docs/design/reels.md）
+        .tabBarMinimizeBehavior(onReels ? .never : .onScrollDown)
         .background { PageWarmup(tabs: warmupTabs) }
         // 头像页签：长按弹切换账号抽屉、双击切回上一个账号（仿 Instagram，见 AccountGestureHub）
         .background(TabBarAccountGestures(onAvatarFrame: { if avatarTabFrame != $0 { avatarTabFrame = $0 } }))

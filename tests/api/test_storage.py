@@ -80,6 +80,7 @@ def data_root(tmp_path, monkeypatch):
         "IMAGE_CACHE_DIR": "cache/images",
         "MOVIECLAW_TRICKPLAY_CACHE_DIR": "cache/playback-trickplay",
         "MOVIECLAW_PLAYBACK_SUBS_CACHE_DIR": "cache/playback-subs",
+        "MOVIECLAW_REELS_CACHE_DIR": "cache/reels",
         "MOVIECLAW_SUBTITLE_GEN_CACHE_DIR": "cache/subtitle_gen",
         "SECRET_KEY_FILE": ".secret_key",
         "SITE_CONFIGS_DIR": "site-configs",

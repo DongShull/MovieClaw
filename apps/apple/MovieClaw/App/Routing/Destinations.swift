@@ -34,6 +34,7 @@ extension AppRoute {
         case let .libraryItem(libraryId, itemId, season, episode):
             LibraryItemDetailView(libraryId: libraryId, itemId: itemId, season: season, episode: episode)
         case let .libraryManage(create, tab, item): LibraryManageView(openCreate: create, initialTab: tab, initialItemId: item)
+        case .reels: ReelsView()
         // 搜索
         case let .searchHome(mode): SearchHomeView(initialMode: mode)
         case let .search(query): SearchResultsView(query: query)

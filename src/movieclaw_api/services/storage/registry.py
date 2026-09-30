@@ -207,6 +207,22 @@ DATA_DIRS: tuple[DataDir, ...] = (
         busy=_fonts_with_staging,
     ),
     DataDir(
+        key="cache.reels",
+        title="刷片挑点",
+        summary="刷片为每个文件挑出的片段位置",
+        description=(
+            "刷片（媒体库顶部的竖滑看片段）为每个文件挑出的片段起止位置与预取范围，"
+            "一个文件一份很小的记录。清空后下次刷到这部片会重新读一遍文件索引，"
+            "一部片零点几秒，几乎无感。片段封面图随条目图片存放，不在这里。"
+        ),
+        default="data/cache/reels",
+        resolve=lambda s: Path(s.reels_cache_dir),
+        group=Group.CACHE,
+        rebuild_cost=RebuildCost.CHEAP,
+        clearable=True,
+        orphans=_orphans_by_id("LibraryFile"),
+    ),
+    DataDir(
         key="cache.subtitle_gen",
         title="AI 字幕中间品",
         summary="AI 字幕生成的图片字幕识别结果与翻译断点",

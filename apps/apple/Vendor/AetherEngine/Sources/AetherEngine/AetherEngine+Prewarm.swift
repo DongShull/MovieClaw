@@ -89,3 +89,19 @@ public extension AetherEngine {
         SourceByteCache.shared.bind(url: url, key: key)
     }
 }
+
+// MARK: - [MovieClaw P39] 按字节范围预取进片源字节缓存（刷片）
+public extension AetherEngine {
+    /// 把一个片源的若干字节范围拉下来写进片源字节缓存（补丁 P22），之后用同一个 `sourceCacheKey` 装载时，
+    /// 打开、跳到起点、读尾部索引都直接从本机拿。给刷片用：当前这条还在播，下一条「从原片中间起播」要读的
+    /// 文件头 / 索引 / 起点后几秒先下好（范围由服务端从容器索引算出，见 `SourceRangePrefetcher`）。
+    ///
+    /// 放在后台任务里调；取消任务即停止（已写进缓存的保留）。只是加速：源站忙、积压太多都会中途放弃，
+    /// 不影响随后正常装载。
+    nonisolated static func prefetchSourceRanges(url: URL,
+                                                 cacheKey: String,
+                                                 ranges: [SourceByteRange],
+                                                 httpHeaders: [String: String] = [:]) async -> SourceRangePrefetchReport {
+        await SourceRangePrefetcher.prefetch(url: url, key: cacheKey, ranges: ranges, extraHeaders: httpHeaders)
+    }
+}

@@ -57,6 +57,7 @@ from movieclaw_api.api.routes.network import router as network_router
 from movieclaw_api.api.routes.people import router as people_router
 from movieclaw_api.api.routes.playback import router as playback_router
 from movieclaw_api.api.routes.playback import stream_router as playback_stream_router
+from movieclaw_api.api.routes.reels import router as reels_router
 from movieclaw_api.api.routes.rule_sets import router as rule_sets_router
 from movieclaw_api.api.routes.scheduled_tasks import router as scheduled_tasks_router
 from movieclaw_api.api.routes.scrape_settings import router as scrape_settings_router
@@ -112,6 +113,7 @@ _MEMBER_ROUTERS = [
     collections_router,
     people_router,
     playback_router,
+    reels_router,
 ]
 for _router in _MEMBER_ROUTERS:
     api_router.include_router(_router, dependencies=[Depends(require_login)])

@@ -106,6 +106,13 @@ final class SourceByteCache: @unchecked Sendable {
     func drain() {
         ioQueue.sync {}
     }
+
+    /// [MovieClaw P39] 已交给后台队列、还没落盘的字节数：范围预取成段写入前据此限流，
+    /// 免得积压超过 `maxPendingBytes` 被直接丢弃
+    var pendingWriteBytes: Int {
+        lock.lock(); defer { lock.unlock() }
+        return pendingBytes
+    }
     #if DEBUG
     /// 开发期统计：累计写入 / 从缓存供出的字节，每 5 秒打一行（核对换轨、回跳到底省了多少）
     private var debugWritten: Int64 = 0

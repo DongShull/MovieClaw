@@ -52,6 +52,7 @@ from movieclaw_db.models.playback_state import PlaybackState
 from movieclaw_db.models.ratio_boost_stat import RatioBoostStat
 from movieclaw_db.models.ratio_boost_task import BoostTaskState, RatioBoostTask
 from movieclaw_db.models.ratio_boost_task_sample import RatioBoostTaskSample
+from movieclaw_db.models.reel_event import ReelEvent
 from movieclaw_db.models.rule_set import RuleSet
 from movieclaw_db.models.scheduled_task import (
     ScheduledTask,
@@ -145,6 +146,7 @@ __all__ = [
     "RatioBoostStat",
     "RatioBoostTask",
     "RatioBoostTaskSample",
+    "ReelEvent",
     "RuleSet",
     "Subscription",
     "SubscriptionDownloadAttempt",
