@@ -159,6 +159,37 @@ def test_transfer_version_label_on_conflict(tmp_path):
     assert final.stat().st_ino == src.stat().st_ino
 
 
+@pytest.mark.parametrize("strategy", ["copy", "hardlink"])
+def test_transfer_base_freed_by_upgrade_still_dedupes_version_file(tmp_path, strategy):
+    """洗版后基础名被让出：新版本早先落在「- 标签」退让名，旧版进回收站后
+    基础名空了。同一来件再处理时必须认出退让名已是同内容，不得整份再落到
+    基础名（线上实测 58.7 GB Remux 重复入库）。"""
+    src = tmp_path / "inbox" / "movie.mkv"
+    src.parent.mkdir()
+    src.write_bytes(b"remux-payload")
+    dst = tmp_path / "lib" / "电影 (2019).mkv"
+    dst.parent.mkdir(parents=True)
+    first = _transfer(src, dst.with_name("电影 (2019) - 2160p.mkv"), strategy, "x")
+    assert first is not None and first.exists()
+    assert not dst.exists()  # 旧版已进回收站，基础名空着
+
+    assert _transfer(src, dst, strategy, "2160p") is None
+    assert not dst.exists()
+    assert sorted(p.name for p in dst.parent.iterdir()) == ["电影 (2019) - 2160p.mkv"]
+
+
+def test_transfer_base_free_with_different_version_file_lands_on_base(tmp_path):
+    """退让名上是另一份内容时基础名照常可用：修复只挡同内容，不改变落位约定。"""
+    src = tmp_path / "inbox" / "movie.mkv"
+    src.parent.mkdir()
+    src.write_bytes(b"new-content")
+    dst = tmp_path / "lib" / "电影 (2019).mkv"
+    dst.parent.mkdir(parents=True)
+    dst.with_name("电影 (2019) - 2160p.mkv").write_bytes(b"other")
+    assert _transfer(src, dst, "copy", "2160p") == dst
+    assert dst.read_bytes() == b"new-content"
+
+
 def test_transfer_publish_race_raises_not_clobbers(tmp_path, monkeypatch):
     """exists 预检通过后、发布前目标恰好落地（并发整理）：报冲突不覆盖。"""
     src = tmp_path / "inbox" / "movie.mkv"

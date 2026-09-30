@@ -313,23 +313,56 @@ async def _covered_by_library(
     路径用中性阶梯。在位文件的快照与验证端同一构造（``snapshot_from_file``）。
     只有明确判定"已覆盖"才跳过；无从判定（来件分辨率未知等）一律放行——
     宁可进待处理，不做猜测性丢弃。
+
+    在位文件的出处维度与来件**同一来源**：带来源戳 (site, torrent) 的文件取
+    对应投递定格的种子名解析（``attempt.quality``），与验证端、工单快照回填
+    一致。否则在位文件只能从改名后的文件名重新解析——``… - 2160p.mkv``
+    里没有 Remux 字样、库文件行也不存 remux，同一份 Remux 再次投递时来件
+    （种子名带 Remux）被判成「严格更优」放行，整份重复入库（线上实测）。
     """
     from movieclaw_api.services.subscription.upgrade import snapshot_from_file
+    from movieclaw_db.models import SubscriptionDownloadAttempt
     from movieclaw_matcher import covered_by_existing
 
-    rows = (
-        await session.execute(
-            select(LibraryFile).where(
-                LibraryFile.media_item_id == media_item_id,
-                LibraryFile.season_number == season,
-                LibraryFile.episode_number == episode,
-                LibraryFile.in_place(),
-                # 意外消失的文件不算覆盖：同档重新投递正是找回它的路径
-                LibraryFile.missing_since.is_(None),  # type: ignore[union-attr]
+    rows = list(
+        (
+            await session.execute(
+                select(LibraryFile).where(
+                    LibraryFile.media_item_id == media_item_id,
+                    LibraryFile.season_number == season,
+                    LibraryFile.episode_number == episode,
+                    LibraryFile.in_place(),
+                    # 意外消失的文件不算覆盖：同档重新投递正是找回它的路径
+                    LibraryFile.missing_since.is_(None),  # type: ignore[union-attr]
+                )
             )
+        ).scalars()
+    )
+    delivered: dict[tuple[str, str], QualitySnapshot] = {}
+    torrent_ids = {row.torrent_id for row in rows if row.site_id and row.torrent_id}
+    if torrent_ids:
+        attempts = (
+            await session.execute(
+                select(SubscriptionDownloadAttempt)
+                .where(SubscriptionDownloadAttempt.torrent_id.in_(torrent_ids))  # type: ignore[union-attr]
+                .order_by(SubscriptionDownloadAttempt.id)  # type: ignore[arg-type]
+            )
+        ).scalars()
+        for attempt in attempts:
+            if attempt.site_id and attempt.torrent_id and attempt.quality:
+                # 同一颗种子被多次投递时取最新一次的定格
+                delivered[(attempt.site_id, attempt.torrent_id)] = QualitySnapshot.model_validate(
+                    attempt.quality
+                )
+    existing = [
+        snapshot_from_file(
+            row,
+            delivered.get((row.site_id, row.torrent_id))
+            if row.site_id and row.torrent_id
+            else None,
         )
-    ).scalars()
-    existing = [snapshot_from_file(row, None) for row in rows]
+        for row in rows
+    ]
     return covered_by_existing(existing, incoming, spec) is True
 
 
@@ -3482,10 +3515,12 @@ def _same_disc_payload(source: Path, target: Path) -> bool:
 
 
 def _disc_destination(source: Path, base: Path, version_label: str) -> tuple[Path, bool]:
-    """选择完整原盘目录落点，返回（目录，是否已存在同内容）。"""
-    if not base.exists():
-        return base, False
-    if is_disc_dir(base) and _same_disc_payload(source, base):
+    """选择完整原盘目录落点，返回（目录，是否已存在同内容）。
+
+    基础目录空着时同样要先查一遍退让目录（理由同 ``_resolve_transfer_target``：
+    旧版进回收站让出基础名后，同一张盘不能再落一份到基础目录）。
+    """
+    if base.exists() and is_disc_dir(base) and _same_disc_payload(source, base):
         return base, True
     label = sanitize_folder_name(f"{version_label}原盘")
     candidate = base.with_name(f"{base.name} - {label}")
@@ -3495,7 +3530,7 @@ def _disc_destination(source: Path, base: Path, version_label: str) -> tuple[Pat
             return candidate, True
         candidate = base.with_name(f"{base.name} - {label} ({serial})")
         serial += 1
-    return candidate, False
+    return (base, False) if not base.exists() else (candidate, False)
 
 
 def _transfer_disc_tree(
@@ -3742,12 +3777,22 @@ def _avoid_disc_entry_dir(dest_dir: str, version_label: str) -> str:
 
 
 def _resolve_transfer_target(src: Path, dst: Path, version_label: str) -> Path | None:
-    """按既有多版本规则选择最终路径；None 表示内容已经落位。"""
+    """按既有多版本规则选择最终路径；None 表示内容已经落位。
+
+    基础名空着时**也要先看退让名**：洗版时新版本因旧版占着基础名而落在
+    ``… - 版本标签``，洗版验证随后把旧版送进回收站、基础名空了出来——同一
+    来件再被处理（分批入库后种子完成转整树、源指纹变化）时只看基础名，就会
+    把早已在库的新版本整份再复制一遍（线上实测 58.7 GB Remux 重复入库）。
+    """
     final = dst
-    if final.exists():
+    variant = dst.with_name(f"{dst.stem} - {version_label}{dst.suffix}")
+    if not final.exists():
+        if variant.exists() and _same_payload(src, variant):
+            return None
+    else:
         if _same_payload(src, final):
             return None
-        final = dst.with_name(f"{dst.stem} - {version_label}{dst.suffix}")
+        final = variant
         if final.exists():
             if _same_payload(src, final):
                 return None

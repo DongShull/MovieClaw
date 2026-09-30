@@ -4245,3 +4245,240 @@ async def test_legacy_largest_only_collection_backfilled_once_after_upgrade(
     identified = len(seen)
     await _sweep_twice(db, library_id, watch)
     assert len(seen) == identified
+
+
+# ---------------------------------------------------------------------------
+# 洗版后基础名被让出：同一来件再处理不得重复入库
+#
+# 线上实测：洗版把 Remux 落在「标题 (年份) - 2160p.mkv」（旧版占着基础名），
+# 验证随后把旧版送进回收站；种子完成后整树重处理同一条目（分批入库的
+# ready: 指纹与整树指纹天然不等），基础名空着 → 58.7 GB 整份再复制一遍。
+# 两道闸各自都要挡得住：落位解析认出退让名同内容；订阅投递的同档预检
+# 不把在库 Remux 误读成「非 Remux」。
+# ---------------------------------------------------------------------------
+
+_SPEC_2160P = SimpleNamespace(**{**vars(_FAKE_SPEC), "resolution": "2160p"})
+_REMUX_QUALITY = {"resolution": "2160p", "media_source": "UHD Blu-ray", "remux": True}
+
+
+def test_disc_destination_base_freed_still_finds_same_disc_version(tmp_path):
+    """原盘同理：基础目录空着时先认退让目录里的同一张盘，不再落一份到基础目录。"""
+    source = tmp_path / "source" / "Movie"
+    stream = source / "BDMV" / "STREAM" / "00001.m2ts"
+    stream.parent.mkdir(parents=True)
+    stream.write_bytes(b"main-feature")
+    base = tmp_path / "library" / "电影 (2026)"
+    variant = base.with_name("电影 (2026) - 2160p原盘")
+    final, created = ingest_mod._transfer_disc_tree(source, variant, "copy", "2160p")
+    assert created is True and final == variant
+    assert not base.exists()
+
+    assert ingest_mod._disc_destination(source, base, "2160p") == (variant, True)
+
+
+def test_disc_destination_base_freed_other_disc_uses_base(tmp_path):
+    """退让目录里是另一张盘时基础目录照常可用（只挡同内容）。"""
+    source = tmp_path / "source" / "Movie"
+    other = tmp_path / "other" / "Movie"
+    for root, payload in ((source, b"this-disc"), (other, b"that-disc!")):
+        stream = root / "BDMV" / "STREAM" / "00001.m2ts"
+        stream.parent.mkdir(parents=True)
+        stream.write_bytes(payload)
+    base = tmp_path / "library" / "电影 (2026)"
+    ingest_mod._transfer_disc_tree(other, base.with_name("电影 (2026) - 2160p原盘"), "copy", "x")
+
+    assert ingest_mod._disc_destination(source, base, "2160p") == (base, False)
+
+
+@pytest.mark.asyncio
+async def test_job_transfer_base_freed_skips_version_already_in_place(tmp_path):
+    """Job 复制路径（真实入库都走它）同样认出退让名同内容，不启动续传复制。"""
+    src = tmp_path / "inbox" / "movie.mkv"
+    src.parent.mkdir()
+    src.write_bytes(b"remux-payload")
+    dst = tmp_path / "lib" / "电影 (2019).mkv"
+    dst.parent.mkdir(parents=True)
+    dst.with_name("电影 (2019) - 2160p.mkv").write_bytes(b"remux-payload")
+
+    async def no_progress(_copied, _total):
+        raise AssertionError("同内容已在库，不应开始复制")
+
+    final = await ingest_mod._transfer_for_job(
+        src, dst, "copy", "2160p", SimpleNamespace(), no_progress
+    )
+    assert final is None
+    assert not dst.exists()
+
+
+async def _seed_upgraded_remux(db, *, item, library_id, root, stamped: bool):
+    """库里已有洗版落成的 Remux（在退让名上，基础名已空）+ 订阅与该次投递。"""
+    from movieclaw_db.models import (
+        RuleSet,
+        Subscription,
+        SubscriptionDownloadAttempt,
+        WantedItem,
+        WantedStatus,
+    )
+
+    movie_dir = root / "哪吒之魔童降世 (2019)"
+    movie_dir.mkdir(parents=True)
+    in_place = movie_dir / "哪吒之魔童降世 (2019) - 2160p.mkv"
+    in_place.write_bytes(b"remux-already-in-library")
+    async with db.session() as session:
+        rule_set = RuleSet(name="默认", spec={})
+        session.add(rule_set)
+        await session.commit()
+        await session.refresh(rule_set)
+        sub = Subscription(
+            media_item_id=item.id, kind="movie", rule_set_id=rule_set.id, library_id=library_id
+        )
+        session.add(sub)
+        await session.commit()
+        await session.refresh(sub)
+        session.add_all(
+            [
+                WantedItem(
+                    subscription_id=sub.id,
+                    media_item_id=item.id,
+                    season_number=0,
+                    episode_number=0,
+                    status=WantedStatus.IMPORTED,
+                    info_hash="hash-remux",
+                    quality=_REMUX_QUALITY,
+                ),
+                SubscriptionDownloadAttempt(
+                    subscription_id=sub.id,
+                    info_hash="hash-remux",
+                    site_id="hdsky",
+                    torrent_id="777",
+                    units=[[0, 0]],
+                    quality=_REMUX_QUALITY,
+                    last_progress_at=utcnow(),
+                ),
+                LibraryFile(
+                    library_id=library_id,
+                    media_item_id=item.id,
+                    season_number=0,
+                    episode_number=0,
+                    file_path=str(in_place),
+                    size_bytes=in_place.stat().st_size,
+                    resolution="2160p",
+                    video_codec="hevc",
+                    media_source="UHD Blu-ray",
+                    source=FileSource.IMPORTED,
+                    site_id="hdsky" if stamped else None,
+                    torrent_id="777" if stamped else None,
+                ),
+            ]
+        )
+        await session.commit()
+    return movie_dir
+
+
+@pytest.mark.asyncio
+async def test_covered_by_library_reads_remux_from_delivery_stamp(db, tmp_path):
+    """在位文件带来源戳时，出处维度取投递定格的种子名解析：改名后的
+    「… - 2160p.mkv」读不出 Remux，同一份 Remux 来件不能因此被判成升级。"""
+    from movieclaw_matcher import QualitySnapshot, RuleSetSpec
+
+    root = tmp_path / "movies"
+    library_id = await _make_library(db, kind=MediaKind.MOVIE, root=root)
+    item = await _make_item(db, kind=MediaKind.MOVIE, title="哪吒之魔童降世", year=2019)
+    await _seed_upgraded_remux(db, item=item, library_id=library_id, root=root, stamped=True)
+    incoming = QualitySnapshot(**_REMUX_QUALITY, video_codec="hevc")
+
+    async with db.session() as session:
+        assert await ingest_mod._covered_by_library(
+            session, item.id, 0, 0, incoming=incoming, spec=RuleSetSpec()
+        )
+
+
+@pytest.mark.asyncio
+async def test_covered_by_library_unstamped_file_still_parses_file_name(db, tmp_path):
+    """没有来源戳（扫描收编等）的在位文件维持原口径：只看文件名与文件行，
+    读不出 Remux 时同档 Remux 来件仍算更优——修复只收紧有证据的情形。"""
+    from movieclaw_matcher import QualitySnapshot, RuleSetSpec
+
+    root = tmp_path / "movies"
+    library_id = await _make_library(db, kind=MediaKind.MOVIE, root=root)
+    item = await _make_item(db, kind=MediaKind.MOVIE, title="哪吒之魔童降世", year=2019)
+    await _seed_upgraded_remux(db, item=item, library_id=library_id, root=root, stamped=False)
+    incoming = QualitySnapshot(**_REMUX_QUALITY, video_codec="hevc")
+
+    async with db.session() as session:
+        assert not await ingest_mod._covered_by_library(
+            session, item.id, 0, 0, incoming=incoming, spec=RuleSetSpec()
+        )
+
+
+@pytest.mark.asyncio
+async def test_upgraded_remux_redelivery_not_imported_again(db, tmp_path, monkeypatch):
+    """复现线上重复入库：订阅投递的同一颗 Remux 种子被整树重处理，库里
+    Remux 在退让名、基础名已空。同档预检必须认出「已在库」，基础名不得
+    再出现一份（来件尺寸与在库文件不同，专门绕开落位解析的同内容判定，
+    单测同档预检这一道闸）。"""
+    from movieclaw_downloader import TorrentBrief
+
+    root, watch = tmp_path / "movies", tmp_path / "watch"
+    watch.mkdir()
+    library_id = await _make_library(db, kind=MediaKind.MOVIE, root=root)
+    item = await _make_item(db, kind=MediaKind.MOVIE, title="哪吒之魔童降世", year=2019)
+    movie_dir = await _seed_upgraded_remux(
+        db, item=item, library_id=library_id, root=root, stamped=True
+    )
+    monkeypatch.setattr(ingest_mod, "probe_media", lambda _path: _SPEC_2160P)
+
+    async def identify_none(session, kind, watch_root, main, spec):
+        return None
+
+    monkeypatch.setattr(ingest_mod, "_identify", identify_none)
+    name = "Ne.Zha.2019.2160p.UHD.BluRay.REMUX.HEVC.DTS-HD.MA.7.1-FRDS"
+    brief = TorrentBrief(name=name, content_name=name, completed=True, info_hash="hash-remux")
+
+    async def briefs():
+        return [brief]
+
+    monkeypatch.setattr(ingest_mod, "_downloader_briefs", briefs)
+    entry = watch / name
+    entry.mkdir()
+    (entry / f"{name}.mkv").write_bytes(b"same-remux-but-other-size")
+
+    library = await _get_library(db, library_id)
+    await ingest_mod._sweep_dir(
+        _fixed_rule(watch, library_id=library_id), library, execute_inline=True
+    )
+
+    assert not (movie_dir / "哪吒之魔童降世 (2019).mkv").exists()
+    async with db.session() as session:
+        record = (await session.execute(select(IngestEntry))).scalar_one()
+        files = (await session.execute(select(LibraryFile))).scalars().all()
+    assert record.status == IngestStatus.IMPORTED
+    assert "已有同档或更高版本" in (record.message or "")
+    assert len(files) == 1
+
+
+@pytest.mark.asyncio
+async def test_reprocessed_entry_same_payload_on_version_name_is_idempotent(
+    db, tmp_path, monkeypatch
+):
+    """非订阅来源（名称识别）没有同档预检，靠落位解析兜底：退让名上已是
+    同一份内容时，基础名空着也不得再复制一份。"""
+    root, watch = tmp_path / "movies", tmp_path / "watch"
+    watch.mkdir()
+    library_id = await _make_library(db, kind=MediaKind.MOVIE, root=root)
+    item = await _make_item(db, kind=MediaKind.MOVIE, title="哪吒之魔童降世", year=2019)
+    _stub_identify(monkeypatch, item)
+    monkeypatch.setattr(ingest_mod, "probe_media", lambda _path: _SPEC_2160P)
+    movie_dir = root / "哪吒之魔童降世 (2019)"
+    movie_dir.mkdir(parents=True)
+    (movie_dir / "哪吒之魔童降世 (2019) - 2160p.mkv").write_bytes(b"remux-payload")
+
+    entry = watch / "哪吒之魔童降世 (2019)"
+    entry.mkdir()
+    (entry / "movie.mkv").write_bytes(b"remux-payload")
+    await _sweep_twice(db, library_id, watch, strategy="copy")
+
+    assert not (movie_dir / "哪吒之魔童降世 (2019).mkv").exists()
+    async with db.session() as session:
+        record = (await session.execute(select(IngestEntry))).scalar_one()
+    assert record.status == IngestStatus.IMPORTED
