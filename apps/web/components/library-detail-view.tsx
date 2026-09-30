@@ -516,6 +516,15 @@ export function LibraryDetailView({ libraryId }: { libraryId: number }) {
     const seq = ++reloadSeq.current;
     const lseq = ++listsSeq.current;
     const wanted = wallLoaded.current;
+    // 失败提示条由两段各自的结果合成：墙这一段失败、清单那一段成功，不能把
+    // 提示条抹掉（反之亦然）
+    const failure = { wall: false, lists: false };
+    const syncFailed = () => {
+      if (lseq === listsSeq.current) setFailed(failure.wall || failure.lists);
+    };
+    // 首屏只等「库列表 + 墙 + 临时条目」。四张待办清单是管理员的角标与菜单
+    // 数据，最慢的一张不该拖住整页的「正在加载媒体库」——大库上它们各要
+    // 扫一遍台账，此前与墙在同一个 Promise.all 里，首屏取最慢的那一趟
     Promise.all([
       listLibraries(),
       fetchWall(),
@@ -525,45 +534,25 @@ export function LibraryDetailView({ libraryId }: { libraryId: number }) {
         sort: "added_at",
         limit: PROVISIONAL_LIMIT,
       }).catch(() => [] as LibraryItem[]),
-      canManageLibraries
-        ? keepOnError(listUnidentifiedLibraryFiles(libraryId))
-        : Promise.resolve([]),
-      canManageLibraries
-        ? keepOnError(listLibraryIdentityReviewCases(libraryId))
-        : Promise.resolve([]),
-      canManageLibraries
-        ? keepOnError(listIgnoredLibraryFiles(libraryId))
-        : Promise.resolve([]),
-      canManageLibraries
-        ? keepOnError(listMissingLibraryFiles(libraryId))
-        : Promise.resolve([]),
     ])
-      .then(([libs, [libraryItems, index], provisionalItems, unknown, reviewGroups, ignoredGroups, missingItems]) => {
+      .then(([libs, [libraryItems, index], provisionalItems]) => {
         // 更晚的整轮 reload 把两把序号一起推过去，这一轮整个作废；只推 reloadSeq 的
-        // 换排序 / 翻页 / 跳转只作废墙的部分，清单与库列表仍照常落地——它们与
+        // 换排序 / 翻页 / 跳转只作废墙的部分，库列表仍照常落地——它与
         // 窗口、排序无关（见 listsSeq）
         if (lseq !== listsSeq.current) return;
         setSnapshotStale(false);
-        // 四张待办清单只要有一张没拿到，就保留上一份快照并点亮顶部提示条。
-        // 把失败折成空数组等于对用户说"没有待办了"：胶囊消失、⋯ 菜单的计数
-        // 归零，一个 500/超时/权限不足看起来和"全处理完了"一模一样
-        setFailed(
-          [unknown, reviewGroups, ignoredGroups, missingItems].some((rows) => rows === null),
-        );
         // 轮询快照内容没变时复用旧引用：库存墙逐条目复用（配合 InventoryCell
         // 的 memo，只有真正变化的格子重渲染），其余列表整体复用。否则扫描期间
         // 每 3 秒就把几百个格子全部重画一遍，表现为周期性卡顿
         setLibraries((prev) => (prev ? keepIfEqual(prev, libs) : libs));
         setProvisional((prev) => reconcileList(prev, provisionalItems, (i) => i.media_item_id));
-        if (unknown !== null) setUnidentified((prev) => keepIfEqual(prev, unknown));
-        if (reviewGroups !== null) setReview((prev) => keepIfEqual(prev, reviewGroups));
-        if (ignoredGroups !== null) setIgnored((prev) => keepIfEqual(prev, ignoredGroups));
-        if (missingItems !== null) setMissing((prev) => keepIfEqual(prev, missingItems));
         // 整库刷新可能是别处（首页卡片/其他设备）发起的：库列表响应里带着
         // 状态，据此补种进度面板——否则只有挂载时那一次探测，之后发起的
         // 刷新这个页面永远看不见。已有进行中的状态时不覆盖（专用轮询更新鲜）
         const remote = libs.find((l) => l.id === libraryId)?.metadata_refresh;
         if (remote?.refreshing) setMetaRefresh((prev) => (prev?.refreshing ? prev : remote));
+        failure.wall = false;
+        syncFailed();
         if (seq !== reloadSeq.current) return;
         setItems((prev) => reconcileList(prev, libraryItems, (i) => i.media_item_id));
         wallLoaded.current = Math.max(WALL_PAGE_SIZE, libraryItems.length);
@@ -574,7 +563,33 @@ export function LibraryDetailView({ libraryId }: { libraryId: number }) {
       // 瞬时失败（网络抖动/后端忙）不清已有数据：failed 只决定顶部提示条，
       // 页面继续用上一份快照展示，下一轮轮询成功即自动恢复
       .catch(() => {
-        if (lseq === listsSeq.current) setFailed(true);
+        failure.wall = true;
+        syncFailed();
+      });
+    if (!canManageLibraries) return;
+    Promise.all([
+      keepOnError(listUnidentifiedLibraryFiles(libraryId)),
+      keepOnError(listLibraryIdentityReviewCases(libraryId)),
+      keepOnError(listIgnoredLibraryFiles(libraryId)),
+      keepOnError(listMissingLibraryFiles(libraryId)),
+    ])
+      .then(([unknown, reviewGroups, ignoredGroups, missingItems]) => {
+        if (lseq !== listsSeq.current) return;
+        // 四张待办清单只要有一张没拿到，就保留上一份快照并点亮顶部提示条。
+        // 把失败折成空数组等于对用户说"没有待办了"：胶囊消失、⋯ 菜单的计数
+        // 归零，一个 500/超时/权限不足看起来和"全处理完了"一模一样
+        failure.lists = [unknown, reviewGroups, ignoredGroups, missingItems].some(
+          (rows) => rows === null,
+        );
+        syncFailed();
+        if (unknown !== null) setUnidentified((prev) => keepIfEqual(prev, unknown));
+        if (reviewGroups !== null) setReview((prev) => keepIfEqual(prev, reviewGroups));
+        if (ignoredGroups !== null) setIgnored((prev) => keepIfEqual(prev, ignoredGroups));
+        if (missingItems !== null) setMissing((prev) => keepIfEqual(prev, missingItems));
+      })
+      .catch(() => {
+        failure.lists = true;
+        syncFailed();
       });
   }, [canManageLibraries, fetchWall, libraryId]);
 

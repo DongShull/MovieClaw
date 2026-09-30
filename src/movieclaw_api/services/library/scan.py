@@ -107,7 +107,7 @@ from movieclaw_api.services.media_probe import (
 )
 from movieclaw_api.services.subtitle_gen.extract import cache_dir as subtitle_cache_dir
 from movieclaw_api.services.task_state import TaskState
-from movieclaw_db.engine import get_database
+from movieclaw_db.engine import get_database, refresh_query_statistics
 from movieclaw_db.models import (
     DownloadHint,
     FileSource,
@@ -645,6 +645,10 @@ async def _refresh_stats_snapshot(library_id: int, summary: ScanSummary) -> None
             # refresh_stats 自己 commit，ensure 之后要再收一次事务边界
             await ensure_series_collections_for_library(session, library_id)
             await session.commit()
+        # 大批入库后立刻刷查询统计：否则要等下次重启才更新，期间 SQLite 拿着
+        # 入库前的行数挑索引，大库上的筛选面板可能退化成整库扫描。
+        # PRAGMA optimize 只动统计缺失/明显过期的表，几乎零成本，失败只记日志
+        await refresh_query_statistics(db)
     except Exception:  # noqa: BLE001 -- 统计失败不应把已完成的入库事务回滚
         logger.exception("媒体库 #%s 库存统计刷新失败", library_id)
         message = "库存统计刷新失败，将在下次扫描时重试"

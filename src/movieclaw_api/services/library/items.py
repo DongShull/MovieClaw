@@ -603,11 +603,19 @@ def _file_exists(library_id: int | None, *conds):
 
     必须限定 ``library_id``：同一部片散在两个库时，「本库有没有 4K」问的是
     这个库，不是全世界。不给 library_id（内部调用）则跨库判定。
+
+    写成**不相关**的 ``media_item.id IN (SELECT media_item_id …)``，而不是
+    ``EXISTS (… WHERE media_item_id = media_item.id)``：相关子查询每个条目执行
+    一次，SQLite 在没有 ``sqlite_stat1`` 时会为它挑 ``library_id`` 索引，等于
+    每个条目把本库全部文件扫一遍（O(条目数 × 文件数)）。实测 229 部 / 1.8 万
+    文件的库，「更多筛选」一次请求 121 秒；不相关写法只扫本库文件一次，
+    与统计信息有无无关（见 tests/api/test_library_facets_perf.py）。
+    子查询里排除 NULL 的 media_item_id，``NOT IN`` 才不会被 NULL 吞成"未知"。
     """
-    where = [LibraryFile.media_item_id == MediaItem.id, *conds]
+    where = [LibraryFile.media_item_id.is_not(None), *conds]  # type: ignore[union-attr]
     if library_id is not None:
         where.append(LibraryFile.library_id == library_id)
-    return select(1).select_from(LibraryFile).where(*where).exists()
+    return MediaItem.id.in_(select(LibraryFile.media_item_id).where(*where))  # type: ignore[attr-defined]
 
 
 def _narrow(
