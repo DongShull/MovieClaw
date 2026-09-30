@@ -24,9 +24,13 @@ def _alive(pid: int) -> bool:
         os.kill(pid, 0)
     except ProcessLookupError:
         return False
-    # 已退出但尚未被回收的僵尸也算死了
-    stat = Path(f"/proc/{pid}/stat")
-    return not (stat.exists() and stat.read_text().split()[2] == "Z")
+    # 已退出但尚未被回收的僵尸也算死了。不能先 exists() 再读：两步之间进程
+    # 可能恰好被 init 回收，读取就会抛 FileNotFoundError（CI 上真实出现过）
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().split()[2] != "Z"
+    except FileNotFoundError:
+        # Linux 上说明刚被回收；没有 /proc 的平台（macOS）只能以 kill 的结果为准
+        return not Path("/proc/self").exists()
 
 
 def _spawn_grandchild_script(pid_file: Path) -> list[str]:
