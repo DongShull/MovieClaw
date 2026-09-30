@@ -82,7 +82,7 @@ struct SubscriptionsView: View {
         }
         .background { SubsHomeAmbientHost(tint: immersive ? tint : nil, scroll: scroll) }
         // 标题同其他标签根页：左上角大字（iOS 标签根页规范）；沉浸时叠在 Hero 的顶部压暗上
-        .navigationTitle("我的订阅")
+        .navigationTitle("订阅")
         .toolbarTitleDisplayMode(.inlineLarge)
         .refreshable { await reload() }
         .task {

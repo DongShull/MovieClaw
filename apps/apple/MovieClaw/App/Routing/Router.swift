@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// 底部标签页。前四个与 Web 银玻璃主题手机底栏同序；最右是当前用户的头像（「我的」页，
-/// Instagram 式的个人页签）。搜索不占标签，在各标签根页右上角（见 MainTabView 的 AppTopBar）。
+/// 底部标签页，从左到右：媒体库（首页）、订阅、发现、活动，最右是当前用户的头像（「我的」页，
+/// Instagram 式的个人页签）。2026-09-30 用户调整：自己的片库是 App 的首页，排最左、冷启动落在这里；
+/// 发现（找新片）退到第三。搜索不占标签，在各标签根页右上角（见 MainTabView 的 AppTopBar）。
 /// 标签栏只显示图标，`title` 给读屏与 UI 测试用。
 enum MainTab: String, Hashable, CaseIterable {
-    case discover, library, subscriptions, activity, more
+    case library, subscriptions, discover, activity, more
 
     var title: String {
         switch self {
@@ -19,7 +20,9 @@ enum MainTab: String, Hashable, CaseIterable {
     /// 页签图标；「我的」平时显示头像，这个图标只在头像位图还没画好时顶一下
     var systemImage: String {
         switch self {
-        case .discover: "house"
+        // 闪光：推荐、新鲜内容（2026-09-30 用户定：指南针像 Safari，爆米花真机上看不清；原来的小房子读成「首页」，
+        // 首页现在是媒体库）
+        case .discover: "sparkles"
         case .library: "play.square.stack"
         case .subscriptions: "bookmark"
         case .activity: "waveform.path.ecg"
@@ -56,6 +59,8 @@ struct PlayRequest: Identifiable, Hashable {
 struct PlaybackClip: Hashable {
     var startMs: Int
     var endMs: Int
+    /// 片段的画质（`ReelsQuality`，竖屏与全屏共用一份）：片段模式按它开、改了也记回它，不动正片的按片画质记忆
+    var maxHeight: Int?
 }
 
 /// 片段播放器关掉时的位置：哪个文件、停在文件的第几毫秒
@@ -134,7 +139,7 @@ struct SubscribeRequest: Hashable {
 /// `push` 压到当前标签，`open(_:)` 按路由归属切到对应标签再压栈。
 @Observable
 final class Router {
-    var selectedTab: MainTab = .discover {
+    var selectedTab: MainTab = .library {
         // 打点：切页签的那一刻是页面打开的起点（见 PerfTrace）
         didSet { if selectedTab != oldValue { PerfTrace.pageBegan(selectedTab.rawValue, trigger: "tab") } }
     }

@@ -7,6 +7,8 @@
   （AC3 / E-AC3 / AAC 等）。TrueHD 要在手机上软解，起播更慢，刷片要的是一滑就出画面。
 - **字幕**：只挑中文字幕（语言码或标题认得出是中文的），简体优先；强制字幕、
   评论音轨字幕排在后面。没有中文字幕就不开——外挂字幕一期不接（见设计文档）。
+  「强制」只在不是默认轨时才扣分：不少片源把整条正片字幕同时标了默认和强制（如
+  《我的大叔》的「简体中文-ASS」），真正只翻标牌 / 外语段落的强制字幕不会标默认。
 """
 
 from __future__ import annotations
@@ -71,7 +73,7 @@ def _subtitle_rank(stream: dict[str, Any]) -> int:
         rank += 2
     if stream.get("default"):
         rank += 1
-    if stream.get("forced"):
+    if stream.get("forced") and not stream.get("default"):
         rank -= 5
     if any(mark in title for mark in _COMMENTARY_MARKS):
         rank -= 10

@@ -1762,13 +1762,24 @@ nonisolated extension APIClient {
 
     /// 刷片：取一页片段
     /// `GET /reels`
-    func reelsFeed(seed: Int? = nil, offset: Int? = nil, limit: Int? = nil, modes: String? = nil, genre: String? = nil) async throws -> API.ReelFeedView {
+    func reelsFeed(seed: Int? = nil, offset: Int? = nil, limit: Int? = nil, modes: String? = nil, kind: String? = nil, g: String? = nil, c: String? = nil, d: String? = nil, w: String? = nil, ratingGte: Double? = nil, rt: String? = nil, lang: String? = nil, res: String? = nil, hdr: Bool? = nil, stock: String? = nil, seriesKeys: String? = nil) async throws -> API.ReelFeedView {
         var query: [URLQueryItem] = []
         if let seed { query.append(URLQueryItem(name: "seed", value: "\(seed)")) }
         if let offset { query.append(URLQueryItem(name: "offset", value: "\(offset)")) }
         if let limit { query.append(URLQueryItem(name: "limit", value: "\(limit)")) }
         if let modes { query.append(URLQueryItem(name: "modes", value: "\(modes)")) }
-        if let genre { query.append(URLQueryItem(name: "genre", value: "\(genre)")) }
+        if let kind { query.append(URLQueryItem(name: "kind", value: "\(kind)")) }
+        if let g { query.append(URLQueryItem(name: "g", value: "\(g)")) }
+        if let c { query.append(URLQueryItem(name: "c", value: "\(c)")) }
+        if let d { query.append(URLQueryItem(name: "d", value: "\(d)")) }
+        if let w { query.append(URLQueryItem(name: "w", value: "\(w)")) }
+        if let ratingGte { query.append(URLQueryItem(name: "rating_gte", value: "\(ratingGte)")) }
+        if let rt { query.append(URLQueryItem(name: "rt", value: "\(rt)")) }
+        if let lang { query.append(URLQueryItem(name: "lang", value: "\(lang)")) }
+        if let res { query.append(URLQueryItem(name: "res", value: "\(res)")) }
+        if let hdr { query.append(URLQueryItem(name: "hdr", value: "\(hdr)")) }
+        if let stock { query.append(URLQueryItem(name: "stock", value: "\(stock)")) }
+        if let seriesKeys { query.append(URLQueryItem(name: "series_keys", value: "\(seriesKeys)")) }
         return try await send("GET", "/reels", query: query)
     }
 
@@ -1778,10 +1789,23 @@ nonisolated extension APIClient {
         return try await send("POST", "/reels/events", body: body)
     }
 
-    /// 刷片：能刷到的类型
-    /// `GET /reels/genres`
-    func reelsGenres() async throws -> [API.ReelGenreView] {
-        return try await send("GET", "/reels/genres")
+    /// 刷片：筛选菜单的候选值与计数（每一维排除自身条件后算）
+    /// `GET /reels/facets`
+    func reelsFacets(kind: String? = nil, g: String? = nil, c: String? = nil, d: String? = nil, w: String? = nil, ratingGte: Double? = nil, rt: String? = nil, lang: String? = nil, res: String? = nil, hdr: Bool? = nil, stock: String? = nil, seriesKeys: String? = nil) async throws -> API.ReelFacetsView {
+        var query: [URLQueryItem] = []
+        if let kind { query.append(URLQueryItem(name: "kind", value: "\(kind)")) }
+        if let g { query.append(URLQueryItem(name: "g", value: "\(g)")) }
+        if let c { query.append(URLQueryItem(name: "c", value: "\(c)")) }
+        if let d { query.append(URLQueryItem(name: "d", value: "\(d)")) }
+        if let w { query.append(URLQueryItem(name: "w", value: "\(w)")) }
+        if let ratingGte { query.append(URLQueryItem(name: "rating_gte", value: "\(ratingGte)")) }
+        if let rt { query.append(URLQueryItem(name: "rt", value: "\(rt)")) }
+        if let lang { query.append(URLQueryItem(name: "lang", value: "\(lang)")) }
+        if let res { query.append(URLQueryItem(name: "res", value: "\(res)")) }
+        if let hdr { query.append(URLQueryItem(name: "hdr", value: "\(hdr)")) }
+        if let stock { query.append(URLQueryItem(name: "stock", value: "\(stock)")) }
+        if let seriesKeys { query.append(URLQueryItem(name: "series_keys", value: "\(seriesKeys)")) }
+        return try await send("GET", "/reels/facets", query: query)
     }
 
     /// 规则组列表（首次访问自动创建默认组）

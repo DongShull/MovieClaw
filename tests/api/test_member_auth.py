@@ -650,7 +650,7 @@ _MEMBER_ALLOWLIST = {
     # 刷片（docs/design/reels.md）：只从本人可见的电影 / 剧集库、按本人分级上限抽片；
     # 事件只记到本人名下，不写观看记录
     ("GET", "/api/v1/reels"),
-    ("GET", "/api/v1/reels/genres"),
+    ("GET", "/api/v1/reels/facets"),
     ("POST", "/api/v1/reels/events"),
     # 搜索历史：个人数据；统一结果端点再按记录类型检查对应能力。
     ("GET", "/api/v1/search/history"),

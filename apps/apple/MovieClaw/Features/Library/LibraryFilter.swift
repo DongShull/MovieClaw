@@ -281,7 +281,7 @@ nonisolated extension LibraryFilter {
 
 // MARK: - 接口：把 filter 展开成查询参数
 
-/// 墙、索引、图廊、计数、放宽建议**五个接口共用同一份条件展开**：
+/// 墙、索引、图廊、计数、放宽建议**五个接口**（外加刷片的信息流与筛选菜单）**共用同一份条件展开**：
 /// 「面板上显示多少部、点下去墙上就是多少部」由此在结构上得到保证（网页 filterQuery 同理）。
 nonisolated extension APIClient {
     /// 海报墙条目（`GET /libraries/{id}/items`）。identity：confirmed（默认）/ provisional。
@@ -326,6 +326,28 @@ nonisolated extension APIClient {
     func libraryFacetsFiltered(libraryId: Int, filter: LibraryFilter, allTiers: Bool) async throws -> API.LibraryFacetsView {
         try await libraryItemsFacets(
             libraryId: libraryId, tier: allTiers ? "all" : nil,
+            g: filter.qG, c: filter.qC, d: filter.qD, w: filter.watch, ratingGte: filter.ratingGte,
+            rt: filter.qRt, lang: filter.qLang, res: filter.qRes, hdr: filter.hdr, stock: filter.qStock,
+            seriesKeys: filter.qSeries
+        )
+    }
+
+    /// 刷片一页（`GET /reels`）：与媒体库同一套筛选参数，另加 kind（movie / tv，nil = 都刷）。
+    func reelsFeedFiltered(
+        seed: Int?, offset: Int, limit: Int, filter: LibraryFilter, kind: String?
+    ) async throws -> API.ReelFeedView {
+        try await reelsFeed(
+            seed: seed, offset: offset, limit: limit, modes: "seek", kind: kind,
+            g: filter.qG, c: filter.qC, d: filter.qD, w: filter.watch, ratingGte: filter.ratingGte,
+            rt: filter.qRt, lang: filter.qLang, res: filter.qRes, hdr: filter.hdr, stock: filter.qStock,
+            seriesKeys: filter.qSeries
+        )
+    }
+
+    /// 刷片筛选菜单的候选值与计数（`GET /reels/facets`），与 `reelsFeedFiltered` 同参。
+    func reelsFacetsFiltered(filter: LibraryFilter, kind: String?) async throws -> API.ReelFacetsView {
+        try await reelsFacets(
+            kind: kind,
             g: filter.qG, c: filter.qC, d: filter.qD, w: filter.watch, ratingGte: filter.ratingGte,
             rt: filter.qRt, lang: filter.qLang, res: filter.qRes, hdr: filter.hdr, stock: filter.qStock,
             seriesKeys: filter.qSeries

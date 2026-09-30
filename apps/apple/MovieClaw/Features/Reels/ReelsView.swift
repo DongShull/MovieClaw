@@ -7,8 +7,11 @@ import SwiftUI
 /// - 媒体库导航栈里压栈打开，**底部标签栏保留**（停在这页时标签栏不随滑动收起）；不带返回键，
 ///   再点一次「媒体库」页签回到媒体库首页；左上是**在播这一条的片名 + 年份**（没有在播的条目时是页名「片段」），
 ///   右上一个玻璃胶囊「全部 ⌄」，点开选「全部」或某个类型；这一页锁竖屏，转手机不会把信息流转横；
-/// - 纯黑底，影片居中成一条 16:9 的横带；没出第一帧前先显示封面（服务端抓的就是起点那一帧）；
-///   点页面任意空白处暂停 / 继续（同抖音），暂停时横带正中出播放标记，放到片段终点停下、再点重播；
+/// - 纯黑底，影片居中成一条 16:9 的横带；没出第一帧前横带里放横版剧照（转圈 + 实时加载速度，剧照模糊
+///   铺满整页），出画后淡出成视频；没有剧照的片垫服务端抓的起点帧；出过画面后缓冲也转圈并带加载速度；
+/// - 手势复用播放器页的 `PlayerGestureLayer`：点页面任意空白处暂停 / 继续（同抖音），双击左右三分之一
+///   ∓10 秒，横滑拖进度（满屏一划 = 整个片段），长按 2 倍速；竖滑不调亮度音量，留给翻页。
+///   暂停时横带正中出播放标记，放到片段终点停下、再点重播；
 /// - 横带下方一个描边小胶囊「全屏观看」（TikTok 横屏视频的做法）：这一段交给正片播放器的片段模式
 ///   横屏放（`PlaybackClip`）——手势、控制条、换音轨字幕与正片完全一样，时间轴只算这一段；
 ///   退出全屏回到这里，从刚才看到的地方接着放；
@@ -16,7 +19,8 @@ import SwiftUI
 ///   收藏、详情、已看、分享；
 /// - 左下角只放导演与简介（片名、年份挪到了左上角）：导演（剧集是主创，对应 TikTok / Instagram 的作者行，
 ///   点了进人物页）、两行简介（剧集前面是「第 N 季第 N 集「集名」」，放不下就「展开」）；
-/// - 最底下一条细进度线，右边是「这一段放到哪 / 这一段多长」——与全屏一致，都按片段算，不按整部片。
+/// - 最底下一条细进度线（按片段算，不按整部片）；不写时间，平时也不显示，只在暂停、拖进度时出现
+///   （2026-09-30 用户要求，同抖音）。
 ///
 /// 「详情」：去媒体库条目页看这部片的详细信息（剧集定位到这一集），返回后这一条接着放。
 /// 想看整部：全屏里点「看全片」，或在详情页里播放。
@@ -39,7 +43,16 @@ struct ReelsView: View {
             let page = portraitPage ?? current
             ZStack {
                 Color.black
-                if let store {
+                // 第一页还没挑出来（刚进来、换了筛选、点了重试）：转圈；挑完了还是空、出错、服务器太旧才是空态。
+                // 也盖住 store 还没建好、start 还没跑的那一瞬（否则会先闪一下「片库里还没有能刷的片子」）
+                if store.map(Self.waitingForFirstPage) ?? true {
+                    VStack(spacing: 14) {
+                        ProgressView()
+                        Text("正在挑片段…")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textMuted)
+                } else if let store {
                     if store.items.isEmpty {
                         emptyState(store)
                     } else {
@@ -63,7 +76,7 @@ struct ReelsView: View {
                 ReelTitle(item: store?.titleItem, maxWidth: titleMaxWidth)
             }
             .sharedBackgroundVisibility(.hidden)
-            ToolbarItem(placement: .topBarTrailing) { genreMenu }
+            ToolbarItem(placement: .topBarTrailing) { ReelFilterMenu(store: store) }
         }
         .preferredColorScheme(.dark)
         .task {
@@ -73,9 +86,13 @@ struct ReelsView: View {
         .onAppear {
             visible = true
             UIApplication.shared.isIdleTimerDisabled = true
-            let audio = AVAudioSession.sharedInstance()
-            try? audio.setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
-            try? audio.setActive(true)
+            // 音频会话激活在后台线程做（与播放器页同一做法）：主线程上同步激活要几十到上百毫秒，
+            // 正好压在第一条建引擎、装载之前
+            Task.detached {
+                let audio = AVAudioSession.sharedInstance()
+                try? audio.setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
+                try? audio.setActive(true)
+            }
             // 信息流锁竖屏：转手机不该把整页转横（横着看走「全屏观看」）
             PlayerOrientation.request(landscape: false)
             // 从全屏观看回来：接着刚才看到的地方放
@@ -118,35 +135,10 @@ struct ReelsView: View {
         }
     }
 
-    /// 左上标题最宽多少：整屏宽减去两侧边距与右上角的类型胶囊，长片名在这里截断，不压到胶囊
+    /// 左上标题最宽多少：整屏宽减去两侧边距与右上角的筛选键，长片名在这里截断，不压到筛选键
     private var titleMaxWidth: CGFloat {
         let width = portraitPage.map { $0.size.width + $0.insets.leading + $0.insets.trailing } ?? 402
         return max(160, width - 140)
-    }
-
-    // MARK: - 顶部类型选择
-
-    private var genreMenu: some View {
-        Menu {
-            Picker("类型", selection: Binding(get: { store?.genre }, set: { store?.selectGenre($0) })) {
-                Text("全部").tag(String?.none)
-                ForEach(store?.genres ?? [], id: \.name) { genre in
-                    Text(genre.name).tag(String?.some(genre.name))
-                }
-            }
-        } label: {
-            // 右上角的工具栏位由系统画液态玻璃底，这里只给内容
-            HStack(spacing: 5) {
-                Text(store?.genre ?? "全部")
-                    .font(.subheadline.weight(.semibold))
-                Image(systemName: "chevron.down")
-                    .font(.caption2.weight(.bold))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 4)
-        }
-        .accessibilityLabel("类型：\(store?.genre ?? "全部")")
-        .accessibilityIdentifier("reels-genre")
     }
 
     // MARK: - 翻页
@@ -197,18 +189,46 @@ struct ReelsView: View {
 
     // MARK: - 空态
 
+    /// 服务器版本比 App 旧、还没有片段功能（`/reels` 404）：说清楚是服务器要升级，不是出错。
+    /// 超管能直接去「更新与维护」升级；成员没有升级权限，请管理员升级
+    private var serverOutdatedNotice: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "arrow.up.circle")
+                .font(.system(size: 40, weight: .light))
+                .foregroundStyle(.white.opacity(0.8))
+            Text("服务器需要升级")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text(permissions.isAdmin
+                 ? "片段是新功能，当前服务器版本还不支持。把服务器升级到最新版后就能使用。"
+                 : "片段是新功能，当前服务器版本还不支持。请联系管理员把服务器升级到最新版。")
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            if permissions.isAdmin {
+                Button("去更新服务器") { router.push(.settingsSection(.app)) }
+                    .buttonStyle(.glass)
+                    .padding(.top, 4)
+                    .accessibilityIdentifier("reels-server-update")
+            }
+        }
+        .accessibilityIdentifier("reels-server-outdated")
+    }
+
+    private static func waitingForFirstPage(_ store: ReelsStore) -> Bool {
+        store.items.isEmpty && !store.serverOutdated && store.errorMessage == nil && !store.exhausted
+    }
+
     private func emptyState(_ store: ReelsStore) -> some View {
         VStack(spacing: 14) {
-            if store.loading {
-                ProgressView()
-                Text("正在挑片段…")
+            if store.serverOutdated {
+                serverOutdatedNotice
             } else if let message = store.errorMessage {
                 Text(message)
                 Button("重试") { Task { await store.retry() } }
                     .buttonStyle(.glass)
-            } else if let genre = store.genre {
-                Text("「\(genre)」里还没有能刷的片子")
-                Button("看全部") { store.selectGenre(nil) }
+            } else if !store.filter.isEmpty || store.kind != nil {
+                Text("这些条件下还没有能刷的片子")
+                Button("清空条件") { store.applyFilter(LibraryFilter(), kind: nil) }
                     .buttonStyle(.glass)
             } else {
                 Text("片库里还没有能刷的片子")
@@ -255,26 +275,54 @@ private struct ReelPage: View {
             let bandCenter = geo.size.height * 0.46
             ZStack(alignment: .bottom) {
                 Color.black
+                if waitingForFrame, item.title.backdropUrl != nil {
+                    stillBackdrop
+                        .transition(.opacity)
+                }
                 videoBand(width: width, height: bandHeight)
                     .position(x: width / 2, y: bandCenter)
+                // 手势与播放器页同一个手势层：轻点暂停、双击左右 ∓10 秒、横滑拖进度、长按 2 倍速；
+                // 竖滑不认领（关掉调亮度 / 音量），整次交给外层翻页。垫在按钮、简介下面，它们自己响应点击
+                PlayerGestureLayer(
+                    enabled: isCurrent,
+                    canHold: isCurrent && store.playerState == .playing,
+                    adjusts: false,
+                    onTap: { store.handleTap(xRatio: $0, isDouble: $1) },
+                    onScrub: { store.handleScrub($0, delta: $1) },
+                    onAdjust: { _, _, _ in },
+                    onHold: { store.handleHold(began: $0) }
+                )
+                if isCurrent {
+                    gestureHUD(bandTop: bandCenter - bandHeight / 2)
+                        .frame(width: width, height: bandHeight)
+                        .position(x: width / 2, y: bandCenter)
+                    // 卡顿换画质的提议、转码退回原画的提示：横带上方，不挡画面
+                    let promptArea = bandCenter - bandHeight / 2 - 12
+                    qualityPrompts
+                        .padding(.horizontal, Theme.pagePadding)
+                        .frame(width: width, height: promptArea, alignment: .bottom)
+                        .position(x: width / 2, y: promptArea / 2)
+                }
                 if !expanded {
-                    fullscreenButton
-                        .position(x: width / 2, y: bandCenter + bandHeight / 2 + 28)
+                    // 横带下方一行：画质在左、全屏观看在右（2026-09-30 用户调整：原来画质压在横带右下角，看着怪）
+                    HStack(spacing: 10) {
+                        qualityMenu
+                        fullscreenButton
+                    }
+                    .position(x: width / 2, y: bandCenter + bandHeight / 2 + 28)
                 }
                 VStack(spacing: 12) {
                     HStack(alignment: .bottom, spacing: 12) {
                         info
                         actions
                     }
-                    ReelProgressRow(item: item, player: player)
+                    ReelProgressRow(item: item, player: player, scrubSeconds: isCurrent ? store.scrubSeconds : nil,
+                                    visible: isCurrent && (store.playerState == .paused || store.scrubSeconds != nil))
                 }
                 .padding(.horizontal, Theme.pagePadding)
                 .padding(.bottom, insets.bottom + 10)
             }
-            // 点页面任意空白处暂停 / 继续（同抖音）：不只横带，横带上下的黑底、进度线也算；
-            // 按钮、导演、简介自己响应点击，不会被这里抢走
-            .contentShape(Rectangle())
-            .onTapGesture { if isCurrent { store.togglePause() } }
+            .animation(.easeOut(duration: 0.25), value: waitingForFrame)
         }
         .onChange(of: isCurrent) { _, current in
             if !current { expanded = false }
@@ -284,12 +332,93 @@ private struct ReelPage: View {
     /// 这一条的播放器：当前这条，或预起好的下一条（滑动途中下一页就是它的第一帧，不是封面）
     private var player: ReelPlayer? { store.player(for: item) }
 
+    // MARK: 加载中：剧照
+
+    /// 还没出画（2026-09-30 用户要求：片库有剧照，比服务端抓的起点帧更好认）：横带里先放这部片的横版剧照，
+    /// 上面转圈 + 实时加载速度，剧照模糊铺满整页；出第一帧后淡出，原地换成视频（剧照也是 16:9，横带不跳）。
+    /// 预起好的条目滑过去就有画面，看不到剧照；只有现建引擎、要等的那几条才看到。
+    /// 没有剧照的片垫服务端抓的起点帧；放不出来时收起，露出横带里的失败说明
+    private var waitingForFrame: Bool {
+        !store.frameReady(for: item) && !(isCurrent && store.playerState.isFailed)
+    }
+
+    /// 铺底必须按页面尺寸裁：填满模式的图比屏幕宽，直接放进 ZStack 会把整页撑宽，
+    /// 右下角那列按钮被挤出屏幕（真机上看就是「加载时按钮不见了」）
+    private var stillBackdrop: some View {
+        Color.clear
+            .overlay {
+                // opaque：边缘按原图延展再模糊。默认模糊在图的边缘渐隐成透明，剧照上下边正好是页面上下边，
+                // 底部简介区会透出一圈黑底（真机上看是「黑边、黑色暗影」）
+                RemoteImage(url: store.stillURL(for: item))
+                    .blur(radius: 40, opaque: true)
+                    .overlay(Color.black.opacity(0.5))
+            }
+            .clipped()
+            .allowsHitTesting(false)
+    }
+
+    /// 横带里的占位图：剧照铺满横带；没有剧照时是起点帧（按原比例放）
+    @ViewBuilder
+    private var still: some View {
+        RemoteImage(url: store.stillURL(for: item), contentMode: item.title.backdropUrl == nil ? .fit : .fill)
+    }
+
+    /// 转圈 + 实时加载速度（同播放器页 `PlayerBusyView` 的「↓ 3.2 MB/s」）
+    private var loadingIndicator: some View {
+        VStack(spacing: 10) {
+            ProgressView().tint(.white)
+            if let speed = store.speedLabel {
+                Text("↓ \(speed)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+        }
+        .shadow(color: .black.opacity(0.5), radius: 4)
+        .accessibilityIdentifier("reels-loading")
+    }
+
+    // MARK: 手势读数
+
+    /// 长按倍速在横带上方、拖进度的落点在横带正中（与播放器页同一种玻璃胶囊 `PlayerHUD`）
+    @ViewBuilder
+    private func gestureHUD(bandTop: CGFloat) -> some View {
+        ZStack {
+            if let target = store.scrubSeconds, let player {
+                PlayerHUD {
+                    VStack(spacing: 4) {
+                        Text(Formatters.clock(max(0, target - player.startSeconds)))
+                            .font(.title2.monospacedDigit().weight(.semibold))
+                        let delta = Int((target - player.position).rounded())
+                        Text("\(delta >= 0 ? "+" : "-")\(Formatters.clock(Double(abs(delta))))")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+            }
+            if store.holdSpeedActive {
+                PlayerHUD {
+                    Text("2× 快进中").monospacedDigit()
+                    Image(systemName: "forward.fill")
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
+                .padding(.top, 12)
+                .accessibilityIdentifier("reels-hold-speed")
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
     // MARK: 画面
 
     private func videoBand(width: CGFloat, height: CGFloat) -> some View {
         ZStack {
             Color.black
-            RemoteImage(url: api.image(item.coverUrl, .landscapeCard), contentMode: .fit)
+            // 等画面时垫剧照（见 `waitingForFrame`）；出画后收掉，免得从视频的黑边里透出来
+            if waitingForFrame {
+                still
+                    .overlay(Color.black.opacity(isCurrent ? 0.3 : 0))
+                    .transition(.opacity)
+            }
             if let player {
                 EngineSurface(engineView: player.core.view)
                     .id(ObjectIdentifier(player))
@@ -311,8 +440,8 @@ private struct ReelPage: View {
     private var overlay: some View {
         if isCurrent {
             switch store.playerState {
-            case .loading where !store.firstFrameShown:
-                ProgressView().tint(.white)
+            case .loading where !store.firstFrameShown, .buffering:
+                loadingIndicator
             case .paused:
                 ReelCenterGlyph(symbol: "play.fill")
             case .ended:
@@ -335,6 +464,46 @@ private struct ReelPage: View {
         }
     }
 
+    // MARK: 画质
+
+    /// 画质胶囊：与「全屏观看」同一行、同一种描边样式，写着当前档（原画 / 720p），点开选档。
+    /// 按家里 / 外网记（`ReelsQuality`），竖屏与全屏共用；选了当前这条从刚才的位置按新画质重开
+    private var qualityMenu: some View {
+        Menu {
+            Picker("画质", selection: Binding(get: { store.quality }, set: { store.selectQuality($0) })) {
+                ForEach(ReelsQuality.options) { option in
+                    Text(option.label).tag(option.maxHeight)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(ReelsQuality.label(store.quality))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.92))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .overlay(Capsule().stroke(.white.opacity(0.35), lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .accessibilityLabel("画质：\(ReelsQuality.label(store.quality))")
+        .accessibilityIdentifier("reels-quality")
+    }
+
+    @ViewBuilder
+    private var qualityPrompts: some View {
+        if let offer = store.qualityOffer {
+            PlayerQualityOfferView(offer: offer, accept: { store.acceptQualityOffer() },
+                                   dismiss: { store.dismissQualityOffer() })
+                .transition(.opacity)
+        } else if let notice = store.notice {
+            PlayerHUD { Text(notice) }
+                .transition(.opacity)
+        }
+    }
+
     /// 横带下方的「全屏观看」：描边小胶囊（不用毛玻璃，与右下角按钮同一种「融在画面里」的做法）
     private var fullscreenButton: some View {
         Button(action: onFullscreen) {
@@ -347,8 +516,8 @@ private struct ReelPage: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .disabled(!isCurrent || store.player == nil)
-        .opacity(isCurrent ? 1 : 0)
+        // 加载中、滑动途中也照常显示（2026-09-30 用户要求：按钮别忽隐忽现）；还没有播放器时点了不动
+        // （`ReelsStore.fullscreenRequest` 没有当前播放器返回 nil）
         .accessibilityIdentifier("reels-fullscreen-button")
     }
 
@@ -357,6 +526,7 @@ private struct ReelPage: View {
     private var actions: some View {
         let favorite = store.isFavorite(item)
         let played = store.isPlayed(item)
+        let progress = played ? nil : store.progressPercent(item)
         return VStack(spacing: 18) {
             ReelActionButton(symbol: favorite ? "heart.fill" : "heart", title: "收藏",
                              tint: favorite ? Color(red: 1, green: 0.27, blue: 0.35) : .white) {
@@ -364,21 +534,26 @@ private struct ReelPage: View {
             }
             .accessibilityValue(favorite ? "已收藏" : "未收藏")
             .accessibilityIdentifier("reels-favorite")
-            // 详情：刷到感兴趣的片，最常做的是去条目页看看详细信息（2026-09-30 用户要求，替换原来的「播放」）
-            ReelActionButton(symbol: "info.circle", title: "详情", action: onOpenDetail)
+            // 详情：刷到感兴趣的片，最常做的是去条目页看看详细信息（2026-09-30 用户要求，替换原来的「播放」）。
+            // 图标用胶片：info.circle 在手机上像叹号，读成「提示」。胶片是横向宽矩形，同字号下比心形、
+            // 对勾圈、箭头都显大，缩到 21pt 视觉上才一样重（2026-09-30 用户确认）
+            ReelActionButton(symbol: "film", title: "详情", symbolSize: 21, action: onOpenDetail)
                 .accessibilityIdentifier("reels-detail")
-            ReelActionButton(symbol: played ? "checkmark.circle.fill" : "checkmark.circle", title: "已看",
-                             tint: played ? Theme.success : .white) {
+            // 已看跟着真实观看进度画（2026-09-30 用户要求）：没看完时是暗圈，看了多少白色弧就描多少
+            // （没看过 = 一圈暗的）；看完是绿色实心。没看过不用亮白整圈：那样和「快看完」分不开
+            ReelActionButton(symbol: "checkmark.circle.fill", title: "已看",
+                             tint: played ? Theme.success : .white,
+                             progress: played ? nil : Double(progress ?? 0) / 100) {
                 Task { await store.togglePlayed(item) }
             }
-            .accessibilityValue(played ? "已看过" : "没看过")
+            .accessibilityValue(played ? "已看过" : progress.map { "看到 \($0)%" } ?? "没看过")
             .accessibilityIdentifier("reels-played")
             if canCreateShareLink {
-                ReelActionButton(symbol: "paperplane", title: "分享", action: onShare)
+                ReelActionButton(symbol: "arrowshape.turn.up.right", title: "分享", action: onShare)
                     .accessibilityIdentifier("reels-share")
             } else {
                 ShareLink(item: shareText) {
-                    ReelActionLabel(symbol: "paperplane", title: "分享", tint: .white)
+                    ReelActionLabel(symbol: "arrowshape.turn.up.right", title: "分享", tint: .white)
                 }
                 .accessibilityIdentifier("reels-share")
             }
@@ -404,8 +579,9 @@ private struct ReelPage: View {
         .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(alignment: .bottom) {
-            // 简介展开后可能往上压到画面：垫一层渐暗，字才看得清
-            if expanded {
+            // 简介展开后可能往上压到画面：垫一层渐暗，字才看得清。等画面时底下是已经压暗的模糊剧照，
+            // 不用再垫（垫了就是一块黑影）；出画后底下是黑底，渐暗只在压到视频的那一截看得出来
+            if expanded, !waitingForFrame {
                 LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .top, endPoint: .bottom)
                     .padding(.horizontal, -Theme.pagePadding)
                     .padding(.top, -40)
@@ -423,8 +599,9 @@ private struct ReelPage: View {
             if let id = lead.tmdbPersonId { onOpenPerson(id) }
         } label: {
             HStack(spacing: 8) {
+                // 32pt（原来 24pt 只比名字那行字高一点，显小，2026-09-30 用户反馈；同 Instagram Reels 作者头像）
                 RemoteImage(url: api.image(lead.avatarUrl), placeholderSymbol: "person.fill")
-                    .frame(width: 24, height: 24)
+                    .frame(width: 32, height: 32)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 0.5))
                 Text(people.map(\.name).joined(separator: " / "))
@@ -453,6 +630,9 @@ private struct ReelPage: View {
         return (Text("\(Text(head).fontWeight(.semibold))\(body)"), head + body)
     }
 
+    /// 两行放不下（不限行数时更高）
+    private var truncated: Bool { captionFullHeight > captionShownHeight + 1 }
+
     /// 收起时两行；放不下才在第二行末尾盖一个「展开」（放得下就原样显示），点开最多八行
     private func captionView(_ caption: (text: Text, plain: String)) -> some View {
         Group {
@@ -470,16 +650,23 @@ private struct ReelPage: View {
                             .hidden()
                             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { captionFullHeight = $0 }
                     }
+                    // 放不下时第二行末尾让出一段：原文在这段渐隐成透明（不是盖一块渐黑的底——加载时底下是
+                    // 模糊剧照，黑块会露出来），「展开」写在让出的位置上
+                    .mask {
+                        ZStack(alignment: .bottomTrailing) {
+                            Rectangle()
+                            if truncated {
+                                LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.45)],
+                                               startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: 76, height: captionShownHeight / 2)
+                                    .blendMode(.destinationOut)
+                            }
+                        }
+                        .compositingGroup()
+                    }
                     .overlay(alignment: .bottomTrailing) {
-                        if captionFullHeight > captionShownHeight + 1 {
-                            // 盖在第二行末尾：左边一小段渐隐进黑底，把被截断的字和省略号压下去
-                            Text("展开")
-                                .fontWeight(.semibold)
-                                .padding(.leading, 28)
-                                .background {
-                                    LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.5)],
-                                                   startPoint: .leading, endPoint: .trailing)
-                                }
+                        if truncated {
+                            Text("展开").fontWeight(.semibold)
                         }
                     }
             }
@@ -490,7 +677,7 @@ private struct ReelPage: View {
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
         // 两行放得下就没什么可展开的：点在简介上与点页面别处一样是暂停 / 继续
-        .allowsHitTesting(expanded || captionFullHeight > captionShownHeight + 1)
+        .allowsHitTesting(expanded || truncated)
         .accessibilityElement()
         .accessibilityLabel(caption.plain)
         .accessibilityHint(expanded ? "收起简介" : "展开简介")
@@ -533,34 +720,47 @@ private struct ReelTitle: View {
 struct ReelProgressRow: View {
     let item: API.ReelItemView
     let player: ReelPlayer?
+    /// 横滑拖进度中：进度线跟着落点走
+    var scrubSeconds: Double?
+    /// 显示与否：平时不显示，只在暂停、拖进度时淡入（2026-09-30 用户要求，同抖音）
+    var visible = true
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.25)) { _ in
-            HStack(spacing: 10) {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.22))
-                        Capsule().fill(.white.opacity(0.9))
-                            .frame(width: geo.size.width * (player?.progress ?? 0))
-                    }
+        // 只留一条细进度线，不写时间（2026-09-30 用户要求：竖屏刷片看个大概进度就够了）；时间只给读屏，
+        // 拖进度时横带正中另有落点读数。进度用计时器的时刻显式重算、按比例横向缩放画出来：原来靠旁边
+        // 那行时间文字每 0.25 秒一变带着整行重画，去掉文字后 GeometryReader 里的宽度不再跟着刷新
+        TimelineView(.periodic(from: .now, by: 0.25)) { context in
+            let value = progress(at: context.date)
+            Capsule().fill(.white.opacity(0.22))
+                .overlay(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.9))
+                        .scaleEffect(x: max(0.001, value), y: 1, anchor: .leading)
+                        .opacity(value > 0.002 ? 1 : 0)
                 }
                 .frame(height: 2)
-                Text(timeText)
-                    .font(.caption2.weight(.medium).monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.78))
-                    .shadow(color: .black.opacity(0.5), radius: 2, y: 1)
-                    .fixedSize()
-                    .accessibilityIdentifier("reels-time")
-            }
+                .accessibilityElement()
+            .accessibilityLabel("片段进度")
+                .accessibilityValue(timeText)
+                .accessibilityIdentifier("reels-time")
         }
         .frame(height: 14)
+        .opacity(visible ? 1 : 0)
+        .animation(.easeOut(duration: 0.2), value: visible)
         .allowsHitTesting(false)
+    }
+
+    /// `date` 只用来让每个计时刻都重算一次（值取自播放器的当前位置）
+    private func progress(at date: Date) -> Double {
+        _ = date
+        guard let scrubSeconds else { return player?.progress ?? 0 }
+        let span = Double(item.segment.endMs - item.segment.startMs) / 1000
+        return span > 0 ? min(1, max(0, (scrubSeconds - Double(item.segment.startMs) / 1000) / span)) : 0
     }
 
     private var timeText: String {
         let start = Double(item.segment.startMs) / 1000
         let total = Double(item.segment.endMs - item.segment.startMs) / 1000
-        let elapsed = min(max(0, (player?.position ?? start) - start), total)
+        let elapsed = min(max(0, (scrubSeconds ?? player?.position ?? start) - start), total)
         return "\(Formatters.clock(elapsed)) / \(Formatters.clock(total))"
     }
 }
@@ -582,11 +782,15 @@ private struct ReelActionButton: View {
     let symbol: String
     let title: String
     var tint: Color = .white
+    /// 0～1：图标画成描出进度弧的对勾圈（「已看」按钮没看完时），nil = 照常画 `symbol`
+    var progress: Double?
+    /// 图标字号：宽扁的符号要小一号，一列按钮视觉上才一样重
+    var symbolSize: CGFloat = 26
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            ReelActionLabel(symbol: symbol, title: title, tint: tint)
+            ReelActionLabel(symbol: symbol, title: title, tint: tint, progress: progress, symbolSize: symbolSize)
         }
         .buttonStyle(.plain)
     }
@@ -596,12 +800,29 @@ private struct ReelActionLabel: View {
     let symbol: String
     let title: String
     let tint: Color
+    var progress: Double?
+    var symbolSize: CGFloat = 26
 
     var body: some View {
         VStack(spacing: 4) {
-            Image(systemName: symbol)
-                .font(.system(size: 26, weight: .regular))
-                .frame(height: 30)
+            Group {
+                if let progress {
+                    // 与 checkmark.circle 同尺寸：暗圈打底，白色弧从 12 点方向顺时针描到看到的位置
+                    ZStack {
+                        Circle().stroke(.white.opacity(0.35), lineWidth: 2)
+                        Circle().trim(from: 0, to: progress)
+                            .stroke(.white, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .frame(width: 24, height: 24)
+                } else {
+                    Image(systemName: symbol)
+                        .font(.system(size: symbolSize, weight: .regular))
+                }
+            }
+            .frame(height: 30)
             Text(title)
                 .font(.caption2.weight(.medium))
         }

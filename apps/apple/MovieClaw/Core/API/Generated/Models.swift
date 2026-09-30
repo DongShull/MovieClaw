@@ -800,17 +800,21 @@ nonisolated extension API {
     }
 
     /// 整组认领：一次把多个待识别文件挂到同一个 TMDB 条目。
-    /// 季集号不在这里指定——每个文件沿用扫描时已从文件名解析出的季集号，
-    /// 这正是"一部剧几十集一次认领"能成立的前提。
+    /// 季集号默认不在这里指定——每个文件沿用扫描时已从文件名解析出的季集号，
+    /// 这正是"一部剧几十集一次认领"能成立的前提。季号解析不出的一组（待识别
+    /// 分类 ``unit_unresolved``）用 ``season_number`` 统一指定季号，集号照旧沿用。
     struct ClaimBatchPayload: Codable, Hashable, Sendable {
         /// 待识别文件 id 数组（来自待识别清单接口），如 [101,102]
         var fileIds: [Int]
         /// Discover 返回的 TMDB 影视条目稳定引用，如 tmdb:tv:1396
         var titleRef: String
+        /// 整组统一指定的季号（剧集；0=特别篇）；缺省沿用各文件解析出的季号
+        var seasonNumber: Int?
 
         enum CodingKeys: String, CodingKey {
             case fileIds = "file_ids"
             case titleRef = "title_ref"
+            case seasonNumber = "season_number"
         }
     }
 
@@ -7323,6 +7327,40 @@ nonisolated extension API {
         }
     }
 
+    /// 刷片筛选菜单的候选值与计数（与 ``GET /reels`` 同一组筛选参数）。
+    /// 维度与取值沿用媒体库筛选（docs/design/library-filtering.md）：类型是 TMDB genre id、
+    /// 地区是国家码、年代 / 片长是档名、评分是下限。每一维的计数都排除本维自身的条件
+    /// （否则勾了「动画」其他类型全变 0，多选就废了）；为 0 的照常返回，App 置灰不可点。
+    struct ReelFacetsView: Codable, Hashable, Sendable {
+        /// 当前条件下能刷到几部
+        var total: Int
+        /// 电影 / 剧集
+        var kinds: [API.FacetValueView]
+        /// 类型，按数量倒序
+        var genres: [API.FacetValueView]
+        /// 地区，按数量倒序
+        var countries: [API.FacetValueView]
+        /// 年代，按时间倒序
+        var decades: [API.FacetValueView]
+        /// 评分下限，高的在前
+        var ratings: [API.FacetValueView]
+        /// 片长档，短的在前
+        var runtimes: [API.FacetValueView]
+        /// 观看状态：只有「没看过」（unwatched）一项
+        var watch: [API.FacetValueView]
+
+        enum CodingKeys: String, CodingKey {
+            case total
+            case kinds
+            case genres
+            case countries
+            case decades
+            case ratings
+            case runtimes
+            case watch
+        }
+    }
+
     struct ReelFeedView: Codable, Hashable, Sendable {
         /// 这次刷片的随机种子，翻页时原样带回
         var seed: Int
@@ -7337,18 +7375,6 @@ nonisolated extension API {
             case nextOffset = "next_offset"
             case hasMore = "has_more"
             case items
-        }
-    }
-
-    struct ReelGenreView: Codable, Hashable, Sendable {
-        /// 类型名（如「剧情」）
-        var name: String
-        /// 能刷到的片有几部
-        var count: Int
-
-        enum CodingKeys: String, CodingKey {
-            case name
-            case count
         }
     }
 
@@ -7438,12 +7464,18 @@ nonisolated extension API {
         var language: String?
         var title: String?
         var codec: String?
+        /// 只含这一段（前后各留几秒）的字幕文件地址（带 /api/v1 的相对路径，含令牌），时间戳是文件时间。放转码流、全屏片段模式用：读不到内封轨时靠它出字幕，不必等 NAS 通读整个文件抽整轨。只有能原样拷贝的文字轨才有（srt / ass），否则为 None
+        var url: String?
+        /// url 那份字幕的格式：srt / ass
+        var format: String?
 
         enum CodingKeys: String, CodingKey {
             case ordinal
             case language
             case title
             case codec
+            case url
+            case format
         }
     }
 
@@ -7473,6 +7505,8 @@ nonisolated extension API {
         var favorite: Bool
         /// 本人看过没有（电影看整部，剧集看这一集）
         var played: Bool
+        /// 看了一半时的进度（1～99，同「继续观看」口径）；没看过、已看完为空
+        var progressPercent: Int?
         /// 电影是导演、剧集是主创，最多两位
         var directors: [API.ReelPersonView]
         /// 海报
@@ -7497,6 +7531,7 @@ nonisolated extension API {
             case overview
             case favorite
             case played
+            case progressPercent = "progress_percent"
             case directors
             case posterUrl = "poster_url"
             case backdropUrl = "backdrop_url"
@@ -10452,7 +10487,7 @@ nonisolated extension API {
         var episodeNumber: Int
         /// 识别失败原因整句（展开/悬停查看；清单上只显示标签）
         var reason: String?
-        /// 失败分类：unparsable / tmdb_unreachable / ambiguous / no_match
+        /// 失败分类：unparsable / tmdb_unreachable / ambiguous / no_match / kind_mismatch / unit_unresolved
         var code: String?
         var candidates: [API.UnidentifiedCandidateView]
 

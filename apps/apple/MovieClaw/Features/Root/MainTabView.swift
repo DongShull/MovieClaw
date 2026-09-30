@@ -3,9 +3,9 @@ import SwiftUI
 
 /// 登录后的主界面：iOS 26 原生液态玻璃标签栏。
 ///
-/// 页签只显示图标（参照 Instagram iOS 底栏，2026-09-26 用户要求）：发现 / 媒体库 / 订阅（有订阅权限）/
-/// 活动（管理员）/ 头像。最右的头像页签是当前用户头像，点开「更多」页（账号、设置、会话），
-/// 前四个与 Web 银玻璃主题手机底栏（components/glass-tab-bar.tsx）同序；下滑时标签栏自动收起。
+/// 页签只显示图标（参照 Instagram iOS 底栏，2026-09-26 用户要求）：媒体库（首页）/ 订阅（有订阅权限）/ 发现 /
+/// 活动（管理员）/ 头像。最右的头像页签是当前用户头像，点开「更多」页（账号、设置、会话）。
+/// 2026-09-30 起媒体库排最左作首页（与 Web 手机底栏 components/glass-tab-bar.tsx 的顺序不再一致）；下滑时标签栏自动收起。
 ///
 /// 搜索不占页签，在各标签根页右上角（见 AppTopBar）：iPhone 标签栏最多放 5 个页签，管理员
 /// 四个内容页签加头像已满，再放搜索页签会被系统收进「More」。标签栏的高度与玻璃质感是系统定的
@@ -39,6 +39,8 @@ struct MainTabView: View {
     @AppStorage("movieclaw.tips.accountGestures.v2") private var accountTipShown = false
     /// 双击切换进行中：切换要向服务器校验一次令牌，期间再双击不重复发起
     @State private var switchingAccount = false
+    /// 标签栏上方的「接着看」条（见 ResumeAccessory）
+    @State private var resume = ResumeBarStore()
 
     /// 当前停在「片段」页（媒体库页签栈顶）
     private var onReels: Bool {
@@ -55,12 +57,6 @@ struct MainTabView: View {
             if tab == router.selectedTab { router.popToRoot() }
             router.selectedTab = tab
         })) {
-            Tab(value: MainTab.discover) {
-                TabRoot(tab: .discover) { DiscoverView(kind: "movie") }
-            } label: {
-                iconLabel(.discover)
-            }
-            .accessibilityLabel(MainTab.discover.title)
             Tab(value: MainTab.library) {
                 TabRoot(tab: .library) { LibraryHomeView() }
             } label: {
@@ -75,6 +71,12 @@ struct MainTabView: View {
                 }
                 .accessibilityLabel(MainTab.subscriptions.title)
             }
+            Tab(value: MainTab.discover) {
+                TabRoot(tab: .discover) { DiscoverView(kind: "movie") }
+            } label: {
+                iconLabel(.discover)
+            }
+            .accessibilityLabel(MainTab.discover.title)
             if permissions.isAdmin {
                 Tab(value: MainTab.activity) {
                     TabRoot(tab: .activity) { ActivityView() }
@@ -98,6 +100,13 @@ struct MainTabView: View {
         }
         // 「片段」上下滑动是在换条，不是在往下读：停在它上面时标签栏不收起（docs/design/reels.md）
         .tabBarMinimizeBehavior(onReels ? .never : .onScrollDown)
+        // 「接着看」条：片段页自己占满底部，不显示
+        .modifier(ResumeAccessoryModifier(item: resume.visibleItem, enabled: !onReels, onHide: { resume.hide() }))
+        // 进主界面、关掉播放器（看过就变了）、回到前台、换账号时重新取最近播放的那一条
+        .task(id: "\(router.player == nil)|\(scenePhase == .active)|\(session?.nickname ?? "")|\(api.server.origin)") {
+            guard router.player == nil, scenePhase == .active else { return }
+            await resume.refresh(api: api)
+        }
         .background { PageWarmup(tabs: warmupTabs) }
         // 头像页签：长按弹切换账号抽屉、双击切回上一个账号（仿 Instagram，见 AccountGestureHub）
         .background(TabBarAccountGestures(onAvatarFrame: { if avatarTabFrame != $0 { avatarTabFrame = $0 } }))
@@ -255,7 +264,7 @@ struct MainTabView: View {
             await badges.run(api: api)
         }
         .task(id: session?.username) {
-            // 空闲预热：落地页（管理员是发现页）先显示完，空闲下来再处理还没打开的媒体库首页、订阅首页——
+            // 空闲预热：落地页（媒体库）先显示完，空闲下来再处理还没打开的媒体库首页、订阅首页——
             // 1. 页面预热：用本机快照在背后不可见地画一遍，消化「第一次上屏」的一次性开销（见 PageWarmup）；
             // 2. 静默刷新：页面第一帧用的是快照，这里让快照在切过去之前就换成最新的，切过去后不会再换一遍内容；
             // 3. 首屏图片解码进内存：第一次切过去不再先出占位底、再渐显（见 FirstScreenImages）。
@@ -330,8 +339,9 @@ extension MainTabView {
     /// 当前账号能看到的页签，按标签栏上从左到右的顺序（与上面 TabView 的声明顺序一致，
     /// TabBarDotBridge 靠这个顺序找页签）
     static func visibleTabs(_ permissions: Permissions) -> [MainTab] {
-        var tabs: [MainTab] = [.discover, .library]
+        var tabs: [MainTab] = [.library]
         if permissions.canSubscribe { tabs.append(.subscriptions) }
+        tabs.append(.discover)
         if permissions.isAdmin { tabs.append(.activity) }
         tabs.append(.more)
         return tabs
@@ -359,14 +369,15 @@ extension MainTabView {
         }
         #endif
         // 已经被别处（深链、调试启动路由）导航过就不再抢落点
-        guard router.selectedTab == .discover, router.paths.values.allSatisfy(\.isEmpty), router.rootParameter == nil else { return }
+        guard router.selectedTab == .library, router.paths.values.allSatisfy(\.isEmpty), router.rootParameter == nil else { return }
         if let resume = model.takeResume(), router.availableTabs.contains(resume.tab),
            resume.path.allSatisfy(permissions.allows) {
             router.selectedTab = resume.tab
             router.paths[resume.tab] = resume.path
             return
         }
-        router.selectedTab = permissions.isAdmin ? .discover : .library
+        // 媒体库是首页：管理员、成员都落在这里（原来管理员落「发现」，2026-09-30 用户调整）
+        router.selectedTab = .library
     }
 }
 
@@ -457,7 +468,8 @@ enum TabIcon {
 ///
 /// 页面自己的按钮用 `.toolbar` 追加（发现页的筛选、媒体库的 ⋯ 菜单）。
 /// 外层注入的 `.topBarTrailing` 会排到页面按钮前面，所以放 `.primaryAction`（固定在最右），
-/// 再用固定间隔隔开：页面按钮在左边自成一组，搜索在每个标签根页都是同一位置的独立圆钮。
+/// 再用固定间隔隔开：页面按钮在左边自成一组，搜索是独立圆钮。例外是媒体库：「▶ 片段」作为本页主操作
+/// 也放 `.primaryAction`，排在搜索右边（2026-09-30 用户拍板「⋯ · 搜索 · ▶ 片段」）。
 struct AppTopBar: ViewModifier {
     let tab: MainTab
     @Environment(Router.self) private var router

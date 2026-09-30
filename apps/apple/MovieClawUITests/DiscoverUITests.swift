@@ -25,7 +25,8 @@ final class DiscoverUITests: XCTestCase {
         }
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-mcServer", server, "-mcUser", username, "-mcPass", password]
+        // 冷启动默认落在媒体库（首页）：发现页的用例显式落到「发现」
+        app.launchArguments = ["-mcServer", server, "-mcUser", username, "-mcPass", password, "-mcTab", "discover"]
         if let route { app.launchArguments += ["-mcRoute", route] }
         app.launch()
         return app

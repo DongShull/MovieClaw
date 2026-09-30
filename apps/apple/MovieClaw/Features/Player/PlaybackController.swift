@@ -221,9 +221,14 @@ final class PlaybackController {
         clip = request.clip
         startMsOverride = request.startSeconds.map { Int($0 * 1000) }
         network = PlaybackNetwork.current(server: api.server)
-        // 分享访客不记（进度都只记本机、按分享隔离），其余按「这部片 + 网络环境」取上次的画质
-        quality = request.shareSlug == nil ? QualityMemory.quality(mediaItemId: request.mediaItemId, network: network) : nil
-        qualityFromMemory = quality != nil
+        // 分享访客不记（进度都只记本机、按分享隔离），其余按「这部片 + 网络环境」取上次的画质；
+        // 片段模式用片段自己的画质（`ReelsQuality`，竖屏刷片时选的那档），不算「沿用上次」
+        if let clip = request.clip {
+            quality = clip.maxHeight
+        } else {
+            quality = request.shareSlug == nil ? QualityMemory.quality(mediaItemId: request.mediaItemId, network: network) : nil
+            qualityFromMemory = quality != nil
+        }
     }
 
     // MARK: - 生命周期
@@ -1510,7 +1515,15 @@ final class PlaybackController {
         guard !engineRendersSubtitles, burnedSubtitle == nil, !((engine as? AVPlayerEngine)?.systemSubtitlesActive ?? false),
               let ref = selectedSubtitle,
               let option = subtitles.options.first(where: { $0.ref == ref }), option.kind != "pgs" else { return nil }
-        return scope.streamURL(option.path + "&format=vtt")
+        return scope.streamURL(option.path + "&format=vtt" + clipWindowQuery(for: option))
+    }
+
+    /// 片段模式（刷片横过来的全屏）只要片段前后这一小段的内封字幕：整轨抽取要 NAS 通读整个文件，
+    /// 大文件几十秒，片段等不到就放弃、抽取随之取消，字幕永远出不来。窗口与刷片竖屏同口径
+    /// （服务端 `SUBTITLE_PREROLL_MS` / `SUBTITLE_TAIL_MS`）；退出片段模式看全片时回到整轨
+    private func clipWindowQuery(for option: SubtitleOption) -> String {
+        guard let clip, option.embeddedIndex != nil else { return "" }
+        return "&start_ms=\(max(0, clip.startMs - 10_000))&end_ms=\(clip.endMs + 5_000)"
     }
 
     /// 把引擎自己画的字幕交给引擎；其余一律让引擎关掉字幕、由叠加层画
@@ -1576,15 +1589,22 @@ final class PlaybackController {
         // 视频直通且源不超所选档时不用重开：即刻生效
         defer { if phase != .deciding { record?.closeSwitch(immediate: true) } }
         qualityFromMemory = false
-        if scope.shareSlug == nil {
+        if clip != nil {
+            // 片段模式：记回片段的画质（竖屏也按它放），不写正片的按片记忆；选「自动」就是原画
+            ReelsQuality.remember(maxHeight, server: scope.api.server)
+        } else if scope.shareSlug == nil {
             // 上限不低于片源等于没限：记成「自动」，下次打开照样由自研引擎直出原文件
             let sourceHeight = Self.height(of: session?.source?.resolution) ?? .max
             let limiting = maxHeight.flatMap { $0 < sourceHeight ? $0 : nil }
             QualityMemory.remember(limiting, mediaItemId: unit.mediaItemId, network: network)
         }
+        switchQuality(to: maxHeight)
+    }
+
+    /// 换到某个画质上限（不碰任何记忆）：语义是上限，视频直通且源不超所选档就不用重开
+    private func switchQuality(to maxHeight: Int?) {
         guard maxHeight != quality else { return }
         quality = maxHeight
-        // 语义是上限：视频直通且源不超所选档就不用动
         let copying = session?.decision.video?.action == "copy"
         let height = Int(engine?.videoSize.height ?? 0)
         if copying, maxHeight == nil || (height > 0 && height <= maxHeight!) { return }
@@ -1701,6 +1721,13 @@ final class PlaybackController {
         guard clip != nil else { return }
         clip = nil
         nowPlaying.update(controller: self)
+        // 片段的画质只管片段（2026-09-30 用户要求两份记忆互不影响）：转成看整部就回到这部片自己的画质记忆，
+        // 与片段的不同才重开一次流（新流从当前位置接着放，播放后照常报「开始」）
+        let own = scope.shareSlug == nil ? QualityMemory.quality(mediaItemId: unit.mediaItemId, network: network) : nil
+        if own != quality {
+            switchQuality(to: own)
+            if phase == .deciding { return }
+        }
         if phase == .ended {
             // 停在片段终点：接着往下放
             phase = .playing

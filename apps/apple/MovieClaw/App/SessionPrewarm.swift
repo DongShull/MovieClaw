@@ -65,12 +65,12 @@ enum SessionPrewarm {
         }
     }
 
-    /// 冷启动的落点（与 MainTabView.land 同一口径）：管理员落「发现」、成员落「媒体库」；调试参数可指定
+    /// 冷启动的落点（与 MainTabView.land 同一口径）：都落「媒体库」（首页）；调试参数可指定
     static func landingTab(for session: API.SessionView) -> MainTab {
         #if DEBUG
         if let tab = DebugLaunch.tab { return tab }
         #endif
-        return session.role == "admin" ? .discover : .library
+        return .library
     }
 
     /// 账号退出 / 被移除：连同它的页面快照与会话快照一起删掉

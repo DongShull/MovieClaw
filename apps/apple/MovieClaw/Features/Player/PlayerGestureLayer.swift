@@ -23,6 +23,8 @@ struct PlayerGestureLayer: UIViewRepresentable {
     var canHold: Bool
     /// 禁区（窗口坐标）：可见的控制条与菜单
     var excludedRects: [CGRect] = []
+    /// 竖滑调亮度 / 音量。刷片页（Features/Reels）关掉：那里上下滑是翻页，竖滑整次交给外层滚动
+    var adjusts = true
     var onTap: (_ xRatio: CGFloat, _ isDouble: Bool) -> Void
     var onScrub: (_ phase: GesturePhase, _ deltaRatio: CGFloat) -> Void
     var onAdjust: (_ phase: GesturePhase, _ side: AdjustSide, _ deltaRatio: CGFloat) -> Void
@@ -103,7 +105,7 @@ struct PlayerGestureLayer: UIViewRepresentable {
                     intent = .scrub
                     config.onScrub(.began, 0)
                 } else {
-                    guard adjustAllowed(at: start) else {
+                    guard config.adjusts, adjustAllowed(at: start) else {
                         // 排除带里起手的竖滑多半是想去摸进度条 / 下拉通知中心：整次触摸都不当手势
                         tracking = false
                         return

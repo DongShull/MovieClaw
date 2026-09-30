@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from movieclaw_api.schemas.base import BaseModel
+from movieclaw_api.schemas.library import FacetValueView
 
 
 class ReelEpisodeView(BaseModel):
@@ -47,6 +48,10 @@ class ReelTitleView(BaseModel):
     )
     favorite: bool = Field(default=False, description="本人收藏了没有（电影 / 整剧）")
     played: bool = Field(default=False, description="本人看过没有（电影看整部，剧集看这一集）")
+    progress_percent: int | None = Field(
+        default=None,
+        description="看了一半时的进度（1～99，同「继续观看」口径）；没看过、已看完为空",
+    )
     directors: list[ReelPersonView] = Field(
         default_factory=list, description="电影是导演、剧集是主创，最多两位"
     )
@@ -79,6 +84,15 @@ class ReelSubtitleView(BaseModel):
     language: str | None = None
     title: str | None = None
     codec: str | None = None
+    url: str | None = Field(
+        default=None,
+        description=(
+            "只含这一段（前后各留几秒）的字幕文件地址（带 /api/v1 的相对路径，含令牌），"
+            "时间戳是文件时间。放转码流、全屏片段模式用：读不到内封轨时靠它出字幕，"
+            "不必等 NAS 通读整个文件抽整轨。只有能原样拷贝的文字轨才有（srt / ass），否则为 None"
+        ),
+    )
+    format: str | None = Field(default=None, description="url 那份字幕的格式：srt / ass")
 
 
 class ReelPlayView(BaseModel):
@@ -115,9 +129,24 @@ class ReelFeedView(BaseModel):
     items: list[ReelItemView] = Field(default_factory=list)
 
 
-class ReelGenreView(BaseModel):
-    name: str = Field(description="类型名（如「剧情」）")
-    count: int = Field(description="能刷到的片有几部")
+class ReelFacetsView(BaseModel):
+    """刷片筛选菜单的候选值与计数（与 ``GET /reels`` 同一组筛选参数）。
+
+    维度与取值沿用媒体库筛选（docs/design/library-filtering.md）：类型是 TMDB genre id、
+    地区是国家码、年代 / 片长是档名、评分是下限。每一维的计数都排除本维自身的条件
+    （否则勾了「动画」其他类型全变 0，多选就废了）；为 0 的照常返回，App 置灰不可点。
+    """
+
+    total: int = Field(description="当前条件下能刷到几部")
+    kinds: list[FacetValueView] = Field(default_factory=list, description="电影 / 剧集")
+    genres: list[FacetValueView] = Field(default_factory=list, description="类型，按数量倒序")
+    countries: list[FacetValueView] = Field(default_factory=list, description="地区，按数量倒序")
+    decades: list[FacetValueView] = Field(default_factory=list, description="年代，按时间倒序")
+    ratings: list[FacetValueView] = Field(default_factory=list, description="评分下限，高的在前")
+    runtimes: list[FacetValueView] = Field(default_factory=list, description="片长档，短的在前")
+    watch: list[FacetValueView] = Field(
+        default_factory=list, description="观看状态：只有「没看过」（unwatched）一项"
+    )
 
 
 class ReelEventIn(BaseModel):

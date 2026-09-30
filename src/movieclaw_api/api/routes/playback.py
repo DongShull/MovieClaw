@@ -83,8 +83,10 @@ from movieclaw_api.services.playback.disc_source import disc_source_for_file
 from movieclaw_api.services.playback.embedded_subs import (
     extract_embedded_fonts,
     extract_embedded_subtitle_async,
+    extract_embedded_subtitle_window_async,
     font_cache_dir,
     safe_font_name,
+    window_format,
 )
 from movieclaw_api.services.playback.ffmpeg_args import (
     HW_BACKENDS,
@@ -1985,12 +1987,20 @@ async def get_playback_subtitle(
     track: Annotated[str, Query(description="中性轨引用：external:<文件名> / embedded:<序号>")],
     token: Annotated[str, Query()],
     format: Annotated[str | None, Query()] = None,
+    start_ms: Annotated[
+        int | None,
+        Query(ge=0, description="片段窗口起点（文件时间，毫秒）：与 end_ms 同给时只抽这一段"),
+    ] = None,
+    end_ms: Annotated[int | None, Query(ge=0, description="片段窗口终点（文件时间，毫秒）")] = None,
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """字幕**永远旁挂**，绝不烧录（硬边界 1）——烧录会把任何档位拖进全转码。
 
     外挂轨直接读文件；内封轨按需 ffmpeg 抽出来（首次要通读整个容器，之后走
     缓存）。PT 片源的字幕绝大多数是内封的，只服务外挂等于对大部分片子没字幕。
+
+    给了 ``start_ms`` / ``end_ms``（刷片的片段）时，能原样拷贝的文字轨只抽这段窗口：
+    片段只放四五十秒，等不起整轨通读。时间戳仍是文件时间；整轨已抽过就直接给整轨。
     """
     grant = await verify_stream_token(token, file_id=file_id)
     if grant is None:
@@ -2001,7 +2011,13 @@ async def get_playback_subtitle(
     ref = resolve_external_subtitle(file, track)
     if ref is None:
         index = parse_embedded_track(track)
-        if index is not None:
+        windowed = start_ms is not None and end_ms is not None and end_ms > start_ms
+        if index is not None and windowed and window_format(file, index) is not None:
+            # 窗口抽取几秒内完成，客户端放弃了也照常抽完落盘（下次直接命中），不必盯着断开
+            ref = await extract_embedded_subtitle_window_async(
+                file, index, start_ms or 0, end_ms or 0
+            )
+        elif index is not None:
             try:
                 ref = await _extract_subtitle_until_disconnect(request, file, index)
             except _SubtitleClientDisconnected:

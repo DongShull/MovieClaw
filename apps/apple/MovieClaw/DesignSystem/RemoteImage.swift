@@ -10,6 +10,8 @@ nonisolated enum ImageVariant: String {
     case photoTile = "photo-tile"
     case galleryTile = "gallery-tile"
     case photoScreen = "photo-screen"
+    /// 刷片等画面时垫在横带里的剧照：720p（横带占满屏宽，横卡的 480 放大发虚）
+    case reelStill = "reel-still"
 
     /// 海报墙按主图比例挑预设：横图取横卡，竖图取海报卡
     static func card(aspect: Double?) -> ImageVariant {

@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 import json
+from datetime import date
 from functools import partial
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from sqlmodel import select
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.services.auth import reset_auth_state
 from movieclaw_api.services.media_probe import VideoColor
+from movieclaw_api.services.reels import feed as reels_feed
 from movieclaw_api.services.reels import segments
 from movieclaw_api.settings.store import reset_setting_store
 from movieclaw_db.crypto import reset_secret_box
@@ -94,6 +96,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(segments, "video_color_for", lambda *_a, **_k: VideoColor())
     # 抓帧闸是全局共用的模块级信号量，等待过就绑在当时的事件循环上；每个用例一个新的
     monkeypatch.setattr(segments, "FRAME_GRAB_GATE", asyncio.Semaphore(2))
+    # 全池补算在后台按条目 id 顺序算，会与断言翻页顺序的用例抢着改缓存；它单独测
+    monkeypatch.setattr(reels_feed, "_fill_pool_in_background", lambda: None)
     _luma_plan.clear()
 
     from movieclaw_api.app import create_app
@@ -241,6 +245,83 @@ def test_same_seed_is_stable_and_pages_do_not_repeat(client, tmp_path):
     assert set(seen) == {*ids["movies"], ids["show"]}
 
 
+def test_fill_pool_computes_one_file_per_title(client, tmp_path):
+    ids = seed(client, tmp_path, movies=2, episodes=3, extras=False)
+    client.portal.call(reels_feed._fill_pool)  # type: ignore[attr-defined]
+
+    async def files():
+        async with get_database().session() as session:
+            rows = (await session.execute(select(LibraryFile))).scalars().all()
+            return {(f.media_item_id, f.episode_number): f.id for f in rows}
+
+    by_unit = client.portal.call(files)  # type: ignore[attr-defined]
+    cached = {int(p.stem) for p in (tmp_path / "reels-cache").glob("*.json")}
+    # 电影各一个；剧只算第二集（刷片固定放的那一集），别的集不白算
+    expected = {by_unit[(m, 0)] for m in ids["movies"]} | {by_unit[(ids["show"], 2)]}
+    assert cached == expected
+
+
+def test_text_subtitle_comes_with_a_clip_window(client, tmp_path, monkeypatch):
+    ids = seed(client, tmp_path, movies=1, episodes=0, extras=False)
+    # 《我的大叔》式片源：整条 ASS 同时标了默认和强制，另有一条 SRT
+    streams = [
+        {
+            "codec": "ass",
+            "language": "chi",
+            "title": "简体中文-ASS",
+            "default": True,
+            "forced": True,
+        },
+        {"codec": "subrip", "language": "chi", "title": "简体中文-SRT"},
+    ]
+
+    async def set_streams():
+        async with get_database().session() as session:
+            row = (await session.execute(select(LibraryFile))).scalars().one()
+            row.subtitle_streams = streams
+            await session.commit()
+
+    client.portal.call(set_streams)  # type: ignore[attr-defined]
+    item = feed(client)["items"][0]
+    assert item["title"]["media_item_id"] == ids["movies"][0]
+    subtitle = item["play"]["subtitle"]
+    # 默认 + 强制的整条 ASS 不再被当成「只翻标牌的强制字幕」扣分
+    assert subtitle["ordinal"] == 0 and subtitle["format"] == "ass"
+    start, end = item["segment"]["start_ms"], item["segment"]["end_ms"]
+    url = subtitle["url"]
+    assert url.startswith(f"/api/v1/playback/files/{item['segment']['file_id']}/subtitles?")
+    assert "track=embedded:0" in url and "token=" in url
+    assert f"start_ms={max(0, start - 10_000)}" in url and f"end_ms={end + 5_000}" in url
+
+    # 这个地址真能取到字幕：走窗口抽取（这里替换成现成的产物），也能按 vtt 给叠加层
+    from movieclaw_api.api.routes import playback as playback_routes
+    from movieclaw_playback.subtitles import SubtitleRef
+
+    product = tmp_path / "window.srt"
+    product.write_text("1\n00:30:01,000 --> 00:30:02,000\n窗口里这句\n", encoding="utf-8")
+    calls = []
+
+    async def fake_window(file, index, start_ms, end_ms):
+        calls.append((index, start_ms, end_ms))
+        return SubtitleRef(path=product, format="srt")
+
+    monkeypatch.setattr(playback_routes, "extract_embedded_subtitle_window_async", fake_window)
+    monkeypatch.setattr(playback_routes, "window_format", lambda file, index: "srt")
+    resp = client.get(url)
+    assert resp.status_code == 200, resp.text
+    assert "窗口里这句" in resp.text
+    assert calls == [(0, max(0, start - 10_000), end + 5_000)]
+    vtt = client.get(url + "&format=vtt")
+    assert vtt.status_code == 200 and vtt.text.startswith("WEBVTT")
+
+
+def test_graphic_subtitle_has_no_clip_window(client, tmp_path):
+    seed(client, tmp_path, movies=1, episodes=0, extras=False)  # 种子里的字幕是 PGS
+    subtitle = feed(client)["items"][0]["play"]["subtitle"]
+    assert subtitle["codec"] == "hdmv_pgs_subtitle"
+    assert subtitle["url"] is None and subtitle["format"] is None
+
+
 def test_client_without_seek_mode_gets_nothing(client, tmp_path):
     seed(client, tmp_path)
     assert feed(client, modes="clip")["items"] == []
@@ -363,24 +444,84 @@ async def _set_metadata(genres: dict[int, list[str]]) -> None:
         await session.commit()
 
 
-def test_genres_list_and_genre_filter(client, tmp_path):
+async def _set_profiles(profiles: dict[int, dict]) -> None:
+    async with get_database().session() as session:
+        for item_id, fields in profiles.items():
+            session.add(MediaMetadata(media_item_id=item_id, **fields))
+        await session.commit()
+
+
+def _profile(genre_ids, country, year, rating, runtime) -> dict:
+    return {
+        "genre_ids": genre_ids,
+        "origin_countries": [country],
+        "release_date": date(year, 5, 1),
+        "vote_average": rating,
+        "runtime_minutes": runtime,
+    }
+
+
+def _facet(facets: dict, dim: str) -> dict[str, int]:
+    return {v["value"]: v["count"] for v in facets[dim]}
+
+
+def test_filters_match_library_semantics_and_facets_skip_own_dimension(client, tmp_path):
     ids = seed(client, tmp_path, movies=3, episodes=2, extras=False)
     a, b, c = ids["movies"]
+    show = ids["show"]
     client.portal.call(  # type: ignore[attr-defined]
         partial(
-            _set_metadata, {a: ["剧情", "爱情"], b: ["动作"], c: ["剧情"], ids["show"]: ["剧情"]}
+            _set_profiles,
+            {
+                a: _profile([18, 10749], "CN", 2010, 8.5, 101),
+                b: _profile([28], "US", 1995, 6.5, 130),
+                c: _profile([18], "JP", 2021, 7.2, 85),
+                show: _profile([18], "KR", 2016, 9.1, 50),
+            },
         )
     )
-    resp = client.get("/api/v1/reels/genres")
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["data"] == [
-        {"name": "剧情", "count": 3},
-        {"name": "动作", "count": 1},
-        {"name": "爱情", "count": 1},
-    ]
-    got = {i["title"]["media_item_id"] for i in feed(client, genre="剧情")["items"]}
-    assert got == {a, c, ids["show"]}
-    assert feed(client, genre="科幻")["items"] == []
+
+    def facets(**params) -> dict:
+        resp = client.get("/api/v1/reels/facets", params=params)
+        assert resp.status_code == 200, resp.text
+        return resp.json()["data"]
+
+    def got(**params) -> set[int]:
+        return {i["title"]["media_item_id"] for i in feed(client, **params)["items"]}
+
+    whole = facets()
+    assert whole["total"] == 4
+    assert _facet(whole, "kinds") == {"movie": 3, "tv": 1}
+    assert whole["genres"][0] == {"value": "18", "label": "剧情", "count": 3}
+    assert _facet(whole, "genres") == {"18": 3, "28": 1, "10749": 1}
+    assert _facet(whole, "countries") == {"CN": 1, "US": 1, "JP": 1, "KR": 1}
+    assert _facet(whole, "decades") == {
+        "2020s": 1,
+        "2010s": 2,
+        "2000s": 0,
+        "1990s": 1,
+        "earlier": 0,
+    }
+    assert _facet(whole, "ratings") == {"9": 1, "8": 2, "7": 3, "6": 4}
+    assert _facet(whole, "runtimes") == {"lte60": 1, "60to90": 1, "90to120": 1, "gt120": 1}
+    assert _facet(whole, "watch") == {"unwatched": 4}
+
+    # 勾了「剧情」：类型这一维照旧（排除自身条件），其他维度跟着收窄
+    drama = facets(g="18")
+    assert drama["total"] == 3
+    assert _facet(drama, "genres") == {"18": 3, "28": 1, "10749": 1}
+    assert _facet(drama, "kinds") == {"movie": 2, "tv": 1}
+    assert got(g="18") == {a, c, show}
+    assert got(g="18,28", kind="movie") == {a, b, c}  # 维内 OR
+    assert got(g="18", kind="movie", rating_gte=8) == {a}  # 维间 AND
+    assert got(kind="tv") == {show}
+    assert got(d="2010s,1990s", rt="gt120") == {b}
+
+    marked = client.post("/api/v1/playback/marks", json={"media_item_id": a, "played": True})
+    assert marked.status_code == 200, marked.text
+    assert got(w="unwatched") == {b, c, show}
+    assert _facet(facets(), "watch") == {"unwatched": 3}
+    assert feed(client, g="99")["items"] == []  # 没有纪录片
 
 
 def test_feed_carries_marks_overview_and_runtime(client, tmp_path):
@@ -410,6 +551,42 @@ def test_feed_carries_marks_overview_and_runtime(client, tmp_path):
     assert show["favorite"] is False
     assert show["played"] is True  # 这一集看过了
     assert show["runtime_minutes"] == 60  # 没有分集档案：按文件时长
+
+
+async def _set_positions(rows: list[tuple[int, int, int, int, bool]]) -> None:
+    async with get_database().session() as session:
+        for item_id, season, episode, position_ms, played in rows:
+            session.add(
+                PlaybackState(
+                    media_item_id=item_id,
+                    season_number=season,
+                    episode_number=episode,
+                    position_ms=position_ms,
+                    played=played,
+                )
+            )
+        await session.commit()
+
+
+def test_feed_carries_progress_for_half_watched_only(client, tmp_path):
+    ids = seed(client, tmp_path, movies=2, episodes=1, extras=False)
+    halfway, untouched = ids["movies"]
+    client.portal.call(  # type: ignore[attr-defined]
+        partial(
+            _set_positions,
+            [
+                (halfway, 0, 0, 1_440_000, False),  # 文件 3600 秒，看到 24 分钟 = 40%
+                (ids["show"], 1, 1, 1_800_000, True),  # 看完了：不画进度，按已看
+            ],
+        )
+    )
+
+    items = {i["title"]["media_item_id"]: i["title"] for i in feed(client)["items"]}
+    assert items[halfway]["progress_percent"] == 40
+    assert items[halfway]["played"] is False
+    assert items[untouched]["progress_percent"] is None
+    assert items[ids["show"]]["progress_percent"] is None
+    assert items[ids["show"]]["played"] is True
 
 
 async def _set_directors(movie_id: int, fallback_id: int) -> None:

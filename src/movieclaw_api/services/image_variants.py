@@ -39,6 +39,9 @@ class ImageVariant(StrEnum):
     # 直接用原图是因为图片库的墙图本来就是 720 缩略图；图廊的源却是 TMDB w1280
     # 剧照与本地刮削原件，一张几百 KB 到几 MB，滑过去就是一片黑等着下载
     GALLERY_TILE = "gallery-tile"
+    # 刷片等画面时垫在视频横带里的剧照（docs/design/reels.md）：横带占满手机屏宽，
+    # 3x 屏约 1200px，480 的横卡放大 2.5 倍发虚
+    REEL_STILL = "reel-still"
 
 
 @dataclass(frozen=True)
@@ -63,6 +66,9 @@ _PRESETS = {
     ImageVariant.PHOTO_SCREEN: VariantPreset(width=2048, height=2048, quality=82),
     # 图廊宽松密度：列宽 340 CSS px，720px 覆盖 2x 屏
     ImageVariant.GALLERY_TILE: VariantPreset(width=720, height=720, quality=78),
+    # 刷片剧照：720p（1280×720），一张约 60～150KB；原图多是 4K，现压要 0.15～0.55 秒（NAS 实测），
+    # 所以刷片接口返回一页时就在后台把前几张压好（services/reels/feed.py `_warm_stills`）
+    ImageVariant.REEL_STILL: VariantPreset(width=1280, height=720, quality=78),
 }
 
 

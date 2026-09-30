@@ -738,3 +738,134 @@ def _forget_background_task(key: _JobKey, task: asyncio.Task[None]) -> None:
 def _cleanup(path: Path) -> None:
     with contextlib.suppress(OSError):
         path.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# 片段窗口：只抽一小段时间里的字幕（刷片）
+# ---------------------------------------------------------------------------
+#
+# 刷片一条只放四五十秒，而整轨抽取要通读整个容器——2.5 GB 的剧集经 NFS 要几十秒，客户端
+# 等不到就放弃，抽取随之取消，永远抽不完（NAS 实测：全屏片段模式三次请求都在 2.5～9.5 秒
+# 被放弃）。窗口抽取让 ffmpeg 从窗口起点前的关键帧开始读、读到窗口终点就停（输入端
+# -ss / -t），NAS 实测 0.1～3 秒；-copyts 保留文件时间戳，与原片时间轴对得上。
+#
+# **只用 copy**：重新编码时 ffmpeg 不认输入端 -t、会一直读到文件尾（实测 SRT 重编码抽出了
+# 整集 480 条）。所以只接能原样拷贝的两种文字轨：subrip → srt 封装、ass/ssa → ass 封装
+# （样式段原样保留）。mov_text 等要转码的轨、图形轨不做窗口，调用方退回整轨抽取。
+
+#: 能原样拷贝进窗口产物的 codec → 产物格式
+_WINDOW_COPY_FORMATS = {"subrip": "srt", "srt": "srt", "ass": "ass", "ssa": "ass"}
+#: 窗口最长多少秒：只为片段服务，挡住拿它当整轨抽取用的请求
+WINDOW_MAX_SECONDS = 600
+_WINDOW_TIMEOUT = 60.0
+#: 同时跑几个窗口抽取（各读一分钟左右的数据，不走整文件通读那道一次一个的闸）
+_WINDOW_CONCURRENCY = 2
+_WINDOW_GATE: tuple[asyncio.AbstractEventLoop, asyncio.Semaphore] | None = None
+_WINDOW_IN_FLIGHT: dict[Path, asyncio.Task[ExtractedTrack | None]] = {}
+
+
+@dataclass(frozen=True)
+class _WindowSpec:
+    """一次窗口抽取的固定输入（在事件循环里从台账取好，线程里只用普通值）。"""
+
+    fmt: str
+    index: int
+    video: Path
+    start_s: int
+    end_s: int
+    out_path: Path
+    #: 整轨产物已有缓存时直接用它（窗口是它的子集）
+    full: _ExtractionSpec | None
+
+
+def window_format(file: LibraryFile, index: int) -> str | None:
+    """第 index 条内封字幕轨能不能做窗口抽取：能则返回产物格式（srt / ass），否则 None。"""
+    return _WINDOW_COPY_FORMATS.get((track_codec(file, index) or "").lower())
+
+
+def _window_spec(file: LibraryFile, index: int, start_ms: int, end_ms: int) -> _WindowSpec | None:
+    fmt = window_format(file, index)
+    if fmt is None:
+        return None
+    start_s = max(0, start_ms // 1000)
+    end_s = min(max(start_s + 1, -(-end_ms // 1000)), start_s + WINDOW_MAX_SECONDS)
+    return _WindowSpec(
+        fmt=fmt,
+        index=index,
+        video=Path(file.file_path),
+        start_s=start_s,
+        end_s=end_s,
+        out_path=cache_dir() / f"{file.id}.s{index}.w{start_s}-{end_s}.{fmt}",
+        full=_extraction_spec(file, index),
+    )
+
+
+def _extract_window(spec: _WindowSpec) -> ExtractedTrack | None:
+    """（阻塞）抽出窗口里的字幕；整轨已有缓存就直接给整轨。失败返回 None。"""
+    if spec.full is not None and (full := _cached_track(spec.full)) is not None:
+        return full
+    if _is_fresh(spec.out_path, spec.video):
+        return ExtractedTrack(path=spec.out_path, format=spec.fmt)
+    if shutil.which("ffmpeg") is None or not spec.video.is_file():
+        return None
+    tmp_path = _new_tmp_path(spec.out_path)
+    argv = [
+        "ffmpeg", "-nostdin", "-v", "error", "-y",
+        "-ss", str(spec.start_s), "-t", str(spec.end_s - spec.start_s),
+        "-i", str(spec.video),
+        "-copyts",
+        "-map", f"0:s:{spec.index}", "-c:s", "copy", "-f", spec.fmt,
+        str(tmp_path),
+    ]  # fmt: skip
+    try:
+        proc = subprocess.run(argv, capture_output=True, timeout=_WINDOW_TIMEOUT)
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        _cleanup(tmp_path)
+        logger.warning("片段字幕抽取失败：%s 第 %d 条字幕（%s）", spec.video, spec.index, exc)
+        return None
+    if proc.returncode != 0 or not tmp_path.is_file():
+        _cleanup(tmp_path)
+        logger.warning(
+            "片段字幕抽取失败：%s 第 %d 条字幕（%s）",
+            spec.video,
+            spec.index,
+            proc.stderr.decode(errors="replace")[-300:].strip(),
+        )
+        return None
+    if tmp_path.stat().st_size == 0:
+        # 窗口里一句台词都没有：SRT 封装写出空文件。写一个换行记住「这段没字幕」，别每次重抽
+        tmp_path.write_text("\n", encoding="utf-8")
+    os.replace(tmp_path, spec.out_path)
+    return ExtractedTrack(path=spec.out_path, format=spec.fmt)
+
+
+def _window_gate() -> asyncio.Semaphore:
+    global _WINDOW_GATE
+    loop = asyncio.get_running_loop()
+    if _WINDOW_GATE is None or _WINDOW_GATE[0] is not loop:
+        _WINDOW_GATE = (loop, asyncio.Semaphore(_WINDOW_CONCURRENCY))
+    return _WINDOW_GATE[1]
+
+
+async def extract_track_window_async(
+    file: LibraryFile, index: int, start_ms: int, end_ms: int
+) -> ExtractedTrack | None:
+    """抽出第 index 条内封字幕轨在 [start_ms, end_ms] 里的部分（文件时间），带缓存。
+
+    同一窗口并发请求共用一次抽取；请求方取消（客户端放弃）不打断抽取，产物照常落盘，
+    下次直接命中。轨不能做窗口（见 ``window_format``）返回 None。
+    """
+    spec = _window_spec(file, index, start_ms, end_ms)
+    if spec is None:
+        return None
+    task = _WINDOW_IN_FLIGHT.get(spec.out_path)
+    if task is None:
+
+        async def run() -> ExtractedTrack | None:
+            async with _window_gate():
+                return await asyncio.to_thread(_extract_window, spec)
+
+        task = asyncio.create_task(run())
+        _WINDOW_IN_FLIGHT[spec.out_path] = task
+        task.add_done_callback(lambda _t: _WINDOW_IN_FLIGHT.pop(spec.out_path, None))
+    return await asyncio.shield(task)

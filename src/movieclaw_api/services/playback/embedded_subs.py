@@ -32,8 +32,10 @@ from movieclaw_api.services.media_extract import (
     cache_dir,
     extract_track,
     extract_track_async,
+    extract_track_window_async,
     subtitle_format,
     track_codec,
+    window_format,
 )
 from movieclaw_db.models import LibraryFile
 from movieclaw_playback.subtitles import SubtitleRef
@@ -52,6 +54,8 @@ __all__ = [
     "extract_embedded_fonts",
     "extract_embedded_subtitle",
     "extract_embedded_subtitle_async",
+    "extract_embedded_subtitle_window_async",
+    "window_format",
     "font_cache_dir",
     "safe_font_name",
 ]
@@ -74,6 +78,13 @@ async def extract_embedded_subtitle_async(
 ) -> SubtitleRef | None:
     """异步抽出内封轨，并在请求取消时回收对应的 ffmpeg 进程。"""
     return _as_ref(await extract_track_async(file, index))
+
+
+async def extract_embedded_subtitle_window_async(
+    file: LibraryFile, index: int, start_ms: int, end_ms: int
+) -> SubtitleRef | None:
+    """只抽一段时间窗口里的内封字幕（刷片的片段用，见 ``media_extract`` 的窗口抽取）。"""
+    return _as_ref(await extract_track_window_async(file, index, start_ms, end_ms))
 
 
 # ---------------------------------------------------------------------------

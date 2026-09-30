@@ -162,8 +162,8 @@ struct LiveDecodeTests {
     @Test func reelsFeed() async throws {
         try await LiveServer.check { try await $0.reelsFeed() }
     }
-    @Test func reelsGenres() async throws {
-        try await LiveServer.check { try await $0.reelsGenres() }
+    @Test func reelsFacets() async throws {
+        try await LiveServer.check { try await $0.reelsFacets() }
     }
     @Test func rulesList() async throws {
         try await LiveServer.check { try await $0.rulesList() }

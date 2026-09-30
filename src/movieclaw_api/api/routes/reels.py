@@ -2,26 +2,41 @@
 
 - ``GET /reels``：一页片段。第一页不带 ``seed``，服务端生成后随响应返回，翻页时
   原样带回；``modes`` 声明 App 会放的方式（一期只有 ``seek``）。
-- ``GET /reels/genres``：能刷到的类型（顶部「全部」下拉的选项），``GET /reels?genre=`` 只刷这一类。
+- 筛选：``GET /reels`` 带媒体库筛选的同一组参数（``g`` 类型 / ``c`` 地区 / ``d`` 年代 /
+  ``rating_gte`` 评分 / ``rt`` 片长 / ``w`` 观看状态，维内 OR、维间 AND）外加 ``kind``
+  （电影 / 剧集）；``GET /reels/facets`` 同参，给筛选菜单的候选值与计数。
 - ``POST /reels/events``：App 攒一批刷片事件报上来，只落 ``reel_event`` 表，
   不写观看记录。
 """
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.deps import require_login
-from movieclaw_api.schemas.reels import ReelEventBatch, ReelEventResult, ReelFeedView, ReelGenreView
+from movieclaw_api.api.routes.libraries import _filter_params
+from movieclaw_api.schemas.reels import (
+    ReelEventBatch,
+    ReelEventResult,
+    ReelFacetsView,
+    ReelFeedView,
+)
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.auth import Principal
-from movieclaw_api.services.reels.feed import build_feed, list_genres, record_events
+from movieclaw_api.services.library.items import LibraryFilter
+from movieclaw_api.services.reels.facets import build_reel_facets
+from movieclaw_api.services.reels.feed import build_feed, record_events
 from movieclaw_db.engine import get_session
 
 router = APIRouter(prefix="/reels", tags=["reels"])
+
+#: 「电影 / 剧集」这一维：媒体库筛选没有它（一个库本来就只有一种），刷片是混着抽的
+KindParam = Annotated[
+    Literal["movie", "tv"] | None, Query(description="只刷电影 / 剧集；不传是都刷")
+]
 
 
 @router.get(
@@ -36,9 +51,8 @@ async def get_reel_feed(
     offset: Annotated[int, Query(ge=0, description="从抽样顺序的第几部开始")] = 0,
     limit: Annotated[int, Query(ge=1, le=20, description="这一页最多几条")] = 10,
     modes: Annotated[str, Query(description="App 会放的方式，逗号分隔；一期只有 seek")] = "seek",
-    genre: Annotated[
-        str | None, Query(max_length=32, description="只刷这个类型（如「剧情」）；不传是全部")
-    ] = None,
+    kind: KindParam = None,
+    filters: Annotated[LibraryFilter, Depends(_filter_params)] = None,  # type: ignore[assignment]
     principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[ReelFeedView]:
@@ -49,7 +63,8 @@ async def get_reel_feed(
         offset=offset,
         limit=limit,
         modes={m.strip() for m in modes.split(",") if m.strip()},
-        genre=genre.strip() if genre else None,
+        filters=filters,
+        kind=kind,
     )
     return ok(
         ReelFeedView(
@@ -62,18 +77,20 @@ async def get_reel_feed(
 
 
 @router.get(
-    "/genres",
-    response_model=ApiResponse[list[ReelGenreView]],
-    summary="刷片：能刷到的类型",
-    operation_id="reels.genres",
+    "/facets",
+    response_model=ApiResponse[ReelFacetsView],
+    summary="刷片：筛选菜单的候选值与计数（每一维排除自身条件后算）",
+    operation_id="reels.facets",
     openapi_extra={"x-cli-hidden": True},
 )
-async def get_reel_genres(
+async def get_reel_facets(
+    kind: KindParam = None,
+    filters: Annotated[LibraryFilter, Depends(_filter_params)] = None,  # type: ignore[assignment]
     principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
-) -> ApiResponse[list[ReelGenreView]]:
-    genres = await list_genres(session, principal)
-    return ok([ReelGenreView(name=name, count=count) for name, count in genres])
+) -> ApiResponse[ReelFacetsView]:
+    """与 ``GET /reels`` 同参：菜单上写几部，点下去刷的就是这几部。"""
+    return ok(await build_reel_facets(session, principal, filters, kind))
 
 
 @router.post(
