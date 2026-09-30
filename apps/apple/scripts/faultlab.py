@@ -23,6 +23,8 @@
     MC_FAULT_DISC  原盘目录的播放路由；MC_FAULT_ISO 光盘镜像的播放路由（不给就跳过）
     MC_FAULT_PORT  代理端口（默认 3902）
     MC_FAULT_OUT   日志目录（默认系统临时目录下的 mc-faultlab）
+    MC_FAULT_EXTRA 追加给 App 的启动参数（空格分隔，做对照时切开关用）
+    MC_FAULT_RTT_MS  慢线路（link 模式）每个请求的往返延迟，默认 60 毫秒（蜂窝经家里反向代理的量级）
 """
 
 import asyncio
@@ -39,6 +41,8 @@ _server = urlparse(os.environ.get("MC_SERVER", "http://localhost:3000"))
 UPSTREAM = (_server.hostname or "localhost", _server.port or 80)
 LISTEN = ("127.0.0.1", int(os.environ.get("MC_FAULT_PORT", "3902")))
 OUT = os.environ.get("MC_FAULT_OUT", os.path.join(tempfile.gettempdir(), "mc-faultlab"))
+EXTRA = os.environ.get("MC_FAULT_EXTRA", "").split()
+LINK_RTT = int(os.environ.get("MC_FAULT_RTT_MS", "60")) / 1000
 ROUTES = {
     "mkv": os.environ.get("MC_FAULT_MKV"),
     "disc": os.environ.get("MC_FAULT_DISC"),
@@ -140,11 +144,13 @@ async def serve(reader, writer):
         await asyncio.sleep(arg or 3600)
         writer.transport.abort()
         return
-    await forward(writer, method, path, headers, mode, arg, short)
+    await forward(writer, method, path, headers, mode, arg, short, rng)
 
 
-async def forward(writer, method, path, headers, mode, arg, short):
+async def forward(writer, method, path, headers, mode, arg, short, rng="-"):
     """转发到服务器。每个请求单独连上游，回给 App 也声明 Connection: close，免去 keep-alive 分帧"""
+    if mode == "link" and LINK_RTT > 0:
+        await asyncio.sleep(LINK_RTT)   # 慢线路的往返：请求发出到应答头回来
     up_r, up_w = await asyncio.open_connection(*UPSTREAM)
     keep = [h for h in headers if not h.lower().startswith(SKIP_HEADERS)]
     request = f"{method} {path} HTTP/1.1\r\nHost: {UPSTREAM[0]}:{UPSTREAM[1]}\r\n"
@@ -155,7 +161,7 @@ async def forward(writer, method, path, headers, mode, arg, short):
     rkeep = [h for h in rlines[1:] if h and not h.lower().startswith(SKIP_HEADERS)]
     response = rlines[0] + "\r\n" + "".join(h + "\r\n" for h in rkeep) + "Connection: close\r\n\r\n"
     writer.write(response.encode("latin1"))
-    sent, gen = 0, state.cut_gen
+    sent, gen, began = 0, state.cut_gen, time.monotonic()
     limit = arg if mode in ("reset", "truncate") else None
     bps = arg if mode == "throttle" else None
     link_bps = arg if mode == "link" else None
@@ -185,6 +191,8 @@ async def forward(writer, method, path, headers, mode, arg, short):
             if link_bps:
                 await state.pace_link(len(chunk), link_bps)
     finally:
+        # 每个请求实际送出多少、花了多久：对照慢线路上有没有白下的字节（被掐断的、重复取的）
+        current.log(f"  done range={rng} sent={sent} in {time.monotonic() - began:.2f}s")
         up_w.close()
 
 
@@ -214,7 +222,9 @@ SCENARIOS = {
     "open-refuse": scenario("mkv", 45, "play", [armed("refuse", None, 6)]),
     "open-503": scenario("mkv", 45, "play", [armed("status", 503, 6)]),
     "open-401": scenario("mkv", 40, "play", [(("start",), ("set", "status", 401, None, 1))]),
-    "open-404": scenario("mkv", 35, "error", [(("start",), ("set", "status", 404, None, None))]),
+    # 跨启动片源缓存（P42）里有这段就一个请求都不发、照常播放，碰不到 404：先清掉
+    "open-404": scenario("mkv", 35, "error", [(("start",), ("set", "status", 404, None, None))],
+                         extra=["-mcPurgeByteCache", "YES"]),
     "open-429": scenario("mkv", 45, "play", [armed("status", 429, 6)]),
     "open-hang": scenario("mkv", 70, "play", [armed("hang", 40, 25)]),
     "open-truncate": scenario("mkv", 45, "play",
@@ -262,6 +272,17 @@ SCENARIOS = {
     # 慢线路下远跳：先按正常线路起播，播到第 15 秒线路掉到 6 Mbit/s，
     # 打开播放器 25 秒时往后跳 15 分钟，
     # 等落点满 8 秒应弹提议
+    # 只量慢线路冷起播的首帧（不接受提议）：6 Mbit/s、每轮清片源缓存，出画即算过
+    "slow-start": scenario("mkv", 60, "start", [(("start",), ("set", "link", 750_000, None, None))],
+                           extra=["-mcPurgeByteCache", "YES"]),
+    # 慢线路下跳转（只量不接受提议）：全程 6 Mbit/s，打开 30 秒后往回跳到 300 秒 / 往后跳 10 分钟，看 [SeekTrace]。
+    # MC_FAULT_MKV 用码率低于线路的片子、带 ?t=600（从第 600 秒续播），往回跳才会落到没下过的地方
+    "slow-seek-back": scenario("mkv", 75, "play", [(("start",), ("set", "link", 750_000, None, None))],
+                               extra=["-mcPurgeByteCache", "YES", "-mcAutoSeek", "30:300"]),
+    "slow-seek-fwd": scenario("mkv", 75, "play", [(("start",), ("set", "link", 750_000, None, None))],
+                              extra=["-mcPurgeByteCache", "YES", "-mcAutoSeek", "30:+600"]),
+    # 同上但不限速：确认给慢线路做的取数调整在快线路上不退化
+    "cold-start": scenario("mkv", 30, "start", extra=["-mcPurgeByteCache", "YES"]),
     "slow-seek": scenario("mkv", 80, "play", [(("t", 15), ("set", "link", 750_000, None, None))],
                           extra=["-mcAcceptQualityOffer", "YES", "-mcPurgeByteCache", "YES",
                                  "-mcAutoSeek", "25:+900"]),
@@ -316,7 +337,7 @@ async def drive(name, spec, route, app_log):
     args = ["-mcAetherLog", "YES", "-mcNoProgress", "YES", "-mcNoServerFallback", "YES",
             "-mcFrameStatsEverySecond", "YES", "-mcStreamProxy", f"http://{LISTEN[0]}:{LISTEN[1]}",
             "-mcRoute", route, "-mcRouteDelay", "2", "-mcLab", f"faultlab:{name}",
-            "-mcAutoCloseAfter", str(max(10, spec["secs"] - 12)), *spec["extra"]]
+            "-mcAutoCloseAfter", str(max(10, spec["secs"] - 12)), *spec["extra"], *EXTRA]
     proc = await asyncio.create_subprocess_exec(
         "xcrun", "simctl", "launch", "--console-pty", "--terminate-running-process",
         SIM, APP_ID, *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
@@ -421,8 +442,8 @@ def summarize(name, expect, fired):
         text = f.read()
     lines = text.splitlines()
     outcome = outcome_of(lines)
-    labels = {"play": "在播", "error": "错误页", "fallback": "改走服务端流"}
-    passed = outcome == expect
+    labels = {"play": "在播", "error": "错误页", "fallback": "改走服务端流", "start": "出画"}
+    passed = "[StartupTrace]" in text if expect == "start" else outcome == expect
     heads = re.findall(r"\[FrameStats\] \w+ t=(\d+)", text)
     out = [f"## {name}：{'通过' if passed else '不通过'}"
            f"（预期{labels[expect]}，实际{labels.get(outcome, outcome)}）"

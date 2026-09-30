@@ -215,6 +215,26 @@ public final class AetherPlayback {
         AetherEngine.prefetchesMatroskaCues = on
     }
 
+    /// 读到在途的提前取（尾部预读 / MKV 索引）时，只要还在往回送就一直等（引擎补丁 P53，默认开；对照时关掉）
+    public static func setWaitsOnProgressingPrefetch(_ on: Bool) {
+        AetherEngine.waitsOnProgressingPrefetch = on
+    }
+
+    /// MP4 的 moov 在文件尾时，文件头一到就并行取回来（引擎补丁 P54，默认开；对照时关掉）
+    public static func setPrefetchesMP4TailMoov(_ on: Bool) {
+        AetherEngine.prefetchesMP4TailMoov = on
+    }
+
+    /// 实测线路慢到 4 MB 整块补取在限时内到不齐时，回跳直接重连流式读（引擎补丁 P55，默认开；对照时关掉）
+    public static func setSkipsDetourOnSlowLink(_ on: Bool) {
+        AetherEngine.skipsDetourOnSlowLink = on
+    }
+
+    /// 冷打开时文件头先只要 512 KB，索引提前取在途时文件头不超前预读（引擎补丁 P56，默认开；对照时关掉）
+    public static func setPrioritizesIndexPrefetch(_ on: Bool) {
+        AetherEngine.prioritizesIndexPrefetch = on
+    }
+
     /// MKV 索引预热是否跳到起播点（引擎补丁 P45，默认开；关掉即上游的跳到片中间，真机新旧对照用）
     public static func setCuePrewarmTargetsStart(_ on: Bool) {
         AetherEngine.cuePrewarmTargetsStart = on

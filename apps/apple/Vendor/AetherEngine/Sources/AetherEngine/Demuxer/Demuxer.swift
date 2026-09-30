@@ -55,6 +55,10 @@ struct DemuxerOpenProfile: Sendable {
     /// ~300 ms). nil keeps the open-ended behaviour for every other path (playback streams from 0).
     var boundedInitialFetch: Int64? = nil
 
+    /// [MovieClaw P56] 这次播放从文件头起（没有续播点）。读取器据此决定索引提前取一到就把文件头连接续上：从头播时
+    /// 那正是接下来要播的字节；续播时引擎马上要跳到续播点，续上文件头只会在慢线路上白占带宽。默认 true（原来的行为）
+    var playbackStartsAtHead: Bool = true
+
     /// `LoadOptions.sequentialOrigin`: the origin fabricates range answers, so the AVIO reader must
     /// run its forward-only streaming mode (one unranged GET from byte 0) and never issue a ranged
     /// request. Lives in the profile so the probe demuxer, the session demuxer, and every fresh
@@ -86,6 +90,13 @@ struct DemuxerOpenProfile: Sendable {
     /// playback open, so the probe, the HLS producer's own open and every rebuild agree; off for the
     /// disposable still extractor.
     var auditsRecordlessDolbyVision: Bool = true
+
+    /// [MovieClaw P56] 带上「这次从文件头起播」的声明，写法同 `withSequentialOrigin`，调用点链在已有的配置后面
+    func withPlaybackStartsAtHead(_ startsAtHead: Bool) -> DemuxerOpenProfile {
+        var copy = self
+        copy.playbackStartsAtHead = startsAtHead
+        return copy
+    }
 
     /// A copy of `self` under a different reader name, for two call sites that share a profile.
     func withReaderLabel(_ label: String) -> DemuxerOpenProfile {
@@ -604,7 +615,8 @@ public final class Demuxer: @unchecked Sendable {
             chunkMaxRetries: openProfile.avioMaxRetries,
             boundedInitialFetch: openProfile.boundedInitialFetch,
             sequentialOnly: openProfile.avioSequentialOnly,
-            heldConnection: openProfile.avioHeldConnection
+            heldConnection: openProfile.avioHeldConnection,
+            expectsHeadPlayback: openProfile.playbackStartsAtHead
         )
         reader.onNetworkPhaseChanged = onNetworkPhaseChanged
         reader.playIntentProvider = playIntentProvider

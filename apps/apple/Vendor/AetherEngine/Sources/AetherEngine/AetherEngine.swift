@@ -4060,7 +4060,9 @@ public final class AetherEngine: ObservableObject {
             // Detach avformat_open_input + find_stream_info off @MainActor (~6 s on a slow CDN).
             // AetherEngine#10: a @MainActor async body without a suspension point blocks the main thread
             // despite the async signature; Task.detached.value introduces a real background hop.
-            try await Task.detached(priority: .userInitiated) { [probe, source, options] in
+            // [MovieClaw P56] 没有续播点（或不到 1 秒）就是从文件头起播
+            let startsAtHead = (startPosition ?? 0) < 1
+            try await Task.detached(priority: .userInitiated) { [probe, source, options, startsAtHead] in
                 // Caller-bounded find_stream_info budget (#68); nil keeps the .playback default. This probe
                 // demuxer is reused as the session demuxer, so the cap lands on the open that actually pays it.
                 let probeProfile = DemuxerOpenProfile.playback.withProbeBudget(
@@ -4068,6 +4070,7 @@ public final class AetherEngine: ObservableObject {
                     .withSequentialOrigin(options.sequentialOrigin,
                                           declaredDuration: options.declaredDurationSeconds)
                     .withHeldSourceConnection(options.heldSourceConnection)
+                    .withPlaybackStartsAtHead(startsAtHead)   // [MovieClaw P56]
                 switch source {
                 case .url(let u):
                     // isLive configures the AVIOReader for endless-feed mode; must be set at open time because

@@ -138,6 +138,14 @@ final class NativeEngine: NSObject, PlayerEngine {
         AetherPlayback.setCuePrewarmTargetsStart(!UserDefaults.standard.bool(forKey: "mcCuePrewarmMiddle"))
         // -mcNoCuesPrefetch YES：MKV 索引照旧由解复用器按需读（引擎补丁 P49 之前的行为，真机新旧对照用）
         AetherPlayback.setPrefetchesMatroskaCues(!UserDefaults.standard.bool(forKey: "mcNoCuesPrefetch"))
+        // -mcNoPrefetchProgressWait YES：等在途提前取照旧按往返时长定上限（引擎补丁 P53 之前的行为，慢线路对照用）
+        AetherPlayback.setWaitsOnProgressingPrefetch(!UserDefaults.standard.bool(forKey: "mcNoPrefetchProgressWait"))
+        // -mcNoMoovPrefetch YES：MP4 尾部 moov 照旧由解复用器按需读（引擎补丁 P54 之前的行为，对照用）
+        AetherPlayback.setPrefetchesMP4TailMoov(!UserDefaults.standard.bool(forKey: "mcNoMoovPrefetch"))
+        // -mcNoDetourSkip YES：慢线路上回跳照旧先走 4 MB 整块补取（引擎补丁 P55 之前的行为，对照用）
+        AetherPlayback.setSkipsDetourOnSlowLink(!UserDefaults.standard.bool(forKey: "mcNoDetourSkip"))
+        // -mcNoIndexPriority YES：冷打开时文件头照旧一开始就要 32 MB、与索引提前取并行（引擎补丁 P56 之前的行为，对照用）
+        AetherPlayback.setPrioritizesIndexPrefetch(!UserDefaults.standard.bool(forKey: "mcNoIndexPriority"))
         // -mcWitnessInterval <秒>：起播 / 跳转后看缓冲过没过开播线的间隔（引擎补丁 P28，默认 0.025，原来 0.1；真机对照用）
         let witness = UserDefaults.standard.double(forKey: "mcWitnessInterval")
         if witness > 0 { AetherPlayback.vodStartWitnessIntervalSeconds = witness }
