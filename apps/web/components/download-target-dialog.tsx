@@ -5,9 +5,12 @@
  *
  * 点搜索结果的「下载」先弹出本层，让用户明确文件会落到哪，而不是静默
  * 提交后再猜。候选来源分三层：
- *   1. 智能入库（种子解析出可靠身份时）：走后端与订阅同源的三级兜底
+ *   1. 智能入库（确认了是哪部作品时）：走后端与订阅同源的三级兜底
  *      （监听目录 / 库条目目录），并用 dispatch-preview 预检结论展示
- *      真实归宿与配置警示；
+ *      真实归宿与配置警示。种子自己的身份识别不出来（乱码/拼音命名、
+ *      没解析出年份）时，后端按用户的搜索词给出 TMDB 候选，弹窗只问一句
+ *      「这是哪部作品？」——点一下候选即与自动识别同权，媒体库仍由收藏
+ *      范围自动分配（手动识别 ≠ 手动选库）；
  *   2. 下载器已配置的目录：默认保存目录 + 各路径映射的 movieclaw 侧目录，
  *      双视角展示（movieclaw 路径 → 下载器路径），跨容器部署一眼可核对；
  *   3. 下载器默认目录兜底：不指定路径，由下载器自行决定。
@@ -41,6 +44,7 @@ import {
   type DownloadSubmitResult,
   type DownloadTargetPref,
   type ManualDownloadTarget,
+  type ManualDownloadTargetCandidate,
   type PathMapping,
   resolveManualDownloadTarget,
 } from "@/lib/api/downloaders";
@@ -51,9 +55,14 @@ export interface DownloadTargetRequest {
   download_url: string;
   /** 站点内种子 ID：随提交锚定，任务中心据此提供「打开种子页」 */
   torrent_id: string;
-  /** 解析出的条目身份；三件套不全时为 null（智能入库选项不出现） */
+  /** 解析出的条目身份；三件套不全时为 null（此时只能靠 hint 给候选） */
   identity: { kind: "movie" | "tv"; title: string; year: number } | null;
   subtitle: string | null;
+  /**
+   * 用户的搜索关键词：种子标题识别失败时拿它检索 TMDB 候选。用户是搜了这个词
+   * 才看到这条结果的，乱码命名的种子上它往往比种子标题可靠得多
+   */
+  hint: string | null;
   /**
    * 种子分类（TorrentHit.category ?? "other"）：记忆的桶键。
    * 用站点声明的一级分类而非 enrich 推断的 media_type/content_type——推断值会
@@ -128,6 +137,16 @@ function toRemoteView(path: string, mappings: PathMapping[] | null): string {
   return best.remote.replace(/\/+$/, "") + path.slice(local.length);
 }
 
+/** 候选身份按（类型, TMDB ID）确定：电影与剧集的 ID 各自编号，会撞号。 */
+type CandidateKey = Pick<ManualDownloadTargetCandidate, "kind" | "tmdb_id">;
+
+/** 预检的识别线索：种子身份（有则带）+ 搜索词。 */
+function resolveClues(request: DownloadTargetRequest, hint: string | null) {
+  return { ...(request.identity ?? {}), subtitle: request.subtitle, hint };
+}
+
+const KIND_LABEL = { movie: "电影", tv: "剧集" } as const;
+
 /** 一个可选的保存目标。 */
 interface TargetOption {
   key: string;
@@ -192,20 +211,31 @@ function DialogContent({
 }) {
   // 记忆是「智能入库」时不必展开目录列表——预选的就是它
   const rememberedTarget = remembered;
+  // 既没身份也没搜索词才一开始就摊开目录；有线索时先让用户回答「这是哪部」，
+  // 目录收在「其他保存位置」里——摊开的目录会被默认选中，用户一点确认就又
+  // 下进了不会自动入库的目录，正是本弹窗要避免的结局
+  const canResolve = request.identity !== null || !!request.hint;
   const revealOtherInitially =
-    request.identity === null ||
-    (rememberedTarget !== null && rememberedTarget.kind !== "smart");
+    !canResolve || (rememberedTarget !== null && rememberedTarget.kind !== "smart");
   // 可用（启用 + 验证通过）的全部下载器：≥2 台时出现下载器选择
   const [downloaders, setDownloaders] = useState<ConfiguredDownloader[]>([]);
   const [downloaderId, setDownloaderId] = useState<number | null>(
     rememberedTarget?.kind === "smart" ? rememberedTarget.downloader_id : null,
   );
   const [manualTarget, setManualTarget] = useState<ManualDownloadTarget | null>(null);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null);
+  // 「这是哪部作品？」：自动识别没收敛（或种子没身份）时进入确认模式，此后
+  // 候选与搜索框常驻，确认后仍可改选
+  const [picking, setPicking] = useState(!request.identity);
+  // 候选单独留一份：点候选重跑预检期间不清空，避免整排候选闪没再出现
+  const [candidates, setCandidates] = useState<ManualDownloadTargetCandidate[]>([]);
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidateKey | null>(null);
+  // 当前生效的搜索词（换个词搜后更新）与输入框草稿
+  const [hint, setHint] = useState<string | null>(request.hint);
+  const [hintDraft, setHintDraft] = useState(request.hint ?? "");
   const [showOtherTargets, setShowOtherTargets] = useState(revealOtherInitially);
   const [downloadersLoaded, setDownloadersLoaded] = useState(false);
   const [loadingDownloaders, setLoadingDownloaders] = useState(false);
-  const [loadingTarget, setLoadingTarget] = useState(request.identity !== null);
+  const [loadingTarget, setLoadingTarget] = useState(canResolve);
   const [selected, setSelected] = useState<string | null>(null);
   // 「记住本次选择」：已有记忆时默认勾上（从确认条「更改」进来就是要改它），
   // 首次下载该分类默认不勾（见文件头注释）
@@ -220,9 +250,8 @@ function DialogContent({
   useEffect(() => {
     let cancelled = false;
     const requestId = ++targetRequestId.current;
-    const identity = request.identity;
-    setSelectedCandidateId(null);
-    if (!identity) {
+    setSelectedCandidate(null);
+    if (!request.identity && !request.hint) {
       setLoadingTarget(false);
       setShowOtherTargets(true);
       return () => {
@@ -233,16 +262,19 @@ function DialogContent({
 
     setLoadingTarget(true);
     void resolveManualDownloadTarget({
-      kind: identity.kind,
-      title: identity.title,
-      year: identity.year,
-      subtitle: request.subtitle,
+      ...resolveClues(request, request.hint),
       downloader_id: rememberedTarget?.kind === "smart" ? rememberedTarget.downloader_id : null,
     })
       .then((target) => {
         if (cancelled || requestId !== targetRequestId.current) return;
         setManualTarget(target);
-        if (target.status !== "ready" || !target.ok) setShowOtherTargets(true);
+        setCandidates(target.candidates);
+        if (target.status !== "ready") setPicking(true);
+        // 有候选可点时目录继续收着（等用户回答「这是哪部」）；找不到/配置
+        // 不能自动入库时才摊开目录作兜底
+        if (target.status === "not_found" || (target.status === "ready" && !target.ok)) {
+          setShowOtherTargets(true);
+        }
       })
       .catch(() => {
         if (cancelled || requestId !== targetRequestId.current) return;
@@ -258,24 +290,27 @@ function DialogContent({
     };
   }, [rememberedTarget, request]);
 
-  /** 用当前下载器和（如有）用户确认的歧义候选重跑预检。 */
+  /** 用当前下载器、搜索词和（如有）用户确认的候选重跑预检。 */
   const reloadManualTarget = useCallback(
-    (nextDownloaderId: number | null, tmdbId: number | null) => {
-      const identity = request.identity;
-      if (!identity) return;
+    (nextDownloaderId: number | null, candidate: CandidateKey | null, nextHint: string | null) => {
+      if (!request.identity && !nextHint) return;
       const requestId = ++targetRequestId.current;
       setLoadingTarget(true);
       setManualTarget(null);
       void resolveManualDownloadTarget({
-        kind: identity.kind,
-        title: identity.title,
-        year: identity.year,
-        subtitle: request.subtitle,
+        ...resolveClues(request, nextHint),
         downloader_id: nextDownloaderId,
-        selected_tmdb_id: tmdbId,
+        selected_tmdb_id: candidate?.tmdb_id ?? null,
+        selected_kind: candidate?.kind ?? null,
       })
         .then((target) => {
-          if (requestId === targetRequestId.current) setManualTarget(target);
+          if (requestId !== targetRequestId.current) return;
+          setManualTarget(target);
+          setCandidates(target.candidates);
+          if (target.status === "not_found") setShowOtherTargets(true);
+          // 用户刚点选了条目：直接选中随之出现的「自动入库」——不然选中项还停在
+          // 先前默认的目录上，用户以为已确认入库，实际下进了普通目录
+          if (candidate && target.status === "ready" && target.ok) setSelected("smart");
         })
         .catch(() => {
           if (requestId === targetRequestId.current) setManualTarget(null);
@@ -312,20 +347,21 @@ function DialogContent({
         setDownloaderId(selectedDownloaderId);
         setDownloadersLoaded(true);
         setLoadingDownloaders(false);
-        if (request.identity && preflightDownloaderId !== downloaderId) {
-          reloadManualTarget(preflightDownloaderId, selectedCandidateId);
+        if (canResolve && preflightDownloaderId !== downloaderId) {
+          reloadManualTarget(preflightDownloaderId, selectedCandidate, hint);
         }
       });
     return () => {
       cancelled = true;
     };
   }, [
+    canResolve,
     downloaderId,
     downloadersLoaded,
+    hint,
     reloadManualTarget,
     rememberedTarget,
-    request.identity,
-    selectedCandidateId,
+    selectedCandidate,
     showOtherTargets,
   ]);
 
@@ -337,7 +373,6 @@ function DialogContent({
   const options = useMemo<TargetOption[]>(() => {
     const result: TargetOption[] = [];
     if (
-      request.identity &&
       manualTarget?.status === "ready" &&
       manualTarget.tmdb_id != null &&
       manualTarget.library_id != null &&
@@ -396,7 +431,7 @@ function DialogContent({
       });
     }
     return result;
-  }, [request, manualTarget, downloader, showOtherTargets]);
+  }, [manualTarget, downloader, showOtherTargets]);
 
   // 换下载器后目录候选整组换血：选中的目录项若已不存在，退回未选中让下方
   // 默认选中逻辑重新挑一个
@@ -432,7 +467,6 @@ function DialogContent({
     if (!option || busy) return;
     setBusy(true);
     setError(null);
-    const identity = request.identity;
     // 只在非默认下载器时显式带 downloader_id：默认台走后端原有语义
     const pickedDownloaderId = downloader
       ? downloader.is_default
@@ -445,13 +479,18 @@ function DialogContent({
       torrent_id: request.torrent_id,
       // 只有勾了「记住本次选择」才带分类：后端拿不到分类就不写记忆
       ...(remember ? { category: request.category } : {}),
-      ...(option.kind === "smart" && identity && manualTarget?.tmdb_id != null
+      // 身份一律取预检确认的结论（类型可能与种子解析的不同，标题是 TMDB
+      // 标题——它会进条目别名，不能拿乱码的种子标题去污染）
+      ...(option.kind === "smart" &&
+      manualTarget?.tmdb_id != null &&
+      manualTarget.kind &&
+      manualTarget.title
         ? {
             auto_route: true,
-            media_kind: identity.kind,
+            media_kind: manualTarget.kind,
             tmdb_id: manualTarget.tmdb_id,
-            title: identity.title,
-            year: identity.year,
+            title: manualTarget.title,
+            year: manualTarget.year,
             subtitle: request.subtitle,
           }
         : {}),
@@ -486,55 +525,41 @@ function DialogContent({
           )}
 
           <div className="space-y-2">
-              {loadingTarget && request.identity && (
+              {picking && (
+                <CandidatePicker
+                  status={manualTarget?.status ?? null}
+                  busy={loadingTarget}
+                  hint={hint}
+                  candidates={candidates}
+                  selected={selectedCandidate}
+                  draft={hintDraft}
+                  onDraftChange={setHintDraft}
+                  onPick={(candidate) => {
+                    const key = { kind: candidate.kind, tmdb_id: candidate.tmdb_id };
+                    setSelectedCandidate(key);
+                    reloadManualTarget(downloaderId, key, hint);
+                  }}
+                  onSearch={(q) => {
+                    setHint(q);
+                    setSelectedCandidate(null);
+                    reloadManualTarget(downloaderId, null, q);
+                  }}
+                />
+              )}
+              {loadingTarget && (
                 <div className="flex h-[52px] items-center rounded-xl border border-white/[0.06] bg-white/[0.03] px-3.5 text-caption text-[var(--text-faint)]">
-                  正在识别影视条目并预演智能入库…
+                  {selectedCandidate ? "正在预演自动入库…" : "正在识别影视条目并预演智能入库…"}
                 </div>
               )}
-              {!loadingTarget && request.identity && manualTarget && manualTarget.status !== "ready" && (
-                <p className="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3.5 py-2.5 text-caption leading-relaxed text-amber-100">
-                  {manualTarget.status === "ambiguous"
-                    ? "识别到多个可能条目。请确认正确条目后，系统会继续预演自动入库目录。"
-                    : "未自动入库：无法可靠识别该资源；为避免投错库请手选保存目录。"}
-                </p>
-              )}
-              {request.identity && manualTarget?.status === "ambiguous" && (
-                <div className="flex flex-wrap gap-2">
-                  {manualTarget.candidates.map((candidate) => (
-                    <button
-                      key={candidate.tmdb_id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCandidateId(candidate.tmdb_id);
-                        reloadManualTarget(downloaderId, candidate.tmdb_id);
-                      }}
-                      className="rounded-full border border-amber-400/35 px-3 py-1 text-caption text-amber-100 transition-colors hover:bg-amber-500/15"
-                    >
-                      {candidate.title}
-                      {candidate.year ? ` (${candidate.year})` : ""}
-                      {candidate.episode_count ? ` · ${candidate.episode_count} 集` : ""}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {!loadingTarget && request.identity && manualTarget === null && (
+              {!loadingTarget && canResolve && manualTarget === null && (
                 <p className="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3.5 py-2.5 text-caption leading-relaxed text-amber-100">
                   自动识别暂不可用；为避免投错库请手选保存目录后再下载。
                 </p>
               )}
-              {request.identity && manualTarget?.status === "ready" && !manualTarget.ok && (
+              {!loadingTarget && manualTarget?.status === "ready" && !manualTarget.ok && (
                 <p className="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3.5 py-2.5 text-caption leading-relaxed text-amber-100">
                   已识别资源，但当前不能自动入库：{manualTarget.warning ?? "请检查媒体库和自动入库配置。"}
                 </p>
-              )}
-              {!showOtherTargets && (
-                <button
-                  type="button"
-                  onClick={() => setShowOtherTargets(true)}
-                  className="w-full rounded-xl border border-dashed border-white/[0.1] px-3.5 py-2.5 text-left text-ui text-[var(--text-muted)] transition-colors hover:border-white/20 hover:bg-white/[0.03] hover:text-white/90"
-                >
-                  其他保存位置
-                </button>
               )}
               {showOtherTargets && loadingDownloaders && (
                 <div className="h-[52px] animate-pulse rounded-xl bg-white/[0.04]" />
@@ -565,6 +590,16 @@ function DialogContent({
                   </span>
                 </button>
               ))}
+              {/* 收在自动入库选项之后：点完候选，视线从条目直接落到入库结论 */}
+              {!showOtherTargets && (
+                <button
+                  type="button"
+                  onClick={() => setShowOtherTargets(true)}
+                  className="w-full rounded-xl border border-dashed border-white/[0.1] px-3.5 py-2.5 text-left text-ui text-[var(--text-muted)] transition-colors hover:border-white/20 hover:bg-white/[0.03] hover:text-white/90"
+                >
+                  其他保存位置
+                </button>
+              )}
             </div>
 
           {/* 下载器分流：≥2 台可用才出现（单台用户界面零变化），默认预选默认台 */}
@@ -576,7 +611,7 @@ function DialogContent({
                 onChange={(e) => {
                   const nextDownloaderId = Number(e.target.value);
                   setDownloaderId(nextDownloaderId);
-                  reloadManualTarget(nextDownloaderId, selectedCandidateId);
+                  reloadManualTarget(nextDownloaderId, selectedCandidate, hint);
                 }}
                 className="min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-sub text-white/90 outline-none focus:border-white/25 [&>option]:bg-[#181c28]"
               >
@@ -639,10 +674,128 @@ function DialogContent({
           disabled={busy || selected === null}
           className="btn-accent h-9 rounded-full px-5 text-ui font-semibold disabled:opacity-40"
         >
-          {busy ? "提交中…" : "确认下载"}
+          {busy
+            ? "提交中…"
+            : selected === "smart" && manualTarget?.library_name
+              ? `下载到「${manualTarget.library_name}」`
+              : "确认下载"}
         </button>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * 「这是哪部作品？」：自动识别没收敛时的条目确认区。
+ *
+ * 候选来自种子标题的歧义结果 + 用户搜索词的 TMDB 检索，点一下即确认，随后
+ * 自动预演入库；候选都不对时就地换个词搜——不跳页、不手抄 TMDB ID。
+ */
+function CandidatePicker({
+  status,
+  busy,
+  hint,
+  candidates,
+  selected,
+  draft,
+  onDraftChange,
+  onPick,
+  onSearch,
+}: {
+  /** 最近一次预检的状态；null = 还没有结论（进行中，或既无身份也无搜索词） */
+  status: ManualDownloadTarget["status"] | null;
+  busy: boolean;
+  hint: string | null;
+  candidates: ManualDownloadTargetCandidate[];
+  selected: CandidateKey | null;
+  draft: string;
+  onDraftChange: (value: string) => void;
+  onPick: (candidate: ManualDownloadTargetCandidate) => void;
+  onSearch: (q: string) => void;
+}) {
+  const caption =
+    !busy && status === "not_found"
+      ? hint
+        ? `没找到与「${hint}」匹配的作品，换个片名试试（中文名搜不到时可试英文/原名）。`
+        : "输入片名搜索，确认后会自动分配媒体库。"
+      : candidates.length > 0
+        ? "没能自动认出这条资源。点选正确的作品，媒体库会按收藏范围自动分配。"
+        : "输入片名搜索，确认后会自动分配媒体库。";
+  const submitSearch = () => {
+    const q = draft.trim();
+    if (q) onSearch(q);
+  };
+  return (
+    <div className="space-y-2.5 rounded-xl border border-amber-400/20 bg-amber-500/[0.06] px-3.5 py-3">
+      <div>
+        <p className="text-ui font-medium text-[var(--text)]">这是哪部作品？</p>
+        <p className="mt-0.5 text-caption leading-relaxed text-[var(--text-faint)]">{caption}</p>
+      </div>
+      {candidates.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {candidates.map((candidate) => {
+            const active =
+              selected?.kind === candidate.kind && selected.tmdb_id === candidate.tmdb_id;
+            return (
+              <button
+                key={`${candidate.kind}:${candidate.tmdb_id}`}
+                type="button"
+                onClick={() => onPick(candidate)}
+                data-active={active}
+                className="flex max-w-full items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.04] py-1 pl-1 pr-3 text-left transition-colors hover:border-[var(--accent)]/50 data-[active=true]:border-[var(--accent)]/70 data-[active=true]:bg-[var(--accent-soft)]"
+              >
+                {candidate.poster_url ? (
+                  <img
+                    src={candidate.poster_url}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    // 图床不通时别露破图标，留空底色占位即可
+                    onError={(e) => {
+                      e.currentTarget.style.visibility = "hidden";
+                    }}
+                    className="h-9 w-6 shrink-0 rounded bg-white/[0.05] object-cover"
+                  />
+                ) : (
+                  <span className="h-9 w-6 shrink-0 rounded bg-white/[0.05]" />
+                )}
+                <span className="min-w-0">
+                  <span className="block truncate text-caption text-[var(--text)]">
+                    {candidate.title}
+                    {candidate.year ? ` (${candidate.year})` : ""}
+                  </span>
+                  <span className="block text-caption text-[var(--text-faint)]">
+                    {KIND_LABEL[candidate.kind]}
+                    {candidate.episode_count ? ` · ${candidate.episode_count} 集` : ""}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submitSearch();
+          }}
+          placeholder={candidates.length > 0 ? "都不对？换个片名搜" : "输入片名"}
+          aria-label="按片名搜索作品"
+          className="min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-sub text-[var(--text)] outline-none placeholder:text-white/30 focus:border-[var(--accent)]/60"
+        />
+        <button
+          type="button"
+          disabled={!draft.trim() || busy}
+          onClick={submitSearch}
+          className="btn-glass shrink-0 px-3.5 py-1.5 text-sub font-medium disabled:opacity-40"
+        >
+          搜索
+        </button>
+      </div>
+    </div>
   );
 }
 

@@ -22,6 +22,8 @@ final class TorrentActionsState {
     let prefs = DownloadTargetPrefs()
     /// 手动选种模式的目标订阅（结果页写入；灯箱里的「投给订阅」要用）
     var grabTarget: (id: Int, title: String)?
+    /// 当前搜索关键词（结果页写入）：种子身份识别失败时下载弹窗拿它给候选
+    var searchKeyword = ""
 
     /// 先收起当前弹层，等退场动画结束再展示下一个
     private func presentAfterDismiss(_ present: @escaping () -> Void) {
@@ -39,14 +41,14 @@ final class TorrentActionsState {
     /// 点「下载」：没有记忆直接弹完整弹窗；有记忆先弹确认条；记忆失效时说明原因再弹完整弹窗
     func startDownload(_ hit: API.TorrentHit) {
         let state = downloadStates[hit.rowKey] ?? .idle
-        guard state != .submitting, state != .done, state != .exists, var request = DownloadTargetRequest(hit: hit) else { return }
+        guard state != .submitting, state != .done, state != .exists, var request = DownloadTargetRequest(hit: hit, keyword: searchKeyword) else { return }
         guard let remembered = prefs.byCategory[request.category] else {
             presentAfterDismiss { self.dialogRequest = request }
             return
         }
         var reason: String?
         if remembered.kind == "smart", request.identity == nil {
-            reason = "这条种子没解析出条目身份，用不了记住的「智能入库」，请手动选择。"
+            reason = "这条种子没解析出条目身份，用不了记住的「智能入库」，请确认是哪部作品。"
         } else if remembered.downloaderId != nil, remembered.downloaderName == nil {
             reason = "上次使用的下载器已不可用，请重新选择保存位置。"
         } else if prefs.isStaleDir(remembered) {
@@ -76,7 +78,7 @@ final class TorrentActionsState {
             do {
                 guard let result = try await api.submitRememberedDownload(confirming.request, target: confirming.target) else {
                     downloadStates[key] = .idle
-                    reopenDialog(confirming.request, reason: "这条种子没匹配到唯一条目，请手动选择保存位置。")
+                    reopenDialog(confirming.request, reason: "这条种子没匹配到唯一条目，请确认是哪部作品。")
                     return
                 }
                 downloadStates[key] = result.alreadyExists ? .exists : .done

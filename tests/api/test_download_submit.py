@@ -445,6 +445,8 @@ def test_resolve_target_returns_existing_route_preview(client, monkeypatch) -> N
     assert data["library_name"] == "国内电影"
     assert data["path"] == "/downloads/manual/movies"
     assert data["entry_dir"] == "/data/movies/测试电影 (2024)"
+    # 自动收敛：提交用的入口标题沿用种子解析的标题
+    assert (data["kind"], data["title"], data["year"]) == ("movie", "测试电影", 2024)
 
 
 def test_resolve_target_accepts_a_confirmed_candidate(client, monkeypatch) -> None:
@@ -491,6 +493,141 @@ def test_resolve_target_accepts_a_confirmed_candidate(client, monkeypatch) -> No
     assert r.status_code == 200, r.json()
     assert r.json()["data"]["status"] == "ready"
     assert r.json()["data"]["tmdb_id"] == 9527
+
+
+def _watch_preview(library_name: str = "国内电影") -> dict:
+    """预检桩的固定返回：命中收藏范围、投监听目录、可自动入库。"""
+    return {
+        "mode": "watch",
+        "path": "/downloads/manual",
+        "entry_dir": None,
+        "staging_path": None,
+        "library_id": 7,
+        "library_name": library_name,
+        "downloader_name": "家里的 qBittorrent",
+        "route_matched": True,
+        "route_reason": f"命中「{library_name}」",
+        "ok": True,
+        "warning": None,
+    }
+
+
+def test_resolve_target_falls_back_to_search_hint_candidates(client, monkeypatch) -> None:
+    """种子标题识别失败时，按用户的搜索词给出候选（电影剧集混排、带海报）。"""
+    from movieclaw_api.services.library.resolve import ResolveCandidate
+    from movieclaw_api.services.torrent_submit import HintCandidate, ManualTargetResolution
+
+    async def resolve_target(**kwargs):
+        # 自动收敛留下一条歧义候选：它排在前面，搜索词里的同一条目不重复出现
+        return ManualTargetResolution(
+            tmdb_id=None, candidates=[ResolveCandidate(tmdb_id=1, title="流浪地球", year=2019)]
+        )
+
+    async def hint_candidates(hint):
+        assert hint == "流浪地球"
+        return [
+            HintCandidate(tmdb_id=1, kind="movie", title="流浪地球", year=2019, poster_url="/p1"),
+            HintCandidate(tmdb_id=2, kind="movie", title="流浪地球2", year=2023, poster_url="/p2"),
+            # 与电影同号的剧集：（类型, ID）不同即是另一条候选
+            HintCandidate(tmdb_id=1, kind="tv", title="流浪地球幕后", year=2023, poster_url=None),
+        ]
+
+    monkeypatch.setattr(downloaders_route, "resolve_manual_target", resolve_target)
+    monkeypatch.setattr(downloaders_route, "search_hint_candidates", hint_candidates)
+    r = client.post(
+        "/api/v1/downloaders/resolve-target",
+        json={"kind": "movie", "title": "liu lang di qiu", "year": 2019, "hint": " 流浪地球 "},
+    )
+    assert r.status_code == 200, r.json()
+    data = r.json()["data"]
+    assert data["status"] == "ambiguous"
+    assert [(c["kind"], c["tmdb_id"]) for c in data["candidates"]] == [
+        ("movie", 1),
+        ("movie", 2),
+        ("tv", 1),
+    ]
+    assert data["candidates"][1]["poster_url"] == "/p2"
+
+
+def test_resolve_target_without_identity_uses_hint_only(client, monkeypatch) -> None:
+    """种子没解析出身份时不再直接放弃：跳过自动收敛，只按搜索词给候选。"""
+    from movieclaw_api.services.torrent_submit import HintCandidate
+
+    async def resolve_target(**kwargs):
+        raise AssertionError("身份缺失时不应发起自动收敛")
+
+    async def hint_candidates(hint):
+        return [HintCandidate(tmdb_id=5, kind="tv", title="繁花", year=2023, poster_url=None)]
+
+    monkeypatch.setattr(downloaders_route, "resolve_manual_target", resolve_target)
+    monkeypatch.setattr(downloaders_route, "search_hint_candidates", hint_candidates)
+    r = client.post("/api/v1/downloaders/resolve-target", json={"hint": "繁花"})
+    assert r.status_code == 200, r.json()
+    data = r.json()["data"]
+    assert data["status"] == "ambiguous"
+    assert data["candidates"][0]["kind"] == "tv"
+
+
+def test_resolve_target_confirms_hint_candidate_of_other_kind(client, monkeypatch) -> None:
+    """确认搜索词候选：按候选自己的类型路由（种子把剧误判成电影也能纠正），回显 TMDB 标题。"""
+    import movieclaw_api.services.subscription as subscription_service
+    from movieclaw_api.services.torrent_submit import HintCandidate, ManualTargetResolution
+
+    async def resolve_target(**kwargs):
+        return ManualTargetResolution(tmdb_id=None, candidates=[])
+
+    async def hint_candidates(hint):
+        return [HintCandidate(tmdb_id=5, kind="tv", title="繁花", year=2023, poster_url=None)]
+
+    async def preview(session, *, kind, library_id, tmdb_id, downloader_id=None, **identity):
+        assert (kind, library_id, tmdb_id) == ("tv", None, 5)
+        assert identity == {"title": "繁花", "year": 2023}
+        return _watch_preview("国产剧")
+
+    monkeypatch.setattr(downloaders_route, "resolve_manual_target", resolve_target)
+    monkeypatch.setattr(downloaders_route, "search_hint_candidates", hint_candidates)
+    monkeypatch.setattr(subscription_service, "preview_dispatch_route", preview)
+    r = client.post(
+        "/api/v1/downloaders/resolve-target",
+        json={
+            "kind": "movie",
+            "title": "fan hua",
+            "year": 2023,
+            "hint": "繁花",
+            "selected_tmdb_id": 5,
+            "selected_kind": "tv",
+        },
+    )
+    assert r.status_code == 200, r.json()
+    data = r.json()["data"]
+    assert (data["status"], data["kind"], data["tmdb_id"]) == ("ready", "tv", 5)
+    assert (data["title"], data["year"]) == ("繁花", 2023)
+    assert data["library_name"] == "国产剧"
+
+
+def test_resolve_target_rejects_selection_outside_candidates(client, monkeypatch) -> None:
+    """候选按（类型, ID）校验：同号不同类型的条目不能冒充候选。"""
+    from movieclaw_api.services.torrent_submit import HintCandidate
+
+    async def hint_candidates(hint):
+        return [HintCandidate(tmdb_id=5, kind="tv", title="繁花", year=2023, poster_url=None)]
+
+    monkeypatch.setattr(downloaders_route, "search_hint_candidates", hint_candidates)
+    r = client.post(
+        "/api/v1/downloaders/resolve-target",
+        json={"hint": "繁花", "selected_tmdb_id": 5, "selected_kind": "movie"},
+    )
+    assert r.status_code == 400
+
+
+def test_resolve_target_requires_some_clue(client) -> None:
+    """既没有身份三件套也没有搜索词：参数错误，而不是返回空结论。"""
+    r = client.post("/api/v1/downloaders/resolve-target", json={"title": "只有标题"})
+    assert r.status_code == 422
+    r = client.post(
+        "/api/v1/downloaders/resolve-target", json={"hint": "繁花", "selected_tmdb_id": 5}
+    )
+    assert r.status_code == 422
 
 
 def test_auto_route_submits_to_watch_and_anchors_info_hash(client, monkeypatch) -> None:

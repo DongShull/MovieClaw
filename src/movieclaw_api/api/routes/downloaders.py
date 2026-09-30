@@ -34,8 +34,10 @@ from movieclaw_api.services.downloader_config import (
 from movieclaw_api.services.library.access import assert_library_visible
 from movieclaw_api.services.library.config import LibraryConfigService
 from movieclaw_api.services.torrent_submit import (
+    ManualTargetResolution,
     anchor_manual_download,
     resolve_manual_target,
+    search_hint_candidates,
     submit_torrent,
     translate_save_path,
 )
@@ -75,33 +77,64 @@ async def resolve_download_target(
     ``preview_dispatch_route``：媒体库收藏范围负责选择库，监听导入规则负责
     给出实际投递源目录。未收敛时明确返回候选或未找到，不把不确定的种子
     静默放进默认库。
+
+    收敛失败（或种子根本没解析出身份）时，再按 ``hint``（用户的搜索词）检索
+    TMDB 补充候选：用户点选确认后与自动识别走同一条路由预演，库仍由收藏范围
+    自动分配——手动识别只负责「这是哪部」，不负责「放哪个库」。
     """
-    resolution = await resolve_manual_target(
-        kind=payload.kind, title=payload.title, year=payload.year, subtitle=payload.subtitle
+    resolution = (
+        await resolve_manual_target(
+            kind=payload.kind,  # type: ignore[arg-type]  # has_identity 已保证非空
+            title=payload.title,  # type: ignore[arg-type]
+            year=payload.year,  # type: ignore[arg-type]
+            subtitle=payload.subtitle,
+        )
+        if payload.has_identity
+        else ManualTargetResolution(tmdb_id=None, candidates=[])
     )
     candidates = [
         ManualDownloadCandidateView(
             tmdb_id=candidate.tmdb_id,
+            kind=payload.kind,  # type: ignore[arg-type]  # 有自动候选必有身份
             title=candidate.title,
             year=candidate.year,
             episode_count=candidate.episode_count,
         )
         for candidate in resolution.candidates
     ]
-    candidate_ids = {candidate.tmdb_id for candidate in resolution.candidates}
-    if resolution.tmdb_id is not None:
-        candidate_ids.add(resolution.tmdb_id)
-    tmdb_id = (
-        payload.selected_tmdb_id if payload.selected_tmdb_id is not None else resolution.tmdb_id
-    )
-    if payload.selected_tmdb_id is not None and payload.selected_tmdb_id not in candidate_ids:
-        raise BadRequestException("确认的 TMDB 条目不在本次识别候选中，请重新识别后再选择")
-    if tmdb_id is None:
+    if resolution.tmdb_id is None and payload.hint:
+        seen = {(c.kind, c.tmdb_id) for c in candidates}
+        for hit in await search_hint_candidates(payload.hint):
+            if (hit.kind, hit.tmdb_id) in seen:
+                continue
+            seen.add((hit.kind, hit.tmdb_id))
+            candidates.append(
+                ManualDownloadCandidateView(
+                    tmdb_id=hit.tmdb_id,
+                    kind=hit.kind,  # type: ignore[arg-type]  # 只收 movie/tv
+                    title=hit.title,
+                    year=hit.year,
+                    poster_url=hit.poster_url,
+                )
+            )
+
+    # 候选身份按（类型, ID）比对：电影与剧集的 TMDB ID 各自编号，会撞号
+    if payload.selected_tmdb_id is not None:
+        kind = payload.selected_kind or payload.kind
+        tmdb_id: int | None = payload.selected_tmdb_id
+        allowed = {(c.kind, c.tmdb_id) for c in candidates}
+        if resolution.tmdb_id is not None:
+            allowed.add((payload.kind, resolution.tmdb_id))
+        if (kind, tmdb_id) not in allowed:
+            raise BadRequestException("确认的 TMDB 条目不在本次识别候选中，请重新识别后再选择")
+    else:
+        kind, tmdb_id = payload.kind, resolution.tmdb_id
+    if tmdb_id is None or kind is None:
         status = "ambiguous" if candidates else "not_found"
         message = (
-            "找到多个可能的影视条目，请确认后再选择自动入库目录"
+            "未能自动确定是哪部作品，请从候选中确认后再选择自动入库目录"
             if candidates
-            else "未能可靠识别该资源；请手选保存目录或补充准确的标题和年份"
+            else "未能可靠识别该资源；请换个片名搜索，或手选保存目录"
         )
         return ok(ManualDownloadTargetView(status=status, candidates=candidates), message=message)
 
@@ -111,20 +144,27 @@ async def resolve_download_target(
 
     # 条目目录预览用识别到的 TMDB 标题，而不是种子标题——真实投递也是按
     # TMDB 身份建档后推导目录的，两边必须一致
-    picked = next((c for c in resolution.candidates if c.tmdb_id == tmdb_id), None)
+    picked = next((c for c in candidates if c.kind == kind and c.tmdb_id == tmdb_id), None)
     preview = await preview_dispatch_route(
         session,
-        kind=payload.kind,
+        kind=kind,
         library_id=None,
         tmdb_id=tmdb_id,
         downloader_id=payload.downloader_id,
         title=picked.title if picked else payload.title,
         year=picked.year if picked else payload.year,
     )
+    # 回显给提交用的入口标题（提交时会进条目别名）：自动收敛时是种子解析出的
+    # 标题（与 TMDB 标题不同写法时正好补一条别名），用户点选候选时种子标题
+    # 多半是乱码，改用候选的 TMDB 标题
+    entry = picked if payload.selected_tmdb_id is not None and picked else None
     return ok(
         ManualDownloadTargetView(
             status="ready",
             tmdb_id=tmdb_id,
+            kind=kind,
+            title=entry.title if entry else payload.title,
+            year=entry.year if entry else payload.year,
             candidates=candidates,
             **preview,
         ),

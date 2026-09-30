@@ -114,6 +114,12 @@ export interface SearchResultsProps {
 const GrabContext = createContext<{ id: number; title: string } | null>(null);
 
 /**
+ * 当前搜索关键词：下载弹窗在种子标题识别失败时拿它检索 TMDB 候选
+ * （乱码/拼音命名的种子，用户自己输入的片名才是最可靠的线索）。
+ */
+const SearchKeywordContext = createContext("");
+
+/**
  * 保存位置记忆上下文（docs/design/download-target-memory.md）。
  *
  * 整页只拉一次（最多 8 条），下载按钮按种子分类查表决定弹确认条还是完整弹窗。
@@ -1085,6 +1091,7 @@ export function SearchResults({ query, onResearch, grabForSubscriptionId }: Sear
   return (
     <GrabContext.Provider value={grabTarget}>
     <DownloadTargetPrefContext.Provider value={downloadTargetPrefs}>
+    <SearchKeywordContext.Provider value={query.keyword}>
     <div className="relative flex h-full flex-col">
       {/* 手动选种横幅：从订阅详情页跳来时说明当前模式与退出方式。
           信息蓝走 --info-soft 系 token：银玻璃值 = 原 #6aa7ff 字面量（零变化），
@@ -1292,6 +1299,7 @@ export function SearchResults({ query, onResearch, grabForSubscriptionId }: Sear
       </div>
 
     </div>
+    </SearchKeywordContext.Provider>
     </DownloadTargetPrefContext.Provider>
     </GrabContext.Provider>
   );
@@ -3264,6 +3272,7 @@ function DownloadButton({
   // 记忆失效时展开弹窗要说清为什么——静默回落是原实现最让人困惑的地方
   const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const prefs = useContext(DownloadTargetPrefContext);
+  const keyword = useContext(SearchKeywordContext);
   if (!canDirectDownload || !hit.download_url) return null;
 
   const settled = state === "done" || state === "exists";
@@ -3287,7 +3296,7 @@ function DownloadButton({
         if (result === null) {
           // 智能入库预检没收敛：绝不静默放进默认库，展开弹窗并说明原因
           setState("idle");
-          setFallbackReason("这条种子没匹配到唯一条目，请手动选择保存位置。");
+          setFallbackReason("这条种子没匹配到唯一条目，请确认是哪部作品。");
           setRequest(req);
           return;
         }
@@ -3305,7 +3314,7 @@ function DownloadButton({
     if (state === "submitting" || settled || !hit.download_url) return;
     setError(null);
     setFallbackReason(null);
-    // 实体身份三件套齐全才提供"智能入库"选项（年份是防错挂的硬门槛）
+    // 实体身份三件套齐全才走自动识别（年份是防错挂的硬门槛）；不全时弹窗靠搜索词给候选
     const attrs = hit.attrs;
     const title = attrs?.titles_zh?.[0] ?? attrs?.titles_en?.[0];
     const mediaType =
@@ -3319,6 +3328,7 @@ function DownloadButton({
           ? { kind: mediaType, title, year: attrs.year }
           : null,
       subtitle: hit.subtitle || null,
+      hint: keyword.trim() || null,
       // 记忆的桶键用站点声明的一级分类；站点没映射时归 other
       category: hit.category ?? "other",
     };
@@ -3329,7 +3339,7 @@ function DownloadButton({
     }
     // 记忆存的是「智能入库」但这条种子没解析出身份：套不上，回落弹窗并说明
     if (remembered.kind === "smart" && !req.identity) {
-      setFallbackReason("这条种子没解析出条目身份，用不了记住的「智能入库」，请手动选择。");
+      setFallbackReason("这条种子没解析出条目身份，用不了记住的「智能入库」，请确认是哪部作品。");
       setRequest(req);
       return;
     }

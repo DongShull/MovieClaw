@@ -78,6 +78,7 @@ struct TorrentResultsView: View {
         }
         .fullScreenCover(item: $actions.lightbox) { DiscoverLightbox(content: $0).sheetFeedback() }
         .onChange(of: grabTarget?.id, initial: true) { actions.grabTarget = grabTarget }
+        .onChange(of: model.keyword, initial: true) { actions.searchKeyword = model.keyword }
         .environment(actions)
     }
 

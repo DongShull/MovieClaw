@@ -4731,40 +4731,54 @@ nonisolated extension API {
     /// 预检未收敛时留给用户确认的 TMDB 候选。
     struct ManualDownloadCandidateView: Codable, Hashable, Sendable {
         var tmdbId: Int
+        var kind: String
         var title: String
         var year: Int?
         var episodeCount: Int?
+        var posterUrl: String?
 
         enum CodingKeys: String, CodingKey {
             case tmdbId = "tmdb_id"
+            case kind
             case title
             case year
             case episodeCount = "episode_count"
+            case posterUrl = "poster_url"
         }
     }
 
-    /// 手动下载的识别预检输入：只接受搜索结果已解析出的最小身份线索。
+    /// 手动下载的识别预检输入：搜索结果已解析出的身份线索 + 用户的搜索词。
+    /// 种子身份（kind/title/year）三件套齐全时先按它自动收敛；收敛失败或种子
+    /// 根本没解析出身份时，改用 ``hint``（用户在搜索框里输入的关键词，或在弹窗
+    /// 里「换个词搜」的输入）检索 TMDB，把结果作为候选请用户点选确认——乱码/
+    /// 拼音命名的种子，用户自己输入的片名往往才是最可靠的线索。
     struct ManualDownloadTargetPayload: Codable, Hashable, Sendable {
-        /// 搜索结果识别出的媒体类型
-        var kind: String
-        /// 搜索结果识别出的主标题
-        var title: String
+        /// 搜索结果识别出的媒体类型；未解析出身份时缺省
+        var kind: String?
+        /// 搜索结果识别出的主标题；未解析出身份时缺省
+        var title: String?
         /// 搜索结果识别出的发行/首播年份
-        var year: Int
+        var year: Int?
         /// 种子副标题（中文别名等识别补强）
         var subtitle: String?
+        /// 搜索关键词：自动识别失败时据此检索 TMDB 给出候选
+        var hint: String?
         /// 预检指定下载器；缺省用默认下载器
         var downloaderId: Int?
         /// 用户从本次识别候选中确认的 TMDB 条目 ID
         var selectedTmdbId: Int?
+        /// 确认候选的媒体类型；缺省同 kind
+        var selectedKind: String?
 
         enum CodingKeys: String, CodingKey {
             case kind
             case title
             case year
             case subtitle
+            case hint
             case downloaderId = "downloader_id"
             case selectedTmdbId = "selected_tmdb_id"
+            case selectedKind = "selected_kind"
         }
     }
 
@@ -4772,6 +4786,9 @@ nonisolated extension API {
     struct ManualDownloadTargetView: Codable, Hashable, Sendable {
         var status: String
         var tmdbId: Int?
+        var kind: String?
+        var title: String?
+        var year: Int?
         var candidates: [API.ManualDownloadCandidateView]
         var libraryId: Int?
         var libraryName: String?
@@ -4794,6 +4811,9 @@ nonisolated extension API {
         enum CodingKeys: String, CodingKey {
             case status
             case tmdbId = "tmdb_id"
+            case kind
+            case title
+            case year
             case candidates
             case libraryId = "library_id"
             case libraryName = "library_name"

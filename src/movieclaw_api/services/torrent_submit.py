@@ -79,6 +79,52 @@ async def resolve_manual_target(
     return ManualTargetResolution(tmdb_id=outcome.tmdb_id, candidates=outcome.candidates)
 
 
+@dataclass(frozen=True)
+class HintCandidate:
+    """按搜索词检索到的一个 TMDB 候选（电影/剧集混排，自带类型与海报）。"""
+
+    tmdb_id: int
+    kind: str
+    title: str
+    year: int | None
+    poster_url: str | None
+
+
+# 搜索词候选的展示上限：给用户点选的是「这是哪部」，几条足以覆盖同名/续作，
+# 再多就成了让人翻列表
+_HINT_CANDIDATES_MAX = 6
+
+
+async def search_hint_candidates(hint: str) -> list[HintCandidate]:
+    """用搜索词检索 TMDB（multi 搜索，电影剧集混排），作为自动识别失败时的候选。
+
+    种子命名乱码/拼音时种子标题靠不住，但用户是搜了这个词才看到这条结果的，
+    搜索词本身就是最好的线索。这里**只给候选、不下结论**——关键词可能宽泛
+    （「流浪地球」同时召回一、二两部），必须由用户点选确认。
+
+    复用发现页搜索（十分钟缓存）：用户点选后预检会带同一搜索词重求候选做
+    校验，缓存让第二次几乎零成本。检索失败不影响弹窗其余功能，返回空列表。
+    """
+    from movieclaw_api.services.media_discover import get_media_service
+
+    try:
+        items = await get_media_service().search(hint)
+    except Exception:  # noqa: BLE001 -- 候选只是辅助，TMDB 不可用时退化为手选目录
+        logger.warning("按搜索词「%s」检索 TMDB 候选失败，将只提供手选目录", hint, exc_info=True)
+        return []
+    return [
+        HintCandidate(
+            tmdb_id=int(item.id),
+            kind=item.type.value,
+            title=item.title,
+            year=item.year,
+            poster_url=item.poster_url or None,
+        )
+        for item in items
+        if item.type is not None and item.id.isdigit()
+    ][:_HINT_CANDIDATES_MAX]
+
+
 def _best_match(
     path: str, mappings: list[dict[str, str]], *, source_key: str, target_key: str
 ) -> tuple[str, str] | None:

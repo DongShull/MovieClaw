@@ -458,31 +458,73 @@ class DownloadSubmitPayload(BaseModel):
 
 
 class ManualDownloadTargetPayload(BaseModel):
-    """手动下载的识别预检输入：只接受搜索结果已解析出的最小身份线索。"""
+    """手动下载的识别预检输入：搜索结果已解析出的身份线索 + 用户的搜索词。
 
-    kind: Literal["movie", "tv"] = Field(description="搜索结果识别出的媒体类型")
-    title: str = Field(min_length=1, description="搜索结果识别出的主标题")
-    year: int = Field(ge=1888, le=2100, description="搜索结果识别出的发行/首播年份")
+    种子身份（kind/title/year）三件套齐全时先按它自动收敛；收敛失败或种子
+    根本没解析出身份时，改用 ``hint``（用户在搜索框里输入的关键词，或在弹窗
+    里「换个词搜」的输入）检索 TMDB，把结果作为候选请用户点选确认——乱码/
+    拼音命名的种子，用户自己输入的片名往往才是最可靠的线索。
+    """
+
+    kind: Literal["movie", "tv"] | None = Field(
+        default=None, description="搜索结果识别出的媒体类型；未解析出身份时缺省"
+    )
+    title: str | None = Field(
+        default=None, min_length=1, description="搜索结果识别出的主标题；未解析出身份时缺省"
+    )
+    year: int | None = Field(
+        default=None, ge=1888, le=2100, description="搜索结果识别出的发行/首播年份"
+    )
     subtitle: str | None = Field(default=None, description="种子副标题（中文别名等识别补强）")
+    hint: str | None = Field(
+        default=None,
+        max_length=100,
+        description="搜索关键词：自动识别失败时据此检索 TMDB 给出候选",
+    )
     # 缺省按默认下载器预检，与 dl submit 的既有语义一致；前端显式切换
     # 下载器时带上它，确保路径映射的预检结论与真实提交是同一台机器。
     downloader_id: int | None = Field(
         default=None, ge=1, description="预检指定下载器；缺省用默认下载器"
     )
-    # 歧义时只能从本次返回的候选中确认一个 ID，服务端会再次校验，不能把
-    # 任意 TMDB ID 当成已识别结果直接放行。
+    # 只能从本次返回的候选中确认一个 ID，服务端会按同样的线索重新求候选
+    # 再校验，不能把任意 TMDB ID 当成已识别结果直接放行。
     selected_tmdb_id: int | None = Field(
         default=None, ge=1, description="用户从本次识别候选中确认的 TMDB 条目 ID"
     )
+    # TMDB 的电影与剧集 ID 各自编号、会撞号，确认候选必须连同类型一起带回；
+    # 缺省沿用 kind（种子识别出的类型）
+    selected_kind: Literal["movie", "tv"] | None = Field(
+        default=None, description="确认候选的媒体类型；缺省同 kind"
+    )
+
+    @field_validator("hint")
+    @classmethod
+    def _strip_hint(cls, value: str | None) -> str | None:
+        return (value or "").strip() or None
+
+    @property
+    def has_identity(self) -> bool:
+        """种子身份三件套是否齐全（齐全才走自动收敛）。"""
+        return self.kind is not None and bool(self.title) and self.year is not None
+
+    @model_validator(mode="after")
+    def _validate_clues(self) -> ManualDownloadTargetPayload:
+        if not self.has_identity and self.hint is None:
+            raise ValueError("缺少识别线索：请提供类型 + 标题 + 年份，或搜索关键词")
+        if self.selected_tmdb_id is not None and (self.selected_kind or self.kind) is None:
+            raise ValueError("确认候选时必须同时提供该候选的媒体类型")
+        return self
 
 
 class ManualDownloadCandidateView(BaseModel):
     """预检未收敛时留给用户确认的 TMDB 候选。"""
 
     tmdb_id: int
+    kind: Literal["movie", "tv"]
     title: str
     year: int | None = None
     episode_count: int | None = None
+    poster_url: str | None = None
 
 
 class ManualDownloadTargetView(BaseModel):
@@ -490,6 +532,12 @@ class ManualDownloadTargetView(BaseModel):
 
     status: Literal["ready", "ambiguous", "not_found"]
     tmdb_id: int | None = None
+    # 已确认条目的身份：智能入库提交时原样带回（类型可能与种子解析的不同——
+    # 候选来自搜索词时电影/剧集都会出现）。标题是 TMDB 标题，提交时它会进条目
+    # 别名，不能用乱码的种子标题代替
+    kind: Literal["movie", "tv"] | None = None
+    title: str | None = None
+    year: int | None = None
     candidates: list[ManualDownloadCandidateView] = Field(default_factory=list)
     library_id: int | None = None
     library_name: str | None = None

@@ -383,15 +383,22 @@ export interface DownloadSubmitPayload {
 /** 手动下载识别未收敛时返回的 TMDB 候选（供界面解释为何不自动投递）。 */
 export interface ManualDownloadTargetCandidate {
   tmdb_id: number;
+  /** 候选来自搜索词时电影/剧集混排，确认时要连同类型带回（两类 ID 会撞号） */
+  kind: "movie" | "tv";
   title: string;
   year: number | null;
   episode_count: number | null;
+  poster_url: string | null;
 }
 
 /** 手动搜索种子的「识别 → 库路由 → 监听投递目录」预检结果。 */
 export interface ManualDownloadTarget {
   status: "ready" | "ambiguous" | "not_found";
   tmdb_id: number | null;
+  /** 已确认条目的类型/TMDB 标题/年份：智能入库提交时原样带回 */
+  kind: "movie" | "tv" | null;
+  title: string | null;
+  year: number | null;
   candidates: ManualDownloadTargetCandidate[];
   library_id: number | null;
   library_name: string | null;
@@ -408,14 +415,18 @@ export interface ManualDownloadTarget {
 
 /** 预演一条搜索结果能否被可靠识别并投递到匹配库的监听目录。 */
 export function resolveManualDownloadTarget(payload: {
-  kind: "movie" | "tv";
-  title: string;
-  year: number;
+  /** 种子解析出的身份三件套；没解析出时不传，只靠 hint */
+  kind?: "movie" | "tv";
+  title?: string;
+  year?: number;
   subtitle?: string | null;
+  /** 搜索关键词：种子身份识别失败时，后端据此检索 TMDB 给出候选 */
+  hint?: string | null;
   /** 用这台下载器的路径映射预检；缺省沿用后端默认下载器语义 */
   downloader_id?: number | null;
-  /** 歧义时由用户确认的、且必须属于本次候选的 TMDB ID */
+  /** 由用户确认的、且必须属于本次候选的 TMDB ID（连同类型） */
   selected_tmdb_id?: number | null;
+  selected_kind?: "movie" | "tv" | null;
 }): Promise<ManualDownloadTarget> {
   return unwrap(
     request<ApiEnvelope<ManualDownloadTarget>>("/downloaders/resolve-target", {
