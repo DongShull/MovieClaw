@@ -21,23 +21,52 @@ extension AetherEngine {
     public nonisolated(unsafe) static var simulateStorageFullUntilUptimeForTesting: TimeInterval?
 
     /// 临时目录所在卷的可用字节（测试覆盖优先）。`importantUsage` 沿用各处原来的读法：iOS 上分片与
-    /// 片源缓存按「重要用途可用」（含系统可清掉的空间）算，tvOS 没有这个键，一律按普通可用
-    nonisolated static func temporaryVolumeAvailableBytes(importantUsage: Bool) -> Int64? {
+    /// 片源缓存按「重要用途可用」（含系统可清掉的空间）算，tvOS 没有这个键，一律按普通可用。
+    ///
+    /// [MovieClaw P44] 带 10 秒缓存：「重要用途可用」在真机上每次约 17 毫秒，起播一次要查好几回——宿主定落盘计划、
+    /// 分片留存预算（在会话启动的关键路径上）、片源字节缓存预算（持着缓存的锁），片刻之间剩余空间变不了多少。
+    /// 宿主在点播放时从后台先查一次，后面几处都命中缓存
+    public nonisolated static func temporaryVolumeAvailableBytes(importantUsage: Bool) -> Int64? {
         if let override = volumeAvailableBytesOverrideForTesting { return override }
+        if let cached = VolumeAvailableCache.value(importantUsage: importantUsage) { return cached }
         let temp = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        var bytes: Int64?
         #if !os(tvOS)
         if importantUsage {
-            return (try? temp.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
+            bytes = (try? temp.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
                 .volumeAvailableCapacityForImportantUsage
+            VolumeAvailableCache.store(bytes, importantUsage: true)
+            return bytes
         }
         #endif
-        return (try? temp.resourceValues(forKeys: [.volumeAvailableCapacityKey]))?
+        bytes = (try? temp.resourceValues(forKeys: [.volumeAvailableCapacityKey]))?
             .volumeAvailableCapacity.map(Int64.init)
+        VolumeAvailableCache.store(bytes, importantUsage: importantUsage)
+        return bytes
     }
 
     /// 测试钩子是否正在模拟「存储已满」
     nonisolated static var storageFullSimulated: Bool {
         guard let until = simulateStorageFullUntilUptimeForTesting else { return false }
         return ProcessInfo.processInfo.systemUptime < until
+    }
+}
+
+/// [MovieClaw P44] 最近一次查到的可用空间（两种口径各一份），10 秒内都算数。任何线程读写
+nonisolated enum VolumeAvailableCache {
+    static let maxAge: TimeInterval = 10
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var values: [Bool: (bytes: Int64?, at: TimeInterval)] = [:]
+
+    static func value(importantUsage: Bool) -> Int64?? {
+        lock.lock(); defer { lock.unlock() }
+        guard let entry = values[importantUsage],
+              ProcessInfo.processInfo.systemUptime - entry.at < maxAge else { return nil }
+        return .some(entry.bytes)
+    }
+
+    static func store(_ bytes: Int64?, importantUsage: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        values[importantUsage] = (bytes, ProcessInfo.processInfo.systemUptime)
     }
 }

@@ -232,10 +232,17 @@ final class Router {
     func play(_ request: PlayRequest) {
         playRequestedAt = .now
         player = request
+        startPlaybackEarly?(request)
     }
 
     /// 最近一次点播放的时刻：起播分段计时从这里算起（含播放器弹出与视图搭建，见 `StartupTrace`）
     @ObservationIgnored private(set) var playRequestedAt: ContinuousClock.Instant?
+
+    /// 点下播放就建好控制器、发出起播请求，不等全屏播放器弹出：冷启动后第一次弹出到视图出现约 100 毫秒（真机），
+    /// 起播协商用不着视图。会话回来时主线程常常还在搭播放器界面（第一次约 140 毫秒），所以省下多少取决于界面多重：
+    /// 界面热了（同一进程再次打开）请求一回来就能装载引擎。由持有 API 客户端的根视图设置；
+    /// 控制器登记在 `activePlayback`，播放器视图出现时接过去（见 `PlayerScreen`）
+    @ObservationIgnored var startPlaybackEarly: ((PlayRequest) -> Void)?
 
     /// 待起播的访客播放链接（`/s/{slug}/play/...`）：分享页读到影片（必要时先过密码）后取走并起播
     var pendingSharePlay: PlayRequest?

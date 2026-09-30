@@ -60,4 +60,63 @@ struct KeyframeSnapPolicyTests {
         #expect(KeyframeSnapPolicy.landing(target: 510, from: 530, keyframes: keyframes,
                                            costPerSecond: cost4K60, budget: 0.2) == nil)
     }
+
+    // MARK: - 起播落点（引擎补丁 P39）
+
+    @Test func startFarFromKeyframeLandsOnPrevious() {
+        // 续播 562.5：前一关键帧 553.3（9.2 秒，4K60 约 2.5 秒逐帧解）→ 从 553.3 开播，不往后跳过没看的内容
+        let landing = KeyframeSnapPolicy.startLanding(target: 562.5, keyframes: keyframes,
+                                                      costPerSecond: cost4K60, budget: 0.05)
+        #expect(landing == 553.3 + KeyframeSnapPolicy.landingLeadSeconds)
+    }
+
+    @Test func startNearKeyframeStaysExact() {
+        // 离前一关键帧 0.1 秒：4K60 约 27 毫秒，在预算内
+        #expect(KeyframeSnapPolicy.startLanding(target: 600.1, keyframes: keyframes,
+                                                costPerSecond: cost4K60, budget: 0.05) == nil)
+        // 落点在关键帧后 0.2 秒以内：吸附不会更早出画，不动
+        let hd24 = KeyframeSnapPolicy.decodeCostPerSecond(frameRate: 24, width: 1920, height: 1080)
+        #expect(KeyframeSnapPolicy.startLanding(target: 553.45, keyframes: keyframes,
+                                                costPerSecond: hd24 * 100, budget: 0.05) == nil)
+    }
+
+    @Test func startCheapDecodeUsesSmallerBudget() {
+        // 1080p24 离关键帧 7 秒约 0.19 秒：跳转预算（0.2）内不吸附，起播预算（0.05）要吸附
+        let hd24 = KeyframeSnapPolicy.decodeCostPerSecond(frameRate: 24, width: 1920, height: 1080)
+        #expect(KeyframeSnapPolicy.startLanding(target: 616.75, keyframes: keyframes,
+                                                costPerSecond: hd24, budget: 0.2) == nil)
+        #expect(KeyframeSnapPolicy.startLanding(target: 616.75, keyframes: keyframes,
+                                                costPerSecond: hd24, budget: 0.05)
+                == 609.75 + KeyframeSnapPolicy.landingLeadSeconds)
+    }
+
+    @Test func startNeverJumpsBackTooFar() {
+        // 关键帧隔 60 秒的片子：往回吸附等于续播点丢了，照旧精确落点（多等逐帧解码）
+        let sparse: [Double] = [0, 60, 120]
+        #expect(KeyframeSnapPolicy.startLanding(target: 100, keyframes: sparse,
+                                                costPerSecond: cost4K60, budget: 0.05) == nil)
+        // 10 秒以内照常吸附
+        #expect(KeyframeSnapPolicy.startLanding(target: 69, keyframes: sparse,
+                                                costPerSecond: cost4K60, budget: 0.05)
+                == 60 + KeyframeSnapPolicy.landingLeadSeconds)
+    }
+
+    @Test func startLeadStaysWithinHalfTheGap() {
+        // 关键帧只隔 0.3 秒时落点后移不超过一半
+        let dense: [Double] = [100, 100.3, 110]
+        let landing = KeyframeSnapPolicy.startLanding(target: 100.29, keyframes: dense,
+                                                      costPerSecond: 10, budget: 0.05)
+        #expect(abs((landing ?? 0) - 100.15) < 1e-9)
+    }
+
+    @Test func startDisabledOrUnusableStaysExact() {
+        #expect(KeyframeSnapPolicy.startLanding(target: 562.5, keyframes: keyframes,
+                                                costPerSecond: cost4K60, budget: 0) == nil)
+        #expect(KeyframeSnapPolicy.startLanding(target: 562.5, keyframes: [],
+                                                costPerSecond: cost4K60, budget: 0.05) == nil)
+        #expect(KeyframeSnapPolicy.startLanding(target: 510, keyframes: keyframes,
+                                                costPerSecond: cost4K60, budget: 0.05) == nil)
+        #expect(KeyframeSnapPolicy.startLanding(target: 0, keyframes: keyframes,
+                                                costPerSecond: cost4K60, budget: 0.05) == nil)
+    }
 }

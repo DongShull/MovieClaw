@@ -1878,6 +1878,14 @@ public final class AetherEngine: ObservableObject {
     /// stays true source PTS for subtitle-cue alignment. Reset to 0 on load/stop; set in onPlaylistShiftChanged.
     var sourcePresentationOrigin: Double = 0
 
+    /// [MovieClaw P39] 宿主要求下一次 `load()` 的起播点按代价吸附到关键帧（见 `KeyframeSnapPolicy.startLanding`）。
+    /// 一次性：`load()` 入口取走并清零。只该在用户起播 / 续播时设；引擎自己的重建（换音轨、回前台、AirPlay 切换）
+    /// 走同一个 `load()`，不设它就原位接上，画面不会往回跳
+    public var snapsNextStartToKeyframe = false
+
+    /// [MovieClaw P39] 本次装载是否吸附起播点：`load()` 入口从 `snapsNextStartToKeyframe` 取来，`loadNative` 用掉即清
+    var startSnapArmed = false
+
     /// AE#270: the origin this session settled on, nil before the first publish. A non-disc VOD source
     /// keeps its first one: later publishes fold producer drift into the shift, and re-reading them would
     /// move the display axis under a picture that has not moved.
@@ -3494,6 +3502,9 @@ public final class AetherEngine: ObservableObject {
     /// leaves the main thread. The closure captures no engine state, so it holds no reference to `self`.
     private var audioSessionCategoryTask: Task<Void, Never>?
 
+    /// [MovieClaw P47] 宿主自己设音频会话的类别、策略与多声道支持（并负责激活）时设为 true：引擎建实例时不再声明类别
+    nonisolated(unsafe) public static var hostManagesAudioSessionCategory = false
+
     #if os(iOS) || os(tvOS)
     /// Pending off-main deactivation (#215). See `scheduleAudioSessionDeactivation()`.
     private var audioSessionDeactivationTask: Task<Void, Never>?
@@ -3550,14 +3561,18 @@ public final class AetherEngine: ObservableObject {
         //
         // Issue #114: the declaration runs off the main thread. See `audioSessionCategoryTask`.
         #if os(iOS) || os(tvOS)
-        audioSessionCategoryTask = Task.detached(priority: .userInitiated) {
-            let session = AVAudioSession.sharedInstance()
-            do {
-                try session.setCategory(.playback, mode: .moviePlayback, policy: AetherEngine.audioSessionRouteSharingPolicy)
-                try session.setSupportsMultichannelContent(true)
-                EngineLog.emit("[AetherEngine] AVAudioSession: category set off-main, not activated (AVKit drives activation) policy=\(AetherEngine.audioSessionRouteSharingPolicy.rawValue) maxChannels=\(session.maximumOutputNumberOfChannels) output=\(session.outputNumberOfChannels)", category: .engine)
-            } catch {
-                EngineLog.emit("[AetherEngine] AVAudioSession setup error: \(error)", category: .engine)
+        // [MovieClaw P47] 宿主自己管音频会话（点播放就按自己的策略设好类别并激活）：引擎不再每建一个实例就重设一遍。
+        // 原来这里用默认策略重设，会把宿主要的「长视频」策略改掉；会话已激活时换策略要重新协商路由，装载还要先等这次跨进程调用
+        if !AetherEngine.hostManagesAudioSessionCategory {
+            audioSessionCategoryTask = Task.detached(priority: .userInitiated) {
+                let session = AVAudioSession.sharedInstance()
+                do {
+                    try session.setCategory(.playback, mode: .moviePlayback, policy: AetherEngine.audioSessionRouteSharingPolicy)
+                    try session.setSupportsMultichannelContent(true)
+                    EngineLog.emit("[AetherEngine] AVAudioSession: category set off-main, not activated (AVKit drives activation) policy=\(AetherEngine.audioSessionRouteSharingPolicy.rawValue) maxChannels=\(session.maximumOutputNumberOfChannels) output=\(session.outputNumberOfChannels)", category: .engine)
+                } catch {
+                    EngineLog.emit("[AetherEngine] AVAudioSession setup error: \(error)", category: .engine)
+                }
             }
         }
         #endif
@@ -3706,6 +3721,9 @@ public final class AetherEngine: ObservableObject {
     ) async throws -> SourceProbe? {
         // [MovieClaw P22] 本次地址登记到宿主给的稳定键上：探测、播放、重建、字幕旁路打开这个地址都落到同一份字节缓存
         if case .url(let url) = source { SourceByteCache.shared.bind(url: url, key: options.sourceCacheKey) }
+        // [MovieClaw P39] 一次性开关在入口取走：这次装载内部的重开（HLS 改道等）与之后的重建都不再吸附
+        startSnapArmed = snapsNextStartToKeyframe
+        snapsNextStartToKeyframe = false
         let attempt = LoadAttempt()
         defer { if let gen = attempt.generation { waitingLoadGenerations.remove(gen) } }
         do {

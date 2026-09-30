@@ -112,6 +112,15 @@ final class NativeEngine: NSObject, PlayerEngine {
         // 开发期 -mcAetherLog YES 同时打到控制台（模拟器排查用）
         #if DEBUG
         AetherPlayback.installLogHandler(mirror: UserDefaults.standard.bool(forKey: "mcAetherLog"))
+        // -mcNoPersistentByteCache YES：片源字节缓存不跨启动保留（引擎补丁 P42 之前的行为，真机新旧对照用）。
+        // 必须在下面任何一个碰到片源字节缓存的设置之前（共享缓存第一次用到时就按这个开关建好了）
+        if UserDefaults.standard.bool(forKey: "mcNoPersistentByteCache") { AetherPlayback.setPersistsSourceCache(false) }
+        // -mcPurgeByteCache YES：先删掉跨启动保留的片源字节缓存（实验台每次热身前清场，免得对照两组互相沾光）
+        if UserDefaults.standard.bool(forKey: "mcPurgeByteCache") { AetherPlayback.removePersistedSourceCache() }
+        // -mcTrimDropsWhole YES：启动整理跨启动缓存超额时直接整条删（引擎补丁 P51 之前的行为，真机新旧对照用）
+        AetherPlayback.setSourceCacheTrimKeepsMetadata(!UserDefaults.standard.bool(forKey: "mcTrimDropsWhole"))
+        // -mcNoSpareRuns YES：片源字节缓存每块只记一段（引擎补丁 P50 之前的行为，真机新旧对照用）
+        AetherPlayback.setSourceCacheKeepsSpareRuns(!UserDefaults.standard.bool(forKey: "mcNoSpareRuns"))
         // -mcAetherCues YES：把文字字幕与 ASS 定位打到控制台
         AetherPlayback.logsCues = UserDefaults.standard.bool(forKey: "mcAetherCues")
         // -mcSyncByteCache YES：片源字节缓存改回在取数线程上同步写盘（引擎补丁 P32 之前的行为，真机新旧对照用）
@@ -125,18 +134,42 @@ final class NativeEngine: NSObject, PlayerEngine {
         if UserDefaults.standard.object(forKey: "mcSeekSnapBudget") != nil {
             AetherPlayback.seekSnapDecodeBudgetSeconds = UserDefaults.standard.double(forKey: "mcSeekSnapBudget")
         }
+        // -mcCuePrewarmMiddle YES：MKV 索引预热照旧跳到片中间（引擎补丁 P45 之前的行为，真机新旧对照用）
+        AetherPlayback.setCuePrewarmTargetsStart(!UserDefaults.standard.bool(forKey: "mcCuePrewarmMiddle"))
+        // -mcNoCuesPrefetch YES：MKV 索引照旧由解复用器按需读（引擎补丁 P49 之前的行为，真机新旧对照用）
+        AetherPlayback.setPrefetchesMatroskaCues(!UserDefaults.standard.bool(forKey: "mcNoCuesPrefetch"))
+        // -mcWitnessInterval <秒>：起播 / 跳转后看缓冲过没过开播线的间隔（引擎补丁 P28，默认 0.025，原来 0.1；真机对照用）
+        let witness = UserDefaults.standard.double(forKey: "mcWitnessInterval")
+        if witness > 0 { AetherPlayback.vodStartWitnessIntervalSeconds = witness }
+        // -mcStartSnapBudget <秒>：起播落点吸附关键帧的逐帧解码预算（引擎补丁 P39，默认 0.05；0 = 关，真机对照用）
+        if UserDefaults.standard.object(forKey: "mcStartSnapBudget") != nil {
+            AetherPlayback.startSnapDecodeBudgetSeconds = UserDefaults.standard.double(forKey: "mcStartSnapBudget")
+        }
         #else
         AetherPlayback.installLogHandler(mirror: false)
         #endif
+        // 音频会话由 App 自己管：点播放时就以「长视频」策略设好类别、声明多声道并激活（`PlaybackController.activateAudioSession`），
+        // 引擎建实例时不再用默认策略重设一遍（引擎补丁 P47）
+        var hostManagesAudio = true
+        #if DEBUG
+        // -mcEngineAudioSession YES：照旧由引擎在建实例时设类别（P47 之前的行为，真机新旧对照用）
+        if UserDefaults.standard.bool(forKey: "mcEngineAudioSession") { hostManagesAudio = false }
+        #endif
+        AetherPlayback.hostManagesAudioSessionCategory = hostManagesAudio
     }
 
     /// 本次启动第一次建自研引擎时清一遍死会话的缓存（被杀掉的播放会话会在临时目录留下 GB 级分片，
     /// 真机一夜的测试攒到 15 GB、把手机写满）
     private static var sweptStaleCaches = false
+    /// App 进后台时让片源字节缓存的记账立刻落盘（引擎补丁 P42）：下次启动续播认得这一场最后几秒下过的字节
+    private static var backgroundObserver: NSObjectProtocol?
     static func sweepStaleCachesOnce() {
         guard !sweptStaleCaches else { return }
         sweptStaleCaches = true
         DispatchQueue.global(qos: .utility).async { AetherPlayback.sweepStaleCaches() }
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil
+        ) { _ in AetherPlayback.flushSourceCacheIndexes() }
     }
 
     // MARK: - 播放控制
@@ -282,6 +315,16 @@ final class NativeEngine: NSObject, PlayerEngine {
     /// 故障注入（开发期）：接下来这么多秒里写分片一律按「存储已满」失败，见 -mcStorageFullAfter
     static func simulateStorageFull(forSeconds seconds: Double) { AetherPlayback.simulateStorageFull(forSeconds: seconds) }
     #endif
+
+    /// 临时目录所在卷的可用字节（引擎补丁 P44：带 10 秒缓存，与引擎自己的预算同一份）
+    nonisolated static func temporaryFreeBytes() -> Int64? {
+        AetherPlayback.temporaryFreeBytes()
+    }
+
+    /// 预先和源站建好取源连接（引擎补丁 P43）：起播协商还在路上时调，会话回来时第一个取流请求不用再握手
+    nonisolated static func preconnect(url: URL) {
+        AetherPlayback.preconnect(url: url, headers: ["User-Agent": APIClient.userAgent])
+    }
 
     func growForwardBuffer() {
         // 存储紧张时窗口是按剩余空间收小的，不再放大

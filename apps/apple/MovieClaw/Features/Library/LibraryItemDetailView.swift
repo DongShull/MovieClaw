@@ -109,6 +109,8 @@ struct LibraryItemDetailView: View {
             }
         }
         .task { await reload() }
+        // 进了详情页多半要播：先把起播要用的连接连好（见 PlaybackPreconnect）
+        .task { PlaybackPreconnect.warm(api: api) }
         .task(id: playUnitKey) { await loadResume() }
         .onReceive(NotificationCenter.default.publisher(for: .playbackStopReported)) { note in
             guard note.userInfo?["mediaItemId"] as? Int == itemId else { return }

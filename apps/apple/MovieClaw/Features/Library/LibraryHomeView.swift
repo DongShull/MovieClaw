@@ -129,6 +129,8 @@ struct LibraryHomeView: View {
             PerfTrace.pageAppeared("library")
             if dataComplete { PerfTrace.pageDataReady("library") }
             Task { await reload() }
+            // 「继续观看」多半从这里点：先把起播要用的连接连好（见 PlaybackPreconnect）
+            PlaybackPreconnect.warm(api: api)
         }
         .onChange(of: dataComplete) { _, complete in
             if complete, !warmup { PerfTrace.pageDataReady("library") }

@@ -131,14 +131,21 @@ struct NativeStoragePlan: Equatable {
 
     /// 临时目录所在卷的可用字节（按「重要用途可用」，与引擎算分片预算同一口径）。
     /// 开发期 -mcFakeFreeBytes <字节> 假装存储快满（同时交给引擎，见 `PlaybackController`）
+    ///
+    /// 这个查询在真机上每次约 17 毫秒，而起播路径正卡在主线程上（2026-09-30 真机：会话回来到装载引擎的 38 毫秒里
+    /// 有 33 毫秒是它，调试包多查一次）。所以走引擎带 10 秒缓存的那个入口（引擎补丁 P44），点播放时先在后台查好
+    /// （`refreshFreeBytesInBackground`）：这里、引擎的分片留存预算、片源字节缓存预算都命中同一份
     static var temporaryFreeBytes: Int64? {
         #if DEBUG
         let fake = UserDefaults.standard.integer(forKey: "mcFakeFreeBytes")
         if fake > 0 { return Int64(fake) }
         #endif
-        let values = try? URL(fileURLWithPath: NSTemporaryDirectory())
-            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        return values?.volumeAvailableCapacityForImportantUsage
+        return NativeEngine.temporaryFreeBytes()
+    }
+
+    /// 在后台查一次可用空间备用（点播放时调：会话回来之前就查好了）
+    nonisolated static func refreshFreeBytesInBackground() {
+        Task.detached(priority: .userInitiated) { _ = NativeEngine.temporaryFreeBytes() }
     }
 }
 

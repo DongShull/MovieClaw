@@ -209,8 +209,31 @@ final class PlaybackController {
 
     // MARK: - 生命周期
 
-    /// 播放器出现：加载条目信息（不挡起播）、开始第一个单元
+    /// 起播已经开始（`start()` 只跑一次：点播放时路由就提前调了，播放器视图出现时不再重复）
+    private(set) var started = false
+    /// 播放器视图已经接管这个控制器（第一次出现）。之后再出现是系统重建视图（旋转等），接回即可
+    var viewAttached = false
+
+    /// 开发期：起播路径上主线程各步的时刻（距点击的毫秒数），找「会话回来到装载引擎」这段慢在哪
+    func startupDiag(_ label: String) {
+        #if DEBUG
+        if let ms = trace.elapsedMs { print("[StartupDiag] \(label) \(ms) 毫秒") }
+        #endif
+    }
+
+    /// 已经退出（`close()` 过）：路由据此不把它当成还在播的控制器
+    var isClosed: Bool { closed }
+
+    /// 播放器视图第一次出现。起播分段里记一个「弹出」：提前起播后它与起播协商并行，不再挡在请求前面
+    func noteViewAppeared() {
+        trace.mark("弹出")
+    }
+
+    /// 开始播放：加载条目信息（不挡起播）、开始第一个单元。点播放时由路由提前调（见 `Router.startPlaybackEarly`），
+    /// 没有提前调的（旧入口）在播放器视图出现时调
     func start() {
+        guard !started else { return }
+        started = true
         let appearedAt = ContinuousClock.now
         // 上次没能收尾的播放（闪退、被系统杀掉）先转进上报队列：必须赶在这次写「正在播放」标记之前
         if scope.telemetry { PlaybackReportQueue.recoverAbnormalExit() }
@@ -220,6 +243,7 @@ final class PlaybackController {
         // 先发起播请求，锁屏信息、远程控制这些杂事放在后面：它们不挡出画，却会把请求往后推几十毫秒
         startUnit(unit)
         trace.mark("出现", at: appearedAt)
+        startupDiag("起播请求已发出")
         Task { await loadInfo() }
         nowPlaying.attach(to: self)
         // App 被结束（在后台播放时被划掉、被系统回收）：同步补发一次 stop（同网页 pagehide 的 sendBeacon），
@@ -237,6 +261,7 @@ final class PlaybackController {
         }
         observeAudioSessionForRecord()
         startTickLoop()
+        startupDiag("start 完成")
     }
 
     /// 来电 / Siri 打断、耳机拔插：记进播放记录（不算我们的中断，看恢复得对不对）；输出变了规格快照跟着变
@@ -462,6 +487,18 @@ final class PlaybackController {
         startTask = Task { [weak self] in
             await self?.performRequest(negotiation, startMs: startMs, attempt: myAttempt)
         }
+        var preconnect = wantsNative
+        #if DEBUG
+        // -mcNoPreconnect YES：不预连取源连接（引擎补丁 P43 之前的行为，真机新旧对照用）
+        if UserDefaults.standard.bool(forKey: "mcNoPreconnect") { preconnect = false }
+        #endif
+        if preconnect, let health = scope.streamURL("/api/v1/health") {
+            // 取流地址要等会话回来才有，但源站就是这台服务器：先让引擎的取源连接把 TCP / TLS 握手做掉（引擎补丁 P43）。
+            // 建请求在主线程上也要几毫秒（第一次还要建会话），放后台
+            Task.detached(priority: .userInitiated) { NativeEngine.preconnect(url: health) }
+        }
+        // 会话回来后定落盘计划要用可用空间，这个查询在主线程上约 17 毫秒：趁等响应在后台先查好
+        NativeStoragePlan.refreshFreeBytesInBackground()
     }
 
     /// 进入播放器时的单元（`request.fileId` 只属于它）
@@ -558,6 +595,7 @@ final class PlaybackController {
         _ session: API.PlaybackSessionView, useNative: Bool, requestedStartMs: Int?,
         preparedAsset: AVURLAsset? = nil
     ) async {
+        startupDiag("会话处理开始")
         let decision = session.decision
         switch decision.outcome {
         case "consent":
@@ -786,6 +824,7 @@ final class PlaybackController {
         } else {
             newEngine.load(url: url, start: startSeconds, autoplay: wantsPlay)
         }
+        startupDiag("装载已发出")
         trace.mark("引擎")
         if let initialAudio, !(newEngine is NativeEngine) {
             newEngine.selectInitialAudio(embeddedIndex: initialAudio.index, explicit: initialAudio.explicit)
@@ -2039,6 +2078,8 @@ final class PlaybackController {
     nonisolated private static func activateAudioSession() {
         let audio = AVAudioSession.sharedInstance()
         try? audio.setCategory(.playback, mode: .moviePlayback, policy: .longFormVideo)
+        // 多声道（5.1 / 全景声经 HDMI、AirPlay 原样送出）：原来由引擎建实例时声明，现在类别只由这里设（引擎补丁 P47）
+        try? audio.setSupportsMultichannelContent(true)
         try? audio.setActive(true)
     }
 }

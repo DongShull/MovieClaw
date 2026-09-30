@@ -1431,8 +1431,9 @@ final class NativeAVPlayerHost {
             }
             // [MovieClaw P28] VOD 采样更密：过线后每多等一个采样间隔，就是多冻一截画面
             let vod = self?.isLiveSession == false
-            let interval = vod ? Self.vodHoldWitnessInterval : Self.liveJoinHoldWitnessInterval
-            let samples = vod ? Self.vodHoldWitnessSamples : Self.liveJoinHoldWitnessSamples
+            let interval = vod ? AetherEngine.vodStartWitnessIntervalSeconds : Self.liveJoinHoldWitnessInterval
+            let samples = vod ? Int((Self.vodHoldWitnessBudgetSeconds / interval).rounded(.up))
+                              : Self.liveJoinHoldWitnessSamples
             for _ in 0..<samples {
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 guard let self else { account(.hostGone); return }
@@ -1577,9 +1578,8 @@ final class NativeAVPlayerHost {
     /// leaving a sampler running behind a session that has moved on.
     nonisolated static let liveJoinHoldWitnessInterval: Double = 0.25
     nonisolated static let liveJoinHoldWitnessSamples: Int = 20
-    /// [MovieClaw P28] VOD 的见证采样：0.1 秒一次、至多 5 秒
-    nonisolated static let vodHoldWitnessInterval: Double = 0.1
-    nonisolated static let vodHoldWitnessSamples: Int = 50
+    /// [MovieClaw P28] VOD 的见证采样至多看 5 秒（间隔见 `AetherEngine.vodStartWitnessIntervalSeconds`）
+    nonisolated static let vodHoldWitnessBudgetSeconds: Double = 5
 
     nonisolated static func secondsSince(_ start: DispatchTime) -> Double {
         Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000_000

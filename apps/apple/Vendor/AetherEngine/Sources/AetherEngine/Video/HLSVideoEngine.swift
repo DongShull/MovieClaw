@@ -1325,11 +1325,17 @@ public final class HLSVideoEngine: @unchecked Sendable {
                           + "and the prefix it consumes is the producer's only pass)"
                 )
             } else {
+                // [MovieClaw P45] 跳到起播点而不是片中间：任何一次跳转都会让 libavformat 加载延后的 Cues，索引一样到手；
+                // 跳完读到的那一簇正是生产者接下来要读的。片源字节缓存跨启动保留（P42）以后，续播时文件头、Cues 与续播点
+                // 附近都在本机，片中间那一簇却多半不在——真机开着 P42 续播 MKV，这一步仍有 45～70 毫秒是它的网络冷读
+                let prewarmTarget = AetherEngine.cuePrewarmTargetsStart
+                    ? min(max(0, initialStartSeconds ?? 0), max(0, durationSeconds - 1))
+                    : durationSeconds * 0.5
                 let prewarmStart = DispatchTime.now()
-                let prewarmOK = dem.seekBounded(to: durationSeconds * 0.5, timeout: Self.cuePrewarmTimeout)
+                let prewarmOK = dem.seekBounded(to: prewarmTarget, timeout: Self.cuePrewarmTimeout)
                 let prewarmMs = Double(DispatchTime.now().uptimeNanoseconds - prewarmStart.uptimeNanoseconds) / 1_000_000
                 if prewarmOK {
-                    EngineLog.emit("[HLSVideoEngine] cue prewarm: seek to \(String(format: "%.1f", durationSeconds * 0.5))s took \(String(format: "%.1f", prewarmMs))ms")
+                    EngineLog.emit("[HLSVideoEngine] cue prewarm: seek to \(String(format: "%.1f", prewarmTarget))s took \(String(format: "%.1f", prewarmMs))ms")
                 } else {
                     EngineLog.emit("[HLSVideoEngine] cue prewarm: capped at \(String(format: "%.1f", prewarmMs))ms (no usable Cues index, index points past EOF or is absent); building plan from whatever keyframes were scanned")
                 }

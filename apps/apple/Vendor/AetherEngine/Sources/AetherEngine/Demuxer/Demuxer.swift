@@ -858,7 +858,16 @@ public final class Demuxer: @unchecked Sendable {
         boundProbeForDeclaredDiscTitle(ctx)
         let parked = parkUnresolvableAudio(ctx)
         let parkedPGS = parkUnsizedPGS(ctx)  // [MovieClaw P12]
+        // [MovieClaw] 探测流的耗时与读量：起播分段里「探测」一段慢在读数据还是慢在解码，看这一行
+        let probeStarted = DispatchTime.now()
+        let bytesBefore = ctx.pointee.pb?.pointee.bytes_read ?? 0
         let findRet = avformat_find_stream_info(ctx, nil)
+        let probeMs = Double(DispatchTime.now().uptimeNanoseconds - probeStarted.uptimeNanoseconds) / 1_000_000
+        let bytesRead = (ctx.pointee.pb?.pointee.bytes_read ?? 0) - bytesBefore
+        EngineLog.emit(
+            "[Demuxer] [MovieClaw] find_stream_info took \(Int(probeMs))ms, read \(bytesRead / 1024) KB "
+            + "(fps_probe_size=\(ctx.pointee.fps_probe_size))",
+            category: .demux)
         unparkUnsizedPGS(ctx, parkedPGS)
         unparkUnresolvableAudio(ctx, parked)
         guard findRet >= 0 else {

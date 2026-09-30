@@ -94,6 +94,14 @@ nonisolated struct APIClient: Sendable {
     /// 服务端处理只要 17 毫秒。
     static let playbackSession = makeSession("playback")
 
+    /// 预连播放专用连接池：发一个不要鉴权的 HEAD，把 TCP / TLS 握手先做掉，之后开会话落在已连好的连接上。
+    /// 真机（经反向代理的 HTTPS 域名）：冷连接开会话约 105 毫秒，热连接约 63 毫秒。见 `PlaybackPreconnect`
+    static func preconnectPlayback(_ url: URL) {
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 5)
+        request.httpMethod = "HEAD"
+        playbackSession.dataTask(with: request).resume()
+    }
+
     private static func makeSession(_ name: String) -> URLSession {
         let config = URLSessionConfiguration.default
         config.httpCookieStorage = nil

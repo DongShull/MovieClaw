@@ -37,6 +37,11 @@ struct StartupTrace {
 
     func has(_ name: String) -> Bool { marks.contains { $0.name == name } }
 
+    /// 距起点多少毫秒（开发期细分计时用，不进上报）
+    var elapsedMs: Int? {
+        origin.map { Int((ContinuousClock.now - $0) / .milliseconds(1)) }
+    }
+
     /// 标记为已上报，返回要上报的计时点（没有起点或已报过时为 nil）
     mutating func finish() -> [Mark]? {
         guard origin != nil, !reported else { return nil }

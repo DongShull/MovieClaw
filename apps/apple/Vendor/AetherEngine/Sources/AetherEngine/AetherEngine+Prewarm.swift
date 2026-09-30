@@ -73,6 +73,15 @@ public extension AetherEngine {
     }
 }
 
+// MARK: - [MovieClaw P43] 预连
+public extension AetherEngine {
+    /// 预先和片源所在的源站建好连接（TCP / TLS），不读片源。宿主在知道「马上要播、但取流地址还没拿到」时调
+    /// （MovieClaw：点播放的那一刻，起播协商还在路上）：`url` 是同一源站上任何一个便宜的地址，headers 同装载时的
+    nonisolated static func preconnect(url: URL, httpHeaders: [String: String] = [:]) {
+        AVIOReader.preconnect(url: url, headers: httpHeaders)
+    }
+}
+
 // MARK: - [MovieClaw P16] 死会话缓存清扫
 public extension AetherEngine {
     /// 清掉被杀掉的会话留下的分片（主力通路）与包缓存（软件通路）。两种缓存建新会话时各自顺手清一遍，
@@ -80,7 +89,14 @@ public extension AetherEngine {
     nonisolated static func sweepStaleSessionCaches() {
         SegmentCache.sweepStaleSessions()
         _ = SoftwarePacketDiskFIFO.sweepStaleSessionDirs(parentDirectory: FileManager.default.temporaryDirectory)
-        SourceByteCache.sweep()   // [MovieClaw P22] 片源字节缓存只在 App 这次运行里有效，启动时清掉上次的
+        // [MovieClaw P22 / P42] 片源字节缓存：清掉临时目录里的旧版缓存，整理跨启动保留的那份（孤儿、过期、超量）
+        SourceByteCache.sweep()
+    }
+
+    /// [MovieClaw P42] 片源字节缓存的记账立刻落盘（宿主在 App 进后台时调）：进程随后可能被挂起、被杀，
+    /// 平时的防抖落盘还没轮到的最后几秒写入，下次续播也认得
+    nonisolated static func flushSourceByteCacheIndexes() {
+        SourceByteCache.shared.flushIndexes()
     }
 
     /// [MovieClaw P22] 自定义片源（原盘目录）里每个文件的地址登记到稳定的键上：`load(source: .url)` 由

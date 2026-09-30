@@ -31,16 +31,24 @@ struct PlayerScreen: View {
         .onAppear {
             guard controller == nil else { return }
             // 同一次播放的视图被系统重建（旋转等）：接回原控制器，不重开会话
-            if let existing = router.activePlayback, existing.request.id == request.id {
+            if let existing = router.activePlayback, existing.request.id == request.id, existing.viewAttached {
                 controller = existing
                 #if DEBUG
                 FileHandle.standardError.write(Data("[PlayerDiag] 播放器视图重建，复用原控制器\n".utf8))
                 #endif
                 return
             }
-            let created = PlaybackController(request: request, api: api, requestedAt: router.playRequestedAt)
+            // 点播放时路由已提前建好控制器、发出起播请求（见 `Router.startPlaybackEarly`）：接过来，下面的 start() 不再重复
+            let created: PlaybackController
+            if let early = router.activePlayback, early.request.id == request.id {
+                created = early
+            } else {
+                created = PlaybackController(request: request, api: api, requestedAt: router.playRequestedAt)
+                router.activePlayback = created
+            }
+            created.viewAttached = true
+            created.noteViewAppeared()
             controller = created
-            router.activePlayback = created
             #if DEBUG
             // 开发期：-mcPlayerDiagnostics YES 起播即打开诊断面板（截图核对用）
             if UserDefaults.standard.bool(forKey: "mcPlayerDiagnostics") { created.diagnosticsOpen = true }
@@ -105,6 +113,7 @@ struct PlayerScreen: View {
             #endif
             created.start()
             UIApplication.shared.isIdleTimerDisabled = true
+            created.startupDiag("播放器视图出现处理完")
             #if DEBUG
             // 真机排查用：-mcAutoHoldSpeed <秒> 起播后到点自动长按 2 倍速 15 秒（验证倍速时的掉帧判定）
             let autoHold = UserDefaults.standard.double(forKey: "mcAutoHoldSpeed")

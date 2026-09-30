@@ -192,6 +192,40 @@ public final class AetherPlayback {
         set { AetherEngine.seekSnapDecodeBudgetSeconds = newValue }
     }
 
+    /// 起播 / 跳转后看缓冲过没过开播线的间隔（秒，引擎补丁 P28，默认 0.025；真机新旧对照用）
+    public static var vodStartWitnessIntervalSeconds: Double {
+        get { AetherEngine.vodStartWitnessIntervalSeconds }
+        set { AetherEngine.vodStartWitnessIntervalSeconds = max(0.01, newValue) }
+    }
+
+    /// 起播落点吸附关键帧的逐帧解码预算（秒，引擎补丁 P39，默认 0.05；≤ 0 关闭，真机新旧对照用）
+    public static var startSnapDecodeBudgetSeconds: Double {
+        get { AetherEngine.startSnapDecodeBudgetSeconds }
+        set { AetherEngine.startSnapDecodeBudgetSeconds = newValue }
+    }
+
+    /// 预先和源站建好取源连接（引擎补丁 P43）：点播放时调，起播协商回来前把 TCP / TLS 握手做掉。
+    /// url 是同一源站上任何一个便宜的地址（MovieClaw 用健康检查），headers 同装载时的
+    public nonisolated static func preconnect(url: URL, headers: [String: String] = [:]) {
+        AetherEngine.preconnect(url: url, httpHeaders: headers)
+    }
+
+    /// MKV 文件头一到就按 SeekHead 把索引（Cues）先取回来（引擎补丁 P49，默认开；真机新旧对照时关掉）
+    public static func setPrefetchesMatroskaCues(_ on: Bool) {
+        AetherEngine.prefetchesMatroskaCues = on
+    }
+
+    /// MKV 索引预热是否跳到起播点（引擎补丁 P45，默认开；关掉即上游的跳到片中间，真机新旧对照用）
+    public static func setCuePrewarmTargetsStart(_ on: Bool) {
+        AetherEngine.cuePrewarmTargetsStart = on
+    }
+
+    /// 宿主自己管音频会话的类别、策略与多声道支持（引擎补丁 P47）：设为 true 后引擎建实例时不再重设类别
+    public static var hostManagesAudioSessionCategory: Bool {
+        get { AetherEngine.hostManagesAudioSessionCategory }
+        set { AetherEngine.hostManagesAudioSessionCategory = newValue }
+    }
+
     /// 探测流时是否跳过第二条起的 TrueHD（引擎补丁 P34，默认开；真机新旧对照时关掉）
     public static func setParkSecondaryTrueHD(_ on: Bool) {
         AetherEngine.parkSecondaryTrueHDDuringProbe = on
@@ -324,6 +358,8 @@ public final class AetherPlayback {
         }
         loadTask = Task { [weak self] in
             do {
+                // 宿主起播：续播点要逐帧解太久时从前一个关键帧开播（内置引擎补丁 P39）。引擎自己的重建不经这里，原位接上
+                engine.snapsNextStartToKeyframe = true
                 try await engine.load(source: mediaSource, startPosition: start, options: options)
             } catch is CancellationError {
                 // 被新的装载 / 停止取代：不是播放失败
@@ -613,9 +649,40 @@ public final class AetherPlayback {
         public func skip(by seconds: Double) { source.skip(by: seconds) }
     }
 
-    /// 清掉被杀掉的播放会话留在临时目录里的分片与包缓存（每次 App 启动调一次即可，放后台线程）
+    /// 清掉被杀掉的播放会话留在临时目录里的分片与包缓存、整理跨启动保留的片源字节缓存
+    /// （每次 App 启动调一次即可，放后台线程）
     public nonisolated static func sweepStaleCaches() {
         AetherEngine.sweepStaleSessionCaches()
+    }
+
+    /// 临时目录所在卷「重要用途可用」的字节数（引擎补丁 P44：带 10 秒缓存，引擎的分片留存预算、片源缓存预算用的同一份）
+    public nonisolated static func temporaryFreeBytes() -> Int64? {
+        AetherEngine.temporaryVolumeAvailableBytes(importantUsage: true)
+    }
+
+    /// 片源字节缓存是否跨启动保留（引擎补丁 P42，默认开）。要在建第一个引擎之前设，真机新旧对照用
+    public nonisolated static func setPersistsSourceCache(_ on: Bool) {
+        AetherEngine.persistsSourceByteCache = on
+    }
+
+    /// 片源字节缓存每块另记一段暂存范围（引擎补丁 P50，默认开）。真机新旧对照用
+    public nonisolated static func setSourceCacheKeepsSpareRuns(_ on: Bool) {
+        AetherEngine.sourceByteCacheKeepsSpareRuns = on
+    }
+
+    /// 启动整理跨启动缓存超额时先缩到只剩文件头尾的元数据、缩完仍超才整条删（引擎补丁 P51，默认开）。真机新旧对照用
+    public nonisolated static func setSourceCacheTrimKeepsMetadata(_ on: Bool) {
+        AetherEngine.sourceByteCacheTrimKeepsMetadata = on
+    }
+
+    /// 删掉跨启动保留的片源字节缓存（引擎补丁 P50）：只能在建第一个引擎之前调，真机对照每次热身前清场用
+    public nonisolated static func removePersistedSourceCache() {
+        AetherEngine.removePersistedSourceByteCache()
+    }
+
+    /// 片源字节缓存的记账立刻落盘（引擎补丁 P42）：App 进后台时调，下次启动续播认得最后几秒下过的字节
+    public nonisolated static func flushSourceCacheIndexes() {
+        AetherEngine.flushSourceByteCacheIndexes()
     }
 
     /// 画中画进出要告诉引擎：画中画期间 App 进后台，引擎不能拆管线。

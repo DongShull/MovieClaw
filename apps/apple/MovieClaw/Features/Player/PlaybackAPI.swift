@@ -277,3 +277,25 @@ struct PlaybackAPI {
         return components.queryItems?.first { $0.name == "token" }?.value
     }
 }
+
+/// 播放前的预连（详情页出现时调）：用户进了详情页多半马上要播，把播放要用的两种连接先连好——
+/// 起播协商的独立连接池（`APIClient.playbackSession`）与引擎取片源的连接（引擎补丁 P43），点播放时都已握手完毕。
+/// 真机（经反向代理的 HTTPS 域名，2026-09-30）：冷连接开会话约 105 毫秒、热连接约 63 毫秒；取流首个请求多一次握手约 20 毫秒。
+/// 20 秒内只预连一次；发的是不要鉴权、不读盘的 HEAD 健康检查，全在后台
+enum PlaybackPreconnect {
+    private static var lastAt: ContinuousClock.Instant?
+
+    static func warm(api: APIClient) {
+        #if DEBUG
+        // -mcNoPagePreconnect YES：页面出现时不预连（真机新旧对照用）
+        if UserDefaults.standard.bool(forKey: "mcNoPagePreconnect") { return }
+        #endif
+        if let lastAt, ContinuousClock.now - lastAt < .seconds(20) { return }
+        guard let health = api.server.resolve("/api/v1/health") else { return }
+        lastAt = .now
+        Task.detached(priority: .utility) {
+            APIClient.preconnectPlayback(health)
+            NativeEngine.preconnect(url: health)
+        }
+    }
+}

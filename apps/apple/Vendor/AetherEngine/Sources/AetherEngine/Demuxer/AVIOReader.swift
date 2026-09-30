@@ -679,6 +679,12 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     /// all, and when it misses, the retained head still removes the return trip.
     static let tailPrefetchBytes = 64 * 1024
 
+    /// [MovieClaw P49] Matroska 索引（Cues）离文件尾不超过这么多才提前取（从 Cues 起一直取到文件尾）。
+    /// mkvmerge 产物的 Cues 连同其后的 Tags 离文件尾实测 7.7 万～93 万字节（语料 14 部 MKV）；更远的少见，照旧按需读
+    static let cuesPrefetchMaxBytes: Int64 = 2 * 1024 * 1024
+    /// 文件头攒到这么多还读不出 SeekHead 就不找了（SeekHead 通常在文件头 200 字节以内）
+    static let cuesLocateMaxHeadBytes = 256 * 1024
+
     // MARK: - Detour Block Cache (random-access parse reads; AetherEngine#69)
 
     // A non-faststart / coarsely-interleaved remote MP4 makes the demuxer ping-pong between
@@ -927,6 +933,18 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     /// winCond-guarded.
     private var tailPrefetchInFlight = false
     private var tailPrefetchStartedAt = DispatchTime.now()
+
+    /// [MovieClaw P49] Matroska 索引提前取：文件头一到就按 SeekHead 找出 Cues 的位置（`MatroskaCuesLocator`），
+    /// 与开容器、探测流并行把「Cues 到文件尾」这段先取回来，装成和文件头 / 文件尾同样的常驻片段。解复用器随后
+    /// 读索引时从这里给：省一次往返，也不再掐断正在读文件头的连接。开流与索引预热都结束后，第一次读不到它就放掉。
+    /// 在途时读到这段范围会等它（上限同尾部预读）。都受 winCond 保护
+    private var cuesSpan: ResidentSpan?
+    private var cuesLocateDone = false
+    private var cuesPrefetchTask: URLSessionDataTask?
+    private var cuesPrefetchInFlight = false
+    private var cuesPrefetchRange: Range<Int64>?
+    private var cuesPrefetchStartedAt = DispatchTime.now()
+    private var cuesSpanServeLogged = false
 
     /// One log line per span per open, not per serve. winCond-guarded (set from the read loop).
     /// #551: the size this open took from a warm rather than from a response header. A size that
@@ -1522,12 +1540,16 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         let tailTask = tailPrefetchTask
         tailPrefetchTask = nil
         tailPrefetchInFlight = false
+        let cuesTask = cuesPrefetchTask   // [MovieClaw P49] 同尾部预读：被弃用的读取器不留在途请求
+        cuesPrefetchTask = nil
+        cuesPrefetchInFlight = false
         openPhaseActive = false
         winCond.broadcast()
         winCond.unlock()
         transfer?.cancelTransfer()
         transfer?.releaseOriginTicket()   // #377: the fresh reader asks for this slot next
         tailTask?.cancel()
+        cuesTask?.cancel()
     }
 
     /// Free all resources. Separate from `markClosed` (step 1: unblock reads)
@@ -1581,13 +1603,18 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         // are released with the window rather than living until the reader is deallocated.
         headSpan = Data()
         tailSpan = nil
+        cuesSpan = nil   // [MovieClaw P49]
         openPhaseActive = false
         let tailTask = tailPrefetchTask
         tailPrefetchTask = nil
         tailPrefetchInFlight = false
+        let cuesTask = cuesPrefetchTask
+        cuesPrefetchTask = nil
+        cuesPrefetchInFlight = false
         winCond.broadcast()
         winCond.unlock()
         tailTask?.cancel()
+        cuesTask?.cancel()
         // #220: the shared session is never invalidated, so the transfer has to be cancelled
         // explicitly. Invalidating used to be what released this connection.
         transfer?.cancelTransfer()
@@ -1828,6 +1855,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         // #281 retest: fixed once per read, so a loop that wakes repeatedly cannot keep extending
         // its own patience for the speculative fetch.
         var tailWaitDeadline: Date?
+        var cuesWaitDeadline: Date?   // [MovieClaw P49] 同上，给在途的索引提前取
         func msSince(_ t: DispatchTime) -> Double {
             Double(DispatchTime.now().uptimeNanoseconds - t.uptimeNanoseconds) / 1_000_000
         }
@@ -1897,7 +1925,11 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
                spanPos < 0 || spanPos >= Int64(headSpan.count) {
                 headSpan = Data()
             }
-            if !windowCanServe, !headSpan.isEmpty || tailSpan != nil,
+            // [MovieClaw P49] 同文件头：索引只在开流与索引预热时读，之后第一次读不到它就放掉
+            if !openPhaseActive, !indexPassActive, let span = cuesSpan, !span.covers(spanPos) {
+                cuesSpan = nil
+            }
+            if !windowCanServe, !headSpan.isEmpty || tailSpan != nil || cuesSpan != nil,
                let served = serveFromResidentSpansLocked(into: buf.advanced(by: totalRead),
                                                         maxLen: requestSize - totalRead,
                                                         at: spanPos) {
@@ -1922,6 +1954,10 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
                     tailSpanServeLogged = true
                     spanLine = "[AVIOReader] \(label) tail prefetch served the read at \(spanPos)"
                         + "; no reconnect for it"
+                case .cues where !cuesSpanServeLogged:
+                    cuesSpanServeLogged = true
+                    spanLine = "[AVIOReader] \(label) [MovieClaw P49] 提前取的那段接住了 \(spanPos) 处的读取，"
+                        + "不用另发请求"
                 default:
                     break
                 }
@@ -1952,6 +1988,23 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
                         - Double(DispatchTime.now().uptimeNanoseconds
                                  - tailPrefetchStartedAt.uptimeNanoseconds) / 1_000_000_000))
                 tailWaitDeadline = deadline
+                if Date() < deadline {
+                    let waitStart = DispatchTime.now()
+                    _ = winCond.wait(until: min(deadline, readDeadline))
+                    winCond.unlock()
+                    diag.recordTailWait(ms: msSince(waitStart))
+                    continue
+                }
+            }
+
+            // [MovieClaw P49] 同上：这次读的正是在途的索引提前取，等它落地，不另发请求、不掐断读文件头的连接。
+            // 上限与尾部预读同一个道理：比从这里重连多等不了多少
+            if !windowCanServe, cuesPrefetchInFlight, let range = cuesPrefetchRange, range.contains(spanPos) {
+                let deadline = cuesWaitDeadline ?? Date(
+                    timeIntervalSinceNow: max(0, tailPrefetchWaitBudget()
+                        - Double(DispatchTime.now().uptimeNanoseconds
+                                 - cuesPrefetchStartedAt.uptimeNanoseconds) / 1_000_000_000))
+                cuesWaitDeadline = deadline
                 if Date() < deadline {
                     let waitStart = DispatchTime.now()
                     _ = winCond.wait(until: min(deadline, readDeadline))
@@ -2631,7 +2684,10 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         if let tail = warm.tail { tailSpan = tail }
         fileSize = warm.contentLength
         adoptedWarmSize = warm.contentLength
+        // [MovieClaw P49] 文件头是现成的：马上找索引。字节缓存里整段都有就直接装上，否则先取回来
+        let cuesPrefetch = locateCuesLocked()
         winCond.unlock()
+        if let cuesPrefetch { startCuesPrefetch(cuesPrefetch.range, what: cuesPrefetch.what) }
         SourceContentLengthCache.store(warm.contentLength, for: url)
         // The warm followed the redirect chain and knows where it ended. Pinning that target here
         // is what keeps this session from resolving it a second time: a resolver 302 measured
@@ -2808,6 +2864,113 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         return offset >= fileSize - Int64(Self.tailPrefetchBytes) && offset < fileSize
     }
 
+    /// [MovieClaw P49] 在已到手的文件头里找 Matroska 的 Cues（每次打开只找到一次为止）。要提前取时返回
+    /// 「Cues 到文件尾」这段：文件头 4 MB 以内（取文件头的连接顺带就到）、尾部预读已覆盖、离文件尾太远的都不取。
+    /// 调用方持 winCond
+    private func locateCuesLocked() -> (range: Range<Int64>, what: String)? {
+        guard !cuesLocateDone, AetherEngine.prefetchesMatroskaCues, openPhaseActive, !isLive,
+              fileSize > 0, !headSpan.isEmpty else { return nil }
+        switch MatroskaCuesLocator.locate(head: headSpan) {
+        case .needMore:
+            if headSpan.count >= Self.cuesLocateMaxHeadBytes || Int64(headSpan.count) >= fileSize {
+                cuesLocateDone = true
+            }
+            return nil
+        case .absent:
+            cuesLocateDone = true
+            return nil
+        case .found(let offset):
+            cuesLocateDone = true
+            guard offset >= Int64(Self.headSpanMaxBytes),
+                  offset < fileSize - Int64(Self.tailPrefetchBytes),
+                  fileSize - offset <= Self.cuesPrefetchMaxBytes else { return nil }
+            return (offset ..< fileSize, "Matroska 索引在 \(offset)（距文件尾 \(fileSize - offset) 字节，尾部预读够不着）")
+        case .secondarySeekHead:
+            // 开头的目录只指向文件尾附近的完整目录：Cues 在哪要读了那个目录才知道。试过盲取文件最后 1 MB，真机上这 1 MB
+            // 要 90～180 毫秒，索引预热反而等得更久（按需读只要约 37 毫秒），所以不取，照旧由解复用器按需读
+            cuesLocateDone = true
+            return nil
+        }
+    }
+
+    /// [MovieClaw P49] 把「Cues 到文件尾」先取回来装成常驻片段。字节缓存（P22 / P42）里整段都有就直接装上、
+    /// 不发请求；取回来的也写进字节缓存，下次打开同一个片源就不用再下。只是优化：源站拒绝、没有空闲的请求名额、
+    /// 取回的字节对不上，都不装，解复用器照旧按需去读
+    private func startCuesPrefetch(_ range: Range<Int64>, what: String) {
+        let length = Int(range.count)
+        if let key = byteCacheKey,
+           let cached = SourceByteCache.shared.copy(key: key, offset: range.lowerBound, length: length) {
+            winCond.lock()
+            if !isFullyClosed, cuesSpan == nil { cuesSpan = ResidentSpan(start: range.lowerBound, data: cached) }
+            winCond.broadcast()
+            winCond.unlock()
+            EngineLog.emit(
+                "[AVIOReader] \(label) [MovieClaw P49] \(what)：字节缓存里整段都有，直接装上", category: .demux)
+            return
+        }
+        let url = requestURL()
+        guard !originRequiresSerialRequests,
+              let ticket = OriginRequestBudget.shared.tryAcquire(for: url, label: "\(label) cues prefetch") else {
+            EngineLog.emit(
+                "[AVIOReader] \(label) [MovieClaw P49] Matroska 索引提前取跳过：源站此刻只许一个请求或没有空闲名额",
+                category: .demux)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("bytes=\(range.lowerBound)-\(range.upperBound - 1)", forHTTPHeaderField: "Range")
+        request.timeoutInterval = Self.effectiveDetourBudget(chunkRequestTimeout: chunkRequestTimeout)
+        applyExtraHeaders(&request)
+        // 区间一直到文件尾，应答的 Content-Range 与尾部预读同一个形状：沿用它的校验（206、起点与长度对得上、
+        // 不多不少）和跨域跳转不带凭据的规矩
+        let delegate = TailPrefetchDelegate(expectedLength: length, extraHeaders: headers(for: request.url))
+        let startedAt = DispatchTime.now()
+        delegate.onOutcome = { [weak self] outcome in
+            OriginRequestBudget.shared.release(ticket)
+            guard let self else { return }
+            let elapsedMs = Int(Double(DispatchTime.now().uptimeNanoseconds - startedAt.uptimeNanoseconds) / 1_000_000)
+            self.winCond.lock()
+            self.cuesPrefetchInFlight = false
+            self.cuesPrefetchTask = nil
+            var installed = false
+            if case .span(let start, let data) = outcome, start == range.lowerBound, !self.isFullyClosed,
+               self.cuesSpan == nil {
+                self.cuesSpan = ResidentSpan(start: start, data: data)
+                installed = true
+            }
+            self.winCond.broadcast()
+            self.winCond.unlock()
+            switch outcome {
+            case .span(let start, let data):
+                self.addBytesFetched(data.count)
+                if installed, let key = self.byteCacheKey {
+                    SourceByteCache.shared.write(key: key, offset: start, data: data)
+                }
+                EngineLog.emit(
+                    "[AVIOReader] \(self.label) [MovieClaw P49] 提前取的那段\(installed ? "已装上" : "用不上了")："
+                    + "\(data.count) 字节，\(elapsedMs) 毫秒", category: .demux)
+            case .rejected(let reason, _):
+                EngineLog.emit(
+                    "[AVIOReader] \(self.label) [MovieClaw P49] 提前取没成（\(elapsedMs) 毫秒）：\(reason)；"
+                    + "照旧按需读", category: .demux)
+            }
+        }
+        let task = Self.chunkSession.dataTask(with: request)
+        task.delegate = delegate
+        winCond.lock()
+        guard !isClosed else {
+            winCond.unlock()
+            OriginRequestBudget.shared.release(ticket)
+            return
+        }
+        cuesPrefetchTask = task
+        cuesPrefetchInFlight = true
+        cuesPrefetchRange = range
+        cuesPrefetchStartedAt = startedAt
+        winCond.unlock()
+        task.resume()
+        EngineLog.emit("[AVIOReader] \(label) [MovieClaw P49] \(what)：和开容器并行先取回来", category: .demux)
+    }
+
     /// How long a read may wait for the speculative fetch before giving up and reconnecting.
     ///
     /// Both requests left at the same instant against the same origin, so the fetch's first byte
@@ -2896,10 +3059,11 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     enum SpanServe {
         case head(Int)
         case tail(Int)
+        case cues(Int)   // [MovieClaw P49]
 
         var bytes: Int {
             switch self {
-            case .head(let n), .tail(let n): return n
+            case .head(let n), .tail(let n), .cues(let n): return n
             }
         }
     }
@@ -2915,6 +3079,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
             return .head(n)
         }
         if let n = tailSpan?.serve(into: dst, maxLen: maxLen, at: offset) { return .tail(n) }
+        if let n = cuesSpan?.serve(into: dst, maxLen: maxLen, at: offset) { return .cues(n) }
         return nil
     }
 
@@ -3279,6 +3444,8 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
            headSpan.count < Self.headSpanMaxBytes {
             headSpan.append(data.prefix(Self.headSpanMaxBytes - headSpan.count))
         }
+        // [MovieClaw P49] 文件头一到就找 Matroska 索引的位置，解锁后与开容器并行先取回来
+        let cuesPrefetch = locateCuesLocked()
         addBytesFetched(count)
         // #220: the requested range has been delivered in full. That ends the connection on
         // purpose; the read loop re-requests at the frontier once the consumer has drawn down.
@@ -3321,6 +3488,7 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
         if let byteCacheKey {
             SourceByteCache.shared.write(key: byteCacheKey, offset: byteCacheOffset, data: data)
         }
+        if let cuesPrefetch { startCuesPrefetch(cuesPrefetch.range, what: cuesPrefetch.what) }
         if let overDeliveredTransfer {
             EngineLog.emit(
                 "[AVIOReader] \(label) gen=\(generation) origin delivered past the requested range "
@@ -4116,6 +4284,18 @@ final class AVIOReader: AVIOProvider, @unchecked Sendable {
     private static let persistentSession: URLSession = {
         URLSession(configuration: makeSessionConfig(longLived: true), delegate: EngineTLS.sessionDelegate, delegateQueue: nil)
     }()
+
+    /// [MovieClaw P43] 预连：在两个取源会话（文件头走 `persistentSession`，尾部预读走 `chunkSession`）上各发一个
+    /// HEAD，把 TCP / TLS 握手提前做掉。装载时的第一个请求就落在已经连好的连接上（经反向代理的 HTTPS 源站
+    /// 实测每次播放的首个请求中位 83 毫秒，其后同一连接上的冷区域请求 60 毫秒）。只建连接，不读片源、不管结果
+    static func preconnect(url: URL, headers: [String: String]) {
+        for session in [persistentSession, chunkSession] {
+            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 5)
+            request.httpMethod = "HEAD"
+            for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
+            session.dataTask(with: request).resume()
+        }
+    }
 
     /// Outcome of an abortable semaphore wait (issue #27).
     enum WaitOutcome: Equatable { case signaled, timedOut, aborted }
