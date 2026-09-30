@@ -33,6 +33,8 @@ from movieclaw_api.services.reels.feed import (
     _playable_file_filter,
     _playable_library_kinds,
     only_kind,
+    pool_libraries,
+    watch_only,
 )
 from movieclaw_db.engine import get_database
 from movieclaw_db.models import LibraryFile, MediaMetadata
@@ -42,6 +44,8 @@ from movieclaw_media.genres import MOVIE_GENRES, TV_GENRES, country_label
 FACET_CONCURRENCY = 4
 
 _KINDS = (("movie", "电影"), ("tv", "剧集"))
+#: 「其他」单列：它是独立的池（不混进默认），且没有 TMDB 档案，计数口径与电影 / 剧集不同
+_OTHER = ("video", "其他")
 _DECADES = (
     ("2020s", "2020 年代"),
     ("2010s", "2010 年代"),
@@ -75,13 +79,29 @@ async def build_reel_facets(
         return ReelFacetsView(total=0)
     content_limit = await content_limit_for(session, principal)
     member_id = principal.member_id if principal.member_id is not None else 0
+    # 抽样池与 GET /reels 同一个函数定，「其他」池的回落规则不会两边各写一遍
+    pool = await pool_libraries(session, principal, kind)
+    effective = watch_only(filters) if pool.video else filters
 
-    def scope(skip: str | None = None, kind_: str | None = kind) -> tuple[Any, ...]:
+    def scope(
+        skip: str | None = None,
+        libs: dict[int, str] = pool.libraries,
+        flt: LibraryFilter | None = effective,
+    ) -> tuple[Any, ...]:
         """与抽样池同一个 WHERE：可抽的文件 + 筛选（排除 skip 这一维）+ 分级约束。"""
         return (
-            *_playable_file_filter(list(only_kind(libraries, kind_))),
-            *_narrow(filters, member_id, skip=skip, content_limit=content_limit),
+            *_playable_file_filter(list(libs)),
+            *_narrow(flt, member_id, skip=skip, content_limit=content_limit),
         )
+
+    def kind_scope(value: str) -> tuple[Any, ...]:
+        """「电影 / 剧集 / 其他」各自的计数口径。
+
+        电影 / 剧集带着当前的全部筛选；「其他」只带观看状态——点它就会清掉别的条件，
+        按当前条件数，用户勾了「动作」之后它会显示 0 并置灰，点不进去。
+        """
+        libs = only_kind(libraries, value)
+        return scope(libs=libs, flt=watch_only(filters) if value == "video" else effective)
 
     gate = asyncio.Semaphore(FACET_CONCURRENCY)
 
@@ -116,32 +136,53 @@ async def build_reel_facets(
         counts += [(str(v), 0) for v in selected if str(v) not in present]
         return sorted(counts, key=lambda r: (-r[1], r[0]))
 
+    async def nothing() -> list[Any]:
+        return []
+
     selected = filters or LibraryFilter()
+    # 「其他」池没有 TMDB 档案：这几维不查（查也是全 0），App 见 filterable=False 收起对应菜单
+    rich = not pool.video
+    kind_values = (*_KINDS, _OTHER)
     (total, kinds, genres, countries, decades, ratings, runtimes, watch) = await asyncio.gather(
         count(*scope()),
-        asyncio.gather(*(count(*scope(kind_=value)) for value, _ in _KINDS)),
-        spread(MediaMetadata.genre_ids, "genres", selected.genres),
-        spread(MediaMetadata.origin_countries, "countries", selected.countries),
+        asyncio.gather(*(count(*kind_scope(value)) for value, _ in kind_values)),
+        spread(MediaMetadata.genre_ids, "genres", selected.genres) if rich else nothing(),
+        spread(MediaMetadata.origin_countries, "countries", selected.countries)
+        if rich
+        else nothing(),
         asyncio.gather(
             *(probe("decades", v, label, LibraryFilter(decades=(v,))) for v, label in _DECADES)
-        ),
+        )
+        if rich
+        else nothing(),
         asyncio.gather(
             *(
                 probe("rating_gte", str(v), f"{v} 分以上", LibraryFilter(rating_gte=v))
                 for v in _RATINGS
             )
-        ),
+        )
+        if rich
+        else nothing(),
         asyncio.gather(
             *(probe("runtimes", v, label, LibraryFilter(runtimes=(v,))) for v, label in _RUNTIMES)
-        ),
+        )
+        if rich
+        else nothing(),
         probe("watch", "unwatched", "没看过", LibraryFilter(watch="unwatched")),
     )
+    other_count = kinds[-1]
+    # 只有「其他」库的用户没有可切换的类型，整行不给；「其他」没有可刷的文件时也不给这一项
+    # （选着的除外，得能取消）
+    shown = [
+        FacetValueView(value=value, label=label, count=n)
+        for (value, label), n in zip(_KINDS, kinds[:-1], strict=True)
+    ]
+    if other_count > 0 or kind == _OTHER[0]:
+        shown.append(FacetValueView(value=_OTHER[0], label=_OTHER[1], count=other_count))
     return ReelFacetsView(
         total=total,
-        kinds=[
-            FacetValueView(value=value, label=label, count=n)
-            for (value, label), n in zip(_KINDS, kinds, strict=True)
-        ],
+        filterable=rich,
+        kinds=shown if pool.film_available else [],
         genres=[
             FacetValueView(value=v, label=_genre_label(int(v)) if v.isdigit() else v, count=c)
             for v, c in genres

@@ -4,7 +4,8 @@
   原样带回；``modes`` 声明 App 会放的方式（一期只有 ``seek``）。
 - 筛选：``GET /reels`` 带媒体库筛选的同一组参数（``g`` 类型 / ``c`` 地区 / ``d`` 年代 /
   ``rating_gte`` 评分 / ``rt`` 片长 / ``w`` 观看状态，维内 OR、维间 AND）外加 ``kind``
-  （电影 / 剧集）；``GET /reels/facets`` 同参，给筛选菜单的候选值与计数。
+  （电影 / 剧集 / 其他，``video`` 只认观看状态）；``GET /reels/facets`` 同参，给筛选菜单的
+  候选值与计数。
 - ``POST /reels/events``：App 攒一批刷片事件报上来，只落 ``reel_event`` 表，
   不写观看记录。
 """
@@ -33,9 +34,12 @@ from movieclaw_db.engine import get_session
 
 router = APIRouter(prefix="/reels", tags=["reels"])
 
-#: 「电影 / 剧集」这一维：媒体库筛选没有它（一个库本来就只有一种），刷片是混着抽的
+#: 「电影 / 剧集 / 其他」这一维：媒体库筛选没有它（一个库本来就只有一种），刷片是混着抽的。
+#: 不传 = 电影 + 剧集；「其他」（video）不混进默认，要主动选，选了之后只剩观看状态可筛
+#: （只有其他库时不传也回落到它，见 ``pool_libraries``）
 KindParam = Annotated[
-    Literal["movie", "tv"] | None, Query(description="只刷电影 / 剧集；不传是都刷")
+    Literal["movie", "tv", "video"] | None,
+    Query(description="只刷电影 / 剧集 / 其他；不传是电影 + 剧集"),
 ]
 
 

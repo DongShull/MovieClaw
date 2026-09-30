@@ -27,19 +27,29 @@ struct ReelFilterMenu: View {
         let filter = store?.filter ?? LibraryFilter()
         let kind = store?.kind
         let title = buttonTitle(filter: filter, kind: kind)
+        // 库里只有「其他」视频时服务端不给类型列表：没有可切换的，整行不画。加载中（facets 还
+        // 没回来）先画着，与以前一样显示「加载中」
+        let showKinds = !(store?.facets?.kinds.isEmpty ?? false)
+        // 「其他」没有 TMDB 档案：类型 / 年代 / 地区 / 评分 / 片长对它无意义，只剩观看状态。
+        // 选了「其他」，或库里只有「其他」（服务端回落，filterable = false）时收起这几个菜单
+        let filterable = kind != "video" && (store?.facets?.filterable ?? true)
         Menu {
-            Menu {
-                option("全部", count: nil, selected: kind == nil) { apply(filter, kind: nil) }
-                ForEach(facetValues("kinds"), id: \.value) { value in
-                    option(value.label, count: value.count, selected: kind == value.value) {
-                        apply(filter, kind: kind == value.value ? nil : value.value)
+            if showKinds {
+                Menu {
+                    option("全部", count: nil, selected: kind == nil) { apply(filter, kind: nil) }
+                    ForEach(facetValues("kinds"), id: \.value) { value in
+                        option(value.label, count: value.count, selected: kind == value.value) {
+                            let next = kind == value.value ? nil : value.value
+                            // 切到「其他」时清掉不适用的条件，只留观看状态
+                            apply(next == "video" ? watchOnly(filter) : filter, kind: next)
+                        }
                     }
+                } label: {
+                    Label(kindsTitle, systemImage: "film.stack")
+                    Text(kind.flatMap { label("kinds", $0) } ?? "不限")
                 }
-            } label: {
-                Label("电影 / 剧集", systemImage: "film.stack")
-                Text(kind.flatMap { label("kinds", $0) } ?? "不限")
             }
-            ForEach(Self.dimensions, id: \.key) { dim in
+            ForEach(filterable ? Self.dimensions : [], id: \.key) { dim in
                 Menu {
                     let values = facetValues(dim.key)
                     if values.isEmpty {
@@ -97,6 +107,19 @@ struct ReelFilterMenu: View {
             if let count { Text("\(count) 部") }
         }
         .disabled(count == 0 && !selected)
+    }
+
+    /// 菜单里这一行的名字：有几类写几类（「电影 / 剧集」或「电影 / 剧集 / 其他」）
+    private var kindsTitle: String {
+        let labels = facetValues("kinds").map(\.label)
+        return labels.isEmpty ? "电影 / 剧集" : labels.joined(separator: " / ")
+    }
+
+    /// 只留观看状态：「其他」没有 TMDB 档案，别的维度带过去只会把它筛空
+    private func watchOnly(_ filter: LibraryFilter) -> LibraryFilter {
+        var only = LibraryFilter()
+        only.watch = filter.watch
+        return only
     }
 
     private func apply(_ filter: LibraryFilter, kind: String?) {

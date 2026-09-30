@@ -4,22 +4,26 @@ import SwiftUI
 /// 片段：上下整页滑动，每页从一部电影 / 一部剧里挑出的 30～60 秒（docs/design/reels.md）。
 ///
 /// 版式对齐 Instagram Reels / 抖音（2026-09-30 用户给的参照图）：
-/// - 媒体库导航栈里压栈打开，**底部标签栏保留**（停在这页时标签栏不随滑动收起）；不带返回键，
-///   再点一次「媒体库」页签回到媒体库首页；左上是**在播这一条的片名 + 年份**（没有在播的条目时是页名「片段」），
-///   右上一个玻璃胶囊「全部 ⌄」，点开选「全部」或某个类型；这一页锁竖屏，转手机不会把信息流转横；
+/// - 媒体库导航栈里压栈打开，**隐藏底部标签栏**（2026-09-30 用户要求：标签栏高度改不了，占着底部；有了返回键
+///   就不再需要靠页签回去）；左上是系统的液态玻璃返回键（2026-09-30 用户要求：不带返回键时有人不知道怎么回去）；
+///   正中是**在播这一条的片名 + 第二行年份**，一个玻璃胶囊，点了去这部片的详情页（同「照片」App 顶部的
+///   地点胶囊；没有在播的条目时只写页名「片段」、不能点）；右上一个玻璃胶囊「全部 ⌄」，点开选「全部」或
+///   某个类型；这一页锁竖屏，转手机不会把信息流转横；
 /// - 纯黑底，影片居中成一条 16:9 的横带；没出第一帧前横带里放横版剧照（转圈 + 实时加载速度，剧照模糊
 ///   铺满整页），出画后淡出成视频；没有剧照的片垫服务端抓的起点帧；出过画面后缓冲也转圈并带加载速度；
 /// - 手势复用播放器页的 `PlayerGestureLayer`：点页面任意空白处暂停 / 继续（同抖音），双击左右三分之一
-///   ∓10 秒，横滑拖进度（满屏一划 = 整个片段），长按 2 倍速；竖滑不调亮度音量，留给翻页。
+///   ∓10 秒，长按 2 倍速；竖滑不调亮度音量，留给翻页；横滑不拖进度（2026-09-30 用户要求：小横带里横滑定位
+///   体验很差，拖进度只在「全屏观看」里有）。
 ///   暂停时横带正中出播放标记，放到片段终点停下、再点重播；
 /// - 横带下方一个描边小胶囊「全屏观看」（TikTok 横屏视频的做法）：这一段交给正片播放器的片段模式
 ///   横屏放（`PlaybackClip`）——手势、控制条、换音轨字幕与正片完全一样，时间轴只算这一段；
-///   退出全屏回到这里，从刚才看到的地方接着放；
+///   退出全屏回到这里，从刚才看到的地方接着放；画质胶囊在它左边。这一行**播放时调暗**（2026-09-30 用户要求：
+///   播放时不该抢看片的注意力），起播、播放、缓冲都暗，只有暂停、放完、放不出时恢复，见 `ReelPage.controlsDimmed`；
 /// - 右下角一列**无底色**的白色图标按钮（不用毛玻璃，和画面融在一起，带投影保证亮画面上也看得清）：
 ///   收藏、详情、已看、分享；
 /// - 左下角只放导演与简介（片名、年份挪到了左上角）：导演（剧集是主创，对应 TikTok / Instagram 的作者行，
-///   点了进人物页）、两行简介（剧集前面是「第 N 季第 N 集「集名」」，放不下就「展开」）；
-/// - 最底下一条细进度线（按片段算，不按整部片）；不写时间，平时也不显示，只在暂停、拖进度时出现
+///   点了进人物页）、三行简介（剧集前面是「第 N 季第 N 集「集名」」，放不下就「展开」）；
+/// - 最底下一条细进度线（按片段算，不按整部片）；不写时间，平时也不显示，只在暂停时出现
 ///   （2026-09-30 用户要求，同抖音）。
 ///
 /// 「详情」：去媒体库条目页看这部片的详细信息（剧集定位到这一集），返回后这一条接着放。
@@ -66,16 +70,18 @@ struct ReelsView: View {
             }
         }
         .background(Color.black.ignoresSafeArea())
-        // 标题不用系统的大标题：系统大标题跟着滚动视图走，一滑到下一条就缩成正中的小字。
-        // 这里放在左上角的工具栏位、去掉玻璃底，字号与媒体库首页的标题一致，滑动时不变
+        // 标题不用系统的标题：系统标题只是文字、点不了。正中放一个两行的玻璃胶囊（片名 / 年份），点了去详情页
         .navigationTitle("")
         .toolbarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
+        .toolbarVisibility(.hidden, for: .tabBar)
+        // 返回键带回了 iOS 26 的「页面任意处右滑返回」：刷片时手指稍一偏就退出了，这一页只关掉它，保留左边缘右滑返回
+        .background(ContentPopGestureDisabler())
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                ReelTitle(item: store?.titleItem, maxWidth: titleMaxWidth)
+            ToolbarItem(placement: .principal) {
+                ReelTitle(item: store?.titleItem, width: titleWidth) {
+                    if let store, let item = store.titleItem { openDetail(item, store: store) }
+                }
             }
-            .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .topBarTrailing) { ReelFilterMenu(store: store) }
         }
         .preferredColorScheme(.dark)
@@ -135,10 +141,17 @@ struct ReelsView: View {
         }
     }
 
-    /// 左上标题最宽多少：整屏宽减去两侧边距与右上角的筛选键，长片名在这里截断，不压到筛选键
-    private var titleMaxWidth: CGFloat {
+    /// 正中标题胶囊的宽度（固定）：标题居中，两边各让出右上角筛选键那么宽（它比左边的返回键宽）
+    private var titleWidth: CGFloat {
         let width = portraitPage.map { $0.size.width + $0.insets.leading + $0.insets.trailing } ?? 402
-        return max(160, width - 140)
+        return max(140, width - 2 * 112)
+    }
+
+    /// 去这部片的详情页（剧集定位到这一集）：右下角「详情」与顶部标题共用；这一条记为转去详情、回来接着放
+    private func openDetail(_ item: API.ReelItemView, store: ReelsStore) {
+        store.openDetail(item)
+        router.push(.libraryItem(libraryId: item.title.libraryId, itemId: item.title.mediaItemId,
+                                 season: item.title.episode?.season, episode: item.title.episode?.episode))
     }
 
     // MARK: - 翻页
@@ -150,11 +163,7 @@ struct ReelsView: View {
                     ReelPage(
                         item: item, store: store, isCurrent: item.id == store.currentID, insets: insets,
                         canCreateShareLink: permissions.isAdmin,
-                        onOpenDetail: {
-                            store.openDetail(item)
-                            router.push(.libraryItem(libraryId: item.title.libraryId, itemId: item.title.mediaItemId,
-                                                     season: item.title.episode?.season, episode: item.title.episode?.episode))
-                        },
+                        onOpenDetail: { openDetail(item, store: store) },
                         onShare: {
                             store.pause()
                             sharing = item
@@ -243,6 +252,28 @@ struct ReelsView: View {
     }
 }
 
+/// 停在片段页期间关掉导航栈的「内容区右滑返回」（iOS 26 起整页任意处右滑都能返回）。
+///
+/// 片段页上下刷片、点按、长按都在画面上，右滑会被系统当成返回、一划就退回媒体库（2026-09-30 模拟器实测）。
+/// 左边缘右滑返回（`interactivePopGestureRecognizer`）照常保留，这是 iOS 的惯例。
+/// 开关挂在整个导航控制器上，所以离开这一页（返回、压栈进详情）时要还原，别的页面不受影响
+private struct ContentPopGestureDisabler: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller { Controller() }
+    func updateUIViewController(_ controller: Controller, context: Context) {}
+
+    final class Controller: UIViewController {
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = false
+        }
+
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = true
+        }
+    }
+}
+
 private struct PageGeometry: Equatable {
     var size: CGSize
     var insets: EdgeInsets
@@ -263,7 +294,7 @@ private struct ReelPage: View {
     @Environment(\.api) private var api
     /// 简介展开了
     @State private var expanded = false
-    /// 简介收起（两行）时的高度与不限行数时的高度：后者更高就是放不下，给「展开」
+    /// 简介收起（三行）时的高度与不限行数时的高度：后者更高就是放不下，给「展开」
     @State private var captionShownHeight: CGFloat = 0
     @State private var captionFullHeight: CGFloat = 0
 
@@ -281,14 +312,15 @@ private struct ReelPage: View {
                 }
                 videoBand(width: width, height: bandHeight)
                     .position(x: width / 2, y: bandCenter)
-                // 手势与播放器页同一个手势层：轻点暂停、双击左右 ∓10 秒、横滑拖进度、长按 2 倍速；
+                // 手势与播放器页同一个手势层：轻点暂停、双击左右 ∓10 秒、长按 2 倍速；横滑不拖进度（只在全屏里有）；
                 // 竖滑不认领（关掉调亮度 / 音量），整次交给外层翻页。垫在按钮、简介下面，它们自己响应点击
                 PlayerGestureLayer(
                     enabled: isCurrent,
                     canHold: isCurrent && store.playerState == .playing,
                     adjusts: false,
+                    scrubs: false,
                     onTap: { store.handleTap(xRatio: $0, isDouble: $1) },
-                    onScrub: { store.handleScrub($0, delta: $1) },
+                    onScrub: { _, _ in },
                     onAdjust: { _, _, _ in },
                     onHold: { store.handleHold(began: $0) }
                 )
@@ -309,6 +341,9 @@ private struct ReelPage: View {
                         qualityMenu
                         fullscreenButton
                     }
+                    // 只改亮度不隐藏：按钮始终在原位、暗着也能点。调暗靠降文字与描边的颜色（`controlsAlpha`），
+                    // 不能给整行套 .opacity：透明度不是 1 时这行按钮收不到点击，点击全落到下面的手势层变成暂停（模拟器实测）
+                    .animation(.easeInOut(duration: 0.3), value: controlsDimmed)
                     .position(x: width / 2, y: bandCenter + bandHeight / 2 + 28)
                 }
                 VStack(spacing: 12) {
@@ -316,8 +351,7 @@ private struct ReelPage: View {
                         info
                         actions
                     }
-                    ReelProgressRow(item: item, player: player, scrubSeconds: isCurrent ? store.scrubSeconds : nil,
-                                    visible: isCurrent && (store.playerState == .paused || store.scrubSeconds != nil))
+                    ReelProgressRow(item: item, player: player, visible: isCurrent && store.playerState == .paused)
                 }
                 .padding(.horizontal, Theme.pagePadding)
                 .padding(.bottom, insets.bottom + 10)
@@ -328,6 +362,20 @@ private struct ReelPage: View {
             if !current { expanded = false }
         }
     }
+
+    /// 横带下方按钮该不该暗：只有停下来（暂停、放完、放不出）时亮，其余一律暗——加载、起播、播放、缓冲都算
+    /// 「在看」（2026-09-30 用户要求：只要在起播 / 播放就暗，不等出画、不延迟）。不是当前这条的页也暗：
+    /// 滑过来时它马上就要起播，亮着滑进来再变暗会闪一下
+    private var controlsDimmed: Bool {
+        guard isCurrent else { return true }
+        switch store.playerState {
+        case .paused, .ended, .failed: return false
+        case .loading, .buffering, .playing: return true
+        }
+    }
+
+    /// 横带下方按钮的亮度系数：暗时 30%（2026-09-30 用户定），乘到文字与描边的颜色上
+    private var controlsAlpha: Double { controlsDimmed ? 0.3 : 1 }
 
     /// 这一条的播放器：当前这条，或预起好的下一条（滑动途中下一页就是它的第一帧，不是封面）
     private var player: ReelPlayer? { store.player(for: item) }
@@ -379,22 +427,10 @@ private struct ReelPage: View {
 
     // MARK: 手势读数
 
-    /// 长按倍速在横带上方、拖进度的落点在横带正中（与播放器页同一种玻璃胶囊 `PlayerHUD`）
+    /// 长按倍速在横带上方（与播放器页同一种玻璃胶囊 `PlayerHUD`）
     @ViewBuilder
     private func gestureHUD(bandTop: CGFloat) -> some View {
         ZStack {
-            if let target = store.scrubSeconds, let player {
-                PlayerHUD {
-                    VStack(spacing: 4) {
-                        Text(Formatters.clock(max(0, target - player.startSeconds)))
-                            .font(.title2.monospacedDigit().weight(.semibold))
-                        let delta = Int((target - player.position).rounded())
-                        Text("\(delta >= 0 ? "+" : "-")\(Formatters.clock(Double(abs(delta))))")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
-                }
-            }
             if store.holdSpeedActive {
                 PlayerHUD {
                     Text("2× 快进中").monospacedDigit()
@@ -482,10 +518,10 @@ private struct ReelPage: View {
                     .font(.system(size: 9, weight: .bold))
             }
             .font(.footnote.weight(.semibold))
-            .foregroundStyle(.white.opacity(0.92))
+            .foregroundStyle(.white.opacity(0.92 * controlsAlpha))
             .padding(.horizontal, 14)
             .padding(.vertical, 7)
-            .overlay(Capsule().stroke(.white.opacity(0.35), lineWidth: 1))
+            .overlay(Capsule().stroke(.white.opacity(0.35 * controlsAlpha), lineWidth: 1))
             .contentShape(Capsule())
         }
         .accessibilityLabel("画质：\(ReelsQuality.label(store.quality))")
@@ -509,10 +545,10 @@ private struct ReelPage: View {
         Button(action: onFullscreen) {
             Label("全屏观看", systemImage: "arrow.up.left.and.arrow.down.right")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.92))
+                .foregroundStyle(.white.opacity(0.92 * controlsAlpha))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .overlay(Capsule().stroke(.white.opacity(0.35), lineWidth: 1))
+                .overlay(Capsule().stroke(.white.opacity(0.35 * controlsAlpha), lineWidth: 1))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -569,7 +605,7 @@ private struct ReelPage: View {
 
     // MARK: 左下角信息
 
-    /// 只放导演与简介（片名、年份在左上角）：导演一行、简介两行
+    /// 只放导演与简介（片名、年份在左上角）：导演一行、简介三行
     private var info: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !item.title.directors.isEmpty { directorRow }
@@ -630,10 +666,14 @@ private struct ReelPage: View {
         return (Text("\(Text(head).fontWeight(.semibold))\(body)"), head + body)
     }
 
-    /// 两行放不下（不限行数时更高）
+    /// 简介收起时的行数
+    private static let captionLines = 3
+
+    /// 三行放不下（不限行数时更高）
     private var truncated: Bool { captionFullHeight > captionShownHeight + 1 }
 
-    /// 收起时两行；放不下才在第二行末尾盖一个「展开」（放得下就原样显示），点开最多八行
+    /// 收起时三行（2026-09-30 用户要求：隐藏标签栏后底部空出来了，原来两行）；放不下才在最后一行末尾盖一个
+    /// 「展开」（放得下就原样显示），点开最多八行
     private func captionView(_ caption: (text: Text, plain: String)) -> some View {
         Group {
             if expanded {
@@ -641,16 +681,16 @@ private struct ReelPage: View {
                     .lineLimit(8)
             } else {
                 caption.text
-                    .lineLimit(2)
+                    .lineLimit(Self.captionLines)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { captionShownHeight = $0 }
-                    // 不限行数时有多高：比两行高就是放不下
+                    // 不限行数时有多高：比三行高就是放不下
                     .background(alignment: .topLeading) {
                         caption.text
                             .fixedSize(horizontal: false, vertical: true)
                             .hidden()
                             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { captionFullHeight = $0 }
                     }
-                    // 放不下时第二行末尾让出一段：原文在这段渐隐成透明（不是盖一块渐黑的底——加载时底下是
+                    // 放不下时最后一行末尾让出一段：原文在这段渐隐成透明（不是盖一块渐黑的底——加载时底下是
                     // 模糊剧照，黑块会露出来），「展开」写在让出的位置上
                     .mask {
                         ZStack(alignment: .bottomTrailing) {
@@ -658,7 +698,7 @@ private struct ReelPage: View {
                             if truncated {
                                 LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.45)],
                                                startPoint: .leading, endPoint: .trailing)
-                                    .frame(width: 76, height: captionShownHeight / 2)
+                                    .frame(width: 76, height: captionShownHeight / CGFloat(Self.captionLines))
                                     .blendMode(.destinationOut)
                             }
                         }
@@ -676,7 +716,7 @@ private struct ReelPage: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
-        // 两行放得下就没什么可展开的：点在简介上与点页面别处一样是暂停 / 继续
+        // 三行放得下就没什么可展开的：点在简介上与点页面别处一样是暂停 / 继续
         .allowsHitTesting(expanded || truncated)
         .accessibilityElement()
         .accessibilityLabel(caption.plain)
@@ -685,31 +725,40 @@ private struct ReelPage: View {
     }
 }
 
-/// 左上角标题：在播这一条的片名 + 年份（2026-09-30 用户要求，替换原来的页名「片段」，左下角因此只放导演与简介）。
-/// 片名太长时截断、年份总是完整显示；没有在播的条目（加载中、空态）时仍写「片段」
+/// 顶部正中的标题胶囊：第一行在播这一条的片名、第二行年份（2026-09-30 用户要求，参照「照片」App 选中照片后
+/// 顶部的地点胶囊），点了去详情页。没有在播的条目（加载中、空态）时只写「片段」、不能点。
+/// 胶囊**固定宽度**、占满返回键与筛选键之间：宽度跟着片名走的话，换条时短名到长名胶囊一下撑开还带回弹
+/// （2026-09-30 用户反馈），固定后换条只换文字，长片名在里面截断
 private struct ReelTitle: View {
     let item: API.ReelItemView?
-    let maxWidth: CGFloat
+    let width: CGFloat
+    let onTap: () -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(item?.title.name ?? "片段")
-                .font(.title2.weight(.bold))
-                .lineLimit(1)
-            if let year = item?.title.year {
-                Text(String(year))
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.6))
-                    .fixedSize()
+        Button(action: onTap) {
+            VStack(spacing: 1) {
+                Text(item?.title.name ?? "片段")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                if let year = item?.title.year {
+                    Text(String(year))
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
             }
+            .lineLimit(1)
+            .contentTransition(.opacity)
+            .animation(.easeInOut(duration: 0.25), value: item?.id)
+            .padding(.horizontal, 14)
+            // 固定尺寸：工具栏里不固定的话胶囊会被按内容挤窄
+            .frame(width: width, height: 44)
+            // 工具栏正中的位置系统不给玻璃底，自己套一个，高度与两侧的返回键、筛选胶囊一致
+            .glassEffect(.regular.interactive(), in: .capsule)
         }
-        .foregroundStyle(.white)
-        // 先按最宽截住、再固定尺寸：工具栏给左侧位置的宽度很小，不固定的话片名会被挤没、只剩年份（模拟器实测）
-        .frame(maxWidth: maxWidth, alignment: .leading)
-        .fixedSize()
-        .contentTransition(.opacity)
-        .animation(.easeInOut(duration: 0.25), value: item?.id)
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
+        .disabled(item == nil)
+        .accessibilityLabel([item?.title.name ?? "片段", item?.title.year.map(String.init)].compactMap { $0 }.joined(separator: "，"))
+        .accessibilityHint(item == nil ? "" : "查看详情")
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("reels-title")
     }
@@ -720,14 +769,11 @@ private struct ReelTitle: View {
 struct ReelProgressRow: View {
     let item: API.ReelItemView
     let player: ReelPlayer?
-    /// 横滑拖进度中：进度线跟着落点走
-    var scrubSeconds: Double?
-    /// 显示与否：平时不显示，只在暂停、拖进度时淡入（2026-09-30 用户要求，同抖音）
+    /// 显示与否：平时不显示，只在暂停时淡入（2026-09-30 用户要求，同抖音）
     var visible = true
 
     var body: some View {
-        // 只留一条细进度线，不写时间（2026-09-30 用户要求：竖屏刷片看个大概进度就够了）；时间只给读屏，
-        // 拖进度时横带正中另有落点读数。进度用计时器的时刻显式重算、按比例横向缩放画出来：原来靠旁边
+        // 只留一条细进度线，不写时间（2026-09-30 用户要求：竖屏刷片看个大概进度就够了）；时间只给读屏。进度用计时器的时刻显式重算、按比例横向缩放画出来：原来靠旁边
         // 那行时间文字每 0.25 秒一变带着整行重画，去掉文字后 GeometryReader 里的宽度不再跟着刷新
         TimelineView(.periodic(from: .now, by: 0.25)) { context in
             let value = progress(at: context.date)
@@ -752,15 +798,13 @@ struct ReelProgressRow: View {
     /// `date` 只用来让每个计时刻都重算一次（值取自播放器的当前位置）
     private func progress(at date: Date) -> Double {
         _ = date
-        guard let scrubSeconds else { return player?.progress ?? 0 }
-        let span = Double(item.segment.endMs - item.segment.startMs) / 1000
-        return span > 0 ? min(1, max(0, (scrubSeconds - Double(item.segment.startMs) / 1000) / span)) : 0
+        return player?.progress ?? 0
     }
 
     private var timeText: String {
         let start = Double(item.segment.startMs) / 1000
         let total = Double(item.segment.endMs - item.segment.startMs) / 1000
-        let elapsed = min(max(0, (scrubSeconds ?? player?.position ?? start) - start), total)
+        let elapsed = min(max(0, (player?.position ?? start) - start), total)
         return "\(Formatters.clock(elapsed)) / \(Formatters.clock(total))"
     }
 }

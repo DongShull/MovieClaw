@@ -7352,7 +7352,9 @@ nonisolated extension API {
     struct ReelFacetsView: Codable, Hashable, Sendable {
         /// 当前条件下能刷到几部
         var total: Int
-        /// 电影 / 剧集
+        /// 类型 / 地区 / 年代 / 评分 / 片长这几维筛选是否可用。False = 当前池子是「其他」（选了「其他」，或库里只有其他视频）：它没有 TMDB 档案，只剩观看状态可筛，App 收起那几个菜单
+        var filterable: Bool
+        /// 电影 / 剧集 / 其他；空 = 没有可切换的类型（只有「其他」库），App 不显示这一行
         var kinds: [API.FacetValueView]
         /// 类型，按数量倒序
         var genres: [API.FacetValueView]
@@ -7369,6 +7371,7 @@ nonisolated extension API {
 
         enum CodingKeys: String, CodingKey {
             case total
+            case filterable
             case kinds
             case genres
             case countries
@@ -7503,7 +7506,7 @@ nonisolated extension API {
         var mediaItemId: Int
         /// 这一条的文件所在的媒体库（分享要用）
         var libraryId: Int
-        /// 电影 / 剧集
+        /// 电影 / 剧集 / 其他
         var kind: String
         /// 片名
         var name: String

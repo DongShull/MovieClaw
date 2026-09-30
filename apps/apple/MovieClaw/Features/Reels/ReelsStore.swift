@@ -40,9 +40,6 @@ final class ReelsStore {
     private(set) var firstFrameShown = false
     /// 当前这条的实时加载速度（「3.2 MB/s」，与播放器页同一文案）；转圈时显示，免得以为卡死了
     private(set) var speedLabel: String?
-    /// 横滑拖进度中的落点（原片秒）与起手时的位置；松手才跳
-    private(set) var scrubSeconds: Double?
-    @ObservationIgnored private var scrubBase: Double = 0
     private(set) var holdSpeedActive = false
     /// 片段的画质上限（`ReelsQuality`，按家里 / 外网记；nil = 原画）。每条播放器建的时候按它开
     private(set) var quality: Int?
@@ -321,27 +318,6 @@ final class ReelsStore {
         player.seek(to: player.position + (xRatio < 1 / 3 ? -10 : 10))
     }
 
-    /// 横滑拖进度：满屏一划 = 整个片段（播放器页是 90 秒，片段只有 30～60 秒，照搬会太灵敏）
-    func handleScrub(_ phase: PlayerGestureLayer.GesturePhase, delta: CGFloat) {
-        guard let player, player.hasFirstFrame else { return }
-        switch phase {
-        case .began:
-            scrubBase = player.position
-            scrubSeconds = scrubBase
-        case .changed:
-            let span = player.endSeconds - player.startSeconds
-            scrubSeconds = min(max(player.startSeconds, scrubBase + Double(delta) * span), player.endSeconds)
-        case .ended:
-            if let scrubSeconds {
-                suggestion.restartGrace()
-                player.seek(to: scrubSeconds)
-            }
-            scrubSeconds = nil
-        case .cancelled:
-            scrubSeconds = nil
-        }
-    }
-
     /// 长按 2 倍速，抬手恢复
     func handleHold(began: Bool) {
         if began {
@@ -535,7 +511,6 @@ final class ReelsStore {
         self.player = nil
         handedOff = false
         speedLabel = nil
-        scrubSeconds = nil
         holdSpeedActive = false
     }
 

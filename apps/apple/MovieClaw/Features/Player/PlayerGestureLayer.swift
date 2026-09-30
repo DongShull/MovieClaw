@@ -25,6 +25,9 @@ struct PlayerGestureLayer: UIViewRepresentable {
     var excludedRects: [CGRect] = []
     /// 竖滑调亮度 / 音量。刷片页（Features/Reels）关掉：那里上下滑是翻页，竖滑整次交给外层滚动
     var adjusts = true
+    /// 横滑拖进度。刷片页竖屏关掉（2026-09-30 用户要求：小横带里横滑定位体验很差，拖进度只留给全屏）：
+    /// 横滑整次不认领，也不当成轻点
+    var scrubs = true
     var onTap: (_ xRatio: CGFloat, _ isDouble: Bool) -> Void
     var onScrub: (_ phase: GesturePhase, _ deltaRatio: CGFloat) -> Void
     var onAdjust: (_ phase: GesturePhase, _ side: AdjustSide, _ deltaRatio: CGFloat) -> Void
@@ -102,6 +105,10 @@ struct PlayerGestureLayer: UIViewRepresentable {
                 guard max(abs(dx), abs(dy)) > Self.activatePx else { return }
                 holdTimer?.invalidate()
                 if abs(dx) >= abs(dy) {
+                    guard config.scrubs else {
+                        tracking = false
+                        return
+                    }
                     intent = .scrub
                     config.onScrub(.began, 0)
                 } else {

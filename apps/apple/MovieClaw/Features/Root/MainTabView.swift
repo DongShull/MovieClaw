@@ -47,6 +47,14 @@ struct MainTabView: View {
         router.selectedTab == .library && router.paths[.library]?.last == .reels
     }
 
+    /// 当前停在 AI 会话页（新会话或已有会话）：那页隐藏了标签栏，附件却还会贴在输入框下面，要一起收掉
+    private var onAgentSession: Bool {
+        switch router.paths[router.selectedTab]?.last {
+        case .newSession?, .session?: true
+        default: false
+        }
+    }
+
     var body: some View {
         let session = model.session
         let permissions = session.map(Permissions.init(session:)) ?? .none
@@ -100,8 +108,9 @@ struct MainTabView: View {
         }
         // 「片段」上下滑动是在换条，不是在往下读：停在它上面时标签栏不收起（docs/design/reels.md）
         .tabBarMinimizeBehavior(onReels ? .never : .onScrollDown)
-        // 「接着看」条：片段页自己占满底部，不显示
-        .modifier(ResumeAccessoryModifier(item: resume.visibleItem, enabled: !onReels, onHide: { resume.hide() }))
+        // 「接着看」条：片段页自己占满底部、AI 会话页底部是输入框（2026-09-30 用户反馈条贴在输入框下面很怪），都不显示
+        .modifier(ResumeAccessoryModifier(item: resume.visibleItem, enabled: !onReels && !onAgentSession,
+                                          onHide: { resume.hide() }))
         // 进主界面、关掉播放器（看过就变了）、回到前台、换账号时重新取最近播放的那一条
         .task(id: "\(router.player == nil)|\(scenePhase == .active)|\(session?.nickname ?? "")|\(api.server.origin)") {
             guard router.player == nil, scenePhase == .active else { return }

@@ -36,7 +36,7 @@ class ReelTitleView(BaseModel):
 
     media_item_id: int = Field(description="条目 id")
     library_id: int = Field(description="这一条的文件所在的媒体库（分享要用）")
-    kind: Literal["movie", "tv"] = Field(description="电影 / 剧集")
+    kind: Literal["movie", "tv", "video"] = Field(description="电影 / 剧集 / 其他")
     name: str = Field(description="片名")
     year: int | None = Field(default=None, description="年份")
     rating: float | None = Field(default=None, description="评分（0～10）")
@@ -138,7 +138,18 @@ class ReelFacetsView(BaseModel):
     """
 
     total: int = Field(description="当前条件下能刷到几部")
-    kinds: list[FacetValueView] = Field(default_factory=list, description="电影 / 剧集")
+    filterable: bool = Field(
+        default=True,
+        description=(
+            "类型 / 地区 / 年代 / 评分 / 片长这几维筛选是否可用。False = 当前池子是「其他」"
+            "（选了「其他」，或库里只有其他视频）：它没有 TMDB 档案，只剩观看状态可筛，"
+            "App 收起那几个菜单"
+        ),
+    )
+    kinds: list[FacetValueView] = Field(
+        default_factory=list,
+        description="电影 / 剧集 / 其他；空 = 没有可切换的类型（只有「其他」库），App 不显示这一行",
+    )
     genres: list[FacetValueView] = Field(default_factory=list, description="类型，按数量倒序")
     countries: list[FacetValueView] = Field(default_factory=list, description="地区，按数量倒序")
     decades: list[FacetValueView] = Field(default_factory=list, description="年代，按时间倒序")

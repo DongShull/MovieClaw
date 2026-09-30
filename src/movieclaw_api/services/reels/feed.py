@@ -24,6 +24,13 @@
 文件）没算过的片段一部一部补齐，只补这一轮（``_fill_pool``）。补齐之后每页都是现成的，
 不再有「等满 3 秒」；没人用刷片的部署一点不花。
 
+**「其他」是独立的池，不混进默认**：默认（不传 ``kind``）只从电影库、剧集库抽——刷片
+是帮人决定「今晚看什么」，而「其他」库（家庭录像、自录内容）一个文件一个条目，动辄几千个，
+按条目均匀抽会把电影、剧集淹没。要刷它得主动选 ``kind=video``。唯一的例外：可见范围里
+**没有任何可刷的电影 / 剧集文件**（只建了「其他」库）时，默认回落到「其他」池，否则这类用户
+的「全部」永远是空的（``pool_libraries``）。「其他」没有 TMDB 档案，类型 / 地区 / 年代 / 评分 /
+片长这几维筛选对它无意义，服务端一律忽略，只认「观看状态」（``watch_only``）。
+
 **筛选**：与媒体库筛选同一套维度与参数（类型、地区、年代、评分、片长、观看状态，
 ``LibraryFilter``），另加「电影 / 剧集」。收窄只在抽样池上加一条 ``media_item_id IN (…)``，
 走媒体库唯一的收窄点 ``_narrow``（观看者的分级约束也在里面）——口径不会与媒体库分叉，
@@ -65,6 +72,7 @@ from movieclaw_api.services.library.items import (
     backdrop_facts_many,
     poster_facts_many,
 )
+from movieclaw_api.services.library.profile import profile_for
 from movieclaw_api.services.media_extract import window_format
 from movieclaw_api.services.media_scrape import asset_version
 from movieclaw_api.services.playback import marks as playback_marks
@@ -112,7 +120,7 @@ class ReelCandidate:
     """一页里的一条：选中的文件与算好的片段。"""
 
     media_item_id: int
-    kind: str  # movie / episode
+    kind: str  # movie / episode / video
     file: LibraryFile
     segment: ReelSegment | None = None
 
@@ -129,17 +137,24 @@ class ReelPage:
 
 
 async def _playable_library_kinds(session: AsyncSession, principal: Principal) -> dict[int, str]:
-    """本人可见的电影库 / 剧集库：库 id → 类型。"""
+    """本人可见、能播放的库：库 id → 库形态（movie / tv / video）。
+
+    「能播放」读能力位 ``profile.playable``，不列举形态：图片库不可播放自然被挡在外面，
+    将来新增可播放的形态也不用回来改这里。
+    """
     visible = await visible_library_ids(session, principal)
     if not visible:
         return {}
     rows = await session.execute(
-        select(Library.id, Library.kind).where(
+        select(Library.id, Library.kind, Library.source).where(
             Library.id.in_(visible),  # type: ignore[union-attr]
-            Library.kind.in_(("movie", "tv")),  # type: ignore[attr-defined]
         )
     )
-    return {int(lid): str(kind) for lid, kind in rows.all()}
+    return {
+        int(lid): str(kind)
+        for lid, kind, source in rows.all()
+        if profile_for(kind, source).playable
+    }
 
 
 def _playable_file_filter(library_ids: Sequence[int]) -> list[Any]:
@@ -153,8 +168,66 @@ def _playable_file_filter(library_ids: Sequence[int]) -> list[Any]:
 
 
 def only_kind(libraries: dict[int, str], kind: str | None) -> dict[int, str]:
-    """「电影 / 剧集」这一维：只留这类库（不传是都留）。"""
+    """「电影 / 剧集 / 其他」这一维：只留这类库（不传是都留）。"""
     return {lid: k for lid, k in libraries.items() if kind is None or k == kind}
+
+
+@dataclass(frozen=True)
+class ReelPool:
+    """这次刷片从哪些库抽。"""
+
+    #: 抽样的库：库 id → 库形态
+    libraries: dict[int, str]
+    #: 是不是「其他」池（选了 ``kind=video``，或只有「其他」库时的回落）。它没有 TMDB 档案，
+    #: 筛选只剩观看状态，App 据此收起类型 / 年代 / 地区 / 评分 / 片长几个菜单
+    video: bool
+    #: 电影 / 剧集有没有可刷的文件。没有就说明用户只有「其他」，没必要给「电影 / 剧集 / 其他」切换
+    film_available: bool
+
+
+async def pool_libraries(session: AsyncSession, principal: Principal, kind: str | None) -> ReelPool:
+    """按 ``kind`` 定这次从哪些库抽。
+
+    - ``video``：只抽「其他」库；
+    - ``movie`` / ``tv``：只抽这一类；
+    - 不传：抽电影 + 剧集；**电影 / 剧集一个可刷的文件都没有**且有「其他」库时回落到「其他」。
+      判据是「有没有可刷的文件」而不是筛选后的结果：带着筛选条件刷空了不能偷偷改推家庭录像，
+      也不看「有没有库」——建了个空电影库的人照样该看到自己的录像。
+    """
+    libraries = await _playable_library_kinds(session, principal)
+    other = only_kind(libraries, "video")
+    film = {lid: k for lid, k in libraries.items() if k != "video"}
+    film_available = (
+        bool(film)
+        and (
+            await session.execute(
+                select(LibraryFile.id).where(*_playable_file_filter(list(film))).limit(1)
+            )
+        ).first()
+        is not None
+    )
+    if kind == "video":
+        return ReelPool(other, True, film_available)
+    if kind is not None:
+        return ReelPool(only_kind(film, kind), False, film_available)
+    if film_available or not other:
+        return ReelPool(film, False, film_available)
+    return ReelPool(other, True, False)
+
+
+def watch_only(filters: LibraryFilter | None) -> LibraryFilter | None:
+    """「其他」池的筛选：只留观看状态。
+
+    类型 / 地区 / 年代 / 评分 / 片长都来自 TMDB 档案，「其他」条目没有——留着只会把它们
+    全部筛空；观看状态按人算、与档案无关，家庭录像同样有「只看没看过的」需求。
+    """
+    return LibraryFilter(watch=filters.watch) if filters and filters.watch else None
+
+
+def unit_kind(library_kind: str) -> str:
+    """库形态 → 抽样单位：tv 是 episode（一部剧放一集），video 是 video（单本，没有 TMDB 档案），
+    其余是 movie。挑点区间对 video 沿用单本的口径（``picker.REGION`` 找不到时退回 movie）。"""
+    return {"tv": "episode", "video": "video"}.get(library_kind, "movie")
 
 
 async def _title_pool(
@@ -164,7 +237,7 @@ async def _title_pool(
     filters: LibraryFilter | None,
     member_id: int,
 ) -> list[tuple[int, str]]:
-    """可抽的「部」：(条目 id, movie/episode)，按条目 id 排好（洗牌前的确定顺序）。"""
+    """可抽的「部」：(条目 id, movie/episode/video)，按条目 id 排好（洗牌前的确定顺序）。"""
     stmt = (
         select(LibraryFile.media_item_id, LibraryFile.library_id)
         .where(
@@ -175,8 +248,7 @@ async def _title_pool(
     )
     kinds: dict[int, str] = {}
     for item_id, library_id in (await session.execute(stmt)).all():
-        kind = "episode" if libraries.get(int(library_id)) == "tv" else "movie"
-        kinds.setdefault(int(item_id), kind)
+        kinds.setdefault(int(item_id), unit_kind(libraries.get(int(library_id), "movie")))
     return sorted(kinds.items())
 
 
@@ -341,9 +413,12 @@ async def build_feed(
     seed = seed if seed is not None else secrets.randbelow(2**31)
     if MODE_SEEK not in modes:
         return ReelPage(seed=seed, next_offset=offset, has_more=False)
-    libraries = only_kind(await _playable_library_kinds(session, principal), kind)
+    reel_pool = await pool_libraries(session, principal, kind)
+    libraries = reel_pool.libraries
     if not libraries:
         return ReelPage(seed=seed, next_offset=offset, has_more=False)
+    if reel_pool.video:
+        filters = watch_only(filters)
     member_id = principal.member_id if principal.member_id is not None else 0
     content_limit = await content_limit_for(session, principal)
     pool = await _title_pool(session, libraries, content_limit, filters, member_id)
@@ -369,7 +444,7 @@ async def build_feed(
         _preread_in_background(page[:PREREAD_ITEMS])
     if has_more:
         _warm_next_page(pool[next_offset : next_offset + limit + 3], list(libraries))
-    _fill_pool_in_background()
+    _fill_pool_in_background(video=reel_pool.video)
 
     items = await _assemble(session, page, member_id)
     _warm_stills([i["title"]["backdrop_url"] or i["cover_url"] for i in items[:WARM_STILLS]])
@@ -509,25 +584,29 @@ def _preread_in_background(candidates: list[ReelCandidate]) -> None:
     task.add_done_callback(_warm_tasks.discard)
 
 
-_fill_task: asyncio.Task[None] | None = None
+#: 全池补算各只跑一轮：电影 / 剧集（第一次有人刷片时）与「其他」（第一次有人刷到「其他」池时）
+_fill_tasks: dict[bool, asyncio.Task[None]] = {}
 
 
-def _fill_pool_in_background() -> None:
-    """每个进程只补一轮：第一次有人刷片时启动，之后什么都不做。
+def _fill_pool_in_background(*, video: bool = False) -> None:
+    """每个进程、每个池只补一轮：第一次有人刷这个池时启动，之后什么都不做。
+
+    「其他」池单独懒启动：它一个文件一个条目，动辄几千个，没人刷它的部署不该为它读盘。
 
     不定时重查：之后新入库的片刷到时现算（现成的够一页就先跳过它、后台算完落盘），
     下次再刷到就是现成的；服务重启（升级）后第一次刷片再补一轮，那时已算过的只是读一下
     缓存记录（全池一两秒），不会重算。
     """
-    global _fill_task
-    if _fill_task is None:
-        _fill_task = asyncio.create_task(_fill_pool())
-        _warm_tasks.add(_fill_task)
-        _fill_task.add_done_callback(_warm_tasks.discard)
+    if video not in _fill_tasks:
+        task = asyncio.create_task(_fill_pool(video=video))
+        _fill_tasks[video] = task
+        _warm_tasks.add(task)
+        task.add_done_callback(_warm_tasks.discard)
 
 
-async def _fill_pool() -> None:
-    """把全部电影库、剧集库每部一个文件（``choose_file`` 选中的那个）没算过的片段补齐。
+async def _fill_pool(*, video: bool = False) -> None:
+    """把全部电影库、剧集库（``video=True`` 时是「其他」库）每部一个文件
+    （``choose_file`` 选中的那个）没算过的片段补齐。
 
     片段按文件缓存、与观看者无关，所以不按人算可见性与分级：补的是全集，谁刷都用得上。
     **一部一部串行算**：计算闸 ``_COMPUTE_LIMIT`` 是 3 路，补算最多占 1 路，另外 2 路
@@ -537,7 +616,9 @@ async def _fill_pool() -> None:
     try:
         async with get_database().session() as session:
             rows = await session.execute(
-                select(Library.id, Library.kind).where(Library.kind.in_(("movie", "tv")))  # type: ignore[attr-defined]
+                select(Library.id, Library.kind).where(
+                    Library.kind.in_(("video",) if video else ("movie", "tv"))  # type: ignore[attr-defined]
+                )
             )
             libraries = {int(lid): str(kind) for lid, kind in rows.all()}
             pool = await _title_pool(session, libraries, NO_CONTENT_LIMIT, None, 0)
@@ -724,7 +805,7 @@ async def _assemble(
                 "title": {
                     "media_item_id": c.media_item_id,
                     "library_id": file.library_id,
-                    "kind": "tv" if c.kind == "episode" else "movie",
+                    "kind": {"episode": "tv"}.get(c.kind, c.kind),
                     "name": item.title,
                     "year": item.year,
                     "rating": meta.vote_average if meta else None,

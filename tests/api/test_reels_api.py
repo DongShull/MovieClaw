@@ -97,7 +97,7 @@ def client(tmp_path, monkeypatch):
     # 抓帧闸是全局共用的模块级信号量，等待过就绑在当时的事件循环上；每个用例一个新的
     monkeypatch.setattr(segments, "FRAME_GRAB_GATE", asyncio.Semaphore(2))
     # 全池补算在后台按条目 id 顺序算，会与断言翻页顺序的用例抢着改缓存；它单独测
-    monkeypatch.setattr(reels_feed, "_fill_pool_in_background", lambda: None)
+    monkeypatch.setattr(reels_feed, "_fill_pool_in_background", lambda **_k: None)
     _luma_plan.clear()
 
     from movieclaw_api.app import create_app
@@ -115,7 +115,14 @@ def client(tmp_path, monkeypatch):
 _counter = itertools.count(1)
 
 
-async def _seed(tmp_path: Path, *, movies: int = 2, episodes: int = 3, extras: bool = True) -> dict:
+async def _seed(
+    tmp_path: Path,
+    *,
+    movies: int = 2,
+    episodes: int = 3,
+    extras: bool = True,
+    clips: int = 0,
+) -> dict:
     n = next(_counter)
     root = tmp_path / f"media{n}"
     root.mkdir(exist_ok=True)
@@ -146,7 +153,9 @@ async def _seed(tmp_path: Path, *, movies: int = 2, episodes: int = 3, extras: b
         repo = LibraryRepository(session)
         movie_lib = await repo.create(name=f"电影库{n}", kind="movie", root_paths=[str(root)])
         tv_lib = await repo.create(name=f"剧集库{n}", kind="tv", root_paths=[str(root)])
-        other_lib = await repo.create(name=f"其他{n}", kind="video", root_paths=[str(root)])
+        other_lib = await repo.create(
+            name=f"其他{n}", kind="video", source="local", root_paths=[str(root)]
+        )
         ids = {"movies": [], "movie_library": movie_lib.id, "tv_library": tv_lib.id}
         for i in range(movies):
             item = MediaItem(
@@ -173,6 +182,17 @@ async def _seed(tmp_path: Path, *, movies: int = 2, episodes: int = 3, extras: b
             session.add(_file(broken.id, movie_lib.id, 0, 0, "broken.mkv"))
             session.add(_file(clip.id, other_lib.id, 0, 0, "clip.mkv"))
             ids.update(disc=disc.id, broken=broken.id, clip=clip.id)
+        # 「其他」库里的家庭录像：一个文件一个条目（与 extras 里那条「个人视频」分开，
+        # 后者用来锁「默认不推其他」，这里的要能被刷到）
+        ids["clips"] = []
+        for i in range(clips):
+            home = MediaItem(
+                kind="video", tmdb_id=50_000 * n + i, title=f"录像{i}", original_title=f"H{i}"
+            )
+            session.add(home)
+            await session.flush()
+            session.add(_file(home.id, other_lib.id, 0, 0, f"home{i}.mkv"))
+            ids["clips"].append(home.id)
         await session.commit()
         return ids
 
@@ -522,6 +542,123 @@ def test_filters_match_library_semantics_and_facets_skip_own_dimension(client, t
     assert got(w="unwatched") == {b, c, show}
     assert _facet(facets(), "watch") == {"unwatched": 3}
     assert feed(client, g="99")["items"] == []  # 没有纪录片
+
+
+# --- 「其他」库：独立的池，不混进默认 ---------------------------------------------------
+
+
+def _facets(client: TestClient, **params) -> dict:
+    resp = client.get("/api/v1/reels/facets", params=params)
+    assert resp.status_code == 200, resp.text
+    return resp.json()["data"]
+
+
+def test_other_libraries_are_a_separate_pool_not_mixed_into_default(client, tmp_path):
+    ids = seed(client, tmp_path, movies=2, episodes=2, extras=False, clips=3)
+
+    default = {i["title"]["media_item_id"] for i in feed(client, limit=10)["items"]}
+    assert default == {*ids["movies"], ids["show"]}  # 默认只有电影 + 剧集，一部录像都没有
+
+    other = feed(client, kind="video", limit=10)
+    assert {i["title"]["media_item_id"] for i in other["items"]} == set(ids["clips"])
+    item = other["items"][0]
+    assert item["title"]["kind"] == "video"
+    assert item["title"]["episode"] is None
+    assert item["title"]["directors"] == []  # 没有 TMDB 档案：没有导演、没有类型
+    assert item["title"]["genres"] == []
+    assert item["play"]["mode"] == "seek"
+    assert item["segment"]["end_ms"] > item["segment"]["start_ms"]
+
+    # 选「电影」时也不带上录像
+    got = {i["title"]["media_item_id"] for i in feed(client, kind="movie")["items"]}
+    assert got == set(ids["movies"])
+
+
+def test_other_pool_ignores_tmdb_filters_but_keeps_watch_state(client, tmp_path):
+    ids = seed(client, tmp_path, movies=1, episodes=0, extras=False, clips=3)
+    first, second, third = ids["clips"]
+
+    def got(**params) -> set[int]:
+        return {i["title"]["media_item_id"] for i in feed(client, kind="video", **params)["items"]}
+
+    # 类型 / 评分这些来自 TMDB 档案，录像没有——带着它们也不该刷成空的
+    assert got(g="18", rating_gte=8, d="2010s") == {first, second, third}
+
+    marked = client.post("/api/v1/playback/marks", json={"media_item_id": first, "played": True})
+    assert marked.status_code == 200, marked.text
+    assert got(w="unwatched") == {second, third}  # 观看状态照常生效
+    assert got(w="unwatched", g="18") == {second, third}
+
+
+def test_facets_offer_other_as_a_switch_with_its_own_counts(client, tmp_path):
+    ids = seed(client, tmp_path, movies=2, episodes=2, extras=False, clips=3)
+    client.portal.call(  # type: ignore[attr-defined]
+        partial(_set_profiles, {m: _profile([18], "CN", 2010, 8.0, 100) for m in ids["movies"]})
+    )
+
+    whole = _facets(client)
+    assert whole["filterable"] is True
+    assert whole["total"] == 3  # 默认池不含录像
+    assert _facet(whole, "kinds") == {"movie": 2, "tv": 1, "video": 3}
+
+    # 勾了「动作」：电影 / 剧集都被筛空，「其他」照旧算它自己的数——点它会清掉别的条件，
+    # 数成 0 置灰就点不进去了
+    action = _facets(client, g="28")
+    assert _facet(action, "kinds") == {"movie": 0, "tv": 0, "video": 3}
+
+    other = _facets(client, kind="video")
+    assert other["filterable"] is False  # App 据此收起类型 / 年代 / 地区 / 评分 / 片长
+    assert other["total"] == 3
+    assert other["genres"] == other["countries"] == other["decades"] == []
+    assert other["ratings"] == other["runtimes"] == []
+    assert _facet(other, "watch") == {"unwatched": 3}  # 只剩观看状态
+
+
+def test_no_other_libraries_means_no_other_choice(client, tmp_path):
+    seed(client, tmp_path, movies=2, episodes=1, extras=False)  # 有「其他」库但里面没有文件
+    assert _facet(_facets(client), "kinds") == {"movie": 2, "tv": 1}
+
+
+def test_only_other_libraries_falls_back_so_all_is_not_empty(client, tmp_path):
+    # 电影库、剧集库建了但一个文件都没有——「全部」也该是这些录像，不是空的
+    ids = seed(client, tmp_path, movies=0, episodes=0, extras=False, clips=2)
+    got = {i["title"]["media_item_id"] for i in feed(client, limit=10)["items"]}
+    assert got == set(ids["clips"])
+
+    whole = _facets(client)
+    assert whole["total"] == 2
+    assert whole["filterable"] is False
+    assert whole["kinds"] == []  # 没有可切换的类型，App 不画这一行
+    assert _facet(whole, "watch") == {"unwatched": 2}
+
+    marked = client.post(
+        "/api/v1/playback/marks", json={"media_item_id": ids["clips"][0], "played": True}
+    )
+    assert marked.status_code == 200, marked.text
+    unwatched = {i["title"]["media_item_id"] for i in feed(client, w="unwatched")["items"]}
+    assert unwatched == {ids["clips"][1]}
+
+
+def test_fallback_needs_no_film_files_at_all_not_just_an_empty_filter_result(client, tmp_path):
+    # 有电影：筛选刷空了就是空，不能偷偷改推录像
+    seed(client, tmp_path, movies=1, episodes=0, extras=False, clips=2)
+    assert feed(client, g="99")["items"] == []
+    assert _facets(client, g="99")["total"] == 0
+
+
+def test_fill_pool_for_other_libraries_is_separate(client, tmp_path):
+    ids = seed(client, tmp_path, movies=1, episodes=0, extras=False, clips=2)
+    client.portal.call(partial(reels_feed._fill_pool, video=True))  # type: ignore[attr-defined]
+
+    async def files():
+        async with get_database().session() as session:
+            rows = (await session.execute(select(LibraryFile))).scalars().all()
+            return {f.media_item_id: f.id for f in rows}
+
+    by_item = client.portal.call(files)  # type: ignore[attr-defined]
+    cached = {int(p.stem) for p in (tmp_path / "reels-cache").glob("*.json")}
+    # 只补「其他」库的录像，电影不在这一轮里
+    assert cached == {by_item[c] for c in ids["clips"]}
 
 
 def test_feed_carries_marks_overview_and_runtime(client, tmp_path):

@@ -466,10 +466,11 @@ private struct PlayerContent: View {
 
     /// 控制条必须常显（对应 Web `lib/player/chrome.ts` chromeMustStayVisible）：
     /// 暂停时用户在找播放键；菜单是从控制条里长出来的；按着进度条就是在用它；报错/同意弹窗在等用户拍板。
-    /// 这些情况下既不自动收起，轻点画面也收不起来。起播/缓冲转圈时的「暂停」是程序性的，不算
+    /// 这些情况下既不自动收起，轻点画面也收不起来。起播/缓冲转圈时的「暂停」是程序性的，不算。
+    /// 「按着进度条」只算拖底栏进度条；在画面上横滑定位不算（见 `handleScrub`）
     private var chromeMustStayVisible: Bool {
         let userPaused = controller.paused && !controller.phase.isBusy && controller.session != nil
-        return userPaused || menu != .none || scrubMs != nil || isModal
+        return userPaused || menu != .none || (scrubMs != nil && !scrubbingByGesture) || isModal
     }
 
     /// 暂停遮罩只跟「用户意图」走：缓冲饥饿、换流时的程序性暂停不压暗
@@ -778,6 +779,9 @@ private struct PlayerContent: View {
             scrubBase = controller.positionMs
             scrubMs = scrubBase
             scrubbingByGesture = true
+            // 横滑定位不唤出控制层、已开着的也收起（2026-09-30 用户要求：拖的时候只看画面、落点读数与加载转圈，
+            // 中央三键、顶栏底栏都不该冒出来，松手后也不出现）
+            chromeVisible = false
         case .changed:
             let target = min(max(start, scrubBase + Int(delta * 90_000)), start + duration)
             scrubMs = target
