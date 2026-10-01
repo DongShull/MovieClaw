@@ -25,6 +25,7 @@ from movieclaw_db.models import (
     MediaEpisode,
     MediaItem,
     MediaMetadata,
+    PlaybackLog,
     PlaybackState,
 )
 from movieclaw_db.repositories.library_repo import LibraryRepository
@@ -515,3 +516,75 @@ async def test_a_movie_with_metadata_carries_its_runtime_and_aspect(db) -> None:
         assert card.backdrop_url == "https://image.tmdb.org/t/p/w780/backdrop.jpg"
         assert card.episode_still_url is None
         assert card.unwatched_ahead_count == 0
+
+
+async def test_this_device_only_anchors_on_what_this_device_played(db) -> None:
+    """iOS「接着看」条按设备收窄：Infuse 刚放过的片不顶掉手机上看了一半的那部。
+
+    锚点来自这台设备的播放日志、按它在这台设备上最近一次播放排序；进度仍是
+    按人合并的——别的设备把这一集看完了，这里接下一集。
+    """
+    phone, infuse = "ld-3", "infuse-device"
+    async with db.session() as session:
+        library = await LibraryRepository(session).create(
+            name="混合库", kind="movie", root_paths=["/m"]
+        )
+        on_phone = MediaItem(kind="movie", tmdb_id=70, title="手机上看的", original_title="P")
+        on_tv = MediaItem(kind="movie", tmdb_id=71, title="Infuse 看的", original_title="I")
+        show = MediaItem(kind="tv", tmdb_id=72, title="两边都看的剧", original_title="S")
+        session.add_all([on_phone, on_tv, show])
+        await session.flush()
+        assert library.id and on_phone.id and on_tv.id and show.id
+
+        def log(item_id: int, season: int, episode: int, device: str, at: datetime):
+            return PlaybackLog(
+                member_id=MEMBER,
+                media_item_id=item_id,
+                season_number=season,
+                episode_number=episode,
+                device_id=device,
+                started_at=at,
+                last_seen_at=at,
+            )
+
+        session.add_all(
+            [
+                _file(library.id, on_phone.id, 0, 0),
+                _file(library.id, on_tv.id, 0, 0),
+                _file(library.id, show.id, 1, 1),
+                _file(library.id, show.id, 1, 2),
+                _state(on_phone.id, 0, 0, position_ms=600_000, at=datetime(2026, 8, 15)),
+                _state(on_tv.id, 0, 0, position_ms=600_000, at=datetime(2026, 8, 17)),
+                # 手机看了 E01 一半，后来在 Infuse 上把 E01 看完了
+                _state(show.id, 1, 1, played=True, at=datetime(2026, 8, 18)),
+                log(on_phone.id, 0, 0, phone, datetime(2026, 8, 15)),
+                log(show.id, 1, 1, phone, datetime(2026, 8, 14)),
+                log(on_tv.id, 0, 0, infuse, datetime(2026, 8, 17)),
+                log(show.id, 1, 1, infuse, datetime(2026, 8, 18)),
+                # 别的成员用同一个设备标识也不混进来
+                PlaybackLog(
+                    member_id=MEMBER + 1,
+                    media_item_id=on_tv.id,
+                    device_id=phone,
+                    started_at=datetime(2026, 8, 19),
+                    last_seen_at=datetime(2026, 8, 19),
+                ),
+            ]
+        )
+        await session.commit()
+
+        everywhere = await _cards(session, {library.id})
+        assert [c.media_item_id for c in everywhere] == [show.id, on_tv.id, on_phone.id]
+
+        mine = await up_next_items(
+            session,
+            member_id=MEMBER,
+            visible_library_ids={library.id},
+            limit=20,
+            device_id=phone,
+        )
+        assert [c.media_item_id for c in mine] == [on_phone.id, show.id]
+        assert (mine[1].season_number, mine[1].episode_number) == (1, 2), (
+            "E01 在 Infuse 上看完了，进度按人合并，手机这里接 E02"
+        )
+        assert mine[1].last_played_at == datetime(2026, 8, 14), "排序与时间取本设备的播放"

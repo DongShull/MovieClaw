@@ -9,6 +9,9 @@ import SwiftUI
 /// 内容取「继续观看」的第一条（`/playback/up-next`，最近播放的作品：看了一半的接着放，看完一集的放下一集），
 /// 与媒体库首页那一行同源。整条点一下就起播（同一条的「继续观看」卡片的播放键）；长按可以看详情或先隐藏。
 ///
+/// 只认**这台设备**播过的（`this_device`）：附件说的是「你刚才在这台手机上看到哪了」，在 Infuse、电视上放的
+/// 不该顶上来；媒体库首页那一行照旧跨设备。进度仍按人合并——别处把这一集看完了，这里接下一集。
+///
 /// 什么时候不显示：没有可接着看的、停在「片段」页（它自己占满底部）、AI 会话页（底部是输入框）、iOS 26.0（能按需开关附件的 API 从 26.1 起；
 /// 26.0 上开关附件会重建整个标签栏，宁可不显示）。
 @Observable
@@ -24,7 +27,7 @@ final class ResumeBarStore {
     }
 
     func refresh(api: APIClient) async {
-        guard let latest = try? await api.playbackUpNext(limit: 1) else { return }
+        guard let latest = try? await api.playbackUpNext(limit: 1, thisDevice: true) else { return }
         item = latest.items.first
     }
 

@@ -27,6 +27,13 @@
 Jellyfin 只负责把播放事实写进 ``playback_state``；首页直接读领域表，不反向
 调用协议接口。查询收紧到当前账号可见、文件仍在位的库，权限变更或文件丢失后
 不继续泄露条目。
+
+**按设备收窄**（``device_id``）：iOS 标签栏上的「接着看」条说的是「这台手机
+刚才在看什么」，不该把 Infuse、电视上的播放顶上来。``playback_state`` 是按人
+合并的事实，标不出设备，所以这时锚点改从 ``playback_log``（每场一行、带设备
+标识）取：只认这台设备播过的作品、按它在这台设备上最近一次播放排序。展示
+单元与进度仍读 ``playback_state``——别的设备把这一集看完了，这里照样接下一集，
+进度是人的事实，不是设备的。媒体库首页那一行不传，照旧跨设备。
 """
 
 from __future__ import annotations
@@ -48,6 +55,7 @@ from movieclaw_db.models import (
     MediaEpisode,
     MediaItem,
     MediaMetadata,
+    PlaybackLog,
     PlaybackState,
 )
 from movieclaw_media.models import MediaKind
@@ -93,12 +101,17 @@ def _progress_percent(position_ms: int, duration_ms: int | None) -> int | None:
     return max(1, min(99, round(position_ms * 100 / duration_ms)))
 
 
-async def _anchors(session: AsyncSession, member_id: int) -> list[_Anchor]:
+async def _anchors(
+    session: AsyncSession, member_id: int, device_id: str | None = None
+) -> list[_Anchor]:
     """每部作品最近播放的单元，最近的在前。
 
     在库内按作品取最新一行，避免连看一整季时同一部剧铺满整行。哨兵单元
-    （整剧 ``(-1,-1)`` 的收藏行）不是播放事实，排除在外。
+    （整剧 ``(-1,-1)`` 的收藏行）不是播放事实，排除在外。给了 ``device_id``
+    就只看这台设备的播放日志（见模块说明「按设备收窄」）。
     """
+    if device_id is not None:
+        return await _device_anchors(session, member_id, device_id)
     ranked = (
         select(
             PlaybackState.media_item_id.label("media_item_id"),  # type: ignore[attr-defined]
@@ -137,6 +150,52 @@ async def _anchors(session: AsyncSession, member_id: int) -> list[_Anchor]:
         _Anchor(int(item_id), (int(season), int(episode)), played_at)
         for item_id, season, episode, played_at in rows
         if played_at is not None
+    ]
+
+
+async def _device_anchors(session: AsyncSession, member_id: int, device_id: str) -> list[_Anchor]:
+    """同 :func:`_anchors`，但锚点取自这台设备的播放日志。
+
+    一场播放一行，时间用 ``last_seen_at``（最近一次进度上报）：看了两小时的那场
+    比刚点开又退出的那场更"最近"，与状态表 ``last_played_at`` 随进度刷新同一口径。
+    """
+    ranked = (
+        select(
+            PlaybackLog.media_item_id.label("media_item_id"),
+            PlaybackLog.season_number.label("season_number"),
+            PlaybackLog.episode_number.label("episode_number"),
+            PlaybackLog.last_seen_at.label("last_played_at"),
+            func.row_number()
+            .over(
+                partition_by=PlaybackLog.media_item_id,
+                order_by=(PlaybackLog.last_seen_at.desc(), PlaybackLog.id.desc()),
+            )
+            .label("item_rank"),
+        )
+        .where(
+            PlaybackLog.member_id == member_id,
+            PlaybackLog.device_id == device_id,
+            PlaybackLog.season_number >= 0,
+            PlaybackLog.episode_number >= 0,
+        )
+        .subquery()
+    )
+    rows = (
+        await session.execute(
+            select(
+                ranked.c.media_item_id,
+                ranked.c.season_number,
+                ranked.c.episode_number,
+                ranked.c.last_played_at,
+            )
+            .where(ranked.c.item_rank == 1)
+            .order_by(ranked.c.last_played_at.desc(), ranked.c.media_item_id.asc())
+            .limit(_ANCHOR_SCAN)
+        )
+    ).all()
+    return [
+        _Anchor(int(item_id), (int(season), int(episode)), played_at)
+        for item_id, season, episode, played_at in rows
     ]
 
 
@@ -212,12 +271,16 @@ async def up_next_items(
     member_id: int,
     visible_library_ids: set[int] | None,
     limit: int,
+    device_id: str | None = None,
 ) -> list[UpNextItemView]:
-    """一个账号"接下来该接着看"的卡片，最近动过的在前。"""
+    """一个账号"接下来该接着看"的卡片，最近动过的在前。
+
+    ``device_id`` 给了就只从这台设备播过的作品里找（见模块说明「按设备收窄」）。
+    """
     if visible_library_ids == set():
         return []
 
-    anchors = await _anchors(session, member_id)
+    anchors = await _anchors(session, member_id, device_id)
     if not anchors:
         return []
 

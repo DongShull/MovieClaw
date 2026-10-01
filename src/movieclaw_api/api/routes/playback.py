@@ -68,7 +68,7 @@ from movieclaw_api.schemas.playback import (
     UpNextView,
 )
 from movieclaw_api.schemas.response import ApiResponse, ok
-from movieclaw_api.services import media_scrape
+from movieclaw_api.services import login_devices, media_scrape
 from movieclaw_api.services.auth import Principal
 from movieclaw_api.services.library import chapters as chapters_mod
 from movieclaw_api.services.library import skip_segments
@@ -387,13 +387,20 @@ def _build_playback_diagnostics(
 )
 async def list_up_next(
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    this_device: Annotated[
+        bool,
+        Query(description="只看本设备播过的（iOS「接着看」条用，不混入 Infuse 等）"),
+    ] = False,
     principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[UpNextView]:
     """当前账号在可见媒体库中"接下来该接着看"的作品。
 
-    每张卡都指向一个还没看完的单元；看完的作品不出现在这里。
+    每张卡都指向一个还没看完的单元；看完的作品不出现在这里。``this_device``
+    按登录设备收窄；没有登录设备的凭证（旧网页会话）认不出"本设备"，返回空。
     """
+    if this_device and principal.device is None:
+        return ok(UpNextView(items=[]))
     visible_ids = await visible_library_ids(session, principal)
     member_id = principal.member_id if principal.member_id is not None else 0
     items = await up_next_items(
@@ -401,6 +408,11 @@ async def list_up_next(
         member_id=member_id,
         visible_library_ids=visible_ids,
         limit=limit,
+        device_id=(
+            login_devices.playback_device_id(principal.device.id)
+            if this_device and principal.device is not None
+            else None
+        ),
     )
     return ok(UpNextView(items=items))
 

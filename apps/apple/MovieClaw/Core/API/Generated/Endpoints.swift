@@ -1766,9 +1766,10 @@ nonisolated extension APIClient {
 
     /// 接下来继续
     /// `GET /playback/up-next`
-    func playbackUpNext(limit: Int? = nil) async throws -> API.UpNextView {
+    func playbackUpNext(limit: Int? = nil, thisDevice: Bool? = nil) async throws -> API.UpNextView {
         var query: [URLQueryItem] = []
         if let limit { query.append(URLQueryItem(name: "limit", value: "\(limit)")) }
+        if let thisDevice { query.append(URLQueryItem(name: "this_device", value: "\(thisDevice)")) }
         return try await send("GET", "/playback/up-next", query: query)
     }
 
