@@ -193,6 +193,13 @@ async def _scrape(media_item_id: int, *, force: bool, on_phase: PhaseHook = None
         _phase("写入元数据")
         _merge_identity(item, profile, await repo.get_metadata(media_item_id))
         await apply_display_profile(session, media_item_id, profile, language)
+        # 先提交再读 NFO：上面的影人 upsert 已经 flush，这条连接此刻攥着 SQLite
+        # 写锁；接下来要回媒体盘逐集读分集 NFO（NAS 网络挂载上一部长剧就是好
+        # 几秒），攥着锁读盘会让并发的扫描入账等满 busy_timeout 报
+        # "database is locked"（issue #530）。拆成两段事务的代价只是 NFO 生效
+        # 前有一瞬间读到 TMDB 那份；中途失败也无妨，next_refresh_at 还没推后，
+        # 下一 tick 会整条重刷
+        await session.commit()
         # 本地 NFO 吸收：必须在 TMDB 落库**之后**——NFO 里有值的字段压过 TMDB，
         # 这是「本地刮削成果优先」的落点（此前是在详情页读时判定，每打开一次
         # 就回媒体盘读一次）。失败只告警，档案已经是 TMDB 那份、页面不受影响

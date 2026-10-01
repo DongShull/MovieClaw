@@ -81,6 +81,8 @@ def _fake_tmdb():
         path = request.url.path
         if path == "/3/movie/300":
             return httpx.Response(200, json=_MOVIE)
+        if path == "/3/movie/301":
+            return httpx.Response(200, json={**_MOVIE, "id": 301, "title": "另一部电影"})
         if path.startswith("/3/search/"):
             return httpx.Response(200, json={"results": []})
         return httpx.Response(404, json={})
@@ -290,6 +292,92 @@ async def test_backfill_absorbs_legacy_entries(db, tmp_path) -> None:
             .all()
         )
     assert list(left) == []
+
+
+# ---------------------------------------------------------------------------
+# 读 NFO 时不得占着数据库写锁（issue #530）
+# ---------------------------------------------------------------------------
+#
+# NFO 在媒体盘上（常是 NAS 网络挂载），剧集要逐集读分集 NFO，几十上百个文件
+# 读下来可以是好几秒。这段时间若攥着 SQLite 写锁，并发的扫描入账等满
+# busy_timeout 就报 "database is locked"，那个文件这一轮就入不了账。
+
+
+def _write_lock_free(db_path: Path) -> bool:
+    """另开一条连接、不等待地抢写锁：抢得到说明此刻没有人占着写事务。"""
+    import sqlite3
+
+    conn = sqlite3.connect(db_path, timeout=0)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.rollback()
+        return True
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        conn.close()
+
+
+def _spy_nfo_reads(monkeypatch, db_path: Path) -> list[bool]:
+    """在读条目 NFO 的那一刻（线程池里）探一次写锁，结果按调用顺序记下。"""
+    import movieclaw_api.services.library.nfo_absorb as absorb_mod
+
+    original = absorb_mod._pick_entry_nfo
+    probes: list[bool] = []
+
+    def spy(candidates):
+        probes.append(_write_lock_free(db_path))
+        return original(candidates)
+
+    monkeypatch.setattr(absorb_mod, "_pick_entry_nfo", spy)
+    return probes
+
+
+@pytest.mark.asyncio
+async def test_refresh_reads_nfo_without_holding_write_lock(db, tmp_path, monkeypatch) -> None:
+    """元数据刷新：TMDB 档案落库（含影人 flush）之后才读 NFO，此时写锁必须已释放。"""
+    _library_id, item_id, nfo = await _seed(db, tmp_path, _RICH_NFO)
+    # 入库后盘上是镜像写出的自家副本（不会被重新吸收），换成用户改过的 NFO
+    nfo.write_text("<movie><tmdbid>300</tmdbid><plot>改过的简介。</plot></movie>", encoding="utf-8")
+    probes = _spy_nfo_reads(monkeypatch, tmp_path / "absorb.db")
+
+    forget_parsed_nfo()
+    assert await scrape_media_item(item_id)
+
+    assert probes and all(probes), "读 NFO 期间写锁被占着，并发扫描会报 database is locked"
+    meta = await _meta(db, item_id)
+    assert meta.overview == "改过的简介。"  # 拆成两段事务后 NFO 依旧压过 TMDB
+
+
+@pytest.mark.asyncio
+async def test_backfill_reads_nfo_without_holding_write_lock(db, tmp_path, monkeypatch) -> None:
+    """NFO 回填一批多个条目：前一个条目写完要先提交，再去读下一个条目的 NFO。"""
+    from movieclaw_api.services.library.nfo_backfill import backfill_nfo_absorption
+
+    _library_id, first_id, _nfo = await _seed(db, tmp_path, _RICH_NFO)
+    second = tmp_path / "media" / "movies" / "另一部电影 (2020)"
+    second.mkdir()
+    (second / "另一部电影.2020.1080p.mkv").write_bytes(b"m")
+    (second / "movie.nfo").write_text(
+        "<movie><title>另一部电影</title><tmdbid>301</tmdbid><plot>手写。</plot></movie>",
+        encoding="utf-8",
+    )
+    async with db.session() as session:
+        library = (await LibraryRepository(session).list_all())[0]
+    await scan_library(library.id)
+    async with db.session() as session:
+        for row in (await session.execute(select(MediaMetadata))).scalars():
+            row.nfo_fingerprint = None  # 两个条目都退回「从未吸收」
+            session.add(row)
+        await session.commit()
+    probes = _spy_nfo_reads(monkeypatch, tmp_path / "absorb.db")
+
+    forget_parsed_nfo()
+    await backfill_nfo_absorption()
+
+    assert len(probes) == 2, probes
+    assert all(probes), "回填读后一个条目的 NFO 时，前一个条目的写事务还没提交"
+    assert (await _meta(db, first_id)).nfo_fingerprint is not None
 
 
 # ---------------------------------------------------------------------------

@@ -69,7 +69,11 @@ async def backfill_nfo_absorption() -> None:
             try:
                 if await absorb_local_nfo(session, item_id):
                     absorbed += 1
+                # 逐条提交：吸收末尾的 flush 会拿下 SQLite 写锁，攥着它去读下一个
+                # 条目的 NFO（媒体盘读盘，可能好几秒）会让并发的扫描入账报
+                # "database is locked"（issue #530）
+                await session.commit()
             except Exception:  # noqa: BLE001 -- 单条目失败不断整批
+                await session.rollback()
                 logger.exception("NFO 吸收回填失败：media_item_id=%s", item_id)
-        await session.commit()
     logger.info("NFO 吸收回填：本轮处理 %d 个条目，其中 %d 个读到了 NFO", len(item_ids), absorbed)
