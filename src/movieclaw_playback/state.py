@@ -34,13 +34,21 @@ Unit = tuple[int, int, int]  # (media_item_id, season, episode)
 
 
 def unit_files_statement(unit: Unit) -> Select:
-    """一个播放单元在位文件的查询（:func:`unit_files` 与要连带取别的列的调用方共用）。"""
+    """一个播放单元在位文件的查询（:func:`unit_files` 与要连带取别的列的调用方共用）。
+
+    按 id 稳定排序：多版本时「第一个文件」是片长等回退取值的来源，顺序不定会让
+    同一部片在不同请求里给出不同的片长；与 Jellyfin 侧 MediaSources 的顺序一致。
+    """
     item_id, season, episode = unit
-    return select(LibraryFile).where(
-        LibraryFile.media_item_id == item_id,
-        LibraryFile.season_number == season,
-        LibraryFile.episode_number == episode,
-        LibraryFile.in_place(),
+    return (
+        select(LibraryFile)
+        .where(
+            LibraryFile.media_item_id == item_id,
+            LibraryFile.season_number == season,
+            LibraryFile.episode_number == episode,
+            LibraryFile.in_place(),
+        )
+        .order_by(LibraryFile.id)
     )
 
 

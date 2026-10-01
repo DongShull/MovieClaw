@@ -26,6 +26,7 @@ from movieclaw_api.services.playback import marks as playback_marks
 from movieclaw_api.services.playback import watch as playback_watch
 from movieclaw_api.services.playback.session import get_session_manager
 from movieclaw_db.engine import get_database
+from movieclaw_db.models import LibraryFile
 from movieclaw_jellyfin.catalog import (
     TICKS_PER_MS,
     _folder_user_data,
@@ -79,17 +80,33 @@ def _paused_flag(body: dict[str, Any]) -> bool | None:
 
 
 def _position_ms(body: dict[str, Any], query_ticks: str | None = None) -> int | None:
-    """None = 客户端没报位置（领域层按"播到结尾"处理）；0 = 拖回开头。"""
+    """None = 客户端没报位置（领域层按"播到结尾"处理）；0 = 拖回开头。
+
+    报了但解析不了的值同样返回 None——停止上报必须先用 :func:`_bad_position`
+    把这种情况挡掉，否则一个格式不对的位置会被当成「播到结尾」标已看。
+    """
     raw = body.get("positionticks")
     if raw is None and query_ticks is not None:
         raw = query_ticks
-    if raw is None:
+    if raw is None or isinstance(raw, bool):
         return None
     try:
         ticks = int(raw)
     except (TypeError, ValueError):
-        return None
+        # "1.2e10"、"123.0" 这类字符串：int() 不认，按浮点再试一次
+        try:
+            ticks = int(float(raw))
+        except (TypeError, ValueError, OverflowError):
+            return None
     return max(0, ticks // TICKS_PER_MS)
+
+
+def _bad_position(body: dict[str, Any], query_ticks: str | None = None) -> bool:
+    """上报带了位置字段、却解析不出来（与「没报位置」区分开）。"""
+    raw = body.get("positionticks")
+    if raw is None:
+        raw = query_ticks
+    return raw is not None and _position_ms(body, query_ticks) is None
 
 
 def _leaf_unit(ref: EntityRef) -> playback_state.Unit:
@@ -126,32 +143,41 @@ def _decode_item_ref(raw: Any) -> EntityRef | None:
 # ---------------------------------------------------------------------------
 
 
-async def _tracks_from_body(
-    ref: EntityRef, body: dict[str, Any], member_id: int
+async def _visible_files(ref: EntityRef, member_id: int) -> list[LibraryFile]:
+    """上报单元对该成员可见的在位文件（多版本多行，按 id 稳定排序）。
+
+    空列表 = 不可见或文件已不在位，上报不落库。判据与网页端上报
+    （``_visible_unit``：有在位文件落在可见库里）相同——GUID 可枚举，
+    不挡的话成员能对白名单外库里的条目写观看状态。只有可播叶子
+    （电影/视频条目、单集）才有观看状态，Series/Season 一律为空。
+    """
+    if ref.kind not in (EntityKind.ITEM, EntityKind.EPISODE):
+        return []
+    # 复用播放路由的装载点：库可见性同一套约束
+    from movieclaw_jellyfin.routes.playback import _files_for_ref
+
+    return await _files_for_ref(ref, member_id)
+
+
+def _tracks_from_body(
+    files: list[LibraryFile], body: dict[str, Any]
 ) -> tuple[str | None, str | None, int | None]:
     """上报里的轨序号 → 中性轨引用（jellyfin-subtitle.md §4.5），外加正在放的文件 id。
 
-    序号是相对某个 MediaSource 的合成编号，换算要落到具体文件行：按
-    body 的 mediaSourceId 定位版本，缺省第一个。字幕 -1 → "off"（用户
-    明确关闭也要记住）；换算失败（悬空索引/版本不见了）返回 None 丢弃。
-    None = 本次没报该轨，领域层保持原值。文件 id 交给领域层判断上报的轨
-    是不是这个版本的默认挑选（是就不记，见 apply_track_selection）。
-    """
-    audio_raw = body.get("audiostreamindex")
-    subtitle_raw = body.get("subtitlestreamindex")
-    if audio_raw is None and subtitle_raw is None:
-        return None, None, None
-    if ref.kind not in (EntityKind.ITEM, EntityKind.EPISODE):
-        return None, None, None
-    # 复用播放路由的装载点：库可见性同一套约束
-    from movieclaw_jellyfin.routes.playback import _files_for_ref, _select_source
+    正在放的版本按 body 的 mediaSourceId 定位，缺省（或对不上）取第一个。
+    文件 id 不论带没带轨序号都要给：领域层按它取片长——多版本时用别的
+    版本的片长当分母会把已看判错——也用它判断上报的轨是不是这个版本的
+    默认挑选（是就不记，见 apply_track_selection）。
 
-    files = await _files_for_ref(ref, member_id)
+    序号是相对某个 MediaSource 的合成编号，换算落到同一个文件上。字幕
+    -1 → "off"（用户明确关闭也要记住）；换算失败（悬空索引）返回 None
+    丢弃。None = 本次没报该轨，领域层保持原值。
+    """
+    from movieclaw_jellyfin.routes.playback import _select_source
+
     raw_ms = body.get("mediasourceid")
     selected = _select_source(files, str(raw_ms) if raw_ms else None, "")
-    f = selected[0] if selected else (files[0] if files else None)
-    if f is None:
-        return None, None, None
+    f = selected[0] if selected else files[0]
 
     def _to_int(raw: Any) -> int | None:
         try:
@@ -160,12 +186,12 @@ async def _tracks_from_body(
             return None
 
     audio_track = None
-    audio_index = _to_int(audio_raw)
+    audio_index = _to_int(body.get("audiostreamindex"))
     if audio_index is not None:
         audio_track = audio_track_for_index(f, audio_index)
 
     subtitle_track = None
-    subtitle_index = _to_int(subtitle_raw)
+    subtitle_index = _to_int(body.get("subtitlestreamindex"))
     if subtitle_index is not None:
         subtitle_track = (
             SUBTITLE_OFF if subtitle_index == -1 else subtitle_track_for_index(f, subtitle_index)
@@ -227,10 +253,9 @@ async def playing_start(
 ) -> Response:
     body = await _read_body(request)
     ref = _decode_item_ref(body.get("itemid"))
-    if ref is not None:
-        audio_track, subtitle_track, file_id = await _tracks_from_body(
-            ref, body, identity.device.member_id
-        )
+    files = await _visible_files(ref, identity.device.member_id) if ref is not None else []
+    if ref is not None and files:
+        audio_track, subtitle_track, file_id = _tracks_from_body(files, body)
         await _record_start(
             ref, identity, audio_track=audio_track, subtitle_track=subtitle_track, file_id=file_id
         )
@@ -260,18 +285,18 @@ async def playing_progress(
                 paused=paused,
             )
         else:
-            audio_track, subtitle_track, file_id = await _tracks_from_body(
-                ref, body, identity.device.member_id
-            )
-            await _record_progress(
-                ref,
-                identity,
-                position,
-                paused=paused,
-                audio_track=audio_track,
-                subtitle_track=subtitle_track,
-                file_id=file_id,
-            )
+            files = await _visible_files(ref, identity.device.member_id)
+            if files:
+                audio_track, subtitle_track, file_id = _tracks_from_body(files, body)
+                await _record_progress(
+                    ref,
+                    identity,
+                    position,
+                    paused=paused,
+                    audio_track=audio_track,
+                    subtitle_track=subtitle_track,
+                    file_id=file_id,
+                )
     return Response(status_code=204)
 
 
@@ -290,12 +315,13 @@ async def playing_stopped(
         playback_watch.end_session(identity.device.device_id)
         return Response(status_code=204)
     ref = _decode_item_ref(body.get("itemid"))
-    if ref is None:
+    files = await _visible_files(ref, identity.device.member_id) if ref is not None else []
+    if ref is None or not files or _bad_position(body):
+        # 位置字段报了却解析不出来：不能退回「没报位置 = 播到结尾」去标已看，
+        # 只收口实时会话，续播点保持上一次进度上报的值
         playback_watch.end_session(identity.device.device_id)
         return Response(status_code=204)
-    audio_track, subtitle_track, file_id = await _tracks_from_body(
-        ref, body, identity.device.member_id
-    )
+    audio_track, subtitle_track, file_id = _tracks_from_body(files, body)
     await _record_progress(
         ref,
         identity,
@@ -352,7 +378,7 @@ async def playing_start_legacy(
     identity: RequestIdentity = Depends(require_device),
 ) -> Response:
     ref = _decode_item_ref(item_id)
-    if ref is not None:
+    if ref is not None and await _visible_files(ref, identity.device.member_id):
         await _record_start(ref, identity)
     return Response(status_code=204)
 
@@ -376,7 +402,7 @@ async def playing_progress_legacy(
                 position_ms=None,
                 paused=None,
             )
-        else:
+        elif await _visible_files(ref, identity.device.member_id):
             await _record_progress(ref, identity, position)
     return Response(status_code=204)
 
@@ -390,15 +416,15 @@ async def playing_stopped_legacy(
     identity: RequestIdentity = Depends(require_device),
 ) -> Response:
     ref = _decode_item_ref(item_id)
-    if ref is None:
+    query_ticks = request.query_params.get("positionTicks")
+    if (
+        ref is None
+        or _bad_position({}, query_ticks)
+        or not await _visible_files(ref, identity.device.member_id)
+    ):
         playback_watch.end_session(identity.device.device_id)
         return Response(status_code=204)
-    await _record_progress(
-        ref,
-        identity,
-        _position_ms({}, request.query_params.get("positionTicks")),
-        stopped=True,
-    )
+    await _record_progress(ref, identity, _position_ms({}, query_ticks), stopped=True)
     return Response(status_code=204)
 
 

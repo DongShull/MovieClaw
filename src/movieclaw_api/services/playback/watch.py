@@ -441,7 +441,11 @@ async def record_progress(
     # 片长与轨选择判断共用同一次取文件（心跳很频繁，不为判断轨多查一次库）：
     # 判断要的默认轨策略上下文（库语言、原始语言）也随文件同一条 SQL 取出
     files, contexts = await unit_files_with_contexts(session, unit)
-    runtime_ms = await playback_state.unit_runtime_ms(session, unit, files=files)
+    # 片长按正在放的那个版本算：多版本（影院版 120 分钟 / 加长版 180 分钟）
+    # 混用别的版本的片长当分母，加长版看到 110 分钟会被误判为看过 90%、
+    # 标已看并清掉续播点
+    played_files = _played_files(files, file_id)
+    runtime_ms = await playback_state.unit_runtime_ms(session, unit, files=played_files)
     row, newly_played = await playback_state.record_playback_progress(
         session,
         unit,
@@ -453,7 +457,7 @@ async def record_progress(
         row,
         audio_track=audio_track,
         subtitle_track=subtitle_track,
-        files=_played_files(files, file_id),
+        files=played_files,
         contexts=contexts,
     )
     await _log_progress(
