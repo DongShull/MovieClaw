@@ -154,6 +154,15 @@ REMOTE_IO_TIMEOUT_US = 30_000_000
 #: 26 秒），与 NAS 30 秒的分片等待窗口相当。
 REMOTE_RECONNECT_DELAY_MAX_S = 15
 
+#: 边产出边送（docs/design/transcode-latency.md §5）时一个片段多长（微秒，movenc 的
+#: ``frag_duration`` 单位）。AVPlayer 收到一个完整的片段（moof + mdat）就能解码出画，
+#: 不必等 4 秒的分片整段转完：片段越短首帧越早，但每个片段都是 Worker 回传的一个请求、
+#: 一份 moof 开销。0.5 秒与 iOS 引擎边产出边送（P57）实测最好的取值一致。
+PROGRESSIVE_FRAGMENT_US = 500_000
+#: 边产出边送时 ffmpeg 往这个产物名推一整条分片化 MP4，Worker 的上传代理切成
+#: init.mp4 与一个个 segNNNNN.m4s 再回传；NAS 产物端点从不接收这个名字。
+PROGRESSIVE_STREAM_NAME = "stream.mp4"
+
 #: 远程 HTTP 输入的断线续读参数。原盘清单（ffconcat）里的每一段也要逐个带上
 #: （concat 的 ``option`` 指令）：命令行上的这几项只作用于清单这一个输入，
 #: 管不到清单里各段剪辑自己的 HTTP 连接。
@@ -247,6 +256,25 @@ class WorkerVideoCaps:
 
     hw_decoders: frozenset[str] = frozenset()
     filters: frozenset[str] = frozenset()
+    #: Worker 的 ffmpeg 认的取源选项（见 ``remote_read_options``）。旧版 Worker 不申报，
+    #: 当它一个都不认：未知选项会让 ffmpeg 直接退出，宁可少省一点也不能把任务弄挂。
+    read_options: frozenset[str] = frozenset()
+
+
+def remote_read_options(caps: WorkerVideoCaps | None) -> tuple[tuple[str, str], ...]:
+    """远程取源时额外加的输入选项（docs/design/transcode-latency.md §6.2），只加 Worker 申报认得的。
+
+    ``skip_estimate_duration_from_pts``：MPEG-TS（原盘 m2ts、广电录像）打开时 ffmpeg 会从文件尾
+    倒着读、越读越多地找每条流的最后一个时间戳来估时长——原盘实测两到十几个请求，可时长 NAS
+    早就知道（原盘清单里每段都写了 duration）。对 MKV / MP4 不起作用，无害。
+
+    ffmpeg HTTP 的 ``initial_request_size`` / ``multiple_requests`` 不加：只管到第一次顺序读越界
+    为止，原盘、TS 的二分查找照样不封口、照样新开连接（读 8.1 的 http.c 确认）；按块要、连接复用
+    由 Worker 的取源代理来做（§6.3）。
+    """
+    if caps is None or "skip_estimate_duration_from_pts" not in caps.read_options:
+        return ()
+    return (("skip_estimate_duration_from_pts", "1"),)
 
 
 #: VideoToolbox 命令的三种形态（见 ``_videotoolbox_mode``）。
@@ -435,6 +463,7 @@ def build_hls_command(
     output_url_suffix: str = "",
     input_format: str | None = None,
     worker_caps: WorkerVideoCaps | None = None,
+    progressive: bool = False,
 ) -> TranscodeCommand:
     """把播放计划翻成 ffmpeg 命令。档 0（Direct Play）不该走到这里。
 
@@ -450,6 +479,11 @@ def build_hls_command(
 
     ``worker_caps`` 是接单的远程 Worker 申报的视频能力（远程任务恒传，本机执行为
     None），VideoToolbox 命令按它分流，见 ``_videotoolbox_mode``。
+
+    ``progressive``（只对远程 VOD 的 fMP4 任务有效）：不用 HLS muxer，输出一整条分片化
+    MP4（每 0.5 秒一个片段，时间戳保持文件绝对时间），由 Worker 按分片栅格切段、边产出
+    边回传（docs/design/transcode-latency.md §5）。HLS muxer 把整段攒在内存里、转完才写出，
+    播放器最早也要等一整段——这是转码起播与跳转首帧里最大的一块。
     """
     if plan.tier is PlaybackTier.DIRECT_PLAY:
         raise ValueError("档 0 是原文件直出，不需要 ffmpeg")
@@ -512,6 +546,10 @@ def build_hls_command(
         # 只重试网络错误，不重试 HTTP 4xx——会话已结束时源地址返回 404，该停就停。
         for key, value in REMOTE_RECONNECT_OPTIONS:
             argv += [f"-{key}", value]
+        if input_format != "concat":
+            # 原盘清单里每段剪辑各自带（见 transcode_worker 的清单接口），这里只管单个源文件
+            for key, value in remote_read_options(worker_caps):
+                argv += [f"-{key}", value]
     if input_format == "concat":
         # -safe 0：清单里是绝对路径（默认的 safe 模式只认相对路径）
         argv += ["-f", "concat", "-safe", "0"]
@@ -544,13 +582,22 @@ def build_hls_command(
         # 不做归零平移——seek 重启后分片时间戳依旧是文件时间。start_at_zero
         # 处理 start_time != 0 的源（TS 转封装常见），照抄 Jellyfin。
         argv += ["-copyts", "-avoid_negative_ts", "disabled", "-start_at_zero"]
-    argv += _hls_args(
-        session_dir,
-        mpegts=is_mpegts(plan),
-        start_number=start_number,
-        output_base_url=output_base_url,
-        output_url_suffix=output_url_suffix,
+    progressive = (
+        progressive
+        and output_base_url is not None
+        and start_number is not None
+        and not is_mpegts(plan)
     )
+    if progressive:
+        argv += _progressive_args()
+    else:
+        argv += _hls_args(
+            session_dir,
+            mpegts=is_mpegts(plan),
+            start_number=start_number,
+            output_base_url=output_base_url,
+            output_url_suffix=output_url_suffix,
+        )
     if output_base_url:
         # 远程 Worker 将进度写到 stdout 管道并通过控制面低频上报；不把进度
         # 写入 stderr，避免和含有源地址的 ffmpeg 警告混在一起。stdout 不会
@@ -558,7 +605,10 @@ def build_hls_command(
         argv += ["-progress", "pipe:1"]
 
     playlist = session_dir / (LIVE_PLAYLIST_NAME if start_number is not None else PLAYLIST_NAME)
-    if output_base_url:
+    if progressive:
+        assert output_base_url is not None
+        argv.append(f"{output_base_url.rstrip('/')}/{PROGRESSIVE_STREAM_NAME}{output_url_suffix}")
+    elif output_base_url:
         argv.append(
             f"{output_base_url.rstrip('/')}/{playlist.name}{output_url_suffix}"
         )
@@ -858,6 +908,41 @@ def _audio_args(plan: PlaybackPlan, *, has_audio: bool, absolute_ts: bool) -> li
     else:
         args += ["-af", resample]
     return args
+
+
+def _progressive_args() -> list[str]:
+    """边产出边送的输出：一整条分片化 MP4，HTTP PUT 给 Worker 的上传代理。
+
+    - ``frag_keyframe``：每个关键帧另起一个片段——分片边界（强制关键帧）因此总是片段
+      边界，Worker 按片段切段不会把一段切在半个片段里；
+    - ``frag_duration``：片段最长 0.5 秒（见 ``PROGRESSIVE_FRAGMENT_US``）；
+    - ``delay_moov``：只有轨道描述的 moov（就是 HLS 的 init.mp4）推迟到第一个片段时才写——
+      不能用 ``empty_moov`` 一开始就写：音轨直通 E-AC-3 / AC-3 时 moov 里的 dec3 / dac3 要从第一
+      个包里解析，提前写 ffmpeg 直接报「Cannot write moov atom before EAC3 packets parsed」退出
+      （实测）。
+      HLS muxer 内部也是这么配的。init 与第一个片段一起到，客户端本来就要两个都拿到才能出画；
+    - ``default_base_moof``：片段内偏移相对 moof，单独拿出一个片段也能解析；
+    - ``frag_discont``：每个 moof 的 tfdt 写真实时间（与 HLS 那边 Jellyfin 同款的修正）——
+      不写的话片段时间从 0 起算，Worker 无从知道它属于第几段；
+    - ``skip_sidx``：HLS 用不到 sidx。
+
+    ``-method PUT``：与 HLS 产物同一种回传方式，请求体按分块传输边写边送。
+
+    ``-map_chapters -1``：片源带章节（原盘 Remux 常见）时，mp4 muxer 会往 init 里加一条
+    章节文本轨，AVPlayer 拿到就报 -11801「Cannot Complete Action」、一帧不出（对照实验里
+    一部 4K Remux 两个场景全挂，本机复现后确认）。HLS muxer 不把章节交给内部的 mp4 muxer，
+    所以老路从没撞上；章节由播放接口另行下发，用不着它。
+    """
+    return [
+        # 与 HLS 产物同一个单次读写超时：Worker 那头卡住时 ffmpeg 不至于永久阻塞
+        "-rw_timeout", str(REMOTE_IO_TIMEOUT_US),
+        "-map_chapters", "-1",
+        "-f", "mp4",
+        "-movflags", "+frag_keyframe+delay_moov+default_base_moof+frag_discont+skip_sidx",
+        "-frag_duration", str(PROGRESSIVE_FRAGMENT_US),
+        "-method", "PUT",
+        "-y",
+    ]
 
 
 def _hls_args(

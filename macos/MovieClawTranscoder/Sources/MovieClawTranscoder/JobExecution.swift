@@ -21,9 +21,15 @@ final class JobExecution: @unchecked Sendable {
         self.ffmpegPath = ffmpegPath
     }
 
+    /// - Parameters:
+    ///   - onLaunched: ffmpeg 进程起来的那一刻（分段计时用）。
+    ///   - onMarker: stderr 里认出的计时节点（见 ``FFmpegLogMarker``）；要认节点，参数里的
+    ///     `-loglevel warning` 会被换成带级别前缀的 info，info 行不进 stderr 尾巴。
     func run(
         arguments: [String],
-        onProgress: @escaping @Sendable (JobProgress) -> Void = { _ in }
+        onProgress: @escaping @Sendable (JobProgress) -> Void = { _ in },
+        onLaunched: @escaping @Sendable () -> Void = {},
+        onMarker: (@Sendable (FFmpegLogMarker) -> Void)? = nil
     ) async -> JobResult {
         if isStopRequested() {
             return JobResult(
@@ -37,15 +43,16 @@ final class JobExecution: @unchecked Sendable {
         let stderr = Pipe()
         let stdout = Pipe()
         let progressParser = ProgressParser(onProgress: onProgress)
+        let stderrLines = StderrLines(tail: stderrTail, onMarker: onMarker)
         process.executableURL = URL(fileURLWithPath: ffmpegPath)
-        process.arguments = arguments
+        process.arguments = onMarker == nil ? arguments : FFmpegLogMarker.withInfoLogging(arguments)
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = stdout
         process.standardError = stderr
-        stderr.fileHandleForReading.readabilityHandler = { [stderrTail] handle in
+        stderr.fileHandleForReading.readabilityHandler = { [stderrLines] handle in
             let data = handle.availableData
             if !data.isEmpty {
-                stderrTail.append(String(data: data, encoding: .utf8) ?? "")
+                stderrLines.append(data)
             }
         }
         stdout.fileHandleForReading.readabilityHandler = { [progressParser] handle in
@@ -68,6 +75,7 @@ final class JobExecution: @unchecked Sendable {
             )
         }
         setProcess(process)
+        onLaunched()
         if isStopRequested() {
             process.terminate()
         } else if isPauseRequested() {
@@ -86,8 +94,9 @@ final class JobExecution: @unchecked Sendable {
         // 批 stderr。补读一次，避免真正的 HTTP/HLS 错误恰好落在日志尾部之外。
         let remainingStderr = stderr.fileHandleForReading.readDataToEndOfFile()
         if !remainingStderr.isEmpty {
-            stderrTail.append(String(data: remainingStderr, encoding: .utf8) ?? "")
+            stderrLines.append(remainingStderr)
         }
+        stderrLines.finish()
         progressParser.finish()
         let exitCode = process.terminationStatus
         setProcess(nil)
@@ -207,6 +216,59 @@ private final class ProgressParser: @unchecked Sendable {
             phase: value
         )
         onProgress(progress)
+    }
+}
+
+/// 把 stderr 切成行：info 行只用来认计时节点，其余（warning 以上、以及没开级别前缀时的
+/// 全部输出）照旧进尾巴。
+private final class StderrLines: @unchecked Sendable {
+    private let lock = NSLock()
+    private let tail: LockedTail
+    private let onMarker: (@Sendable (FFmpegLogMarker) -> Void)?
+    private var pending = Data()
+
+    init(tail: LockedTail, onMarker: (@Sendable (FFmpegLogMarker) -> Void)?) {
+        self.tail = tail
+        self.onMarker = onMarker
+    }
+
+    func append(_ data: Data) {
+        guard onMarker != nil else {
+            // 不认节点：与原来完全一样，原样进尾巴
+            tail.append(String(data: data, encoding: .utf8) ?? "")
+            return
+        }
+        let lines: [String] = lock.withLock {
+            pending.append(data)
+            var complete: [String] = []
+            while let newline = pending.firstIndex(where: { $0 == 10 || $0 == 13 }) {
+                let line = String(decoding: pending[pending.startIndex..<newline], as: UTF8.self)
+                pending.removeSubrange(pending.startIndex...newline)
+                if !line.isEmpty { complete.append(line) }
+            }
+            return complete
+        }
+        lines.forEach(consume)
+    }
+
+    func finish() {
+        let rest: String = lock.withLock {
+            defer { pending.removeAll() }
+            return String(decoding: pending, as: UTF8.self)
+        }
+        if !rest.isEmpty { consume(rest) }
+    }
+
+    private func consume(_ line: String) {
+        guard let onMarker else {
+            tail.append(line + "\n")
+            return
+        }
+        if FFmpegLogMarker.isInfo(line) {
+            if let marker = FFmpegLogMarker.parse(line) { onMarker(marker) }
+            return
+        }
+        tail.append(line + "\n")
     }
 }
 

@@ -1828,3 +1828,215 @@ def test_disc_session_feeds_ffmpeg_a_concat_list(client, tmp_path, monkeypatch):
     assert data["timeline"] == "file"
     assert client.get(data["stream_url"]).status_code == 200
     assert client.delete(f"{_PB}/sessions/{data['session_id']}").status_code == 200
+
+
+def _progressive_session(client: TestClient, tmp_path: Path) -> tuple[dict[str, str], Path]:
+    """边产出边送的远程会话（docs/design/transcode-latency.md §5）。"""
+    file_id = seed(client, tmp_path, container="mkv")
+    grants = _install_remote_session(client, tmp_path, file_id)
+    session = get_session_manager().get(grants["session_id"])
+    assert session is not None
+    session.progressive = True
+    grants["file_id"] = str(file_id)
+    endpoint = f"/api/v1/transcode-worker/sessions/{grants['session_id']}/artifacts/seg00003.m4s"
+    return grants, Path(endpoint)
+
+
+def test_progressive_parts_append_in_order_and_land_atomically(client, tmp_path):
+    grants, endpoint = _progressive_session(client, tmp_path)
+    token = grants["artifact"]
+    directory = Path(get_settings().transcode_dir) / grants["session_id"]
+    target = directory / "seg00003.m4s"
+    partial_path = directory / ".seg00003.m4s.partial"
+
+    assert client.put(f"{endpoint}?token={token}&part=0", content=b"AAA").status_code == 201
+    assert partial_path.read_bytes() == b"AAA"
+    assert not target.exists(), "没收齐之前不能出现正式分片"
+    # 重传已经收下的块：幂等，不写重
+    assert client.put(f"{endpoint}?token={token}&part=0", content=b"AAA").status_code == 201
+    # 跳块：中间丢了一块，回 409 让 Worker 改整段重传
+    assert client.put(f"{endpoint}?token={token}&part=2", content=b"CCC").status_code == 409
+    assert client.put(f"{endpoint}?token={token}&part=1", content=b"BBB").status_code == 201
+    final = client.put(f"{endpoint}?token={token}&part=2&final=1", content=b"")
+    assert final.status_code == 201
+
+    assert target.read_bytes() == b"AAABBB"
+    assert not partial_path.exists()
+    session = get_session_manager().get(grants["session_id"])
+    assert session is not None
+    assert session.remote_uploads[-1].status == 201
+    assert session.remote_uploads[-1].received_bytes == 6
+    assert 3 not in session.partials
+    events = [entry["ev"] for entry in session.timeline]
+    assert "frag" in events and "landed" in events
+
+
+def test_progressive_parts_are_refused_for_whole_segment_sessions(client, tmp_path):
+    grants, endpoint = _progressive_session(client, tmp_path)
+    session = get_session_manager().get(grants["session_id"])
+    assert session is not None
+    session.progressive = False
+    response = client.put(f"{endpoint}?token={grants['artifact']}&part=0", content=b"AAA")
+    assert response.status_code == 404
+
+
+def test_progressive_restart_rewrites_the_segment_from_part_zero(client, tmp_path):
+    """seek 重启后新一轮从第 0 块重写同一个分片：旧的作废，跟着它下发的连接随之中断。"""
+    grants, endpoint = _progressive_session(client, tmp_path)
+    first = client.put(f"{endpoint}?token={grants['artifact']}&part=0", content=b"OLD")
+    assert first.status_code == 201
+    session = get_session_manager().get(grants["session_id"])
+    assert session is not None
+    old = session.partials[3]
+
+    session.remote_job_id = "next-attempt"
+    fresh = client.portal.call(
+        partial(
+            issue_remote_grant,
+            session_id=grants["session_id"],
+            file_id=int(grants["file_id"]),
+            kind="artifact",
+            attempt_id="next-attempt",
+        )
+    )
+    # 新一轮不从第 0 块开始不认
+    assert client.put(f"{endpoint}?token={fresh}&part=1", content=b"X").status_code == 409
+    assert client.put(f"{endpoint}?token={fresh}&part=0", content=b"NEW").status_code == 201
+    assert old.failed
+    directory = Path(get_settings().transcode_dir) / grants["session_id"]
+    assert (directory / ".seg00003.m4s.partial").read_bytes() == b"NEW"
+    # 上一轮的迟到块：令牌轮次对不上，直接拒
+    late = client.put(f"{endpoint}?token={grants['artifact']}&part=1", content=b"LATE")
+    assert late.status_code == 404
+
+
+def test_progressive_part_cut_mid_body_is_rolled_back(client, tmp_path):
+    """一块没收完连接就断了：截回这一块之前，Worker 重传时不会写重。"""
+    grants, endpoint = _progressive_session(client, tmp_path)
+    token = grants["artifact"]
+    assert client.put(f"{endpoint}?token={token}&part=0", content=b"AAA").status_code == 201
+    request = _request_that_disconnects_after_body(b"half", declared_length=10)
+    request.scope["query_string"] = b"part=1"
+    response = client.portal.call(
+        partial(
+            put_transcode_artifact,
+            session_id=grants["session_id"],
+            name="seg00003.m4s",
+            request=request,
+            token=token,
+        )
+    )
+    assert response.status_code == 499
+    directory = Path(get_settings().transcode_dir) / grants["session_id"]
+    assert (directory / ".seg00003.m4s.partial").read_bytes() == b"AAA"
+    assert client.put(f"{endpoint}?token={token}&part=1", content=b"BBB").status_code == 201
+    assert (directory / ".seg00003.m4s.partial").read_bytes() == b"AAABBB"
+
+
+@pytest.mark.asyncio
+async def test_partial_segment_response_follows_growth_until_complete(tmp_path):
+    """边产出边送：先送已有的字节，文件长一截送一截，收齐正常收尾。
+
+    docs/design/transcode-latency.md §5。"""
+    path = tmp_path / ".seg00001.m4s.partial"
+    path.write_bytes(b"FRAG1")
+    segment = session_mod.PartialSegment(index=1, path=path, job="j", size=5, next_part=1)
+    response = routes_playback._PartialSegmentResponse(
+        segment, final_path=tmp_path / "seg00001.m4s"
+    )
+    sent: list[dict] = []
+    first_body = asyncio.Event()
+
+    async def send(message: dict) -> None:
+        sent.append(message)
+        if message["type"] == "http.response.body" and message.get("body"):
+            first_body.set()
+
+    never = asyncio.Event()
+
+    async def receive() -> dict:
+        await never.wait()
+        return {"type": "http.disconnect"}
+
+    task = asyncio.ensure_future(response({"type": "http"}, receive, send))
+    await asyncio.wait_for(first_body.wait(), 2)
+    with path.open("ab") as handle:
+        handle.write(b"FRAG2")
+    segment.size = 10
+    segment.notify()
+    await asyncio.sleep(0.05)
+    path.rename(tmp_path / "seg00001.m4s")  # 收齐改名：打开着的文件照样读
+    segment.done = True
+    segment.notify()
+    await asyncio.wait_for(task, 2)
+
+    headers = dict(sent[0]["headers"])
+    assert b"content-length" not in headers, "长度未知，必须分块传输"
+    assert headers[b"cache-control"] == b"no-store"
+    bodies = [m for m in sent if m["type"] == "http.response.body"]
+    assert b"".join(m["body"] for m in bodies) == b"FRAG1FRAG2"
+    assert bodies[-1]["more_body"] is False
+
+
+@pytest.mark.asyncio
+async def test_partial_segment_response_aborts_without_final_chunk(tmp_path):
+    """分片作废（seek 重启）：不发结束块直接返回，客户端丢掉半截重新请求。"""
+    path = tmp_path / ".seg00001.m4s.partial"
+    path.write_bytes(b"FRAG1")
+    segment = session_mod.PartialSegment(index=1, path=path, job="j", size=5, next_part=1)
+    response = routes_playback._PartialSegmentResponse(
+        segment, final_path=tmp_path / "seg00001.m4s"
+    )
+    sent: list[dict] = []
+
+    async def send(message: dict) -> None:
+        sent.append(message)
+
+    never = asyncio.Event()
+
+    async def receive() -> dict:
+        await never.wait()
+        return {"type": "http.disconnect"}
+
+    task = asyncio.ensure_future(response({"type": "http"}, receive, send))
+    await asyncio.sleep(0.05)
+    segment.failed = True
+    segment.notify()
+    await asyncio.wait_for(task, 2)
+    bodies = [m for m in sent if m["type"] == "http.response.body"]
+    assert bodies and all(m["more_body"] for m in bodies), "作废的分片不能正常收尾"
+
+
+def test_whole_segment_upload_supersedes_a_half_written_partial(client, tmp_path):
+    """Worker 分块传不下去改成整段重传：写到一半的作废，正式分片是整段的内容。"""
+    grants, endpoint = _progressive_session(client, tmp_path)
+    token = grants["artifact"]
+    assert client.put(f"{endpoint}?token={token}&part=0", content=b"AAA").status_code == 201
+    session = get_session_manager().get(grants["session_id"])
+    assert session is not None
+    half = session.partials[3]
+    assert client.put(f"{endpoint}?token={token}", content=b"WHOLE-SEGMENT").status_code == 201
+    directory = Path(get_settings().transcode_dir) / grants["session_id"]
+    assert (directory / "seg00003.m4s").read_bytes() == b"WHOLE-SEGMENT"
+    assert half.failed and 3 not in session.partials
+    assert not (directory / ".seg00003.m4s.partial").exists()
+
+
+def test_only_avfoundation_clients_get_partial_segments():
+    """边产出边送的半截分片只给 AVFoundation（原生 HLS、没有 MSE）；hls.js 照旧等整段。"""
+    from movieclaw_api.schemas.playback import ClientCapabilityIn
+
+    ios = ClientCapabilityIn(native_hls=True, mse="none")
+    web = ClientCapabilityIn(native_hls=False, mse="full")
+    safari_mse = ClientCapabilityIn(native_hls=True, mse="managed")
+    assert routes_playback._capability_consumes_partial_segments(ios)
+    assert not routes_playback._capability_consumes_partial_segments(web)
+    assert not routes_playback._capability_consumes_partial_segments(safari_mse)
+
+    def request(user_agent: str) -> Request:
+        return Request({"type": "http", "headers": [(b"user-agent", user_agent.encode())]})
+
+    avplayer = "AppleCoreMedia/1.0.0.23A341 (iPhone; U; CPU OS 26_0 like Mac OS X; zh_cn)"
+    chrome = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/140.0"
+    assert routes_playback._consumes_partial_segments(request(avplayer))
+    assert not routes_playback._consumes_partial_segments(request(chrome))

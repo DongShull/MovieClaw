@@ -11,6 +11,10 @@ struct WorkerConfiguration: Sendable {
     let workerID: String
     let ffmpegPath: String
     let maxJobs: Int
+    /// 实验台用的开关（只有无界面模式的 `--lab-flags` 能设，菜单栏 App 恒为空）：
+    /// `no-progressive` 不申报边产出边送，NAS 照旧派整段落盘的任务；`no-read-options` 不申报
+    /// 取源选项——新旧两条路在同一台 Mac 上交替对照用（docs/design/transcode-latency.md §3）。
+    var labFlags: Set<String> = []
 
     /// 是否使用仅适合可信内网的明文 HTTP 传输。
     ///
@@ -67,13 +71,17 @@ struct WorkerConfiguration: Sendable {
         let ffmpegPath = values["ffmpeg"]
             ?? defaultFFmpegPath()
         let maxJobs = Int(values["max-jobs"] ?? "1") ?? 1
-        return try make(
+        var configuration = try make(
             nasText: nasText,
             token: token,
             workerID: workerID,
             ffmpegPath: ffmpegPath,
             maxJobs: maxJobs
         )
+        configuration.labFlags = Set(
+            (values["lab-flags"] ?? "").split(separator: ",").map { String($0) }.filter { !$0.isEmpty }
+        )
+        return configuration
     }
 
     static func defaultWorkerID() -> String {

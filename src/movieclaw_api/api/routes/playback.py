@@ -9,13 +9,14 @@ import logging
 import os
 import re
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path as PathLib
 from typing import Annotated, Literal, TypeVar
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, Path, Query, Request, Response
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -30,6 +31,7 @@ from movieclaw_api.exceptions import (
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.schemas.library import LibraryGalleryGroupView, SeasonEpisodesView
 from movieclaw_api.schemas.playback import (
+    ClientCapabilityIn,
     FavoritesView,
     HwBackendStatusView,
     HwProbeView,
@@ -117,6 +119,7 @@ from movieclaw_api.services.playback.remote_worker import (
 )
 from movieclaw_api.services.playback.session import (
     DiskQuotaError,
+    PartialSegment,
     SessionLimitError,
     SessionStartError,
     TranscodeSession,
@@ -160,7 +163,9 @@ from movieclaw_playback.hls_vod import (
 )
 from movieclaw_playback.keyframes import read_keyframe_index, schedule_background_index
 from movieclaw_playback.streaming import (
+    ClientDisconnected,
     DisconnectAwareFileResponse,
+    await_unless_disconnected,
     container_mime_type,
     direct_play_byte_patches,
     is_strm,
@@ -369,6 +374,7 @@ def _build_playback_diagnostics(
         recent_uploads=uploads,
         cache_bytes=cache_bytes,
         total_segments=session.segment_plan.count if session.segment_plan is not None else None,
+        timeline=sorted(session.timeline, key=lambda entry: entry["t"]),
     )
 
 
@@ -1354,6 +1360,18 @@ async def start_playback_session(
         prep=prep_ms,
         spawn=spawn_ms,
     )
+    response_start_ms = resolved_start_ms if segment_plan is not None else start_ms
+    if (
+        segment_plan is not None
+        and transcode.progressive
+        and resolved_start_ms
+        and _capability_consumes_partial_segments(payload.capability)
+    ):
+        # 边产出边送时起播点吸附到所在分片的起点，与播放列表的 EXT-X-START 一致（§5）：
+        # App 挂引擎时会显式 seek 到这个位置，不吸附的话它要等转到续播点那一片
+        response_start_ms = int(
+            segment_plan.boundaries[segment_plan.segment_for(resolved_start_ms / 1000)] * 1000
+        )
     return ok(
         PlaybackSessionView(
             decision=view,
@@ -1367,8 +1385,8 @@ async def start_playback_session(
                 else None
             ),
             # VOD：时间轴是文件绝对时间，start_ms 只是建议起播位置（解析后
-            # 的原值，不必对齐边界——播放器 seek 到毫秒都行）
-            start_ms=resolved_start_ms if segment_plan is not None else start_ms,
+            # 的原值，不必对齐边界——播放器 seek 到毫秒都行；边产出边送时见上）
+            start_ms=response_start_ms,
             timeline="file" if segment_plan is not None else "session",
             subtitle_urls=subtitle_urls,
             hw_backend=hw_used,
@@ -1426,6 +1444,7 @@ async def stop_playback_session(
     openapi_extra={"x-cli-hidden": True},
 )
 async def get_session_playlist(
+    request: Request,
     session_id: Annotated[str, Path()],
     token: Annotated[str, Query()],
 ) -> Response:
@@ -1443,12 +1462,19 @@ async def get_session_playlist(
         raise NotFoundException("会话不存在或已结束")
     session.touch()  # 拉 playlist 也算活着
     if session.segment_plan is not None:
+        start_s = session.playlist_start_ms / 1000
+        if session.progressive and _consumes_partial_segments(request):
+            # 边产出边送时起播点吸附到所在分片的起点（最多往回 4 秒）：第一个 0.5 秒片段一到
+            # 就是起播那一帧；落在分片中间的话要等转到续播点那一片，越靠后省得越少
+            # （docs/design/transcode-latency.md §5，iOS 引擎 P39 同一取舍）
+            plan = session.segment_plan
+            start_s = plan.boundaries[plan.segment_for(start_s)]
         playlist = build_media_playlist(
             session.segment_plan,
             init_name=None if is_mpegts(session.plan) else INIT_NAME,
             segment_name=segment_pattern(session.plan),
             query=f"?token={token}",
-            start_s=session.playlist_start_ms / 1000,
+            start_s=start_s,
         )
         return Response(
             content=playlist,
@@ -1625,6 +1651,112 @@ async def get_session_diagnostics(
     return ok(_build_playback_diagnostics(session))
 
 
+def _capability_consumes_partial_segments(capability: ClientCapabilityIn) -> bool:
+    """按开会话时申报的能力判断播放器是不是 AVFoundation（系统 HLS、不走 MSE）。
+
+    开会话的请求是 App 自己的 URLSession 发的，看不出 AVPlayer 的 UA；能力里「原生 HLS、没有 MSE」
+    的只有 iOS App 放服务端流与没有 MSE 的 Safari——都能边收边解（见下面的 UA 判定）。"""
+    return capability.native_hls and capability.mse == "none"
+
+
+def _consumes_partial_segments(request: Request) -> bool:
+    """客户端能不能边收边解一个还没转完的分片（docs/design/transcode-latency.md §5）。
+
+    AVFoundation（iOS App 放服务端流、Safari 原生 HLS）收到一个完整的片段就能解码出画，
+    UA 都带 ``AppleCoreMedia``。hls.js 要整段收完才喂给解码器，提前流式下发对它没有好处，
+    反而会让按传输期算的带宽读数偏低（网页的「线路不够」判定吃这个读数）——照旧等整段。
+    """
+    return "AppleCoreMedia" in request.headers.get("user-agent", "")
+
+
+#: 边产出边送的分片多久没长就放弃下发：Worker 那边卡住（或这一轮被悄悄换掉）时别把连接挂到天荒地老。
+#: 一个 0.5 秒片段在最慢的软解链路上也只要零点几秒，10 秒不长必是出事了。
+_PARTIAL_IDLE_S = 10.0
+
+
+class _PartialSegmentResponse(StreamingResponse):
+    """跟着一个边产出边送的分片往下送（docs/design/transcode-latency.md §5）。
+
+    分块传输（不带 Content-Length）：文件长一截送一截，收齐即正常收尾。分片作废（seek 重启、
+    Worker 那边断了）或长时间不长时**不发结束块**直接返回——客户端看到的是一个没收完的响应，
+    会丢掉它重新请求；要是正常收尾，它会把半个分片当成完整的拿去解码。uvicorn 为此会记一条
+    「ASGI callable returned without completing response.」，这正是我们要的结果。
+    不进浏览器缓存（no-store）：中途作废的半截内容绝不能被当成这个地址的长期结果。
+    """
+
+    def __init__(
+        self,
+        partial: PartialSegment,
+        *,
+        final_path: PathLib,
+        byte_sink: Callable[[int], None] | None = None,
+    ) -> None:
+        # 借 StreamingResponse 的头部装配（不写 Content-Length）；发送循环在 __call__ 里自己管
+        super().__init__(
+            content=iter(()), media_type="video/mp4", headers={"Cache-Control": "no-store"}
+        )
+        self._partial = partial
+        self._final_path = final_path
+        self._byte_sink = byte_sink
+
+    async def __call__(self, scope, receive, send) -> None:
+        partial = self._partial
+        try:
+            handle = open(partial.path, "rb")  # noqa: SIM115 —— 跨多次 await 持有，finally 关
+        except FileNotFoundError:
+            # 恰好在拿到它和打开之间收齐改名了：读正式分片，内容一样
+            handle = open(self._final_path, "rb")  # noqa: SIM115
+        gone = asyncio.Event()
+
+        async def watch() -> None:
+            while True:
+                message = await receive()
+                if message["type"] == "http.disconnect":
+                    gone.set()
+                    return
+                await asyncio.sleep(0)
+
+        watcher = asyncio.ensure_future(watch())
+        try:
+            await send({"type": "http.response.start", "status": 200, "headers": self.raw_headers})
+            sent = 0
+            while not gone.is_set():
+                changed = partial.changed
+                committed = partial.size
+                if partial.failed:
+                    logger.info(
+                        "边产出边送的分片已作废（转码重启），中断下发：seg=%05d", partial.index
+                    )
+                    return
+                if committed > sent:
+                    handle.seek(sent)
+                    data = handle.read(committed - sent)
+                    sent += len(data)
+                    if self._byte_sink is not None:
+                        self._byte_sink(len(data))
+                    await send({"type": "http.response.body", "body": data, "more_body": True})
+                    continue
+                if partial.done:
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+                    return
+                waits = {asyncio.ensure_future(changed.wait()), asyncio.ensure_future(gone.wait())}
+                done, pending = await asyncio.wait(
+                    waits, timeout=_PARTIAL_IDLE_S, return_when=asyncio.FIRST_COMPLETED
+                )
+                for task in pending:
+                    task.cancel()
+                if not done:
+                    logger.warning(
+                        "边产出边送的分片 %.0f 秒没有增长，中断下发：seg=%05d",
+                        _PARTIAL_IDLE_S,
+                        partial.index,
+                    )
+                    return
+        finally:
+            watcher.cancel()
+            handle.close()
+
+
 @stream_router.get(
     "/sessions/{session_id}/{name}",
     summary="播放分片",
@@ -1657,9 +1789,22 @@ async def get_session_segment(
     meter = await _session_activity_meter(session, grant, request)
     target = session.directory / name
     if session.segment_plan is not None and name.startswith("seg"):
-        ready = await manager.ensure_segment(session, int(name[3:8]))
+        allow_partial = session.progressive and _consumes_partial_segments(request)
+        try:
+            # 等转码期间盯着客户端：它掐掉请求就撤销挂号，别让没人要的旧请求左右重启判定
+            ready = await await_unless_disconnected(
+                request.receive,
+                manager.ensure_segment(session, int(name[3:8]), allow_partial=allow_partial),
+            )
+        except ClientDisconnected:
+            # 客户端已经走了，回什么都送不到；按「没有这一片」收尾
+            raise NotFoundException("客户端已断开") from None
         if ready is None:
             raise NotFoundException("分片尚未就绪")
+        if isinstance(ready, PartialSegment):
+            return _PartialSegmentResponse(
+                ready, final_path=target, byte_sink=meter.add if meter is not None else None
+            )
         target = ready
     elif name == INIT_NAME:
         # init.mp4 必须等到**写完**，不只是「文件存在」（2026-08-25 真机事故，

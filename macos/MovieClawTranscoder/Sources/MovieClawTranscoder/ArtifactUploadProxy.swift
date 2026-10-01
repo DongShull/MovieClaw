@@ -110,6 +110,13 @@ struct ChunkedBodyParser {
     private mutating func removePrefix(upTo end: Data.Index) {
         buffer.removeSubrange(buffer.startIndex..<end)
     }
+
+    /// 取走已经解出来的请求体并清空（边收边处理的长请求用，见 ``ProgressiveUpload``）。
+    /// 这样请求体再长也不会在内存里攒起来，``maxBodyBytes`` 只约束两次取走之间的那一截。
+    mutating func takeBody() -> Data {
+        defer { body.removeAll(keepingCapacity: true) }
+        return body
+    }
 }
 
 /// 为一个 ffmpeg 任务提供仅监听回环地址的 HLS 产物代理。
@@ -154,6 +161,10 @@ final class ArtifactUploadProxy: @unchecked Sendable {
         case abandoned(name: String, status: Int, reason: String)
         /// 文件名不在白名单：这个任务注定交不出这种产物，应当立即失败。
         case rejected(name: String)
+        /// 收齐了 ffmpeg 交来的一个产物（分段计时用，见 ``JobTimeline``）。
+        case received(name: String, bytes: Int)
+        /// 一个产物的上传有了结论（分段计时用）。收尾补传的诊断列表不报。
+        case uploaded(name: String, status: Int, attempts: Int)
     }
 
     private static let maxHeaderBytes = 64 * 1024
@@ -177,8 +188,11 @@ final class ArtifactUploadProxy: @unchecked Sendable {
     /// 超时，播放器报错——两边日志都看不出原因。现在 NAS 侧的测试会从本文件读出
     /// 这条正则，逐个核对 NAS 能产出的每一种产物名，改一边忘了另一边会直接挂 CI。
     private static let artifactNamePattern = try! NSRegularExpression(
-        pattern: #"^(?:init\.mp4|(?:live|index)\.m3u8|seg[0-9]{5}\.(?:m4s|ts))$"#
+        pattern: #"^(?:init\.mp4|stream\.mp4|(?:live|index)\.m3u8|seg[0-9]{5}\.(?:m4s|ts))$"#
     )
+
+    /// 边产出边送时 ffmpeg 推来的整条分片化 MP4（见 ``ProgressiveUpload``）；它自己从不传给 NAS。
+    static let progressiveStreamName = "stream.mp4"
 
     /// 本 Worker 能回传的 HLS 分片类型（ffmpeg `-hls_segment_type` 的取值），在
     /// 握手能力里声明。NAS 只把 TS 分片任务派给声明了 `mpegts` 的 Worker——没有
@@ -229,13 +243,22 @@ final class ArtifactUploadProxy: @unchecked Sendable {
     /// 起播和 seek 这些最怕延迟的时刻。共用后连接可以 keep-alive 复用。
     private let uploadSession: URLSession
 
+    /// 边产出边送时一段多长、这一轮从第几段起转（NAS 在 job.start 里给，与预生成播放列表
+    /// 同一个栅格）。
+    let segmentSeconds: Double
+    let startSegment: Int?
+
     init(
         jobID: String,
         remoteBaseURL: URL,
+        segmentSeconds: Double = 4,
+        startSegment: Int? = nil,
         onEvent: (@Sendable (ArtifactEvent) -> Void)? = nil
     ) throws {
         self.jobID = jobID
         self.remoteBaseURL = remoteBaseURL
+        self.segmentSeconds = segmentSeconds
+        self.startSegment = startSegment
         self.onEvent = onEvent
         self.queue = DispatchQueue(label: "com.movieclaw.transcoder.artifacts.\(jobID)")
 
@@ -529,13 +552,17 @@ final class ArtifactUploadProxy: @unchecked Sendable {
             lock.unlock()
             return UploadResult(statusCode: 201, message: nil, attempts: 1)
         }
-        return await performUpload(data: data, filename: filename, query: query)
+        onEvent?(.received(name: filename, bytes: data.count))
+        let result = await performUpload(data: data, filename: filename, query: query)
+        onEvent?(.uploaded(name: filename, status: result.statusCode, attempts: result.attempts))
+        return result
     }
 
     private func performUpload(
         data: Data,
         filename: String,
-        query: String?
+        query: String?,
+        reportFailure: Bool = true
     ) async -> UploadResult {
         guard let remoteURL = remoteURL(filename: filename, query: query) else {
             let message = "NAS 产物地址无效"
@@ -608,11 +635,43 @@ final class ArtifactUploadProxy: @unchecked Sendable {
         // live.m3u8 只是收尾补传的诊断产物（见 flushDeferredPlaylist 的约定）：它传
         // 不上去既不算任务失败，也不必让 NAS 补片。此前这里一律记失败，一次收尾时的
         // 网络抖动就能把转完整片的任务报成 job.failed。
-        if !Self.isDeferredArtifact(filename) {
+        if !Self.isDeferredArtifact(filename), reportFailure {
             rememberFailure(failure)
             onEvent?(.abandoned(name: filename, status: lastStatus, reason: lastMessage))
         }
         return UploadResult(statusCode: lastStatus, message: lastMessage, attempts: Self.maxUploadAttempts)
+    }
+
+    // MARK: - 边产出边送（ProgressiveUpload 用）
+
+    /// 整段 / init 的上传：与 ffmpeg 直接 PUT 来的产物走同一条路（重试、失败上报、计时事件）。
+    fileprivate func uploadArtifact(_ data: Data, name: String, query: String?) async -> UploadResult {
+        await upload(data: data, filename: name, query: query)
+    }
+
+    /// 一个分片的第 `part` 块（`final` 为真时是收尾块，可以为空）。失败不上报：调用方会改为
+    /// 整段重传，那一次失败才算数。
+    fileprivate func uploadPart(
+        _ data: Data,
+        name: String,
+        query: String?,
+        part: Int,
+        final: Bool
+    ) async -> UploadResult {
+        var items = [String]()
+        if let query, !query.isEmpty { items.append(query) }
+        items.append("part=\(part)")
+        if final { items.append("final=1") }
+        return await performUpload(
+            data: data,
+            filename: name,
+            query: items.joined(separator: "&"),
+            reportFailure: false
+        )
+    }
+
+    fileprivate func notify(_ event: ArtifactEvent) {
+        onEvent?(event)
     }
 
     /// 发一次上传请求；代理已停机就抛 ``ProxyError.stopped``，绝不碰会话。
@@ -702,6 +761,8 @@ final class ArtifactUploadProxy: @unchecked Sendable {
         private var filename: String?
         private var query: String?
         private var uploadTask: Task<Void, Never>?
+        /// 边产出边送：这条连接是 ffmpeg 推来的整条分片化 MP4，边收边切段回传
+        private var progressive: ProgressiveUpload?
 
         init(
             id: ObjectIdentifier,
@@ -735,6 +796,7 @@ final class ArtifactUploadProxy: @unchecked Sendable {
         private func stopOnQueue() {
             guard !stopped else { return }
             stopped = true
+            progressive?.cancel()
             uploadTask?.cancel()
             uploadTask = nil
             connection.cancel()
@@ -849,6 +911,14 @@ final class ArtifactUploadProxy: @unchecked Sendable {
 
             self.filename = filename
             query = targetComponents.percentEncodedQuery
+            if filename == ArtifactUploadProxy.progressiveStreamName {
+                // ffmpeg 的 HTTP 输出恒用分块传输；不是的话没法边收边切
+                guard parsedHeaders["transfer-encoding"]?.lowercased().contains("chunked") == true else {
+                    respond(status: 400, reason: "Bad Request")
+                    return false
+                }
+                progressive = ProgressiveUpload(proxy: proxy, query: query)
+            }
             if parsedHeaders["transfer-encoding"]?.lowercased().contains("chunked") == true {
                 mode = .chunked
                 chunkedParser = ChunkedBodyParser(
@@ -892,6 +962,19 @@ final class ArtifactUploadProxy: @unchecked Sendable {
                     return
                 }
                 let result = parser.append(data)
+                if let progressive {
+                    // 边收边切：解出来的字节立刻交出去，不在这里攒
+                    let decoded = parser.takeBody()
+                    chunkedParser = parser
+                    if let failure = progressive.feed(decoded) {
+                        abort(failure)
+                        return
+                    }
+                    if case .complete = result { bodyComplete = true }
+                    if case let .invalid(message) = result { abort(message) }
+                    if case .tooLarge = result { respond(status: 413, reason: "Payload Too Large") }
+                    return
+                }
                 chunkedParser = parser
                 switch result {
                 case .incomplete:
@@ -921,6 +1004,16 @@ final class ArtifactUploadProxy: @unchecked Sendable {
                   let proxy
             else { return }
             uploadStarted = true
+            if let progressive {
+                // ffmpeg 正常收尾（转到片尾）：最后一段收齐了，补上收尾块再回 ffmpeg
+                uploadTask = Task { [weak self] in
+                    await progressive.finish()
+                    self?.queue.async { [weak self] in
+                        self?.finishUpload(UploadResult(statusCode: 201, message: nil, attempts: 1))
+                    }
+                }
+                return
+            }
             let data = body
             let query = query
             uploadTask = Task { [weak self, weak proxy] in
@@ -942,6 +1035,9 @@ final class ArtifactUploadProxy: @unchecked Sendable {
         }
 
         private func abort(_ message: String) {
+            // 连接断了（多半是 seek 重启时 ffmpeg 被杀）：没转完的那一段不补收尾块，
+            // NAS 那边的半截随下一轮重写作废
+            progressive?.cancel()
             guard !stopped, !responseSent else { return }
             let name = filename ?? "unknown"
             AppLogger.shared.warning(
@@ -982,5 +1078,135 @@ final class ArtifactUploadProxy: @unchecked Sendable {
             connection.cancel()
             proxy?.connectionDidFinish(id)
         }
+    }
+}
+
+/// 边产出边送的回传（docs/design/transcode-latency.md §5）：把 ffmpeg 推来的整条分片化 MP4
+/// 切段（``FragmentSegmenter``），init 整个传，每个片段作为所属分片的一块按序传给 NAS；
+/// 下一段的第一个片段到了（或 ffmpeg 正常收尾），这一段补一个收尾块，NAS 原子改名成正式分片。
+///
+/// 某一块传不上去（重试用尽、NAS 回 409 说中间缺了一块）：这一段不再分块，等它转完把内存里
+/// 攒着的整段一次传上去——与整段落盘的老路完全一样，NAS 那边的半截随之作废。所以内存里同时
+/// 只攒一段（几 MB）。所有上传在一条任务里串行，块的先后不会乱。
+final class ProgressiveUpload: @unchecked Sendable {
+    private enum Event {
+        case output(FragmentSegmenter.Output)
+        case end
+    }
+
+    private let lock = NSLock()
+    private var segmenter: FragmentSegmenter
+    private let continuation: AsyncStream<Event>.Continuation
+    private var worker: Task<Void, Never>?
+
+    init(proxy: ArtifactUploadProxy, query: String?) {
+        segmenter = FragmentSegmenter(
+            segmentSeconds: proxy.segmentSeconds, startSegment: proxy.startSegment
+        )
+        let (events, continuation) = AsyncStream<Event>.makeStream()
+        self.continuation = continuation
+        worker = Task { [weak proxy] in
+            guard let proxy else { return }
+            await Self.run(events, proxy: proxy, query: query)
+        }
+    }
+
+    /// 喂进 ffmpeg 推来的字节；格式坏到切不了段时返回原因。
+    func feed(_ data: Data) -> String? {
+        guard !data.isEmpty else { return nil }
+        let (outputs, failure): ([FragmentSegmenter.Output], String?) = lock.withLock {
+            let outputs = segmenter.append(data)
+            return (outputs, segmenter.failure)
+        }
+        for output in outputs {
+            continuation.yield(.output(output))
+        }
+        return failure
+    }
+
+    /// ffmpeg 正常收尾：最后一段补收尾块，等全部传完。
+    func finish() async {
+        continuation.yield(.end)
+        continuation.finish()
+        await worker?.value
+    }
+
+    /// 连接断了或任务被叫停：不再上传，也不补收尾块。
+    func cancel() {
+        continuation.finish()
+        worker?.cancel()
+    }
+
+    private struct Segment {
+        let index: Int
+        let name: String
+        var nextPart = 0
+        var buffer = Data()
+        /// 分块传不上去了，转完整段重传
+        var fallback = false
+    }
+
+    private static func run(
+        _ events: AsyncStream<Event>,
+        proxy: ArtifactUploadProxy,
+        query: String?
+    ) async {
+        var current: Segment?
+        for await event in events {
+            if Task.isCancelled { return }
+            switch event {
+            case let .output(.initSegment(data)):
+                _ = await proxy.uploadArtifact(data, name: "init.mp4", query: query)
+            case let .output(.fragment(index, data, startsSegment)):
+                if startsSegment || current?.index != index {
+                    if let finished = current {
+                        await complete(finished, proxy: proxy, query: query)
+                    }
+                    let name = String(format: "seg%05d.m4s", index)
+                    current = Segment(index: index, name: name)
+                    proxy.notify(.received(name: name, bytes: data.count))
+                }
+                guard var segment = current else { continue }
+                segment.buffer.append(data)
+                if !segment.fallback {
+                    let result = await proxy.uploadPart(
+                        data, name: segment.name, query: query, part: segment.nextPart, final: false
+                    )
+                    if result.succeeded {
+                        if segment.nextPart == 0 {
+                            proxy.notify(.uploaded(
+                                name: segment.name, status: result.statusCode, attempts: result.attempts
+                            ))
+                        }
+                        segment.nextPart += 1
+                    } else if !Task.isCancelled {
+                        segment.fallback = true
+                        AppLogger.shared.warning(
+                            "分片分块回传失败，转完后整段重传：job=\(proxy.jobID) name=\(segment.name) " +
+                            "part=\(segment.nextPart) status=\(result.statusCode)"
+                        )
+                    }
+                }
+                current = segment
+            case .end:
+                if let finished = current {
+                    await complete(finished, proxy: proxy, query: query)
+                    current = nil
+                }
+            }
+        }
+    }
+
+    /// 一段转完了：补收尾块；分块那条路走不通就整段重传。
+    private static func complete(_ segment: Segment, proxy: ArtifactUploadProxy, query: String?) async {
+        if Task.isCancelled { return }
+        if !segment.fallback {
+            let result = await proxy.uploadPart(
+                Data(), name: segment.name, query: query, part: segment.nextPart, final: true
+            )
+            if result.succeeded { return }
+            if Task.isCancelled { return }
+        }
+        _ = await proxy.uploadArtifact(segment.buffer, name: segment.name, query: query)
     }
 }

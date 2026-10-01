@@ -49,6 +49,7 @@ from movieclaw_api.services.playback.disc_source import CONCAT_LIST_NAME
 from movieclaw_api.services.playback.ffmpeg_args import (
     LIVE_PLAYLIST_NAME,
     PLAYLIST_NAME,
+    SEGMENT_SECONDS,
     TranscodeCommand,
     build_hls_command,
     segment_pattern,
@@ -131,6 +132,12 @@ PAUSE_DISK = "disk"
 PAUSE_LEAD = "lead"
 #: stderr 保留的行数，供诊断面板与日志使用。
 _STDERR_KEEP_LINES = 40
+#: 会话时间线最多留多少条（docs/design/transcode-latency.md §2）。每个分片大约三条
+#: （请求、落盘、交付），领先 120 秒约 30 片，够装下起播和之后两三次跳转。
+TIMELINE_LIMIT = 400
+#: 记「最近都请求了哪些分片」的条数：判断一个落后于转码头的请求是不是已经过时
+#: （客户端之后又去要了别处的分片），见 ``_behind_request_ready``。
+_RECENT_REQUESTS_KEEP = 32
 #: 冷缓存（没有活跃会话在用的转码目录）最长保留多久，超过一律删除，不看
 #: 配额。24 小时盖住「今天看一半明天接着看」；更久的重看本来就少，而且
 #: 配额 LRU 也会先淘汰它们（docs/design/player-pipeline-optimization.md §B）。
@@ -176,6 +183,63 @@ def _remote_job_failure_message(job_state: dict[str, Any]) -> str:
     return message
 
 
+def _startup_breakdown(session: TranscodeSession) -> str:
+    """把时间线里起播那一段压成一句话，附在「首片供给」日志后面。
+
+    用户说「转码起播慢」时先看这一句：慢在派单 / Worker 接单（控制连接）、取源
+    （ffmpeg 起来后第一次读 NAS）、产物落盘（转出并回传首片），还是交付（客户端
+    来要得晚）。只取每种事件的第一次——之后的跳转各有自己的时间线，诊断接口里看。
+    """
+    labels = (
+        ("dispatch", "派单"),
+        ("spawn", "起进程"),
+        ("accepted", "接单"),
+        ("src", "首次取源"),
+        ("w_ffmpeg", "Worker 起 ffmpeg"),
+        ("w_init", "Worker 收到 init"),
+        ("w_seg", "Worker 收到首片"),
+        ("landed", "首个产物落盘"),
+        ("served", "交付"),
+    )
+    first: dict[str, int] = {}
+    for entry in session.timeline:
+        first.setdefault(entry["ev"], entry["t"])
+    parts = [f"{label} {first[event]}" for event, label in labels if event in first]
+    return f"；分段（毫秒，距会话创建）：{' · '.join(parts)}" if parts else ""
+
+
+def _wants_progressive(session: TranscodeSession, connection: WorkerConnection) -> bool:
+    """这一轮远程任务要不要边产出边送：Worker 申报了、点播会话、fMP4 分片。
+
+    TS 分片（只给申报 ``Container=ts`` 的第三方播放器）照旧走 HLS muxer 整段落盘。"""
+    return (
+        connection.capabilities.progressive_segments
+        and session.segment_plan is not None
+        and segment_type(session.plan) == "fmp4"
+    )
+
+
+def _job_payload(
+    session: TranscodeSession, job_id: str, command: TranscodeCommand, poster_url: str
+) -> dict[str, Any]:
+    """下发给 Worker 的 job.start 内容（首次下发与 seek 重启共用）。"""
+    payload: dict[str, Any] = {
+        "file_id": session.file_id,
+        "attempt_id": job_id,
+        "start_ms": session.start_ms,
+        "ffmpeg_args": command.argv[1:],
+        # 只为 Worker 菜单栏显示用；旧版 Worker 忽略多余字段
+        "display_name": session.display_name,
+        "poster_url": poster_url,
+    }
+    if session.progressive:
+        # Worker 按这个栅格把片段归到第几段（与预生成播放列表、强制关键帧同一个栅格）：
+        # 第一段就是这一轮的起转分片，之后与 HLS muxer 同样从第一帧起每满一格切一段
+        payload["segment_seconds"] = SEGMENT_SECONDS
+        payload["start_segment"] = session.head_segment
+    return payload
+
+
 class SessionLimitError(RuntimeError):
     """并发已满。message 面向用户，中文。"""
 
@@ -198,6 +262,36 @@ class RemoteArtifactUpload:
     content_length: int | None
     transfer_encoding: str | None
     occurred_at_ms: int
+
+
+@dataclass
+class PartialSegment:
+    """边产出边送时一个还没转完的分片（docs/design/transcode-latency.md §5）。
+
+    Worker 把 ffmpeg 输出的片段（每 0.5 秒一个 moof + mdat）按顺序分块回传，NAS 依次追加进
+    ``.segNNNNN.m4s.partial``，收齐（最后一块带 final）后原子改名成正式分片——从那一刻起
+    它与整段上传的分片没有任何区别。在等这一片的 AVFoundation 客户端不必等整段：拿到第一个
+    片段就开始流式下发，跟着文件增长往下送（``changed`` 每追加一次就换一个新的事件）。
+
+    ``job`` 是写它的那一轮远程任务：seek 重启后新一轮从第 0 块重写同一个分片时，旧的作废
+    （``failed``），还在跟着它下发的连接随之中断，客户端重新请求。
+    """
+
+    index: int
+    path: Path
+    job: str
+    next_part: int = 0
+    size: int = 0
+    done: bool = False
+    failed: bool = False
+    changed: asyncio.Event = field(default_factory=asyncio.Event)
+    #: 同一分片的追加串行化：Worker 超时重传的块可能与还没处理完的原请求同时到
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+    def notify(self) -> None:
+        """唤醒所有跟着它下发的连接（每次都换一个新事件，等待方不会错过）。"""
+        event, self.changed = self.changed, asyncio.Event()
+        event.set()
 
 
 @dataclass
@@ -338,8 +432,36 @@ class TranscodeSession:
     cache_hit: bool = False
     #: 认领时台账里已经可用的分片数
     cached_segments: int = 0
+    #: 服务端视角的时间线（docs/design/transcode-latency.md §2）：每条是距会话创建的
+    #: 毫秒数（单调钟）、事件名和少量字段。诊断接口原样返回，转码起播 / 跳转慢时据此
+    #: 拆成「派单 → 接单 → 取源 → 产物落盘 → 交付」几段，不必再对着按秒记的访问日志猜。
+    timeline: deque[dict[str, Any]] = field(default_factory=lambda: deque(maxlen=TIMELINE_LIMIT))
+    #: 最近的分片请求（分片号, monotonic 到达时刻），最新的在最后。
+    recent_requests: deque[tuple[int, float]] = field(
+        default_factory=lambda: deque(maxlen=_RECENT_REQUESTS_KEEP)
+    )
+    #: 远程任务 id → 已经给它的取源请求打过几条时间线（每轮有上限，见 transcode_worker 路由）
+    source_marks: dict[str, int] = field(default_factory=dict)
+    #: 当前这一轮远程任务是边产出边送（Worker 申报了 progressive_segments、fMP4 点播会话）。
+    #: seek 重启可能换到另一台 Worker，每一轮重新判定
+    progressive: bool = False
+    #: 边产出边送时正在写的分片（分片号 → 状态），见 ``PartialSegment``
+    partials: dict[int, PartialSegment] = field(default_factory=dict)
+    #: 远程产物落盘、边产出边送的片段到了就换一个新事件并置位，叫醒在等分片的请求
+    changed: asyncio.Event = field(default_factory=asyncio.Event)
     _stderr_task: asyncio.Task | None = None
     _restart_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+    def notify_changed(self) -> None:
+        """有新产物了：叫醒所有在等分片的请求（每次换一个新事件，等待方不会错过）。"""
+        event, self.changed = self.changed, asyncio.Event()
+        event.set()
+
+    def mark(self, event: str, **fields: Any) -> None:
+        """记一条时间线事件。只改内存，近零开销；字段要短（诊断接口整份返回）。"""
+        entry: dict[str, Any] = {"t": int((time.monotonic() - self.created_at) * 1000), "ev": event}
+        entry.update(fields)
+        self.timeline.append(entry)
 
     @property
     def playlist_path(self) -> Path:
@@ -411,6 +533,19 @@ class TranscodeSession:
                 occurred_at_ms=int(time.time() * 1000),
             )
         )
+        if 200 <= status < 300:
+            self.mark("landed", name=name, kb=received_bytes // 1024)
+            self.notify_changed()
+            segment = _segment_index_from_name(name)
+            superseded = self.partials.pop(segment, None) if segment is not None else None
+            if superseded is not None and not superseded.done:
+                # Worker 分块传不下去、改成整段重传了：写到一半的那份作废，跟着它下发的
+                # 连接随之中断，客户端重新请求就拿到这份完整的
+                superseded.failed = True
+                superseded.notify()
+                superseded.path.unlink(missing_ok=True)
+        else:
+            self.mark("put_fail", name=name, status=status, kb=received_bytes // 1024)
         index = _segment_index_from_name(name)
         if index is None:
             return
@@ -837,6 +972,8 @@ class TranscodeSessionManager:
             # 一落地就写台账：进程半路崩了，目录也有身份，不会被启动清理当垃圾
             session.manifest.last_used_at = time.time()
             session.manifest.save(session.directory)
+        # 目录与台账就绪（认领缓存要 stat 源文件，媒体在网络挂载上时这一步可能不便宜）
+        session.mark("prep", hit=session.cache_hit)
         try:
             if session.manifest is not None and session.cache_hit and self._segment_ready(
                 session, head_segment
@@ -950,6 +1087,7 @@ class TranscodeSessionManager:
         *,
         base_override: str,
         start_number: int | None,
+        progressive: bool = False,
     ) -> tuple[TranscodeCommand, str, str, str, str]:
         """给接单的这台 Worker 拼一轮任务：源地址、产物回传地址、海报地址与 ffmpeg 命令。
 
@@ -996,6 +1134,7 @@ class TranscodeSessionManager:
             output_url_suffix=token_suffix,
             input_format="concat" if disc else None,
             worker_caps=connection.capabilities.video_caps,
+            progressive=progressive,
         )
         return command, source_url, artifact_base, token_suffix, poster_url
 
@@ -1028,6 +1167,7 @@ class TranscodeSessionManager:
             raise SessionStartError(f"远程转码不可用：{exc}") from exc
         # 占位之后到 start_job 之前的任何失败都必须归还槽位，否则这台 Worker
         # 的并发位会被一个从未下发的任务永久占住。
+        session.progressive = _wants_progressive(session, connection)
         try:
             (
                 command,
@@ -1043,6 +1183,7 @@ class TranscodeSessionManager:
                 start_number=(
                     session.head_segment if session.segment_plan is not None else None
                 ),
+                progressive=session.progressive,
             )
         except BaseException:
             registry.release_job(job_id)
@@ -1052,24 +1193,20 @@ class TranscodeSessionManager:
         session.remote_artifact_suffix = token_suffix
         registry.create_job_waiter(job_id)
         try:
+            session.mark(
+                "dispatch", seg=session.head_segment, job=job_id[-6:], prog=session.progressive
+            )
             worker_id = await registry.start_job(
                 connection,
                 job_id,
-                {
-                    "file_id": session.file_id,
-                    "attempt_id": job_id,
-                    "start_ms": session.start_ms,
-                    "ffmpeg_args": command.argv[1:],
-                    # 只为 Worker 菜单栏显示用；旧版 Worker 忽略多余字段
-                    "display_name": session.display_name,
-                    "poster_url": poster_url,
-                },
+                _job_payload(session, job_id, command, poster_url),
             )
             session.remote_worker_id = worker_id
             event = await registry.wait_job_event(job_id)
             if event.get("type") != "job.accepted":
                 error = str(event.get("error") or "远程 Worker 拒绝任务")
                 raise SessionStartError(error)
+            session.mark("accepted", job=job_id[-6:])
             if session.segment_plan is None:
                 await self._wait_for_remote_playlist(session, job_id)
             session.state = "ready"
@@ -1238,6 +1375,7 @@ class TranscodeSessionManager:
             start_new_session=True,
         )
         session.process = process
+        session.mark("spawn", seg=session.head_segment)
         # 契约 4：stderr 持续读取，否则管道写满会把 ffmpeg 卡死
         session._stderr_task = asyncio.create_task(self._drain_stderr(session))
 
@@ -1319,15 +1457,19 @@ class TranscodeSessionManager:
     #: 等。重启的代价（丢掉当前轮的前向缓冲）在快进场景本来就不心疼：用户
     #: 明确要去新位置，旧缓冲多半用不上。
     _RESTART_AHEAD_SEGMENTS = 1
-    #: 落后于转码头的分片请求要等这么久才有资格触发重启（探测宽限）。
+    #: 像探测的落后请求（见 ``_behind_request_ready``）要等这么久才有资格触发重启。
     #: iOS 的 AVPlayer 在 JS seek 落地之前会从列表头狂打 seg00000（真机
     #: 实测 35 连发）——立刻理会就是把转码器劫持回第 0 段、正经起播点
-    #: 反而挨饿。探测请求在 seek 落定后由客户端自行取消，熬不过宽限期；
-    #: 真正的用户回拖会一直等着，宽限一到照常重启直奔。
+    #: 反而挨饿。探测请求在 seek 落定后由客户端自行取消，熬不过宽限期。
     _PROBE_GRACE_S = 3.0
+    #: 会话开出来这么久以内，列表头（第 0 段）的落后请求一律当探测看。
+    #: 探测只出现在起播：客户端拿到列表、还没落到起播点的那一两秒。
+    _PROBE_WINDOW_S = 10.0
     #: 请求相差这么多分片时，较远且较新的请求视为用户跳转，不能被列表头
     #: 的旧探测请求拖到 30 秒超时。普通播放器的并行预取通常只有 1~3 片。
     _LARGE_SEEK_GAP_SEGMENTS = 4
+    #: 等分片时的轮询间隔（本机 ffmpeg 写盘没有信号；远程产物落盘会立刻叫醒，不等这一拍）
+    _SEGMENT_POLL_S = 0.05
     #: 单个分片的等待上限。局域网起播 + burst 下正常几百毫秒就好；超时说明
     #: ffmpeg 卡死或存储极慢，让客户端拿 404 重试比挂着请求强
     _SEGMENT_WAIT_S = 30.0
@@ -1342,11 +1484,17 @@ class TranscodeSessionManager:
     #: 本会话内不再为它拉进程。
     _MAX_EMPTY_RESTARTS = 1
 
-    async def ensure_segment(self, session: TranscodeSession, index: int) -> Path | None:
+    async def ensure_segment(
+        self, session: TranscodeSession, index: int, *, allow_partial: bool = False
+    ) -> Path | PartialSegment | None:
         """确保 VOD 会话的第 index 个分片就绪，返回文件路径；超时返回 None。
 
         这是 seek 的唯一入口：客户端按预生成列表直接请求任意分片，这里判断
-        「等它转过来」还是「杀掉重启直奔目标」。"""
+        「等它转过来」还是「杀掉重启直奔目标」。
+
+        ``allow_partial``：客户端能边收边解（AVFoundation），且这一轮在边产出边送时，
+        分片第一个片段一到就返回 ``PartialSegment``，由路由层跟着它的增长往下送，
+        不必等整段（docs/design/transcode-latency.md §5）。"""
         plan = session.segment_plan
         if plan is None or not (0 <= index < plan.count):
             return None
@@ -1359,11 +1507,14 @@ class TranscodeSessionManager:
         # 兜底注销——挂号表漏项会让重启目标算错，宁可多算不可漏算。
         session.pending_segments[index] = session.pending_segments.get(index, 0) + 1
         session.pending_since.setdefault(index, waited_from)
+        session.recent_requests.append((index, waited_from))
         session.last_requested_segment = index
         session.last_requested_at_ms = int(time.time() * 1000)
+        session.mark("req", seg=index)
         # 播放头动了：领先量可能已经回落，先看要不要把挂起的转码放行——
         # 不在这里判的话要等巡检的下一拍，缺粮边缘上那半秒就是一次卡顿
         await self._throttle_session(session)
+        served = False
         try:
             result = await self._await_segment(
                 session,
@@ -1373,11 +1524,21 @@ class TranscodeSessionManager:
                 head_before,
                 deadline,
                 generation,
+                allow_partial=allow_partial,
             )
             session.last_segment_status = 200 if result is not None else 404
             session.last_segment_wait_ms = int(
                 (time.monotonic() - waited_from) * 1000
             )
+            served = True
+            if isinstance(result, PartialSegment):
+                session.mark("served", seg=index, wait=session.last_segment_wait_ms, partial=True)
+            else:
+                session.mark(
+                    "served" if result is not None else "miss",
+                    seg=index,
+                    wait=session.last_segment_wait_ms,
+                )
             if result is not None:
                 session.last_served_segment = index
                 session.last_served_at_ms = int(time.time() * 1000)
@@ -1390,14 +1551,19 @@ class TranscodeSessionManager:
                 # 差值就在这里（ffmpeg 起转到首片落盘 + 客户端发现延迟）
                 logger.info(
                     "首片供给：session=%s seg=%05d 距会话创建 %.1f 秒"
-                    "（本次请求等待 %d 毫秒 attempt=%s）",
+                    "（本次请求等待 %d 毫秒 attempt=%s）%s",
                     session.id, index,
                     time.monotonic() - session.created_at,
                     int((time.monotonic() - waited_from) * 1000),
                     session.attempt_id or "-",
+                    _startup_breakdown(session),
                 )
             return result
         finally:
+            if not served:
+                # 没走到结论就被取消：客户端等不及断开了（AVPlayer 跳转时掐掉在途请求），
+                # 记下它等了多久——时间线上「请求了却没交付」的那一截就是它
+                session.mark("gone", seg=index, wait=int((time.monotonic() - waited_from) * 1000))
             remaining = session.pending_segments.get(index, 1) - 1
             if remaining <= 0:
                 session.pending_segments.pop(index, None)
@@ -1414,8 +1580,12 @@ class TranscodeSessionManager:
         head_before: int,
         deadline: float,
         generation: int,
-    ) -> Path | None:
+        *,
+        allow_partial: bool = False,
+    ) -> Path | PartialSegment | None:
         while time.monotonic() < deadline:
+            # 先拿住这一拍的变化信号再做检查：检查之后、等待之前落盘的产物也能叫醒这次等待
+            changed = session.changed
             # 会话可能在等待期间被显式结束（用户退出的 DELETE 会删目录）。
             # 不查这条就会对着已删除的目录重启 ffmpeg，No such file or
             # directory 一路冒成 500。
@@ -1450,6 +1620,10 @@ class TranscodeSessionManager:
                         "重启直奔" if session.head_segment != head_before else "顺序追赶",
                     )
                 return target
+            if allow_partial:
+                partial = self._streamable_partial(session, index)
+                if partial is not None:
+                    return partial
             if index in session.unreachable_segments:
                 # 已确认产不出来（见 _maybe_restart_for）：别让播放器干等 30 秒
                 return None
@@ -1480,10 +1654,12 @@ class TranscodeSessionManager:
                 return None
             if session.state == "failed":
                 return None
-            # 50ms 轮询：这决定「分片写完 → 客户端拿到」的发现延迟，seek 的
-            # 尾巴上省的就是这几十毫秒。解析已被 _sync_completed 的签名门控
-            # 挡住，轮询本身只剩 stat 调用，再快也没有收益。
-            await asyncio.sleep(0.05)
+            # 远程产物落盘、边产出边送的片段到了会立刻叫醒（``notify_changed``），省掉轮询
+            # 平均 25 毫秒的发现延迟（时间线里「落盘 → 交付」原来常有 30～45 毫秒）；本机
+            # ffmpeg 写盘没有信号，仍按 50ms 轮询。解析已被 _sync_completed 的签名门控挡住，
+            # 轮询本身只剩 stat 调用。
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(changed.wait(), timeout=self._SEGMENT_POLL_S)
         session.segment_timeouts += 1
         if session.remote:
             # 远程分片靠 Worker 回传。issue #444 里旧版 Worker 在本机悄悄拒收了全部
@@ -1507,6 +1683,20 @@ class TranscodeSessionManager:
             index,
         )
         return None
+
+    @staticmethod
+    def _streamable_partial(session: TranscodeSession, index: int) -> PartialSegment | None:
+        """这一片正由当前这一轮边产出边送、且已经到了至少一个片段，就返回它。"""
+        partial = session.partials.get(index)
+        if (
+            partial is None
+            or partial.failed
+            or partial.done
+            or partial.size <= 0
+            or partial.job != session.remote_job_id
+        ):
+            return None
+        return partial
 
     def _segment_ready(self, session: TranscodeSession, index: int) -> bool:
         """判断分片是否可以交给播放器。
@@ -1654,13 +1844,9 @@ class TranscodeSessionManager:
                 else:
                     wanted = min(in_coverage)
             elif not retry_failed:
-                aged = [
-                    i
-                    for i in waiting
-                    if now - session.pending_since.get(i, now) >= self._PROBE_GRACE_S
-                ]
+                aged = [i for i in waiting if self._behind_request_ready(session, i, now)]
                 if not aged:
-                    return  # 在等的只有宽限期内的头部探测，不理会
+                    return  # 在等的只有像探测的落后请求（宽限期内），不理会
                 wanted = min(aged)
             behind = wanted < session.head_segment
             ahead = wanted > produced + self._RESTART_AHEAD_SEGMENTS
@@ -1729,6 +1915,9 @@ class TranscodeSessionManager:
             )
             session.restart_generation += 1
             session.restart_target = index
+            session.mark(
+                "restart", seg=index, why=restart_reason, head=session.head_segment, made=produced
+            )
             if session.remote:
                 await self._restart_remote(session, index)
                 return
@@ -1774,6 +1963,30 @@ class TranscodeSessionManager:
             )
         return retryable
 
+    def _behind_request_ready(self, session: TranscodeSession, index: int, now: float) -> bool:
+        """一个落后于转码头、且没有覆盖范围内的请求在等的分片请求，现在能不能触发重启。
+
+        原来对所有落后请求一视同仁地熬 ``_PROBE_GRACE_S``，防的是起播探测。代价是每次真正
+        的回拖都白等 3 秒：AVPlayer 一个分片请求等满约 4 秒就自己放弃、重发，实测回拖出画
+        4.6～5.2 秒，其中 3 秒是这道宽限（docs/design/transcode-latency.md §4.1）。现在只给
+        「像探测」的请求留宽限：
+
+        - 列表头（第 0 段），且会话开出来不到 ``_PROBE_WINDOW_S``：起播探测的典型形态；
+        - 已经过时：它挂号之后，客户端又去要了别处的分片（不是它往后几段的顺序预取）——
+          跳转瞬间还在途的旧请求就是这样，客户端多半很快把它掐掉（断开即注销，见路由层）。
+
+        其余的——客户端最新要的就是转码头后面的这一段——就是回拖，立刻重启直奔。"""
+        since = session.pending_since.get(index, now)
+        if now - since >= self._PROBE_GRACE_S:
+            return True
+        if index == 0 and now - session.created_at < self._PROBE_WINDOW_S:
+            return False
+        newer_elsewhere = any(
+            arrived > since and not (index <= other <= index + self._LARGE_SEEK_GAP_SEGMENTS)
+            for other, arrived in session.recent_requests
+        )
+        return not newer_elsewhere
+
     async def _restart_remote(self, session: TranscodeSession, index: int) -> None:
         """远程 seek：停止旧任务后，从目标分片重新下发 ffmpeg。"""
         registry = get_remote_worker_registry()
@@ -1815,6 +2028,7 @@ class TranscodeSessionManager:
                     attempt_id=job_id,
                     disc=session.concat_list is not None,
                 )
+                session.progressive = _wants_progressive(session, connection)
                 try:
                     (
                         command,
@@ -1828,6 +2042,7 @@ class TranscodeSessionManager:
                         job_id,
                         base_override=effective_remote_transcode_config().base_url,
                         start_number=index,
+                        progressive=session.progressive,
                     )
                 except BaseException:
                     # 占位到下发之间的任何失败都要归还槽位，否则这台 Worker 的
@@ -1837,17 +2052,11 @@ class TranscodeSessionManager:
                 session.remote_source_url = source_url
                 session.remote_artifact_base_url = artifact_base
                 session.remote_artifact_suffix = token_suffix
+                session.mark("dispatch", seg=index, job=job_id[-6:], prog=session.progressive)
                 worker_id = await registry.start_job(
                     connection,
                     job_id,
-                    {
-                        "file_id": session.file_id,
-                        "attempt_id": job_id,
-                        "start_ms": session.start_ms,
-                        "ffmpeg_args": command.argv[1:],
-                        "display_name": session.display_name,
-                        "poster_url": poster_url,
-                    },
+                    _job_payload(session, job_id, command, poster_url),
                 )
                 session.remote_worker_id = worker_id
                 event = await registry.wait_job_event(job_id)
@@ -1856,6 +2065,7 @@ class TranscodeSessionManager:
                     session.state = "failed"
                     session.error = error
                     raise SessionStartError(error)
+                session.mark("accepted", job=job_id[-6:])
                 session.state = "ready"
                 session.touch()
             except BaseException as exc:
@@ -1952,6 +2162,45 @@ class TranscodeSessionManager:
             name,
             str(message.get("error") or "未说明原因")[:300],
         )
+
+    def record_worker_timeline(self, message: dict[str, Any]) -> None:
+        """把 Worker 报来的这一轮分段计时并进会话时间线（docs/design/transcode-latency.md §2）。
+
+        Worker 的时刻是「距它收到 job.start」的毫秒数；换算到会话时间线时以这一轮的
+        ``dispatch`` 为零点，忽略控制连接的单程延迟（局域网一两毫秒）。事件名加 ``w_``
+        前缀，与服务端自己的事件区分。消息已由注册表校验过归属与轮次。"""
+        job_id = str(message.get("job_id") or "")
+        session = next(
+            (s for s in self._sessions.values() if job_id and s.remote_job_id == job_id), None
+        )
+        events = message.get("events")
+        if session is None or not isinstance(events, list):
+            return
+        short = job_id[-6:]
+        origin = next(
+            (
+                entry["t"]
+                for entry in reversed(session.timeline)
+                if entry["ev"] == "dispatch" and entry.get("job") == short
+            ),
+            None,
+        )
+        if origin is None:
+            return
+        for event in events[:64]:
+            if not (isinstance(event, dict) and isinstance(event.get("ms"), int | float)):
+                continue
+            name = str(event.get("ev") or "")[:24]
+            if not name:
+                continue
+            extra = {
+                key: value
+                for key, value in event.items()
+                if key not in {"ms", "ev", "t"} and isinstance(value, str | int | float | bool)
+            }
+            session.timeline.append(
+                {"t": origin + int(event["ms"]), "ev": f"w_{name}", "wt": int(event["ms"]), **extra}
+            )
 
     async def stop(self, session_id: str, *, reason: str = "播放器结束播放") -> bool:
         """结束会话。``reason`` 只进结束小结日志，说明是谁、为什么停的。"""

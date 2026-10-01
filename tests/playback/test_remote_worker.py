@@ -717,3 +717,103 @@ def test_undeclared_video_caps_fall_back_to_h264_hevc_without_metal_filters():
     assert declared.disc_sources is True
     assert declared.video_caps.hw_decoders == frozenset({"h264", "hevc", "mpeg2video"})
     assert declared.video_caps.filters == frozenset({"scale_vt", "tonemap_videotoolbox"})
+
+
+def test_progressive_command_streams_fragmented_mp4_to_the_worker():
+    """边产出边送（docs/design/transcode-latency.md §5）：不用 HLS muxer，一整条分片化 MP4
+    推给 Worker 的上传代理；时间戳保持文件绝对时间（frag_discont），Worker 才知道片段属于第几段。"""
+    command = build_hls_command(
+        _transcode_plan(),
+        source_path="http://10.1.1.5:3000/api/source?token=source",
+        session_dir=Path("/data/transcodes/session-a"),
+        start_number=150,
+        hw_backend="videotoolbox",
+        output_base_url="http://10.1.1.5:3000/api/artifacts",
+        output_url_suffix="?token=artifact",
+        progressive=True,
+    )
+    argv = command.argv
+    assert argv[-1] == "http://10.1.1.5:3000/api/artifacts/stream.mp4?token=artifact"
+    assert argv[argv.index("-f", argv.index("-c:v")) + 1] == "mp4"
+    movflags = argv[argv.index("-movflags") + 1]
+    for flag in ("frag_keyframe", "delay_moov", "default_base_moof", "frag_discont"):
+        assert flag in movflags
+    assert argv[argv.index("-frag_duration") + 1] == "500000"
+    assert argv[argv.index("-method") + 1] == "PUT"
+    assert "-hls_time" not in argv
+    # 片源章节会变成 init 里的一条文本轨，AVPlayer 拿到就不出画
+    assert argv[argv.index("-map_chapters") + 1] == "-1"
+    # 强制关键帧与绝对时间戳照旧：Worker 按同一个 4 秒栅格切段
+    assert "expr:gte(t,n_forced*4)" in argv
+    assert "-copyts" in argv
+    # stream.mp4 只到 Worker 的上传代理，NAS 产物端点从不接收它
+    assert _worker_artifact_pattern().fullmatch("stream.mp4")
+    assert not _ARTIFACT_NAME.fullmatch("stream.mp4")
+
+
+@pytest.mark.parametrize(
+    ("container", "start_number", "base"),
+    [
+        ("hls-ts", 150, "http://10.1.1.5:3000/api/artifacts"),  # TS 分片：Infuse 那条路照旧
+        ("hls-fmp4", None, "http://10.1.1.5:3000/api/artifacts"),  # 会话相对制：没有分片栅格
+        ("hls-fmp4", 150, None),  # NAS 本机转码：没有上传代理来切段
+    ],
+)
+def test_progressive_falls_back_to_hls_where_it_cannot_apply(container, start_number, base):
+    command = build_hls_command(
+        replace(_transcode_plan(), container=container),
+        source_path="/m/a.mkv",
+        session_dir=Path("/data/transcodes/session-a"),
+        start_number=start_number,
+        hw_backend="videotoolbox",
+        output_base_url=base,
+        output_url_suffix="?token=artifact" if base else "",
+        progressive=True,
+    )
+    assert "-hls_time" in command.argv
+    assert not command.argv[-1].split("?")[0].endswith("stream.mp4")
+
+
+def test_registry_reads_progressive_capability():
+    parse = RemoteWorkerRegistry._parse_capabilities
+    base = {"backends": ["videotoolbox"], "encoders": ["h264_videotoolbox"]}
+    assert parse({**base, "progressive_segments": True}).progressive_segments
+    assert not parse(base).progressive_segments  # 旧版 Worker 没声明：整段落盘
+    assert not parse({**base, "progressive_segments": "yes"}).progressive_segments
+
+
+def test_remote_read_options_only_go_to_workers_that_know_them():
+    """取源选项（docs/design/transcode-latency.md §6.2）只加 Worker 的 ffmpeg 认得的：
+    未知选项会让 ffmpeg 直接退出。"""
+    from movieclaw_api.services.playback.ffmpeg_args import WorkerVideoCaps
+
+    def command(read_options: frozenset[str]) -> list[str]:
+        return build_hls_command(
+            _transcode_plan(),
+            source_path="http://10.1.1.5:3000/api/source?token=source",
+            session_dir=Path("/data/transcodes/session-a"),
+            start_number=3,
+            hw_backend="videotoolbox",
+            output_base_url="http://10.1.1.5:3000/api/artifacts",
+            output_url_suffix="?token=artifact",
+            worker_caps=WorkerVideoCaps(read_options=read_options),
+        ).argv
+
+    assert "-skip_estimate_duration_from_pts" not in command(frozenset())
+
+    # 初版 Worker 还申报过 HTTP 的两项：不再加（按块要由 Worker 的取源代理做）
+    argv = command(
+        frozenset({"skip_estimate_duration_from_pts", "multiple_requests", "initial_request_size"})
+    )
+    source = argv.index("-i")
+    assert "-skip_estimate_duration_from_pts" in argv[:source], "必须是输入选项"
+    assert "-multiple_requests" not in argv
+    assert "-initial_request_size" not in argv
+
+
+def test_registry_reads_read_options_capability():
+    parse = RemoteWorkerRegistry._parse_capabilities
+    base = {"backends": ["videotoolbox"], "encoders": ["h264_videotoolbox"]}
+    caps = parse({**base, "read_options": ["multiple_requests", "initial_request_size"]})
+    assert caps.video_caps.read_options == frozenset({"multiple_requests", "initial_request_size"})
+    assert parse(base).video_caps.read_options == frozenset()

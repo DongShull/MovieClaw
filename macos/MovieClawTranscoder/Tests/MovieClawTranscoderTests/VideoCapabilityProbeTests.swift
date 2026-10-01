@@ -44,3 +44,17 @@ final class VideoCapabilityProbeTests: XCTestCase {
         print("本机 VideoToolbox 可硬解：\(found)")
     }
 }
+
+final class ReadOptionsProbeTests: XCTestCase {
+    func testPicksOnlyTheReadOptionsTheFFmpegDeclares() {
+        // jellyfin-ffmpeg 8.1 `-h full` 的真实行（节选）
+        let help = """
+          -skip_estimate_duration_from_pts <boolean>    .D......... skip duration calculation
+          -multiple_requests <boolean>    ED......... use persistent connections (default false)
+          -initial_request_size <int64>      .D......... size (in bytes) of initial requests
+        """
+        // HTTP 的两项不申报（取源代理代替了它们）
+        XCTAssertEqual(CapabilityProbe.parseReadOptions(help), ["skip_estimate_duration_from_pts"])
+        XCTAssertEqual(CapabilityProbe.parseReadOptions(""), [])
+    }
+}

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -564,6 +564,10 @@ class PlaybackDiagnosticsView(BaseModel):
     #: 开会话时认领到了同指纹的转码缓存（§B），以及当时可用的分片数
     cache_hit: bool = False
     cached_segments: int = 0
+    #: 服务端时间线（docs/design/transcode-latency.md §2）：每条 ``t`` 是距会话创建的毫秒数，
+    #: ``ev`` 是事件名（dispatch / accepted / src / put / landed / req / served / restart …，
+    #: Worker 报来的带 ``w_`` 前缀），其余是事件自己的字段。不含任何地址或令牌
+    timeline: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class PlaybackChapterMarkView(BaseModel):

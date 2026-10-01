@@ -89,12 +89,20 @@ class WorkerCapabilities:
     hw_decoders: tuple[str, ...] = _DEFAULT_HW_DECODERS
     #: Worker 的 ffmpeg 带的 Metal 滤镜（scale_vt、tonemap_videotoolbox……）。
     filters: tuple[str, ...] = ()
+    #: 能边产出边送分片（docs/design/transcode-latency.md §5）：ffmpeg 输出分片化 MP4，
+    #: Worker 按 4 秒栅格切段，每 0.5 秒一个片段分块回传。旧版 Worker 只认 HLS 产物名，
+    #: 只派整段落盘的任务给它。
+    progressive_segments: bool = False
+    #: Worker 的 ffmpeg 认的取源选项（``ffmpeg_args.remote_read_options`` 会用到的那几个）
+    read_options: tuple[str, ...] = ()
 
     @property
     def video_caps(self) -> WorkerVideoCaps:
         """命令装配要的那部分（见 ``ffmpeg_args.WorkerVideoCaps``）。"""
         return WorkerVideoCaps(
-            hw_decoders=frozenset(self.hw_decoders), filters=frozenset(self.filters)
+            hw_decoders=frozenset(self.hw_decoders),
+            filters=frozenset(self.filters),
+            read_options=frozenset(self.read_options),
         )
 
 
@@ -275,6 +283,12 @@ class RemoteWorkerRegistry:
         with self._lock:
             connection = self._workers.get(worker_id)
             return connection is not None and self._is_fresh(connection)
+
+    def video_caps(self, worker_id: str | None) -> WorkerVideoCaps | None:
+        """某台在线 Worker 申报的视频能力（原盘清单按它给每段剪辑加取源选项）。"""
+        with self._lock:
+            connection = self._workers.get(worker_id) if worker_id else None
+            return connection.capabilities.video_caps if connection is not None else None
 
     def snapshot(self) -> list[dict[str, Any]]:
         """返回不含令牌的状态，供管理员诊断页使用。"""
@@ -493,9 +507,9 @@ class RemoteWorkerRegistry:
     ) -> dict[str, Any] | None:
         """处理 Worker 上行消息。未知消息只记日志，不中断连接。
 
-        返回值只对 ``job.artifact_failed``（Worker 放弃了某个产物的上传）有意义：
-        校验过归属与轮次后原样交回调用方，由它转给会话层记账补片——注册表不认识
-        会话。其余消息一律返回 None。"""
+        返回值只对 ``job.artifact_failed``（Worker 放弃了某个产物的上传）与
+        ``job.timeline``（Worker 这一轮的起播分段）有意义：校验过归属与轮次后原样
+        交回调用方，由它转给会话层——注册表不认识会话。其余消息一律返回 None。"""
         with self._lock:
             connection.last_seen = time.monotonic()
         message_type = str(message.get("type", ""))
@@ -518,7 +532,14 @@ class RemoteWorkerRegistry:
             return None
         if (
             message_type
-            in {"job.accepted", "job.progress", "job.failed", "job.finished", "job.artifact_failed"}
+            in {
+                "job.accepted",
+                "job.progress",
+                "job.failed",
+                "job.finished",
+                "job.artifact_failed",
+                "job.timeline",
+            }
             and job_id
         ):
             # 任务状态只能由实际被选中的 Worker 上报；共享 Worker 令牌下，
@@ -530,8 +551,9 @@ class RemoteWorkerRegistry:
                 is_current_attempt = message_attempt == expected_attempt
             if not is_owner or not is_current_attempt:
                 return None
-            if message_type == "job.artifact_failed":
-                # 不是任务状态迁移，不能写进状态表（会盖掉 accepted/progress）
+            if message_type in {"job.artifact_failed", "job.timeline"}:
+                # 不是任务状态迁移，不能写进状态表（会盖掉 accepted/progress）；
+                # 交回调用方转给会话层（补片记账 / 并进会话时间线）
                 return message
             if message_type == "job.failed":
                 # Worker 报来的失败此前只进会话诊断，网页播放器之外（Infuse、
@@ -649,6 +671,8 @@ class RemoteWorkerRegistry:
             disc_sources=raw.get("disc_sources") is True,
             hw_decoders=names("hw_decoders") or _DEFAULT_HW_DECODERS,
             filters=names("filters") or (),
+            progressive_segments=raw.get("progressive_segments") is True,
+            read_options=names("read_options") or (),
         )
 
     @staticmethod

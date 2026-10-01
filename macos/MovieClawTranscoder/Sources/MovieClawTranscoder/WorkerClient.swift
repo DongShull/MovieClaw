@@ -45,6 +45,8 @@ actor WorkerClient {
     private var tracks: [String: JobTrack] = [:]
     /// 被 NAS 暂停的任务（job.pause），面板上单独标出来。
     private var pausedJobs: Set<String> = []
+    /// 每个任务的分段计时（见 ``JobTimeline``），首片传到 NAS 时与任务结束前各发一次。
+    private var timelines: [String: JobTimeline] = [:]
     /// 任务结束时交出去的记录（菜单栏 App 记进本地的任务记录；无界面模式不需要，为 nil）。
     private let recordJob: (@Sendable (JobRecord) -> Void)?
     private var state: WorkerConnectionState = .stopped
@@ -323,6 +325,12 @@ actor WorkerClient {
                 // 解不了的编码（VC-1、WMV……）CPU 软解、编码仍用 VideoToolbox
                 "hw_decoders": capabilities.hwDecoders,
                 "filters": capabilities.filters,
+                // 能边产出边送分片（docs/design/transcode-latency.md §5）：NAS 让 ffmpeg 输出分片化
+                // MP4，这边切段、每 0.5 秒一块回传。旧版服务端忽略这个字段，照旧派整段落盘的任务
+                "progressive_segments": !configuration.labFlags.contains("no-progressive"),
+                // ffmpeg 认得的取源选项：NAS 按它给取源加「不倒着读估时长」
+                "read_options": configuration.labFlags.contains("no-read-options")
+                    ? [] : capabilities.readOptions,
             ],
         ]
         do {
@@ -456,6 +464,7 @@ actor WorkerClient {
                 let job = jobs.removeValue(forKey: jobID)
                 let uploadProxy = uploadProxies.removeValue(forKey: jobID)
                 jobAttempts.removeValue(forKey: jobID)
+                timelines.removeValue(forKey: jobID)
                 currentProgress.removeValue(forKey: jobID)
                 lastProgressSent.removeValue(forKey: jobID)
                 // 这一行必须有：被 NAS 停掉的任务不会走 finish() 上报，日志里
@@ -503,6 +512,8 @@ actor WorkerClient {
     }
 
     private func startJob(_ message: [String: Any]) async {
+        // 分段计时的零点：收到 job.start 的这一刻（NAS 以它的 dispatch 对齐）
+        let timeline = JobTimeline()
         guard let jobID = message["job_id"] as? String,
               let arguments = message["ffmpeg_args"] as? [String]
         else {
@@ -528,6 +539,7 @@ actor WorkerClient {
             jobs.removeValue(forKey: jobID)?.stop()
             uploadProxies.removeValue(forKey: jobID)?.stop()
             jobAttempts.removeValue(forKey: jobID)
+            timelines.removeValue(forKey: jobID)
             currentProgress.removeValue(forKey: jobID)
         }
         guard jobs.count < configuration.maxJobs else {
@@ -544,8 +556,10 @@ actor WorkerClient {
                 // NAS 哪一片没了，由它补片重启——ffmpeg 自己不会回头补写。
                 let proxy = try ArtifactUploadProxy(
                     jobID: jobID,
-                    remoteBaseURL: remoteBaseURL
-                ) { [weak self, execution] event in
+                    remoteBaseURL: remoteBaseURL,
+                    segmentSeconds: (message["segment_seconds"] as? NSNumber)?.doubleValue ?? 4,
+                    startSegment: (message["start_segment"] as? NSNumber)?.intValue
+                ) { [weak self, execution, timeline] event in
                     switch event {
                     case .rejected:
                         execution.stop(force: true)
@@ -559,9 +573,20 @@ actor WorkerClient {
                                 reason: reason
                             )
                         }
+                    case let .received(name, bytes):
+                        timeline.markArtifact("recv", name: name, ["kb": bytes / 1024])
+                    case let .uploaded(name, status, attempts):
+                        timeline.markArtifact("up", name: name, ["status": status, "tries": attempts])
+                        if timeline.isFirstSegment(name) {
+                            // 首片到了 NAS：起播这一段已经完整，先把计时发过去
+                            Task { [weak self] in
+                                await self?.sendTimeline(jobID: jobID, attemptID: attemptID)
+                            }
+                        }
                     }
                 }
                 let localBaseURL = try await proxy.start()
+                timeline.mark("proxy")
                 ffmpegArguments = proxy.rewrite(arguments: arguments, localBaseURL: localBaseURL)
                 uploadProxy = proxy
                 uploadProxies[jobID] = proxy
@@ -578,8 +603,29 @@ actor WorkerClient {
             // 兼容旧服务端或非 HLS 任务；当前远程播放任务应始终命中代理。
             AppLogger.shared.warning("远程任务未找到产物地址，将由 ffmpeg 直接处理：job=\(jobID)")
         }
+        // 取源走本机代理（docs/design/transcode-latency.md §6）：连接复用、按块取、块缓存。
+        // 起不来不影响转码，ffmpeg 照旧直连 NAS。代理随这一轮 ffmpeg 退出而停。
+        var sourceProxy: SourceReadProxy?
+        if !configuration.labFlags.contains("no-source-proxy"),
+           let sourceURL = SourceReadProxy.remoteSourceURL(from: ffmpegArguments),
+           let origin = SourceReadProxy.origin(of: sourceURL)
+        {
+            do {
+                let proxy = try SourceReadProxy(
+                    jobID: jobID,
+                    origin: origin,
+                    logRequests: configuration.labFlags.contains("source-log")
+                )
+                let localBaseURL = try await proxy.start()
+                ffmpegArguments = proxy.rewrite(arguments: ffmpegArguments, localBaseURL: localBaseURL)
+                sourceProxy = proxy
+            } catch {
+                AppLogger.shared.warning("取源代理起不来，改为直连 NAS：job=\(jobID) 原因=\(error)")
+            }
+        }
         jobs[jobID] = execution
         jobAttempts[jobID] = attemptID
+        timelines[jobID] = timeline
         tracks[jobID] = JobTrack(
             startedAt: Date(),
             videoEncoder: Self.videoEncoder(in: arguments),
@@ -591,8 +637,10 @@ actor WorkerClient {
         } catch {
             execution.stop()
             uploadProxies.removeValue(forKey: jobID)?.stop()
+            sourceProxy?.stop()
             jobs.removeValue(forKey: jobID)
             jobAttempts.removeValue(forKey: jobID)
+            timelines.removeValue(forKey: jobID)
             tracks.removeValue(forKey: jobID)
             return
         }
@@ -604,12 +652,28 @@ actor WorkerClient {
 
         let activeFFmpegArguments = ffmpegArguments
         let activeUploadProxy = uploadProxy
-        Task { [weak self, execution, activeFFmpegArguments, activeUploadProxy] in
-            let result = await execution.run(arguments: activeFFmpegArguments) { [weak self] progress in
-                Task { [weak self] in
-                    await self?.reportProgress(jobID: jobID, progress: progress)
+        let activeSourceProxy = sourceProxy
+        Task { [weak self, execution, activeFFmpegArguments, activeUploadProxy, activeSourceProxy, timeline] in
+            let result = await execution.run(
+                arguments: activeFFmpegArguments,
+                onProgress: { [weak self] progress in
+                    Task { [weak self] in
+                        await self?.reportProgress(jobID: jobID, progress: progress)
+                    }
+                },
+                onLaunched: { timeline.mark("ffmpeg") },
+                onMarker: { marker in
+                    switch marker {
+                    case .input:
+                        timeline.mark("input")
+                    case .initOpen:
+                        timeline.mark("init_open")
+                    case let .segmentOpen(name):
+                        timeline.markArtifact("seg_open", name: name)
+                    }
                 }
-            }
+            )
+            activeSourceProxy?.stop()
             if let activeUploadProxy {
                 await activeUploadProxy.drainPendingUploads()
             }
@@ -623,6 +687,19 @@ actor WorkerClient {
                 arguments: activeFFmpegArguments
             )
         }
+    }
+
+    /// 把这一轮还没发出去的分段计时发给 NAS（见 ``JobTimeline``）。没有新内容就不发。
+    private func sendTimeline(jobID: String, attemptID: String) async {
+        guard let timeline = timelines[jobID] else { return }
+        let events = timeline.takeUnsent()
+        guard !events.isEmpty else { return }
+        try? await send([
+            "type": "job.timeline",
+            "job_id": jobID,
+            "attempt_id": attemptID,
+            "events": events,
+        ])
     }
 
     /// 告诉 NAS 某个产物重试用尽仍没传上去，由它从这一片补片重启。
@@ -728,7 +805,11 @@ actor WorkerClient {
             outcome: succeeded ? .finished : .failed,
             error: succeeded ? nil : sanitized(failure ?? "ffmpeg 转码失败")
         )
-        let attemptID = jobAttempts.removeValue(forKey: jobID) ?? jobID
+        let attemptID = jobAttempts[jobID] ?? jobID
+        // 终态之前把还没发的分段计时补上：NAS 收到终态就释放任务，之后的计时不再认
+        await sendTimeline(jobID: jobID, attemptID: attemptID)
+        jobAttempts.removeValue(forKey: jobID)
+        timelines.removeValue(forKey: jobID)
         jobNames.removeValue(forKey: jobID)
         jobs.removeValue(forKey: jobID)
         uploadProxies.removeValue(forKey: jobID)?.stop()
@@ -805,6 +886,7 @@ actor WorkerClient {
         jobs.removeAll()
         uploadProxies.removeAll()
         jobAttempts.removeAll()
+        timelines.removeAll()
         jobNames.removeAll()
         currentProgress.removeAll()
         lastProgressSent.removeAll()

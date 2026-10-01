@@ -1748,6 +1748,108 @@ time.sleep(300)
         await manager.shutdown()
 
 
+@pytest.mark.asyncio
+async def test_lone_backward_seek_restarts_without_waiting_for_grace(manager, monkeypatch):
+    """回拖不再白等探测宽限（docs/design/transcode-latency.md §4.1）：客户端最新要的就是
+    转码头后面的一段、前方没有等待者，就是回拖——立刻重启直奔。宽限留默认的 3 秒，
+    等待窗口只给 0.6 秒：重启必须发生在窗口之内。"""
+    writes_live_then_sleeps = """
+import sys, time, pathlib
+pathlib.Path(sys.argv[1]).write_text("#EXTM3U\\n#EXT-X-VERSION:7\\n")
+time.sleep(300)
+"""
+    install_fake(monkeypatch, writes_live_then_sleeps)
+    monkeypatch.setattr(TranscodeSessionManager, "_SEGMENT_WAIT_S", 0.6)
+    session = await manager.start(
+        make_plan(), source_path="/m/a.mkv", member_id=0,
+        segment_plan=_boundaries(800), start_ms=317 * 4000,
+    )
+    try:
+        await manager.ensure_segment(session, 75)
+        assert session.head_segment == 75, "回拖仍在熬探测宽限"
+        restarts = [e for e in session.timeline if e["ev"] == "restart"]
+        assert restarts and restarts[0]["seg"] == 75
+    finally:
+        await manager.shutdown()
+
+
+def test_behind_request_ready_only_holds_probe_like_requests(manager, tmp_path):
+    """宽限只留给「像探测」的落后请求：起播窗口内的列表头、以及挂号之后客户端又去
+    要了别处的过时请求；紧跟着它的顺序预取不算「别处」。"""
+    session = _vod_session(tmp_path, head=317, completed=set())
+    now = time.monotonic()
+    session.created_at = now - 1.0  # 会话刚开 1 秒，还在探测窗口里
+
+    session.pending_since[0] = now
+    session.recent_requests.append((0, now))
+    assert not manager._behind_request_ready(session, 0, now), "起播窗口内的列表头应熬宽限"
+
+    session.pending_since[75] = now
+    session.recent_requests.append((75, now))
+    session.recent_requests.append((76, now + 0.01))  # 回拖目标之后的顺序预取
+    assert manager._behind_request_ready(session, 75, now + 0.02)
+
+    session.pending_since[40] = now - 0.5
+    session.recent_requests.append((318, now))  # 挂号后客户端又去要了转码头前方
+    assert not manager._behind_request_ready(session, 40, now), "过时的旧请求不该立刻重启"
+    assert manager._behind_request_ready(
+        session, 40, now - 0.5 + manager._PROBE_GRACE_S
+    ), "熬满宽限照常放行"
+
+    session.created_at = now - manager._PROBE_WINDOW_S - 1  # 播了一阵后真的拖回片头
+    session.recent_requests.clear()
+    session.recent_requests.append((0, now))
+    assert manager._behind_request_ready(session, 0, now)
+
+
+@pytest.mark.asyncio
+async def test_timeline_records_request_and_delivery(manager, monkeypatch):
+    """时间线记下每个分片的请求与交付（距会话创建的毫秒数 + 等了多久）。"""
+    writes_segment = """
+import sys, time, pathlib
+out = pathlib.Path(sys.argv[1])
+(out.parent / "seg00000.m4s").write_bytes(b"x" * 64)
+out.write_text("#EXTM3U\\n#EXTINF:4.0,\\nseg00000.m4s\\n")
+time.sleep(300)
+"""
+    install_fake(monkeypatch, writes_segment)
+    session = await manager.start(
+        make_plan(), source_path="/m/a.mkv", member_id=0, segment_plan=_boundaries(800)
+    )
+    try:
+        assert await manager.ensure_segment(session, 0) is not None
+        events = [(e["ev"], e.get("seg")) for e in session.timeline]
+        assert ("spawn", 0) in events
+        assert ("req", 0) in events and ("served", 0) in events
+        served = next(e for e in session.timeline if e["ev"] == "served")
+        assert served["wait"] >= 0 and served["t"] >= 0
+    finally:
+        await manager.shutdown()
+
+
+def test_worker_timeline_is_placed_on_the_session_clock(manager, tmp_path):
+    """Worker 报来的分段以这一轮的 dispatch 为零点并进会话时间线，加 w_ 前缀。"""
+    session = _vod_session(tmp_path, head=0, completed=set())
+    session.remote = True
+    session.remote_job_id = "01JOBXYZ123456"
+    manager._sessions[session.id] = session
+    session.timeline.append({"t": 100, "ev": "dispatch", "seg": 0, "job": "123456"})
+    manager.record_worker_timeline({
+        "type": "job.timeline",
+        "job_id": "01JOBXYZ123456",
+        "events": [
+            {"ms": 12, "ev": "ffmpeg"},
+            {"ms": 840, "ev": "seg", "name": "seg00000.m4s", "kb": 1200},
+            {"ev": "bad"},  # 没有时刻的丢掉
+        ],
+    })
+    worker_events = [e for e in session.timeline if e["ev"].startswith("w_")]
+    assert worker_events == [
+        {"t": 112, "ev": "w_ffmpeg", "wt": 12},
+        {"t": 940, "ev": "w_seg", "wt": 840, "name": "seg00000.m4s", "kb": 1200},
+    ]
+
+
 def test_sync_completed_skips_reparse_when_playlist_unchanged(manager, tmp_path):
     """签名门控：一次 seek 有好几个并发分片请求各自 50ms 轮询，live.m3u8
     没变就不该反复全量重解析（两小时片近两千行）。"""
@@ -2093,3 +2195,45 @@ async def test_remote_disc_session_reads_ffconcat_and_follows_worker_caps(manage
     )
     assert "-pix_fmt" not in args
     assert await manager.stop(session.id) is True
+
+
+@pytest.mark.asyncio
+async def test_progressive_segment_is_handed_out_once_its_first_fragment_lands(manager, tmp_path):
+    """边产出边送：能边收边解的客户端不等整段，第一个片段到了就拿到正在写的分片；
+    整段请求（hls.js）照旧等正式分片。"""
+    session = _vod_session(tmp_path, head=5, completed=set())
+    session.remote = True
+    session.remote_job_id = "job-a"
+    session.progressive = True
+    session.partials[5] = session_mod.PartialSegment(
+        index=5, path=tmp_path / ".seg00005.m4s.partial", job="job-a", size=1024, next_part=1
+    )
+    manager._sessions[session.id] = session
+    got = await manager.ensure_segment(session, 5, allow_partial=True)
+    assert isinstance(got, session_mod.PartialSegment)
+    served = [e for e in session.timeline if e["ev"] == "served"]
+    assert served and served[-1].get("partial") is True
+
+    # 上一轮写的半截不给（seek 重启后它会被新一轮重写）
+    session.partials[5].job = "job-old"
+    assert manager._streamable_partial(session, 5) is None
+
+
+@pytest.mark.asyncio
+async def test_remote_segment_wait_wakes_up_when_the_artifact_lands(manager, tmp_path, monkeypatch):
+    """远程产物一落盘就叫醒在等的请求，不再干等轮询的下一拍（轮询间隔这里拉长到 5 秒）。"""
+    monkeypatch.setattr(TranscodeSessionManager, "_SEGMENT_POLL_S", 5.0)
+    session = _vod_session(tmp_path, head=5, completed=set())
+    session.remote = True
+    session.remote_job_id = "job-a"
+    session.remote_restarting = True  # 不去查 Worker 在不在线（这里没有注册表）
+    manager._sessions[session.id] = session
+    waiter = asyncio.ensure_future(manager.ensure_segment(session, 5))
+    await asyncio.sleep(0.05)
+    (tmp_path / "seg00005.m4s").write_bytes(b"x" * 64)
+    landed = time.monotonic()
+    session.record_remote_upload(
+        "seg00005.m4s", status=201, received_bytes=64, content_length=64, transfer_encoding=None
+    )
+    assert await asyncio.wait_for(waiter, 2) == tmp_path / "seg00005.m4s"
+    assert time.monotonic() - landed < 1.0

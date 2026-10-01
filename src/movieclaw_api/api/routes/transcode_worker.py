@@ -47,6 +47,7 @@ from movieclaw_api.services.playback.disc_source import disc_source_for_file
 from movieclaw_api.services.playback.ffmpeg_args import (
     REMOTE_IO_TIMEOUT_US,
     REMOTE_RECONNECT_OPTIONS,
+    remote_read_options,
 )
 from movieclaw_api.services.playback.remote_signing import verify_remote_grant
 from movieclaw_api.services.playback.remote_worker import (
@@ -55,7 +56,11 @@ from movieclaw_api.services.playback.remote_worker import (
     get_remote_worker_registry,
     remote_worker_enabled,
 )
-from movieclaw_api.services.playback.session import get_session_manager
+from movieclaw_api.services.playback.session import (
+    PartialSegment,
+    TranscodeSession,
+    get_session_manager,
+)
 from movieclaw_db.engine import get_session
 from movieclaw_db.models import LibraryFile, MediaItem
 from movieclaw_db.repositories.media_repo import MediaItemRepository
@@ -332,10 +337,15 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
                     connection.login_device_id, ip=worker_ip, user_agent=worker_ua
                 )
             if isinstance(message, dict):
-                artifact_failure = await registry.handle_message(connection, message)
-                if artifact_failure is not None:
+                forwarded = await registry.handle_message(connection, message)
+                if forwarded is None:
+                    pass
+                elif forwarded.get("type") == "job.timeline":
+                    # Worker 这一轮的分段计时：并进会话时间线，诊断接口与日志可见
+                    get_session_manager().record_worker_timeline(forwarded)
+                else:
                     # Worker 放弃了某个产物的上传：转给会话层记账补片
-                    get_session_manager().record_remote_artifact_failure(artifact_failure)
+                    get_session_manager().record_remote_artifact_failure(forwarded)
     except WebSocketDisconnect as exc:
         # 断开码是区分「Worker 崩了」和「用户自己退出」的唯一线索，必须打出来：
         # 1000/1001 是对端发了关闭帧的正常退出；1006 代表连关闭帧都没来得及发，
@@ -407,6 +417,65 @@ def _missing_source(session_id: str, file: LibraryFile, path: Path) -> NotFoundE
     return NotFoundException("远程转码源文件已不在磁盘上")
 
 
+class _SourceReadMarks:
+    """一次取源请求的时间线打点（docs/design/transcode-latency.md §2）。
+
+    请求结束（读完或被掐断）时记一条 ``src``：从哪个位置读起（``mb``）、读了多少（``kb``）、
+    首字节耗时（``ttfb``）、整个请求多久（``dur``）、是不是没读完就被掐断（``cut``）。
+    ffmpeg 取源的形态——先读文件头、跳到文件尾读 moov / Cues、再跳回起转点——就靠这几条
+    看出来：每跳一次就是一个新请求，NAS 冷读的首字节延迟也落在这里。
+    由 ``DisconnectAwareFileResponse`` 在发送循环里调用，必须同步、近零开销。
+    """
+
+    __slots__ = ("_session", "_fields", "_arrived", "_first")
+
+    def __init__(self, playback_session, fields: dict) -> None:
+        self._session = playback_session
+        self._fields = fields
+        self._arrived = time.monotonic()
+        self._first: float | None = None
+
+    def first_chunk(self) -> None:
+        if self._first is None:
+            self._first = time.monotonic()
+
+    def finish(self, bytes_sent: int, *, disconnected: bool) -> None:
+        now = time.monotonic()
+        self._session.timeline.append({
+            # 时刻记请求到达（与其他事件同一口径：距会话创建的毫秒数）
+            "t": int((self._arrived - self._session.created_at) * 1000),
+            "ev": "src",
+            **self._fields,
+            "kb": bytes_sent // 1024,
+            "ttfb": int(((self._first or now) - self._arrived) * 1000),
+            "dur": int((now - self._arrived) * 1000),
+            "cut": disconnected,
+        })
+
+
+#: 每一轮远程任务最多给前几个取源请求打点：起播阶段的取源形态最有用，之后的顺序读
+#: 只是重复；原盘一轮能有几十个请求，不设上限会把时间线挤满。
+_SOURCE_MARKS_PER_JOB = 40
+
+
+def _source_read_marks(session_id: str, request: Request, clip: int | None = None):
+    """给取源请求挂上时间线打点；会话不在（早已结束）或本轮已记满就不打。"""
+    playback_session = get_session_manager().get(session_id)
+    if playback_session is None:
+        return None
+    job = playback_session.remote_job_id or ""
+    counted = playback_session.source_marks.get(job, 0)
+    if counted >= _SOURCE_MARKS_PER_JOB:
+        return None
+    playback_session.source_marks[job] = counted + 1
+    fields: dict = {}
+    if clip is not None:
+        fields["clip"] = clip
+    match = re.match(r"bytes=(\d+)-", request.headers.get("range", ""))
+    fields["mb"] = round(int(match.group(1)) / 1048576, 1) if match else 0
+    return _SourceReadMarks(playback_session, fields)
+
+
 @router.get(
     "/sessions/{session_id}/source",
     summary="远程转码源文件",
@@ -415,6 +484,7 @@ def _missing_source(session_id: str, file: LibraryFile, path: Path) -> NotFoundE
 )
 async def transcode_source(
     session_id: Annotated[str, PathParam()],
+    request: Request,
     token: Annotated[str | None, Query()] = None,
     session: AsyncSession = Depends(get_session),
 ):
@@ -430,6 +500,7 @@ async def transcode_source(
         path,
         media_type=container_mime_type(file.container),
         headers={"Cache-Control": "no-store"},
+        probe=_source_read_marks(session_id, request),
     )
 
 
@@ -456,9 +527,20 @@ async def transcode_disc_source(
     if disc is None:
         raise NotFoundException("这个远程转码会话的源不是可读的原盘")
     token_query = quote(token or "", safe="")
+    playback_session = get_session_manager().get(session_id)
+    caps = (
+        get_remote_worker_registry().video_caps(playback_session.remote_worker_id)
+        if playback_session is not None
+        else None
+    )
     body = disc.concat_list(
         entry=lambda index, _clip: f"clips/{index}?token={token_query}",
-        options=(("rw_timeout", str(REMOTE_IO_TIMEOUT_US)), *REMOTE_RECONNECT_OPTIONS),
+        options=(
+            ("rw_timeout", str(REMOTE_IO_TIMEOUT_US)),
+            *REMOTE_RECONNECT_OPTIONS,
+            # 每段剪辑打开时不倒着读文件尾估时长、探测阶段按块要（Worker 的 ffmpeg 认才加）
+            *remote_read_options(caps),
+        ),
     )
     return Response(
         content=body,
@@ -476,6 +558,7 @@ async def transcode_disc_source(
 async def transcode_disc_clip(
     session_id: Annotated[str, PathParam()],
     index: Annotated[int, PathParam(ge=0)],
+    request: Request,
     token: Annotated[str | None, Query()] = None,
     session: AsyncSession = Depends(get_session),
 ):
@@ -488,7 +571,10 @@ async def transcode_disc_clip(
     if not path.is_file():
         raise _missing_source(session_id, file, path)
     return DisconnectAwareFileResponse(
-        path, media_type="video/MP2T", headers={"Cache-Control": "no-store"}
+        path,
+        media_type="video/MP2T",
+        headers={"Cache-Control": "no-store"},
+        probe=_source_read_marks(session_id, request, clip=index),
     )
 
 
@@ -532,6 +618,106 @@ async def transcode_poster(
     return FileResponse(
         variant.path, media_type=variant.content_type, headers={"Cache-Control": "no-store"}
     )
+
+
+_NO_STORE = {"Cache-Control": "no-store"}
+
+
+async def _append_progressive_part(
+    request: Request,
+    playback_session: TranscodeSession,
+    *,
+    name: str,
+    job: str,
+    part_text: str,
+    final: bool,
+    limit: int,
+) -> Response:
+    """边产出边送的一块（docs/design/transcode-latency.md §5）。
+
+    Worker 把一个分片的片段按 ``part`` 0、1、2… 依次送来，最后一块带 ``final=1``（可以是空的）。
+    这里按序追加进 ``.segNNNNN.m4s.partial``，收齐即原子改名成正式分片——之后与整段上传的
+    分片没有区别。在等这一片的 AVFoundation 客户端由路由层跟着文件增长流式下发。
+
+    - 块号小于已收到的：重传（上次其实写进去了、回执丢在路上），幂等地认下；
+    - 块号跳了：中间丢了一块，回 409，Worker 改为把整段一次传上来；
+    - 新一轮任务从第 0 块重写同一个分片：旧的作废，还在跟着它下发的连接随之中断；
+    - 一块没收完连接就断了：把文件截回这一块之前，Worker 重传时不会写重。
+    """
+    index = int(name[3:8]) if name.startswith("seg") else None
+    if index is None or not playback_session.progressive:
+        raise NotFoundException("这个转码会话不是边产出边送")
+    try:
+        part = int(part_text)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail={"code": "BAD_REQUEST", "message": "part 必须是整数"}
+        ) from None
+    partial = playback_session.partials.get(index)
+    if partial is None or partial.job != job or partial.done:
+        if part != 0:
+            return Response(status_code=409, headers=_NO_STORE)
+        if partial is not None and not partial.done:
+            partial.failed = True
+            partial.notify()
+        path = playback_session.directory / f".{name}.partial"
+        path.unlink(missing_ok=True)
+        partial = PartialSegment(index=index, path=path, job=job)
+        playback_session.partials[index] = partial
+        playback_session.mark("put", name=name, prog=True)
+    async with partial.lock:
+        if part < partial.next_part:
+            return Response(status_code=201, headers=_NO_STORE)
+        if part > partial.next_part or partial.failed:
+            return Response(status_code=409, headers=_NO_STORE)
+        committed = partial.size
+        written = 0
+        try:
+            async with await anyio.open_file(partial.path, "ab") as output:
+                async for chunk in request.stream():
+                    if not chunk:
+                        continue
+                    written += len(chunk)
+                    if committed + written > limit:
+                        raise HTTPException(
+                            status_code=413,
+                            detail={
+                                "code": "PAYLOAD_TOO_LARGE",
+                                "message": "远程转码分片超过上传大小限制",
+                            },
+                        )
+                    await output.write(chunk)
+                await output.flush()
+        except ClientDisconnect:
+            # 半块不能留：截回这一块之前，Worker 重传时从同一位置重写
+            with suppress(OSError):
+                os.truncate(partial.path, committed)
+            return Response(status_code=499, headers=_NO_STORE)
+        except BaseException:
+            with suppress(OSError):
+                os.truncate(partial.path, committed)
+            raise
+        partial.size = committed + written
+        partial.next_part += 1
+        if partial.next_part == 1:
+            playback_session.mark("frag", name=name, kb=written // 1024)
+            # 第一个片段到了：在等这一片的请求现在就能开始流式下发
+            playback_session.notify_changed()
+        if final:
+            os.replace(partial.path, playback_session.directory / name)
+            partial.done = True
+            if playback_session.partials.get(index) is partial:
+                playback_session.partials.pop(index, None)
+            playback_session.record_remote_upload(
+                name,
+                status=201,
+                received_bytes=partial.size,
+                content_length=None,
+                transfer_encoding="parts",
+                attempt_id=job,
+            )
+        partial.notify()
+    return Response(status_code=201, headers=_NO_STORE)
 
 
 @router.put(
@@ -590,6 +776,18 @@ async def put_transcode_artifact(
         )
         raise NotFoundException("远程转码会话目录不存在")
     limit = effective_remote_transcode_config().max_artifact_bytes
+    part_text = request.query_params.get("part")
+    if part_text is not None:
+        return await _append_progressive_part(
+            request,
+            playback_session,
+            name=name,
+            job=grant.attempt_id or "",
+            part_text=part_text,
+            final=request.query_params.get("final") == "1",
+            limit=limit,
+        )
+    playback_session.mark("put", name=name)
     content_length = request.headers.get("content-length")
     content_length_value: int | None = None
     transfer_encoding = request.headers.get("transfer-encoding")

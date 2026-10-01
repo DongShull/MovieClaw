@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from secrets import token_hex
+from typing import TypeVar
 from urllib.parse import urlsplit
 
 import anyio
@@ -38,6 +39,8 @@ _ALLOWED_STRM_SCHEMES = {"http", "https", "rtsp", "rtp"}
 # 一个播放器设备在停止播放后，可能仍保留若干 HTTP Range 连接。它们不一定马上
 # 触发 TCP disconnect，不能只靠 Request.is_disconnected() 才停止读盘。
 _active_stream_stops: dict[str, set[asyncio.Event]] = {}
+
+_T = TypeVar("_T")
 
 # 容器 → MIME（对齐 Jellyfin MimeTypes.cs 的常用子集；未知视频容器兜底 video/{ext}）
 _CONTAINER_MIME = {
@@ -82,6 +85,52 @@ def stop_device_streams(device_id: str) -> int:
     if streams:
         logger.info("播放器会话已停止，已取消 %d 条仍在读取的视频流", len(streams))
     return len(streams)
+
+
+class ClientDisconnected(Exception):
+    """等待期间客户端断开了连接（见 :func:`await_unless_disconnected`）。"""
+
+
+async def _wait_disconnect(receive: Receive) -> None:
+    """一直等到 ``http.disconnect``。GET 的请求体消费完后 receive 会挂起到连接断开。"""
+    while True:
+        message = await receive()
+        if message["type"] == "http.disconnect":
+            return
+        # 防御：某些测试桩会重复返回空的 http.request，让出事件循环避免空转
+        await asyncio.sleep(0)
+
+
+async def await_unless_disconnected(receive: Receive, awaitable: Awaitable[_T]) -> _T:
+    """等 ``awaitable`` 的同时盯着客户端：客户端先断开就取消它，抛 :class:`ClientDisconnected`。
+
+    为什么要它（docs/design/transcode-latency.md §4.1）：转码会话的分片请求可能要等好几秒，
+    客户端等不及会自己掐掉——AVPlayer 跳转时取消在途请求、一个分片等满约 4 秒就放弃重发。
+    uvicorn 并不会因为连接断开就取消应用协程，于是没人要的旧请求一直挂在「在等的分片」表里，
+    直到 30 秒超时；转码重启判定把它当成客户端还要的分片，回拖时它会挡住真正的目标、或者
+    在宽限期满后把转码拽回过时的位置。这里起一个后台 receive 盯断开，断开即取消等待，
+    等待方的 ``finally`` 随之注销挂号。
+
+    返回前一定收掉后台 receive：之后的响应对象（``DisconnectAwareFileResponse``）还要自己
+    receive，ASGI 的 receive 同一时刻只能有一个等待者。
+    """
+    task = asyncio.ensure_future(awaitable)
+    watcher = asyncio.ensure_future(_wait_disconnect(receive))
+    try:
+        await asyncio.wait({task, watcher}, return_when=asyncio.FIRST_COMPLETED)
+        if task.done():
+            return task.result()
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        raise ClientDisconnected
+    finally:
+        if not task.done():
+            # 外层自己被取消（服务端关机等）：别把等待留在后台
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        if not watcher.done():
+            watcher.cancel()
+        await asyncio.gather(watcher, return_exceptions=True)
 
 
 class DisconnectAwareFileResponse(FileResponse):

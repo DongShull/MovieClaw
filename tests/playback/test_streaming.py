@@ -7,7 +7,9 @@ from typing import Any
 import pytest
 
 from movieclaw_playback.streaming import (
+    ClientDisconnected,
     DisconnectAwareFileResponse,
+    await_unless_disconnected,
     register_device_stream,
     stop_device_streams,
     unregister_device_stream,
@@ -351,3 +353,51 @@ async def test_byte_patches_apply_across_chunks_ranges_and_multipart(tmp_path: P
     assert head["content-type"].startswith("multipart/byteranges")
     assert b"c1" in body and b"hev1" not in body and b"hvc1" not in body
     assert video.read_bytes() == bytes(content), "磁盘上的文件不能被改动"
+
+
+@pytest.mark.asyncio
+async def test_wait_is_cancelled_when_client_disconnects() -> None:
+    """等转码分片期间客户端掐掉请求：等待被取消（挂号随之注销），抛 ClientDisconnected。"""
+    gone = asyncio.Event()
+    messages = [{"type": "http.request", "body": b"", "more_body": False}]
+
+    async def receive() -> dict:
+        if messages:
+            return messages.pop(0)
+        await gone.wait()
+        return {"type": "http.disconnect"}
+
+    cancelled = asyncio.Event()
+
+    async def slow_segment() -> str:
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+        return "seg"
+
+    waiter = asyncio.ensure_future(await_unless_disconnected(receive, slow_segment()))
+    await asyncio.sleep(0.05)
+    gone.set()
+    with pytest.raises(ClientDisconnected):
+        await asyncio.wait_for(waiter, 2)
+    assert cancelled.is_set()
+
+
+@pytest.mark.asyncio
+async def test_wait_returns_result_and_releases_receive() -> None:
+    """正常等到结果：原样返回，后台 receive 已收掉——之后的响应对象还要自己 receive。"""
+    pending: list[asyncio.Future] = []
+
+    async def receive() -> dict:
+        future = asyncio.get_running_loop().create_future()
+        pending.append(future)
+        return await future
+
+    async def quick_segment() -> str:
+        await asyncio.sleep(0.01)
+        return "seg"
+
+    assert await await_unless_disconnected(receive, quick_segment()) == "seg"
+    assert pending and all(future.cancelled() for future in pending)
