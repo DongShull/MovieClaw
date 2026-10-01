@@ -26,9 +26,19 @@ struct SkipSegmentsTests {
         #expect(SkipSegments.active([intro], at: 150_000 - SkipSegments.tailMs) == nil)
     }
 
-    @Test func sponsorAdIsPlainSkipAndMidOutroIsSkipOutro() {
-        #expect(SkipSegments.label(SkipSegments.active([ad, intro], at: 5_000)!) == "跳过")
+    @Test func sponsorAdIsSkipIntroAndMidOutroIsSkipOutro() {
+        #expect(SkipSegments.label(SkipSegments.active([ad, intro], at: 5_000)!) == "跳过片头")
         #expect(SkipSegments.label(SkipSegments.active([midOutro], at: 2_450_000)!) == "跳过片尾")
+    }
+
+    @Test func autoNextOnlyCountsDownInDetectedCreditsAndStopsAfterStreak() {
+        #expect(SkipSegments.autoNextMs == 8000)
+        #expect(!SkipSegments.autoNextArmed([credits], at: 2_549_999, streak: 0))
+        #expect(SkipSegments.autoNextArmed([credits], at: 2_560_000, streak: 0))
+        #expect(SkipSegments.autoNextArmed([credits], at: 2_560_000, streak: SkipSegments.autoNextMaxStreak - 1))
+        #expect(!SkipSegments.autoNextArmed([credits], at: 2_560_000, streak: SkipSegments.autoNextMaxStreak))
+        #expect(!SkipSegments.autoNextArmed([midOutro], at: 2_450_000, streak: 0))
+        #expect(!SkipSegments.autoNextArmed(nil, at: 2_690_000, streak: 0))
     }
 
     @Test func creditsToEndGoToUpNextCardNotSkipButton() {
