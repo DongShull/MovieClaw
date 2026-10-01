@@ -427,7 +427,7 @@ def probe_keyframe_interval(path: str | Path, duration_seconds: int | None) -> f
     cached = _keyframe_cache.get(key)
     if cached is not None:
         return cached
-    value = _cues_keyframe_interval(path, duration_seconds)
+    value = _index_keyframe_interval(path, duration_seconds)
     if value is None:
         value = _probe_keyframe_interval(str(path), duration_seconds)
     if value is not None:
@@ -437,20 +437,22 @@ def probe_keyframe_interval(path: str | Path, duration_seconds: int | None) -> f
     return value
 
 
-def _cues_keyframe_interval(path: Path, duration_seconds: int | None) -> float | None:
-    """Matroska 先看容器自带的 Cues 关键帧索引，不去采样码流。
+def _index_keyframe_interval(path: Path, duration_seconds: int | None) -> float | None:
+    """有索引可读的容器先看索引，不去采样码流：Matroska 的 Cues、MP4 / MOV 的 moov 样本表。
 
-    Cues 只有几十 KB、SeekHead 直接给出偏移（``keyframes.read_keyframe_index``，
-    毫秒级；开会话时本来就要读它来切分片，结果有缓存）。采样却要从网络挂载上
-    读三段各 30 秒的码流——NAS 实测每个文件第一次播放在这里卡 0.4~1.4 秒。
+    索引只有几十 KB 到几 MB、读一次是毫秒到零点几秒（``keyframes.read_keyframe_index``，
+    开会话时本来就要读它来切分片，结果有缓存）。采样却要从网络挂载上读三段各 30 秒的
+    码流——NAS 实测每个文件第一次播放在这里卡 0.4~2.2 秒。只走快路径
+    （``allow_ffprobe=False``）：MP4 的样本表与码流对不上、要 ffprobe 通读才拿得到时，
+    这里退回采样，不为估一个间隔通读整片。
 
     只在索引可信时采用，否则返回 None 交给采样：索引要覆盖片子的大部分
     （残缺的 Cues 说明不了全片），平均间隔要在直通门槛以内——Cues 只可能比
     实际关键帧稀（有的封装器每隔几秒才记一个），稀了就老老实实采样核实。
     """
-    if path.suffix.lower() not in {".mkv", ".webm"}:
+    if path.suffix.lower() not in {".mkv", ".webm", ".mp4", ".m4v", ".mov"}:
         return None
-    index = read_keyframe_index(path)
+    index = read_keyframe_index(path, allow_ffprobe=False)
     if index is None or len(index.times_s) < 2:
         return None
     times = index.times_s

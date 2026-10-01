@@ -36,6 +36,7 @@ from __future__ import annotations
 import logging
 import os
 import struct
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -653,46 +654,55 @@ def _mp4_language(code: int) -> str | None:
     return None if letters in ("und", "```") else letters
 
 
-def _read_mp4(path: Path, file_size: int) -> ContainerIndex:
-    with path.open("rb") as f:
-        # 顶层 box 逐个看头，跳过 mdat，找到 moov 与第一个 mdat 的位置
-        moov = None
-        first_mdat_body = None
-        cursor = 0
-        for _ in range(_MAX_TOP_LEVEL_SCAN):
-            if cursor + 8 > file_size:
-                break
-            f.seek(cursor)
-            header = f.read(16)
-            if len(header) < 8:
-                break
-            size, kind = struct.unpack_from(">I4s", header, 0)
-            header_len = 8
-            if size == 1:
-                size = struct.unpack_from(">Q", header, 8)[0]
-                header_len = 16
-            elif size == 0:
-                size = file_size - cursor
-            if size < header_len:
-                raise ValueError("MP4 顶层 box 长度异常")
-            if kind == b"moov":
-                moov = (cursor, cursor + size)
-            elif kind == b"mdat" and first_mdat_body is None:
-                first_mdat_body = cursor + header_len
-            elif kind == b"moof":
-                raise ValueError("分片 MP4（moof）暂不支持")
-            if moov is not None and first_mdat_body is not None:
-                break
-            cursor += size
-        if moov is None:
-            raise ValueError("找不到 moov")
-        moov_start, moov_end = moov
-        if moov_end - moov_start > _MAX_MOOV_BYTES:
-            raise ValueError("moov 过大")
-        f.seek(moov_start)
-        data = f.read(moov_end - moov_start)
+def _read_moov(f, file_size: int) -> tuple[bytes, int, int, int | None]:
+    """顶层 box 逐个看头、跳过 mdat，读出整个 moov。
+
+    返回 (moov 字节, moov 起点, moov 终点, 第一个 mdat 正文起点或 None)。
+    分片 MP4（moof）、找不到 moov、moov 过大或被截断都抛 ValueError。
+    """
+    moov = None
+    first_mdat_body = None
+    cursor = 0
+    for _ in range(_MAX_TOP_LEVEL_SCAN):
+        if cursor + 8 > file_size:
+            break
+        f.seek(cursor)
+        header = f.read(16)
+        if len(header) < 8:
+            break
+        size, kind = struct.unpack_from(">I4s", header, 0)
+        header_len = 8
+        if size == 1:
+            size = struct.unpack_from(">Q", header, 8)[0]
+            header_len = 16
+        elif size == 0:
+            size = file_size - cursor
+        if size < header_len:
+            raise ValueError("MP4 顶层 box 长度异常")
+        if kind == b"moov":
+            moov = (cursor, cursor + size)
+        elif kind == b"mdat" and first_mdat_body is None:
+            first_mdat_body = cursor + header_len
+        elif kind == b"moof":
+            raise ValueError("分片 MP4（moof）暂不支持")
+        if moov is not None and first_mdat_body is not None:
+            break
+        cursor += size
+    if moov is None:
+        raise ValueError("找不到 moov")
+    moov_start, moov_end = moov
+    if moov_end - moov_start > _MAX_MOOV_BYTES:
+        raise ValueError("moov 过大")
+    f.seek(moov_start)
+    data = f.read(moov_end - moov_start)
     if len(data) < moov_end - moov_start:
         raise ValueError("moov 被截断")
+    return data, moov_start, moov_end, first_mdat_body
+
+
+def _read_mp4(path: Path, file_size: int) -> ContainerIndex:
+    with path.open("rb") as f:
+        data, moov_start, moov_end, first_mdat_body = _read_moov(f, file_size)
 
     body_start = 8 if struct.unpack_from(">I", data, 0)[0] != 1 else 16
     movie_timescale = 0
@@ -917,3 +927,350 @@ def _mp4_nero_chapters(data: bytes, body_start: int) -> tuple[tuple[float, str |
         chapters.append((start / 10_000_000, title))
         p += 9 + length
     return tuple(sorted(chapters, key=lambda c: c[0]))
+
+
+# --- MP4 关键帧呈现时间（服务端 HLS 分片计划用） ------------------------------------
+#
+# 为什么在这里：VOD 播放列表要在开会话时一次写出全片的分片边界，档 1/2（视频 copy）只能切在
+# ffmpeg 认作关键帧的包上（keyframes.py）。MP4 原来靠 ffprobe 列包拿关键帧，而 ffprobe 列包会把
+# 每个包的数据读出来——等于通读整个 mdat：2026-10-01 NAS 实测网络挂载上一部 10 GB 的 MP4
+# 开会话「准备」93 秒（网页第一次播放要等一分半；iOS 直出原文件不走这条路）。这里改为只读 moov
+# 的样本表算出关键帧的**呈现时间**，再抽检关键帧样本的 NAL 类型，零点几秒出结果。
+#
+# 两个口径必须与 ffmpeg 一字不差，否则分片编号会错位：
+#
+# 1. **时间**：libavformat 的 mov 解复用给出的包 pts = 解码时间（stts）+ 合成偏移（ctts，按有
+#    符号读）− 编辑表第一段的 media_time；有编辑表时，处理完若最早一帧（编辑起点之后、不丢弃的）
+#    pts 仍大于 0，整条轨再往前平移到 0（mov_fix_index 的「Offset DTS … to make first pts zero」）；
+#    最后加上片头空段（edit 的 media_time 为 -1）换算到轨道时基。负 ctts 引起的 dts_shift 只挪
+#    dts、不动 pts。NAS 片库 46 部抽样逐帧对照 ffprobe 核过（2026-10-01）。
+# 2. **哪些算关键帧**：ffmpeg 读 H.264 / HEVC 时经过解析器，包的关键帧标记以解析器为准——
+#    H.264 只认 IDR 与带恢复点 SEI 的帧，HEVC 认 IRAP（BLA / IDR / CRA）。stss 里登记的
+#    非 IDR 的 I 帧 ffmpeg 不会在那里切片（片库抽样 31 部里 2 部如此）。所以 stss 只是候选：
+#    均匀抽检至多 _VERIFY_MAX 个关键帧样本的 NAL 类型，有一个对不上就整份放弃，交还调用方
+#    走 ffprobe（慢但准）。抽检是并发的随机小读：NAS 的片库挂在另一台机器的 NFS 上（机械盘），
+#    串行每次 60～90 毫秒，128 个要十来秒；32 路并发约 0.3～0.45 秒（2026-10-01 实测）。
+#
+# 只支持 H.264（avc1 / avc3）与 HEVC（hvc1 / hev1）、编辑表至多「片头空段 + 一段」的常见形态；
+# 其余（多段编辑、无 stss、别的编码）一律返回 None 让调用方兜底。
+
+#: 抽检的关键帧样本数上限与并发数：每个样本是一次几 KB 的随机读
+_VERIFY_MAX = 128
+_VERIFY_WORKERS = 32
+#: 每个样本先读这么多字节找第一个视频 NAL；SEI / 参数集特别大时再读一次大的
+_VERIFY_READ = 8192
+_VERIFY_READ_MAX = 1 << 18
+
+_H264_SAMPLE_ENTRIES = frozenset({"avc1", "avc3"})
+_HEVC_SAMPLE_ENTRIES = frozenset({"hvc1", "hev1"})
+
+
+def read_mp4_keyframe_times(path: str | Path) -> list[float] | None:
+    """MP4 / MOV 第一条视频轨里 ffmpeg 会认作关键帧的样本的呈现时间（秒，升序）。
+
+    口径与 ``ffprobe -show_entries packet=pts_time,flags`` 里带 K 的包一致（见上方说明）。
+    读不出、形态不支持、抽检对不上时返回 None——调用方据此退回 ffprobe，绝不给出可能错位的结果。
+    """
+    result = read_mp4_keyframes_checked(path)
+    return None if result is None else result[0]
+
+
+def read_mp4_keyframes_checked(path: str | Path) -> tuple[list[float], bool] | None:
+    """同 :func:`read_mp4_keyframe_times`，另返回「是否只抽检了一部分关键帧样本」。
+
+    抽检兜不住零星的坏条目（片库实测：一部 2486 个关键帧的片子 stss 里混了 2 个 NAL 类型非法的
+    样本，抽 128 个没抽中）。调用方拿到 True 时应在空闲时用 :func:`verify_all_mp4_keyframes`
+    全量核对一遍（keyframes.py 的 ``schedule_background_index``）。
+    """
+    return _read_mp4_keyframes(Path(path), verify_limit=_VERIFY_MAX, workers=_VERIFY_WORKERS)
+
+
+def verify_all_mp4_keyframes(path: str | Path, *, workers: int = 4) -> bool:
+    """全量核对：stss 里每一个关键帧样本都是 ffmpeg 眼里的关键帧才返回 True。
+
+    并发压得很低（默认 4 路）：这是播放进行中在后台跑的，不能和正在读同一块盘的取流抢。
+    """
+    return _read_mp4_keyframes(Path(path), verify_limit=None, workers=workers) is not None
+
+
+def _read_mp4_keyframes(
+    path: Path, *, verify_limit: int | None, workers: int
+) -> tuple[list[float], bool] | None:
+    try:
+        file_size = path.stat().st_size
+        with path.open("rb") as f:
+            data, _, _, _ = _read_moov(f, file_size)
+            track = _first_video_track(data)
+            if track is None:
+                return None
+            if track["codec"] in _H264_SAMPLE_ENTRIES:
+                is_key = _h264_access_unit_is_key
+            elif track["codec"] in _HEVC_SAMPLE_ENTRIES:
+                is_key = _hevc_access_unit_is_key
+            else:
+                return None
+            tables = track["tables"]
+            if b"stss" not in tables or track["nal_length_size"] is None:
+                return None
+            edit = _mp4_simple_edit(track)
+            if edit is None:
+                return None
+            media_time, empty_ticks = edit
+            dts = _mp4_sample_times(track)
+            cts = _mp4_composition_offsets(track, len(dts))
+            sizes = _mp4_sample_sizes(track, len(dts))
+            offsets = _mp4_sample_offsets(track, sizes)
+            s = tables[b"stss"][0]
+            count = struct.unpack_from(">I", data, s + 4)[0]
+            usable = min(len(dts), len(offsets))
+            sync = [i - 1 for i in struct.unpack_from(f">{count}I", data, s + 8) if 0 < i <= usable]
+            if not sync:
+                return None
+            picks = sync if verify_limit is None else _evenly_spaced(sync, verify_limit)
+            failure = _verify_sync_samples(
+                f.fileno(), picks, offsets, sizes, track["nal_length_size"], is_key, workers
+            )
+            if failure is not None:
+                index, verdict = failure
+                logger.info(
+                    "MP4 关键帧表与码流不一致，改用 ffprobe 列关键帧：%s（第 %d 个样本%s）",
+                    path,
+                    index + 1,
+                    "不是 IDR / IRAP 帧" if verdict is False else "读不出视频数据",
+                )
+                return None
+    except (OSError, ValueError, IndexError, struct.error) as exc:
+        logger.info("MP4 关键帧表读取失败，改用 ffprobe：%s（%s）", path, exc)
+        return None
+    scale = track["timescale"]
+    if media_time >= scale:
+        # 编辑表裁掉了 1 秒以上的片头：libavformat 要按 dts 往回找起始关键帧（还要往前多找 1 秒
+        # 照顾 B 帧），留下哪些关键帧的规则太细碎，交给 ffprobe。片库里常见的编辑表只是抵消
+        # 一两帧的合成偏移
+        return None
+    shift = 0
+    if track["elst"]:
+        # 编辑起点之前的帧（pts < 0）丢弃，剩下的最早一帧对齐到 0
+        kept = [d + c - media_time for d, c in zip(dts, cts, strict=True) if d + c >= media_time]
+        shift = max(0, min(kept, default=0))
+    # 编辑起点之前的关键帧（pts 为负）也在：ffmpeg 要从它解起，ffprobe 列成「KD」（画面丢弃）
+    times = sorted((dts[i] + cts[i] - media_time - shift + empty_ticks) / scale for i in sync)
+    return times, len(picks) < len(sync)
+
+
+def _first_video_track(data: bytes) -> dict | None:
+    """moov 里的第一条视频轨（ffprobe 的 v:0）：样本表、时基、编辑表与 NAL 长度字段的字节数。"""
+    body_start = 8 if struct.unpack_from(">I", data, 0)[0] != 1 else 16
+    movie_timescale = 0
+    mvhd = _find_box(data, body_start, len(data), b"mvhd")
+    if mvhd:
+        s, _ = mvhd
+        offset = s + (20 if _full_box_version(data, s) == 1 else 12)
+        movie_timescale = struct.unpack_from(">I", data, offset)[0]
+    for kind, t_start, t_end in _boxes(data, body_start, len(data)):
+        if kind != b"trak":
+            continue
+        track = _parse_trak(data, t_start, t_end)
+        if track is None or track["kind"] != KIND_VIDEO:
+            continue
+        track["movie_timescale"] = movie_timescale
+        track["elst"] = _mp4_edit_list(data, t_start, t_end)
+        track["nal_length_size"] = _mp4_nal_length_size(data, track)
+        return track
+    return None
+
+
+def _mp4_edit_list(data: bytes, t_start: int, t_end: int) -> list[tuple[int, int, float]]:
+    """trak/edts/elst 的条目：(片段时长，按影片时基；media_time，-1 表示空段；播放速率)。"""
+    edts = _find_box(data, t_start, t_end, b"edts")
+    if not edts:
+        return []
+    elst = _find_box(data, edts[0], edts[1], b"elst")
+    if not elst:
+        return []
+    s, _ = elst
+    version = _full_box_version(data, s)
+    count = struct.unpack_from(">I", data, s + 4)[0]
+    entries = []
+    p = s + 8
+    for _ in range(count):
+        if version == 1:
+            duration, media_time, rate_int, rate_frac = struct.unpack_from(">QqhH", data, p)
+            p += 20
+        else:
+            duration, media_time, rate_int, rate_frac = struct.unpack_from(">IihH", data, p)
+            p += 12
+        entries.append((duration, media_time, rate_int + rate_frac / 65536))
+    return entries
+
+
+def _mp4_simple_edit(track: dict) -> tuple[int, int] | None:
+    """把编辑表折成 (media_time, 片头空段换算到轨道时基的刻度)。
+
+    只认「若干片头空段 + 至多一段正常速率的媒体段」：这是封装器为了抵消 B 帧合成偏移、或让
+    音画对齐写的常见形态。多段剪辑、变速段返回 None（libavformat 的处理复杂，交给 ffprobe）。
+    """
+    empty = 0
+    media: list[tuple[int, float]] = []
+    for duration, media_time, rate in track["elst"]:
+        if media_time == -1:
+            if media:
+                return None
+            empty += duration
+        else:
+            media.append((media_time, rate))
+    if len(media) > 1 or (media and media[0][1] != 1):
+        return None
+    movie_timescale = track["movie_timescale"]
+    if empty and not movie_timescale:
+        return None
+    # libavformat 用 av_rescale（四舍五入）把空段从影片时基换到轨道时基
+    empty_ticks = (
+        (empty * track["timescale"] + movie_timescale // 2) // movie_timescale if empty else 0
+    )
+    return (media[0][0] if media else 0), empty_ticks
+
+
+def _mp4_composition_offsets(track: dict, sample_count: int) -> list[int]:
+    """ctts 展开成每个样本的合成偏移。与 libavformat 一样一律按有符号 32 位读（版本 0 的表里
+    也常见负值）；没有 ctts 就全是 0。"""
+    data, tables = track["data"], track["tables"]
+    offsets = [0] * sample_count
+    if b"ctts" not in tables:
+        return offsets
+    s = tables[b"ctts"][0]
+    count = struct.unpack_from(">I", data, s + 4)[0]
+    index = 0
+    for i in range(count):
+        n, offset = struct.unpack_from(">Ii", data, s + 8 + i * 8)
+        end = min(sample_count, index + n)
+        for k in range(index, end):
+            offsets[k] = offset
+        index += n
+        if index >= sample_count:
+            break
+    return offsets
+
+
+def _mp4_nal_length_size(data: bytes, track: dict) -> int | None:
+    """视频样本里每个 NAL 前的长度字段占几个字节（avcC / hvcC 的 lengthSizeMinusOne + 1）。"""
+    tables = track["tables"]
+    if b"stsd" not in tables:
+        return None
+    sd = tables[b"stsd"][0]
+    if struct.unpack_from(">I", data, sd + 4)[0] < 1:
+        return None
+    entry_size = struct.unpack_from(">I", data, sd + 8)[0]
+    # VisualSampleEntry 正文的固定字段共 78 字节，之后才是 avcC / hvcC 等子 box
+    children_start = sd + 16 + 78
+    entry_end = sd + 8 + entry_size
+    if children_start > entry_end:
+        return None
+    if track["codec"] in _H264_SAMPLE_ENTRIES:
+        box = _find_box(data, children_start, entry_end, b"avcC")
+        return (data[box[0] + 4] & 0x03) + 1 if box else None
+    if track["codec"] in _HEVC_SAMPLE_ENTRIES:
+        box = _find_box(data, children_start, entry_end, b"hvcC")
+        return (data[box[0] + 21] & 0x03) + 1 if box else None
+    return None
+
+
+def _evenly_spaced(items: list[int], limit: int) -> list[int]:
+    """至多 ``limit`` 个均匀分布的元素（含首尾）；不超过上限就全要。"""
+    if len(items) <= limit:
+        return list(items)
+    step = (len(items) - 1) / (limit - 1)
+    return [items[round(k * step)] for k in range(limit)]
+
+
+def _verify_sync_samples(
+    fd: int,
+    picks: list[int],
+    offsets: list[int],
+    sizes: list[int],
+    length_size: int,
+    is_key,
+    workers: int,
+) -> tuple[int, bool | None] | None:
+    """并发检查关键帧样本：全部是 ffmpeg 眼里的关键帧返回 None，否则返回第一个不是的
+    (样本下标, 判定)。用 pread 共享同一个文件描述符，不动文件位置。"""
+
+    def check(i: int) -> tuple[int, bool | None]:
+        return i, _sample_is_key(fd, offsets[i], sizes[i], length_size, is_key)
+
+    with ThreadPoolExecutor(max_workers=max(1, min(workers, len(picks)))) as pool:
+        for i, verdict in pool.map(check, picks):
+            if verdict is not True:
+                return i, verdict
+    return None
+
+
+def _sample_is_key(fd: int, offset: int, size: int, length_size: int, is_key) -> bool | None:
+    """读一个样本的开头判断它是不是 ffmpeg 眼里的关键帧；None = 读到的字节里没有视频 NAL。"""
+    for budget in (_VERIFY_READ, _VERIFY_READ_MAX):
+        buf = os.pread(fd, min(size, budget), offset)
+        verdict = is_key(buf, length_size)
+        if verdict is not None or len(buf) >= size:
+            return verdict
+    return None
+
+
+def _iter_nals(buf: bytes, length_size: int):
+    """长度前缀格式的 NAL 序列：产出 (NAL 起点, NAL 终点)；终点可能超出 buf（只读了开头）。"""
+    pos = 0
+    while pos + length_size < len(buf):
+        length = int.from_bytes(buf[pos : pos + length_size], "big")
+        pos += length_size
+        if length <= 0:
+            return
+        yield pos, pos + length
+        pos += length
+
+
+def _h264_access_unit_is_key(buf: bytes, length_size: int) -> bool | None:
+    """H.264：IDR，或第一个视频 NAL 之前带恢复点 SEI——与 ffmpeg 的 h264 解析器同判据。"""
+    for start, end in _iter_nals(buf, length_size):
+        nal_type = buf[start] & 0x1F
+        if nal_type == 5:
+            return True
+        if nal_type == 6 and _sei_has_recovery_point(buf[start + 1 : min(end, len(buf))]):
+            return True
+        if 1 <= nal_type <= 4:
+            return False
+    return None
+
+
+def _sei_has_recovery_point(payload: bytes) -> bool:
+    """H.264 SEI 里有没有恢复点消息（payloadType 6）。"""
+    data = payload.replace(b"\x00\x00\x03", b"\x00\x00")
+    pos = 0
+    while pos < len(data):
+        if pos == len(data) - 1 and data[pos] == 0x80:
+            break
+        values = []
+        for _ in range(2):
+            value = 0
+            while pos < len(data) and data[pos] == 0xFF:
+                value += 255
+                pos += 1
+            if pos >= len(data):
+                return False
+            value += data[pos]
+            pos += 1
+            values.append(value)
+        payload_type, payload_size = values
+        if payload_type == 6:
+            return True
+        pos += payload_size
+    return False
+
+
+def _hevc_access_unit_is_key(buf: bytes, length_size: int) -> bool | None:
+    """HEVC：第一个视频 NAL（类型 0～31）是 IRAP（16～23：BLA / IDR / CRA）。
+
+    与 ffmpeg 的 hevc 解析器同判据。"""
+    for start, _ in _iter_nals(buf, length_size):
+        nal_type = (buf[start] >> 1) & 0x3F
+        if nal_type <= 31:
+            return 16 <= nal_type <= 23
+    return None

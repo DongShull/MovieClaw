@@ -37,11 +37,13 @@ import {
   sampleLoadingMeter,
 } from "./bandwidth";
 import { backBufferSeconds } from "./buffer-budget";
+import type { FailureCause } from "./failure-policy";
 import { type MediaRecoverState, nextMediaRecovery } from "./media-recover";
 import {
-  DIRECT_STARVE_TIMEOUT_S,
+  DECODE_STALL_MIN_BUFFER_S,
+  DIRECT_DEAD_S,
   NUDGE_STEP_S,
-  type StallVerdict,
+  SERVER_DEAD_S,
   bufferedAhead,
   classifyStall,
   shouldNudge,
@@ -105,6 +107,12 @@ export interface PlaybackEngine {
   destroy(): void;
   /** 在 MSE 流内跳转时，允许引擎取消旧分片并从目标时间重新装载。 */
   seek?(seconds: number): void;
+  /**
+   * 线路跟不上码率、真卡住了：把前向缓冲放大到约 3 分钟内容，用户暂停就能一直攒
+   * （与 iOS 引擎补丁 P20 同一用意，docs/design/player-engine.md §3.4）。只有 hls.js 能调；
+   * 浏览器自己管的 `<video src>` 没有这个口子。同一个引擎只放大一次。
+   */
+  growForwardBuffer?(): boolean;
   stats(): EngineStats;
 }
 
@@ -129,23 +137,11 @@ export interface EngineOptions {
    */
   startPositionS?: number;
   /**
-   * 播放链路失败：error 事件或长时间无进展。**这是降档回路的唯一入口**——
-   * 「看起来 codec 兼容、实际 copy 出来是坏流」的源片穷举不完（MKV header
-   * compression、参数集只在 CodecPrivate、开放 GOP……），只能靠这条回路兜。
-   *
-   * `cause` 只在停顿看门狗判死时带上（缺粮 / 解码卡死）：上层要区分「转码
-   * 追不上」与「线路不够」——后者按带宽同档重开就够，降档白白掉画质
-   * （docs/design/player-pipeline-optimization.md §C）。
+   * 播放链路失败（error 事件、取流持续失败、卡顿看门狗判死）。`cause` 是归好类的原因，
+   * 下一步怎么办由上层按 failure-policy.ts 的表决定：网络问题同档原地重开、一时的解码
+   * 问题原位重开一次、确定解不了才降档（与 iOS App 同一套规则）。
    */
-  onFailed: (reason: string, cause?: Exclude<StallVerdict, "ok">) => void;
-  /**
-   * 取流**持续**失败（连续多次网络类致命错误、期间没有任何一个分片成功）。
-   *
-   * 与 `onFailed` 分开是语义问题：网络断/token 过期不是「这一档播不了」，
-   * 走降档回路会白白把画质降下去还修不好。正确处置是**同档位原地重开会话**
-   * （重开会签发新取流 token），由上层接线。不传则退回 `onFailed`。
-   */
-  onNetworkDead?: (reason: string) => void;
+  onFailed: (reason: string, cause: FailureCause) => void;
   /**
    * 源文件总码率（bps），来自会话的 source 台账；算不出时不传。
    *
@@ -191,23 +187,25 @@ function readCommonStats(
 }
 
 /**
- * 卡死看门狗：播放中 currentTime 长时间不动就当作失败。
+ * 卡顿看门狗（与 iOS 的 `StallWatch` 同一套规则，判据在 stall.ts）。
  *
  * 只看 `error` 事件是不够的——坏流最常见的表现不是报错，而是解码器悄悄停住、
- * 界面永远转圈。用户等三分钟然后关掉页面，我们连一条日志都拿不到。
- *
- * 归因交给 `classifyStall`：解码卡死与「追上了编码器」的正确处置完全相反，
- * 混为一谈会把「服务器转得慢」误判成「这一档播不了」而白白降档。
+ * 界面永远转圈。但「播放头不动」也不能一律当失败：缓冲见底时只看字节还在不在进来，
+ * 在进来就是线路慢（不报失败，换不换画质由用户定），连续十几秒一个字节都没有才是断了。
+ * `received` 是引擎累计收到的数据量（字节或进度事件数，只比前后两次的大小）。
  */
 function watchStall(
   video: HTMLVideoElement,
-  onFailed: (reason: string, cause: Exclude<StallVerdict, "ok">) => void,
+  onFailed: (reason: string, cause: FailureCause) => void,
+  received: () => number,
+  /** 断线判定：档 0 直出传 DIRECT_DEAD_S，服务端流用 SERVER_DEAD_S */
+  deadLimitS: number,
   onNudge?: (attempt: number) => void,
-  /** 缺粮上限：档 0 直出没有转码器可等，传 DIRECT_STARVE_TIMEOUT_S */
-  starveTimeoutS?: number,
 ): () => void {
   let lastTime = video.currentTime;
+  let lastReceived = received();
   let stalledFor = 0;
+  let silentFor = 0;
   let nudges = 0;
   let sinceNudge = 99;
   let everAdvanced = false;
@@ -219,17 +217,25 @@ function watchStall(
       everAdvanced = true;
     }
     sinceNudge += 1;
+    const nowReceived = received();
+    const receiving = nowReceived > lastReceived;
+    lastReceived = nowReceived;
+    const ahead = bufferedAhead(video);
+    const idle = video.paused || video.ended || video.seeking || advanced;
+    // 缓冲见底期间连续没收到字节的秒数；有字节进来、或缓冲还够、或没在等，都清零
+    silentFor = !idle && ahead < DECODE_STALL_MIN_BUFFER_S ? (receiving ? 0 : silentFor + 1) : 0;
     const verdict = classifyStall({
       paused: video.paused,
       ended: video.ended,
       seeking: video.seeking,
       advanced,
-      bufferedAhead: bufferedAhead(video),
+      bufferedAhead: ahead,
       stalledFor: stalledFor + 1,
-      starveTimeoutS,
+      silentFor,
+      deadLimitS,
     });
     lastTime = video.currentTime;
-    if (video.paused || video.ended || video.seeking || advanced) {
+    if (idle) {
       stalledFor = 0;
       // 只有远离上次推动的真实前进才算恢复——推动自己造成的 currentTime
       // 变化 / seeking 不作数，否则每 3 秒推一次、永远到不了判死
@@ -239,17 +245,18 @@ function watchStall(
     stalledFor += 1;
     if (verdict !== "ok") {
       stalledFor = 0;
+      silentFor = 0;
       nudges = 0;
-      onFailed(stallReason(verdict, starveTimeoutS), verdict);
+      onFailed(stallReason(verdict, deadLimitS), verdict === "dead" ? "network" : "decode");
       return;
     }
     // 有数据却不动：先推一把（见 stall.ts shouldNudge 的 iOS wedge 注释），
-    // 推不动再让 classifyStall 走到 decode-stalled 降档
+    // 推不动再让 classifyStall 走到 decode-stalled
     if (
       shouldNudge({
         stalledFor,
         nudges,
-        bufferedAhead: bufferedAhead(video),
+        bufferedAhead: ahead,
         readyState: video.readyState,
         everAdvanced,
       })
@@ -264,6 +271,22 @@ function watchStall(
     }
   }, 1000);
   return () => window.clearInterval(timer);
+}
+
+/**
+ * `<video>` 的 error 码 → 失败原因的归类（failure-policy.ts）：取流中断按网络处理（同档原地重开，
+ * 原来一律降档）；解码失败可能是一时的（原位重开一次）；格式不支持是确定解不了（降档）。
+ */
+function mediaErrorCause(video: HTMLVideoElement): FailureCause {
+  switch (video.error?.code) {
+    case MediaError.MEDIA_ERR_NETWORK:
+    case MediaError.MEDIA_ERR_ABORTED:
+      return "network";
+    case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+      return "decode-final";
+    default:
+      return "decode";
+  }
 }
 
 /** 把 `<video>` 的 error 码翻成中文——用户报障时这句话就是全部线索。 */
@@ -295,7 +318,13 @@ class DirectEngine implements PlaybackEngine {
   private loadingProbe: BufferedProbe | null = null;
   /** 上一次 progress 量到的缓冲现场，用来做差（判据全在 bandwidth.ts） */
   private lastProbe: BufferedProbe | null = null;
+  /**
+   * 收到过几次 progress：卡顿看门狗据此判断「字节还在不在进来」。`<video src>` 不暴露字节数，
+   * 但浏览器在下载期间约每 350 毫秒发一次 progress，没字节进来就不发——够回答「有没有」。
+   */
+  private progressEvents = 0;
   private readonly onProgress = () => {
+    this.progressEvents += 1;
     const { video, sourceBitrateBps } = this.options;
     const current = readBufferedProbe(video, performance.now());
     const sample = sampleFromProgress({
@@ -320,7 +349,7 @@ class DirectEngine implements PlaybackEngine {
     // 报错瞬间的客户端现场进服务端日志：iPhone 上没有控制台可看，
     // MediaError 的 code/message 与播放器状态只有这里能拿到
     clientLog(this.options, `${this.label}-media-error`, videoSnapshot(this.options.video));
-    this.options.onFailed(describeMediaError(this.options.video));
+    this.options.onFailed(describeMediaError(this.options.video), mediaErrorCause(this.options.video));
   };
   private onMetadataSeek: (() => void) | null = null;
 
@@ -370,6 +399,9 @@ class DirectEngine implements PlaybackEngine {
         });
         onFailed(reason, cause);
       },
+      () => this.progressEvents,
+      // 档 0 没有转码器可等，断线判定收短；原生 HLS 后面仍是服务端会话，照旧
+      this.label === "direct" ? DIRECT_DEAD_S : SERVER_DEAD_S,
       (attempt) => {
         // 推动也留痕：日志里「nudge 后恢复」与「nudge 无效判死」是两种病
         clientLog(this.options, `${this.label}-nudge`, {
@@ -377,8 +409,6 @@ class DirectEngine implements PlaybackEngine {
           ...videoSnapshot(video),
         });
       },
-      // 档 0 没有转码器可等，缺粮上限收短；原生 HLS 后面仍是转码会话，照旧
-      this.label === "direct" ? DIRECT_STARVE_TIMEOUT_S : undefined,
     );
   }
 
@@ -428,6 +458,13 @@ class DirectEngine implements PlaybackEngine {
  * `startLoad()` 循环：播放器永远安静地转圈，用户和日志都得不到任何信号。
  */
 const MAX_NETWORK_RECOVERIES = 4;
+
+/**
+ * 线路跟不上时放大后的前向缓冲（秒）。与 iOS 同为 3 分钟（用户定的：再长，暂停攒满后不看了
+ * 白下的流量太多）；浏览器的 SourceBuffer 另有配额（Chrome 视频约 150 MB），高码率片子装不满
+ * 3 分钟时由 hls.js 碰到配额自己收手。
+ */
+const GROWN_FORWARD_BUFFER_S = 180;
 
 /**
  * 取出某个地址最近一次请求的 Resource Timing 条目（取流速度的时刻来源）。
@@ -481,6 +518,20 @@ class HlsEngine implements PlaybackEngine {
   private stopTimingBufferGuard: (() => void) | null = null;
   /** 解码错误自救阶梯的进度（时刻），语义见 media-recover.ts */
   private readonly mediaRecover: MediaRecoverState = { lastRecoverAt: null, lastSwapAt: null };
+  /**
+   * `<video>` 元素自己报的错（hls.js 不一定转成它的 MEDIA_ERROR）。2026-10-01 实测：Mac 上 Chrome 的
+   * VideoToolbox 硬解碰到蓝光 remux 里的坏数据报 -12909，元素报 MEDIA_ERR_DECODE 后暂停；hls.js
+   * 一声不吭，卡顿看门狗又把「已暂停」当成用户自己停的——画面就此静默卡死，既不报错也不恢复。
+   * 现在按解码问题报上去：先原位重开一次，同一处再坏就降档到转码（ffmpeg 解码容错，能放过去）。
+   * 坏数据在码流里，hls.js 的就地自救（重建 SourceBuffer）在原地只会再撞一次，所以不走那条。
+   */
+  private readonly onVideoError = () => {
+    const { video } = this.options;
+    // hls.js 自救 / 销毁时会摘掉 src：那一刻的错误不是播放出了问题
+    if (!video.error || !video.currentSrc) return;
+    clientLog(this.options, "hls-video-error", videoSnapshot(video));
+    this.options.onFailed(describeMediaError(video), mediaErrorCause(video));
+  };
 
   constructor(private readonly options: EngineOptions) {}
 
@@ -535,15 +586,14 @@ class HlsEngine implements PlaybackEngine {
       // 网络类致命错误先就地重试：转码会话是边转边给的，客户端偶尔会抢在
       // 分片写完之前拉到 404，这类不该触发降档（降了也一样）。但重试必须有
       // 上限——token 过期、服务端掉线这类持续故障靠 startLoad 永远修不好，
-      // 交给 onNetworkDead 原地重开会话（新会话 = 新 token）。
+      // 按网络问题报上去，由上层同档原地重开会话（新会话 = 新 token）。
       if (data.type === HlsCtor.ErrorTypes.NETWORK_ERROR) {
         this.networkRecoveries += 1;
         if (this.networkRecoveries <= MAX_NETWORK_RECOVERIES) {
           this.hls?.startLoad();
           return;
         }
-        const reason = `取流持续失败（${data.details}），已连续重试 ${MAX_NETWORK_RECOVERIES} 次`;
-        (this.options.onNetworkDead ?? onFailed)(reason);
+        onFailed(`取流持续失败（${data.details}），已连续重试 ${MAX_NETWORK_RECOVERIES} 次`, "network");
         return;
       }
       if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR) {
@@ -566,10 +616,10 @@ class HlsEngine implements PlaybackEngine {
           return;
         }
         clientLog(this.options, "hls-media-recover-failed", { details: data.details });
-        onFailed(`码流解码失败（${data.details}）`);
+        onFailed(`码流解码失败（${data.details}）`, "decode");
         return;
       }
-      onFailed(`播放失败（${data.details}）`);
+      onFailed(`播放失败（${data.details}）`, "decode");
     });
     /**
      * 按实测码率收紧已播缓冲的保留时长（理由见 buffer-budget.ts）。
@@ -640,7 +690,18 @@ class HlsEngine implements PlaybackEngine {
 
     this.hls.loadSource(streamUrl);
     this.hls.attachMedia(video);
-    this.stopStallWatch = watchStall(video, onFailed);
+    video.addEventListener("error", this.onVideoError);
+    this.stopStallWatch = watchStall(video, onFailed, () => this.loadedBytes(), SERVER_DEAD_S);
+  }
+
+  /** 前向缓冲放大到约 3 分钟内容（见 PlaybackEngine.growForwardBuffer）；只放大一次 */
+  growForwardBuffer(): boolean {
+    const hls = this.hls;
+    if (!hls || hls.config.maxBufferLength >= GROWN_FORWARD_BUFFER_S) return false;
+    hls.config.maxBufferLength = GROWN_FORWARD_BUFFER_S;
+    hls.config.maxMaxBufferLength = GROWN_FORWARD_BUFFER_S;
+    clientLog(this.options, "hls-forward-buffer-grown", { seconds: GROWN_FORWARD_BUFFER_S });
+    return true;
   }
 
   seek(seconds: number): void {
@@ -664,6 +725,7 @@ class HlsEngine implements PlaybackEngine {
   }
 
   destroy(): void {
+    this.options.video.removeEventListener("error", this.onVideoError);
     this.stopStallWatch?.();
     this.stopStallWatch = null;
     this.stopTimingBufferGuard?.();

@@ -13,17 +13,30 @@ seek 时拿错分片。采样估出的平均间隔（media_probe）只够回答�
   几十 KB 且 SeekHead 直接给出偏移，读一次是毫秒级。**不能**用 ffprobe：
   mkv 没有全局包索引，ffprobe 列包要顺序读完整个文件，30 GB 的 remux
   要读几分钟。（Jellyfin 的 MatroskaKeyframeExtractor 同款思路。）
-- **其余容器（mp4/mov 等）**：ffprobe 列视频包挑关键帧。mp4 的包元数据
-  全部来自 moov 索引，ffprobe 不需要碰 mdat，大文件也只是几 MB 的 I/O。
+- **MP4 / MOV**：读 moov 的样本表算关键帧的呈现时间，并抽检关键帧样本的 NAL 类型
+  （``container_index.read_mp4_keyframe_times``），零点几秒。**不能**用 ffprobe 列包：
+  ffprobe 列包会顺带把每个包的数据读出来，等于通读整个 mdat——2026-10-01 NAS 实测网络
+  挂载上一部 10 GB 的 MP4 开会话「准备」93 秒，网页第一次播放要等一分半。读表的结果
+  与 ffmpeg 不一致的风险（stss 登记了解析器不认的帧、多段编辑表等）由那边自行识别后
+  交回 ffprobe 兜底。
+- **其余容器（TS 等）**：没有索引可读，只能 ffprobe 列视频包挑关键帧（要通读文件）。
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
+
+from movieclaw_playback.container_index import (
+    read_mp4_keyframes_checked,
+    verify_all_mp4_keyframes,
+)
 
 logger = logging.getLogger("movieclaw_playback.keyframes")
 
@@ -63,12 +76,35 @@ class KeyframeIndex:
 _index_cache: dict[tuple[str, int, int], KeyframeIndex] = {}
 _INDEX_CACHE_MAX = 256
 
+#: MP4 走了读 moov 的快路径、但只抽检了一部分关键帧样本的文件：开会话后由
+#: ``schedule_background_index`` 在后台全量核对。核对通过就移出；发现 stss 里有 ffmpeg 不认的帧，
+#: 就记进 ``_untrusted_mp4``（之后这个文件不再走快路径）并在后台用 ffprobe 重建索引。
+_needs_full_check: set[tuple[str, int, int]] = set()
+_untrusted_mp4: set[tuple[str, int, int]] = set()
+_full_check_running: set[tuple[str, int, int]] = set()
+_full_check_tasks: set[asyncio.Task] = set()
+#: 后台 ffprobe 通读失败过的文件（超时、损坏）：本进程内不再重试，别每次开会话都白读一遍
+_background_failed: set[tuple[str, int, int]] = set()
+#: 一次只做一个文件：后台的读要给正在播放的取流让路
+_full_check_lock: asyncio.Lock | None = None
+#: 开会话后等多久再做：先让起播把盘让出来（video_cues 同款）
+FULL_CHECK_DELAY_S = 15.0
+#: 后台通读的时限：慢慢读、不卡起播（NAS 的 NFS 片库约 100 MB/s，30 分钟够读完 100 GB 以上）
+_BACKGROUND_FFPROBE_TIMEOUT = 1800.0
+#: 后台只通读这么大以内的文件：更大的读一遍太伤盘，留在会话相对模式（照样能放、能跳，
+#: 只是拖出已转区间要换会话）
+BACKGROUND_INDEX_MAX_BYTES = 24 << 30
 
-def read_keyframe_index(path: str | Path) -> KeyframeIndex | None:
+
+def read_keyframe_index(path: str | Path, *, allow_ffprobe: bool = True) -> KeyframeIndex | None:
     """读取全片关键帧索引；失败返回 None（调用方退回旧的会话式播放）。
 
     结果按 (路径, mtime, 大小) 缓存；文件被换掉（洗版、改名归并）时三元组
     变化，缓存自然失效。只缓存成功结果——瞬时 IO 故障不该被钉死。
+
+    ``allow_ffprobe=False``：只走读索引的快路径（Matroska Cues、MP4 moov），需要
+    ffprobe 通读文件才拿得到时直接返回 None——给决策阶段估关键帧间隔用，那里宁可退回
+    三段采样，也不能为它等一次整片通读。
     """
     path = Path(path)
     try:
@@ -79,7 +115,7 @@ def read_keyframe_index(path: str | Path) -> KeyframeIndex | None:
     cached = _index_cache.get(key)
     if cached is not None:
         return cached
-    index = _read_keyframe_index(path)
+    index = _read_keyframe_index(path, key, allow_ffprobe=allow_ffprobe)
     if index is not None:
         if len(_index_cache) >= _INDEX_CACHE_MAX:
             _index_cache.clear()
@@ -87,12 +123,25 @@ def read_keyframe_index(path: str | Path) -> KeyframeIndex | None:
     return index
 
 
-def _read_keyframe_index(path: Path) -> KeyframeIndex | None:
+def _read_keyframe_index(
+    path: Path, key: tuple[str, int, int], *, allow_ffprobe: bool = True
+) -> KeyframeIndex | None:
+    suffix = path.suffix.lower()
     try:
-        if path.suffix.lower() in {".mkv", ".webm"}:
+        if suffix in {".mkv", ".webm"}:
             times = _read_matroska_cues(path)
         else:
-            times = _ffprobe_keyframes(path)
+            times = None
+            if suffix in {".mp4", ".m4v", ".mov"} and key not in _untrusted_mp4:
+                checked = read_mp4_keyframes_checked(path)
+                if checked is not None:
+                    times, sampled = checked
+                    if sampled:
+                        _needs_full_check.add(key)
+            if times is None:
+                if not allow_ffprobe:
+                    return None
+                times = _ffprobe_keyframes(path)
     # ValueError 是解析器自己抛的（不是 Matroska / 缺 Cues / 结构异常），
     # IndexError 是截断或损坏的文件让 _read_vint 读越了界。这里是「按合同
     # 失败返回 None」的唯一出口——扩展名叫 .mkv 不代表内容真是 Matroska，
@@ -249,7 +298,9 @@ def _read_matroska_cues(path: Path) -> list[float]:
 # --- 其余容器：ffprobe ------------------------------------------------------
 
 
-def _ffprobe_keyframes(path: Path) -> list[float]:
+def _ffprobe_keyframes(
+    path: Path, *, timeout: float = _FFPROBE_TIMEOUT, low_priority: bool = False
+) -> list[float]:
     cmd = [
         "ffprobe",
         "-v",
@@ -263,7 +314,13 @@ def _ffprobe_keyframes(path: Path) -> list[float]:
         str(path),
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, timeout=_FFPROBE_TIMEOUT)
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            timeout=timeout,
+            # 后台补全时调低优先级，别和正在转码 / 取流的进程抢 CPU
+            preexec_fn=(lambda: os.nice(10)) if low_priority else None,
+        )
     except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
         logger.warning("ffprobe 列关键帧失败：%s（%s）", path, exc)
         return []
@@ -283,3 +340,93 @@ def _ffprobe_keyframes(path: Path) -> list[float]:
             continue
     times.sort()
     return times
+
+
+# --- MP4 快路径的后台全量核对 ---------------------------------------------------------
+
+
+def schedule_background_index(path: str | Path, *, delay_s: float = FULL_CHECK_DELAY_S) -> None:
+    """开会话后排一次后台的索引补全（视频直通的会话调用；不在事件循环里时跳过）。
+
+    两种情况要做，都不在起播路径上（开会话只走快路径，``read_keyframe_index(allow_ffprobe=False)``）：
+
+    1. **MP4 快路径只抽检了一部分关键帧样本**：抽检兜不住零星的坏条目——stss 里混进一两个 ffmpeg
+       不认的帧，分片计划就会在那里多出一个 ffmpeg 不切的边界，播到那里分片编号错一位。这里全量
+       核对（4 路并发），发现问题就让这个文件以后不走快路径，并用 ffprobe 把正确的索引算好换进缓存。
+    2. **快路径拿不到索引**（TS 等没有索引可读的容器、MP4 抽检对不上）：原来开会话当场 ffprobe
+       通读整片——NAS 的 NFS 片库上一部 36 GB 的 TS 要 6 分钟，120 秒超时作废后退回会话相对模式，
+       而且不记失败，每次播放都白等 120 秒（2026-10-01 实测）。现在本次直接走会话相对模式，
+       后台低优先级通读（单文件 24 GB 以内），算好的索引给下一次播放。
+
+    当前这次播放用的已经是开会话时的计划，换不了；下一次打开就对了。一次只做一个文件。
+    """
+    path = Path(path)
+    try:
+        stat = path.stat()
+    except OSError:
+        return
+    key = (str(path), stat.st_mtime_ns, stat.st_size)
+    if key in _full_check_running:
+        return
+    verify = key in _needs_full_check
+    build = (
+        not verify
+        and key not in _index_cache
+        and key not in _background_failed
+        and path.suffix.lower() not in {".mkv", ".webm"}
+        and stat.st_size <= BACKGROUND_INDEX_MAX_BYTES
+    )
+    if not (verify or build):
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    _full_check_running.add(key)
+    task = loop.create_task(_background_index(path, key, delay_s, verify=verify))
+    _full_check_tasks.add(task)
+    task.add_done_callback(_full_check_tasks.discard)
+
+
+async def _background_index(
+    path: Path, key: tuple[str, int, int], delay_s: float, *, verify: bool
+) -> None:
+    global _full_check_lock
+    try:
+        if delay_s > 0:
+            await asyncio.sleep(delay_s)
+        if _full_check_lock is None:
+            _full_check_lock = asyncio.Lock()
+        async with _full_check_lock:
+            if verify:
+                if await asyncio.to_thread(verify_all_mp4_keyframes, path):
+                    _needs_full_check.discard(key)
+                    return
+                logger.warning(
+                    "MP4 关键帧表里有 ffmpeg 不认的帧，这个文件改用 ffprobe 列关键帧"
+                    "（后台重建索引，下次播放生效）：%s",
+                    path,
+                )
+                _untrusted_mp4.add(key)
+                _needs_full_check.discard(key)
+                _index_cache.pop(key, None)
+            started = time.monotonic()
+            times = await asyncio.to_thread(
+                _ffprobe_keyframes, path, timeout=_BACKGROUND_FFPROBE_TIMEOUT, low_priority=True
+            )
+            if not times:
+                _background_failed.add(key)
+                return
+            if times[0] > 0.001:
+                times = [0.0, *times]
+            _index_cache[key] = KeyframeIndex(times_s=tuple(times))
+            logger.info(
+                "后台补全关键帧索引：%s（%d 个关键帧，用时 %.0f 秒，下次播放起用 VOD 列表）",
+                path,
+                len(times),
+                time.monotonic() - started,
+            )
+    except Exception:  # noqa: BLE001 — 只是优化，出错只记日志，播放照常
+        logger.warning("关键帧索引后台补全出错：%s", path, exc_info=True)
+    finally:
+        _full_check_running.discard(key)

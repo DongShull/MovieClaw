@@ -1,17 +1,18 @@
 /**
- * 停顿归因：分清「解码器卡住」和「客户端追上了编码器」。
+ * 停顿归因：分清「解码器卡住」「线路慢」与「连接断了」（与 iOS App 的 `StallWatch` 同一套规则，
+ * apps/apple/MovieClaw/Features/Player/PlaybackWatchdogs.swift）。
  *
- * 只看「currentTime 不动」会把这两件事混为一谈，而它们的正确处置完全相反：
+ * 只看「currentTime 不动」会把处置完全不同的三件事混为一谈：
  *
- * - **解码器卡住**（缓冲里有数据却放不动）：坏流的最常见表现不是报错，而是
- *   解码器悄悄停住、界面永远转圈。这种要尽快判失败走降档回路，换一档重来。
- * - **供流跟不上**（缓冲已经耗尽）：转码是边转边给的，软件转码 4K 在弱机器上
- *   编码速度低于实时播放，客户端追上编码器就会停下来等。这是**正常现象**，
- *   判成失败会触发降档——而档 4 已经是最低档，用户看到的是「所有播放方式都
- *   失败了」，真实原因其实只是服务器转得慢。
- *
- * 供流侧也不能无限等：会话半路死掉（ffmpeg 崩了）的表现同样是缓冲耗尽后
- * 一直没有新数据。所以给一个宽得多的上限，超了再报，并且把原因说对。
+ * - **解码器卡住**（缓冲里明明还有 ≥3 秒却放不动）：坏流的最常见表现不是报错，而是
+ *   解码器悄悄停住、界面永远转圈。先原地推两把（见 shouldNudge），推不动 8 秒判失败。
+ * - **线路慢**（缓冲见底，但字节还在进来）：这**不是失败**，一直等——转圈下显示实时加载
+ *   速度，用户可以暂停攒缓冲；反复卡或一次等太久由换画质提示（quality-suggestion.ts）
+ *   问用户要不要降画质。2026-09-28 iOS 拍板「网络问题不是降级信号」：原来这里等满时限就
+ *   判「缺粮」，网页因此会自动转码降画质（2026-10-01 改为与 App 一致）。
+ * - **连接断了**（缓冲见底且连续十几秒一个字节都没收到）：判 dead，同档原地重开
+ *   （failure-policy.ts）。原文件直出 15 秒；服务端流（转码器赶片时本来就会一阵阵没有
+ *   字节）给足 45 秒。
  */
 
 /** 有数据却不前进，判定为解码卡死的秒数。 */
@@ -27,24 +28,20 @@ buffered 的尾巴就是「已经转出来的全部」，播放头贴着尾巴�
 （buffered 里躺着十几秒就是不走）仍然 8 秒内抓住。 */
 export const DECODE_STALL_MIN_BUFFER_S = 3;
 /**
- * 缓冲耗尽后仍无进展、判定为供流中断的秒数。
+ * 服务端流（档 1～4 的会话分片）：缓冲见底后连续多少秒没有收到字节，判定连接断了。
  *
- * 取值要压得住「软件转码起步慢」这种正常情况：转码会话刚起来时编码器要先
- * 追上首帧，客户端等十几秒是常事。
+ * 取值要压得住「转码起步慢」这种正常情况：转码会话刚起来时编码器要先追上首帧，
+ * 一阵阵没有字节是常事。
  */
-export const STARVE_TIMEOUT_S = 45;
+export const SERVER_DEAD_S = 45;
 /**
- * 档 0 直出的缺粮上限（秒）。
- *
- * 45 秒是给「等转码器追上来」留的；直出没有转码器，浏览器自己按 Range 取原
- * 文件，缓冲耗尽后十几秒一个字节都没到只可能是线路装不下（或断了），再等
- * 三十秒没有任何东西会变好。缩短它，直出档的带宽降档（bandwidth.ts 的
- * bandwidthDegradeWanted）才不用让用户对着转圈等满 45 秒。
+ * 档 0 直出：缓冲见底后连续多少秒没有收到字节，判定连接断了。直出没有转码器可等，
+ * 十几秒一个字节都没到只可能是断了（线路慢的话字节是在进来的，不会走到这里）。
  */
-export const DIRECT_STARVE_TIMEOUT_S = 15;
+export const DIRECT_DEAD_S = 15;
 /** 小于这个秒数的前方缓冲视同没有——四舍五入的抖动不该被当成"有数据"。 */
 
-export type StallVerdict = "ok" | "decode-stalled" | "starved";
+export type StallVerdict = "ok" | "decode-stalled" | "dead";
 
 /** 有数据却不动时，先「推一把」再谈判死的起点（秒）。 */
 export const NUDGE_AT_S = 3;
@@ -95,35 +92,35 @@ export interface StallInput {
   bufferedAhead: number;
   /** 已经连续停顿了多少秒 */
   stalledFor: number;
-  /** 缺粮上限；不传按转码会话的 STARVE_TIMEOUT_S，档 0 传 DIRECT_STARVE_TIMEOUT_S */
-  starveTimeoutS?: number;
+  /** 缓冲见底期间连续多少秒一个字节都没收到（有字节进来就清零） */
+  silentFor: number;
+  /** 断线判定的秒数；不传按服务端流的 SERVER_DEAD_S，档 0 传 DIRECT_DEAD_S */
+  deadLimitS?: number;
 }
 
 /**
  * 一次采样的判定。暂停、结束、拖动中一律不算停顿——用户自己按的暂停不该
- * 被当成故障。
+ * 被当成故障。缓冲见底时只看字节还在不在进来：在进来就是线路慢，不算失败。
  */
 export function classifyStall(input: StallInput): StallVerdict {
   if (input.paused || input.ended || input.seeking || input.advanced) return "ok";
   if (input.bufferedAhead >= DECODE_STALL_MIN_BUFFER_S) {
     return input.stalledFor >= STALL_TIMEOUT_S ? "decode-stalled" : "ok";
   }
-  // 前方只剩零点几秒到两三秒：大概率是追上了转码器（buffered 尾 = 已转出
-  // 的全部），按缺粮处理给足 45 秒——降档的代价是整路重来，误杀最伤
-  return input.stalledFor >= (input.starveTimeoutS ?? STARVE_TIMEOUT_S) ? "starved" : "ok";
+  return input.silentFor >= (input.deadLimitS ?? SERVER_DEAD_S) ? "dead" : "ok";
 }
 
 /** 判定 → 面向用户的中文原因。用户报障时这句话就是全部线索。 */
 export function stallReason(
   verdict: Exclude<StallVerdict, "ok">,
-  starveTimeoutS: number = STARVE_TIMEOUT_S,
+  deadLimitS: number = SERVER_DEAD_S,
 ): string {
   if (verdict === "decode-stalled") {
     return `播放停滞超过 ${STALL_TIMEOUT_S} 秒，这一档的码流浏览器吃不下`;
   }
-  return starveTimeoutS < STARVE_TIMEOUT_S
-    ? `等待取流超过 ${starveTimeoutS} 秒——线路装不下这部片的码率，或连接已中断`
-    : `等待服务端供流超过 ${starveTimeoutS} 秒——转码速度跟不上播放，或转码已中断`;
+  return deadLimitS < SERVER_DEAD_S
+    ? `连续 ${deadLimitS} 秒没有收到数据——连接可能中断了`
+    : `连续 ${deadLimitS} 秒没有收到服务端的数据——转码可能中断了`;
 }
 
 /** `currentTime` 前方的连续缓冲秒数；不在任何缓冲区间内记 0。 */

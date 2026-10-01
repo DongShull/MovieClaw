@@ -158,7 +158,7 @@ from movieclaw_playback.hls_vod import (
     compute_segment_plan,
     compute_uniform_plan,
 )
-from movieclaw_playback.keyframes import read_keyframe_index
+from movieclaw_playback.keyframes import read_keyframe_index, schedule_background_index
 from movieclaw_playback.streaming import (
     DisconnectAwareFileResponse,
     container_mime_type,
@@ -863,6 +863,20 @@ def _remember_capability(
     )
 
 
+def _remember_session_capability(
+    payload: PlaybackSessionRequest, principal: Principal, user_agent: str | None
+) -> None:
+    """开会话也记下客户端的解码能力，供详情页起播预热（warmup.py）判断值不值得读盘采样。
+
+    原来只在 /decide 里记，而网页早已改成直接开会话（续播点并进开会话，web-player.md §6.10），
+    两个客户端都不再调 /decide——预热对网页一直没生效。App 的自研引擎直出原文件、用不上关键帧
+    采样，不记（免得它偶尔走系统播放器时申报的能力把同一账号的记录搅乱）。
+    """
+    if payload.client == "ios":
+        return
+    _remember_capability(payload, principal, user_agent)
+
+
 async def _decide(
     payload: PlaybackDecideRequest,
     principal: Principal,
@@ -936,6 +950,7 @@ async def start_playback_session(
     background_tasks: BackgroundTasks,
     principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
+    user_agent: Annotated[str | None, Header(include_in_schema=False)] = None,
 ) -> ApiResponse[PlaybackSessionView]:
     """判定档位并（需要时）起转码会话，返回可直接播放的地址。
 
@@ -954,6 +969,7 @@ async def start_playback_session(
     started_at = time.perf_counter()
     member_id = principal.member_id if principal.member_id is not None else 0
     attempt_id = payload.attempt_id or None
+    _remember_session_capability(payload, principal, user_agent)
 
     def attempt_started(
         file_id: int | None, tier: int, view: PlaybackDecisionView, **timings: int
@@ -1141,7 +1157,10 @@ async def start_playback_session(
             return None
         if disc is not None:
             return await asyncio.to_thread(disc.keyframe_index)
-        return await asyncio.to_thread(read_keyframe_index, file.file_path)
+        # 只走读索引的快路径（Matroska Cues、MP4 moov）。要 ffprobe 通读整片才拿得到的（TS 等），
+        # 这次直接走会话相对模式，索引由后台补全给下一次（schedule_background_index）——原来在这里
+        # 当场通读，NFS 上的大文件 120 秒超时作废，每次播放都白等
+        return await asyncio.to_thread(read_keyframe_index, file.file_path, allow_ffprobe=False)
 
     # 三件准备工作互相独立，并行做：策略读取（设置存储自带短会话，与请求
     # 会话无关）、硬件后端探测、关键帧索引。旧会话已在上面的最终决策前串行
@@ -1158,6 +1177,10 @@ async def start_playback_session(
     local_backends = await asyncio.to_thread(available_local_backends) if backends else ()
     remote_video_available = remote_worker_available("videotoolbox", disc=disc is not None)
     prep_ms = int((time.perf_counter() - prep_started_at) * 1000)
+    if disc is None and view.video is not None and view.video.action == "copy":
+        # 视频直通的会话：MP4 快路径只抽检了部分关键帧的，起播之后在后台全量核对；快路径拿不到
+        # 索引的（TS 等），后台补全给下一次播放（keyframes.py 的 schedule_background_index）
+        schedule_background_index(file.file_path)
     # 只有真的转视频才谈得上硬件加速：直通档（-c:v copy）不经编码器，报个
     # 后端名只会让诊断面板骗人。烧录时 VAAPI/QSV 会退软件编码（overlay 是
     # 软件滤镜，这两家编码器吃不了软件帧），同样要报实际值。后端选择必须

@@ -16,6 +16,7 @@ import {
   fetchPlaybackDiagnostics,
   type PlaybackUnit,
   type PlaybackDiagnostics,
+  type PlaybackSession,
   type PlaybackWatchState,
   pingPlaybackSession,
   reportPlaybackClientLog,
@@ -23,24 +24,17 @@ import {
   reportPlaybackProgressOnUnload,
   resolveStreamUrl,
   startPlaybackSession,
-  type PlaybackMetricPayload,
   fetchTrickplay,
-  reportPlaybackMetric,
-  reportPlaybackMetricOnUnload,
+  reportPlaybackRecord,
+  reportPlaybackRecordOnUnload,
   stopPlaybackSession,
   stopPlaybackSessionOnUnload,
 } from "@/lib/api/playback";
+import { HttpError, resolveRequestUrl } from "@/lib/http";
 import { type AutoplayOutcome, attemptAutoplay, shouldAttemptAutoplay } from "@/lib/player/autoplay";
-import {
-  DIRECT_SHORTFALL_SAMPLES,
-  bandwidthDegradeWanted,
-  bandwidthRestartWanted,
-  directDownlinkShort,
-  downlinkHintBps,
-  formatLoadingSpeed,
-} from "@/lib/player/bandwidth";
+import { downlinkHintBps, formatLoadingSpeed } from "@/lib/player/bandwidth";
 import { getCapabilitySnapshot } from "@/lib/player/capability";
-import type { PlaybackEngine } from "@/lib/player/engine";
+import type { EngineStats, PlaybackEngine } from "@/lib/player/engine";
 import { createEngine, preloadHlsEngine } from "@/lib/player/engine";
 import { pipSupported } from "@/lib/player/pip";
 import { bufferedAhead } from "@/lib/player/stall";
@@ -72,17 +66,47 @@ import {
   resolvePlaybackMode,
   shouldApplyPostAttachSeek,
 } from "@/lib/player/playback-mode";
-import { loadQualityPreference, saveQualityPreference } from "@/lib/player/quality";
+import {
+  type FailureCause,
+  NetworkRestartBudget,
+  ReconnectBackoff,
+  RetryBudget,
+  decideFailure,
+  isTransientStatus,
+  sourceProbeVerdict,
+} from "@/lib/player/failure-policy";
+import {
+  type DeliverySnapshot,
+  PlaybackRecord,
+  type RecordOutcome,
+  type SeekSource,
+  parseServerTiming,
+  readLabScenario,
+} from "@/lib/player/playback-record";
+import {
+  loadQualityFor,
+  qualityChangeNeedsRestart,
+  qualityLimits,
+  rememberQualityFor,
+  sourceHeight,
+} from "@/lib/player/quality";
+import {
+  type QualityOffer,
+  QualitySuggestion,
+  transcodeBitrateBps,
+} from "@/lib/player/quality-suggestion";
+import { rememberedChoicesNotice, shortTrackLabel } from "@/lib/player/remembered-choices";
+import {
+  browserReportStorage,
+  clearActive,
+  enqueueReport,
+  flushReports,
+  markActive,
+  recoverAbnormalExits,
+} from "@/lib/player/report-queue";
 import { createSessionReleaser } from "@/lib/player/session-release";
 import { reportedTracks } from "@/lib/player/track-memory";
-import {
-  type QoeEvent,
-  initialQoe,
-  isReportable,
-  liveStats,
-  reduceQoe,
-  summarize,
-} from "@/lib/player/qoe";
+import { type QoeEvent, initialQoe, liveStats, reduceQoe, summarize } from "@/lib/player/qoe";
 import { consumePlayIntent } from "@/lib/player/play-links";
 import { StartupTrace } from "@/lib/player/startup-trace";
 import { type TrickplayIndex, tileAt } from "@/lib/player/trickplay";
@@ -252,6 +276,106 @@ function SeekChevrons({ back }: { back: boolean }) {
   );
 }
 
+/** 播放记录的上下文（浏览器能给的那部分：界面类型、是否省流量、UA 摘要） */
+function recordContext(): Record<string, unknown> {
+  const connection = (navigator as Navigator & { connection?: { type?: string; saveData?: boolean } })
+    .connection;
+  return {
+    network: "unknown",
+    interface: connection?.type ?? "",
+    metered: connection?.saveData ?? false,
+    os: navigator.platform ?? "",
+    user_agent: navigator.userAgent.slice(0, 160),
+  };
+}
+
+const SOURCE_MISSING_MESSAGE = "服务器上找不到这个文件";
+const SOURCE_MISSING_SUGGESTION =
+  "文件可能被移动或删除了。可以回到条目页重新扫描媒体库，或换一个版本播放。";
+
+/**
+ * 探片源：取 1 个字节（Range: bytes=0-0），5 秒超时。返回 HTTP 状态；请求本身没成功（断网、
+ * 超时）返回 null。结论由 failure-policy.ts 的 sourceProbeVerdict 判。
+ */
+async function probeSourceStatus(url: string): Promise<number | null> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 5_000);
+  try {
+    const response = await fetch(url, {
+      headers: { Range: "bytes=0-0" },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    void response.body?.cancel().catch(() => undefined);
+    return response.status;
+  } catch {
+    return null;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+/** 台账的 HDR 标记 → 画面格式键（与 iOS 的 PlaybackRecord.formatKey 同一写法） */
+function formatKey(hdr: string | null | undefined): string {
+  const value = (hdr ?? "").toLowerCase();
+  if (!value) return "sdr";
+  if (value.includes("dolby")) return "dolbyvision";
+  if (value.includes("hlg")) return "hlg";
+  if (value.includes("10+")) return "hdr10plus";
+  return "hdr10";
+}
+
+/**
+ * 规格快照（docs/design/playback-qoe.md §5.6 的判定材料，损失由服务端按规则表判）。
+ *
+ * 通路分四种：direct（档 0 直出原文件）、server_remux（档 1、2，视频直通）、server_transcode
+ * （从直通档降下来、或用户限了画质才落到的转码——前者是可能可避免的损失）、
+ * server_transcode_required（浏览器本来就解不了这个编码，转码是设备上限，不算可避免）。
+ */
+function deliveryOf(session: PlaybackSession, quality: number | null): DeliverySnapshot {
+  const { decision, source } = session;
+  const tier = decision.tier ?? -1;
+  const copyVideo = decision.video?.action === "copy";
+  const userCapped = qualityLimits(quality, sourceHeight(source?.resolution));
+  const route =
+    tier === 0
+      ? "direct"
+      : copyVideo
+        ? "server_remux"
+        : decision.degraded_from !== null || userCapped
+          ? "server_transcode"
+          : "server_transcode_required";
+  const sourceFormat = formatKey(source?.hdr);
+  const track = decision.audio_tracks.find((t) => t.ref === decision.audio?.track_ref);
+  const audioCopy = tier === 0 || decision.audio?.action === "copy";
+  let displayHdr = false;
+  try {
+    displayHdr = window.matchMedia?.("(dynamic-range: high)").matches ?? false;
+  } catch {
+    displayHdr = false;
+  }
+  return {
+    route,
+    tier,
+    user_capped: userCapped,
+    fallback_reason: decision.degraded_from !== null ? decision.reason : null,
+    video: {
+      source_format: sourceFormat,
+      output_format: decision.video?.tone_map ? "sdr" : sourceFormat,
+      codec: source?.video_codec ?? decision.video?.codec ?? null,
+    },
+    audio: {
+      source_codec: track?.codec ?? null,
+      source_channels: track?.channels ?? null,
+      delivery: tier === 0 ? "stream_copy" : audioCopy ? "server_copy" : "server_transcode",
+      output_codec: audioCopy ? (track?.codec ?? null) : (decision.audio?.codec ?? null),
+    },
+    subtitle: { mode: decision.video?.burn_subtitle ? "burned" : "overlay" },
+    // 浏览器拿不到音频输出设备：无损音频的规则（要求有线 / HDMI 输出）不会算到网页头上
+    output: { audio_route: "other", display_hdr: displayHdr },
+  };
+}
+
 function unitKeyOf(unit: PlaybackUnit): string {
   return `${unit.media_item_id}/${unit.season_number ?? 0}/${unit.episode_number ?? 0}`;
 }
@@ -304,14 +428,52 @@ export function VideoPlayer(props: VideoPlayerProps) {
   const subtitleTouchedRef = useRef(false);
   // 惰性初始化从 localStorage 读：字幕调好的字号/位置不该每次进来都重调
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>(loadSubtitleStyle);
-  /** 画质上限（max_height）。null = 自动。持久化，弱网用户不必每部片重选 */
-  const [quality, setQuality] = useState<number | null>(loadQualityPreference);
+  /**
+   * 画质上限（max_height）。null = 自动。按片记（lib/player/quality.ts，与 iOS 同口径）：
+   * 进入每一集时从这部片的记忆里取，选过就记住；原来是全局一个值，路上选一次 720p，
+   * 之后所有片子、回到家也都在转码。
+   */
+  const [quality, setQuality] = useState<number | null>(null);
+  /** 这次的画质上限来自记忆（不是用户这次亲手选的）：开播提示「已沿用上次的选择」要提它 */
+  const qualityFromMemoryRef = useRef(false);
   const [trickplay, setTrickplay] = useState<TrickplayIndex | null>(null);
   /** 供冻结帧读最新索引：写进依赖会让 freezeFrame 换身份，牵连挂引擎的 effect */
   const trickplayRef = useRef<TrickplayIndex | null>(null);
   trickplayRef.current = trickplay;
-  // 播放质量累计。放 ref 而不是 state：每秒都在变，进渲染只会白重绘。
+  // 播放质量累计。放 ref 而不是 state：每秒都在变，进渲染只会白重绘。诊断面板的实时读数与
+  // 观看时长、掉帧计数仍从这里取；上报改由下面的播放记录（新口径）承担。
   const qoeRef = useRef(initialQoe());
+  /**
+   * 这一次播放的记录（lib/player/playback-record.ts，docs/design/playback-qoe.md）：进入这一集 /
+   * 错误页点重试时新建，离开时上报。断线重连、原位重开、降档、换轨都记在同一份里。
+   */
+  const recordRef = useRef<PlaybackRecord | null>(null);
+  /**
+   * 失败处置（lib/player/failure-policy.ts，与 iOS 同一套规则）：网络问题同档原地重开的额度、
+   * 一时的解码问题原位重开的额度、重开会话请求失败时的退避。换集 / 重试时清零。
+   */
+  const networkBudgetRef = useRef(new NetworkRestartBudget());
+  const retryBudgetRef = useRef(new RetryBudget());
+  const sessionBackoffRef = useRef(new ReconnectBackoff());
+  /** 正在为断线重连（重开会话的请求失败时按退避再试，而不是直接落错误页） */
+  const reconnectingRef = useRef(false);
+  /** 失败处置在途（直出断线后正在探片源）：这期间旧引擎的看门狗再报失败一律不理 */
+  const failureInFlightRef = useRef(false);
+  /** 探片源循环的代号：换集、卸载、开始新的一轮时递增，旧循环醒来发现对不上就退出 */
+  const reconnectSeqRef = useRef(0);
+  /** 重开会话失败后的退避计时器 */
+  const sessionRetryTimerRef = useRef<number | null>(null);
+  /**
+   * 换低画质的提示（lib/player/quality-suggestion.ts，与 iOS 同一套判据）：每个播放单元最多一次。
+   * `qualityOffer` 是正挂着的那张卡，20 秒没理会自动收起。
+   */
+  const suggestionRef = useRef(new QualitySuggestion());
+  const [qualityOffer, setQualityOffer] = useState<QualityOffer | null>(null);
+  const qualityOfferTimerRef = useRef<number | null>(null);
+  /** 「已沿用上次的选择」只在打开播放器后的第一集判一次（切到下一集不再提示，与 iOS 一致） */
+  const rememberedNoticeDoneRef = useRef(false);
+  /** 每秒循环的计数：每 10 秒刷新一次「正在播放」标记（异常退出补报用） */
+  const activeTickRef = useRef(0);
   /** 这一集的起播分段计时（lib/player/startup-trace.ts）：首帧上屏且开始播放后上报一次 */
   const startupRef = useRef<StartupTrace | null>(null);
   /**
@@ -325,9 +487,6 @@ export function VideoPlayer(props: VideoPlayerProps) {
    * 补丁轨各拉一遍；晚零点几秒出字幕，换首帧早出来
    */
   const [subtitlesArmed, setSubtitlesArmed] = useState(false);
-  // 快照函数放 ref：卸载与切集的 effect 都不依赖 state.session，
-  // 直接闭包会拿到过期的会话，上报到错误的档位上。
-  const qoeSnapshotRef = useRef<() => PlaybackMetricPayload | null>(() => null);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [serverDiagnostics, setServerDiagnostics] = useState<PlaybackDiagnostics | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -490,6 +649,22 @@ export function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     if (awaitsUserDecision(state.phase)) setFrozen(false);
   }, [state.phase]);
+
+  /**
+   * 播放记录：落到错误页记一次「用户看得见的失败」（原因的归类由 failPlayback 给，状态机自己判的
+   * ——兜底档也放不了——按解码问题算）；软件转码同意弹窗停在用户手里的时间单独记，不算进起播。
+   */
+  useEffect(() => {
+    const record = recordRef.current;
+    if (!record) return;
+    if (state.phase === "error" && state.error) {
+      reconnectingRef.current = false;
+      record.noteError(state.error.message, errorCategoryRef.current ?? "decode", "playback");
+      errorCategoryRef.current = null;
+    }
+    if (state.phase === "consent") record.beginUserWait();
+    else record.endUserWait();
+  }, [state.phase, state.error]);
   useEffect(() => {
     setFrozen(false);
     freezeTokenRef.current += 1;
@@ -583,12 +758,12 @@ export function VideoPlayer(props: VideoPlayerProps) {
   const [speedLabel, setSpeedLabel] = useState<string | null>(null);
   /** 最近一次可用的取流速度（bps），下一次开会话带给服务端压码率（§C） */
   const lastDownlinkRef = useRef<number | null>(null);
-  /** 本会话是否已经按带宽重开过一次（每会话只试一次，防无限循环） */
+  /**
+   * 本集是否已经按带宽同档重开过一次（已在转码、用户没限画质、线路跟不上时自动压码率，
+   * 见 feedQualitySuggestion）。每集只试一次：重开后仍跟不上，就改成提示卡交给用户。
+   */
   const bandwidthRestartedRef = useRef(false);
-  /** 直通档「线路不够」的连续采样计数与是否已提示过 */
-  const directShortRef = useRef(0);
-  const directHintShownRef = useRef(false);
-  /** 源码率（台账真值），供 1Hz 循环判直通档线路够不够 */
+  /** 源码率（台账真值）：直出档拿不到分片码率，换画质提示用它当「这一版需要的速度」 */
   const sourceBitrateRef = useRef<number | null>(null);
 
   /** 横滑拖进度时的落点读数。手势期间常显，松手/取消后淡出 */
@@ -695,6 +870,19 @@ export function VideoPlayer(props: VideoPlayerProps) {
       }, 180);
     }, 2600);
   }, []);
+  /**
+   * 落到错误页 / 同意弹窗就立即收起提示：「连接中断，正在重连…」这类过程提示若等计时器自己
+   * 收，会和「服务器上找不到这个文件」同屏打架两三秒（NAS 实测 direct-404）。
+   */
+  useEffect(() => {
+    if (!awaitsUserDecision(state.phase)) return;
+    const timers = noticeTimersRef.current;
+    if (timers.hide !== null) window.clearTimeout(timers.hide);
+    if (timers.gone !== null) window.clearTimeout(timers.gone);
+    timers.hide = null;
+    timers.gone = null;
+    setNotice(null);
+  }, [state.phase]);
 
   /** 卸载时清掉各组反馈计时器，别让它们对着已卸载的组件 setState。 */
   useEffect(
@@ -882,6 +1070,59 @@ export function VideoPlayer(props: VideoPlayerProps) {
 
   /** `?t=` 起播覆盖只吃一次：切集之后回到「各自的续播点」默认语义。 */
   const overrideConsumedRef = useRef(false);
+  /** 还没进过任何一集（播放记录的来源：第一集按有没有点播放分 tap / deeplink） */
+  const firstUnitRef = useRef(true);
+
+  /** 供不想跟着画质重绑的回调读当前画质上限 */
+  const qualityRef = useRef(quality);
+  qualityRef.current = quality;
+
+  /**
+   * 会话落地：把服务端视角的事实记进播放记录——档位、文件、降档来源、Server-Timing（开会话的
+   * 服务端各段耗时，分出「网络往返」与「服务端处理」）、规格快照（「对」的判定材料）。
+   * `serverStart`：起点交给服务端按观看状态定的（续播），用来判「续播后马上远跳 = 续播位置猜错」。
+   */
+  const noteSessionFacts = useCallback((session: PlaybackSession, serverStart: boolean) => {
+    const record = recordRef.current;
+    if (!record) return;
+    const { decision } = session;
+    if (decision.tier !== null) record.tier = decision.tier;
+    record.libraryFileId = decision.file_id;
+    record.degradedFrom = decision.degraded_from;
+    record.hwBackend = session.hw_backend ?? "";
+    if (!record.hasFirstFrame && record.startPositionMs === 0) {
+      record.startPositionMs = session.start_ms;
+      record.resumed = serverStart && session.start_ms > 0;
+    }
+    try {
+      const url = new URL(resolveRequestUrl(`${apiRef.current.base}/sessions`), window.location.href).href;
+      const entries = performance.getEntriesByName(url, "resource");
+      const last = entries[entries.length - 1] as PerformanceResourceTiming | undefined;
+      record.noteServerTiming(parseServerTiming(last?.serverTiming));
+    } catch {
+      // 拿不到 Resource Timing（老浏览器 / 计时缓冲满）：少一组服务端分段，不影响播放
+    }
+    const delivery = deliveryOf(session, qualityRef.current);
+    record.route = delivery.route;
+    record.noteDelivery(delivery);
+  }, []);
+
+  /** 落错误页的唯一入口：先把原因与归类记进播放记录，再交给状态机 */
+  const errorCategoryRef = useRef<string | null>(null);
+  const failPlayback = useCallback(
+    (message: string, suggestion: string | null, category: string) => {
+      errorCategoryRef.current = category;
+      dispatch({ type: "fatal", message, suggestion });
+    },
+    [],
+  );
+
+  /** 收起换画质的提示卡（用户点了「继续当前画质」、20 秒没理会、换集） */
+  const dismissQualityOffer = useCallback(() => {
+    if (qualityOfferTimerRef.current !== null) window.clearTimeout(qualityOfferTimerRef.current);
+    qualityOfferTimerRef.current = null;
+    setQualityOffer(null);
+  }, []);
 
   /**
    * 刚在同意弹窗里点过「开启并播放」（保存成功后置位）。
@@ -902,8 +1143,35 @@ export function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     startedKeyRef.current = null;
     reportedStartRef.current = null;
-    startupRef.current = new StartupTrace(consumePlayIntent() ?? performance.now());
+    const intent = consumePlayIntent();
+    const origin = intent ?? performance.now();
+    startupRef.current = new StartupTrace(origin);
     startupRef.current.mark("进入");
+    // 新的一次播放：编号随开会话请求带给服务端，离开这一集时上报（见下面的收尾 effect）。
+    // 第一集从条目页点进来算 tap、直接打开播放页算 deeplink；之后的切集都是用户点的
+    recordRef.current = new PlaybackRecord({
+      unit,
+      origin: firstUnitRef.current ? (intent !== null ? "tap" : "deeplink") : "tap",
+      startedAt: origin,
+      lab: readLabScenario(),
+    });
+    firstUnitRef.current = false;
+    // 失败处置与换画质提示都按播放单元算
+    networkBudgetRef.current.reset();
+    retryBudgetRef.current.reset();
+    sessionBackoffRef.current.reset();
+    reconnectingRef.current = false;
+    failureInFlightRef.current = false;
+    reconnectSeqRef.current += 1;
+    if (sessionRetryTimerRef.current !== null) window.clearTimeout(sessionRetryTimerRef.current);
+    sessionRetryTimerRef.current = null;
+    suggestionRef.current = new QualitySuggestion();
+    bandwidthRestartedRef.current = false;
+    dismissQualityOffer();
+    // 画质按片记：影片分享的访客不读不写（与 iOS 的分享场景一致）
+    const remembered = apiRef.current.telemetry ? loadQualityFor(unit.media_item_id) : null;
+    qualityFromMemoryRef.current = remembered !== null;
+    setQuality(remembered);
     setSubtitlesArmed(false);
     setPositionMs(0);
     setBufferedEndMs(null);
@@ -973,6 +1241,10 @@ export function VideoPlayer(props: VideoPlayerProps) {
             // 起播还没有读数，服务端按阶梯值；重开（seek 换会话 / 缺粮重开
             // / 换轨）时才带得上——正是外网用户最需要它的时刻
             downlink_bps: downlinkHintBps(lastDownlinkRef.current),
+            // 播放编号：服务端据此建「已开始」的记录、写进取流令牌（playback-qoe.md §2）
+            ...(apiRef.current.telemetry && recordRef.current
+              ? { attempt_id: recordRef.current.id, client: "web" as const }
+              : {}),
           },
           apiRef.current,
         );
@@ -989,6 +1261,8 @@ export function VideoPlayer(props: VideoPlayerProps) {
           return;
         }
         startupRef.current?.mark("会话");
+        sessionBackoffRef.current.reset();
+        noteSessionFacts(session, state.startMs === null);
         if (session.decision.outcome === "consent") {
           // 刚点过「开启并播放」、开关也保存成功，服务端却仍要求同意：这是
           // 异常闭环（设置没生效/后端异常），绝不能把一模一样的弹窗原样闪
@@ -1017,10 +1291,27 @@ export function VideoPlayer(props: VideoPlayerProps) {
         dispatch({ type: "session", session });
       } catch (error) {
         if (cancelled) return;
-        dispatch({
-          type: "fatal",
-          message: error instanceof Error ? error.message : "播放启动失败",
-        });
+        // 断线重连途中开会话失败（服务端重启、网络还没好）：按退避再试，约 1 分钟还不行才落错误页，
+        // 而不是一次失败就让用户对着错误页（与 iOS 的 performRequest 同一处理）
+        const status = error instanceof HttpError ? error.status : 0;
+        if (reconnectingRef.current && isTransientStatus(status)) {
+          const delay = sessionBackoffRef.current.nextDelay();
+          if (delay !== null) {
+            recordRef.current?.event("reconnect_retry", `开会话失败，${delay} 秒后再试`);
+            sessionRetryTimerRef.current = window.setTimeout(() => {
+              sessionRetryTimerRef.current = null;
+              dispatch({ type: "restart", startMs: pendingFileMsRef.current });
+            }, delay * 1000);
+            return;
+          }
+          failPlayback(
+            `连接中断，重连了几次都没成功（${error instanceof Error ? error.message : "网络错误"}）`,
+            "检查网络后点「重试」，会从刚才的位置接着放。",
+            "network",
+          );
+          return;
+        }
+        failPlayback(error instanceof Error ? error.message : "播放启动失败", null, "session");
       }
     })();
 
@@ -1071,16 +1362,139 @@ export function VideoPlayer(props: VideoPlayerProps) {
     if (outcome !== "interrupted") setAutoplay(outcome);
   }, [video]);
 
+  /**
+   * 原文件直出断了：等片源取得到再原位重开（每次重开都是新会话、新取流令牌）。片源一直取不到就按
+   * 2、4、8、15、15、15 秒的间隔再探（约 1 分钟），还不行落错误页让用户重试——换转码要一样的线路，
+   * 还要用户同意画质变差（与 iOS 的 awaitSourceThenReconnect 同一做法）。404 说明文件不在了。
+   */
+  const awaitSourceThenReconnect = useCallback(
+    (streamUrl: string, positionMs: number) => {
+      failureInFlightRef.current = true;
+      reconnectSeqRef.current += 1;
+      const seq = reconnectSeqRef.current;
+      const backoff = new ReconnectBackoff();
+      const url = resolveStreamUrl(streamUrl);
+      void (async () => {
+        for (;;) {
+          const verdict = sourceProbeVerdict(await probeSourceStatus(url));
+          if (reconnectSeqRef.current !== seq) return;
+          if (verdict === "reachable") {
+            failureInFlightRef.current = false;
+            dispatch({ type: "restart", startMs: positionMs });
+            return;
+          }
+          if (verdict === "missing") {
+            failureInFlightRef.current = false;
+            failPlayback(SOURCE_MISSING_MESSAGE, SOURCE_MISSING_SUGGESTION, "source_missing");
+            return;
+          }
+          const delay = backoff.nextDelay();
+          if (delay === null) {
+            failureInFlightRef.current = false;
+            failPlayback(
+              "连接中断，重连了几次都没成功（一直取不到片源）",
+              "检查网络后点「重试」，会从刚才的位置接着放。",
+              "network",
+            );
+            return;
+          }
+          recordRef.current?.event("source_probe", `取不到片源，${delay} 秒后再试`);
+          await new Promise((resolve) => window.setTimeout(resolve, delay * 1000));
+          if (reconnectSeqRef.current !== seq) return;
+        }
+      })();
+    },
+    [failPlayback],
+  );
+
+  /**
+   * 播放链路失败之后下一步做什么（lib/player/failure-policy.ts，与 iOS App 同一张表）。
+   *
+   * 原来网页「出问题就降档」：断线、取流报错、长时间缺粮都走降档回路，线路慢时还会把直通档自动
+   * 改成转码。现在：网络问题同档原地重开（直出先探片源），一时的解码问题原位重开一次，确定解不了
+   * 才降档；线路慢根本不报失败，要不要换低画质由提示卡问用户（feedQualitySuggestion）。
+   */
+  const handleFailure = useCallback(
+    (reason: string, cause: FailureCause) => {
+      if (!video || failureInFlightRef.current) return;
+      const session = activeSessionRef.current;
+      const phase = phaseRef.current;
+      if (!session || (phase !== "buffering" && phase !== "playing" && phase !== "seeking" && phase !== "ended")) {
+        return;
+      }
+      const record = recordRef.current;
+      record?.noteEngineFailure(reason, cause);
+      const { decision } = session;
+      const playsOriginalFile = decision.tier === 0;
+      const copyVideo = decision.video?.action === "copy";
+      const response = decideFailure({
+        cause,
+        playsOriginalFile,
+        copyVideo,
+        // 额度只在真要用时才扣
+        restartAllowed: cause === "network" && networkBudgetRef.current.allowRestart(),
+        retryAllowed:
+          cause === "decode" && copyVideo && retryBudgetRef.current.allowRetry(performance.now()),
+      });
+      reportPlaybackClientLog(
+        "playback-failure",
+        { reason, cause, response, tier: decision.tier, engine: engineLabelRef.current },
+        apiRef.current,
+      );
+      const positionMs = positionRef.current;
+      switch (response) {
+        case "reconnect":
+          // 断线、令牌过期、服务端重启：同档原地重开（新会话 = 新令牌），不降档——这一档没有失败。
+          // 刻意不动 wantsPlayRef：断流也可能发生在用户暂停期间（暂停时浏览器还在预载）
+          record?.beginReconnect(reason);
+          reconnectingRef.current = true;
+          freezeFrame();
+          video.pause();
+          pendingFileMsRef.current = positionMs;
+          if (playsOriginalFile && session.stream_url) {
+            flashNotice("连接中断，正在重连…");
+            awaitSourceThenReconnect(session.stream_url, positionMs);
+          } else {
+            dispatch({ type: "restart", startMs: positionMs });
+          }
+          return;
+        case "retry":
+          record?.event("retry", `原位重开：${reason}`);
+          flashNotice("播放出了点问题，正在原位重开");
+          freezeFrame();
+          video.pause();
+          wantsPlayRef.current = true;
+          pendingFileMsRef.current = positionMs;
+          dispatch({ type: "restart", startMs: positionMs });
+          return;
+        case "fail-network":
+          failPlayback(
+            `连接中断，重连了几次都没成功（${reason}）`,
+            "检查网络后点「重试」，会从刚才的位置接着放。",
+            "network",
+          );
+          return;
+        case "fail-source-missing":
+          failPlayback(SOURCE_MISSING_MESSAGE, SOURCE_MISSING_SUGGESTION, "source_missing");
+          return;
+        case "step-down":
+          record?.noteFallback(reason);
+          freezeFrame();
+          dispatch({ type: "failed", reason });
+          return;
+      }
+    },
+    [video, freezeFrame, flashNotice, failPlayback, awaitSourceThenReconnect],
+  );
+  const handleFailureRef = useRef(handleFailure);
+  handleFailureRef.current = handleFailure;
+
   /** 会话就位：按 mode 挂引擎、落回目标位置、起播。 */
   useEffect(() => {
     const session = state.session;
     if (!session?.stream_url || !video || !mode) return;
 
     let disposed = false;
-    // 每路会话各自一次机会：按带宽重开的护栏、直通档提示的计数都按会话清
-    bandwidthRestartedRef.current = false;
-    directShortRef.current = 0;
-    directHintShownRef.current = false;
     sourceBitrateRef.current = session.source?.bit_rate ?? null;
     const engine = createEngine({
       video,
@@ -1095,81 +1509,18 @@ export function VideoPlayer(props: VideoPlayerProps) {
       // 全片列表下这是防止 hls.js 先去拉第 0 段的关键（engine.ts 有注释）
       startPositionS: Math.max(0, toSessionSeconds(pendingFileMsRef.current, mode.originMs)),
       telemetry: apiRef.current.telemetry,
+      // 失败怎么办由失败处置表定（handleFailure，与 iOS 同一套规则）：网络问题同档原地重开、
+      // 一时的解码问题原位重开一次、确定解不了才降档。线路慢根本不会走到这里（stall.ts）
       onFailed: (reason, cause) => {
         if (disposed) return;
-        // 缺粮且线路装不下当前码率：按带宽同档重开（服务端用 downlink_bps
-        // 压码率），不走降档——降档降的是编码档，对带宽无能为力，只会白白
-        // 掉一级画质（docs/design/player-pipeline-optimization.md §C）。
-        // 每会话只试一次：重开后仍缺粮说明估错了，再来就是无限循环。
-        const stats = engine.stats();
-        if (
-          bandwidthRestartWanted({
-            cause,
-            videoAction: session.decision.video?.action,
-            downlinkBps: stats.downlinkBps,
-            bitrateBps: stats.bitrate,
-            alreadyRestarted: bandwidthRestartedRef.current,
-          })
-        ) {
-          bandwidthRestartedRef.current = true;
-          reportPlaybackClientLog("bandwidth-restart", {
-            reason,
-            downlink_bps: Math.round(stats.downlinkBps ?? 0),
-            bitrate_bps: Math.round(stats.bitrate ?? 0),
-          }, apiRef.current);
-          freezeFrame();
-          video.pause();
-          wantsPlayRef.current = true;
-          pendingFileMsRef.current = positionRef.current;
-          dispatch({ type: "restart", startMs: positionRef.current });
-          return;
-        }
-        // 视频直通且线路装不下源码率：逐级降到 remux / 音频单转码率一分不少，
-        // 照样缺粮，用户要转圈一分多钟外加三次黑屏重开才落到能压码率的转码档。
-        // 三个直通档一并标掉，直接带实测带宽去开转码会话（服务端按它压码率）。
-        // 直出档的引擎量不到分片码率，用台账里的源码率。
-        const sourceBitrate = stats.bitrate ?? sourceBitrateRef.current;
-        if (
-          bandwidthDegradeWanted({
-            cause,
-            videoAction: session.decision.video?.action,
-            downlinkBps: stats.downlinkBps,
-            bitrateBps: sourceBitrate,
-          })
-        ) {
-          // 重开请求要带的读数就是此刻这个：1Hz 循环下一拍未必来得及写
-          lastDownlinkRef.current = stats.downlinkBps;
-          reportPlaybackClientLog("bandwidth-degrade", {
-            reason,
-            tier: session.decision.tier,
-            downlink_bps: Math.round(stats.downlinkBps ?? 0),
-            bitrate_bps: Math.round(sourceBitrate ?? 0),
-          }, apiRef.current);
-          flashNotice("线路带宽装不下原片码率，改用转码降码率播放");
-          freezeFrame();
-          video.pause();
-          wantsPlayRef.current = true;
-          pendingFileMsRef.current = positionRef.current;
-          dispatch({ type: "bandwidth-degrade" });
-          return;
-        }
-        dispatch({ type: "failed", reason });
-      },
-      // 取流持续失败（token 过期 / 服务端中断）：与心跳自愈同一条路，同档位
-      // 原地重开（新会话 = 新 token），不走降档——这一档没有失败。真断网时
-      // 重开请求本身会失败，落到 fatal 错误页，比无限转圈至少让人知道出了事。
-      onNetworkDead: () => {
-        if (disposed) return;
-        freezeFrame();
-        // 刻意不动 wantsPlayRef：断流也可能发生在用户暂停期间（暂停时
-        // hls.js 还在预载），置 true 会替他续播。在播的话它本来就是 true。
-        video.pause();
-        pendingFileMsRef.current = positionRef.current;
-        dispatch({ type: "restart", startMs: positionRef.current });
+        handleFailureRef.current(reason, cause);
       },
     });
     engineRef.current = engine;
     engineLabelRef.current = engine.stats().engine;
+    if (recordRef.current) recordRef.current.engine = engineLabelRef.current;
+    // 新流起播：接下来 10 秒的缓冲不算「卡」（换画质提示的宽限）
+    suggestionRef.current.restartGrace();
 
     void engine.attach().then(() => {
       startupRef.current?.mark("引擎");
@@ -1211,7 +1562,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
       engine.destroy();
       engineRef.current = null;
     };
-  }, [state.session, mode, video, tryAutoplay, freezeFrame, flashNotice]);
+  }, [state.session, mode, video, tryAutoplay]);
 
   /**
    * 换了会话（降档 / seek 换流）就重新获得自动播放的机会。
@@ -1279,6 +1630,92 @@ export function VideoPlayer(props: VideoPlayerProps) {
   useEffect(() => {
     setSpeedLabel(null);
   }, [unitKey]);
+
+  /** 正挂着的换画质提示卡（每秒循环里读，不跟着它重绑） */
+  const qualityOfferRef = useRef<QualityOffer | null>(null);
+  qualityOfferRef.current = qualityOffer;
+
+  /**
+   * 每秒一次喂换画质提示（lib/player/quality-suggestion.ts，与 iOS 的 feedQualitySuggestion 同一做法）：
+   * 只在用户想看、页面在前台、会话在播 / 在等时喂；等首帧、等跳转落点也喂——一次等太久就该提示。
+   */
+  const feedQualitySuggestion = useCallback(
+    (engine: PlaybackEngine, stats: EngineStats) => {
+      const session = activeSessionRef.current;
+      const phase = phaseRef.current;
+      if (!session || !video || !wantsPlayRef.current || document.visibilityState !== "visible") return;
+      if (phase !== "buffering" && phase !== "playing" && phase !== "seeking") return;
+      const seeking = phase === "seeking" || (recordRef.current?.seekInFlight ?? false);
+      const stalled = phase === "buffering" || phase === "seeking";
+      const suggestion = suggestionRef.current;
+      suggestion.tick({ stalled, seeking, loadingBps: stats.loadingBps });
+      // 这条流的码率：量得到（hls.js 已收完分片）用量的；量到之前，转码流用服务端的转码目标码率，
+      // 视频直通才是片源码率
+      const plan = session.decision.video;
+      const bitrate =
+        stats.bitrate ?? (plan?.action === "transcode" ? transcodeBitrateBps(plan) : sourceBitrateRef.current);
+      // 真卡住了、而且这一秒的加载速度确实比码率慢（线路跟不上，不是一时抖动）：放大前向缓冲，
+      // 之后暂停就能一直攒（iOS 引擎补丁 P20 同一用意）。线路够快时不放大，免得白下
+      if (
+        phase === "buffering" &&
+        !seeking &&
+        bitrate &&
+        stats.loadingBps &&
+        stats.loadingBps > 0 &&
+        stats.loadingBps < bitrate * 0.9
+      ) {
+        engine.growForwardBuffer?.();
+      }
+      if (qualityOfferRef.current || suggestion.offered) return;
+      const sourceH = sourceHeight(session.source?.resolution);
+      const cap = qualityRef.current;
+      const currentHeight = cap !== null ? (sourceH !== null ? Math.min(sourceH, cap) : cap) : sourceH;
+      const offer = suggestion.offer({ streamBitrateBps: bitrate, currentHeight });
+      if (!offer) return;
+      const transcoding = session.decision.video?.action === "transcode";
+      const autoRestart = transcoding && cap === null && !bandwidthRestartedRef.current;
+      reportPlaybackClientLog(
+        "quality-suggestion",
+        {
+          measured_bps: Math.round(offer.measuredBps),
+          required_bps: Math.round(offer.requiredBps),
+          suggested_height: offer.maxHeight,
+          engine: stats.engine,
+          wait_s: suggestion.waitSeconds,
+          action: autoRestart ? "bandwidth-restart" : "offer",
+        },
+        apiRef.current,
+      );
+      recordRef.current?.event(
+        "quality_suggestion",
+        `实测 ${Math.round(offer.measuredBps / 1000)} kbps、需要 ${Math.round(offer.requiredBps / 1000)} kbps，${autoRestart ? "按带宽同档重开" : `提示改用 ${offer.maxHeight}p`}`,
+      );
+      if (autoRestart) {
+        // 已经在转码、用户没限画质：码率本来就是服务端按线路定的，按实测带宽同档重开压码率，
+        // 不必打扰用户（原「缺粮按带宽重开」，docs/design/player-pipeline-optimization.md §C）。
+        // 每集只一次；重开后仍跟不上，换成提示卡交给用户
+        bandwidthRestartedRef.current = true;
+        suggestionRef.current = new QualitySuggestion();
+        lastDownlinkRef.current = offer.measuredBps;
+        freezeFrame();
+        video.pause();
+        wantsPlayRef.current = true;
+        pendingFileMsRef.current = positionRef.current;
+        dispatch({ type: "restart", startMs: positionRef.current });
+        return;
+      }
+      setQualityOffer(offer);
+      if (qualityOfferTimerRef.current !== null) window.clearTimeout(qualityOfferTimerRef.current);
+      // 20 秒没理会就收起（本单元不再提）：它只是个建议，不该一直挡着画面
+      qualityOfferTimerRef.current = window.setTimeout(() => {
+        qualityOfferTimerRef.current = null;
+        setQualityOffer(null);
+      }, 20_000);
+    },
+    [video, freezeFrame],
+  );
+  const feedQualitySuggestionRef = useRef(feedQualitySuggestion);
+  feedQualitySuggestionRef.current = feedQualitySuggestion;
   useEffect(() => {
     const timer = window.setInterval(() => {
       const engine = engineRef.current;
@@ -1291,22 +1728,16 @@ export function VideoPlayer(props: VideoPlayerProps) {
       // 最近一次可用读数留给下一次开会话（§C）：换会话的空档没有引擎可问，
       // 而重开请求恰恰要在那个空档里发出
       if (stats.downlinkBps !== null) lastDownlinkRef.current = stats.downlinkBps;
-      // 直通档线路不够：码率改不了，只能提醒用户换画质。连续十次采样都不够
-      // 才提示、每会话一次——一次抖动不该弹提示，反复弹更烦人
-      if (stats.engine === "direct" && !directHintShownRef.current) {
-        const short = directDownlinkShort({
-          downlinkBps: stats.downlinkBps,
-          sourceBitrateBps: sourceBitrateRef.current,
-        });
-        directShortRef.current = short ? directShortRef.current + 1 : 0;
-        if (directShortRef.current >= DIRECT_SHORTFALL_SAMPLES) {
-          directHintShownRef.current = true;
-          flashNotice("线路速度低于片源码率，可在设置里选更低画质");
-        }
-      }
+      recordRef.current?.noteDownlink(stats.downlinkBps);
+      // 线路跟不上时提示一次换低画质（不自动降，与 iOS 一致；原来直出档只弹一句小字、
+      // 直通档缺粮时直接自动改转码）
+      feedQualitySuggestionRef.current(engine, stats);
+      // 每 10 秒刷新一次「正在播放」标记：标签页崩溃、浏览器被杀时下次补报「异常退出」
+      activeTickRef.current += 1;
+      if (activeTickRef.current % 10 === 0) markRecordActiveRef.current();
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [flashNotice]);
+  }, []);
 
   /** 累计一条播放质量事件。归约是纯函数，这里只负责喂事件。 */
   const qoe = useCallback((event: QoeEvent) => {
@@ -1321,6 +1752,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
     (force = false) => {
       const marks = startupRef.current?.finish(force);
       if (!marks) return;
+      recordRef.current?.noteStartupMarks(marks);
       const decision = activeSessionRef.current?.decision;
       const detail: Record<string, unknown> = {
         engine: engineLabelRef.current,
@@ -1347,6 +1779,11 @@ export function VideoPlayer(props: VideoPlayerProps) {
       qoe({ type: "playing", at: performance.now() });
       dispatch({ type: "playing" });
       setSubtitlesArmed(true);
+      // 真正放起来了：之前的断线不再算「连续」，重连的退避从头计
+      recordRef.current?.notePlaying();
+      networkBudgetRef.current.reachedPlaying();
+      sessionBackoffRef.current.reset();
+      reconnectingRef.current = false;
       if (startupRef.current && !startupRef.current.has("播放")) {
         startupRef.current.mark("播放");
         reportStartup();
@@ -1371,7 +1808,21 @@ export function VideoPlayer(props: VideoPlayerProps) {
       dispatch({ type: "seeking" });
     };
     const onSeeked = () => {
-      if (isCurrentSession()) qoe({ type: "seeked", at: performance.now() });
+      if (!isCurrentSession()) return;
+      qoe({ type: "seeked", at: performance.now() });
+      // 跳转落地 = 落点的画面上屏：等下一帧（requestVideoFrameCallback），没有就以 seeked 为准
+      const record = recordRef.current;
+      if (!record?.seekInFlight) return;
+      const withFrameCallback = video as HTMLVideoElement & {
+        requestVideoFrameCallback?: (cb: () => void) => number;
+      };
+      if (withFrameCallback.requestVideoFrameCallback) {
+        withFrameCallback.requestVideoFrameCallback(() => {
+          if (recordRef.current === record && !video.seeking) record.seekPresented();
+        });
+      } else {
+        record.seekPresented();
+      }
     };
     const onEnded = () => {
       if (isCurrentSession()) dispatch({ type: "ended" });
@@ -1556,30 +2007,89 @@ export function VideoPlayer(props: VideoPlayerProps) {
     };
   }, [video, unitKey]);
 
-  /** 这次播放的质量快照。离开与卸载两条路径共用。 */
-  const qoeSnapshot = useCallback(() => {
+  /**
+   * 这一次播放的完整记录（新口径，docs/design/playback-qoe.md）。离开、关页面、「正在播放」标记
+   * 三条路共用；结局没给就按此刻的状态判（看完 / 中途退出 / 出画前退出 / 失败）。
+   */
+  const buildRecordPayload = useCallback((outcome?: RecordOutcome) => {
+    const record = recordRef.current;
+    if (!record) return null;
     const summary = summarize(qoeRef.current);
-    if (!isReportable(summary)) return null;
-    const decision = state.session?.decision;
-    if (!decision || decision.tier == null) return null;
-    return {
-      library_file_id: decision.file_id ?? null,
-      tier: decision.tier,
-      degraded_from: decision.degraded_from ?? null,
-      engine: engineRef.current?.stats().engine ?? engineLabelRef.current,
-      hw_backend: state.session?.hw_backend ?? "",
-      ...summary,
-    };
-  }, [state.session]);
+    const phase = phaseRef.current;
+    const resolved =
+      outcome ??
+      record.outcome({
+        phaseIsError: phase === "error",
+        phaseIsEnded: phase === "ended",
+        positionMs: positionRef.current,
+        durationMs: durationMsRef.current,
+      });
+    return record.payload({
+      outcome: resolved,
+      positionMs: positionRef.current,
+      durationMs: durationMsRef.current,
+      watchedMs: summary.watched_ms,
+      droppedFrames: summary.dropped_frames,
+      totalFrames: summary.total_frames,
+      context: recordContext(),
+    });
+  }, []);
 
+  /**
+   * 收尾上报：**所有结局都报**（看完、中途退出、出画前退出、失败）——原来的旧口径只在看满 3 秒
+   * 或出过画时才报，最糟的那批播放一条都没有。发不出去就进本地队列，下次打开播放器补发。
+   */
+  const finishRecord = useCallback(
+    (mode: "fetch" | "beacon") => {
+      const record = recordRef.current;
+      if (!record || !apiRef.current.telemetry) return;
+      record.noteLeaving();
+      const payload = buildRecordPayload();
+      if (!payload) return;
+      const storage = browserReportStorage();
+      if (storage) clearActive(storage, record.id);
+      if (mode === "beacon") {
+        if (!reportPlaybackRecordOnUnload(payload, apiRef.current) && storage) {
+          enqueueReport(storage, payload, Date.now());
+        }
+        return;
+      }
+      void reportPlaybackRecord(payload, apiRef.current).catch(() => {
+        if (storage) enqueueReport(storage, payload, Date.now());
+      });
+    },
+    [buildRecordPayload],
+  );
+  const finishRecordRef = useRef(finishRecord);
+  finishRecordRef.current = finishRecord;
+
+  /** 刷新「正在播放」标记（每秒循环里每 10 秒一次） */
+  const markRecordActive = useCallback(() => {
+    const record = recordRef.current;
+    if (!record || !apiRef.current.telemetry) return;
+    const storage = browserReportStorage();
+    const payload = storage ? buildRecordPayload("abnormal_exit") : null;
+    if (storage && payload) markActive(storage, payload, Date.now());
+  }, [buildRecordPayload]);
+  const markRecordActiveRef = useRef(markRecordActive);
+  markRecordActiveRef.current = markRecordActive;
+
+  /** 打开播放器时：上次没能收尾的播放转进队列，队列里积压的记录补发 */
   useEffect(() => {
-    qoeSnapshotRef.current = qoeSnapshot;
-  }, [qoeSnapshot]);
+    if (!apiRef.current.telemetry) return;
+    const storage = browserReportStorage();
+    if (!storage) return;
+    recoverAbnormalExits(storage, Date.now());
+    void flushReports(storage, (payload) => reportPlaybackRecord(payload, apiRef.current), Date.now());
+  }, []);
 
-  /** 离开这一集（切集或退出播放器）时补一次停止上报，并交出质量快照。 */
+  /** 离开这一集（切集或退出播放器）时补一次停止上报，并交出这次播放的记录。 */
   useEffect(() => {
     const snapshot = { ...unit };
     return () => {
+      // 记录不看「有没有报过开始」：出画前就退出、起播失败的播放也要报
+      finishRecordRef.current("fetch");
+      qoeRef.current = initialQoe();
       if (reportedStartRef.current === null) return;
       // 停止之后再到的暂停 / 心跳不能再上报：服务端会把刚结束的会话重建回来
       reportedStartRef.current = null;
@@ -1593,9 +2103,6 @@ export function VideoPlayer(props: VideoPlayerProps) {
         },
         apiRef.current,
       ).catch(() => undefined);
-      const metric = qoeSnapshotRef.current();
-      if (metric) void reportPlaybackMetric(metric, apiRef.current).catch(() => undefined);
-      qoeRef.current = initialQoe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unitKey]);
@@ -1623,13 +2130,70 @@ export function VideoPlayer(props: VideoPlayerProps) {
         (video && document.pictureInPictureElement === video) ||
         webkitMode === "picture-in-picture";
       if (sessionId && !inPip) stopPlaybackSessionOnUnload(sessionId, apiRef.current);
-      const metric = qoeSnapshotRef.current();
-      if (metric) reportPlaybackMetricOnUnload(metric, apiRef.current);
+      finishRecordRef.current("beacon");
     };
     window.addEventListener("pagehide", onPageHide);
     return () => window.removeEventListener("pagehide", onPageHide);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unitKey, sessionId]);
+
+  /**
+   * 开播提示「已沿用上次的选择」（与 iOS 同一口径，lib/player/remembered-choices.ts）：打开播放器后
+   * 第一集出画那一刻判一次，只提**不是默认**的项——画质上限来自这部片的记忆且真的限住了片源；
+   * 音轨是记着的、正在放的、又不是容器默认轨；字幕是记着的、且与「没有记忆时会挑的」不同。
+   * 服务端只记用户亲手选过的轨（默认轨策略改造第 1 步），所以「记着」就是用户选过。
+   */
+  const showRememberedNotice = useCallback(() => {
+    if (rememberedNoticeDoneRef.current) return;
+    const session = activeSessionRef.current;
+    if (!session) return;
+    rememberedNoticeDoneRef.current = true;
+    const qualityPart =
+      qualityFromMemoryRef.current && qualityLimits(quality, sourceHeight(session.source?.resolution))
+        ? quality
+        : null;
+    let audio: string | null = null;
+    const rememberedAudio = session.watch?.audio_track ?? null;
+    if (requestedAudio === null && rememberedAudio && rememberedAudio === session.decision.audio?.track_ref) {
+      const tracks = session.decision.audio_tracks;
+      const defaultRef = tracks.find((t) => t.is_default)?.ref ?? tracks[0]?.ref ?? null;
+      const option = audioOptions.find((o) => o.ref === rememberedAudio);
+      if (rememberedAudio !== defaultRef && option) {
+        audio = shortTrackLabel(option.label, audioOptions.map((o) => o.label));
+      }
+    }
+    let subtitle: string | null = null;
+    if (
+      !subtitleTouchedRef.current &&
+      !burnedSubtitle &&
+      (resume?.subtitle_track ?? null) !== null &&
+      selectedSubtitle !== pickInitialSubtitle(subtitles.options, null)
+    ) {
+      const option = selectedSubtitle
+        ? subtitles.options.find((o) => o.ref === selectedSubtitle)
+        : null;
+      subtitle = option
+        ? shortTrackLabel(option.label, subtitles.options.map((o) => o.label))
+        : selectedSubtitle
+          ? null
+          : "关闭";
+    }
+    const text = rememberedChoicesNotice({ quality: qualityPart, audio, subtitle });
+    if (!text) return;
+    flashNotice(text);
+    recordRef.current?.event("remembered_choices", text);
+  }, [
+    quality,
+    requestedAudio,
+    audioOptions,
+    burnedSubtitle,
+    resume?.subtitle_track,
+    selectedSubtitle,
+    subtitles,
+    flashNotice,
+  ]);
+  const showRememberedNoticeRef = useRef(showRememberedNotice);
+  showRememberedNoticeRef.current = showRememberedNotice;
 
   /**
    * 首帧只能用 `requestVideoFrameCallback` 量。
@@ -1648,6 +2212,9 @@ export function VideoPlayer(props: VideoPlayerProps) {
       qoe({ type: "first-frame", at: performance.now() });
       startupRef.current?.mark("首帧");
       reportStartup();
+      // 每路新流出画都记：第一次是起播，之后结束换轨 / 重连 / 换会话式跳转的计时
+      recordRef.current?.noteFirstFrame();
+      showRememberedNoticeRef.current();
     });
     return () => withFrameCallback.cancelVideoFrameCallback?.(handle);
   }, [video, state.session?.session_id, qoe, reportStartup]);
@@ -1678,12 +2245,20 @@ export function VideoPlayer(props: VideoPlayerProps) {
       if (stats?.totalFrames == null || stats.droppedFrames == null) return;
       qoe({ type: "frames", dropped: stats.droppedFrames, total: stats.totalFrames });
       if (!videoIsCopy || document.visibilityState !== "visible" || video.paused) return;
+      // 长按倍速时浏览器按音频节奏主动丢帧跟上，掉帧是预期内的，不能判成「直通放不动」
+      // （iOS 真机实测一按倍速 3 秒就被判掉帧、白白换成了转码）
+      if (video.playbackRate !== 1) {
+        tracker.reset();
+        return;
+      }
       const verdict = tracker.sample({ dropped: stats.droppedFrames, total: stats.totalFrames });
       if (verdict.degrade) {
-        dispatch({
-          type: "failed",
-          reason: `直通播放持续掉帧（${Math.round((verdict.ratio ?? 0) * 100)}%），正在换转码重试`,
-        });
+        // 与其它解码问题同一条路：直通档先原位重开一次，3 分钟内再掉才降档（failure-policy.ts）
+        tracker.reset();
+        handleFailureRef.current(
+          `直通播放持续掉帧（${Math.round((verdict.ratio ?? 0) * 100)}%）`,
+          "decode",
+        );
       }
     }, 1000);
     return () => {
@@ -1785,6 +2360,9 @@ export function VideoPlayer(props: VideoPlayerProps) {
         // 用户表态——wantsPlay 保持原值，新会话就位后自动续播。
         video?.pause();
         pendingFileMsRef.current = positionRef.current;
+        // 会话被回收也是一种断线：重开请求要是撞上服务端还没好，按退避再试而不是直接落错误页
+        reconnectingRef.current = true;
+        recordRef.current?.beginReconnect("会话已被服务端回收");
         dispatch({ type: "restart", startMs: positionRef.current });
       } finally {
         probing = false;
@@ -1804,6 +2382,77 @@ export function VideoPlayer(props: VideoPlayerProps) {
   // 播放控制
   // ---------------------------------------------------------------------
 
+  /**
+   * 错误页点「重试」：新的一次播放（与 iOS 一致）——先把这次失败的记录报上去，失败处置的额度清零，
+   * 再从刚才的位置重新要地址。
+   */
+  const retryFromError = useCallback(() => {
+    finishRecordRef.current("fetch");
+    qoeRef.current = initialQoe();
+    recordRef.current = new PlaybackRecord({
+      unit,
+      origin: "retry",
+      startedAt: performance.now(),
+      lab: readLabScenario(),
+    });
+    networkBudgetRef.current.reset();
+    retryBudgetRef.current.reset();
+    sessionBackoffRef.current.reset();
+    reconnectingRef.current = false;
+    failureInFlightRef.current = false;
+    reconnectSeqRef.current += 1;
+    suggestionRef.current = new QualitySuggestion();
+    dispatch({ type: "request", startMs: positionRef.current });
+    // unit 是对象字面量，按内容比较
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unitKey]);
+
+  /**
+   * 每 250 毫秒采一次播放头喂给播放记录（卡顿口径见 playback-record.ts）：用户想看、页面在前台、
+   * 会话在播 / 在等时，播放头 0.5 秒不走就是一次卡顿。起播、跳转、换轨的等待各有各的计时。
+   */
+  useEffect(() => {
+    if (!video) return;
+    const timer = window.setInterval(() => {
+      const record = recordRef.current;
+      if (!record) return;
+      const phase = phaseRef.current;
+      const active =
+        wantsPlayRef.current &&
+        document.visibilityState === "visible" &&
+        !video.ended &&
+        (phase === "playing" || phase === "buffering" || phase === "seeking");
+      record.samplePlayhead(Math.round(video.currentTime * 1000), active, () =>
+        bufferedAhead(video) < 0.5 ? "buffer_empty" : "decoder",
+      );
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [video]);
+
+  /** 接受换画质的提议：改用推荐的画质（服务端转码），按片记住 */
+  const acceptQualityOffer = useCallback(() => {
+    const offer = qualityOfferRef.current;
+    if (!offer) return;
+    dismissQualityOffer();
+    recordRef.current?.event("quality_offer_accepted", `改用 ${offer.maxHeight}p`);
+    reportPlaybackClientLog(
+      "quality-suggestion-accepted",
+      { suggested_height: offer.maxHeight },
+      apiRef.current,
+    );
+    selectQualityRef.current(offer.maxHeight);
+  }, [dismissQualityOffer]);
+
+  /** 卸载时收掉换画质提示的自动收起计时器 */
+  useEffect(
+    () => () => {
+      if (qualityOfferTimerRef.current !== null) window.clearTimeout(qualityOfferTimerRef.current);
+      if (sessionRetryTimerRef.current !== null) window.clearTimeout(sessionRetryTimerRef.current);
+      reconnectSeqRef.current += 1;
+    },
+    [],
+  );
+
   const togglePlay = useCallback(() => {
     if (!video) return;
     if (video.paused) {
@@ -1811,6 +2460,8 @@ export function VideoPlayer(props: VideoPlayerProps) {
       wantsPlayRef.current = true;
       autoplayLastRef.current = null;
       setAutoplay(null);
+      // 暂停攒过缓冲再接着看：卡顿提示从恢复这一刻重新计
+      suggestionRef.current.restartGrace();
       if (deadSessionRef.current) {
         // 暂停期间会话已被服务端回收（见心跳探活）：流是死的，play() 只会
         // 永远转圈。带着当前位置原地重开，新会话就位后自动续播。
@@ -1913,7 +2564,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
         // 点三下就是 30 秒）。清成 null 的话第三下会退回「开关控制层」，
         // 而胶囊上的累加读数还在往上走——手上的动作与屏幕说的对不上。
         tapRef.current = { at: now, chromeBefore: previous?.chromeBefore ?? chromeVisible };
-        seekByRef.current(action.seconds);
+        seekByRef.current(action.seconds, "gesture");
         // 双击是「盲操作」：没有按钮的按下反馈，必须给方向提示，
         // 且连点累加（点三下显示 30 秒，与键盘同一套胶囊）
         flashSeek(action.seconds);
@@ -1937,7 +2588,11 @@ export function VideoPlayer(props: VideoPlayerProps) {
   const selectAudio = useCallback(
     (ref: string) => {
       setRequestedAudio(ref);
-      if (ref === (state.session?.decision.audio?.track_ref ?? null)) return;
+      const current = state.session?.decision.audio?.track_ref ?? null;
+      if (ref === current) return;
+      // 换轨计时：新会话出画即生效；首帧后 30 秒内第一次换掉自动选的轨 = 猜错了
+      recordRef.current?.noteAudioChange(current, ref);
+      recordRef.current?.beginSwitch("audio", current, ref);
       // 换会话会让画面空一段，先把当前帧冻住盖上去
       freezeFrame();
       // 换流期间先把旧流停住，否则进度条会在新会话起来前继续跳
@@ -1961,11 +2616,20 @@ export function VideoPlayer(props: VideoPlayerProps) {
   const selectSubtitle = useCallback(
     (ref: string | null) => {
       subtitleTouchedRef.current = true;
+      const record = recordRef.current;
+      record?.noteSubtitleChange(selectedSubtitle, ref);
+      record?.beginSwitch("subtitle", selectedSubtitle, ref ?? "off");
       setSelectedSubtitle(ref);
       const target = ref ? subtitles.options.find((o) => o.ref === ref) : null;
       const wantBurn = target?.kind === "pgs";
-      if (!wantBurn && burnedSubtitle === null) return; // 纯文本切换，前端搞定
-      if (wantBurn && burnedSubtitle === ref) return; // 已在烧这条，白重启
+      if (!wantBurn && burnedSubtitle === null) {
+        record?.closeSwitch(true); // 纯文本切换，前端搞定，即刻生效
+        return;
+      }
+      if (wantBurn && burnedSubtitle === ref) {
+        record?.closeSwitch(true); // 已在烧这条，白重启
+        return;
+      }
       setRequestedSubtitle(ref ?? "off");
       freezeFrame();
       video?.pause();
@@ -1973,7 +2637,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
       pendingFileMsRef.current = positionRef.current;
       dispatch({ type: "request", startMs: positionRef.current });
     },
-    [subtitles, burnedSubtitle, video, freezeFrame],
+    [subtitles, burnedSubtitle, selectedSubtitle, video, freezeFrame],
   );
 
   /**
@@ -2004,16 +2668,34 @@ export function VideoPlayer(props: VideoPlayerProps) {
    * 换画质上限。与换音轨同一条路：重开会话（约一秒停顿）。
    *
    * 唯一跳过重启的情况：当前是直通（copy）且新上限装得下源分辨率——
-   * 此时服务端会给出一模一样的计划，重启纯属白断一次。videoHeight 在
-   * copy 档就是源高度，可以直接拿来判。
+   * 此时服务端会给出一模一样的计划，重启纯属白断一次。判法见
+   * quality.ts 的 qualityChangeNeedsRestart（起播没出画时 videoHeight 是 0）。
    */
   const selectQuality = useCallback(
     (maxHeight: number | null) => {
       setQuality(maxHeight);
-      saveQualityPreference(maxHeight);
+      qualityFromMemoryRef.current = false;
+      dismissQualityOffer();
+      // 按片记：上限不低于片源等于没限，记成「自动」（下次打开照样原画直通）。分享的访客不记
+      const session = state.session;
+      if (apiRef.current.telemetry) {
+        const limiting = qualityLimits(maxHeight, sourceHeight(session?.source?.resolution));
+        rememberQualityFor(unit.media_item_id, limiting ? maxHeight : null);
+      }
       if (maxHeight === quality) return;
-      const copying = state.session?.decision.video?.action === "copy";
-      if (copying && (maxHeight === null || (video?.videoHeight ?? 0) <= maxHeight)) return;
+      const record = recordRef.current;
+      record?.noteBehavior("quality_change", quality === null ? "auto" : String(quality), maxHeight === null ? "auto" : String(maxHeight));
+      record?.beginSwitch("quality", quality === null ? null : String(quality), maxHeight === null ? null : String(maxHeight));
+      const needsRestart = qualityChangeNeedsRestart({
+        copying: session?.decision.video?.action === "copy",
+        maxHeight,
+        sourceResolution: session?.source?.resolution,
+        videoHeight: video?.videoHeight ?? 0,
+      });
+      if (!needsRestart) {
+        record?.closeSwitch(true); // 视频直通且新上限没限住片源：服务端给的计划一模一样，不用重开
+        return;
+      }
       // 换会话会让画面空一段，先把当前帧冻住盖上去
       freezeFrame();
       video?.pause();
@@ -2023,19 +2705,37 @@ export function VideoPlayer(props: VideoPlayerProps) {
       // cleanup，避免上一个硬件档的迟到错误把本次请求推回软件档。
       dispatch({ type: "request", startMs: positionRef.current });
     },
-    [quality, state.session, video, freezeFrame],
+    // unit 是对象字面量，按内容比较（unitKey）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [quality, state.session, video, freezeFrame, dismissQualityOffer, unitKey],
   );
+  /** 换画质提示卡的「改用」按钮定义在它前面，走 ref 拿最新的 */
+  const selectQualityRef = useRef(selectQuality);
+  selectQualityRef.current = selectQuality;
 
   /**
    * 跳转。转码会话是「从 start_ms 起、边转边给」的单向流：拖出已转区间必须
    * 换会话，干等 ffmpeg 追上来只会让用户看着永远转不完的圈。
    */
   const seekToFileMs = useCallback(
-    (rawFileMs: number) => {
+    (rawFileMs: number, source: SeekSource = "button") => {
       if (!video) return;
       // 先夹进片长之内：越过片尾的落点会让换会话那条路开出一个转不出任何
       // 东西的会话（理由见 timeline.ts 的 clampSeekTarget）。
       const fileMs = clampSeekTarget(rawFileMs, durationMs);
+      // 播放记录的跳转（playback-qoe.md §3.1）：从用户动作算到落点出画；换会话 / 落在缓冲里分开记
+      const noteSeek = (restart: boolean, buffered: boolean) => {
+        recordRef.current?.beginSeek({
+          source,
+          fromMs: positionRef.current,
+          toMs: fileMs,
+          buffered,
+          paused: video.paused,
+          restart,
+        });
+        // 跳转的等待不算「卡」，接下来 10 秒的缓冲也不算（换画质提示的宽限）
+        suggestionRef.current.restartGrace();
+      };
       // 会话正在重开的空档（换音轨 / 换画质 / 心跳自愈 / 上一次 seek 换流）：
       // video 上已经没有流了，native seek 打在空元素上什么也不会发生，而在途
       // 的新会话仍会落回 pendingFileMs 那个**旧**位置——用户看到进度条跳过去
@@ -2048,6 +2748,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
         // 那一刻按下的快进键不该把续播点顶掉，让它照旧落空。
         if (!isBusy(state.phase) || state.startMs === null) return;
         qoe({ type: "seek-requested", at: performance.now() });
+        noteSeek(true, false);
         pendingFileMsRef.current = fileMs;
         setPositionMs(fileMs);
         dispatch({ type: "restart", startMs: fileMs });
@@ -2077,6 +2778,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
           return;
         }
         qoe({ type: "seek-requested", at: performance.now() });
+        noteSeek(false, isWithinRanges(video.buffered, seconds));
         // 落点在缓冲之外：hls.js 会清掉当前这段缓冲从新落点重新装载，中间
         // 那几百毫秒到几秒（外网上就是几秒）`<video>` 一帧都没有，浏览器只
         // 能画黑。先把当前帧冻住盖上去，等新位置出画再撤。缓冲之内的跳转
@@ -2116,6 +2818,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
         return;
       }
       qoe({ type: "seek-requested", at: performance.now() });
+      noteSeek(true, false);
       // 换会话必然让画面空一段（旧引擎销毁会把 src 摘干净），先把画面冻住；
       // 这条路恒是远跳，盖落点的缩略图
       freezeFrame(plan.startMs);
@@ -2140,9 +2843,15 @@ export function VideoPlayer(props: VideoPlayerProps) {
    * 静默 400ms 后提交唯一一次跳转。null = 没有在途的累积。
    */
   const [pendingSeekMs, setPendingSeekMs] = useState<number | null>(null);
-  const pendingSeekRef = useRef<{ targetMs: number | null; timer: number | null }>({
+  const pendingSeekRef = useRef<{
+    targetMs: number | null;
+    timer: number | null;
+    /** 累积中的这串跳转从哪来（播放记录分组用） */
+    source: SeekSource;
+  }>({
     targetMs: null,
     timer: null,
+    source: "button",
   });
 
   /** 撤销在途的累积（进度条拖动、横滑等其它跳转入口接管时必须先清） */
@@ -2182,7 +2891,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
 
   // 上下界都由 nextSeekTarget / seekToFileMs 里的 clampSeekTarget 收住
   const seekBy = useCallback(
-    (seconds: number) => {
+    (seconds: number, source: SeekSource = "button") => {
       const target = nextSeekTarget({
         pendingMs: pendingSeekRef.current.targetMs,
         positionMs: positionRef.current,
@@ -2196,11 +2905,12 @@ export function VideoPlayer(props: VideoPlayerProps) {
       if (windowMs <= 0) {
         // 便宜的跳转立刻执行，手感最好——这里合并只是凭空加延迟
         cancelPendingSeek();
-        seekToFileMs(target);
+        seekToFileMs(target, source);
         return;
       }
       const pending = pendingSeekRef.current;
       pending.targetMs = target;
+      pending.source = source;
       // 读数立刻跟上：进度条与时间文字都走 overrideMs，用户按下就看到落点
       setPendingSeekMs(target);
       if (pending.timer !== null) window.clearTimeout(pending.timer);
@@ -2211,7 +2921,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
         setPendingSeekMs(null);
         // 走 ref 而不是闭包里的那个：这 400 毫秒里会话可能已经换过一轮
         // （降档、换轨、心跳自愈），旧闭包会拿着过期的 session/startMs 去跳
-        if (committed !== null) seekToFileMsRef.current(committed);
+        if (committed !== null) seekToFileMsRef.current(committed, pending.source);
       }, windowMs);
     },
     [seekToFileMs, cancelPendingSeek],
@@ -2389,6 +3099,8 @@ export function VideoPlayer(props: VideoPlayerProps) {
       // 对着一条看不见的进度条在拖，松手才知道跳到了哪儿。
       bumpChromeActivity();
       if (!video) return;
+      // 连续拖动的跳转耗时以第一次拖动为起点（playback-qoe.md §1.3）
+      recordRef.current?.noteScrubActivity();
       const plan = planScrubFollow({
         now: performance.now(),
         state: scrubRef.current,
@@ -2424,11 +3136,11 @@ export function VideoPlayer(props: VideoPlayerProps) {
    * 计时器会在拖动落地之后再把画面拽回连按的落点。
    */
   const commitSeek = useCallback(
-    (fileMs: number) => {
+    (fileMs: number, source: SeekSource = "scrub") => {
       cancelPendingSeek();
       // 排队中的跟随落点比这次提交旧，让它落地就是把画面往回拽一下
       cancelScrubFollow();
-      seekToFileMs(fileMs);
+      seekToFileMs(fileMs, source);
     },
     [cancelPendingSeek, cancelScrubFollow, seekToFileMs],
   );
@@ -2650,7 +3362,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
           togglePlay();
           break;
         case "seek-by":
-          seekBy(action.seconds);
+          seekBy(action.seconds, "keyboard");
           // 键盘是「盲操作」：不给方向提示，用户只能盯着进度条数字猜有没有
           // 按上。按钮点击不发这个提示——按钮自己就是可见反馈
           flashSeek(action.seconds);
@@ -2658,7 +3370,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
         case "seek-percent":
           // 走 commitSeek：数字键是「跳到片子的某个比例」这种绝对跳转，
           // 必须先撤掉在途的连按累积，否则 400 毫秒后它会把画面拽回去
-          if (durationMs) commitSeek((durationMs * action.percent) / 100);
+          if (durationMs) commitSeek((durationMs * action.percent) / 100, "keyboard");
           break;
         case "volume-by":
           if (video) {
@@ -2713,8 +3425,8 @@ export function VideoPlayer(props: VideoPlayerProps) {
     });
     mediaSession.setActionHandler("play", () => togglePlay());
     mediaSession.setActionHandler("pause", () => togglePlay());
-    mediaSession.setActionHandler("seekbackward", () => seekBy(-10));
-    mediaSession.setActionHandler("seekforward", () => seekBy(10));
+    mediaSession.setActionHandler("seekbackward", () => seekBy(-10, "remote"));
+    mediaSession.setActionHandler("seekforward", () => seekBy(10, "remote"));
     mediaSession.setActionHandler("nexttrack", next ? () => onPlayNext() : null);
     mediaSession.setActionHandler("previoustrack", prev ? () => onPlayPrev() : null);
     // 锁屏/通知栏那条进度条**能拖**，靠的就是这个动作。不注册的话它要么
@@ -2725,7 +3437,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
         if (typeof details.seekTime !== "number") return;
         // 走 commitSeek：锁屏上拖一下与拖进度条是同一件事，
         // 在途的连按累积要先撤掉，否则 400ms 后它会把画面拽回去
-        commitSeekRef.current(details.seekTime * 1000);
+        commitSeekRef.current(details.seekTime * 1000, "remote");
       });
     } catch {
       // 老浏览器不认这个动作，锁屏上就只剩按钮，不影响播放
@@ -3106,7 +3818,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
       const gesture = swipeGestureRef.current;
       swipeGestureRef.current = null;
       if (gesture?.intent === "horizontal") {
-        if (commit) commitSeekRef.current(gesture.targetMs);
+        if (commit) commitSeekRef.current(gesture.targetMs, "gesture");
         hideSeekPreview();
         return;
       }
@@ -3638,6 +4350,42 @@ export function VideoPlayer(props: VideoPlayerProps) {
           </div>
         ) : null}
 
+        {/* 换低画质的提议（lib/player/quality-suggestion.ts，与 App 同一张卡）：不打断播放，写明实测速度
+            与这一版要的速度，换不换由用户定——也可以暂停攒一会缓冲接着看原画。20 秒没理会自动收起。 */}
+        {qualityOffer && !locked ? (
+          <div
+            {...{ noautohide: "" }}
+            data-testid="quality-offer"
+            className="absolute left-1/2 top-[calc(3.75rem_+_var(--safe-top))] z-30 w-[min(420px,calc(100vw-2rem))] -translate-x-1/2"
+          >
+            <div className="player-flash-in rounded-2xl bg-black/80 p-4 text-white shadow-[0_10px_28px_rgba(0,0,0,0.45)] backdrop-blur-md">
+              <p className="text-[15px] font-semibold">网速跟不上当前画质</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-white/75">
+                实测约 {formatLoadingSpeed(qualityOffer.measuredBps) ?? "很慢"}，这一版需要约{" "}
+                {formatLoadingSpeed(qualityOffer.requiredBps) ?? "更快"}。可以暂停攒一会缓冲再看，或改用{" "}
+                {qualityOffer.maxHeight}p（服务端转码，画质会降低）。
+              </p>
+              <div className="mt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={dismissQualityOffer}
+                  className="rounded-full bg-white/15 px-4 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-white/25"
+                >
+                  继续当前画质
+                </button>
+                <button
+                  type="button"
+                  data-testid="quality-offer-accept"
+                  onClick={acceptQualityOffer}
+                  className="rounded-full bg-[var(--player-accent)] px-4 py-1.5 text-[13px] font-semibold text-black transition-colors hover:bg-[var(--player-accent-hover)]"
+                >
+                  改用 {qualityOffer.maxHeight}p
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {/* 键盘快进/快退的方向提示：快退在画面左侧、快进在右侧，连按累计。
             与暂停压暗层同 z：它只是读数，不该压过报错/同意这些要拍板的层。 */}
         {seekFlash ? (
@@ -3717,7 +4465,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
               <div className="mt-6 flex justify-center gap-3">
                 <button
                   type="button"
-                  onClick={() => dispatch({ type: "request", startMs: positionRef.current })}
+                  onClick={retryFromError}
                   className="rounded-full bg-[var(--player-accent)] px-6 py-2.5 text-[14px] font-semibold text-black transition-colors hover:bg-[var(--player-accent-hover)]"
                 >
                   重试

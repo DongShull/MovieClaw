@@ -194,8 +194,3 @@ export function summarize(state: State): QoeSummary {
     watched_ms: Math.round(state.watchedMs),
   };
 }
-
-/** 一次会话是否值得上报：没真的播起来就没有意义，只会污染统计。 */
-export function isReportable(summary: QoeSummary): boolean {
-  return summary.watched_ms >= 3000 || summary.ttff_ms !== null;
-}

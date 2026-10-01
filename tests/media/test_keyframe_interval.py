@@ -108,8 +108,8 @@ def test_last_keyframe_at_or_before_picks_nearest():
 
 
 class TestMatroskaCuesFastPath:
-    """Matroska 的关键帧间隔先看容器自带的 Cues，不去网络挂载上采样三段码流
-    （NAS 上每个文件第一次播放在这里卡 0.4~1.4 秒）；索引不可信时才退回采样。"""
+    """Matroska / MP4 的关键帧间隔先看容器自带的索引（Cues / moov 样本表），不去网络挂载上
+    采样三段码流（NAS 上每个文件第一次播放在这里卡 0.4~2.2 秒）；索引不可信时才退回采样。"""
 
     @staticmethod
     def _setup(tmp_path, monkeypatch, suffix, times):
@@ -120,7 +120,13 @@ class TestMatroskaCuesFastPath:
         path.write_bytes(b"x")
         media_probe._keyframe_cache.clear()
         index = KeyframeIndex(times_s=tuple(times)) if times else None
-        monkeypatch.setattr(media_probe, "read_keyframe_index", lambda _path: index)
+
+        def fake_index(_path, *, allow_ffprobe=True):
+            # 决策阶段只能走读索引的快路径：MP4 样本表与码流对不上时不许为估间隔通读整片
+            assert allow_ffprobe is False
+            return index
+
+        monkeypatch.setattr(media_probe, "read_keyframe_index", fake_index)
         probed: list[str] = []
 
         def fake_probe(file_path, _duration):
@@ -156,7 +162,15 @@ class TestMatroskaCuesFastPath:
         media_probe, path, probed = self._setup(tmp_path, monkeypatch, ".mkv", [])
         assert media_probe.probe_keyframe_interval(path, 1000) == 4.2
         media_probe, path, probed = self._setup(
-            tmp_path, monkeypatch, ".mp4", [i * 2.0 for i in range(500)]
+            tmp_path, monkeypatch, ".ts", [i * 2.0 for i in range(500)]
         )
         assert media_probe.probe_keyframe_interval(path, 1000) == 4.2
         assert probed == [str(path)]
+
+    def test_mp4_moov_index_answers_without_sampling(self, tmp_path, monkeypatch):
+        """MP4 读 moov 样本表（只走快路径）：NAS 实测采样要 2.2 秒的片子，读表零点几秒。"""
+        media_probe, path, probed = self._setup(
+            tmp_path, monkeypatch, ".mp4", [i * 2.0 for i in range(500)]
+        )
+        assert media_probe.probe_keyframe_interval(path, 1000) == 2.0
+        assert probed == []

@@ -211,3 +211,33 @@ def test_remembered_clients_are_bounded(tmp_path):
     assert len(warmup._capabilities) == warmup._MAX_CLIENTS
     assert warmup._known_capability(ME, "UA-0") is None
     assert warmup._known_capability(ME, f"UA-{warmup._MAX_CLIENTS + 9}") is CHROME
+
+
+# ---------------------------------------------------------------------------
+# 能力从哪来：网页直接开会话（不调 /decide），开会话也得记下
+# ---------------------------------------------------------------------------
+
+
+def test_session_start_remembers_browser_capability_but_not_the_app(monkeypatch):
+    from types import SimpleNamespace
+
+    from movieclaw_api.api.routes import playback as routes
+    from movieclaw_api.schemas.playback import PlaybackSessionRequest
+
+    warmup._capabilities.clear()
+    principal = SimpleNamespace(kind="admin", name="yee")
+    capability = {
+        "video": [{"codec": "h264", "max_height": 2160}],
+        "audio": [{"codec": "aac", "max_channels": 2}],
+        "containers": ["mp4", "hls-fmp4"],
+    }
+    web = PlaybackSessionRequest(media_item_id=1, capability=capability, client="web")
+    routes._remember_session_capability(web, principal, CHROME_UA)
+    assert warmup._known_capability("admin:yee", CHROME_UA) is not None
+    app = PlaybackSessionRequest(media_item_id=1, capability=capability, client="ios")
+    routes._remember_session_capability(app, principal, IOS_UA)
+    assert warmup._known_capability("admin:yee", IOS_UA) is None
+    # 分享的访客（不带 client）照样记：同样是浏览器
+    guest = PlaybackSessionRequest(media_item_id=1, capability=capability)
+    routes._remember_session_capability(guest, SimpleNamespace(kind="share", name="x"), CHROME_UA)
+    assert warmup._known_capability("share:x", CHROME_UA) is not None

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { initialQoe, isReportable, liveStats, reduceQoe, summarize } from "../lib/player/qoe.ts";
+import { initialQoe, liveStats, reduceQoe, summarize } from "../lib/player/qoe.ts";
 
 function run(events) {
   return summarize(events.reduce(reduceQoe, initialQoe()));
@@ -194,26 +194,4 @@ test("没 seek 过就没有跳转读数；卡顿累计照常给", () => {
   assert.equal(live.lastSeekMs, null);
   assert.equal(live.rebufferCount, 1);
   assert.equal(live.rebufferMs, 2500);
-});
-
-test("没播起来的会话不上报，免得污染统计", () => {
-  assert.equal(isReportable(run([])), false);
-  assert.equal(isReportable(run([{ type: "play-requested", at: 0 }])), false);
-});
-
-test("播了三秒以上或者出过画就值得上报", () => {
-  assert.equal(
-    isReportable(run([
-      { type: "tick", at: 0, playing: true },
-      { type: "tick", at: 4000, playing: true },
-    ])),
-    true,
-  );
-  assert.equal(
-    isReportable(run([
-      { type: "play-requested", at: 0 },
-      { type: "first-frame", at: 300 },
-    ])),
-    true,
-  );
 });

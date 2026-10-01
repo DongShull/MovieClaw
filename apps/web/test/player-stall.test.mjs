@@ -3,17 +3,19 @@ import test from "node:test";
 
 import {
   DECODE_STALL_MIN_BUFFER_S,
-  DIRECT_STARVE_TIMEOUT_S,
+  DIRECT_DEAD_S,
   MAX_NUDGES,
   NUDGE_AT_S,
+  SERVER_DEAD_S,
   STALL_TIMEOUT_S,
-  STARVE_TIMEOUT_S,
   bufferedAhead,
   classifyStall,
   shouldNudge,
   stallReason,
 } from "../lib/player/stall.ts";
 
+// 与 iOS 的 StallWatch 同一套规则（MovieClawTests/PlaybackWatchdogsTests.swift）：
+// 缓冲见底时只看字节还在不在进来——在进来就是线路慢，一直等；连续十几秒一个字节都没有才算断线。
 const base = {
   paused: false,
   ended: false,
@@ -21,88 +23,55 @@ const base = {
   advanced: false,
   bufferedAhead: 10,
   stalledFor: 0,
+  silentFor: 0,
 };
 
 test("正在前进就不是停顿", () => {
-  assert.equal(classifyStall({ ...base, advanced: true, stalledFor: 99 }), "ok");
+  assert.equal(classifyStall({ ...base, advanced: true, stalledFor: 99, silentFor: 99 }), "ok");
 });
 
 for (const flag of ["paused", "ended", "seeking"]) {
   test(`${flag} 期间不算停顿——用户自己按的暂停不该被当成故障`, () => {
-    assert.equal(classifyStall({ ...base, [flag]: true, stalledFor: 99 }), "ok");
+    assert.equal(classifyStall({ ...base, [flag]: true, stalledFor: 99, silentFor: 99 }), "ok");
   });
 }
 
-test("缓冲里有数据却放不动 = 解码器卡死，尽快降档", () => {
+test("缓冲里有数据却放不动 = 解码器卡死", () => {
+  assert.equal(classifyStall({ ...base, bufferedAhead: 10, stalledFor: STALL_TIMEOUT_S }), "decode-stalled");
+  assert.equal(classifyStall({ ...base, bufferedAhead: 10, stalledFor: STALL_TIMEOUT_S - 1 }), "ok");
+});
+
+test("线路慢：缓冲见底但字节一直在进来，等多久都不判失败（不再自动转码降画质）", () => {
+  // 2026-09-28 iOS 拍板「网络问题不是降级信号」：原来这里等满 45 秒（直出 15 秒）就判缺粮，
+  // 网页随即自动把直通档改成转码
+  assert.equal(classifyStall({ ...base, bufferedAhead: 0, stalledFor: 600, silentFor: 0 }), "ok");
+  assert.equal(classifyStall({ ...base, bufferedAhead: 1.5, stalledFor: 600, silentFor: 0 }), "ok");
+});
+
+test("连接断了：缓冲见底且连续没有字节，服务端流 45 秒、直出 15 秒", () => {
+  const empty = { ...base, bufferedAhead: 0, stalledFor: 999 };
+  assert.equal(classifyStall({ ...empty, silentFor: SERVER_DEAD_S - 1 }), "ok");
+  assert.equal(classifyStall({ ...empty, silentFor: SERVER_DEAD_S }), "dead");
+  assert.equal(classifyStall({ ...empty, silentFor: DIRECT_DEAD_S, deadLimitS: DIRECT_DEAD_S }), "dead");
+  assert.equal(classifyStall({ ...empty, silentFor: DIRECT_DEAD_S - 1, deadLimitS: DIRECT_DEAD_S }), "ok");
+  assert.ok(DIRECT_DEAD_S < SERVER_DEAD_S);
+  assert.ok(DIRECT_DEAD_S > STALL_TIMEOUT_S);
+});
+
+test("前方剩一两秒卡住是在等数据，不是解码卡死：按断线规则判，不按 8 秒判", () => {
+  // 转码会话里 buffered 尾 = 已转出的全部，播放头贴着尾巴跑时前方常剩 0.5~2 秒（真机踩中：
+  // 「选个 PGS 字幕先给我降了一档」）
+  assert.equal(classifyStall({ ...base, bufferedAhead: 1.5, stalledFor: STALL_TIMEOUT_S }), "ok");
   assert.equal(
-    classifyStall({ ...base, bufferedAhead: 10, stalledFor: STALL_TIMEOUT_S }),
+    classifyStall({ ...base, bufferedAhead: DECODE_STALL_MIN_BUFFER_S, stalledFor: STALL_TIMEOUT_S }),
     "decode-stalled",
   );
 });
 
-test("解码卡死的判定不能太急，免得把网络抖动当故障", () => {
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: 10, stalledFor: STALL_TIMEOUT_S - 1 }),
-    "ok",
-  );
-});
-
-test("缓冲耗尽 = 在等上游供流，短时间内绝不判失败", () => {
-  // 这正是「软件转码 4K，编码慢于实时播放」的现场：判成失败会触发降档，
-  // 而档 4 已是最低，用户看到的是「所有播放方式都失败了」——真实原因只是
-  // 服务器转得慢。
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: 0, stalledFor: STALL_TIMEOUT_S }),
-    "ok",
-  );
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: 0, stalledFor: STARVE_TIMEOUT_S - 1 }),
-    "ok",
-  );
-});
-
-test("供流也不能无限等：会话半路死掉同样是缓冲耗尽后再无新数据", () => {
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: 0, stalledFor: STARVE_TIMEOUT_S }),
-    "starved",
-  );
-});
-
-test("供流的容忍度必须远大于解码卡死", () => {
-  assert.ok(STARVE_TIMEOUT_S > STALL_TIMEOUT_S * 3);
-});
-
-test("档 0 直出没有转码器可等：缺粮上限按传入的短窗口判", () => {
-  // 45 秒是给转码器追上来留的；直出缓冲耗尽后十几秒没有一个字节只能是线路
-  // 装不下，带宽降档不该让用户对着转圈等满 45 秒
-  assert.ok(DIRECT_STARVE_TIMEOUT_S < STARVE_TIMEOUT_S);
-  assert.ok(DIRECT_STARVE_TIMEOUT_S > STALL_TIMEOUT_S);
-  const direct = { ...base, bufferedAhead: 0, starveTimeoutS: DIRECT_STARVE_TIMEOUT_S };
-  assert.equal(classifyStall({ ...direct, stalledFor: DIRECT_STARVE_TIMEOUT_S - 1 }), "ok");
-  assert.equal(classifyStall({ ...direct, stalledFor: DIRECT_STARVE_TIMEOUT_S }), "starved");
-  // 不传就是转码会话的 45 秒
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: 0, stalledFor: DIRECT_STARVE_TIMEOUT_S }),
-    "ok",
-  );
-  // 原因文案跟着窗口走：直出说的是线路，不是转码
-  assert.match(stallReason("starved", DIRECT_STARVE_TIMEOUT_S), /线路/);
-  assert.match(stallReason("starved"), /转码/);
-});
-
-test("零点几秒的前方缓冲视同没有", () => {
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: 0.2, stalledFor: STALL_TIMEOUT_S }),
-    "ok",
-  );
-});
-
-test("两种原因给的是不同的中文说法", () => {
-  const decode = stallReason("decode-stalled");
-  const starve = stallReason("starved");
-  assert.notEqual(decode, starve);
-  assert.match(decode, /吃不下/);
-  assert.match(starve, /转码速度跟不上|转码已中断/);
+test("两种原因给的是不同的中文说法，断线按直出 / 服务端流说清是谁没数据", () => {
+  assert.match(stallReason("decode-stalled"), /吃不下/);
+  assert.match(stallReason("dead", DIRECT_DEAD_S), /连续 15 秒没有收到数据/);
+  assert.match(stallReason("dead"), /服务端/);
 });
 
 function fakeVideo(currentTime, ranges) {
@@ -121,33 +90,11 @@ test("前方缓冲取的是当前所在的那段", () => {
 });
 
 test("落在缓冲空洞里记 0", () => {
-  // seek 到还没下载的区间：前方没有数据，属于"等供流"而不是"解码卡死"
   assert.equal(bufferedAhead(fakeVideo(20, [[0, 12], [30, 40]])), 0);
 });
 
 test("没有任何缓冲记 0", () => {
   assert.equal(bufferedAhead(fakeVideo(0, [])), 0);
-});
-
-test("前方剩一两秒卡住是「追上了转码器」，不是解码卡死——按缺粮长限等", () => {
-  // 转码会话里 buffered 尾 = 已转出的全部，播放头贴着尾巴跑时前方常剩
-  // 0.5~2 秒。烧录/软转会话起步慢，按 8 秒解码卡死判会误杀降档（真机踩中：
-  // 「选个 PGS 字幕先给我降了一档」）。
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: 1.5, stalledFor: STALL_TIMEOUT_S }),
-    "ok",
-  );
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: 1.5, stalledFor: STARVE_TIMEOUT_S }),
-    "starved",
-  );
-});
-
-test("解码卡死要求前方缓冲至少 DECODE_STALL_MIN_BUFFER_S", () => {
-  assert.equal(
-    classifyStall({ ...base, bufferedAhead: DECODE_STALL_MIN_BUFFER_S, stalledFor: STALL_TIMEOUT_S }),
-    "decode-stalled",
-  );
 });
 
 // ---------------------------------------------------------------------------

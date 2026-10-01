@@ -1,0 +1,9 @@
+{
+  "name": "movieclaw-web-faultlab",
+  "private": true,
+  "type": "module",
+  "description": "网页播放器的真实浏览器故障注入实验台（docs/design/web-player.md §14）",
+  "dependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}
