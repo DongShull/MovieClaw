@@ -656,6 +656,18 @@ export interface PlaybackChapterMark {
   title: string | null;
 }
 
+/**
+ * 可跳过的一段（docs/design/skip-intro.md）：服务端整季比对认出来的，客户端只管用。
+ * intro 片头（显示「跳过片头」）、outro 片尾（提前显示「即将播放」；to_end 为假时后面
+ * 还有内容，按钮是「跳过片尾」）、other 片头前的冠名广告 / 发行许可（显示「跳过」）。
+ */
+export interface PlaybackSegment {
+  type: "intro" | "outro" | "other";
+  start_ms: number;
+  end_ms: number;
+  to_end: boolean;
+}
+
 export interface PlaybackSession {
   decision: PlaybackDecision;
   /** 档 0 没有会话（原文件直出），此处为 null */
@@ -676,6 +688,8 @@ export interface PlaybackSession {
   hw_backend: string | null;
   /** 进度条上的章节刻度；没有内嵌章节的文件是空表（合成章节服务端不下发） */
   chapters?: PlaybackChapterMark[];
+  /** 片头 / 片尾 / 其他可跳过的段；剧集库开了「识别片头片尾」且这一季识别过才有 */
+  segments?: PlaybackSegment[];
   /** 本单元的观看状态快照（§6.10）。续播点已由服务端并入 start_ms，这里
    * 整份带回给前端预填时间轴、恢复字幕记忆——起播不再单独问 /resume */
   watch: PlaybackWatchState | null;

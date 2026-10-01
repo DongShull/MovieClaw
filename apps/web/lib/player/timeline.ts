@@ -197,3 +197,50 @@ export function isInEndCredits(
   const remaining = (durationMs - positionMs) / 1000;
   return remaining > 0 && remaining <= windowSeconds;
 }
+
+/**
+ * 片头片尾（docs/design/skip-intro.md）：服务端下发的一段。与 `lib/api/playback.ts`
+ * 的 `PlaybackSegment` 同形，这里只声明用到的字段，保持本模块不依赖接口层。
+ */
+export interface SkipSegment {
+  type: "intro" | "outro" | "other";
+  start_ms: number;
+  end_ms: number;
+  to_end: boolean;
+}
+
+/** 离段尾不足这么多就不再给「跳过」：按下去只省一两秒，还会和段尾的画面切换撞在一起 */
+export const SKIP_TAIL_MS = 3000;
+
+/**
+ * 当前位置该给哪个「跳过」按钮：片头 / 片头前的冠名广告 / 后面还有内容的片尾。
+ *
+ * 放到结尾的片尾不在这里——它交给「即将播放」卡片（`isInOutro`），两个按钮不同时出现。
+ */
+export function activeSkipSegment(
+  segments: readonly SkipSegment[] | undefined,
+  positionMs: number,
+): SkipSegment | null {
+  for (const seg of segments ?? []) {
+    if (seg.type === "outro" && seg.to_end) continue;
+    if (positionMs >= seg.start_ms && positionMs < seg.end_ms - SKIP_TAIL_MS) return seg;
+  }
+  return null;
+}
+
+/** 已经进了一直放到结尾的片尾：「即将播放下一集」不必等到最后 40 秒 */
+export function isInOutro(
+  segments: readonly SkipSegment[] | undefined,
+  positionMs: number,
+): boolean {
+  return (segments ?? []).some(
+    (seg) => seg.type === "outro" && seg.to_end && positionMs >= seg.start_ms,
+  );
+}
+
+/** 「跳过」按钮的文案 */
+export function skipLabel(seg: SkipSegment): string {
+  if (seg.type === "intro") return "跳过片头";
+  if (seg.type === "outro") return "跳过片尾";
+  return "跳过";
+}

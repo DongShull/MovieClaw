@@ -223,6 +223,7 @@ class LibraryRepository:
         scrape_overrides: dict | None = None,
         generate_thumbnails: bool = True,
         extract_chapter_images: bool = False,
+        detect_media_segments: bool = True,
         exclude_from_home: bool = False,
         auto_series_collections: bool = True,
         access_mode: str = "everyone",
@@ -242,6 +243,7 @@ class LibraryRepository:
             scrape_overrides=scrape_overrides or None,
             generate_thumbnails=generate_thumbnails,
             extract_chapter_images=extract_chapter_images,
+            detect_media_segments=detect_media_segments,
             exclude_from_home=exclude_from_home,
             auto_series_collections=auto_series_collections,
             access_mode=access_mode,
@@ -278,6 +280,7 @@ class LibraryRepository:
         scrape_overrides: dict | None = None,
         generate_thumbnails: bool | None = None,
         extract_chapter_images: bool | None = None,
+        detect_media_segments: bool | None = None,
         exclude_from_home: bool | None = None,
         auto_series_collections: bool | None = None,
         access_mode: str | None = None,
@@ -304,6 +307,8 @@ class LibraryRepository:
             row.generate_thumbnails = generate_thumbnails
         if extract_chapter_images is not None:
             row.extract_chapter_images = extract_chapter_images
+        if detect_media_segments is not None:
+            row.detect_media_segments = detect_media_segments
         if exclude_from_home is not None:
             row.exclude_from_home = exclude_from_home
         if auto_series_collections is not None:

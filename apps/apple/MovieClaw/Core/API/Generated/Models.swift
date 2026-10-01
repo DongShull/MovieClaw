@@ -2934,6 +2934,27 @@ nonisolated extension API {
         }
     }
 
+    /// 保存 GitHub 访问令牌的请求体。空串 = 清除令牌。
+    struct GithubTokenPayload: Codable, Hashable, Sendable {
+        /// GitHub 访问令牌；空 = 清除
+        var token: String?
+
+        enum CodingKeys: String, CodingKey {
+            case token
+        }
+    }
+
+    /// GitHub 访问令牌的配置状态。令牌明文永不回传，只给打码后的尾号供用户辨认。
+    struct GithubTokenView: Codable, Hashable, Sendable {
+        var configured: Bool
+        var masked: String
+
+        enum CodingKeys: String, CodingKey {
+            case configured
+            case masked
+        }
+    }
+
     /// 人工选择种子下载：把搜索结果里的一条种子直接投给本订阅。
     /// 字段即搜索结果行（TorrentHit）原样回传——交互式搜索现算现返、不落
     /// 种子索引，只能由前端带回。attrs 同样回传（它本就是搜索链路里服务端
@@ -4176,6 +4197,8 @@ nonisolated extension API {
         var generateThumbnails: Bool?
         /// 是否生成并展示视频章节：场景图在后台低优先级作业里抓（每个文件按章节数 seek 若干次），详情页章节横排、图廊章节图与 Jellyfin 合成章节都随它开关；关闭时文件自带的内嵌章节仍供播放器跳章，已生成的图保留。从关改为开会立即在后台补齐库内已有视频的章节，从开改为关会停掉进行中的章节生成。不传表示不改动，新建时默认关闭
         var extractChapterImages: Bool?
+        /// 是否识别剧集的片头片尾（只对剧集库起作用）：每集入库时算一次音频指纹、整季比对，播放时给「跳过片头」与提前的「下一集」。从关改为开会在后台补齐库内已有剧集，从开改为关会停掉进行中的识别、播放时不再给按钮（已算的结果保留）。不传表示不改动，新建时默认开启
+        var detectMediaSegments: Bool?
         /// 是否从首页「最近添加」等汇总里排除该库；不传表示不改动，新建时默认关闭
         var excludeFromHome: Bool?
         /// 是否按作品系列自动生成合集（《哈利·波特》这种）。这是**展示**偏好：关掉之后系列信息照常落库、NFO 的 <set> 照常写，只是合集页不自动多出几十个系列；重新打开会把已有的系列补齐，不重新联网刮削。不传表示不改动，新建时默认开启
@@ -4203,6 +4226,7 @@ nonisolated extension API {
             case source
             case generateThumbnails = "generate_thumbnails"
             case extractChapterImages = "extract_chapter_images"
+            case detectMediaSegments = "detect_media_segments"
             case excludeFromHome = "exclude_from_home"
             case autoSeriesCollections = "auto_series_collections"
             case accessMode = "access_mode"
@@ -4356,6 +4380,8 @@ nonisolated extension API {
         var generateThumbnails: Bool
         /// 是否生成并展示视频章节（默认关，按库打开）
         var extractChapterImages: Bool
+        /// 是否识别剧集的片头片尾（默认开，只对剧集库起作用）
+        var detectMediaSegments: Bool
         /// 是否从首页汇总里排除
         var excludeFromHome: Bool
         /// 是否按作品系列自动生成合集（展示偏好）
@@ -4412,6 +4438,7 @@ nonisolated extension API {
             case capabilities
             case generateThumbnails = "generate_thumbnails"
             case extractChapterImages = "extract_chapter_images"
+            case detectMediaSegments = "detect_media_segments"
             case excludeFromHome = "exclude_from_home"
             case autoSeriesCollections = "auto_series_collections"
             case accessMode = "access_mode"
@@ -6605,6 +6632,25 @@ nonisolated extension API {
         }
     }
 
+    /// 可跳过的一段（docs/design/skip-intro.md）：服务端整季比对认出来的，客户端只管用。
+    /// - ``intro`` 片头：在区间里显示「跳过片头」，点了跳到 ``end_ms``；
+    /// - ``outro`` 片尾：到 ``start_ms`` 就提前显示「即将播放下一集」；``to_end`` 为假时
+    /// 片尾后面还有内容（下集预告、彩蛋），按钮是「跳过片尾」；
+    /// - ``other`` 其他重复段（片头前的冠名广告、发行许可）：显示「跳过」。
+    struct PlaybackSegmentView: Codable, Hashable, Sendable {
+        var type: String
+        var startMs: Int
+        var endMs: Int
+        var toEnd: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case type
+            case startMs = "start_ms"
+            case endMs = "end_ms"
+            case toEnd = "to_end"
+        }
+    }
+
     /// 开会话请求：在决策请求上多一个起播位置。
     struct PlaybackSessionRequest: Codable, Hashable, Sendable {
         var fileId: Int?
@@ -6655,6 +6701,7 @@ nonisolated extension API {
         var watch: API.PlaybackStateView?
         var source: API.PlaybackSourceView?
         var chapters: [API.PlaybackChapterMarkView]
+        var segments: [API.PlaybackSegmentView]?
         var matroskaCues: API.MatroskaCuesView?
 
         enum CodingKeys: String, CodingKey {
@@ -6669,6 +6716,7 @@ nonisolated extension API {
             case watch
             case source
             case chapters
+            case segments
             case matroskaCues = "matroska_cues"
         }
     }

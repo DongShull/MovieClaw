@@ -271,6 +271,24 @@ struct PlayerUpNextCard: View {
     }
 }
 
+/// 「跳过片头 / 跳过片尾 / 跳过」按钮（docs/design/skip-intro.md）：区间是服务端整季比对认出来的，
+/// 位置进了区间才出现、出了区间自动消失，点了跳到区间结束处。摆在「即将播放」卡片的位置（右下角、底栏上方），
+/// 与它不同时出现。玻璃胶囊：不自设底色，跟着系统液态玻璃走
+struct PlayerSkipButton: View {
+    let segment: API.PlaybackSegmentView
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(SkipSegments.label(segment), systemImage: "forward.end.fill")
+        }
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .accessibilityIdentifier("player-skip-segment")
+        .accessibilityValue(segment.type)
+    }
+}
+
 /// 片段放完的卡片（片段模式，见 `PlaybackClip`）：摆在「即将播放」卡片的位置、同一套几何。
 /// 主操作「看全片」通栏大按钮（原地转成正常播放，从这里接着放整部），次操作「重播」从片段起点再放一遍
 struct PlayerClipEndCard: View {

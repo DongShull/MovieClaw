@@ -216,6 +216,8 @@ extension TaskCenter {
         "library.metadata.refresh": "刷新媒体库元数据",
         "media.metadata.refresh": "刷新条目元数据",
         "library.chapter_images": "生成章节",
+        "library.skip_segments": "识别片头片尾",
+        "media.skip_segments": "识别片头片尾",
         "library.organize": "整理媒体库文件",
         "library.transfer": "转移媒体库条目",
         "library.ingest": "自动整理入库",
@@ -230,7 +232,7 @@ extension TaskCenter {
         "queued": "等待执行", "preparing": "准备", "ocr": "识别图形字幕", "syncing": "校准时间轴",
         "glossary": "整理术语", "translating": "翻译字幕", "validating": "检查译文", "compressing": "压缩字幕",
         "writing": "写入文件", "refreshing": "刷新元数据", "walking": "遍历文件", "ingesting": "识别入账",
-        "probing": "分析媒体", "assets": "补齐资产", "organizing": "整理文件", "transferring": "搬运文件",
+        "probing": "分析媒体", "assets": "补齐资产", "analyzing": "识别片头片尾", "organizing": "整理文件", "transferring": "搬运文件",
         "identifying": "识别条目", "waiting_library": "等待媒体库", "waiting_stable": "等待下载稳定",
         "finalizing": "收尾", "retry_wait": "等待重试", "blocked": "等待处理", "completed": "已完成", "cancelled": "已取消",
     ]
@@ -243,12 +245,14 @@ extension TaskCenter {
     static let activeJobActions: [String: String] = [
         "subtitle.generate": "正在生成字幕", "library.scan": "正在扫描", "library.metadata.refresh": "正在刷新媒体库元数据",
         "media.metadata.refresh": "正在刷新元数据", "library.chapter_images": "正在生成章节", "library.organize": "正在整理文件",
+        "library.skip_segments": "正在识别片头片尾", "media.skip_segments": "正在识别片头片尾",
         "library.transfer": "正在转移文件", "library.ingest": "正在入库",
     ]
 
     static let completedJobActions: [String: String] = [
         "subtitle.generate": "字幕生成", "library.scan": "扫描", "library.metadata.refresh": "元数据刷新",
         "media.metadata.refresh": "元数据刷新", "library.chapter_images": "章节生成", "library.organize": "文件整理",
+        "library.skip_segments": "片头片尾识别", "media.skip_segments": "片头片尾识别",
         "library.transfer": "文件转移", "library.ingest": "入库",
     ]
 

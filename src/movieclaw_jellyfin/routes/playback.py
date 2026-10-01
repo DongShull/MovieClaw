@@ -34,6 +34,7 @@ from sqlalchemy import select
 
 from movieclaw_api.api.routes.playback import get_session_segment
 from movieclaw_api.exceptions import NotFoundException
+from movieclaw_api.services.library import skip_segments
 from movieclaw_api.services.library.access import member_visible_ids
 from movieclaw_api.services.playback import watch as playback_watch
 from movieclaw_api.services.playback.adaptive import adapt_to_downlink
@@ -202,6 +203,60 @@ def _select_source(
     if normalized == item_norm and files:
         return [files[0]]
     return []
+
+
+#: 片段类型 → Jellyfin MediaSegmentType（10.10 的枚举名）。「其他」是片头前的冠名广告、
+#: 发行许可这类，最接近 Commercial
+_SEGMENT_TYPES = {"intro": "Intro", "outro": "Outro", "other": "Commercial"}
+
+
+@router.get("/MediaSegments/{item_id}")
+async def media_segments(
+    request: Request,
+    item_id: str,
+    identity: RequestIdentity = Depends(require_device),
+) -> JSONResponse:
+    """片头 / 片尾分段（Jellyfin 10.9+，docs/design/skip-intro.md）。
+
+    Infuse 每次起播都会查；有分段时显示「跳过片头」。数据是 movieclaw 整季音频比对
+    认出来的（库开了「识别片头片尾」、这一季识别过才有），没有时返回空 QueryResult——
+    形态对齐真 Jellyfin 无分段时的响应。分段按集给：同一集有多个版本时取第一个识别过的
+    版本（片头片尾在不同版本里位置几乎一致）。
+    """
+    empty = {"Items": [], "TotalRecordCount": 0, "StartIndex": 0}
+    ref = decode_guid(item_id)
+    if ref is None or ref.kind != EntityKind.EPISODE:
+        return JSONResponse(empty)
+    wanted = {
+        part.strip().lower()
+        for raw in request.query_params.getlist("includeSegmentTypes")
+        for part in raw.split(",")
+        if part.strip()
+    }
+    files = await _files_for_ref(ref, identity.device.member_id)
+    async with get_database().session() as session:
+        segments: list[dict] = []
+        for f in files:
+            segments = await skip_segments.segments_for_file(session, f)
+            if segments:
+                break
+    item_guid = episode_guid(ref.entity_id, ref.season, ref.episode)
+    items = []
+    for index, seg in enumerate(segments):
+        kind = _SEGMENT_TYPES.get(str(seg.get("type")))
+        if kind is None or (wanted and kind.lower() not in wanted):
+            continue
+        items.append(
+            {
+                # 分段 id：同一集内按序号派生，稳定即可（客户端只拿来去重）
+                "Id": f"{item_guid[:28]}{index:04x}",
+                "ItemId": item_guid,
+                "Type": kind,
+                "StartTicks": int(seg["start_ms"]) * 10_000,
+                "EndTicks": int(seg["end_ms"]) * 10_000,
+            }
+        )
+    return JSONResponse({"Items": items, "TotalRecordCount": len(items), "StartIndex": 0})
 
 
 @router.get("/Items/{item_id}/PlaybackInfo")

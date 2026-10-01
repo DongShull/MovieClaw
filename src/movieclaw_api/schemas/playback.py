@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field
 
@@ -576,6 +577,22 @@ class PlaybackChapterMarkView(BaseModel):
     title: str | None = None
 
 
+class PlaybackSegmentView(BaseModel):
+    """可跳过的一段（docs/design/skip-intro.md）：服务端整季比对认出来的，客户端只管用。
+
+    - ``intro`` 片头：在区间里显示「跳过片头」，点了跳到 ``end_ms``；
+    - ``outro`` 片尾：到 ``start_ms`` 就提前显示「即将播放下一集」；``to_end`` 为假时
+      片尾后面还有内容（下集预告、彩蛋），按钮是「跳过片尾」；
+    - ``other`` 其他重复段（片头前的冠名广告、发行许可）：显示「跳过」。
+    """
+
+    type: Literal["intro", "outro", "other"]
+    start_ms: int
+    end_ms: int
+    #: 片尾一直放到文件结尾（只有 outro 有意义）
+    to_end: bool = False
+
+
 class PlaybackDiscFileView(BaseModel):
     """原盘目录里可直推的一个文件（disc-direct-play.md §2.3）。"""
 
@@ -651,6 +668,11 @@ class PlaybackSessionView(BaseModel):
     #: 场景图用的，画到进度条上就是一排没有信息量的竖条。没有内嵌章节的
     #: 文件这里是空表，进度条照旧干净。
     chapters: list[PlaybackChapterMarkView] = Field(default_factory=list)
+    #: 片头 / 片尾 / 其他可跳过的段（剧集库开了「识别片头片尾」且这一季识别过才有）。
+    #: 新服务端恒为数组（没有就是空表，不会是 null）；声明成可空只为让 App 的生成模型
+    #: 对旧服务端宽容——旧服务端没有这个字段，非可选的字段缺失会让新 App 的整个会话解码失败、
+    #: 连带起不了播
+    segments: list[PlaybackSegmentView] | None = Field(default_factory=list)
     #: 档 0 直出的 MKV：服务端缓存里有精简索引时随会话下发（没有就在后台生成，给下次用）
     matroska_cues: MatroskaCuesView | None = None
 

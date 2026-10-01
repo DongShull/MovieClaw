@@ -542,6 +542,14 @@ private struct PlayerContent: View {
                     .padding(.horizontal, PlayerLayout.edge)
                     .padding(.bottom, PlayerLayout.gap)
                 }
+                if let segment = controller.skipSegment {
+                    HStack {
+                        Spacer()
+                        PlayerSkipButton(segment: segment, action: controller.skipCurrentSegment)
+                    }
+                    .padding(.horizontal, PlayerLayout.edge)
+                    .padding(.bottom, PlayerLayout.gap)
+                }
                 if controller.showsUpNext, let next = controller.nextEpisode {
                     HStack {
                         Spacer()

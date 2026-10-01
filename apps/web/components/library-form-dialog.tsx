@@ -536,11 +536,12 @@ function CreateLibraryDialog({
       root_paths: roots,
       match_rules: hasScope ? buildMatchRules(validGenres(kind, genres, routingOptions), regions) : [],
       // 开关全按推荐值：监控开、自动清理关、封面开、章节关（抓帧成本高，按需在
-      // 编辑里打开）、首页展示；建好后在编辑里调
+      // 编辑里打开）、片头片尾识别开（只对剧集库起作用）、首页展示；建好后在编辑里调
       auto_clear_missing: false,
       realtime_watch: true,
       generate_thumbnails: true,
       extract_chapter_images: false,
+      detect_media_segments: true,
       exclude_from_home: kindExcludedFromHome(kind),
       scrape_overrides: {},
       access_mode: accessMode,
@@ -1214,6 +1215,7 @@ function EditLibraryDialog({
   const [extractChapterImages, setExtractChapterImages] = useState(
     library.extract_chapter_images,
   );
+  const [detectMediaSegments, setDetectMediaSegments] = useState(library.detect_media_segments);
   const [excludeFromHome, setExcludeFromHome] = useState(library.exclude_from_home);
   const [autoSeriesCollections, setAutoSeriesCollections] = useState(
     library.auto_series_collections,
@@ -1255,6 +1257,7 @@ function EditLibraryDialog({
       realtime_watch: realtimeWatch,
       generate_thumbnails: generateThumbnails,
       extract_chapter_images: extractChapterImages,
+      detect_media_segments: detectMediaSegments,
       exclude_from_home: excludeFromHome,
       auto_series_collections: autoSeriesCollections,
       scrape_overrides: scraped ? scrapeOverrides : {},
@@ -1331,6 +1334,7 @@ function EditLibraryDialog({
             scraped ? "抓帧补图" : playable ? "抓帧封面" : "缩略图",
           )}
           {playable && dot(extractChapterImages, "章节")}
+          {library.kind === "tv" && dot(detectMediaSegments, "片头片尾")}
           {dot(!excludeFromHome, "首页展示")}
           {library.kind !== "photo" && dot(autoSeriesCollections, "系列合集")}
         </>
@@ -1378,6 +1382,15 @@ function EditLibraryDialog({
               checked={extractChapterImages}
               onChange={setExtractChapterImages}
               detail="每个视频按章节（有内嵌章节用内嵌，没有按时长切成 3～12 段）各抓一张画面：条目页出「章节」横排、点一张从那里开始播，Infuse 等播放器也能按这些章节跳转。每个文件要定位读取若干次，比较耗 CPU 与读取量，所以默认关闭。打开后立即在后台低优先级补齐库内已有的视频，之后随扫描与入库自动生成；关闭后不再生成也不再展示，进行中的生成随之停止，已生成的图保留、再打开即恢复。视频自带的章节不受影响，播放器进度条上照常显示。"
+            />
+          )}
+          {/* 片头片尾靠同一季多集互相比对认出来：只有剧集库有这一项 */}
+          {library.kind === "tv" && (
+            <SwitchRow
+              title="识别片头片尾"
+              checked={detectMediaSegments}
+              onChange={setDetectMediaSegments}
+              detail="每集入库时听一遍开头 10 分钟和结尾 7 分钟的声音，同一季互相比对，认出片头、片尾和片头前的冠名广告。播放时到片头会出现「跳过片头」，片尾一开始就提前弹出「即将播放下一集」，Infuse 等播放器也能用。新集入库时顺手就算完；打开后已有的剧集在后台低优先级慢慢补，正在追的剧排在最前。关闭后不再识别、播放时不再给按钮，已认出的结果保留、再打开即恢复。"
             />
           )}
           <SwitchRow

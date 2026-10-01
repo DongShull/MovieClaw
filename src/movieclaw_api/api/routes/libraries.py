@@ -107,6 +107,7 @@ from movieclaw_api.services import jobs, media_scrape
 from movieclaw_api.services.auth import Principal
 from movieclaw_api.services.library import chapters as chapters_mod
 from movieclaw_api.services.library import claim as library_claim
+from movieclaw_api.services.library import skip_segments as skip_segments_mod
 from movieclaw_api.services.library import source_annotation
 from movieclaw_api.services.library.access import (
     assert_item_visible,
@@ -1104,6 +1105,7 @@ async def create_library(
         scrape_overrides=payload.scrape_overrides,
         generate_thumbnails=payload.generate_thumbnails,
         extract_chapter_images=payload.extract_chapter_images,
+        detect_media_segments=payload.detect_media_segments,
         exclude_from_home=payload.exclude_from_home,
         auto_series_collections=payload.auto_series_collections,
         access_mode=payload.access_mode,
@@ -1250,6 +1252,7 @@ async def update_library(
     # 扫描才能知道这次编辑真正替换的是哪些根，而不是读到更新后的新根列表。
     previous_root_paths = list(before.root_paths)
     chapters_were_enabled = before.extract_chapter_images
+    segments_were_enabled = before.detect_media_segments
     roots_changed = previous_root_paths != [p.strip() for p in payload.root_paths if p.strip()]
     # 扫描/整理依赖根路径，只有真的改路径才需要锁库；改展示名称、收藏规则
     # 或下轮扫描策略不触碰当前任务正在使用的路径与台账，允许即时保存。
@@ -1266,6 +1269,7 @@ async def update_library(
         scrape_overrides=payload.scrape_overrides,
         generate_thumbnails=payload.generate_thumbnails,
         extract_chapter_images=payload.extract_chapter_images,
+        detect_media_segments=payload.detect_media_segments,
         exclude_from_home=payload.exclude_from_home,
         auto_series_collections=payload.auto_series_collections,
         access_mode=payload.access_mode,
@@ -1283,6 +1287,14 @@ async def update_library(
         session,
         row,
         was_enabled=chapters_were_enabled,
+        rescan_queued=roots_changed,
+        origin=_job_origin(client_name),
+    )
+    # 「识别片头片尾」开关切换（docs/design/skip-intro.md）：同章节的收放规则
+    await skip_segments_mod.apply_library_switch(
+        session,
+        row,
+        was_enabled=segments_were_enabled,
         rescan_queued=roots_changed,
         origin=_job_origin(client_name),
     )

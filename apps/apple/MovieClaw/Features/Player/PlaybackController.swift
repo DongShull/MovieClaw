@@ -476,13 +476,31 @@ final class PlaybackController {
         startUnit(PlaybackUnit(mediaItemId: unit.mediaItemId, season: unit.season, episode: previous.episodeNumber))
     }
 
-    /// 片尾 40 秒内（或已播完）显示「即将播放」卡片；不自动倒计时，换集由用户决定
+    /// 片尾 40 秒内（或已播完）显示「即将播放」卡片；不自动倒计时，换集由用户决定。
+    /// 服务端认出了一直放到结尾的片尾（docs/design/skip-intro.md）时，进了片尾就提前给，不必等到最后 40 秒
     var showsUpNext: Bool {
         guard nextEpisode != nil, !nextDismissed else { return false }
         if phase == .ended { return true }
+        if SkipSegments.isInOutro(session?.segments, at: positionMs) { return true }
         guard let durationMs, durationMs > 0 else { return false }
         let remaining = Double(durationMs - positionMs) / 1000
         return remaining > 0 && remaining <= 40
+    }
+
+    // MARK: - 跳过片头 / 片尾
+
+    /// 当前位置该给的「跳过」按钮：片头、片头前的冠名广告、后面还有内容的片尾。区间是服务端整季比对认出来的、
+    /// 随会话下发，这里只管按位置用。与「即将播放」卡片不同时出现（占同一个角落）；片段模式、已播完、
+    /// 报错 / 要用户同意时都不给
+    var skipSegment: API.PlaybackSegmentView? {
+        guard clip == nil, phase != .ended, phase != .error, phase != .consent, !showsUpNext else { return nil }
+        return SkipSegments.active(session?.segments, at: positionMs)
+    }
+
+    /// 点「跳过」：直接跳到这一段结束处
+    func skipCurrentSegment() {
+        guard let segment = skipSegment else { return }
+        seek(toFileMs: segment.endMs, source: .button)
     }
 
     // MARK: - 起播（决策 / 降档 / 换会话）

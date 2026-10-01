@@ -55,6 +55,7 @@ from movieclaw_api.schemas.playback import (
     PlaybackPolicyView,
     PlaybackProgressRequest,
     PlaybackQoeStatsView,
+    PlaybackSegmentView,
     PlaybackSessionRequest,
     PlaybackSessionView,
     PlaybackSourceView,
@@ -68,6 +69,7 @@ from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services import media_scrape
 from movieclaw_api.services.auth import Principal
 from movieclaw_api.services.library import chapters as chapters_mod
+from movieclaw_api.services.library import skip_segments
 from movieclaw_api.services.library.access import (
     assert_item_visible,
     assert_library_visible,
@@ -1051,6 +1053,13 @@ async def start_playback_session(
         size_bytes=file.size_bytes,
     )
     chapter_marks = _chapter_marks(file)
+    # 片头片尾（docs/design/skip-intro.md）：两次主键查询；这一季还没识别过就在后台
+    # 排一份优先作业（延迟开跑、去重），这一集多半赶不上，下一集就有了
+    segment_views = [
+        PlaybackSegmentView(**seg) for seg in await skip_segments.segments_for_file(session, file)
+    ]
+    if not segment_views:
+        skip_segments.schedule_playback_bump(file)
 
     # 详情页可能正在为同一条目预热；正式播放已经接管 IO，取消那条后台任务，
     # 别让它和首片转码抢同一块盘。
@@ -1112,6 +1121,7 @@ async def start_playback_session(
                 watch=watch_view,
                 source=source_view,
                 chapters=chapter_marks,
+                segments=segment_views,
             )
         )
 
@@ -1342,6 +1352,7 @@ async def start_playback_session(
             watch=watch_view,
             source=source_view,
             chapters=chapter_marks,
+            segments=segment_views,
         )
     )
 

@@ -613,7 +613,12 @@ async def _rescan_later(library_id: int, delay: float) -> None:
     await asyncio.sleep(delay)
     # 这一轮只为接住刚写完的新文件；历史规格补探必须由用户主动扫描触发，
     # 否则下载期间一次短暂的 mtime 波动也会重新扫到整库未补探的旧文件。
-    await scan_library(library_id, backfill_existing_specs=False)
+    summary = await scan_library(library_id, backfill_existing_specs=False)
+    # 暂缓的新文件这轮终于入账了：同样要识别片头片尾（docs/design/skip-intro.md），
+    # 这条路径不经过扫描作业，扫描作业收尾的那个挂钩够不着
+    from movieclaw_api.services.library.skip_segments import enqueue_after_scan
+
+    await enqueue_after_scan(library_id, summary)
 
 
 def last_scan(library_id: int) -> tuple | None:
@@ -895,6 +900,11 @@ async def _run_scan_job(
 
         async with db.session() as session:
             await enqueue_library_chapter_images_job(session, library_id, library.name)
+    # 片头片尾识别（docs/design/skip-intro.md）：同章节一样走独立的低优先级整库作业，
+    # 覆盖扫描新发现的剧集与存量回填；同库已有一份在跑则复用
+    from movieclaw_api.services.library.skip_segments import enqueue_after_library_change
+
+    await enqueue_after_library_change(library_id)
     # 扫描改动了台账，上一轮的重复结论可能已经不作数：排一轮重复扫描
     # （docs/design/library-duplicate-files.md §9）。用户打开重复文件页时通常
     # 就已经有新鲜结果，而不必自己先按一次「开始扫描」

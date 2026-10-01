@@ -121,6 +121,14 @@ class Library(TimestampMixin, table=True):
     extract_chapter_images: bool = Field(
         default=False, description="是否生成并展示视频章节（场景图走后台作业）"
     )
+    # 「识别片头片尾」开关（docs/design/skip-intro.md）。只对剧集库起作用：每集算一次
+    # 片头窗 / 片尾窗的音频指纹，整季比对出片头片尾，播放器据此给「跳过片头」。
+    # **默认开**（用户决策 2026-10-01）：入库时算这一集读的是本地下载盘、约 6 秒，
+    # 存量回填是一次性的低优先级作业；与章节（默认关）的开销结构不同。关掉后不再算、
+    # 也不再下发，已算的指纹与结果保留，重新打开立即恢复
+    detect_media_segments: bool = Field(
+        default=True, description="是否识别剧集的片头片尾（播放时给「跳过片头」）"
+    )
     # 首页排除（Plex "Include in dashboard" / Jellyfin LatestItemsExcludes 同款）：
     # 开启后本库的条目不进首页「最近添加」聚合区、不参与首页封面拼贴，
     # 首页只剩它自己的库卡片。敏感内容库的第二道闸

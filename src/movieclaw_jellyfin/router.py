@@ -86,6 +86,8 @@ _KNOWN_QUERY_KEYS = [
     "static",
     "container",
     "mediaSourceId",
+    # 片头片尾分段（docs/design/skip-intro.md）：/MediaSegments 按类型过滤
+    "includeSegmentTypes",
     # 转码协商（docs/design/jellyfin-transcode.md）：PlaybackInfo 的 query 形态
     # 与我们自己生成的 TranscodingUrl / ActiveEncodings 参数
     "maxStreamingBitrate",

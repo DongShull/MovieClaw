@@ -2588,6 +2588,10 @@ async def _ingest_entry(
         from movieclaw_api.services.library.chapters import enqueue_ingested_item_chapter_images
 
         await enqueue_ingested_item_chapter_images(session, dest_library, item.id, item.title)
+        # 片头片尾（docs/design/skip-intro.md）：新集刚下载完、还在本地盘上，这时读最便宜
+        from movieclaw_api.services.library.skip_segments import enqueue_ingested_item
+
+        await enqueue_ingested_item(session, dest_library, item.id, item.title)
 
     verb = "硬链接" if strategy == "hardlink" else "复制"
     if imported:
@@ -2887,6 +2891,7 @@ async def _ingest_raw_drop(
             await ensure_series_collections_for_item(session, item_id)
         await session.commit()
         from movieclaw_api.services.library.chapters import enqueue_ingested_item_chapter_images
+        from movieclaw_api.services.library.skip_segments import enqueue_ingested_item
 
         for item_id, item_title in new_items:
             # 缩略图属于锦上添花：作业内顺手做完，后台 tick 则丢给事件循环
@@ -2904,6 +2909,7 @@ async def _ingest_raw_drop(
                 await ensure_assets(item_id)
             # 章节图与上面的封面同理，只是慢得多，交给条目作业在后台跑
             await enqueue_ingested_item_chapter_images(session, library, item_id, item_title)
+            await enqueue_ingested_item(session, library, item_id, item_title)
     if imported:
         return (
             first_item,

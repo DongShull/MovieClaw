@@ -43,14 +43,6 @@ async def packages() -> JSONResponse:
     return JSONResponse([])
 
 
-@router.get("/MediaSegments/{item_id}", dependencies=[Depends(require_device)])
-async def media_segments(item_id: str) -> JSONResponse:
-    # 片头/片尾等媒体分段（Jellyfin 10.9+）。Infuse 每次起播都会查询；
-    # movieclaw 不生成分段数据，恒返回空 QueryResult——形态对齐真 Jellyfin
-    # 无分段时的响应，客户端据此不显示「跳过片头」。
-    return JSONResponse({"Items": [], "TotalRecordCount": 0, "StartIndex": 0})
-
-
 def _display_preferences_guid(raw: str) -> str:
     """DisplayPreferencesDto.Id：对齐真 Jellyfin 的派生规则（10.10 源码）。
 

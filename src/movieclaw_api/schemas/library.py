@@ -45,6 +45,15 @@ class LibraryPayload(BaseModel):
             "不传表示不改动，新建时默认关闭"
         ),
     )
+    detect_media_segments: bool | None = Field(
+        default=None,
+        description=(
+            "是否识别剧集的片头片尾（只对剧集库起作用）：每集入库时算一次音频指纹、整季比对，"
+            "播放时给「跳过片头」与提前的「下一集」。从关改为开会在后台补齐库内已有剧集，"
+            "从开改为关会停掉进行中的识别、播放时不再给按钮（已算的结果保留）。"
+            "不传表示不改动，新建时默认开启"
+        ),
+    )
     exclude_from_home: bool | None = Field(
         default=None,
         description="是否从首页「最近添加」等汇总里排除该库；不传表示不改动，新建时默认关闭",
@@ -291,6 +300,9 @@ class LibraryView(BaseModel):
     extract_chapter_images: bool = Field(
         default=False, description="是否生成并展示视频章节（默认关，按库打开）"
     )
+    detect_media_segments: bool = Field(
+        default=True, description="是否识别剧集的片头片尾（默认开，只对剧集库起作用）"
+    )
     exclude_from_home: bool = Field(default=False, description="是否从首页汇总里排除")
     auto_series_collections: bool = Field(
         default=True, description="是否按作品系列自动生成合集（展示偏好）"
@@ -388,6 +400,7 @@ class LibraryView(BaseModel):
             capabilities=LibraryCapabilitiesView(**capabilities_of(profile_of(row))),
             generate_thumbnails=row.generate_thumbnails,
             extract_chapter_images=row.extract_chapter_images,
+            detect_media_segments=row.detect_media_segments,
             exclude_from_home=row.exclude_from_home,
             auto_series_collections=row.auto_series_collections,
             access_mode=row.access_mode,  # type: ignore[arg-type]

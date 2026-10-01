@@ -123,11 +123,14 @@ import {
 import { nextSeekTarget, seekBatchWindowMs } from "@/lib/player/seek-batch";
 import { resolveTap } from "@/lib/player/tap";
 import {
+  activeSkipSegment,
   clampSeekTarget,
   formatClock,
   isInEndCredits,
+  isInOutro,
   isWithinRanges,
   planSeek,
+  skipLabel,
   toFileMs,
   toSessionSeconds,
 } from "@/lib/player/timeline";
@@ -827,6 +830,12 @@ export function VideoPlayer(props: VideoPlayerProps) {
 
   /** 进度条上的章节刻度。会话没换就保持同一个数组身份，免得下游白算一遍 */
   const chapters = useMemo(() => state.session?.chapters ?? [], [state.session]);
+
+  /**
+   * 片头 / 片尾 / 其他可跳过的段（docs/design/skip-intro.md）：服务端整季比对认出来的，
+   * 随会话下发，这里只管按播放位置用——不做任何计算。旧服务端没有这个字段，当空表。
+   */
+  const segments = useMemo(() => state.session?.segments ?? [], [state.session]);
 
   const subtitles = useMemo(() => {
     const session = state.session;
@@ -3227,7 +3236,23 @@ export function VideoPlayer(props: VideoPlayerProps) {
   const showNextCard =
     next !== null &&
     !nextDismissed &&
-    (isInEndCredits(positionMs, durationMs) || state.phase === "ended");
+    (isInEndCredits(positionMs, durationMs) ||
+      // 服务端认出了一直放到结尾的片尾：进了片尾就提前给，不必等到最后 40 秒
+      isInOutro(segments, positionMs) ||
+      state.phase === "ended");
+
+  /**
+   * 「跳过片头」一类的按钮：位置在片头 / 冠名广告 / 后面还有内容的片尾里才出现。
+   * 与「即将播放」卡片不同时出现（两者占同一个角落），锁屏、报错、同意弹窗时也不给。
+   */
+  const skipSegment =
+    !showNextCard &&
+    !locked &&
+    state.phase !== "error" &&
+    state.phase !== "consent" &&
+    state.phase !== "ended"
+      ? activeSkipSegment(segments, positionMs)
+      : null;
 
   // 自动播放被彻底拦下时不能再转圈：状态机要等 `playing` 才离开 buffering，
   // 而那一刻永远不会来——转圈叠着中央播放键是最典型的「界面卡住了」观感。
@@ -3731,6 +3756,20 @@ export function VideoPlayer(props: VideoPlayerProps) {
             diagnostics={serverDiagnostics}
             onClose={() => setDiagnosticsOpen(false)}
           />
+        ) : null}
+
+        {/* 跳过片头 / 跳过片尾：点了直接跳到这一段结束处。位置与下一集卡片同一个角落，
+            片段里才出现、出了片段自动消失；不自动跳，换不换由用户决定 */}
+        {skipSegment ? (
+          <button
+            type="button"
+            data-testid="skip-segment"
+            data-segment-type={skipSegment.type}
+            onClick={() => commitSeek(skipSegment.end_ms)}
+            className="absolute bottom-32 right-6 z-30 rounded-full bg-white/90 px-5 py-2.5 text-[14px] font-semibold text-black shadow-lg backdrop-blur transition-colors hover:bg-white max-md:bottom-28 max-md:right-3 max-md:px-4 max-md:py-2 max-md:text-[13px]"
+          >
+            {skipLabel(skipSegment)}
+          </button>
         ) : null}
 
         {/* 下一集卡片：片尾窗口内常驻，换集完全由用户决定 */}

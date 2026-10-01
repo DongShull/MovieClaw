@@ -58,6 +58,18 @@ nonisolated extension APIClient {
         return try await send("POST", "/app/update/check")
     }
 
+    /// 读取 GitHub 访问令牌的配置状态（只返回打码尾号）
+    /// `GET /app/update/github-token`
+    func appUpdateGithubTokenGet() async throws -> API.GithubTokenView {
+        return try await send("GET", "/app/update/github-token")
+    }
+
+    /// 保存 GitHub 访问令牌（空串清除），检查更新时带上以避开匿名限流
+    /// `PUT /app/update/github-token`
+    func appUpdateGithubTokenPut(body: API.GithubTokenPayload) async throws -> API.GithubTokenView {
+        return try await send("PUT", "/app/update/github-token", body: body)
+    }
+
     /// 确认上一次异常退出告警（清除记录，不再展示）
     /// `POST /app/update/last-exit/dismiss`
     func appUpdateLastExitDismiss() async throws -> Void {

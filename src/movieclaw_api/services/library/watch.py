@@ -464,12 +464,17 @@ class LibraryWatcher:
             # 扫描会对它们 stat 确认后重探（jellyfin-subtitle.md §2.4）
             from movieclaw_api.services.library.scan import scan_library
 
-            await scan_library(
+            summary = await scan_library(
                 library_id,
                 backfill_existing_specs=False,
                 reprobe_paths=request.reprobe or None,
                 scope_paths=request.scope_paths(),
             )
+            # 手工拷进库目录的新集也要识别片头片尾，不等下一轮对账（docs/design/skip-intro.md）。
+            # 只在这一轮真有新文件入账时才去看有没有待办
+            from movieclaw_api.services.library.skip_segments import enqueue_after_scan
+
+            await enqueue_after_scan(library_id, summary)
         except Exception:  # noqa: BLE001 -- 监控消费绝不崩
             logger.exception("实时监控触发的扫描失败：库 #%s", library_id)
 

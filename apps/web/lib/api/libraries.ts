@@ -79,6 +79,8 @@ export interface MediaLibrary {
   generate_thumbnails: boolean;
   /** 是否生成并展示视频章节（默认关；关着时详情页没有章节横排、也不抓图） */
   extract_chapter_images: boolean;
+  /** 是否识别剧集的片头片尾（默认开，只对剧集库起作用；播放时给「跳过片头」） */
+  detect_media_segments: boolean;
   /** 是否从首页「最近添加」等汇总里排除 */
   exclude_from_home: boolean;
   /** 是否按作品系列自动生成合集（展示偏好，不影响落库与写 NFO） */
@@ -394,6 +396,8 @@ export interface LibraryPayload {
   generate_thumbnails?: boolean;
   /** 是否生成并展示视频章节；不传=不改动（新建时默认关） */
   extract_chapter_images?: boolean;
+  /** 是否识别剧集的片头片尾；不传=不改动（新建时默认开） */
+  detect_media_segments?: boolean;
   /** 是否从首页汇总里排除该库；不传=不改动（新建时默认关） */
   exclude_from_home?: boolean;
   auto_series_collections?: boolean;

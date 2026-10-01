@@ -166,6 +166,11 @@ class Settings(BaseSettings):
     playback_cues_cache_dir: str = Field(
         default="./data/cache/playback_cues", alias="MOVIECLAW_PLAYBACK_CUES_CACHE_DIR"
     )
+    # 片头片尾识别的音频指纹：每个剧集文件一份（片头窗 + 片尾窗，约 33 KB），按 file_id
+    # 命名（docs/design/skip-intro.md）。删了识别结果不丢，只是之后新集入库时要回头重读旧集。
+    audio_fingerprint_dir: str = Field(
+        default="./data/cache/audio-fingerprints", alias="MOVIECLAW_AUDIO_FINGERPRINT_DIR"
+    )
     # AI 字幕生成的中间品：内封轨抽取、PGS 图片与翻译断点（断点删了任务从头翻）。
     subtitle_gen_cache_dir: str = Field(
         default="./data/cache/subtitle_gen", alias="MOVIECLAW_SUBTITLE_GEN_CACHE_DIR"

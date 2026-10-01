@@ -12,6 +12,9 @@ struct LiveDecodeTests {
     @Test func appStorageUsage() async throws {
         try await LiveServer.check { try await $0.appStorageUsage() }
     }
+    @Test func appUpdateGithubTokenGet() async throws {
+        try await LiveServer.check { try await $0.appUpdateGithubTokenGet() }
+    }
     @Test func appUpdatePending() async throws {
         try await LiveServer.check { try await $0.appUpdatePending() }
     }
