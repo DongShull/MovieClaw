@@ -105,7 +105,7 @@ export function SubscriptionInspectorView({
   const confirm = useConfirm();
   // 暂停/取消订阅会改变全站订阅状态（海报卡片的「已订阅」徽标），操作后同步刷新
   const { canSubscribe, refresh: refreshSubscriptions } = useSubscribeEntry();
-  const { canManageSubscriptions, canSearch, isAdmin } = usePermissions();
+  const { canManageSubscriptions, canGrabForSubscription, isAdmin } = usePermissions();
   const [detail, setDetail] = useState<SubscriptionDetail | null>(null);
   const [activities, setActivities] = useState<SubscriptionActivity[]>([]);
   const [ruleSets, setRuleSets] = useState<RuleSet[]>([]);
@@ -259,6 +259,10 @@ export function SubscriptionInspectorView({
   }
 
   const meta = subscriptionStatusMeta[detail.status];
+  // 调整类动作（立即搜索、改季、洗版、续订、暂停、手动选种）只给发起人与超管；
+  // 只关注的成员只剩「取消订阅」（= 取消关注）。can_manage 由后端按同一口径下发，
+  // 这里只为不让人点了再被拒，授权仍以服务端校验为准
+  const canTune = canSubscribe && detail.can_manage !== false;
   // 复合态（quality-upgrade.md §8.3）：内容收齐了但还有单元在洗更高版本。
   // 「已收齐」语义不变（洗版不影响完成判定），只在文案上如实补一句
   const upgradingCount = detail.progress.upgrading ?? 0;
@@ -508,7 +512,7 @@ export function SubscriptionInspectorView({
                 只有“更多”的承载物因交互范式不同分为下拉菜单与底部抽屉。 */}
             <div className="mt-auto flex flex-wrap justify-end gap-2 pt-4 max-md:col-span-2 max-md:grid max-md:grid-flow-col max-md:auto-cols-fr max-md:pt-3">
               {/* 缺口存在且未暂停时才有意义；其余情况后端会给可读错误，按钮直接隐藏更干净 */}
-              {canSubscribe && detail.progress.wanted > 0 && detail.status !== "paused" && (
+              {canTune && detail.progress.wanted > 0 && detail.status !== "paused" && (
                 <button
                   type="button"
                   disabled={busy}
@@ -520,8 +524,10 @@ export function SubscriptionInspectorView({
                 </button>
               )}
               {/* 有缺口，或配了洗版目标且有已入库单元（手选换版本，§13.8）时展示 */}
-              {canSubscribe &&
-                canSearch &&
+              {/* 手动选种 = 搜资源 + 投下载器，需订阅、资源搜索、一键下载三项能力；
+                  成员只能给自己发起的订阅投递（后端校验归属，只关注者会被拒） */}
+              {canGrabForSubscription &&
+                canTune &&
                 (detail.progress.wanted > 0 || detail.wanted.some((w) => w.upgrade)) && (
                 <Link
                   href={
@@ -542,6 +548,7 @@ export function SubscriptionInspectorView({
                       paused={detail.status === "paused"}
                       completed={detail.status === "completed"}
                       canSubscribe={canSubscribe}
+                      canTune={canTune}
                       canManageSubscriptions={canManageSubscriptions}
                       followFuture={isMovie ? null : detail.follow_future}
                       onAdjust={() => setAdjusting(true)}
@@ -599,6 +606,7 @@ export function SubscriptionInspectorView({
           paused={detail.status === "paused"}
           completed={detail.status === "completed"}
           canSubscribe={canSubscribe}
+          canTune={canTune}
           canManageSubscriptions={canManageSubscriptions}
           followFuture={isMovie ? null : detail.follow_future}
           onClose={() => setManaging(false)}
@@ -629,7 +637,7 @@ export function SubscriptionInspectorView({
         />
       )}
 
-      {canSubscribe && adjusting && (
+      {canTune && adjusting && (
         <SubscriptionAdjustDialog
           detail={detail}
           onClose={() => setAdjusting(false)}
@@ -641,7 +649,7 @@ export function SubscriptionInspectorView({
         />
       )}
 
-      {canSubscribe && upgradeRunning && (
+      {canTune && upgradeRunning && (
         <UpgradeRunDialog
           detail={detail}
           onClose={() => setUpgradeRunning(false)}
@@ -684,6 +692,8 @@ interface SubscriptionManageActionsProps {
   paused: boolean;
   completed: boolean;
   canSubscribe: boolean;
+  /** 能否调整这条订阅（改季、洗版、续订、暂停）：可订阅且是发起人或超管 */
+  canTune: boolean;
   canManageSubscriptions: boolean;
   /** null 表示电影订阅，不展示没有业务语义的自动续订动作。 */
   followFuture: boolean | null;
@@ -703,6 +713,7 @@ function SubscriptionManageMenu({
   paused,
   completed,
   canSubscribe,
+  canTune,
   canManageSubscriptions,
   followFuture,
   onAdjust,
@@ -736,17 +747,17 @@ function SubscriptionManageMenu({
           collisionPadding={12}
           className="menu-surface z-50 min-w-[10.5rem] p-1"
         >
-          {canSubscribe && (
+          {canTune && (
             <DropdownMenu.Item onSelect={onAdjust} className={itemClass}>
               调整订阅…
             </DropdownMenu.Item>
           )}
-          {canSubscribe && (
+          {canTune && (
             <DropdownMenu.Item onSelect={onUpgradeRun} disabled={busy} className={itemClass}>
               洗一轮版…
             </DropdownMenu.Item>
           )}
-          {canSubscribe && followFuture !== null && (
+          {canTune && followFuture !== null && (
             <DropdownMenu.Item
               onSelect={onToggleFollowFuture}
               disabled={busy}
@@ -760,7 +771,7 @@ function SubscriptionManageMenu({
               更换规则组…
             </DropdownMenu.Item>
           )}
-          {canSubscribe && (
+          {canTune && (
             <DropdownMenu.Item
               onSelect={onTogglePause}
               disabled={busy || completed}
@@ -793,6 +804,7 @@ function SubscriptionManageSheet({
   paused,
   completed,
   canSubscribe,
+  canTune,
   canManageSubscriptions,
   followFuture,
   onClose,
@@ -816,10 +828,10 @@ function SubscriptionManageSheet({
     return (
       <SheetScaffold open={open} onClose={onClose} title="管理订阅">
         <SheetSection>
-          {canSubscribe && (
+          {canTune && (
             <SheetRow icon={<PencilIcon className={icon} />} label="调整订阅" chevron onClick={onAdjust} />
           )}
-          {canSubscribe && (
+          {canTune && (
             <SheetRow
               icon={<UpgradeIcon className={icon} />}
               label="洗一轮版"
@@ -828,7 +840,7 @@ function SubscriptionManageSheet({
               onClick={onUpgradeRun}
             />
           )}
-          {canSubscribe && followFuture !== null && (
+          {canTune && followFuture !== null && (
             <SheetRow
               icon={<BellIcon className={icon} />}
               label={followFuture ? "关闭自动续订" : "开启自动续订"}
@@ -839,7 +851,7 @@ function SubscriptionManageSheet({
           {canManageSubscriptions && (
             <SheetRow icon={<ListIcon className={icon} />} label="更换规则组" chevron onClick={onSwitchRule} />
           )}
-          {canSubscribe && (
+          {canTune && (
             <SheetRow
               icon={paused ? <PlayIcon className={icon} /> : <PauseGlyph className={icon} />}
               label={paused ? "恢复追踪" : "暂停追踪"}
@@ -870,19 +882,19 @@ function SubscriptionManageSheet({
         <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
         <h2 className="px-2 text-title-sm font-bold text-white">管理订阅</h2>
         <div className="mt-3 overflow-hidden rounded-xl bg-white/[0.035]">
-          {canSubscribe && (
+          {canTune && (
             <button type="button" onClick={onAdjust} className={rowClass}>
               <span>调整订阅</span>
               <span aria-hidden className="text-white/35">›</span>
             </button>
           )}
-          {canSubscribe && (
+          {canTune && (
             <button type="button" disabled={busy} onClick={onUpgradeRun} className={rowClass}>
               <span>洗一轮版</span>
               <span aria-hidden className="text-white/35">›</span>
             </button>
           )}
-          {canSubscribe && followFuture !== null && (
+          {canTune && followFuture !== null && (
             <button
               type="button"
               disabled={busy}
@@ -898,7 +910,7 @@ function SubscriptionManageSheet({
               <span aria-hidden className="text-white/35">›</span>
             </button>
           )}
-          {canSubscribe && (
+          {canTune && (
             <button
               type="button"
               disabled={busy || completed}
@@ -2038,7 +2050,12 @@ function downloadNote(d: SubscriptionDownload): string {
   if (d.state === "paused") return `${pct} · 已在下载器中暂停`;
   if (d.state === "error") {
     // 下载器里这条任务坏了（多半是文件缺失），不是死种：说清原因，并交代
-    // 换源判定已暂停、要去下载器里处理
+    // 换源判定已暂停、要去下载器里处理。成员拿到的精简快照不含下载器原文
+    //（error_message 与 downloader_name 都为 null），也进不了下载器，改为提示等管理员处理。
+    // 超管快照的 downloader_name 在非 missing 态恒有值，据此区分，超管文案保持原样
+    if (!d.error_message && d.downloader_name === null) {
+      return `${pct} · 下载任务出错，换源判定已暂停，需管理员在下载器中处理`;
+    }
     return `${pct} · ${d.error_message || "下载器报告任务出错"}；换源判定已暂停，请在下载器中处理`;
   }
   if (d.state === "stalled") return `${pct} · 等待连接做种`;

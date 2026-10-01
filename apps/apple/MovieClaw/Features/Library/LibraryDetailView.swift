@@ -221,9 +221,10 @@ struct LibraryDetailView: View {
         return 30
     }
 
-    /// ⋯ 菜单里有没有东西（同 Web hasMenuItems）：普通成员在合集视图下什么都没有，整个按钮不画
+    /// ⋯ 菜单里有没有东西（同 Web hasMenuItems）：合集视图下至少有「显示已隐藏的合集」，成员也要给
     private var hasMenuItems: Bool {
         permissions.canManageLibraries || photoWall || galleryOn || (library?.capabilities.playable == true && view == .items)
+            || view == .collections
     }
 
     @ToolbarContentBuilder

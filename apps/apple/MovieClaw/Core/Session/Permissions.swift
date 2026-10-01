@@ -8,6 +8,9 @@ struct Permissions: Equatable {
     var canDirectDownload: Bool
     var canManageLibraries: Bool { isAdmin }
     var canManageSubscriptions: Bool { isAdmin }
+    /// 订阅详情「手动选种」/ 资源结果「投给订阅」：在站点资源里挑一条种子直接投给订阅（member-permissions-v2 §3.7）。
+    /// 投递本身要一键下载权限，挑种子要先能搜资源；订阅归属（只能投给自己发起的订阅）由后端校验
+    var canGrabForSubscription: Bool { isAdmin || (canSubscribe && canSearch && canDirectDownload) }
 
     init(session: API.SessionView) {
         isAdmin = session.role == "admin"
@@ -24,12 +27,13 @@ struct Permissions: Equatable {
         canDirectDownload = false
     }
 
-    /// 同 Web `accessiblePathFor`：成员进不了的页面落回媒体库
+    /// 同 Web `accessiblePathFor`：成员进不了的页面落回媒体库。
+    /// 搜索页不在此拦：入口口径是「任一分区可用」（见 SearchAccess.canOpenSearch），媒体库分区要异步
+    /// 查可见库才知道；没有任何可用分区时搜索页自己显示「无权限」
     func allows(_ route: AppRoute) -> Bool {
         switch route {
         case .newSession, .session, .activity, .activityPage: isAdmin
         case .subscriptions, .subscription, .subscriptionWall: canSubscribe
-        case .searchHome, .search: canSearch
         case let .settingsSection(section, _): isAdmin || section.memberVisible
         case .libraryManage: isAdmin
         default: true

@@ -414,7 +414,9 @@ enum WantedLogic {
         return .init(label: "冷却中", color: SubsColor.info, note: "暂无合适资源，\(SubsFormat.dateTime(nextSearch)) 再试")
     }
 
-    /// 实时下载快照 → 一行进度说明
+    /// 实时下载快照 → 一行进度说明。
+    /// 成员拿到的是精简口径（种子名、下载器名、错误原文为空，member-permissions-v2 §3.2），只用进度类字段；
+    /// 出错时没有原文就不叫成员「去下载器处理」（成员进不了下载器），改为提示由管理员处理
     static func downloadNote(_ d: API.SubscriptionDownloadView) -> String {
         if d.state == "missing" { return "种子已不在下载器中（可能被手动删除），稍后自动重新寻找资源" }
         let pct = d.progress.map { "\(Int(($0 * 100).rounded(.down)))%" } ?? ""
@@ -422,7 +424,9 @@ enum WantedLogic {
         case "completed": return "已下载完成，等待整理入库"
         case "paused": return "\(pct) · 已在下载器中暂停"
         case "error":
-            let message = (d.errorMessage?.isEmpty == false ? d.errorMessage : nil) ?? "下载器报告任务出错"
+            guard let message = d.errorMessage, !message.isEmpty else {
+                return "\(pct) · 下载任务出错；换源判定已暂停，需管理员在下载器中处理"
+            }
             return "\(pct) · \(message)；换源判定已暂停，请在下载器中处理"
         case "stalled": return "\(pct) · 等待连接做种"
         default:

@@ -17,6 +17,7 @@ import { clearBackdropCache } from "@/lib/backdrop-cache";
 import type { SearchScope } from "@/lib/categories";
 import { useAgentConversations } from "@/lib/agent-conversations";
 import { accessiblePathFor, usePermissions } from "@/lib/permissions";
+import { useSearchAccess } from "@/lib/search-access";
 import { useSession } from "@/lib/session";
 import { taskActivityBadge, useTaskActivity, type TaskActivityBadge } from "@/lib/task-activity";
 import { clearUiPrefsCache } from "@/lib/ui-prefs-cache";
@@ -64,7 +65,9 @@ export function NetflixTopNav({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { canSearch, canSubscribe, isAdmin } = usePermissions();
+  const { canSubscribe, isAdmin } = usePermissions();
+  // 搜索入口按「任一搜索分区可用」露出（影视 / 资源 / 媒体库），不只看资源搜索开关
+  const { canOpenSearch } = useSearchAccess();
   const active = activeNavId(pathname);
 
   // 顶栏透明 → 实底的滚动判定：全站页面都是「外壳固定 + 内部容器滚动」，
@@ -177,7 +180,7 @@ export function NetflixTopNav({
               新任务
             </button>
           )}
-          {canSearch && <SearchCommand onSearch={onSearch} triggerClassName="nf-icon-btn" />}
+          {canOpenSearch && <SearchCommand onSearch={onSearch} triggerClassName="nf-icon-btn" />}
           <NoticeCenter collapsed variant="bell" />
           <NetflixAvatarMenu onOpenSettings={onOpenSettings} isAdmin={isAdmin} />
         </div>

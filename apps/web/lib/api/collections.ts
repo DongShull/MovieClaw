@@ -43,8 +43,13 @@ export interface Collection {
   kind: "user" | "builtin" | "series";
   /** 已隐藏。自动生成的合集删不掉（下次 ensure 又长回来），那颗按钮落成墓碑 */
   hidden: boolean;
-  /** 能不能改规则 */
+  /** 当前观看者能不能改规则与名单（用户自建，且 manageable 为真） */
   editable: boolean;
+  /**
+   * 当前观看者能不能管理这个合集（改名、排序、可见性、隐藏、删除）：超管恒为真；
+   * 成员只能管理自己的私有合集与自己建的全家合集，内置全家合集只有超管能管
+   */
+  manageable: boolean;
   /** 规则驱动（会自己长）还是名单驱动（固定的一份名单） */
   rule_driven: boolean;
   /** 当前观看者能看到的成员数 */

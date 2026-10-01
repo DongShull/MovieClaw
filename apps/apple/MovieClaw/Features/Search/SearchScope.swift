@@ -256,11 +256,28 @@ struct SearchAccess: Equatable {
         }
     }
 
+    /// 搜索入口（顶栏放大镜）与 `/search` 路由的口径（设计稿 member-permissions-v2 §3.3 `canOpenSearch`）：
+    /// 任一分区可用就给入口——默认成员（能订阅）、儿童账号（只有可见库）都能进来搜媒体库
+    var canOpenSearch: Bool { !available.isEmpty }
+
     static func resolve(api: APIClient, permissions: Permissions) async -> SearchAccess {
         var access = SearchAccess(canMedia: permissions.canSubscribe, canTorrent: permissions.canSearch, canLibrary: permissions.isAdmin, ready: true)
         if !permissions.isAdmin {
             access.canLibrary = ((try? await api.libraryList(scope: "all")) ?? []).isEmpty == false
         }
         return access
+    }
+}
+
+private struct SearchAccessKey: EnvironmentKey {
+    static let defaultValue = SearchAccess()
+}
+
+extension EnvironmentValues {
+    /// 当前账号的搜索分区权限：由 MainTabView 按权限同步推导（成员的媒体库分区每个账号查一次可见库）后注入，
+    /// 顶栏放大镜读它决定显隐，不在每次渲染顶栏时去拉媒体库列表
+    var searchAccess: SearchAccess {
+        get { self[SearchAccessKey.self] }
+        set { self[SearchAccessKey.self] = newValue }
     }
 }

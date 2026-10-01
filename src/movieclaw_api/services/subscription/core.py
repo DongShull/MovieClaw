@@ -942,6 +942,21 @@ class SubscriptionService:
         self._kick_search()  # 暂停期间积压的到期工单立即处理
         return subscription
 
+    async def assert_can_view(self, subscription_id: int, member_id: int | None) -> None:
+        """可见性校验：成员只能读自己发起或关注的订阅（§3.5，与列表同一口径）。
+
+        ``member_id`` 为 None（超管/PAT/Agent）直通。不在范围内按 404 处理而不是
+        403——订阅 id 可枚举，"存在但你看不到"本身就是信息泄露。
+        """
+        if member_id is None:
+            return
+        subscription = await self._get_or_404(subscription_id)
+        if subscription.created_by_member_id == member_id:
+            return
+        if subscription_id in await self._repo.followed_subscription_ids(member_id):
+            return
+        raise NotFoundException(f"订阅不存在：#{subscription_id}")
+
     async def assert_can_manage(self, subscription_id: int, member_id: int | None) -> None:
         """归属校验：修改/暂停订阅只有发起人与超管可以（§3.5）。
 

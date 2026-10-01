@@ -14,17 +14,26 @@ export interface AppPermissions {
   canDirectDownload: boolean;
   canManageLibraries: boolean;
   canManageSubscriptions: boolean;
+  /**
+   * 订阅详情「手动选种」：先搜资源、再把选中的种子投给下载器，所以要同时具备
+   * 订阅、资源搜索与一键下载三项能力；后端投递接口另校验订阅归属（仅发起人）。
+   */
+  canGrabForSubscription: boolean;
 }
 
 export function permissionsFor(session: SessionView): AppPermissions {
   const isAdmin = session.role === "admin";
+  const canSubscribe = isAdmin || session.capabilities.allow_subscribe;
+  const canSearch = isAdmin || session.capabilities.allow_search;
+  const canDirectDownload = isAdmin || session.capabilities.allow_direct_download;
   return {
     isAdmin,
-    canSubscribe: isAdmin || session.capabilities.allow_subscribe,
-    canSearch: isAdmin || session.capabilities.allow_search,
-    canDirectDownload: isAdmin || session.capabilities.allow_direct_download,
+    canSubscribe,
+    canSearch,
+    canDirectDownload,
     canManageLibraries: isAdmin,
     canManageSubscriptions: isAdmin,
+    canGrabForSubscription: canSubscribe && canSearch && canDirectDownload,
   };
 }
 
@@ -52,12 +61,16 @@ export function accessiblePathFor(session: SessionView, requestedPath: string): 
     ) {
       return "/library";
     }
+    // 观看活动与媒体库管理是超管页面，成员界面上没有入口，手输 URL 同样改道
+    if (requestedPath.startsWith("/activity") || requestedPath.startsWith("/library/manage")) {
+      return "/library";
+    }
     if (!session.capabilities.allow_subscribe && requestedPath.startsWith("/subscriptions")) {
       return "/library";
     }
-    if (!session.capabilities.allow_search && requestedPath.startsWith("/search")) {
-      return "/library";
-    }
+    // /search 不在这里拦：搜索按分区授权（影视 / 资源 / 媒体库，见 useSearchAccess），
+    // 「有没有可用分区」要查可见库才知道，这个同步守卫给不出结论；搜索页自己在
+    // 没有可用分区时渲染空状态，入口也已按同一口径隐藏
   }
   return requestedPath;
 }

@@ -303,3 +303,14 @@ def test_content_limit_reaches_the_tv(client: TestClient, seeded: dict) -> None:
     )
     assert latest.status_code == 200, latest.text
     assert item_guid(movie_id) not in {row["Id"] for row in latest.json()}
+
+    # 起播 / 取流 / 下载同样挡住（member-permissions-v2.md §2.1 S4）：浏览层滤掉了，
+    # 播放层若只看库可见性，孩子拿到 GUID 照样能放
+    guid = item_guid(movie_id)
+    info = client.post(f"/Items/{guid}/PlaybackInfo", headers=_member_headers(token))
+    assert info.json()["MediaSources"] == [], info.text
+    stream = client.get(
+        f"/Videos/{guid}/stream", params={"static": "true"}, headers=_member_headers(token)
+    )
+    assert stream.status_code == 404
+    assert client.get(f"/Items/{guid}/Download", headers=_member_headers(token)).status_code == 404

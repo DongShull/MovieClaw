@@ -28,6 +28,12 @@
  *     改这条默认，不勾等于改了个寂寞，旧的错默认还留在那儿。
  * 不勾选时提交请求里不带 category，后端据此跳过 upsert（见
  * api/routes/downloaders.py 的 _remember_target）。
+ *
+ * 成员分支（docs/design/member-permissions-v2.md §3.7 U7）：下载器配置、智能入库
+ * 预检都是超管接口，手选目录 / 指定下载器 / 智能入库提交时也会被后端 403。成员
+ * 弹窗（MemberDialogContent）因此只给两种落点：「下到我能看到的某个媒体库」
+ *（library_id，按该库的入库规则推导目录）或「下载器默认目录」，也不读写保存位置记忆
+ *（后端只为超管记）。
  */
 
 import Link from "next/link";
@@ -37,6 +43,8 @@ import { FolderIcon } from "@/components/icons";
 import { CATEGORY_LABEL, type TorrentCategory } from "@/lib/categories";
 import { formatRelativeTime } from "@/lib/time";
 import { Modal } from "@/components/modal";
+import { listLibraries, type MediaLibrary } from "@/lib/api/libraries";
+import { usePermissions } from "@/lib/permissions";
 import {
   listDownloaders,
   submitTorrentDownload,
@@ -178,7 +186,19 @@ export function DownloadTargetDialog({
   /** 触发按钮长在灯箱这类高层浮层里时置位，弹窗抬到最高层（见 Modal 的层级约定） */
   topmost?: boolean;
 }) {
+  const { isAdmin } = usePermissions();
   if (!request) return null;
+  if (!isAdmin) {
+    return (
+      <MemberDialogContent
+        key={`${request.site_id}:${request.download_url}`}
+        request={request}
+        topmost={topmost}
+        onClose={onClose}
+        onSubmitted={onSubmitted}
+      />
+    );
+  }
   // 以 request 为 key 强制内容组件重新挂载：每次打开都从全新状态开始，
   // 避免默认选中 effect 读到上一次的旧数据抢先选中错误项。
   return (
@@ -684,6 +704,170 @@ function DialogContent({
     </Modal>
   );
 }
+
+/** 成员弹窗里「下载器默认目录」选项的 key（库选项用库 id 的字符串）。 */
+const MEMBER_DEFAULT_KEY = "default";
+
+/**
+ * 成员版保存位置弹窗：不碰任何下载器配置接口，只列成员可见的媒体库 + 下载器默认目录。
+ *
+ * 选库时提交 library_id（后端校验该库对成员可见，再按库的入库规则推导保存目录：
+ * 有监听导入规则走规则源目录，否则落到「主根/标题 (年份)」），种子解析出的
+ * 片名年份随之带上用于推导条目子目录；不选库就交给下载器默认目录，不会自动入库。
+ * 默认选中：种子类型对得上的默认库 > 同类型第一个库 > 下载器默认目录。
+ */
+function MemberDialogContent({
+  request,
+  onClose,
+  onSubmitted,
+  topmost,
+}: {
+  request: DownloadTargetRequest;
+  onClose: () => void;
+  onSubmitted: (result: DownloadSubmitResult) => void;
+  topmost: boolean;
+}) {
+  // null = 加载中；拉失败按空列表处理，仍可选下载器默认目录
+  const [libraries, setLibraries] = useState<MediaLibrary[] | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const kind = request.identity?.kind ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    void listLibraries()
+      .catch(() => [] as MediaLibrary[])
+      .then((all) => {
+        if (cancelled) return;
+        // 照片库不收视频下载；与种子类型一致的库排前面，其余保持原顺序
+        const rows = all.filter((l) => l.kind !== "photo");
+        const sorted = kind
+          ? [...rows.filter((l) => l.kind === kind), ...rows.filter((l) => l.kind !== kind)]
+          : rows;
+        setLibraries(sorted);
+        const sameKind = kind ? rows.filter((l) => l.kind === kind) : [];
+        const preferred = sameKind.find((l) => l.is_default) ?? sameKind[0] ?? null;
+        setSelected(preferred ? String(preferred.id) : MEMBER_DEFAULT_KEY);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kind]);
+
+  const submit = () => {
+    if (selected === null || busy) return;
+    const libraryId = selected === MEMBER_DEFAULT_KEY ? null : Number(selected);
+    setBusy(true);
+    setError(null);
+    void submitTorrentDownload({
+      site_id: request.site_id,
+      download_url: request.download_url,
+      torrent_id: request.torrent_id,
+      ...(libraryId !== null
+        ? {
+            library_id: libraryId,
+            // 片名年份只在种子身份三件套齐全时带：推导条目子目录用，猜错会进错目录
+            title: request.identity?.title ?? null,
+            year: request.identity?.year ?? null,
+            subtitle: request.subtitle,
+          }
+        : {}),
+    })
+      .then((result) => {
+        onSubmitted(result);
+        onClose();
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "提交失败，请重试"))
+      .finally(() => setBusy(false));
+  };
+
+  const picked =
+    selected !== null && selected !== MEMBER_DEFAULT_KEY
+      ? (libraries?.find((l) => String(l.id) === selected) ?? null)
+      : null;
+  const optionClass =
+    "flex w-full items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-left transition-colors hover:border-[var(--accent)]/50 data-[active=true]:border-[var(--accent)]/70 data-[active=true]:bg-[var(--accent-soft)]";
+
+  return (
+    <Modal open topmost={topmost} onClose={onClose} label="选择保存位置">
+      <div className="border-b border-white/[0.07] px-6 pb-4 pt-6">
+        <h2 className="text-title font-bold text-white">选择保存位置</h2>
+      </div>
+
+      <div className="scroll-thin min-h-0 flex-1 space-y-2 overflow-y-auto px-6 py-4">
+        {error && (
+          <p className="rounded-lg border border-red-400/25 bg-red-500/10 px-3.5 py-2.5 text-ui leading-6 text-red-200">
+            {error}
+          </p>
+        )}
+        {libraries === null ? (
+          <div className="h-[52px] animate-pulse rounded-xl bg-white/[0.04]" />
+        ) : (
+          <>
+            {libraries.map((library) => (
+              <button
+                key={library.id}
+                type="button"
+                onClick={() => setSelected(String(library.id))}
+                data-active={selected === String(library.id)}
+                className={optionClass}
+              >
+                <FolderIcon className="mt-0.5 size-4 shrink-0 text-[var(--accent)]/80" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-ui font-medium text-[var(--text)]">
+                    下载到「{library.name}」
+                  </span>
+                  <span className="mt-0.5 block text-caption leading-relaxed text-[var(--text-faint)]">
+                    {library.kind === kind || !kind
+                      ? "按该库的入库规则保存，下载完成后自动整理入库"
+                      : `该库是${LIBRARY_KIND_LABEL[library.kind] ?? "其他"}库，与这条资源的类型不一致`}
+                  </span>
+                </span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSelected(MEMBER_DEFAULT_KEY)}
+              data-active={selected === MEMBER_DEFAULT_KEY}
+              className={optionClass}
+            >
+              <FolderIcon className="mt-0.5 size-4 shrink-0 text-[var(--accent)]/80" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-ui font-medium text-[var(--text)]">
+                  下载器默认目录
+                </span>
+                <span className="mt-0.5 block text-caption leading-relaxed text-[var(--text-faint)]">
+                  不指定位置，由下载器按自身设置决定；不会自动整理入库
+                </span>
+              </span>
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3 border-t border-white/[0.07] px-6 py-4">
+        <button type="button" onClick={onClose} className="btn-glass h-9 px-4 text-ui font-medium">
+          取消
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={busy || selected === null}
+          className="btn-accent h-9 rounded-full px-5 text-ui font-semibold disabled:opacity-40"
+        >
+          {busy ? "提交中…" : picked ? `下载到「${picked.name}」` : "确认下载"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+const LIBRARY_KIND_LABEL: Partial<Record<MediaLibrary["kind"], string>> = {
+  movie: "电影",
+  tv: "剧集",
+  video: "视频",
+};
 
 /**
  * 「这是哪部作品？」：自动识别没收敛时的条目确认区。

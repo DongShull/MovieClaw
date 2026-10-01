@@ -661,7 +661,7 @@ struct LibraryItemDetailView: View {
         let canUpgrade = permissions.canSubscribe && tmdb > 0 && detail.kind != "video" && detail.kind != "photo"
         let canShare = permissions.isAdmin && detail.kind != "photo"
         return Menu {
-            if manage {
+            if permissions.canSearch {
                 Button("搜索资源") { router.push(.search(.init(q: detail.title))) }
             }
             Button("加入合集…") { sheet = .addToCollection }

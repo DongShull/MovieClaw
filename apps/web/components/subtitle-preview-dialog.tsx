@@ -10,6 +10,7 @@ import {
   getSubtitlePreview,
 } from "@/lib/api/libraries";
 import { calibrateSubtitleTiming } from "@/lib/api/subtitle-gen";
+import { usePermissions } from "@/lib/permissions";
 
 function formatTimestamp(milliseconds: number): string {
   const totalSeconds = Math.floor(milliseconds / 1000);
@@ -53,6 +54,8 @@ export function SubtitlePreviewDialog({
   const [retryKey, setRetryKey] = useState(0);
   const [calibrating, setCalibrating] = useState(false);
   const [calibrationNotice, setCalibrationNotice] = useState<string | null>(null);
+  // 校准走 subtitle_gen（消耗 LLM / 改写库文件），整组仅超管可用，成员不给入口
+  const { isAdmin } = usePermissions();
 
   const retry = useCallback(() => setRetryKey((value) => value + 1), []);
 
@@ -220,7 +223,7 @@ export function SubtitlePreviewDialog({
           <div className="flex items-center justify-between gap-4">
             <span className="text-sub text-[var(--text-muted)]">共 {data.event_count} 条对白</span>
             <div className="flex items-center gap-2.5">
-              {stream.external && stream.file_name && (
+              {isAdmin && stream.external && stream.file_name && (
                 <button
                   type="button"
                   onClick={() => void calibrate()}

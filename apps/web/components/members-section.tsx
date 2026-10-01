@@ -255,7 +255,7 @@ function MemberTableRow({
 }) {
   const permissionLabels = [
     member.allow_subscribe ? "订阅" : null,
-    member.allow_search ? "搜索" : null,
+    member.allow_search ? "资源搜索" : null,
     member.allow_direct_download ? "下载" : null,
     // 分级上限直接摆在摘要里：这是"这个号是给谁用的"最要紧的一条信息
     member.content_age_limit !== null ? `${member.content_age_limit}+ 以下` : null,
@@ -438,7 +438,7 @@ function CreateMemberDialog({
       <div className="p-6 max-md:p-5">
         <h2 className="text-title font-bold text-white">添加成员</h2>
         <p className="mt-1 text-sub text-[var(--text-muted)]">
-          新成员默认可以订阅和浏览全部媒体库，站点搜索默认关闭。
+          新成员默认可以订阅和浏览全部媒体库，资源搜索默认关闭。
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-4 max-md:grid-cols-1">
@@ -587,8 +587,8 @@ function EditMemberDialog({
               onChange={setAllowSubscribe}
             />
             <PermissionToggle
-              label="站点搜索"
-              description="搜索被分配的 PT 站点资源"
+              label="资源搜索"
+              description="在被分配的 PT 站点里搜索种子资源（媒体库内搜索不受此开关影响）"
               checked={allowSearch}
               onChange={(checked) => {
                 setAllowSearch(checked);
@@ -597,7 +597,7 @@ function EditMemberDialog({
             />
             <PermissionToggle
               label="一键下载"
-              description="从搜索结果直接提交下载，依赖站点搜索"
+              description="从搜索结果直接提交下载，依赖资源搜索"
               checked={allowDirectDownload}
               disabled={!allowSearch}
               onChange={setAllowDirectDownload}

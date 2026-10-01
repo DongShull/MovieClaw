@@ -36,6 +36,8 @@ import { usePermissions } from "@/lib/permissions";
  *   - 库里有文件但不在订阅范围的季 → 如实列出供勾选并入（扩大范围会连带
  *     补缺下载，是用户决策，不静默纳入）；
  *   - 订阅已暂停 → 提示并改为「恢复并触发」。
+ * 成员分支：规则组是超管的配置知识（GET /rule-sets 仅超管），成员不拉列表、
+ * 不选组，一律按订阅当前的规则组洗版（后端也会忽略成员传来的 rule_set_id）。
  * 报告段渲染后端体检快照（摘要句 + 按季分组的单元徽标），不落库、不轮询——
  * 后续进展看追踪明细的「洗版中」徽标与活动流水。
  */
@@ -62,6 +64,8 @@ export function UpgradeRunDialog({
   const [report, setReport] = useState<UpgradeRunReport | null>(null);
 
   useEffect(() => {
+    // 成员不拉规则组列表（超管接口），直接按订阅现用组洗版
+    if (!canManageSubscriptions) return;
     listRuleSets()
       .then((rules) => {
         setRuleSets(rules);
@@ -75,7 +79,7 @@ export function UpgradeRunDialog({
         }
       })
       .catch(() => setError("未能加载规则组列表，请稍后重试"));
-  }, [detail.rule_set_id]);
+  }, [canManageSubscriptions, detail.rule_set_id]);
 
   const upgradeRules = useMemo(
     () => (ruleSets ?? []).filter((r) => upgradeTargetLabel(r.spec)),
@@ -99,9 +103,11 @@ export function UpgradeRunDialog({
 
   const paused = detail.status === "paused";
   const selectedRule = upgradeRules.find((r) => r.id === ruleSetId) ?? null;
+  // 超管须选定一个带洗版目标的组；成员沿用订阅现用组，无需选择即可触发
+  const canRun = !canManageSubscriptions || !!selectedRule;
 
   const run = async () => {
-    if (!selectedRule) return;
+    if (!canRun) return;
     setBusy(true);
     setError(null);
     try {
@@ -117,7 +123,7 @@ export function UpgradeRunDialog({
       setReport(
         await runSubscriptionUpgradeRound(
           detail.id,
-          selectedRule.id !== detail.rule_set_id ? selectedRule.id : undefined,
+          selectedRule && selectedRule.id !== detail.rule_set_id ? selectedRule.id : undefined,
         ),
       );
     } catch (e) {
@@ -162,7 +168,7 @@ export function UpgradeRunDialog({
           subtitle={`逐集检查《${detail.media.title}》库里已有的版本，低于洗版目标的立即排入搜索；洗到新版本入库并验证通过后，旧文件自动替换。`}
           confirm={{
             label: paused ? "恢复并触发洗版" : "开始体检并洗版",
-            enabled: !!selectedRule,
+            enabled: canRun,
             busy,
             onConfirm: () => void run(),
           }}
@@ -171,45 +177,45 @@ export function UpgradeRunDialog({
           {paused && (
             <SheetNotice tone="warn">该订阅已暂停。触发洗版会先恢复追踪，随后开始搜索。</SheetNotice>
           )}
-          <SheetSection
-            title="洗版目标"
-            footer={
-              ruleSets === null
-                ? null
-                : upgradeRules.length === 0
-                  ? `还没有配置洗版目标的规则组。${
-                      canManageSubscriptions
-                        ? "新建一个，在编辑器里选择「洗到哪一档」即可。"
-                        : "请联系管理员在「设置 → 订阅规则 → 规则组」中配置「洗到哪一档」。"
-                    }`
-                  : !currentHasTarget &&
-                    "当前规则组未配置洗版目标，选一个带洗版目标的组，确认后一并换用。"
-            }
-          >
-            {ruleSets === null ? (
-              <SheetRow label={<span className="text-[var(--text-muted)]">正在加载规则组…</span>} />
-            ) : (
-              <>
-                {upgradeRules.map((rs) => (
-                  <SheetChoiceRow
-                    key={rs.id}
-                    label={`${rs.name}${rs.id === detail.rule_set_id ? "（当前使用）" : ""}`}
-                    detail={`洗到 ${upgradeTargetLabel(rs.spec)}`}
-                    selected={rs.id === ruleSetId}
-                    disabled={busy}
-                    onSelect={() => setRuleSetId(rs.id)}
-                  />
-                ))}
-                {canManageSubscriptions && (
+          {!canManageSubscriptions ? (
+            <SheetSection title="洗版目标" footer={MEMBER_RULE_SET_HINT}>
+              <SheetRow label="按订阅当前的规则组洗版" />
+            </SheetSection>
+          ) : (
+            <SheetSection
+              title="洗版目标"
+              footer={
+                ruleSets === null
+                  ? null
+                  : upgradeRules.length === 0
+                    ? "还没有配置洗版目标的规则组。新建一个，在编辑器里选择「洗到哪一档」即可。"
+                    : !currentHasTarget &&
+                      "当前规则组未配置洗版目标，选一个带洗版目标的组，确认后一并换用。"
+              }
+            >
+              {ruleSets === null ? (
+                <SheetRow label={<span className="text-[var(--text-muted)]">正在加载规则组…</span>} />
+              ) : (
+                <>
+                  {upgradeRules.map((rs) => (
+                    <SheetChoiceRow
+                      key={rs.id}
+                      label={`${rs.name}${rs.id === detail.rule_set_id ? "（当前使用）" : ""}`}
+                      detail={`洗到 ${upgradeTargetLabel(rs.spec)}`}
+                      selected={rs.id === ruleSetId}
+                      disabled={busy}
+                      onSelect={() => setRuleSetId(rs.id)}
+                    />
+                  ))}
                   <SheetRow
                     icon={<PlusIcon className="size-[18px]" />}
                     label="新建规则组…"
                     onClick={() => setCreatingRuleSet(true)}
                   />
-                )}
-              </>
-            )}
-          </SheetSection>
+                </>
+              )}
+            </SheetSection>
+          )}
           {outOfScopeOwned.length > 0 && (
             <SheetSection
               title="范围外的库存季"
@@ -287,22 +293,23 @@ export function UpgradeRunDialog({
             {/* —— 规则组（洗版目标住在规则组上；只列带洗版目标的组）—— */}
             <div className="mt-4">
               <p className="text-sub font-semibold text-white/85">洗版目标</p>
-              {ruleSets === null ? (
+              {!canManageSubscriptions ? (
+                <div className="mt-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sub leading-6 text-[var(--text-muted)]">
+                  <span className="font-medium text-white/85">按订阅当前的规则组洗版。</span>
+                  {MEMBER_RULE_SET_HINT}
+                </div>
+              ) : ruleSets === null ? (
                 <p className="mt-2 text-sub text-[var(--text-muted)]">正在加载规则组…</p>
               ) : upgradeRules.length === 0 ? (
                 <div className="mt-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sub leading-6 text-[var(--text-muted)]">
                   还没有配置洗版目标的规则组。
-                  {canManageSubscriptions ? (
-                    <button
-                      type="button"
-                      onClick={() => setCreatingRuleSet(true)}
-                      className="ml-1 font-medium text-[var(--accent-2)] hover:underline"
-                    >
-                      + 新建规则组
-                    </button>
-                  ) : (
-                    " 请联系管理员在「设置 → 订阅规则 → 规则组」中配置「洗到哪一档」。"
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setCreatingRuleSet(true)}
+                    className="ml-1 font-medium text-[var(--accent-2)] hover:underline"
+                  >
+                    + 新建规则组
+                  </button>
                 </div>
               ) : (
                 <div className="mt-2 space-y-1.5">
@@ -339,15 +346,13 @@ export function UpgradeRunDialog({
                       </button>
                     );
                   })}
-                  {canManageSubscriptions && (
-                    <button
-                      type="button"
-                      onClick={() => setCreatingRuleSet(true)}
-                      className="w-full rounded-xl border border-dashed border-white/[0.14] px-4 py-2 text-left text-sub text-[var(--text-muted)] transition hover:border-white/25 hover:text-white/80"
-                    >
-                      + 新建规则组
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setCreatingRuleSet(true)}
+                    className="w-full rounded-xl border border-dashed border-white/[0.14] px-4 py-2 text-left text-sub text-[var(--text-muted)] transition hover:border-white/25 hover:text-white/80"
+                  >
+                    + 新建规则组
+                  </button>
                 </div>
               )}
             </div>
@@ -401,7 +406,7 @@ export function UpgradeRunDialog({
             </button>
             <button
               type="button"
-              disabled={busy || !selectedRule}
+              disabled={busy || !canRun}
               onClick={() => void run()}
               className="btn-accent inline-flex h-10 items-center gap-2 rounded-full px-5 text-ui font-semibold disabled:opacity-40"
             >
@@ -418,6 +423,10 @@ export function UpgradeRunDialog({
     </Modal>
   );
 }
+
+/** 成员洗版时的规则组说明：成员不能选组，目标档位由管理员在规则组里配置。 */
+const MEMBER_RULE_SET_HINT =
+  "洗到哪一档由管理员在规则组里配置；若当前规则组还没有洗版目标，请联系管理员设置。";
 
 /** 单元状态 → 报告徽标（与追踪明细的徽标语言同源）。 */
 const UNIT_STATE_META: Record<

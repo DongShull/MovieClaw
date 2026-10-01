@@ -111,6 +111,12 @@ struct SubscriptionDetailView: View {
 
     // MARK: 数据
 
+    /// 调整类动作（立即搜索、改季、洗版、续订、暂停、手动选种）只给发起人与超管：后端按同一口径下发
+    /// `canManage`，只关注的成员只剩取消关注。这里只为不让人点了再被拒，授权仍以服务端校验为准
+    private func canTune(_ detail: API.SubscriptionDetailView) -> Bool {
+        permissions.canSubscribe && detail.canManage
+    }
+
     private func reload() async {
         await Loadable.load(into: $state) {
             async let detailTask = api.subscriptionsGet(subscriptionId: subscriptionId)
@@ -126,7 +132,7 @@ struct SubscriptionDetailView: View {
             openSeasons = WantedLogic.defaultOpenSeasons(detail.wanted)
             seasonsInitialized = true
         }
-        if openUpgradeRun, !upgradeRunConsumed, detail != nil, permissions.canSubscribe {
+        if openUpgradeRun, !upgradeRunConsumed, let detail, canTune(detail) {
             upgradeRunConsumed = true
             sheet = .upgradeRun
         }
@@ -277,8 +283,8 @@ struct SubscriptionDetailView: View {
 
     @ViewBuilder
     private func actions(_ detail: API.SubscriptionDetailView) -> some View {
-        let showSearch = permissions.canSubscribe && detail.progress.wanted > 0 && detail.status != "paused"
-        let showManual = permissions.canSubscribe && permissions.canSearch && (detail.progress.wanted > 0 || detail.wanted.contains { $0.upgrade != nil })
+        let showSearch = canTune(detail) && detail.progress.wanted > 0 && detail.status != "paused"
+        let showManual = permissions.canGrabForSubscription && canTune(detail) && (detail.progress.wanted > 0 || detail.wanted.contains { $0.upgrade != nil })
         let showMore = permissions.canSubscribe || permissions.canManageSubscriptions
         HStack(spacing: 8) {
             if showSearch {
@@ -331,6 +337,7 @@ struct SubscriptionDetailView: View {
                     paused: detail.status == "paused",
                     completed: detail.status == "completed",
                     canSubscribe: permissions.canSubscribe,
+                    canTune: canTune(detail),
                     canManage: permissions.canManageSubscriptions,
                     followFuture: detail.media.kind == "movie" ? nil : detail.followFuture,
                     busy: busy

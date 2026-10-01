@@ -140,7 +140,7 @@ export function LibraryItemDetailView({
   initialSeason?: number;
   initialEpisode?: number;
 }) {
-  const { canManageLibraries, isAdmin } = usePermissions();
+  const { canManageLibraries, canSearch, isAdmin } = usePermissions();
   // 洗版入口（quality-upgrade.md §13.3/§13.5）：有订阅并入既有订阅，无订阅走
   // 订阅弹层的洗版变体（库存季预填、建完自动接一轮洗版）
   const { canSubscribe, subscriptionOf, open: openSubscribe } = useSubscribeEntry();
@@ -650,6 +650,7 @@ export function LibraryItemDetailView({
   const itemActions = (
     <ItemActionsMenu
       canManage={canManageLibraries}
+      canSearch={canSearch}
       onClearHistory={() => {
         void confirm({
           title: `清除《${detail.title}》的观看记录？`,
@@ -1395,6 +1396,7 @@ export function PlayAction({
  */
 function ItemActionsMenu({
   canManage,
+  canSearch,
   identifiable,
   scraped,
   readsNfo,
@@ -1414,6 +1416,8 @@ function ItemActionsMenu({
 }: {
   /** 媒体库管理权限：识别/刮削/图片/转移/删除这些条目管理项按它显隐 */
   canManage: boolean;
+  /** 资源搜索权限：「搜索资源」按它显隐（与发现详情同口径），不跟管理权绑定 */
+  canSearch: boolean;
   /** 分享给不登录的人（docs/design/media-share.md）；仅超管时传 */
   onShare?: () => void;
   /** 所在库有识别链（影视库）：给「修正识别结果」；其他库没有可认领的外部身份 */
@@ -1470,7 +1474,7 @@ function ItemActionsMenu({
           collisionPadding={12}
           className="menu-surface z-50 min-w-[11rem] p-1"
         >
-          {canManage && (
+          {canSearch && (
             <DropdownMenu.Item
               onSelect={() => router.push(searchHref)}
               className={itemClass}
@@ -1551,7 +1555,7 @@ function ItemActionsMenu({
               </DropdownMenu.Item>
             </>
           )}
-          {(canManage || onUpgrade || onShare) && (
+          {(canManage || canSearch || onUpgrade || onShare) && (
             <DropdownMenu.Separator className="my-1 h-px bg-white/[0.07]" />
           )}
           <DropdownMenu.Item onSelect={onClearHistory} className={itemClass}>

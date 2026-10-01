@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// **只列名单驱动的合集**：规则驱动的合集成员是条件求值出来的，手工塞进去的片会静默消失
 /// （服务端也会拒绝），一个点了会报错的选项比没有这个选项更糟，所以根本不摆出来。
-/// 内置与系列合集同样是规则驱动，一并排除。
+/// 内置与系列合集同样是规则驱动，一并排除。别人建的家庭合集对成员只读（`editable` 为假），也不列。
 ///
 /// 同时给「新建一个合集」：用户多半还没有手动合集，只给一个空列表等于死路。
 /// 新建时 `item_ids` 直接带上这一部，新建 + 加入是一次请求。
@@ -85,8 +85,8 @@ struct AddToCollectionSheet: View {
     private func load() async {
         do {
             let all = try await api.collectionList(libraryId: libraryId, includeEmpty: true)
-            // 名单驱动 = 不会自己长的那些
-            rows = all.filter { !$0.ruleDriven }
+            // 名单驱动 = 不会自己长的那些；还得是自己能动名单的（editable：成员只能往自己建的合集里加）
+            rows = all.filter { !$0.ruleDriven && $0.editable }
         } catch {
             rows = []
         }

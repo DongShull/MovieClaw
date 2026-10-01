@@ -56,6 +56,7 @@ import {
 import { useHeroAmbientColor } from "@/lib/hero-ambient-color";
 import { useMediaDetail } from "@/lib/media-detail";
 import { TOP_BAR_LARGE_TITLE_CLASS, usePageChrome } from "@/lib/page-chrome";
+import { usePermissions } from "@/lib/permissions";
 import { useTheme } from "@/lib/ui-prefs";
 import { useScrollRestoration } from "@/lib/use-scroll-restoration";
 import { useIsMobile } from "@/lib/use-media-query";
@@ -818,6 +819,8 @@ function RowItemsSkeleton() {
  */
 function DiscoverError({ error, onRetry }: { error: DiscoverErrorInfo; onRetry: () => void }) {
   const unreachable = error.code === "UPSTREAM_UNREACHABLE";
+  // 网络设置是超管页面：成员只给「重试」
+  const { isAdmin } = usePermissions();
   return (
     <div className="flex flex-1 items-center justify-center px-6">
       {/* solid-card：空态卡挂卡片材质钩子（银玻璃零变化） */}
@@ -835,7 +838,7 @@ function DiscoverError({ error, onRetry }: { error: DiscoverErrorInfo; onRetry: 
           <p className="mt-2 text-sub leading-6 text-[var(--text-faint)]">{error.hint}</p>
         )}
         <div className="mt-5 flex items-center justify-center gap-3">
-          {unreachable && (
+          {unreachable && isAdmin && (
             <Link
               href={"/settings/network" as Route}
               className="btn-accent flex h-9 items-center rounded-full px-5 text-ui font-semibold"
@@ -846,7 +849,7 @@ function DiscoverError({ error, onRetry }: { error: DiscoverErrorInfo; onRetry: 
           <button
             type="button"
             onClick={onRetry}
-            className={`${unreachable ? "btn-glass" : "btn-accent"} h-9 rounded-full px-5 text-ui font-semibold`}
+            className={`${unreachable && isAdmin ? "btn-glass" : "btn-accent"} h-9 rounded-full px-5 text-ui font-semibold`}
           >
             重试
           </button>

@@ -511,7 +511,16 @@ class CollectionView(BaseModel):
     sort: str = Field(description="合集内默认排序")
     visibility: str = Field(description="household=全家可见 / private=只有我")
     builtin: str | None = Field(default=None, description="内置合集标识；null=用户创建")
-    editable: bool = Field(description="能不能改规则（builtin 为 null 才能）")
+    editable: bool = Field(
+        description="当前观看者能不能改规则与名单（用户创建的合集，且 manageable 为真）"
+    )
+    manageable: bool = Field(
+        default=True,
+        description=(
+            "当前观看者能不能管理这个合集（改名、排序、可见性、隐藏、删除）："
+            "超管恒为真；成员只能管理自己的私有合集与自己建的全家合集"
+        ),
+    )
     rule_driven: bool = Field(description="规则驱动（会自己长）还是名单驱动（固定）")
     item_count: int = Field(description="当前可见成员数")
     cover_item_id: int | None = Field(default=None, description="封面取哪部作品；null=取首个成员")

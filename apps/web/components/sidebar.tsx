@@ -32,6 +32,7 @@ import { useUiPrefs } from "@/lib/ui-prefs";
 import { useIsMobile } from "@/lib/use-media-query";
 import { useSession } from "@/lib/session";
 import { usePermissions } from "@/lib/permissions";
+import { useSearchAccess } from "@/lib/search-access";
 import { exploreItems } from "@/lib/mock-data";
 import { GlassPanel } from "@/components/glass-panel";
 import { SearchCommand, type SearchSubmitOptions } from "@/components/search-command";
@@ -119,7 +120,8 @@ export function Sidebar({
   // 成员形态做减法：隐藏 Agent 入口（新会话）与「最近会话」组；
   // 这是界面裁剪，安全边界在后端 require_admin
   const { session } = useSession();
-  const { canSearch } = usePermissions();
+  // 搜索入口按「任一搜索分区可用」露出（影视 / 资源 / 媒体库），不只看资源搜索开关
+  const { canOpenSearch } = useSearchAccess();
   const isMember = session.role === "member";
   // 个人排序：prefs 已含设置页的未保存草稿，因此在设置页拖动时这里即时跟随
   const visibleNavItems = useVisibleNavItems();
@@ -142,7 +144,7 @@ export function Sidebar({
             />
           </BrandHome>
           <CollapseToggle collapsed onClick={onToggleCollapse} />
-          {canSearch && <SearchCommand onSearch={onSearch} />}
+          {canOpenSearch && <SearchCommand onSearch={onSearch} />}
         </div>
       ) : (
         <div className="flex items-center justify-between px-4 pb-3 pt-4">
@@ -157,7 +159,7 @@ export function Sidebar({
             />
           </BrandHome>
           <div className="flex items-center gap-1">
-            {!isMobile && canSearch && <SearchCommand onSearch={onSearch} />}
+            {!isMobile && canOpenSearch && <SearchCommand onSearch={onSearch} />}
             <CollapseToggle collapsed={false} onClick={onToggleCollapse} />
           </div>
         </div>

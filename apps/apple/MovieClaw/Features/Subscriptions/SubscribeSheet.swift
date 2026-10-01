@@ -12,7 +12,7 @@ import SwiftUI
 /// 默认值：剧集勾选全部已播正季（豆瓣季条目采信服务端 suggested_seasons）；在播剧开自动续订；
 /// 规则组与入库库取后端按适用范围 / 收藏范围路由的结论，路由选中的不是默认项时才说明「为什么选了它」。
 ///
-/// 洗版变体（`request.upgrade`）：季按库存预填、只列带洗版目标的规则组、自动续订默认关；
+/// 洗版变体（`request.upgrade`）：季按库存预填、（超管）只列带洗版目标的规则组（成员不选组）、自动续订默认关；
 /// 建好订阅后立刻跑一轮洗版并在弹层内展示体检报告。
 ///
 /// 交互形态按 iOS 26 表单弹层：绝大多数时候只是确认一下默认值，所以弹层高度跟内容走（半高悬浮，
@@ -63,13 +63,14 @@ struct SubscribeSheet: View {
 
     private var canSubmit: Bool {
         guard let media = prepared?.media, !busy else { return false }
-        if upgradeMode, !selectableRules.contains(where: { $0.id == ruleSetId }) { return false }
+        if upgradeMode, canManage, !selectableRules.contains(where: { $0.id == ruleSetId }) { return false }
         if media.kind == "movie" { return true }
         return !selectedSeasons.isEmpty || followFuture
     }
 
     private var showsSubmit: Bool { prepared?.status == "ready" && prepared?.existingSubscriptionId == nil }
-    private var showsRules: Bool { upgradeMode || (canManage && !ruleSets.isEmpty) }
+    /// 规则组只有超管能选（`GET /rule-sets` 仅超管可读）；成员洗版沿用订阅当前的规则组（member-permissions-v2 §3.7）
+    private var showsRules: Bool { canManage && (upgradeMode || !ruleSets.isEmpty) }
     private var showsLibrary: Bool { canManage && !libraries.isEmpty }
     private var pickedRule: API.RuleSetView? { selectableRules.first { $0.id == ruleSetId } }
 
@@ -286,6 +287,14 @@ struct SubscribeSheet: View {
             }
         }
 
+        if upgradeMode, !canManage, showsSubmit {
+            Section {
+                Text("按订阅当前的规则组洗版").foregroundStyle(Theme.textMuted)
+            } header: {
+                Text("洗版规则")
+            }
+        }
+
         if showsRules || showsLibrary {
             Section {
                 if showsRules { ruleRow }
@@ -388,9 +397,8 @@ struct SubscribeSheet: View {
         error = nil
         upgradeReport = nil
         do {
-            let loadRules = canManage || upgradeMode
             async let resultTask = api.uiSubscriptionsPreviewTitle(body: .init(titleRef: ref))
-            async let rulesTask: [API.RuleSetView] = loadRules ? api.rulesList() : []
+            async let rulesTask: [API.RuleSetView] = canManage ? api.rulesList() : []
             async let libsTask: [API.LibraryView] = canManage && requestKind != nil ? api.libraryList(kind: requestKind, scope: "all") : []
             let (result, rules, initialLibs) = try await (resultTask, rulesTask, libsTask)
             // 媒体库与投递路由以后端收敛后的 canonical kind 为准（豆瓣引用可能被收敛成另一类型）
@@ -471,7 +479,7 @@ struct SubscribeSheet: View {
             if upgradeMode {
                 // 洗版变体：创建成功即接一轮洗版；失败时订阅已建好，报错留在弹层里
                 do {
-                    upgradeReport = try await api.subscriptionsUpgradeRun(subscriptionId: created.subscription.id, body: .init(ruleSetId: ruleSetId))
+                    upgradeReport = try await api.subscriptionsUpgradeRun(subscriptionId: created.subscription.id, body: .init(ruleSetId: canManage ? ruleSetId : nil))
                 } catch {
                     self.error = "订阅已创建，但触发洗版失败：\(error.localizedDescription.isEmpty ? "请稍后到订阅详情里重试" : error.localizedDescription)"
                 }

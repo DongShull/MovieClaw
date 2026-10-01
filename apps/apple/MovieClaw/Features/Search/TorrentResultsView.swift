@@ -47,7 +47,8 @@ struct TorrentResultsView: View {
         .scrollDismissesKeyboard(.immediately)
         .task {
             model.start(api: api)
-            guard permissions.canDirectDownload else { return }
+            // 保存位置记忆与下载器目录只对超管有意义：成员的下载弹窗不读记忆、不调下载器接口（见 DownloadTargetSheet）
+            guard permissions.isAdmin else { return }
             await actions.prefs.refresh(api: api)
             await actions.prefs.loadDirs(api: api)
         }
@@ -61,7 +62,8 @@ struct TorrentResultsView: View {
             DownloadTargetSheet(request: request, remembered: actions.prefs.byCategory[request.category]) { result in
                 actions.downloadStates[request.hitKey] = result.alreadyExists ? .exists : .done
                 feedback.success(result.alreadyExists ? "该种子已在下载器中，未重复添加" : "已提交到「\(result.downloaderName)」\(result.savePath.map { " · \($0)" } ?? "")")
-                Task { await actions.prefs.refresh(api: api) }
+                // 记忆只给超管记（成员提交不写记忆），成员不必回头再拉
+                if permissions.isAdmin { Task { await actions.prefs.refresh(api: api) } }
             }
         }
         .sheet(item: $actions.confirming) { confirming in

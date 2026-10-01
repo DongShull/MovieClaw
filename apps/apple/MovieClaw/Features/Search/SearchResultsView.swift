@@ -128,7 +128,9 @@ struct SearchResultsView: View {
         rebuildTorrentModel()
         visited.insert(target)
         tabs = await SearchTabs.visible(api: api, isAdmin: permissions.isAdmin)
-        if let subId = query.forSubscription, let detail = try? await api.subscriptionsGet(subscriptionId: subId) {
+        // 手动选种模式（「投给订阅」横幅与按钮都看 grabTarget）：没有投给订阅的权限就当普通资源搜索
+        if permissions.canGrabForSubscription, let subId = query.forSubscription,
+           let detail = try? await api.subscriptionsGet(subscriptionId: subId) {
             grabTarget = (detail.id, detail.media.title)
         }
     }

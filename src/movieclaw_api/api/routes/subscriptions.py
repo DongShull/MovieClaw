@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.deps import (
     require_admin,
+    require_direct_download_capability,
     require_login,
     require_subscribe_capability,
 )
@@ -103,15 +104,29 @@ def _detail_view(
     wanted: list[WantedItem],
     resource_timings: dict[tuple[int, int], dict[str, object]],
     rule_spec: object | None = None,
+    *,
+    can_manage: bool = True,
 ) -> SubscriptionDetailView:
     """组装订阅详情，并标注预测是否还在后台刷新。
 
     订阅创建/调整/恢复后预测刷新挪到了后台（见 release_forecast.refresh_release_forecasts_soon），
     这几秒里返回的预测可能是旧值或空值；带上 forecast_pending，调用方就知道该稍后重取。
+    ``can_manage`` 只有读详情与创建两处需要算（可能是只关注的成员）；调整类接口
+    已经过发起人校验，走到组装这一步必然可管理。
     """
     view = SubscriptionDetailView.from_detail(sub, item, wanted, resource_timings, rule_spec)
     view.forecast_pending = forecast_refresh_pending(view.media.media_item_id)
+    view.can_manage = can_manage
     return view
+
+
+def _can_manage(principal: Principal, sub: Subscription) -> bool:
+    """与 ``SubscriptionService.assert_can_manage`` 同一口径：超管侧主体或发起人。
+
+    下发给前端只为隐藏点了也会被拒的按钮（member-permissions-v2.md §3.7），
+    授权判定仍以各写接口的服务端校验为准。
+    """
+    return principal.is_admin or sub.created_by_member_id == principal.member_id
 
 
 async def _prepare_resolved_target(
@@ -305,7 +320,9 @@ async def create_subscription(
     resource_timings = await service.resource_timings(subscription.id)
     return ok(
         SubscriptionCreateView(
-            subscription=_detail_view(sub, item, wanted, resource_timings),
+            subscription=_detail_view(
+                sub, item, wanted, resource_timings, can_manage=_can_manage(principal, sub)
+            ),
             download_routing=download_routing,
         ),
         message="已加入订阅，正在搜索缺失资源",
@@ -513,9 +530,13 @@ async def list_recent_arrivals(
 )
 async def get_subscription(
     subscription_id: int,
+    principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[SubscriptionDetailView]:
     service = _service(session)
+    await service.assert_can_view(
+        subscription_id, None if principal.is_admin else principal.member_id
+    )
     sub, item, wanted = await service.detail(subscription_id)
     resource_timings = await service.resource_timings(subscription_id)
     # 洗版派生状态需要规则组 spec（解析失败按未配置处理，不阻塞详情页）
@@ -529,7 +550,11 @@ async def get_subscription(
             rule_spec = RuleSetSpec.model_validate(rule_set.spec or {})
         except ValueError:
             rule_spec = None
-    return ok(_detail_view(sub, item, wanted, resource_timings, rule_spec))
+    return ok(
+        _detail_view(
+            sub, item, wanted, resource_timings, rule_spec, can_manage=_can_manage(principal, sub)
+        )
+    )
 
 
 @router.get(
@@ -537,24 +562,33 @@ async def get_subscription(
     response_model=ApiResponse[list[SubscriptionDownloadView]],
     summary="列出一条订阅当前正在进行的下载及实时进度",
     operation_id="subscriptions.list-active-downloads",
-    dependencies=[Depends(require_admin)],
 )
 async def list_subscription_downloads(
     subscription_id: int,
+    principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[list[SubscriptionDownloadView]]:
     """纯读快照：逐个到可用下载器查询在途种子的当前状态，不落库不改工单。
     只在详情页打开且存在在途工单时被轮询（约 5 秒一次），单订阅种子数很少，
-    对下载器的压力可忽略。"""
-    from movieclaw_api.services.download_progress import subscription_download_snapshot
-    from movieclaw_db.repositories import SubscriptionRepository
+    对下载器的压力可忽略。
 
-    # 订阅不存在时给 404 而不是空列表——只做存在性检查即可，
+    成员也能看自己发起或关注的订阅「下到哪了」（member-permissions-v2.md §3.2，
+    读是基线），但只给进度、速度与剩余时间：种子名、下载器名与下载器报错
+    （常带保存路径）属于管理员视角，对成员一律置空。"""
+    from movieclaw_api.services.download_progress import subscription_download_snapshot
+
+    # 订阅不存在或成员无权查看时给 404 而不是空列表；可见性校验顺带做了存在性检查，
     # 没必要为此把整份工单明细（service.detail）拉出来
-    if await SubscriptionRepository(session).get(subscription_id) is None:
-        raise NotFoundException(f"订阅不存在：#{subscription_id}")
+    member_id = None if principal.is_admin else principal.member_id
+    await _service(session).assert_can_view(subscription_id, member_id)
     rows = await subscription_download_snapshot(session, subscription_id)
-    return ok([SubscriptionDownloadView(**row) for row in rows])
+    views = [SubscriptionDownloadView(**row) for row in rows]
+    if member_id is not None:
+        views = [
+            view.model_copy(update={"name": None, "downloader_name": None, "error_message": None})
+            for view in views
+        ]
+    return ok(views)
 
 
 @router.get(
@@ -566,9 +600,13 @@ async def list_subscription_downloads(
 async def list_subscription_activities(
     subscription_id: int,
     limit: int = Query(default=100, ge=1, le=500, description="返回条数上限（时间倒序）"),
+    principal: Principal = Depends(require_login),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[list[ActivityView]]:
     service = _service(session)
+    await service.assert_can_view(
+        subscription_id, None if principal.is_admin else principal.member_id
+    )
     rows = await service.activities(subscription_id, limit=limit)
     return ok([ActivityView.from_model(r) for r in rows])
 
@@ -589,14 +627,20 @@ async def update_subscription(
     await service.assert_can_manage(
         subscription_id, None if principal.is_admin else principal.member_id
     )
+    # 成员只能调季与自动续订：规则组与目标库是管理员的配置，与创建时同一口径
+    # 剥离（member-permissions-v2.md §2.1 S3）——前端成员界面不提供这两项，
+    # 这里是绕过前端也拦得住的服务端强制
+    admin = principal.is_admin
     await service.update(
         subscription_id,
         selected_seasons=payload.selected_seasons,
         follow_future=payload.follow_future,
-        rule_set_id=payload.rule_set_id,
+        rule_set_id=payload.rule_set_id if admin else None,
         # library_id 要区分「未传=不变」与「显式 null=清除指定、回默认库路由」，
         # 用 model_fields_set 判断调用方是否真的带了这个字段
-        library_id=payload.library_id if "library_id" in payload.model_fields_set else ...,
+        library_id=(
+            payload.library_id if admin and "library_id" in payload.model_fields_set else ...
+        ),
     )
     sub, item, wanted = await service.detail(subscription_id)
     resource_timings = await service.resource_timings(subscription_id)
@@ -626,7 +670,9 @@ async def run_subscription_upgrade(
     await service.assert_can_manage(
         subscription_id, None if principal.is_admin else principal.member_id
     )
-    report = await run_upgrade_round(session, subscription_id, rule_set_id=payload.rule_set_id)
+    # 成员洗版沿用订阅当前的规则组，不能借洗版换组（换组是管理员的配置）
+    rule_set_id = payload.rule_set_id if principal.is_admin else None
+    report = await run_upgrade_round(session, subscription_id, rule_set_id=rule_set_id)
     return ok(UpgradeRunView.model_validate(report), message=report["summary"])
 
 
@@ -657,16 +703,31 @@ async def search_subscription_now(
     response_model=ApiResponse[GrabResultView],
     summary="下载为一条订阅人工选中的种子搜索结果",
     operation_id="subscriptions.download-selected-torrent",
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_subscribe_capability)],
 )
 async def grab_subscription_torrent(
     subscription_id: int,
     payload: GrabPayload,
+    principal: Principal = Depends(require_direct_download_capability),
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[GrabResultView]:
     """身份匹配不跳过：种子必须确认属于本条目且覆盖至少一个缺口。
-    投递复用自动管线的 dispatch（三级兜底/救援巡检/活动记录全部继承）。"""
+    投递复用自动管线的 dispatch（三级兜底/救援巡检/活动记录全部继承）。
+
+    成员手动选种（member-permissions-v2.md §3.3）：与一键下载同属「绕过规则组
+    直接落盘」，所以要订阅与一键下载两项能力，且只能投给自己发起的订阅（与
+    立即搜索同一条归属校验）。落盘位置仍由订阅的自动路由决定，成员碰不到路径。"""
+    from movieclaw_api.services.site_visibility import (
+        assert_download_url_on_site,
+        assert_site_usable,
+    )
     from movieclaw_api.services.subscription.manual_grab import grab_manual
+
+    await _service(session).assert_can_manage(
+        subscription_id, None if principal.is_admin else principal.member_id
+    )
+    await assert_site_usable(session, principal, payload.site_id)
+    await assert_download_url_on_site(principal, payload.site_id, payload.download_url)
 
     covered = await grab_manual(
         session,

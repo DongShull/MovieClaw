@@ -41,8 +41,11 @@ export function AddToCollectionDialog({
   useEffect(() => {
     let alive = true;
     listCollections({ libraryId, includeEmpty: true })
-      // 名单驱动 = 不会自己长的那些。内置与系列合集同样排除（它们都是规则驱动）
-      .then((all) => alive && setRows(all.filter((row) => !row.rule_driven)))
+      // 名单驱动 = 不会自己长的那些。内置与系列合集同样排除（它们都是规则驱动）；
+      // 还要当前身份改得了名单（editable）：成员不能往别人建的全家合集里塞片
+      .then(
+        (all) => alive && setRows(all.filter((row) => !row.rule_driven && row.editable)),
+      )
       .catch(() => alive && setRows([]));
     return () => {
       alive = false;

@@ -668,6 +668,9 @@ _MEMBER_ALLOWLIST = {
     ("PATCH", "/api/v1/subscriptions/{subscription_id}"),
     ("DELETE", "/api/v1/subscriptions/{subscription_id}/following"),
     ("GET", "/api/v1/subscriptions/{subscription_id}/activities"),
+    # 在途下载进度：读是基线（自己发起或关注的订阅「下到哪了」），种子名、
+    # 下载器名与报错对成员置空（docs/design/member-permissions-v2.md §3.2）
+    ("GET", "/api/v1/subscriptions/{subscription_id}/active-downloads"),
     ("PATCH", "/api/v1/subscriptions/{subscription_id}/tracking-state"),
     ("PATCH", "/api/v1/subscriptions/{subscription_id}/follow-future"),
     ("POST", "/api/v1/subscriptions/{subscription_id}/missing-resource-searches"),

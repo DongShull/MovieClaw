@@ -274,6 +274,7 @@ struct SiteStatusSheet: View {
     let canRetry: Bool
     @Environment(\.api) private var api
     @Environment(Router.self) private var router
+    @Environment(\.permissions) private var permissions
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -323,9 +324,12 @@ struct SiteStatusSheet: View {
                     if canRetry {
                         Button("重试该站", systemImage: "arrow.clockwise") { model.retrySite(site.siteId, api: api) }
                     }
-                    Button("去站点设置", systemImage: "gearshape") {
-                        dismiss()
-                        router.push(.settingsSection(.sites))
+                    // 站点设置是超管页面，成员看不到这个补救入口
+                    if permissions.isAdmin {
+                        Button("去站点设置", systemImage: "gearshape") {
+                            dismiss()
+                            router.push(.settingsSection(.sites))
+                        }
                     }
                 }
                 .font(.subheadline)

@@ -32,7 +32,7 @@ import { UiPrefsProvider, useTheme } from "@/lib/ui-prefs";
 import { useResolvedTheme } from "@/themes/registry";
 import { useIsMobile } from "@/lib/use-media-query";
 import { settingsSectionGroupsFor, settingsSections } from "@/lib/mock-data";
-import { usePermissions } from "@/lib/permissions";
+import { useSearchAccess } from "@/lib/search-access";
 import { useSession } from "@/lib/session";
 
 /**
@@ -528,7 +528,8 @@ function MobileTopBar({
   const pathname = usePathname();
   const backHref = titleOptions?.backHref;
   const back = useBackNavigation(backHref ?? ("/" as Route));
-  const { canSearch } = usePermissions();
+  // 搜索入口按「任一搜索分区可用」露出（影视 / 资源 / 媒体库），不只看资源搜索开关
+  const { canOpenSearch } = useSearchAccess();
   // 雾层色由 globals.css 的 html[data-theme="netflix"] .mobile-topbar 覆盖，组件里不用管。
   const isNetflix = useTheme().structural;
   const large = titleOptions?.large && !isNetflix;
@@ -587,7 +588,7 @@ function MobileTopBar({
           {actions}
           {/* 搜索固定在最右（右上角）。SearchCommand 自带全局 ⌘K 监听，全站只能挂一份：
               详情页的 PageNav 认领顶栏时本组件不渲染，搜索键改由 PageNav 挂 */}
-          {canSearch && !(titleOptions?.hideSearch && !isNetflix) && (
+          {canOpenSearch && !(titleOptions?.hideSearch && !isNetflix) && (
             <div className="shrink-0">
               <SearchCommand
                 onSearch={onSearch}

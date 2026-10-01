@@ -35,7 +35,7 @@ from sqlalchemy import select
 from movieclaw_api.api.routes.playback import get_session_segment
 from movieclaw_api.exceptions import NotFoundException
 from movieclaw_api.services.library import skip_segments
-from movieclaw_api.services.library.access import member_visible_ids
+from movieclaw_api.services.library.access import member_content_limit, member_visible_ids
 from movieclaw_api.services.playback import watch as playback_watch
 from movieclaw_api.services.playback.adaptive import adapt_to_downlink
 from movieclaw_api.services.playback.disc_source import disc_source_for_file
@@ -75,7 +75,7 @@ from movieclaw_api.services.playback.track_context import files_with_contexts, t
 from movieclaw_api.settings import PlaybackPolicySetting
 from movieclaw_api.settings.store import get_setting_store
 from movieclaw_db.engine import get_database
-from movieclaw_db.models import LibraryFile
+from movieclaw_db.models import LibraryFile, MediaMetadata
 from movieclaw_jellyfin.catalog import (
     audio_track_for_index,
     index_for_subtitle_track,
@@ -154,9 +154,10 @@ router = APIRouter(dependencies=[Depends(require_device)])
 async def _files_for_ref(ref, member_id: int = 0) -> list[LibraryFile]:
     """按条目/单元 GUID 取在位文件行（多版本多行，稳定排序）。
 
-    成员的库可见性在这里强制（三个播放处理器共用本装载点）：白名单外
-    库里的文件直接不出现，条目因此对该成员表现为 404——GUID 可枚举，
-    不能只在浏览路径挡、放播放路径直进（member-management.md §3.6）。
+    成员的库可见性与内容分级都在这里强制（起播、取流、下载、续播上报共用本
+    装载点）：白名单外库里的文件、超出年龄上限的条目直接不出现，条目因此对该
+    成员表现为 404——GUID 可枚举，不能只在浏览路径挡、放播放路径直进
+    （member-management.md §3.6、member-permissions-v2.md §2.1 S4）。
     """
     return (await _files_and_contexts_for_ref(ref, member_id, with_contexts=False))[0]
 
@@ -167,6 +168,17 @@ async def _files_and_contexts_for_ref(
     """同 :func:`_files_for_ref`，连带各文件的默认轨策略上下文（库语言、原始语言）——
     同一条 SQL 取出（PlaybackInfo 要按它给默认轨，不为此多查一次）。"""
     async with get_database().session() as session:
+        limit = await member_content_limit(session, member_id)
+        if not limit.unrestricted:
+            rating = (
+                await session.execute(
+                    select(MediaMetadata.content_rating).where(
+                        MediaMetadata.media_item_id == ref.entity_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if not limit.allows(rating):
+                return [], {}
         visible = await member_visible_ids(session, member_id)
         q = select(LibraryFile).where(
             LibraryFile.media_item_id == ref.entity_id,

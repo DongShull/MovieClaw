@@ -299,7 +299,17 @@ struct SearchHomeView: View {
 
     @ViewBuilder
     private var history: some View {
-        if let items {
+        if access.ready, access.available.isEmpty {
+            // 入口按 canOpenSearch 隐藏，这里兜深链 / 恢复现场直达：没有任何可用分区时说明原因（同结果页的空态文案）
+            Text("当前账号没有可用的搜索入口，请联系管理员调整成员权限。")
+                .font(.body)
+                .foregroundStyle(Theme.textMuted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("search-no-access")
+        } else if let items {
             // 资源模式下面还有浏览列表，不需要空态占位；输入过滤没命中时顶上的「搜索“…”」就是出口
             if items.isEmpty, !torrentActive {
                 ContentUnavailableView {

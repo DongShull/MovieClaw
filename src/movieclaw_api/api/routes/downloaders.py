@@ -33,6 +33,10 @@ from movieclaw_api.services.downloader_config import (
 )
 from movieclaw_api.services.library.access import assert_library_visible
 from movieclaw_api.services.library.config import LibraryConfigService
+from movieclaw_api.services.site_visibility import (
+    assert_download_url_on_site,
+    assert_site_usable,
+)
 from movieclaw_api.services.torrent_submit import (
     ManualTargetResolution,
     anchor_manual_download,
@@ -206,6 +210,8 @@ async def submit_download(
             raise ForbiddenException("成员的一键下载不支持智能入库，请选择可见的媒体库")
         if payload.library_id is not None:
             await assert_library_visible(session, principal, payload.library_id)
+        await assert_site_usable(session, principal, payload.site_id)
+        await assert_download_url_on_site(principal, payload.site_id, payload.download_url)
 
     library = None
     derived_path = None

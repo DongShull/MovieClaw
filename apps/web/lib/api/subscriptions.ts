@@ -221,6 +221,8 @@ export interface SubscriptionDetail extends Subscription {
    * 为 true 时 wanted[].release_forecast 可能还是旧值或空值，稍后重取即可。
    */
   forecast_pending: boolean;
+  /** 当前观看者能否调整这条订阅：超管与发起人为 true，只关注的成员为 false（只能取消关注） */
+  can_manage: boolean;
 }
 
 /** 规则组过滤条件（见 movieclaw_matcher.RuleSetSpec）：全部键可缺省=不限。 */
@@ -790,7 +792,7 @@ export function deleteSubscriptionPermanently(
 /** 订阅在途种子的实时下载快照（详情页轮询展示进度/速度/ETA）。 */
 export interface SubscriptionDownload {
   info_hash: string;
-  /** 下载器中的任务名；missing 时为空 */
+  /** 下载器中的任务名；missing 时为空，成员视角恒为空（精简口径不含种子名） */
   name: string | null;
   /** 0.0 ~ 1.0；missing 时为空 */
   progress: number | null;
@@ -799,8 +801,9 @@ export interface SubscriptionDownload {
   eta_seconds: number | null;
   /** missing = 种子已不在任何可用下载器中（救援巡检稍后会退回工单重找） */
   state: "downloading" | "stalled" | "paused" | "completed" | "error" | "missing" | "unknown";
-  /** state 为 error 时下载器给出的可读原因（文件缺失 / 出错详情）；其余为 null */
+  /** state 为 error 时下载器给出的可读原因（文件缺失 / 出错详情）；其余为 null，成员视角恒为 null */
   error_message: string | null;
+  /** 所在下载器名；成员视角恒为 null（不暴露下载器配置） */
   downloader_name: string | null;
   units: { season_number: number; episode_number: number }[];
 }

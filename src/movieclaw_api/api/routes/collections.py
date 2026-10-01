@@ -18,7 +18,7 @@ from sqlmodel import select
 
 from movieclaw_api.api.deps import require_login
 from movieclaw_api.core.config import get_settings
-from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.exceptions import BadRequestException, ForbiddenException, NotFoundException
 from movieclaw_api.schemas.library import (
     CollectionCover,
     CollectionItemsPayload,
@@ -187,8 +187,10 @@ async def _views(
                 sort=row.sort,
                 visibility=row.visibility,
                 builtin=row.builtin,
-                # 形态是推导的：能不能改看 builtin，会不会自己长看有没有规则
-                editable=row.builtin is None,
+                # 形态是推导的：能不能改看 builtin 与观看者是否有权管理，
+                # 会不会自己长看有没有规则
+                editable=row.builtin is None and _manageable(row, member_id),
+                manageable=_manageable(row, member_id),
                 rule_driven=is_rule_driven(row),
                 item_count=count,
                 cover_item_id=row.cover_item_id,
@@ -234,6 +236,31 @@ def _guard_visible(row: Collection, member_id: int, visible: set[int] | None) ->
         raise NotFoundException("合集不存在（可能已被删除）")
     if visible is not None and row.library_id is not None and row.library_id not in visible:
         raise NotFoundException("合集不存在（可能已被删除）")
+
+
+def _manageable(row: Collection, member_id: int) -> bool:
+    """当前观看者能不能管理这个合集（改名、改规则、改名单、排序、可见性、隐藏、删除）。
+
+    ``member_id`` 沿用 :func:`_scope` 的约定：0 = 超管侧主体（超管 / Agent / MCP），
+    成员恒为正数。规则（docs/design/member-permissions-v2.md §3.6）：
+
+    - 超管：全部可管（成员的私有合集超管本就看不到，走不到这里）；
+    - 私有合集：只有归属人；
+    - 全家合集：只有创建者，且内置合集（系列合集等）只有超管——它们是全家共用的
+      系统产物，一个成员把它隐藏或改名，全家都跟着变。
+    """
+    if member_id == 0:
+        return True
+    if row.visibility == "private":
+        return row.member_id == member_id
+    return row.builtin is None and row.created_by_member_id == member_id
+
+
+def _guard_manageable(row: Collection, member_id: int) -> None:
+    """写操作的归属校验。放在 :func:`_guard_visible` 之后：看不见的先 404，看得见
+    但不归你管的才 403——成员能看到这个合集，说"不能改"不泄露任何东西。"""
+    if not _manageable(row, member_id):
+        raise ForbiddenException("这个合集是全家共享的，只有创建它的人或管理员可以修改")
 
 
 @router.get(
@@ -310,6 +337,7 @@ async def create_collection(
         visibility=payload.visibility or "household",
         # household 归 0（哨兵）：私有与否看 visibility，member_id 只回答"归谁"
         member_id=member_id if (payload.visibility == "private") else 0,
+        created_by_member_id=member_id,
     )
     session.add(row)
     await session.flush()
@@ -377,10 +405,22 @@ async def update_collection(
     member_id, visible, content_limit = await _scope(session, principal)
     row = await _get_or_404(session, collection_id)
     _guard_visible(row, member_id, visible)
+    _guard_manageable(row, member_id)
 
     if payload.name:
         row.name = payload.name
     if payload.visibility:
+        if (
+            payload.visibility == "private"
+            and row.visibility != "private"
+            and row.created_by_member_id != member_id
+        ):
+            # 把全家合集改成私有 = 收归自己名下、全家从此看不到；只有创建者能这么做
+            # （超管也不能借此把成员建的合集据为己有）
+            raise ForbiddenException("只有合集的创建者可以把全家共享的合集改为私有")
+        if payload.visibility == "household" and row.visibility == "private":
+            # 私有转共享：归属人就是创建者（迁移前的老私有合集没记创建者，这里补上）
+            row.created_by_member_id = member_id
         row.visibility = payload.visibility
         row.member_id = member_id if payload.visibility == "private" else 0
     if payload.sort:
@@ -467,6 +507,7 @@ async def add_collection_items(
     member_id, visible, content_limit = await _scope(session, principal)
     row = await _get_or_404(session, collection_id)
     _guard_visible(row, member_id, visible)
+    _guard_manageable(row, member_id)
     _guard_manual(row)
 
     existing = await _member_rows(session, collection_id)
@@ -514,6 +555,7 @@ async def remove_collection_item(
     member_id, visible, content_limit = await _scope(session, principal)
     row = await _get_or_404(session, collection_id)
     _guard_visible(row, member_id, visible)
+    _guard_manageable(row, member_id)
     _guard_manual(row)
 
     for old in await _member_rows(session, collection_id):
@@ -552,6 +594,7 @@ async def reorder_collection_items(
     member_id, visible, content_limit = await _scope(session, principal)
     row = await _get_or_404(session, collection_id)
     _guard_visible(row, member_id, visible)
+    _guard_manageable(row, member_id)
     _guard_manual(row)
 
     rows = await _member_rows(session, collection_id)
@@ -605,6 +648,7 @@ async def delete_collection(
     member_id, visible, content_limit = await _scope(session, principal)
     row = await _get_or_404(session, collection_id)
     _guard_visible(row, member_id, visible)
+    _guard_manageable(row, member_id)
     if row.builtin:
         row.hidden = True
         await session.flush()

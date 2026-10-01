@@ -631,7 +631,11 @@ struct DiscoverErrorView: View {
     let failure: DiscoverFeed.Failure
     let retry: () async -> Void
     @Environment(Router.self) private var router
+    @Environment(\.permissions) private var permissions
     @State private var retrying = false
+
+    /// 网络设置是超管页面：成员不给跳转，重试键回到主按钮
+    private var showsNetworkSettings: Bool { failure.unreachable && permissions.isAdmin }
 
     var body: some View {
         ContentUnavailableView {
@@ -651,12 +655,12 @@ struct DiscoverErrorView: View {
                 }
             }
         } actions: {
-            if failure.unreachable {
+            if showsNetworkSettings {
                 Button("前往网络设置") { router.push(.settingsSection(.network)) }
                     .discoverProminentButton()
                     .accessibilityIdentifier("discover-network-settings")
             }
-            if failure.unreachable {
+            if showsNetworkSettings {
                 retryButton.buttonStyle(.glass)
             } else {
                 retryButton.discoverProminentButton()

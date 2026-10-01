@@ -12,6 +12,10 @@ import SwiftUI
 ///
 /// 保存位置记忆（按种子分类）：勾「记住本次选择」才写记忆（已有记忆时默认勾上——从确认条「更改」进来
 /// 就是要改它）；有记忆时点「下载」先弹 `DownloadConfirmSheet` 给用户确认落点。
+///
+/// 成员版（member-permissions-v2 §3.7 U7）：下载器配置、智能入库预检都是超管接口，成员提交也不许带
+/// 保存目录 / 下载器 / 智能入库。所以成员只在两种落点里选：「下载器默认目录」，或自己能看到的某个
+/// 媒体库（带 library_id，由后端按库推导目录并入库）；不读也不写本机记忆的保存位置偏好。
 
 /// 弹窗需要的种子身份切片（由 TorrentHit 提炼）
 struct DownloadTargetRequest: Identifiable, Hashable {
@@ -99,10 +103,12 @@ final class DownloadTargetPrefs {
 
 /// 一个可选的保存目标
 private struct TargetOption: Identifiable, Hashable {
-    enum Kind: Hashable { case smart, dir, fallback }
+    enum Kind: Hashable { case smart, dir, library, fallback }
     var id: String
     var kind: Kind
     var savePath: String?
+    /// 成员版「下载到某个媒体库」的库 id
+    var libraryId: Int?
     var label: String
     var detail: String?
 }
@@ -116,8 +122,11 @@ struct DownloadTargetSheet: View {
     @Environment(\.api) private var api
     @Environment(\.dismiss) private var dismiss
     @Environment(Router.self) private var router
+    @Environment(\.permissions) private var permissions
 
     @State private var downloaders: [API.DownloaderView] = []
+    /// 成员版：自己可见的媒体库（nil = 还在拉）
+    @State private var memberLibraries: [API.LibraryView]?
     @State private var downloaderId: Int?
     @State private var manualTarget: API.ManualDownloadTargetView?
     /// 「这是哪部作品？」：自动识别没收敛（或种子没身份）时进入确认模式，此后候选与搜索框常驻
@@ -144,6 +153,7 @@ struct DownloadTargetSheet: View {
     private var canResolve: Bool { request.identity != nil || request.hint != nil }
 
     private var options: [TargetOption] {
+        guard permissions.isAdmin else { return memberOptions }
         var result: [TargetOption] = []
         if let t = manualTarget, t.status == "ready", t.tmdbId != nil, t.libraryId != nil, t.ok {
             let entryDir = t.entryDir ?? t.path
@@ -178,6 +188,23 @@ struct DownloadTargetSheet: View {
         return result
     }
 
+    /// 成员版候选：可见的影视库（种子类型对得上的排前面）+ 下载器默认目录。图片库不收种子
+    private var memberOptions: [TargetOption] {
+        guard let libraries = memberLibraries else { return [] }
+        let kind = request.identity?.kind
+        let fit = libraries.filter { $0.kind != "photo" }
+        let ordered = fit.filter { $0.kind == kind } + fit.filter { $0.kind != kind }
+        var result = ordered.map { library in
+            TargetOption(
+                id: "library:\(library.id)", kind: .library, libraryId: library.id,
+                label: "下载到「\(library.name)」",
+                detail: "\(LibraryKindMeta.label(library.kind))库；按库的设置决定保存目录，完成后自动入库"
+            )
+        }
+        result.append(TargetOption(id: "default", kind: .fallback, label: "下载器默认目录", detail: "由下载器按自身设置决定保存位置；不会自动整理入库"))
+        return result
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -188,15 +215,17 @@ struct DownloadTargetSheet: View {
                     if let error {
                         notice(error, tone: Theme.danger)
                     }
-                    smartSection
-                    if showOther, loadingDownloaders {
+                    if permissions.isAdmin {
+                        smartSection
+                    }
+                    if (showOther && loadingDownloaders) || (!permissions.isAdmin && memberLibraries == nil) {
                         DiscoverSkeletonBlock(cornerRadius: 12).frame(height: 52)
                     }
                     ForEach(options) { option in
                         optionRow(option)
                     }
                     // 收在自动入库选项之后：点完候选，视线从条目直接落到入库结论
-                    if !showOther {
+                    if permissions.isAdmin, !showOther {
                         Button {
                             showOther = true
                         } label: {
@@ -217,22 +246,24 @@ struct DownloadTargetSheet: View {
                         }
                         .pickerStyle(.menu)
                     }
-                    Toggle(isOn: $remember) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("记住本次选择，作为「\(TorrentCategories.label(request.category))」的默认位置")
-                                .font(.subheadline)
-                                .foregroundStyle(Theme.text)
-                            Text(remember
-                                ? "之后点「下载」先给你确认一次落点，随时可以改，或在确认条上「不再记住」。"
-                                : "不勾选就只对这一次下载生效，不会留下默认位置。")
-                                .font(.caption)
-                                .foregroundStyle(Theme.textFaint)
+                    if permissions.isAdmin {
+                        Toggle(isOn: $remember) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("记住本次选择，作为「\(TorrentCategories.label(request.category))」的默认位置")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.text)
+                                Text(remember
+                                    ? "之后点「下载」先给你确认一次落点，随时可以改，或在确认条上「不再记住」。"
+                                    : "不勾选就只对这一次下载生效，不会留下默认位置。")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.textFaint)
+                            }
                         }
+                        .padding(12)
+                        .cardStyle(radius: 12)
+                        .accessibilityIdentifier("download-remember")
                     }
-                    .padding(12)
-                    .cardStyle(radius: 12)
-                    .accessibilityIdentifier("download-remember")
-                    if showOther {
+                    if permissions.isAdmin, showOther {
                         Button {
                             dismiss()
                             router.push(.settingsSection(.downloaders))
@@ -266,6 +297,12 @@ struct DownloadTargetSheet: View {
         .task {
             guard !initialized else { return }
             initialized = true
+            guard permissions.isAdmin else {
+                // 成员版：只拉自己可见的库，不碰下载器配置与智能入库预检
+                memberLibraries = (try? await api.libraryList(scope: "all")) ?? []
+                autoSelect()
+                return
+            }
             remember = remembered != nil
             hint = request.hint
             hintDraft = request.hint ?? ""
@@ -469,6 +506,14 @@ struct DownloadTargetSheet: View {
             }
             if let match { selected = match.id; return }
         }
+        if !permissions.isAdmin {
+            // 成员版：种子类型对得上的默认库 > 同类型第一个库 > 下载器默认目录
+            let kind = request.identity?.kind
+            let fit = (memberLibraries ?? []).filter { $0.kind == kind }
+            let library = fit.first { $0.isDefault } ?? fit.first
+            selected = library.map { "library:\($0.id)" } ?? "default"
+            return
+        }
         if loadingTarget || (showOther && !downloadersLoaded) { return }
         selected = (opts.first { $0.kind == .smart } ?? opts.first { $0.kind != .smart } ?? opts[0]).id
     }
@@ -477,10 +522,21 @@ struct DownloadTargetSheet: View {
         guard let option = options.first(where: { $0.id == selected }), !busy else { return }
         busy = true
         error = nil
-        // 只在非默认下载器时显式带 downloader_id：默认台走后端原有语义
-        let pickedDownloaderId = downloader.map { $0.isDefault ? nil : $0.id } ?? downloaderId
         var payload = API.DownloadSubmitPayload(siteId: request.siteId, downloadUrl: request.downloadUrl)
         payload.torrentId = request.torrentId
+        guard permissions.isAdmin else {
+            // 成员版只带 library_id（+ 推导条目子目录用的片名年份）；不带目录 / 下载器 / 智能入库 / 记忆分类
+            if option.kind == .library {
+                payload.libraryId = option.libraryId
+                payload.title = request.identity?.title
+                payload.year = request.identity?.year
+                payload.subtitle = request.subtitle
+            }
+            send(payload)
+            return
+        }
+        // 只在非默认下载器时显式带 downloader_id：默认台走后端原有语义
+        let pickedDownloaderId = downloader.map { $0.isDefault ? nil : $0.id } ?? downloaderId
         // 只有勾了「记住本次选择」才带分类：后端拿不到分类就不写记忆
         if remember { payload.category = request.category }
         // 身份一律取预检确认的结论：类型可能与种子解析的不同，标题是 TMDB 标题（会进条目别名）
@@ -494,6 +550,10 @@ struct DownloadTargetSheet: View {
         }
         if option.kind == .dir { payload.savePath = option.savePath }
         if let pickedDownloaderId { payload.downloaderId = pickedDownloaderId }
+        send(payload)
+    }
+
+    private func send(_ payload: API.DownloadSubmitPayload) {
         Task {
             do {
                 let result = try await api.dlSubmit(body: payload)

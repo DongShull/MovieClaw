@@ -191,7 +191,7 @@ private struct MemberRow: View {
     private var permissionLabels: [String] {
         [
             member.allowSubscribe ? "订阅" : nil,
-            member.allowSearch ? "搜索" : nil,
+            member.allowSearch ? "资源搜索" : nil,
             member.allowDirectDownload ? "下载" : nil,
             member.contentAgeLimit.map { "\($0)+ 以下" },
         ].compactMap { $0 }
@@ -338,7 +338,7 @@ private struct CreateMemberSheet: View {
                 LabeledTextField(label: "昵称", hint: "页面展示名，可留空", placeholder: "如 小叶", text: $nickname)
                     .accessibilityIdentifier("member-create-nickname")
             } footer: {
-                Text("新成员默认可以订阅和浏览全部媒体库，站点搜索默认关闭。")
+                Text("新成员默认可以订阅和浏览全部媒体库，资源搜索默认关闭。")
             }
             Section {
                 CredentialRow(label: "密码", value: password, mono: true)
@@ -494,10 +494,10 @@ private struct EditMemberSheet: View {
                 Toggle(isOn: $allowSubscribe) { SettingsRowText(title: "订阅追踪", detail: "发起订阅并管理自己的订阅") }
                     .accessibilityIdentifier("member-allow-subscribe")
                 Toggle(isOn: Binding(mcGet: { allowSearch }, set: { allowSearch = $0; if !$0 { allowDirectDownload = false } })) {
-                    SettingsRowText(title: "站点搜索", detail: "搜索被分配的 PT 站点资源")
+                    SettingsRowText(title: "资源搜索", detail: "搜索被分配的 PT 站点上的种子资源；搜影视、搜媒体库不受此开关限制")
                 }
                 .accessibilityIdentifier("member-allow-search")
-                Toggle(isOn: $allowDirectDownload) { SettingsRowText(title: "一键下载", detail: "从搜索结果直接提交下载，依赖站点搜索") }
+                Toggle(isOn: $allowDirectDownload) { SettingsRowText(title: "一键下载", detail: "从搜索结果直接提交下载、给自己的订阅手动选种，依赖资源搜索") }
                     .disabled(!allowSearch)
                     .accessibilityIdentifier("member-allow-download")
             } header: {

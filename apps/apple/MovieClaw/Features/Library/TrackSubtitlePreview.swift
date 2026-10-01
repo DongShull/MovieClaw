@@ -21,6 +21,7 @@ struct TrackSubtitlePreviewPage: View {
     var onChanged: () async -> Void = {}
 
     @Environment(\.api) private var api
+    @Environment(\.permissions) private var permissions
 
     @State private var data: API.SubtitlePreviewView?
     @State private var error: String?
@@ -30,8 +31,8 @@ struct TrackSubtitlePreviewPage: View {
     @State private var calibrating = false
     @State private var calibrationNotice: String?
 
-    /// 只有外挂字幕能校准（内封轨长在容器里，改不了）
-    private var calibratable: Bool { stream.external && stream.fileName != nil }
+    /// 只有外挂字幕能校准（内封轨长在容器里，改不了）；校准走 subtitle_gen 接口，仅超管可用
+    private var calibratable: Bool { permissions.isAdmin && stream.external && stream.fileName != nil }
 
     var body: some View {
         Form {

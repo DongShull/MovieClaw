@@ -75,6 +75,15 @@ class Collection(MemberScopedMixin, TimestampMixin, table=True):
     # 登记为成员级数据（@register_member_scoped）是必须的——删成员时要把他的私有
     # 合集一并清掉，否则 SQLite 复用行 id，下一个新成员会继承前一个人的私有合集。
     # "是不是私有"看 visibility，不看 member_id 是否为空
+    #
+    # 创建者与归属是两回事：household 合集的 member_id 恒为 0（全家的），但它仍有
+    # 一个创建者——改名、改规则、改名单、删除只有超管与创建者可以
+    # （docs/design/member-permissions-v2.md §3.6）。刻意不复用 member_id：那一列
+    # 登记了成员级清理，删成员会把他建的全家合集一起删掉。
+    created_by_member_id: int = Field(
+        default=0,
+        description="创建者：0=超管（哨兵值，非外键）；删成员时其建的共享合集转归超管",
+    )
 
     # -- 来源与顺序 ----------------------------------------------------------
     # 内置合集标识：favorites / tmdb_series:{id} / …；NULL=用户创建。

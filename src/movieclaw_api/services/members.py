@@ -212,11 +212,13 @@ async def delete_member(session: AsyncSession, member_id: int) -> None:
       ``@register_member_scoped``（CI 守卫会拦住漏登记的），清理自动覆盖。
     - 库/站点白名单、订阅关注行：外键级联自动清理；
     - 其发起的订阅：外键 SET NULL 自动转为超管发起——绝不静默删除
-      订阅与下载任务，已下载内容不受影响。
+      订阅与下载任务，已下载内容不受影响；
+    - 其建的全家合集：转归超管（私有合集随成员级清理删除）。
     """
     from sqlalchemy import delete as sa_delete
+    from sqlalchemy import update as sa_update
 
-    from movieclaw_db.models import member_scoped_models
+    from movieclaw_db.models import Collection, member_scoped_models
 
     member = await get_member(session, member_id)
     avatar_media.delete_avatar(avatar_media.member_stem(member_id))
@@ -227,6 +229,13 @@ async def delete_member(session: AsyncSession, member_id: int) -> None:
     await login_devices.revoke_for_member(session, member_id)
     for model in member_scoped_models():
         await session.execute(sa_delete(model).where(model.member_id == member_id))
+    # 他建的全家合集是公共资源，留下来转归超管；不转的话 SQLite 复用行 id，
+    # 下一个新成员会凭空获得这些合集的管理权（私有合集已随上面的清理删掉）
+    await session.execute(
+        sa_update(Collection)
+        .where(Collection.created_by_member_id == member_id)
+        .values(created_by_member_id=0)
+    )
     await MemberRepository(session).delete(member)
     logger.info(
         "已删除成员账号：%s（id=%d，个人数据已清理，订阅已转由管理员接管）",

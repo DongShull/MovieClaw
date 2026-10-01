@@ -721,6 +721,13 @@ class WantedView(BaseModel):
 
 class SubscriptionDetailView(SubscriptionView):
     wanted: list[WantedView] = Field(default_factory=list)
+    can_manage: bool = Field(
+        default=True,
+        description=(
+            "当前观看者能否调整这条订阅（改季、暂停、立即搜索、洗版、手动选种）："
+            "超管与发起人为 true；只关注不发起的成员为 false，只能取消关注"
+        ),
+    )
     forecast_pending: bool = Field(
         default=False,
         description=(

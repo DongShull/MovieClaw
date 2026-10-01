@@ -377,9 +377,11 @@ async def run_upgrade_round(
     if spec is None:
         raise BadRequestException("当前规则组的参数无法解析，请在规则组页面重新保存修正")
     if spec.upgrade_source is None:
+        # 成员也会走到这里（成员洗版只能沿用当前组，member-permissions-v2.md §3.3），
+        # 文案要让不懂规则组的家人也知道下一步找谁
         raise BadRequestException(
-            "当前规则组未配置洗版目标；在请求中带上一个已配置洗版目标的规则组，"
-            "或先到「设置 → 订阅 → 规则组」配置"
+            "当前规则组未配置洗版目标，暂时无法洗版：需要管理员在「设置 → 订阅 → 规则组」"
+            "里配置；管理员也可以在洗版时换用一个已配置洗版目标的规则组"
         )
 
     # 物化存量单元 + 当场补快照（不等回填 tick——体检要看到每一集）

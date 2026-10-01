@@ -645,12 +645,17 @@ export function LibraryCollectionDetailView({
                         <DropdownMenu.Separator className="my-1 h-px bg-white/[0.07]" />
                       </>
                     )}
-                    <DropdownMenu.Item
-                      onSelect={rename}
-                      className={MENU_ITEM_CLASS}
-                    >
-                      改名
-                    </DropdownMenu.Item>
+                    {/* 改名 / 隐藏 / 删除按 manageable（超管，或成员自己的私有合集与自己建的
+                        全家合集）；改条件、整理名单按 editable（再加一条：用户自建）。
+                        别人的全家合集对成员只读，后端同样会拒（member-permissions-v2 §3.6） */}
+                    {collection.manageable && (
+                      <DropdownMenu.Item
+                        onSelect={rename}
+                        className={MENU_ITEM_CLASS}
+                      >
+                        改名
+                      </DropdownMenu.Item>
+                    )}
                     {/* 分享整个合集：链接对外可看，成员每次访问现算——
                         规则驱动的合集会自己长，朋友明天打开就多了几部 */}
                     {canManageLibraries && (
@@ -709,21 +714,25 @@ export function LibraryCollectionDetailView({
                     >
                       {onHome ? "从首页移除" : "显示在首页"}
                     </DropdownMenu.Item>
-                    <DropdownMenu.Separator className="my-1 h-px bg-white/[0.07]" />
-                    {collection.hidden ? (
-                      <DropdownMenu.Item
-                        onSelect={unhide}
-                        className={MENU_ITEM_CLASS}
-                      >
-                        恢复显示
-                      </DropdownMenu.Item>
-                    ) : (
-                      <DropdownMenu.Item
-                        onSelect={remove}
-                        className={MENU_ITEM_CLASS}
-                      >
-                        {auto ? "隐藏这个合集" : "删除合集"}
-                      </DropdownMenu.Item>
+                    {collection.manageable && (
+                      <>
+                        <DropdownMenu.Separator className="my-1 h-px bg-white/[0.07]" />
+                        {collection.hidden ? (
+                          <DropdownMenu.Item
+                            onSelect={unhide}
+                            className={MENU_ITEM_CLASS}
+                          >
+                            恢复显示
+                          </DropdownMenu.Item>
+                        ) : (
+                          <DropdownMenu.Item
+                            onSelect={remove}
+                            className={MENU_ITEM_CLASS}
+                          >
+                            {auto ? "隐藏这个合集" : "删除合集"}
+                          </DropdownMenu.Item>
+                        )}
+                      </>
                     )}
                   </DropdownMenu.Content>
                 </DropdownMenu.Portal>

@@ -60,6 +60,10 @@ export interface SubscribeTarget {
   upgradeIntent?: boolean;
 }
 
+/** 成员洗版的规则组说明：成员不能选组，洗到哪一档由管理员在规则组里配置。 */
+const MEMBER_UPGRADE_RULE_HINT =
+  "洗到哪一档由管理员在规则组里配置；若规则组还没有洗版目标，请联系管理员设置。";
+
 /**
  * 订阅弹层：一次点击完成订阅，复杂度沉到默认值。
  *
@@ -143,13 +147,11 @@ export function SubscribeDialog({
       setError(null);
       setUpgradeReport(null);
       try {
-        // 洗版变体成员也要选「洗到哪一档」（换组由 upgrade-runs 按订阅归属
-        // 者权限执行，与后端口径一致），故规则列表不再只对管理员拉取
+        // 规则组是超管的配置知识（GET /rule-sets 仅超管）：成员一律不拉列表、
+        // 不选组，洗版变体也按订阅当前的规则组洗（后端忽略成员传的 rule_set_id）
         const [result, rules, initialLibs] = await Promise.all([
           previewSubscriptionTitle({ title_ref: t.titleRef }),
-          canManageSubscriptions || t.upgradeIntent
-            ? listRuleSets()
-            : Promise.resolve([]),
+          canManageSubscriptions ? listRuleSets() : Promise.resolve([]),
           // 媒体库列表与预检并行拉，少等一个往返：TMDB 引用的类型是确定的，
           // 只有豆瓣引用偶尔会被后端收敛成另一类型，那时再按 canonical kind 补拉
           canManageSubscriptions ? listLibraries(t.kind) : Promise.resolve([]),
@@ -265,12 +267,15 @@ export function SubscribeDialog({
       onChanged?.();
       if (upgradeMode) {
         // 洗版变体：创建成功即自动接一轮洗版，弹层切到体检报告段（§13.3）。
-        // 规则组显式带给 upgrade-runs：管理员创建时已选中（后端跳过同组切换），
-        // 成员创建时后端忽略选组、订阅落在默认组，靠这里的归属者换组生效。
+        // 管理员把所选规则组显式带给 upgrade-runs（创建时已选中，后端跳过同组切换）；
+        // 成员不选组，按订阅落定的规则组洗版，不传 rule_set_id。
         // 触发失败时订阅已建好——报错留在弹层里，用户可去订阅详情重试
         try {
           setUpgradeReport(
-            await runSubscriptionUpgradeRound(created.id, ruleSetId ?? undefined),
+            await runSubscriptionUpgradeRound(
+              created.id,
+              canManageSubscriptions ? (ruleSetId ?? undefined) : undefined,
+            ),
           );
         } catch (e) {
           setError(
@@ -333,8 +338,13 @@ export function SubscribeDialog({
 
   const canSubmit = useMemo(() => {
     if (!prepared?.media || busy) return false;
-    // 洗版变体必须选中一个带洗版目标的组，否则触发一轮洗版会被后端拒绝
-    if (upgradeMode && !selectableRules.some((r) => r.id === ruleSetId)) {
+    // 洗版变体必须选中一个带洗版目标的组，否则触发一轮洗版会被后端拒绝；
+    // 成员不选组（按订阅当前的规则组洗版），不受此约束
+    if (
+      upgradeMode &&
+      canManageSubscriptions &&
+      !selectableRules.some((r) => r.id === ruleSetId)
+    ) {
       return false;
     }
     if (prepared.media.kind === "movie") return true;
@@ -345,6 +355,7 @@ export function SubscribeDialog({
     selectedSeasons,
     followFuture,
     upgradeMode,
+    canManageSubscriptions,
     selectableRules,
     ruleSetId,
   ]);
@@ -408,7 +419,7 @@ export function SubscribeDialog({
     const kind = media?.kind ?? target.kind;
     const existingId = prepared?.status === "ready" ? prepared.existing_subscription_id : null;
     const showsForm = prepared?.status === "ready" && !existingId;
-    const showsRules = upgradeMode || (canManageSubscriptions && ruleSets.length > 0);
+    const showsRules = canManageSubscriptions && (upgradeMode || ruleSets.length > 0);
     const showsLibrary = canManageSubscriptions && libraries.length > 0;
     const pickedRule = selectableRules.find((r) => r.id === ruleSetId);
     const chips = pickedRule ? specSummary(pickedRule.spec) : [];
@@ -580,6 +591,12 @@ export function SubscribeDialog({
             </>
           )}
 
+          {showsForm && upgradeMode && !canManageSubscriptions && (
+            <SheetSection title="洗版规则" footer={MEMBER_UPGRADE_RULE_HINT}>
+              <SheetRow label="按订阅当前的规则组洗版" />
+            </SheetSection>
+          )}
+
           {showsForm && (showsRules || showsLibrary) && (
             <SheetSection
               footer={
@@ -609,19 +626,15 @@ export function SubscribeDialog({
                     <SheetRow
                       label={
                         <span className="text-sub leading-6 text-[var(--text-muted)]">
-                          {canManageSubscriptions
-                            ? "还没有配置洗版目标的规则组——新建一个，在编辑器里选择「洗到哪一档」即可。"
-                            : "还没有配置洗版目标的规则组，请联系管理员在「设置 → 订阅规则 → 规则组」中配置「洗到哪一档」。"}
+                          还没有配置洗版目标的规则组——新建一个，在编辑器里选择「洗到哪一档」即可。
                         </span>
                       }
                     />
-                    {canManageSubscriptions && (
-                      <SheetRow
-                        icon={<PlusIcon className="size-[18px]" />}
-                        label={newRuleSetLabel}
-                        onClick={() => setCreatingRuleSet(true)}
-                      />
-                    )}
+                    <SheetRow
+                      icon={<PlusIcon className="size-[18px]" />}
+                      label={newRuleSetLabel}
+                      onClick={() => setCreatingRuleSet(true)}
+                    />
                   </>
                 ) : (
                   // 规则组行：行内写当前组 + 品质摘要，点开是单选菜单，末尾是低频的「新建规则组…」
@@ -636,13 +649,11 @@ export function SubscribeDialog({
                     }))}
                     onChange={(v) => setRuleSetId(Number(v))}
                     extra={
-                      canManageSubscriptions && (
-                        <SheetMenuAction
-                          icon={<PlusIcon className="size-4" />}
-                          label={newRuleSetLabel}
-                          onSelect={() => setCreatingRuleSet(true)}
-                        />
-                      )
+                      <SheetMenuAction
+                        icon={<PlusIcon className="size-4" />}
+                        label={newRuleSetLabel}
+                        onSelect={() => setCreatingRuleSet(true)}
+                      />
                     }
                   >
                     {pickedRule && (
@@ -846,7 +857,17 @@ export function SubscribeDialog({
                 </section>
               )}
 
-              {(upgradeMode || (canManageSubscriptions && ruleSets.length > 0)) && (
+              {upgradeMode && !canManageSubscriptions && (
+                <section>
+                  <h3 className="mb-2 text-ui font-semibold text-white/85">洗版规则</h3>
+                  <p className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sub leading-6 text-[var(--text-muted)]">
+                    <span className="font-medium text-white/85">按订阅当前的规则组洗版。</span>
+                    {MEMBER_UPGRADE_RULE_HINT}
+                  </p>
+                </section>
+              )}
+
+              {canManageSubscriptions && (upgradeMode || ruleSets.length > 0) && (
                 <section>
                   <div className="mb-2 flex items-center justify-between">
                     <h3 className="text-ui font-semibold text-white/85">
@@ -857,21 +878,17 @@ export function SubscribeDialog({
                         </span>
                       )}
                     </h3>
-                    {canManageSubscriptions && (
-                      <button
-                        type="button"
-                        onClick={() => setCreatingRuleSet(true)}
-                        className="text-sub font-medium text-[var(--accent)] hover:underline"
-                      >
-                        + 新建规则组
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setCreatingRuleSet(true)}
+                      className="text-sub font-medium text-[var(--accent)] hover:underline"
+                    >
+                      + 新建规则组
+                    </button>
                   </div>
                   {upgradeMode && selectableRules.length === 0 ? (
                     <p className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sub leading-6 text-[var(--text-muted)]">
-                      {canManageSubscriptions
-                        ? "还没有配置洗版目标的规则组——点右上角「+ 新建规则组」，在编辑器里选择「洗到哪一档」即可。"
-                        : "还没有配置洗版目标的规则组，请联系管理员在「设置 → 订阅规则 → 规则组」中配置「洗到哪一档」。"}
+                      还没有配置洗版目标的规则组——点右上角「+ 新建规则组」，在编辑器里选择「洗到哪一档」即可。
                     </p>
                   ) : (
                   <select

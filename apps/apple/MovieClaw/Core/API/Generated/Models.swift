@@ -968,8 +968,10 @@ nonisolated extension API {
         var visibility: String
         /// 内置合集标识；null=用户创建
         var builtin: String?
-        /// 能不能改规则（builtin 为 null 才能）
+        /// 当前观看者能不能改规则与名单（用户创建的合集，且 manageable 为真）
         var editable: Bool
+        /// 当前观看者能不能管理这个合集（改名、排序、可见性、隐藏、删除）：超管恒为真；成员只能管理自己的私有合集与自己建的全家合集
+        var manageable: Bool
         /// 规则驱动（会自己长）还是名单驱动（固定）
         var ruleDriven: Bool
         /// 当前可见成员数
@@ -993,6 +995,7 @@ nonisolated extension API {
             case visibility
             case builtin
             case editable
+            case manageable
             case ruleDriven = "rule_driven"
             case itemCount = "item_count"
             case coverItemId = "cover_item_id"
@@ -6255,6 +6258,7 @@ nonisolated extension API {
         var pauseReasons: [String]
         var cacheHit: Bool
         var cachedSegments: Int
+        var timeline: [[String: API.JSONValue]]
 
         enum CodingKeys: String, CodingKey {
             case sessionState = "session_state"
@@ -6295,6 +6299,7 @@ nonisolated extension API {
             case pauseReasons = "pause_reasons"
             case cacheHit = "cache_hit"
             case cachedSegments = "cached_segments"
+            case timeline
         }
     }
 
@@ -9293,6 +9298,8 @@ nonisolated extension API {
         var createdAt: String
         var updatedAt: String
         var wanted: [API.WantedView]
+        /// 当前观看者能否调整这条订阅（改季、暂停、立即搜索、洗版、手动选种）：超管与发起人为 true；只关注不发起的成员为 false，只能取消关注
+        var canManage: Bool
         /// 资源发布时间预测正在后台刷新（订阅创建/调整/恢复后的几秒内）；为 true 时 wanted[].release_forecast 可能还是旧值或空值，稍后重取即可
         var forecastPending: Bool
 
@@ -9309,6 +9316,7 @@ nonisolated extension API {
             case createdAt = "created_at"
             case updatedAt = "updated_at"
             case wanted
+            case canManage = "can_manage"
             case forecastPending = "forecast_pending"
         }
     }

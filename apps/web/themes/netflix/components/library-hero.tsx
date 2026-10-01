@@ -10,6 +10,7 @@ import { type LibraryItem, listLibraries, listLibraryItems } from "@/lib/api/lib
 import { listUpNext, type UpNextItem } from "@/lib/api/playback";
 import { imageUrl, upgradedTmdbOriginalUrl, cardVariantFor } from "@/lib/image-proxy";
 import { useWantsOriginalImage } from "@/lib/image-resolution";
+import { usePermissions } from "@/lib/permissions";
 import { formatRelativeTime } from "@/lib/time";
 
 /**
@@ -115,6 +116,8 @@ function NetflixBillboard({
   libraryItem: LibraryItem | null;
 }) {
   const router = useRouter();
+  // 「问 AI」跳 Agent 新会话：Agent 只对超管开放，成员不给入口（手输 /new 也会被改道）
+  const { isAdmin } = usePermissions();
   const title = upNextItem?.title ?? libraryItem?.title ?? "";
   const meta = upNextItem
     ? [
@@ -287,14 +290,16 @@ function NetflixBillboard({
             </button>
           )}
           {/* AI 是本站差异能力：Netflix 没有但至少不破坏画面的第三个入口 */}
-          <button
-            type="button"
-            onClick={() => router.push("/new")}
-            className="text-on-image flex h-10 items-center gap-1.5 rounded-[4px] px-3 text-[15px] font-medium text-[var(--text-muted)] transition-colors hover:text-white max-md:h-11"
-          >
-            <SparkIcon className="size-4" />
-            问 AI
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => router.push("/new")}
+              className="text-on-image flex h-10 items-center gap-1.5 rounded-[4px] px-3 text-[15px] font-medium text-[var(--text-muted)] transition-colors hover:text-white max-md:h-11"
+            >
+              <SparkIcon className="size-4" />
+              问 AI
+            </button>
+          )}
         </div>
         {/* 继续观看的进度：billboard 底部细红条（与播放器进度同语言） */}
         {progress != null && progress > 0 && (

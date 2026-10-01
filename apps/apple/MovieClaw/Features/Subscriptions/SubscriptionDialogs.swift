@@ -492,6 +492,9 @@ struct SubscriptionManageSheet: View {
     let paused: Bool
     let completed: Bool
     let canSubscribe: Bool
+    /// 能否调整这条订阅（改季、洗版、续订、暂停）：可订阅且是发起人或超管（后端 can_manage）；
+    /// 只关注的成员只剩「取消订阅」（= 取消关注）
+    let canTune: Bool
     let canManage: Bool
     /// nil = 电影订阅（不展示自动续订）
     let followFuture: Bool?
@@ -504,13 +507,13 @@ struct SubscriptionManageSheet: View {
         NavigationStack {
             List {
                 Section {
-                    if canSubscribe { row("调整订阅", systemImage: "slider.horizontal.3", action: .adjust, chevron: true) }
-                    if canSubscribe { row("洗一轮版", systemImage: "sparkles", action: .upgradeRun, chevron: true) }
-                    if canSubscribe, let followFuture {
+                    if canTune { row("调整订阅", systemImage: "slider.horizontal.3", action: .adjust, chevron: true) }
+                    if canTune { row("洗一轮版", systemImage: "sparkles", action: .upgradeRun, chevron: true) }
+                    if canTune, let followFuture {
                         row(followFuture ? "关闭自动续订" : "开启自动续订", systemImage: followFuture ? "bell.slash" : "bell", action: .toggleFollow)
                     }
                     if canManage { row("更换规则组", systemImage: "list.bullet.rectangle", action: .switchRule, chevron: true) }
-                    if canSubscribe {
+                    if canTune {
                         row(paused ? "恢复追踪" : "暂停追踪", systemImage: paused ? "play.circle" : "pause.circle", action: .togglePause, chevron: true)
                             .disabled(busy || completed)
                     }

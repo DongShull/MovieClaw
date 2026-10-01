@@ -12,6 +12,7 @@ import SwiftUI
 ///
 /// ⋯ 菜单：改名 / 分享…（管理员）/ 改条件…（规则合集）/ 整理顺序…（手动合集）/
 /// 显示在首页 · 从首页移除 / 恢复显示 或 隐藏这个合集 · 删除合集；图床浏览时还有按作品分组与密度。
+/// 改名、隐藏、删除看 `manageable`，改条件、整理名单看 `editable`（后端按合集归属算好，见 §3.6）。
 struct CollectionDetailView: View {
     let libraryId: Int?
     let collectionId: Int
@@ -356,7 +357,11 @@ struct CollectionDetailView: View {
                 GalleryPrefMenuItems()
                 Divider()
             }
-            Button("改名") { Task { await rename(collection) } }
+            // 权限口径（member-permissions-v2 §3.6）：manageable = 能改名 / 隐藏 / 删除（超管，或成员自己建的合集；
+            // 内置合集只有超管）；editable = 用户自建且 manageable，才能改条件、动名单（含整理顺序里的移除）
+            if collection.manageable {
+                Button("改名") { Task { await rename(collection) } }
+            }
             if permissions.canManageLibraries {
                 Button("分享…") { Task { await openShare() } }
             }
@@ -367,12 +372,14 @@ struct CollectionDetailView: View {
                 Button("整理顺序…") { Task { await openOrdering() } }
             }
             Button(onHome ? "从首页移除" : "显示在首页") { Task { await toggleOnHome(collection) } }
-            Divider()
-            if collection.hidden {
-                Button("恢复显示") { Task { await unhide(collection) } }
-            } else {
-                Button(collection.kind != "user" ? "隐藏这个合集" : "删除合集", role: collection.kind != "user" ? nil : .destructive) {
-                    Task { await remove(collection) }
+            if collection.manageable {
+                Divider()
+                if collection.hidden {
+                    Button("恢复显示") { Task { await unhide(collection) } }
+                } else {
+                    Button(collection.kind != "user" ? "隐藏这个合集" : "删除合集", role: collection.kind != "user" ? nil : .destructive) {
+                        Task { await remove(collection) }
+                    }
                 }
             }
         } label: {

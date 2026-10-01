@@ -33,6 +33,9 @@ struct UpgradeRunSheet: View {
     private var upgradeRules: [API.RuleSetView] { (ruleSets ?? []).filter { $0.upgradeTarget != nil } }
     private var currentHasTarget: Bool { (ruleSets ?? []).first { $0.id == detail.ruleSetId }?.upgradeTarget != nil }
     private var selectedRule: API.RuleSetView? { upgradeRules.first { $0.id == ruleSetId } }
+    /// 规则组是超管的配置（`GET /rule-sets` 仅超管可读）：成员不拉列表、不选组，
+    /// 后端按订阅当前的规则组洗版（成员传了 rule_set_id 也会被忽略，member-permissions-v2 §3.7）
+    private var picksRule: Bool { permissions.canManageSubscriptions }
     private var outOfScopeOwned: [API.SeasonOverview] {
         isMovie ? [] : detail.seasonCollection.filter { $0.ownedCount > 0 && !detail.selectedSeasons.contains($0.seasonNumber) }
     }
@@ -89,11 +92,11 @@ struct UpgradeRunSheet: View {
             subtitle: "逐集检查《\(detail.media.title)》库里已有的版本，低于洗版目标的立即排入搜索；洗到新版本入库并验证通过后，旧文件自动替换。",
             confirm: SubsSheetConfirm(
                 title: paused ? "恢复并触发洗版" : "开始体检并洗版",
-                enabled: selectedRule != nil,
+                enabled: !picksRule || selectedRule != nil,
                 busy: busy,
                 identifier: "upgrade-run-start"
             ) { Task { await run() } },
-            ready: ruleSets != nil || error != nil
+            ready: !picksRule || ruleSets != nil || error != nil
         ) {
             if let error {
                 Section { SubsNoticeRow(text: error, tone: .error) }
@@ -102,37 +105,45 @@ struct UpgradeRunSheet: View {
                 Section { SubsNoticeRow(text: "该订阅已暂停。触发洗版会先恢复追踪，随后开始搜索。", tone: .warn) }
             }
 
-            Section {
-                if ruleSets == nil {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("正在加载规则组…").foregroundStyle(Theme.textMuted)
-                    }
-                } else {
-                    ForEach(upgradeRules, id: \.id) { rule in
-                        SubsChoiceRow(
-                            title: rule.name + (rule.id == detail.ruleSetId ? "（当前使用）" : ""),
-                            subtitle: "洗到 \(rule.upgradeTarget ?? "")",
-                            selected: rule.id == ruleSetId,
-                            tint: SubsColor.upgrade
-                        ) {
-                            ruleSetId = rule.id
-                        }
-                        .disabled(busy)
-                        .accessibilityIdentifier("upgrade-rule-option")
-                    }
-                    if permissions.canManageSubscriptions {
-                        Button("新建规则组…", systemImage: "plus") { creatingRuleSet = true }
-                    }
+            if !picksRule {
+                Section {
+                    Text("按订阅当前的规则组洗版").foregroundStyle(Theme.textMuted)
+                } header: {
+                    Text("洗版目标")
                 }
-            } header: {
-                Text("洗版目标")
-            } footer: {
-                if ruleSets != nil {
-                    if upgradeRules.isEmpty {
-                        Text("还没有配置洗版目标的规则组。" + (permissions.canManageSubscriptions ? "新建一个，在编辑器里选择「洗到哪一档」即可。" : "请联系管理员在「设置 → 订阅规则 → 规则组」中配置「洗到哪一档」。"))
-                    } else if !currentHasTarget {
-                        Text("当前规则组未配置洗版目标，选一个带洗版目标的组，确认后一并换用。")
+            } else {
+                Section {
+                    if ruleSets == nil {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("正在加载规则组…").foregroundStyle(Theme.textMuted)
+                        }
+                    } else {
+                        ForEach(upgradeRules, id: \.id) { rule in
+                            SubsChoiceRow(
+                                title: rule.name + (rule.id == detail.ruleSetId ? "（当前使用）" : ""),
+                                subtitle: "洗到 \(rule.upgradeTarget ?? "")",
+                                selected: rule.id == ruleSetId,
+                                tint: SubsColor.upgrade
+                            ) {
+                                ruleSetId = rule.id
+                            }
+                            .disabled(busy)
+                            .accessibilityIdentifier("upgrade-rule-option")
+                        }
+                        if permissions.canManageSubscriptions {
+                            Button("新建规则组…", systemImage: "plus") { creatingRuleSet = true }
+                        }
+                    }
+                } header: {
+                    Text("洗版目标")
+                } footer: {
+                    if ruleSets != nil {
+                        if upgradeRules.isEmpty {
+                            Text("还没有配置洗版目标的规则组。" + (permissions.canManageSubscriptions ? "新建一个，在编辑器里选择「洗到哪一档」即可。" : "请联系管理员在「设置 → 订阅规则 → 规则组」中配置「洗到哪一档」。"))
+                        } else if !currentHasTarget {
+                            Text("当前规则组未配置洗版目标，选一个带洗版目标的组，确认后一并换用。")
+                        }
                     }
                 }
             }
@@ -161,6 +172,7 @@ struct UpgradeRunSheet: View {
     }
 
     private func loadRules() async {
+        guard picksRule else { return }
         do {
             let rules = try await api.rulesList()
             ruleSets = rules
@@ -178,7 +190,7 @@ struct UpgradeRunSheet: View {
     }
 
     private func run() async {
-        guard let selectedRule else { return }
+        guard !picksRule || selectedRule != nil else { return }
         busy = true
         error = nil
         defer { busy = false }
@@ -192,10 +204,10 @@ struct UpgradeRunSheet: View {
             if paused {
                 _ = try await api.subscriptionsSetTrackingState(subscriptionId: detail.id, body: .init(state: "active"))
             }
-            report = try await api.subscriptionsUpgradeRun(
-                subscriptionId: detail.id,
-                body: .init(ruleSetId: selectedRule.id != detail.ruleSetId ? selectedRule.id : nil)
-            )
+            // 成员不选组（selectedRule 恒为 nil），选的就是现用组时也不带
+            var switchTo: Int?
+            if let selectedRule, selectedRule.id != detail.ruleSetId { switchTo = selectedRule.id }
+            report = try await api.subscriptionsUpgradeRun(subscriptionId: detail.id, body: .init(ruleSetId: switchTo))
         } catch {
             self.error = error.localizedDescription.isEmpty ? "触发洗版失败，请稍后重试" : error.localizedDescription
         }

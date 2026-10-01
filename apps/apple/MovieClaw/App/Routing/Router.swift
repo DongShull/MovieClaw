@@ -171,7 +171,7 @@ final class Router {
 
     /// 路由守卫（同 Web `accessiblePathFor` 与设置页的越权回退）：
     /// - 成员打开仅管理员可见的设置分区 → 改去「个人信息」（Web settings-view 的 replace 到 /settings/profile）；
-    /// - 其余越权页面（AI 会话、无能力的订阅/搜索、活动、媒体库管理）→ 落到媒体库首页。
+    /// - 其余越权页面（AI 会话、无能力的订阅、活动、媒体库管理）→ 落到媒体库首页。
     /// 界面上本就不给这些入口，守卫兜的是通知、AI 卡片、深链等「从别处跳过来」的情况。
     func guarded(_ route: AppRoute) -> AppRoute {
         guard let permissions, !permissions.allows(route) else { return route }

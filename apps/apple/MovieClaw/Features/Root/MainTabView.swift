@@ -34,6 +34,10 @@ struct MainTabView: View {
     /// 头像页签在窗口里的位置（账号手势提示气泡对准它，见 TabBarAccountGestures）
     @State private var avatarTabFrame: CGRect = .zero
     @State private var showAccountTip = false
+    /// 成员有没有可见库（搜索的「媒体库」分区要它，见 AppTopBar 的放大镜）；nil = 还没查到。
+    /// 只有这一项要异步查：影视 / 资源分区由权限同步得出，超管恒有媒体库分区——放大镜对他们第一帧就在，不闪。
+    /// 换账号时整棵主界面按账号重建（见 MovieClawApp），这份状态随之清空，不会串号
+    @State private var memberHasLibrary: Bool?
     /// 账号手势提示看过没有（只提示一次）。只在气泡真的显示出来时才记：头像页签的位置还没找到时
     /// 气泡画不出来，照样记下就等于没提示过却再也不提示了（v1 键在测试包里就这样被误记过，换了新键）
     @AppStorage("movieclaw.tips.accountGestures.v2") private var accountTipShown = false
@@ -268,6 +272,14 @@ struct MainTabView: View {
             }
         }
         .task(id: permissions.isAdmin) {
+            // 成员的媒体库分区要拉一次可见库列表才知道；每个账号只查一次
+            guard !permissions.isAdmin, memberHasLibrary == nil else { return }
+            let libraries = try? await api.libraryList(scope: "all")
+            guard !Task.isCancelled else { return }
+            // 拉取失败先给入口：搜索页进去会自己再核一次分区，别让一次网络抖动把入口藏到下次登录
+            memberHasLibrary = libraries.map { !$0.isEmpty } ?? true
+        }
+        .task(id: permissions.isAdmin) {
             guard permissions.isAdmin else { return }
             await FirstFrameGate.wait()
             await badges.run(api: api)
@@ -315,6 +327,12 @@ struct MainTabView: View {
         .environment(badges)
         .environment(\.api, api)
         .environment(\.permissions, permissions)
+        .environment(\.searchAccess, SearchAccess(
+            canMedia: permissions.canSubscribe,
+            canTorrent: permissions.canSearch,
+            canLibrary: permissions.isAdmin || memberHasLibrary == true,
+            ready: permissions.isAdmin || memberHasLibrary != nil
+        ))
         .tint(Theme.accentStrong)
     }
 }
@@ -482,11 +500,12 @@ enum TabIcon {
 struct AppTopBar: ViewModifier {
     let tab: MainTab
     @Environment(Router.self) private var router
-    @Environment(\.permissions) private var permissions
+    @Environment(\.searchAccess) private var searchAccess
 
     func body(content: Content) -> some View {
         content.toolbar {
-            if permissions.canSearch {
+            // 任一搜索分区可用就给入口（影视 / 资源 / 媒体库，见 SearchAccess.canOpenSearch）
+            if searchAccess.canOpenSearch {
                 ToolbarSpacer(.fixed, placement: .primaryAction)
                 ToolbarItem(placement: .primaryAction) {
                     Button {
