@@ -15,11 +15,15 @@ import {
   type FavoritesSort,
   type HomeRow,
   type HomeRowSort,
+  MEDIA_KIND_LABELS,
   SORT_PRESETS,
   buildHomeRows,
+  mediaKindGroups,
+  mediaKindRowName,
   moveRowTo,
   newCollectionRow,
   newLibraryRow,
+  newMediaKindRow,
   rowTitle,
   rowsToPrefs,
   sortPresetsFor,
@@ -303,6 +307,8 @@ export function LibraryCustomizeView() {
   // 只拦「添加」这一步，不改已存的行：偏好里存过的 series 合集照常渲染（合并走
   // buildHomeRows，用的是完整合集表）。真想把某个系列放上首页，合集页的 ⋯ 菜单里
   // 「显示在首页」那条路没堵，只是不再摆在这里让人一个个翻。
+  // 按类型的来源（「全部电影」）：与首页同一口径——可见、没被排除首页的同类型库
+  const kindSources = [...mediaKindGroups(visibleLibraries)];
   const pickableCollections = collections.filter(
     (collection) => collection.kind === "user",
   );
@@ -389,8 +395,8 @@ export function LibraryCustomizeView() {
           </ul>
         )}
 
-        {/* 添加一行只问一个问题：从哪来。选一个库得到「最近添加的 X」，选一个合集得到
-            它本身；排序和名字在行上直接改。已在首页的合集置灰；内置的「我的收藏」合集
+        {/* 添加一行只问一个问题：从哪来。选一种类型得到「全部 X · 最近添加」，选一个库
+            得到「最近添加的 X」，选一个合集得到它本身；排序和名字在行上直接改。已在首页的合集置灰；内置的「我的收藏」合集
             不进候选（首页已经有「我的收藏」这一行） */}
         <div className="mt-4 rounded-xl border border-dashed border-white/15 px-4 py-3">
           <p className="text-caption text-[var(--text-faint)]">
@@ -400,6 +406,20 @@ export function LibraryCustomizeView() {
               gap 只在各自容器内生效，接缝那一行的行距是 0，两排胶囊的描边会贴死在一起
               （看着就像叠了）。换行后的行距也要够 rounded-full 喘气，1.5 太挤。 */}
           <div className="mt-2 flex flex-wrap gap-2">
+            {/* 类型排最前：「全部电影」是比单个库更大的来源，同一部片跨库只出现一次 */}
+            {kindSources.map(([mediaKind, members]) => (
+              <button
+                key={`kind:${mediaKind}`}
+                type="button"
+                onClick={() => add(newMediaKindRow(mediaKind, members))}
+                className="rounded-full border border-white/15 px-3 py-1 text-sub text-[var(--text-muted)] transition hover:bg-white/[0.07] hover:text-[var(--text)]"
+              >
+                全部{MEDIA_KIND_LABELS[mediaKind]}
+                <span className="ml-1.5 text-caption text-[var(--text-faint)]">
+                  {members.length} 个库
+                </span>
+              </button>
+            ))}
             {visibleLibraries.map((library) => (
               <button
                 key={library.id}
@@ -470,11 +490,14 @@ function sortOptions(
         },
       );
     case "collection":
+    case "media-kind":
     case "library": {
       const keys =
         row.kind === "library"
           ? sortPresetsFor(row.library.kind)
-          : COLLECTION_SORTS;
+          : row.kind === "media-kind"
+            ? sortPresetsFor(row.mediaKind)
+            : COLLECTION_SORTS;
       return keys.flatMap((key) => {
         const preset = SORT_PRESETS[key];
         return both(
@@ -524,19 +547,24 @@ function RowItem({
   const sort =
     row.kind === "favorites" ||
     row.kind === "library" ||
+    row.kind === "media-kind" ||
     row.kind === "collection"
       ? row.sort
       : null;
   const removable =
-    row.kind === "collection" || (row.kind === "library" && !row.builtin);
+    row.kind === "collection" ||
+    ((row.kind === "library" || row.kind === "media-kind") && !row.builtin);
   const reversed =
     row.kind === "favorites" ||
     row.kind === "library" ||
+    row.kind === "media-kind" ||
     row.kind === "collection"
       ? row.reversed
       : false;
-  // 「只显示我没看过的」只对库行有意义，且与「最近观看」互斥（那一行只要播过的）
-  const showUnwatched = row.kind === "library" && row.sort !== "last_played";
+  // 「只显示我没看过的」只对库行与类型行有意义，且与「最近观看」互斥（那一行只要播过的）
+  const showUnwatched =
+    (row.kind === "library" || row.kind === "media-kind") &&
+    row.sort !== "last_played";
   const nameInputId = `row-name-${row.id}`;
   // 能自己起名字的行：库行与合集行。留空各自跟随默认，占位就写出那个默认值是什么，
   // 顺带也把这一行的**来源**说清楚——名字改掉之后，占位是认出它指向哪个库/哪个合集
@@ -551,6 +579,12 @@ function RowItem({
           ),
           hint: "留空跟随排序推荐",
         }
+      : row.kind === "media-kind"
+        ? {
+            value: row.name,
+            placeholder: mediaKindRowName(row.mediaKind, row.sort, row.reversed),
+            hint: "留空跟随排序推荐",
+          }
       : row.kind === "collection"
         ? {
             value: row.name,
@@ -680,7 +714,7 @@ function RowItem({
                       sort: key as HomeRowSort,
                       reversed: nextReversed,
                     };
-                  if (r.kind === "library") {
+                  if (r.kind === "library" || r.kind === "media-kind") {
                     const sort = key as HomeRowSort;
                     // 「最近观看」只要播过的，与「只看没看过的」互斥
                     return {
@@ -713,14 +747,18 @@ function RowItem({
                 onChange={(e) => {
                   const name = e.target.value;
                   onChange((r) =>
-                    r.kind === "library" || r.kind === "collection"
+                    r.kind === "library" ||
+                    r.kind === "media-kind" ||
+                    r.kind === "collection"
                       ? { ...r, name }
                       : r,
                   );
                 }}
                 onBlur={() =>
                   onChange((r) =>
-                    r.kind === "library" || r.kind === "collection"
+                    r.kind === "library" ||
+                    r.kind === "media-kind" ||
+                    r.kind === "collection"
                       ? { ...r, name: r.name.trim() }
                       : r,
                   )
@@ -732,7 +770,8 @@ function RowItem({
           )}
           {(showUnwatched || removable) && (
             <div className="col-span-2 flex items-center justify-between gap-3">
-              {showUnwatched && row.kind === "library" ? (
+              {showUnwatched &&
+              (row.kind === "library" || row.kind === "media-kind") ? (
                 <label className="flex items-center gap-2 text-sub text-[var(--text-muted)]">
                   <input
                     type="checkbox"
@@ -740,7 +779,9 @@ function RowItem({
                     onChange={(e) => {
                       const unwatched = e.target.checked;
                       onChange((r) =>
-                        r.kind === "library" ? { ...r, unwatched } : r,
+                        r.kind === "library" || r.kind === "media-kind"
+                          ? { ...r, unwatched }
+                          : r,
                       );
                     }}
                     className="size-4 accent-[#7fb0ff]"

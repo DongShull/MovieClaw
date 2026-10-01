@@ -26,6 +26,7 @@ import {
   type MediaLibrary,
   libraryCoverUrl,
   listLibraries,
+  listKindItems,
   listLibraryItems,
   SCAN_PHASE_LABELS,
 } from "@/lib/api/libraries";
@@ -518,6 +519,9 @@ export function LibraryView({ hero }: { hero?: ReactNode }) {
         );
       case "library":
         return contentRow(row, `/library/${row.library.id}` as Route);
+      case "media-kind":
+        // 「全部电影」：同类型的库合成一面墙，查看全部进 /library/kind/{类型}
+        return contentRow(row, `/library/kind/${row.mediaKind}` as Route);
       case "collection":
         return contentRow(
           row,
@@ -673,6 +677,8 @@ function rowFetchKey(row: HomeRow): string {
   if (row.kind === "library")
     return `lib:${row.library.id}:${row.sort}:${row.reversed}:${row.unwatched}`;
   if (row.kind === "collection") return `col:${row.collection.id}:${row.sort}:${row.reversed}`;
+  if (row.kind === "media-kind")
+    return `kind:${row.mediaKind}:${row.sort}:${row.reversed}:${row.unwatched}`;
   return row.id;
 }
 
@@ -701,6 +707,18 @@ function rowFetches(
         listLibraryItems(library.id, {
           sort,
           // 反转了自然方向才带 order；不带时服务端按自然方向排，与加方向之前逐字相同
+          order: orderParamFor(SORT_PRESETS[sort].direction, reversed),
+          limit: RECENT_COUNT,
+          filter: watch ? { watch } : undefined,
+        }),
+      );
+    } else if (row.kind === "media-kind") {
+      const { mediaKind, sort, reversed, unwatched } = row;
+      // 与库行同一套取数规则，只是来源换成按类型的跨库墙（同一部片跨库只出现一次）
+      const watch = sort === "last_played" ? "seen" : unwatched ? "unwatched" : undefined;
+      fetches.set(rowFetchKey(row), () =>
+        listKindItems(mediaKind, {
+          sort,
           order: orderParamFor(SORT_PRESETS[sort].direction, reversed),
           limit: RECENT_COUNT,
           filter: watch ? { watch } : undefined,

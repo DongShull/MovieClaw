@@ -505,7 +505,7 @@ def _filter_subquery(
     filters: LibraryFilter | None,
     member_id: int | None,
     skip: str | None = None,
-    library_id: int | None = None,
+    library_id: LibraryScope | None = None,
     content_limit: ContentLimit | None = None,
 ):
     """命中筛选条件的 ``media_item_id`` 子查询；不收窄时返回 None。
@@ -598,7 +598,7 @@ def _filter_subquery(
     )
 
 
-def _file_exists(library_id: int | None, *conds):
+def _file_exists(library_id: LibraryScope | None, *conds):
     """本库内存在满足条件的文件——画质/HDR/失联这类**文件级**条件的判定。
 
     必须限定 ``library_id``：同一部片散在两个库时，「本库有没有 4K」问的是
@@ -614,7 +614,7 @@ def _file_exists(library_id: int | None, *conds):
     """
     where = [LibraryFile.media_item_id.is_not(None), *conds]  # type: ignore[union-attr]
     if library_id is not None:
-        where.append(LibraryFile.library_id == library_id)
+        where.append(_in_libraries(library_id))
     return MediaItem.id.in_(select(LibraryFile.media_item_id).where(*where))  # type: ignore[attr-defined]
 
 
@@ -622,7 +622,7 @@ def _narrow(
     filters: LibraryFilter | None,
     member_id: int | None,
     skip: str | None = None,
-    library_id: int | None = None,
+    library_id: LibraryScope | None = None,
     content_limit: ContentLimit | None = None,
 ) -> tuple:
     """筛选收窄的 WHERE 片段（**含观看者的内容分级约束**）。
@@ -639,6 +639,21 @@ def _narrow(
     return () if subq is None else (LibraryFile.media_item_id.in_(subq),)  # type: ignore[union-attr]
 
 
+#: 海报墙的库范围：一个库（单库页、单库合集），或一组库（首页「按类型」的跨库墙：
+#: 成员可见的、同一 kind 的全部库，见 docs/design/library-home-perspective.md §8）。
+#: 墙、索引、计数、筛选收窄全部按它取口径——跨库墙不另写查询，只是把
+#: ``library_id == x`` 换成 ``library_id IN (...)``，同一部片散在两个库里
+#: 由 GROUP BY media_item_id 天然去重
+LibraryScope = int | frozenset[int]
+
+
+def _in_libraries(scope: LibraryScope):
+    """``LibraryScope`` → 文件行的库条件。"""
+    if isinstance(scope, int):
+        return LibraryFile.library_id == scope
+    return LibraryFile.library_id.in_(scope)  # type: ignore[attr-defined]
+
+
 # 海报墙口径：confirmed=正式条目（默认，首页/搜索/索引同口径）；provisional=
 # 影视库里认不出、按文件名挂着的临时条目（库页单独一段展示）。其他库没有
 # 临时条目，两口径下 provisional 恒空
@@ -652,7 +667,7 @@ def _identity_clause(identity: WallIdentity):
 
 
 def _wall_scope(
-    library_id: int, identity: WallIdentity = "confirmed", only_item_id: int | None = None
+    library_id: LibraryScope, identity: WallIdentity = "confirmed", only_item_id: int | None = None
 ):
     """海报墙的成员口径：本库、挂了条目、**在架**（没进回收站）、指定身份档。
 
@@ -671,7 +686,7 @@ def _wall_scope(
     墙上——成员永远是现算的，没有补偿逻辑要写。
     """
     scope = (
-        LibraryFile.library_id == library_id,
+        _in_libraries(library_id),
         LibraryFile.media_item_id.is_not(None),  # type: ignore[union-attr]
         LibraryFile.on_shelf(),
         _identity_clause(identity),
@@ -681,7 +696,7 @@ def _wall_scope(
 
 async def _titles_sorted(
     session: AsyncSession,
-    library_id: int,
+    library_id: LibraryScope,
     identity: WallIdentity = "confirmed",
     filters: LibraryFilter | None = None,
     member_id: int | None = None,
@@ -714,7 +729,7 @@ async def _titles_sorted(
 
 async def build_library_index(
     session: AsyncSession,
-    library_id: int,
+    library_id: LibraryScope,
     sort: WallSort = "title",
     *,
     filters: LibraryFilter | None = None,
@@ -1474,7 +1489,7 @@ async def landing_library_of(
 
 async def _wall_page_ids(
     session: AsyncSession,
-    library_id: int,
+    library_id: LibraryScope,
     sort: WallSort,
     limit: int | None,
     offset: int,
@@ -1534,7 +1549,7 @@ async def _wall_page_ids(
             await session.execute(
                 select(LibraryFile.media_item_id)
                 .where(
-                    LibraryFile.library_id == library_id,
+                    _in_libraries(library_id),
                     LibraryFile.media_item_id.is_not(None),  # type: ignore[union-attr]
                     LibraryFile.audio_streams.is_(None),  # type: ignore[union-attr]
                     LibraryFile.in_place(),
@@ -1552,7 +1567,7 @@ async def _wall_page_ids(
 
 async def _wall_count(
     session: AsyncSession,
-    library_id: int,
+    library_id: LibraryScope,
     identity: WallIdentity = "confirmed",
     filters: LibraryFilter | None = None,
     member_id: int | None = None,
@@ -1675,6 +1690,77 @@ async def build_library_wall(
         favorites = await favorite_item_ids(session, page_ids, member_id=member_id)
         for view in views:
             view.is_favorite = view.media_item_id in favorites
+    return views
+
+
+#: 首页「按类型」行与跨库墙支持的库类型。照片库不在内：照片墙是另一种形态
+#: （时间线 + 瀑布流），混进海报墙口径只会两边都不像
+HomeKind = Literal["movie", "tv", "video"]
+
+
+async def kind_library_ids(
+    session: AsyncSession, kind: HomeKind, visible: set[int]
+) -> frozenset[int]:
+    """「全部电影 / 全部剧集 / 全部其他视频」由哪些库组成。
+
+    口径 = 观看者可见的库 ∩ 该类型 ∩ 没勾「从首页排除」。
+
+    排除那一条是刻意的：管理员勾「从首页排除」的意思是「这个库的内容别出现在
+    首页上」（儿童库、私密库），首页的类型行若把它聚合进来，等于绕过了这个开关；
+    而「查看全部」页就是这一行展开，两处必须同一份口径——否则点进去会冒出行里
+    从没出现过的片。想看被排除的库，进那个库自己的页面看。
+    """
+    rows = await session.execute(
+        select(Library.id).where(
+            Library.kind == kind,
+            Library.exclude_from_home.is_(False),  # type: ignore[attr-defined]
+        )
+    )
+    return frozenset(i for i in rows.scalars().all() if i is not None and i in visible)
+
+
+async def build_kind_wall(
+    session: AsyncSession,
+    library_ids: frozenset[int],
+    *,
+    sort: WallSort = "added_at",
+    limit: int,
+    offset: int = 0,
+    member_id: int,
+    filters: LibraryFilter | None = None,
+    content_limit: ContentLimit | None = None,
+    order: WallOrder | None = None,
+) -> list[LibraryItemView]:
+    """按类型的跨库海报墙一页（首页类型行与 /library/kind/{kind} 共用）。
+
+    成员与排序走 ``_wall_page_ids`` ——与单库墙逐字同一条查询，只是库范围换成
+    一组（``LibraryScope``）；同一部片散在 4K 库和普通库里只出现一次。聚合走
+    跨库合集那一支（``_aggregate_wall_views(library_id=None, library_ids=…)``）：
+    「几个文件、占多大」问的是它在这些库里总共，每格落回台账行里的第一个库，
+    与跨库合集同一种落点规则。
+    """
+    if not library_ids:
+        return []
+    page_ids = await _wall_page_ids(
+        session,
+        library_ids,
+        sort,
+        limit,
+        offset,
+        "confirmed",
+        filters,
+        member_id,
+        content_limit,
+        order,
+    )
+    if not page_ids:
+        return []
+    views = await _aggregate_wall_views(
+        session, None, page_ids, page_ids, library_ids=set(library_ids)
+    )
+    favorites = await favorite_item_ids(session, page_ids, member_id=member_id)
+    for view in views:
+        view.is_favorite = view.media_item_id in favorites
     return views
 
 

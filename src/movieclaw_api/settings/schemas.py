@@ -387,7 +387,9 @@ HOME_ROW_SORTS = frozenset(
 #: 「我的收藏」行的排序档：未看优先是首页那一行的默认（见 playback_favorites）。
 HOME_FAVORITES_SORTS = frozenset({"unwatched_first", "favorited_at", "rating", "title"})
 #: 行 id 只认四种形状：三个内置行、每库一条的默认库行、用户自己加的行。
-_HOME_ROW_ID = re.compile(r"^(up-next|favorites|libraries|lib:\d+|row:[A-Za-z0-9_-]{1,32})$")
+_HOME_ROW_ID = re.compile(
+    r"^(up-next|favorites|libraries|lib:\d+|kind:(movie|tv|video)|row:[A-Za-z0-9_-]{1,32})$"
+)
 
 
 class HomeRowPref(BaseModel):
@@ -396,31 +398,41 @@ class HomeRowPref(BaseModel):
     - 内置行（``up-next`` / ``favorites`` / ``libraries``）只存 ``hidden``，收藏行多一个
       ``sort``；来源与名字由前端决定，这里不存；
     - 默认库行 ``lib:<library_id>`` 每库一条，能藏、能改排序和名字，不能删；
-    - 自加行 ``row:<slug>`` 必须且只能带 ``library_id`` 或 ``collection_id`` 之一。
+    - 默认类型行 ``kind:movie|tv|video`` 每类一条（跨库聚合同类型的全部可见库，
+      §8），能力与默认库行相同；
+    - 自加行 ``row:<slug>`` 必须且只能带 ``library_id`` / ``collection_id`` /
+      ``media_kind`` 之一。
 
     除 ``id`` 外全部可空：空即默认（排序用预设、名字跟随推荐、不隐藏）。
     坏形状在 PUT 时就拒掉，读取端不再兜底——与 ``NavUiPrefs`` 一样，存下来的
     只是提示：指向已删库 / 不可见合集的行由前端合并时静默丢弃。
     """
 
-    id: str = Field(pattern=_HOME_ROW_ID.pattern, description="行 id，见类注释的四种形状")
+    id: str = Field(pattern=_HOME_ROW_ID.pattern, description="行 id，见类注释的几种形状")
     sort: str | None = Field(default=None, description="排序档；空 = 该行的默认排序")
     order: str | None = Field(
         default=None,
         description="排序方向 asc / desc；空 = 该档的自然方向。前端只在反转自然方向时才存它",
     )
     name: str | None = Field(default=None, max_length=40, description="用户起的名字；空 = 跟随推荐")
-    unwatched: bool | None = Field(default=None, description="只显示没看过的（仅库行）")
+    unwatched: bool | None = Field(default=None, description="只显示没看过的（仅库行与类型行）")
     hidden: bool | None = Field(default=None, description="隐藏这一行，位置保留")
     library_id: int | None = Field(default=None, ge=1, description="自加库行的来源库")
     collection_id: int | None = Field(default=None, ge=1, description="合集行的来源合集")
+    media_kind: Literal["movie", "tv", "video"] | None = Field(
+        default=None, description="自加类型行的来源类型（跨库聚合该类型的全部可见库）"
+    )
 
     @model_validator(mode="after")
     def _check_shape(self) -> HomeRowPref:
         custom = self.id.startswith("row:")
-        sources = (self.library_id is not None) + (self.collection_id is not None)
+        sources = (
+            (self.library_id is not None)
+            + (self.collection_id is not None)
+            + (self.media_kind is not None)
+        )
         if custom and sources != 1:
-            raise ValueError("自加行必须且只能指定 library_id 或 collection_id 之一")
+            raise ValueError("自加行必须且只能指定 library_id / collection_id / media_kind 之一")
         if not custom and sources:
             raise ValueError("内置行与默认库行不能指定来源")
         if self.sort is not None:
@@ -428,7 +440,7 @@ class HomeRowPref(BaseModel):
                 HOME_FAVORITES_SORTS
                 if self.id == "favorites"
                 else HOME_ROW_SORTS
-                if custom or self.id.startswith("lib:")
+                if custom or self.id.startswith(("lib:", "kind:"))
                 else frozenset()
             )
             if self.sort not in allowed:

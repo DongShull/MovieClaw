@@ -45,6 +45,7 @@ from movieclaw_api.api.routes.health import router as health_router
 from movieclaw_api.api.routes.images import router as images_router
 from movieclaw_api.api.routes.import_watch import router as import_watch_router
 from movieclaw_api.api.routes.jobs import router as jobs_router
+from movieclaw_api.api.routes.libraries import kinds_router as library_kinds_router
 from movieclaw_api.api.routes.libraries import router as libraries_router
 from movieclaw_api.api.routes.libraries import search_router as library_search_router
 from movieclaw_api.api.routes.library_duplicates import router as library_duplicates_router
@@ -109,6 +110,8 @@ _MEMBER_ROUTERS = [
     # 否则 "trashed-files" 会被当成 library_id 校验失败（422）
     library_recycle_router,
     library_duplicates_router,
+    # 同理：/libraries/kinds/{kind} 也要排在 /libraries/{library_id} 之前
+    library_kinds_router,
     libraries_router,
     collections_router,
     people_router,

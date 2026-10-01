@@ -12,6 +12,9 @@
  *   - 指向已删库 / 不可见合集的行直接忽略，不需要迁移，也不需要清孤儿；
  *   - 空清单 = 出厂布局，「恢复默认」就是存一个空列表。
  *
+ * 行的来源有三种：一个库、一个合集、一种类型（「全部电影」：可见且没被排除首页的
+ * 同类型库合成一面墙，同一部片跨库只出现一次，见设计文档 §8）。
+ *
  * 本模块刻意不 import 任何组件或 `@/` 别名：合并规则是这个功能里唯一会出事的
  * 地方，保持无依赖才能用 node --test 直接单测（见 test/home-rows.test.mjs）。
  */
@@ -47,6 +50,8 @@ export interface HomeRowPref {
   hidden?: boolean | null;
   library_id?: number | null;
   collection_id?: number | null;
+  /** 自加类型行的来源类型；默认类型行的类型写在 id 里（kind:movie） */
+  media_kind?: HomeMediaKind | null;
 }
 
 export interface HomeUiPrefs {
@@ -54,6 +59,18 @@ export interface HomeUiPrefs {
 }
 
 export type HomeLibraryKind = "movie" | "tv" | "video" | "photo";
+
+/** 能做「按类型」跨库行的库类型。照片库不做：照片墙是时间线 + 瀑布流，另一种形态。 */
+export type HomeMediaKind = "movie" | "tv" | "video";
+
+export const HOME_MEDIA_KINDS: HomeMediaKind[] = ["movie", "tv", "video"];
+
+/** 类型行的叫法：「全部电影」「全部剧集」「全部其他视频」。 */
+export const MEDIA_KIND_LABELS: Record<HomeMediaKind, string> = {
+  movie: "电影",
+  tv: "剧集",
+  video: "其他视频",
+};
 
 /** 合并只用到库的这几个字段（真实的 MediaLibrary 还带统计、扫描状态等）。 */
 export interface HomeLibraryLike {
@@ -100,6 +117,23 @@ export type HomeRow =
       name: string;
       library: HomeLibraryLike;
       /** 每库一条的默认行（lib:<id>）：能藏、能改，不能删 */
+      builtin: boolean;
+    }
+  | {
+      id: string;
+      /** 按类型的跨库行（「全部电影」）。叫 media-kind 是因为 kind 已经是行的类型判别字段 */
+      kind: "media-kind";
+      hidden: boolean;
+      sort: HomeRowSort;
+      /** 是否反转了这一档的自然方向（random 没有方向，恒为 false） */
+      reversed: boolean;
+      unwatched: boolean;
+      /** 用户起的名字；空 = 跟随推荐（「全部电影 · 最近添加」） */
+      name: string;
+      mediaKind: HomeMediaKind;
+      /** 参与聚合的库（可见、没勾「从首页排除」），自定义页小字用；服务端按同一口径取数 */
+      libraries: HomeLibraryLike[];
+      /** 每类一条的默认行（kind:<类型>）：能藏、能改，不能删 */
       builtin: boolean;
     }
   | {
@@ -203,6 +237,20 @@ export function sortPresetsFor(kind: HomeLibraryKind): HomeRowSort[] {
         "title",
       ];
   }
+}
+
+/**
+ * 类型行的推荐名：「全部电影 · 最近添加」。
+ *
+ * 不套库行的「最近添加的{库}」：很多人的电影库就叫「电影」，那样类型行与那个库的
+ * 默认行会同名并排出现在首页上，分不清哪行是全部、哪行是一个库。
+ */
+export function mediaKindRowName(
+  kind: HomeMediaKind,
+  sort: HomeRowSort,
+  reversed: boolean,
+): string {
+  return `全部${MEDIA_KIND_LABELS[kind]} · ${SORT_PRESETS[sort].short(reversed)}`;
 }
 
 /** 合集行的预设：与库行同一组六个，标签不带库名。 */
@@ -311,6 +359,8 @@ export function rowTitle(row: HomeRow): string {
       return (
         row.name || SORT_PRESETS[row.sort].name(row.library.name, row.reversed)
       );
+    case "media-kind":
+      return row.name || mediaKindRowName(row.mediaKind, row.sort, row.reversed);
     case "collection":
       return row.name || row.collection.name;
   }
@@ -333,6 +383,14 @@ export function rowMeta(row: HomeRow): string {
       ]
         .filter(Boolean)
         .join(" · ");
+    case "media-kind":
+      return [
+        `全部${MEDIA_KIND_LABELS[row.mediaKind]}（${row.libraries.length} 个库）`,
+        SORT_PRESETS[row.sort].short(row.reversed),
+        row.unwatched ? "只看没看过的" : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
     case "collection":
       return `合集 · ${SORT_PRESETS[row.sort].short(row.reversed)}`;
   }
@@ -345,7 +403,30 @@ export function newRowId(random: () => number = Math.random): string {
   return `row:${slug.slice(0, 6)}`;
 }
 
-/** 出厂布局：接下来继续 → 我的收藏 → 我的媒体库 → 每个库一行「最近添加」。 */
+/**
+ * 每种类型由哪些库组成：可见 ∩ 该类型 ∩ 没勾「从首页排除」——与服务端
+ * `kind_library_ids` 同一口径。一个库都没有的类型不在结果里，它的行也就不出现。
+ */
+export function mediaKindGroups(
+  libraries: HomeLibraryLike[],
+): Map<HomeMediaKind, HomeLibraryLike[]> {
+  const groups = new Map<HomeMediaKind, HomeLibraryLike[]>();
+  for (const kind of HOME_MEDIA_KINDS) {
+    const members = libraries.filter(
+      (library) => library.kind === kind && !library.exclude_from_home,
+    );
+    if (members.length > 0) groups.set(kind, members);
+  }
+  return groups;
+}
+
+/**
+ * 出厂布局：接下来继续 → 我的收藏 → 我的媒体库 → 每种类型一行「全部 X」→
+ * 每个库一行「最近添加」。
+ *
+ * 类型行只在该类型有 **两个及以上** 的库时默认显示：只有一个库时它与那个库的
+ * 默认行内容完全相同，摆两行只是重复；仍然生成（隐藏），自定义页里打开即可。
+ */
 function defaultRows(libraries: HomeLibraryLike[]): HomeRow[] {
   return [
     { id: "up-next", kind: "up-next", hidden: false },
@@ -357,6 +438,20 @@ function defaultRows(libraries: HomeLibraryLike[]): HomeRow[] {
       reversed: false,
     },
     { id: "libraries", kind: "libraries", hidden: false },
+    ...[...mediaKindGroups(libraries)].map(
+      ([mediaKind, members]): HomeRow => ({
+        id: `kind:${mediaKind}`,
+        kind: "media-kind",
+        hidden: members.length < 2,
+        sort: "added_at",
+        reversed: false,
+        unwatched: false,
+        name: "",
+        mediaKind,
+        libraries: members,
+        builtin: true,
+      }),
+    ),
     ...libraries
       .filter((library) => !library.exclude_from_home)
       .map((library): HomeRow => ({
@@ -393,12 +488,13 @@ export function buildHomeRows(
   const colById = new Map(
     collections.map((collection) => [collection.id, collection]),
   );
+  const kindGroups = mediaKindGroups(visible);
   const seen = new Set<string>();
   const rows: HomeRow[] = [];
 
   for (const pref of saved) {
     if (!pref || typeof pref.id !== "string" || seen.has(pref.id)) continue;
-    const row = resolveRow(pref, libById, colById);
+    const row = resolveRow(pref, libById, colById, kindGroups);
     if (!row) continue;
     seen.add(pref.id);
     rows.push(row);
@@ -406,7 +502,8 @@ export function buildHomeRows(
 
   // 没存过的内置行追加在末尾（版本升级新增的入口不能消失）
   for (const row of defaults) {
-    if (row.kind === "library" || seen.has(row.id)) continue;
+    if (row.kind === "library" || row.kind === "media-kind" || seen.has(row.id))
+      continue;
     seen.add(row.id);
     rows.push(row);
   }
@@ -424,6 +521,20 @@ export function buildHomeRows(
     else if (librariesRow >= 0) at = librariesRow + 1;
     rows.splice(at, 0, ...missing);
   }
+  // 没存过的类型行（升级前存的清单、或新出现了一种类型的库）：与出厂布局一样
+  // 排在库行前面；一条库行都没有时跟在「我的媒体库」之后，再没有就放队尾。
+  // 显隐沿用出厂规则（同类型 ≥2 个库才默认显示）
+  const missingKinds = defaults.filter(
+    (row) => row.kind === "media-kind" && !seen.has(row.id),
+  );
+  if (missingKinds.length > 0) {
+    let at = rows.length;
+    const firstLibrary = rows.findIndex((row) => row.kind === "library");
+    const librariesRow = rows.findIndex((row) => row.kind === "libraries");
+    if (firstLibrary >= 0) at = firstLibrary;
+    else if (librariesRow >= 0) at = librariesRow + 1;
+    rows.splice(at, 0, ...missingKinds);
+  }
   return rows;
 }
 
@@ -431,6 +542,7 @@ function resolveRow(
   pref: HomeRowPref,
   libById: Map<number, HomeLibraryLike>,
   colById: Map<number, HomeCollectionLike>,
+  kindGroups: Map<HomeMediaKind, HomeLibraryLike[]>,
 ): HomeRow | null {
   const hidden = pref.hidden === true;
   if (pref.id === "up-next") return { id: "up-next", kind: "up-next", hidden };
@@ -455,7 +567,20 @@ function resolveRow(
     if (!library || library.exclude_from_home) return null;
     return libraryRow(pref, library, true);
   }
+  if (pref.id.startsWith("kind:")) {
+    // 这一类型一个可见库都没了（删光了、或都被排除出首页）：行静默消失，
+    // 下次再有这类库时按出厂规则回来
+    const mediaKind = pref.id.slice(5) as HomeMediaKind;
+    const members = kindGroups.get(mediaKind);
+    if (!members) return null;
+    return mediaKindRow(pref, mediaKind, members, true);
+  }
   if (!pref.id.startsWith("row:")) return null;
+  if (pref.media_kind != null) {
+    const members = kindGroups.get(pref.media_kind);
+    if (!members) return null;
+    return mediaKindRow(pref, pref.media_kind, members, false);
+  }
   if (pref.collection_id != null) {
     const collection = colById.get(pref.collection_id);
     if (!collection) return null;
@@ -507,6 +632,32 @@ function libraryRow(
   };
 }
 
+function mediaKindRow(
+  pref: HomeRowPref,
+  mediaKind: HomeMediaKind,
+  libraries: HomeLibraryLike[],
+  builtin: boolean,
+): HomeRow {
+  const { sort, reversed } = asRowSort(
+    pref.sort,
+    pref.order,
+    sortPresetsFor(mediaKind),
+  );
+  return {
+    id: pref.id,
+    kind: "media-kind",
+    hidden: pref.hidden === true,
+    sort,
+    reversed,
+    // 与库行同一条互斥：「最近观看」只要播过的
+    unwatched: pref.unwatched === true && sort !== "last_played",
+    name: (pref.name ?? "").trim(),
+    mediaKind,
+    libraries,
+    builtin,
+  };
+}
+
 /** 反向：把合并后的行写回可存的形状。只存与默认不同的字段，空即默认。 */
 export function rowsToPrefs(rows: HomeRow[]): HomeRowPref[] {
   return rows.map((row): HomeRowPref => {
@@ -524,6 +675,18 @@ export function rowsToPrefs(rows: HomeRow[]): HomeRowPref[] {
       }
       case "library": {
         if (!row.builtin) base.library_id = row.library.id;
+        base.sort = row.sort;
+        const order = orderParamFor(
+          SORT_PRESETS[row.sort].direction,
+          row.reversed,
+        );
+        if (order) base.order = order;
+        if (row.unwatched) base.unwatched = true;
+        if (row.name) base.name = row.name;
+        return base;
+      }
+      case "media-kind": {
+        if (!row.builtin) base.media_kind = row.mediaKind;
         base.sort = row.sort;
         const order = orderParamFor(
           SORT_PRESETS[row.sort].direction,
@@ -565,6 +728,26 @@ export function newLibraryRow(
     unwatched: false,
     name: "",
     library,
+    builtin: false,
+  };
+}
+
+/** 新建一条类型行（排序取「最近添加」，名字留空跟随推荐）。 */
+export function newMediaKindRow(
+  mediaKind: HomeMediaKind,
+  libraries: HomeLibraryLike[],
+  id = newRowId(),
+): HomeRow {
+  return {
+    id,
+    kind: "media-kind",
+    hidden: false,
+    sort: "added_at",
+    reversed: false,
+    unwatched: false,
+    name: "",
+    mediaKind,
+    libraries,
     builtin: false,
   };
 }

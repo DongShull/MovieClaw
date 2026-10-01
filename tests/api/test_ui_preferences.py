@@ -264,6 +264,11 @@ def test_home_rows_persist_with_optional_fields_left_null(client: TestClient) ->
         {"id": "favorites", "sort": "random"},  # 收藏行不支持随机
         {"id": "lib:1", "sort": "size"},  # 首页行不开放体积档
         {"id": "row:x", "library_id": 1, "name": "x" * 41},  # 名字过长
+        {"id": "kind:photo"},  # 照片库不做类型行
+        {"id": "kind:movie", "media_kind": "movie"},  # 默认类型行不能带来源
+        {"id": "row:x", "media_kind": "movie", "library_id": 1},  # 两个来源
+        {"id": "row:x", "media_kind": "photo"},  # 类型只认 movie / tv / video
+        {"id": "kind:tv", "sort": "size"},  # 类型行与库行同一组排序档
     ],
 )
 def test_home_rows_bad_shape_rejected(client: TestClient, row: dict) -> None:
@@ -285,3 +290,18 @@ def test_home_rows_unknown_targets_accepted(client: TestClient) -> None:
     resp = client.put("/api/v1/ui/preferences", json={"home": {"rows": rows}})
     assert resp.status_code == 200
     assert [r["id"] for r in resp.json()["data"]["home"]["rows"]] == ["lib:999", "row:gone"]
+
+
+def test_home_kind_rows_persist(client: TestClient) -> None:
+    """按类型的跨库行（§8）：默认行 kind:<类型> 与自加行 row:+media_kind 都能存。"""
+    rows = [
+        {"id": "kind:movie", "sort": "rating", "unwatched": True},
+        {"id": "kind:video", "hidden": True},
+        {"id": "row:k1", "media_kind": "tv", "sort": "random", "name": "今晚追哪部"},
+    ]
+    resp = client.put("/api/v1/ui/preferences", json={"home": {"rows": rows}})
+    assert resp.status_code == 200
+    saved = client.get("/api/v1/ui/preferences").json()["data"]["home"]["rows"]
+    assert [r["id"] for r in saved] == ["kind:movie", "kind:video", "row:k1"]
+    assert saved[0]["sort"] == "rating" and saved[0]["unwatched"] is True
+    assert saved[2]["media_kind"] == "tv" and saved[2]["name"] == "今晚追哪部"

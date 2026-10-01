@@ -573,6 +573,10 @@ _MEMBER_ALLOWLIST = {
     ("GET", "/api/v1/libraries/{library_id}/item-ids"),
     ("GET", "/api/v1/libraries/{library_id}/item-index"),
     ("GET", "/api/v1/libraries/{library_id}/items"),
+    # 首页「全部电影」行与查看全部页：库范围由 visible_library_ids 收口（只聚合成员
+    # 可见的库），内容分级同样经 _narrow 强制收窄，与单库墙同一套口径
+    ("GET", "/api/v1/libraries/kinds/{kind}"),
+    ("GET", "/api/v1/libraries/kinds/{kind}/items"),
     ("GET", "/api/v1/libraries/{library_id}/items/{media_item_id}"),
     ("GET", "/api/v1/libraries/{library_id}/items/{media_item_id}/artwork"),
     ("GET", "/api/v1/libraries/{library_id}/items/{media_item_id}/episodes"),

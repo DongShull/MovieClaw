@@ -636,6 +636,18 @@ class LibraryIndexEntryView(BaseModel):
     )
 
 
+class LibraryKindSummaryView(BaseModel):
+    """按类型的跨库墙（「全部电影」等）的概况：由哪些库组成、共几部。
+
+    口径见 ``services.library.items.kind_library_ids``：观看者可见 ∩ 该类型 ∩
+    没勾「从首页排除」。同一部片在多个库里只算一部。
+    """
+
+    kind: Literal["movie", "tv", "video"] = Field(description="库类型：电影 / 剧集 / 其他视频")
+    library_ids: list[int] = Field(description="参与聚合的库 id（升序）")
+    item_count: int = Field(description="符合当前筛选的作品数（跨库去重）")
+
+
 class LibraryGalleryImageView(BaseModel):
     """图廊里的一张图：条目的海报 / 剧照 / 分集剧照 / 章节场景图之一。
 

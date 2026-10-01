@@ -149,6 +149,11 @@ _PAGE_ROUTES: list[tuple[str, str]] = [
     ("/library", "媒体库总览（浏览入口：接下来继续、我的收藏、各库最近添加；行可自定义）"),
     ("/library/favorites", "我的收藏（当前账号收藏的全部作品，与 Jellyfin 客户端里点的心同一份）"),
     ("/library/customize", "自定义媒体库首页（行的顺序、显隐、排序与名字；每个成员各存一份）"),
+    (
+        "/library/kind/{movie|tv|video}",
+        "按类型的跨库墙：全部电影 / 全部剧集 / 全部其他视频"
+        "（同类型的库合成一面墙，同一部片只出现一次）",
+    ),
     ("/library/manage", "媒体库管理（建库、扫描、整理、排序、可见范围；仅管理员）"),
     ("/library/collections", "全部合集总览（含跨库合集；合集 ID 来自 collection list）"),
     (

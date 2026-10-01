@@ -6,6 +6,7 @@ import {
   moveRowTo,
   newCollectionRow,
   newLibraryRow,
+  newMediaKindRow,
   newRowId,
   rowMeta,
   rowTitle,
@@ -26,14 +27,18 @@ const COLS = [
   { id: 7, name: "宫崎骏", library_id: 3, sort: "release_date_asc" },
   { id: 8, name: "诺兰", library_id: 1, sort: "title" },
 ];
-const ids = (rows) => rows.map((row) => row.id);
+// 类型行（kind:*）有自己的一组用例；其余用例只看库行 / 合集行 / 内置行的合并规则
+const withoutKinds = (rows) => rows.filter((row) => row.kind !== "media-kind");
+const ids = (rows) => withoutKinds(rows).map((row) => row.id);
+const allIds = (rows) => rows.map((row) => row.id);
+const find = (rows, id) => rows.find((row) => row.id === id);
 
 test("空清单 = 出厂布局：三个内置行 + 每库一行最近添加", () => {
   const rows = buildHomeRows({ rows: [] }, LIBS, COLS);
   assert.deepEqual(ids(rows), ["up-next", "favorites", "libraries", "lib:1", "lib:2", "lib:3"]);
-  assert.equal(rowTitle(rows[3]), "最近添加的电影");
-  assert.equal(rows[3].sort, "added_at");
-  assert.equal(rows[3].builtin, true);
+  assert.equal(rowTitle(find(rows, "lib:1")), "最近添加的电影");
+  assert.equal(find(rows, "lib:1").sort, "added_at");
+  assert.equal(find(rows, "lib:1").builtin, true);
 });
 
 test("存过的按存的顺序在前，没存过的内置行与默认库行补在后面", () => {
@@ -87,8 +92,8 @@ test("从首页排除的库不给默认行，用户自己加的行仍尊重", ()
     "lib:1",
   ]);
   const rows = buildHomeRows({ rows: [{ id: "row:v", library_id: 2 }] }, libs, []);
-  assert.equal(rows[0].id, "row:v");
-  assert.equal(rowTitle(rows[0]), "最近添加的家庭录像");
+  assert.equal(ids(rows)[0], "row:v");
+  assert.equal(rowTitle(find(rows, "row:v")), "最近添加的家庭录像");
 });
 
 test("隐藏保留位置；名字为空跟随排序推荐，手输过就不动", () => {
@@ -103,10 +108,10 @@ test("隐藏保留位置；名字为空跟随排序推荐，手输过就不动",
     LIBS,
     COLS,
   );
-  assert.equal(rows[0].hidden, true);
-  assert.equal(rowTitle(rows[1]), "评分最高的电影");
-  assert.equal(rowMeta(rows[1]), "电影库 · 评分最高 · 只看没看过的");
-  assert.equal(rowTitle(rows[2]), "周末补番");
+  assert.equal(find(rows, "up-next").hidden, true);
+  assert.equal(rowTitle(find(rows, "lib:1")), "评分最高的电影");
+  assert.equal(rowMeta(find(rows, "lib:1")), "电影库 · 评分最高 · 只看没看过的");
+  assert.equal(rowTitle(find(rows, "row:x")), "周末补番");
 });
 
 test("排序档不在库 kind 的预设里时回落到最近添加", () => {
@@ -240,7 +245,7 @@ test("写回时只存与默认不同的字段，默认库行不带来源", () =>
 test("新行 id 是 row: 加 6 位 base36；拖到某一位越界原样返回", () => {
   assert.match(newRowId(), /^row:[0-9a-z]{6}$/);
   assert.equal(newRowId(() => 0), "row:000000");
-  const rows = buildHomeRows({ rows: [] }, LIBS, COLS);
+  const rows = withoutKinds(buildHomeRows({ rows: [] }, LIBS, COLS));
   assert.deepEqual(ids(moveRowTo(rows, 0, -1)), ids(rows));
   assert.deepEqual(ids(moveRowTo(rows, 5, 0)).slice(0, 3), ["lib:3", "up-next", "favorites"]);
   assert.deepEqual(ids(moveRowTo(rows, 3, 2)).slice(0, 4), ["up-next", "favorites", "lib:1", "libraries"]);
@@ -263,8 +268,8 @@ test("「最近观看」与「只看没看过的」互斥：以排序为准，�
     LIBS,
     COLS,
   );
-  assert.equal(rows[0].unwatched, false);
-  assert.deepEqual(rowsToPrefs([rows[0]]), [{ id: "lib:1", sort: "last_played" }]);
+  assert.equal(find(rows, "lib:1").unwatched, false);
+  assert.deepEqual(rowsToPrefs([find(rows, "lib:1")]), [{ id: "lib:1", sort: "last_played" }]);
 });
 
 test("一条库行都没有时，新库的默认行插在「我的媒体库」之后，不落到合集行后面", () => {
@@ -274,4 +279,104 @@ test("一条库行都没有时，新库的默认行插在「我的媒体库」�
     COLS,
   );
   assert.deepEqual(ids(rows), ["up-next", "libraries", "lib:1", "lib:2", "lib:3", "row:c", "favorites"]);
+});
+
+// ---------------------------------------------------------------------------
+// 按类型的跨库行（设计文档 §8）
+// ---------------------------------------------------------------------------
+
+test("出厂布局：每种类型一条，排在库行前面；同类型 ≥2 个库才默认显示", () => {
+  const rows = buildHomeRows({ rows: [] }, LIBS, COLS);
+  assert.deepEqual(allIds(rows), [
+    "up-next",
+    "favorites",
+    "libraries",
+    "kind:movie",
+    "kind:tv",
+    "lib:1",
+    "lib:2",
+    "lib:3",
+  ]);
+  // 只有一个电影库：类型行与那个库的默认行一模一样，生成但隐藏
+  assert.equal(find(rows, "kind:movie").hidden, true);
+  // 两个剧集库（剧集 + 动漫）：默认显示
+  assert.equal(find(rows, "kind:tv").hidden, false);
+  assert.deepEqual(
+    find(rows, "kind:tv").libraries.map((library) => library.id),
+    [2, 3],
+  );
+  assert.equal(rowTitle(find(rows, "kind:tv")), "全部剧集 · 最近添加");
+  assert.equal(rowMeta(find(rows, "kind:tv")), "全部剧集（2 个库） · 最近添加");
+});
+
+test("类型行只聚合可见、没被排除首页的库；一个都不剩的类型不出现；照片不做", () => {
+  const libs = [
+    lib(1, "电影"),
+    lib(2, "4K 电影"),
+    lib(3, "少儿", "movie", { exclude_from_home: true }),
+    lib(4, "仅管理", "movie", { viewer_access: false }),
+    lib(5, "录像", "video", { exclude_from_home: true }),
+    lib(6, "照片", "photo"),
+    lib(7, "照片 2", "photo"),
+  ];
+  const rows = buildHomeRows({ rows: [{ id: "kind:video" }] }, libs, []);
+  assert.deepEqual(
+    rows.filter((row) => row.kind === "media-kind").map((row) => row.id),
+    ["kind:movie"],
+  );
+  assert.deepEqual(
+    find(rows, "kind:movie").libraries.map((library) => library.id),
+    [1, 2],
+  );
+});
+
+test("升级前存的清单：类型行插在第一条库行之前，显隐沿用出厂规则", () => {
+  const rows = buildHomeRows(
+    { rows: [{ id: "up-next" }, { id: "row:c", collection_id: 7 }, { id: "lib:2" }, { id: "lib:1" }] },
+    LIBS,
+    COLS,
+  );
+  assert.deepEqual(allIds(rows).slice(0, 5), ["up-next", "row:c", "kind:movie", "kind:tv", "lib:2"]);
+  assert.equal(find(rows, "kind:movie").hidden, true);
+  assert.equal(find(rows, "kind:tv").hidden, false);
+});
+
+test("存过的类型行：按存的显隐与排序，可改名；自加类型行带 media_kind", () => {
+  const rows = buildHomeRows(
+    {
+      rows: [
+        { id: "kind:movie", sort: "rating", unwatched: true },
+        { id: "kind:tv", hidden: true },
+        { id: "row:k", media_kind: "tv", sort: "random", name: "今晚追哪部" },
+        { id: "row:gone", media_kind: "video" }, // 没有其他视频库：静默消失
+      ],
+    },
+    LIBS,
+    COLS,
+  );
+  // 存过的不再套「单库默认隐藏」：用户打开过就是打开
+  assert.equal(find(rows, "kind:movie").hidden, false);
+  assert.equal(rowTitle(find(rows, "kind:movie")), "全部电影 · 评分最高");
+  assert.equal(find(rows, "kind:tv").hidden, true);
+  assert.equal(rowTitle(find(rows, "row:k")), "今晚追哪部");
+  assert.equal(find(rows, "row:gone"), undefined);
+  assert.deepEqual(
+    rowsToPrefs(["kind:movie", "kind:tv", "row:k"].map((id) => find(rows, id))),
+    [
+      { id: "kind:movie", sort: "rating", unwatched: true },
+      { id: "kind:tv", hidden: true, sort: "added_at" },
+      { id: "row:k", media_kind: "tv", sort: "random", name: "今晚追哪部" },
+    ],
+  );
+});
+
+test("类型行的排序预设按类型裁剪；新加的类型行从最近添加起步", () => {
+  const libs = [lib(1, "录像 A", "video"), lib(2, "录像 B", "video")];
+  const rows = buildHomeRows({ rows: [{ id: "kind:video", sort: "rating" }] }, libs, []);
+  // 其他视频没有评分：回落到最近添加
+  assert.equal(find(rows, "kind:video").sort, "added_at");
+  const added = newMediaKindRow("video", libs, "row:new");
+  assert.equal(added.builtin, false);
+  assert.equal(rowTitle(added), "全部其他视频 · 最近添加");
+  assert.deepEqual(rowsToPrefs([added]), [{ id: "row:new", media_kind: "video", sort: "added_at" }]);
 });

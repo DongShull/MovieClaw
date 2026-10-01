@@ -53,6 +53,7 @@ from movieclaw_api.schemas.library import (
     LibraryIndexEntryView,
     LibraryItemDetailView,
     LibraryItemView,
+    LibraryKindSummaryView,
     LibraryPayload,
     LibraryRelaxView,
     LibraryReorderPayload,
@@ -110,6 +111,7 @@ from movieclaw_api.services.library import claim as library_claim
 from movieclaw_api.services.library import skip_segments as skip_segments_mod
 from movieclaw_api.services.library import source_annotation
 from movieclaw_api.services.library.access import (
+    ContentLimit,
     assert_item_visible,
     assert_library_visible,
     content_limit_for,
@@ -130,8 +132,11 @@ from movieclaw_api.services.library.collections import collections_containing
 from movieclaw_api.services.library.config import LibraryConfigService
 from movieclaw_api.services.library.ingest import _downloader_briefs
 from movieclaw_api.services.library.items import (
+    HomeKind,
     LibraryFilter,
+    _wall_count,
     build_item_detail,
+    build_kind_wall,
     build_library_facets,
     build_library_gallery,
     build_library_index,
@@ -142,6 +147,7 @@ from movieclaw_api.services.library.items import (
     delete_single_file,
     episode_view,
     find_episode_thumb,
+    kind_library_ids,
     local_item_artwork,
     purge_staged_deletions,
 )
@@ -232,6 +238,10 @@ from movieclaw_playback import state as playback_state
 
 router = APIRouter(prefix="/libraries", tags=["libraries"])
 search_router = APIRouter(prefix="/search", tags=["search"])
+# 按类型的跨库墙（首页「全部电影」行与 /library/kind/{kind} 页）。单独一个路由器，
+# 在 api/router.py 里挂在 ``router`` 之前——否则 "kinds" 会先撞上 /{library_id}
+# 系列路由的 int 校验（422），与回收站 /libraries/trashed-files 同一个处理
+kinds_router = APIRouter(prefix="/libraries/kinds", tags=["libraries"])
 
 
 def _assignment_target(title_ref: str) -> tuple[MediaKind, int]:
@@ -4244,4 +4254,97 @@ async def restore_ignored_files(
     return ok(
         {"restored": restored},
         message=f"{restored} 个文件已恢复，重新扫描即可再试识别",
+    )
+
+
+# ---------------------------------------------------------------------------
+# 按类型的跨库墙：全部电影 / 全部剧集 / 全部其他视频
+# （docs/design/library-home-perspective.md §8）
+# ---------------------------------------------------------------------------
+
+
+async def _kind_scope(
+    session: AsyncSession, principal: Principal, kind: HomeKind
+) -> tuple[int, frozenset[int], ContentLimit]:
+    """观看者身份、这一类型由哪些库组成、内容分级约束——三个收窄一次取齐。"""
+    member_id = principal.member_id if principal.member_id is not None else 0
+    library_ids = await kind_library_ids(
+        session, kind, await visible_library_ids(session, principal)
+    )
+    return member_id, library_ids, await content_limit_for(session, principal)
+
+
+@kinds_router.get(
+    "/{kind}",
+    response_model=ApiResponse[LibraryKindSummaryView],
+    summary="按类型的跨库墙概况（由哪些库组成、共几部）",
+    operation_id="ui.library.kind.summary",
+    openapi_extra={"x-cli-hidden": True},
+)
+async def get_library_kind_summary(
+    kind: HomeKind,
+    filters: Annotated[LibraryFilter, Depends(_filter_params)] = None,  # type: ignore[assignment]
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(require_login),
+) -> ApiResponse[LibraryKindSummaryView]:
+    """页头的「N 部作品」与墙尾「是否还有更多」都靠这个数。
+
+    同一部片在 4K 库和普通库里各有一份时只算一部——与墙上只出现一格同一口径
+    （两者走的是同一套 ``_wall_scope`` + ``_narrow``）。一个该类型的可见库都
+    没有时返回空清单与 0，而不是 404：前端据此不渲染这一行、页面给空态。
+    """
+
+    member_id, library_ids, content_limit = await _kind_scope(session, principal, kind)
+    count = (
+        await _wall_count(
+            session,
+            library_ids,
+            "confirmed",
+            filters,
+            member_id,
+            content_limit,
+        )
+        if library_ids
+        else 0
+    )
+    return ok(LibraryKindSummaryView(kind=kind, library_ids=sorted(library_ids), item_count=count))
+
+
+@kinds_router.get(
+    "/{kind}/items",
+    response_model=ApiResponse[list[LibraryItemView]],
+    summary="按类型的跨库海报墙（同一部片跨库只出现一次）",
+    operation_id="ui.library.kind.items",
+    openapi_extra={"x-cli-hidden": True},
+)
+async def list_library_kind_items(
+    kind: HomeKind,
+    sort: _WallSortParam = "added_at",
+    order: _WallOrderParam = None,
+    limit: Annotated[int, Query(ge=1, le=200, description="本页条目数")] = 60,
+    offset: Annotated[int, Query(ge=0, description="跳过的条目数（滚动加载翻页用）")] = 0,
+    filters: Annotated[LibraryFilter, Depends(_filter_params)] = None,  # type: ignore[assignment]
+    session: AsyncSession = Depends(get_session),
+    principal: Principal = Depends(require_login),
+) -> ApiResponse[list[LibraryItemView]]:
+    """首页「最近添加的电影」这类行、以及点「查看全部」进去的那面墙。
+
+    与单库墙同一套排序档位与方向语义（``sort`` / ``order``），筛选参数也同名
+    （首页只用到 ``w``：只看没看过的 / 最近观看行的 ``seen``）。每格的
+    ``library_id`` 是它的详情落点库。
+    """
+
+    member_id, library_ids, content_limit = await _kind_scope(session, principal, kind)
+    return ok(
+        await build_kind_wall(
+            session,
+            library_ids,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+            member_id=member_id,
+            filters=filters,
+            content_limit=content_limit,
+            order=order,
+        )
     )

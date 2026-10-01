@@ -804,3 +804,102 @@ async def test_manual_collection_accepts_a_sort_override(db) -> None:
         )
         assert by_rating_page == [low, unrated]
         assert outsider not in by_rating
+
+
+async def test_kind_wall_merges_libraries_of_one_kind(db) -> None:
+    """按类型的跨库墙（library-home-perspective.md §8）：
+
+    - 同类型的多个库合成一面墙，同一部片在两个库里只出现一次；
+    - 别的类型、勾了「从首页排除」的库、成员看不到的库都不算进来；
+    - 排序与翻页与单库墙同一口径，概况里的数量与墙上的格数一致。
+    """
+    from movieclaw_api.api.routes.libraries import (
+        get_library_kind_summary,
+        list_library_kind_items,
+    )
+
+    async with db.session() as session:
+        repo = LibraryRepository(session)
+        hd = await repo.create(name="电影", kind="movie", root_paths=["/m1"])
+        uhd = await repo.create(name="4K 电影", kind="movie", root_paths=["/m2"])
+        kids = await repo.create(
+            name="少儿电影", kind="movie", root_paths=["/m3"], exclude_from_home=True
+        )
+        shows = await repo.create(name="剧集", kind="tv", root_paths=["/tv"])
+        assert hd.id and uhd.id and kids.id and shows.id
+
+        base = utcnow()
+        items: dict[str, int] = {}
+        for index, title in enumerate(["甲", "乙", "丙", "丁", "戊"]):
+            item = MediaItem(kind="movie", tmdb_id=1000 + index, title=title, original_title=title)
+            session.add(item)
+            await session.flush()
+            assert item.id
+            items[title] = item.id
+        show = MediaItem(kind="tv", tmdb_id=2000, title="某剧", original_title="S")
+        session.add(show)
+        await session.flush()
+        assert show.id
+
+        def movie_file(library_id: int, title: str, minutes_ago: int) -> LibraryFile:
+            return LibraryFile(
+                library_id=library_id,
+                media_item_id=items[title],
+                season_number=0,
+                episode_number=0,
+                file_path=f"/{library_id}/{title}.mkv",
+                size_bytes=1,
+                source=FileSource.SCANNED,
+                created_at=base - timedelta(minutes=minutes_ago),
+            )
+
+        session.add_all(
+            [
+                movie_file(hd.id, "甲", 50),
+                movie_file(hd.id, "乙", 40),
+                # 「乙」4K 库也有一份，且更晚入库：跨库只算一部，入库时间取最新那份
+                movie_file(uhd.id, "乙", 5),
+                movie_file(uhd.id, "丙", 30),
+                movie_file(uhd.id, "丁", 20),
+                # 少儿库被管理员排除出首页：类型墙不聚合它
+                movie_file(kids.id, "戊", 1),
+                _file(shows.id, show.id, 1, 1),
+            ]
+        )
+        await session.flush()
+
+        recent = await list_library_kind_items(
+            "movie", sort="added_at", limit=60, session=session, principal=_ADMIN
+        )
+        assert [r.title for r in recent.data] == ["乙", "丁", "丙", "甲"]
+        assert {r.library_id for r in recent.data} <= {hd.id, uhd.id}, "每格落回自己的库"
+
+        summary = await get_library_kind_summary("movie", session=session, principal=_ADMIN)
+        assert summary.data.item_count == 4
+        assert summary.data.library_ids == sorted([hd.id, uhd.id])
+
+        # 翻页不重不漏
+        page1 = await list_library_kind_items(
+            "movie", sort="title", limit=2, session=session, principal=_ADMIN
+        )
+        page2 = await list_library_kind_items(
+            "movie", sort="title", limit=2, offset=2, session=session, principal=_ADMIN
+        )
+        paged = [r.media_item_id for r in page1.data + page2.data]
+        assert sorted(paged) == sorted(items[t] for t in ["甲", "乙", "丙", "丁"])
+        assert len(set(paged)) == 4
+
+        tv = await list_library_kind_items("tv", limit=60, session=session, principal=_ADMIN)
+        assert [r.title for r in tv.data] == ["某剧"]
+
+        # 成员看不到的库不算进来（可见集合由 access.visible_library_ids 给出）
+        from movieclaw_api.services.library.items import kind_library_ids
+
+        assert await kind_library_ids(session, "movie", {hd.id, kids.id, shows.id}) == {hd.id}
+
+        # 没有其他视频库：空墙、数量 0，不报错
+        none = await get_library_kind_summary("video", session=session, principal=_ADMIN)
+        assert none.data.item_count == 0 and none.data.library_ids == []
+        assert (
+            await list_library_kind_items("video", limit=60, session=session, principal=_ADMIN)
+        ).data == []

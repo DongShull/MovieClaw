@@ -47,6 +47,10 @@ var knownNonGenerated = []string{
 	"ui.library.gallery",
 	"ui.library.items.ids",
 	"ui.library.items.index",
+	// 按类型的跨库墙（首页「全部电影」行与查看全部页）：网页呈现层，
+	// 命令行查库走 search / libraries 命令
+	"ui.library.kind.summary",
+	"ui.library.kind.items",
 	"playback.decide",
 	"playback.item.info",
 	"playback.item.episodes",

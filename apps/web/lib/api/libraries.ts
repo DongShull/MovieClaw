@@ -637,6 +637,52 @@ export function listLibraryItems(
   return unwrap(request<ApiEnvelope<LibraryItem[]>>(`/libraries/${id}/items${suffix}`));
 }
 
+/** 按类型的跨库墙支持的类型（照片库不做，见 library-home-perspective.md §8）。 */
+export type HomeMediaKind = "movie" | "tv" | "video";
+
+/** 按类型的跨库墙概况：由哪些库组成、符合筛选的作品数（跨库去重）。 */
+export interface LibraryKindSummary {
+  kind: HomeMediaKind;
+  library_ids: number[];
+  item_count: number;
+}
+
+/**
+ * 按类型的跨库海报墙（「全部电影」）：观看者可见、没勾「从首页排除」的同类型库
+ * 合成一面墙，同一部片跨库只出现一次。排序档位与方向、筛选参数与单库墙同名；
+ * 每格的 library_id 是它的详情落点库。
+ */
+export function listKindItems(
+  kind: HomeMediaKind,
+  params?: {
+    sort?: LibraryItemSort;
+    order?: LibraryItemOrder;
+    limit?: number;
+    offset?: number;
+    filter?: LibraryFilter;
+  },
+): Promise<LibraryItem[]> {
+  const query = new URLSearchParams();
+  if (params?.sort) query.set("sort", params.sort);
+  if (params?.order) query.set("order", params.order);
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset) query.set("offset", String(params.offset));
+  filterQuery(params?.filter, query);
+  const suffix = query.size > 0 ? `?${query}` : "";
+  return unwrap(request<ApiEnvelope<LibraryItem[]>>(`/libraries/kinds/${kind}/items${suffix}`));
+}
+
+/** 按类型的跨库墙概况；filter 与 listKindItems 传同一份，数量才与墙对得上。 */
+export function getKindSummary(
+  kind: HomeMediaKind,
+  filter?: LibraryFilter,
+): Promise<LibraryKindSummary> {
+  const query = new URLSearchParams();
+  filterQuery(filter, query);
+  const suffix = query.size > 0 ? `?${query}` : "";
+  return unwrap(request<ApiEnvelope<LibraryKindSummary>>(`/libraries/kinds/${kind}${suffix}`));
+}
+
 /** 媒体库搜索结果的一组：一个库内命中关键词的条目（组内按标题拼音排序）。 */
 export interface LibrarySearchGroup {
   library_id: number;
