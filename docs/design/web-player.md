@@ -744,6 +744,12 @@ iOS Safari 是整件事最难的一块：MSE 只有 `ManagedMediaSource` 子集�
   之后本页都走 hls.js。网络层注入坏 init 段验证过：375 毫秒报错 → 改回 hls.js → 同档 tier 1 出画。
 - 只改 HEVC：H.264 在 MSE 上跳转本来就快，还有分片字节数可算码率。字幕走自绘（master 的字幕组用不上），
   与无 MSE 老设备的兜底同一套。模式矩阵与条件见 `lib/player/playback-mode.ts`。
+- **原生 HLS 上不读视频帧**（2026-10-02，用户反馈拖动进度条后黑屏、诊断面板掉帧高，App 与裸 `<video>`
+  都没事）：`drawImage(video)` 抓冻结帧、`requestVideoFrameCallback` 计时，任一样都会让 Safari 给 AVPlayer
+  挂上一路帧输出、挂上就不摘，此后每帧 4K HDR 画面多出一份，解码追不上就丢帧、画面黑到下一个关键帧，
+  声音字幕照走。模拟器真 Safari 录屏逐帧量：同样 8 次拖动，播放器黑 8 次，两样只关一样仍黑 6 次，
+  都不读黑 1 次（与裸 `<video>` 同一处）。于是这条路冻结只盖进度条缩略图（撑到播放头走过落点），
+  首帧以 `playing` 计、跳转落地以 `seeked` 计，判据统一在 `canReadVideoFrames`。
 - 复测：`scripts/perf/web_faultlab` 的 `--browser webkit`（Safari 内核 + 模拟 iPhone）跑 `seeks` 场景，
   结果看服务端播放记录（`rig:seeks`）。注意模拟器的能力探测会说不支持 HEVC / HDR（真机支持），
   服务端会改判转码；要测这条路得把开会话请求里的能力快照换成真机的。
@@ -1223,7 +1229,8 @@ ref——`setChromeVisible(true)` 是异步的，click 回调读到的可能已�
 
 - **TTFF 只能用 `video.requestVideoFrameCallback()`**。`canplay` / `playing` /
   `loadeddata` 全都早于真实出画（有时早几百 ms），用它们量会系统性偏乐观，
-  然后困惑「数据好看但用户说慢」。
+  然后困惑「数据好看但用户说慢」。例外是 iPhone / iPad 的原生 HLS：那里读帧会拖垮
+  4K HDR 播放（§6.4），以 `playing` 计——AVPlayer 的 `playing` 在首帧就绪之后才来，只偏保守。
 - 掉帧：`video.getVideoPlaybackQuality()` 定时采样算增量。
 - 卡顿：配对 `waiting` → `playing` 累计时长，**必须排除 seek 引起的 `waiting`**，
   否则用户拖一下进度条就被记成一次卡顿，数据全废。
@@ -1922,9 +1929,14 @@ h264+10bit 规则。
   出 7399 帧）；MP4 / MOV 读 moov 样本表并抽检关键帧样本的 NAL 类型（2026-10-01，§14.3；
   原来用 ffprobe 列包——**它会读出每个包的数据，等于通读整片**，NFS 上一部 10 GB 的 MP4 要
   93 秒）；其余容器（TS 等）只能 ffprobe。`keyframes.py`。
-- 分片边界规则 = ffmpeg hlsenc 的**绝对栅格**：k×hls_time 后的第一个关键帧
-  切段（不是「上一切点+hls_time」——上一段超长时两者分叉，实测以 ffmpeg
-  为准，与真实输出逐段比对 15/15 吻合）。`hls_vod.compute_segment_plan`。
+- 直通档分片边界 = **每个关键帧一段**（ffmpeg 侧 `-hls_time 0.001`），`hls_vod.compute_keyframe_plan`。
+  原来按「k×hls_time 后的第一个关键帧」预测 hlsenc 的切分，2026-10-01 实测对不上：hlsenc 7.1
+  的切分条件是「关键帧 pts − 本次起点 ≥ hls_time × 已切段数」，关键帧稀时每个关键帧都切、与预测
+  分叉；seek 重启后起点换成重启点，栅格整体平移。NAS 上一集 4K MKV 的缓存 425 段有 380 段与列表
+  错位（最多 71 秒）——hls.js 按分片真实时间戳自我校正，看不出来，只是远跳反复取错段；Safari 原生
+  HLS（§6.4）完全按列表放，表现为拖到后面字幕对不上口型。每个关键帧一段与起点无关，连续转与重启转
+  天然一致；重启时 `-ss` 往后多给的吸附量改为 `min(0.5, 到下一关键帧的一半)`（`SegmentPlan.seek_pad`），
+  不越过下一个关键帧。代价：片库抽样每分钟分片数中位 12 → 15（P90 15 → 31），只多请求、不多字节。
 - 转码档 force_key_frames 在绝对栅格上强插关键帧 → 等长规划，不读源索引。
 - seek 由分片请求驱动：客户端按列表请求任意分片，`ensure_segment` 决定
   「等转过来」或「杀掉 ffmpeg `-ss 边界 -start_number N` 直奔」（超前阈值

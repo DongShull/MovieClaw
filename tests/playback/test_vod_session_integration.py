@@ -22,10 +22,10 @@ import pytest
 
 from movieclaw_api.services.playback import ffmpeg_args
 from movieclaw_api.services.playback import session as session_mod
-from movieclaw_api.services.playback.ffmpeg_args import SEGMENT_PATTERN, SEGMENT_SECONDS
+from movieclaw_api.services.playback.ffmpeg_args import SEGMENT_PATTERN
 from movieclaw_api.services.playback.session import TranscodeSessionManager
 from movieclaw_playback.decide import AudioPlan, PlaybackPlan, PlaybackTier, VideoPlan
-from movieclaw_playback.hls_vod import compute_segment_plan
+from movieclaw_playback.hls_vod import compute_keyframe_plan
 from movieclaw_playback.keyframes import read_keyframe_index
 
 pytestmark = [
@@ -36,7 +36,7 @@ pytestmark = [
     ),
 ]
 
-#: 样本时长：够切出 15 个 4 秒分片，覆盖「seek 到远处触发重启」的场景
+#: 样本时长：2 秒一个关键帧 → 30 个分片（直通每个关键帧一段），覆盖「seek 到远处触发重启」的场景
 DURATION = 60
 
 
@@ -117,7 +117,7 @@ def test_vod_session_serves_and_seeks(sample, tmp_path, monkeypatch):
     async def scenario() -> None:
         index = read_keyframe_index(sample)
         assert index is not None and len(index.times_s) >= DURATION // 2 - 1
-        plan = compute_segment_plan(index.times_s, float(DURATION), target_s=SEGMENT_SECONDS)
+        plan = compute_keyframe_plan(index.times_s, float(DURATION))
         assert plan.count >= 12
 
         manager = TranscodeSessionManager(root=tmp_path / "transcodes")
@@ -175,7 +175,7 @@ def test_lead_throttle_pauses_real_ffmpeg_and_keeps_disk_bounded(sample, tmp_pat
 
     async def scenario() -> None:
         index = read_keyframe_index(sample)
-        plan = compute_segment_plan(index.times_s, float(DURATION), target_s=SEGMENT_SECONDS)
+        plan = compute_keyframe_plan(index.times_s, float(DURATION))
         manager = TranscodeSessionManager(root=tmp_path / "transcodes")
         manager.start_reaper()
         session = await manager.start(
@@ -183,14 +183,15 @@ def test_lead_throttle_pauses_real_ffmpeg_and_keeps_disk_bounded(sample, tmp_pat
         )
         try:
             assert await manager.ensure_segment(session, 0) is not None
-            # 播放头停在第 0 片：等巡检把它挂起
-            deadline = asyncio.get_event_loop().time() + 8.0
+            # 播放头停在第 0 片：等巡检把它挂起（直通每个关键帧一段，样本 2 秒一段，
+            # 要写完 6 段才够 12 秒领先，2 倍速下 6 秒多——给足余量）
+            deadline = asyncio.get_event_loop().time() + 15.0
             while asyncio.get_event_loop().time() < deadline and not session.lead_paused:
                 await asyncio.sleep(0.05)
             assert session.lead_paused, "真 ffmpeg 领先超上限却没被挂起"
             produced = manager._highest_produced(session)
-            # 12 秒上限 ≈ 3 片，再加巡检间隔内的余量
-            assert 2 <= produced <= 6, produced
+            # 12 秒上限 ≈ 6 片（2 秒一段），再加巡检间隔内的余量
+            assert 4 <= produced <= 9, produced
             await asyncio.sleep(0.5)
             assert manager._highest_produced(session) == produced  # 挂起后不再涨
             # 播放头追上 → 恢复 → 最终全片转完

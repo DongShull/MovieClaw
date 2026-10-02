@@ -11,11 +11,22 @@
 - 时间轴变成**文件绝对时间**：分片 N 的内容就是文件的第 boundaries[N] 秒起，
   start_ms 换算、关键帧校正从此消失。
 
-分片边界规则必须与 ffmpeg hls muxer 的实际切分**逐一吻合**：ffmpeg 以
-「k × hls_time 的绝对栅格」为切分目标，在每个 ≥ 栅格点的第一个关键帧切段
-（详见 compute_segment_plan 的注释与实测记录）。这里用同一条规则从关键帧表
-预计算，两边天然一致；ffmpeg 侧用 ``-start_number N`` 保证 seek 重启后
-文件名编号接上。（Jellyfin DynamicHlsPlaylistGenerator 同款设计。）
+分片边界必须与 ffmpeg hls muxer 的实际切分**逐一吻合**，而且无论 ffmpeg 从片头一路转、
+还是 seek 后从第 N 段重启，切出来都要一样——AVPlayer（Safari 原生 HLS、Infuse 等 Jellyfin
+客户端）完全按列表的时间轴放，分片内容错位就是画面与字幕错位；hls.js 虽按分片真实时间戳
+自我校正，远跳也会反复取错段。
+
+- **转码档**：``-force_key_frames`` 在 k × SEGMENT_SECONDS 上强插关键帧，边界就是等差数列
+  （``compute_uniform_plan``），从哪重启都一样。
+- **直通档**：只能切在源片已有的关键帧上，**每个关键帧切一段**（``compute_keyframe_plan``，
+  ffmpeg 侧 ``-hls_time`` 给到极小）。曾经按「k × hls_time 的绝对栅格」预测 ffmpeg 的切分，
+  实测对不上（2026-10-01，4K MKV 关键帧最长 10 秒）：hls muxer 的切分条件是
+  ``关键帧 pts − 本次起点 ≥ hls_time × 已切段数``——关键帧一稀就每个关键帧都切、与「跳到
+  下一个整数倍」的预测分叉；seek 重启后「本次起点」又换成重启点，栅格整体平移。缓存里 425 段
+  有 380 段与列表错位（最多 71 秒）。每个关键帧切一段，与起点无关，连续转与重启转天然一致；
+  代价是关键帧密的片子分片更多（片库抽样每分钟中位 12 → 15 段）。
+
+ffmpeg 侧用 ``-start_number N`` 保证 seek 重启后文件名编号接上。
 """
 
 from __future__ import annotations
@@ -61,37 +72,41 @@ class SegmentPlan:
         high = self.boundaries[head] + self.duration_of(head) - _START_MARGIN_S
         return min(max(position_s, low), max(low, high))
 
+    def seek_pad(self, index: int) -> float:
+        """直通档从第 ``index`` 段重启 ffmpeg 时，``-ss`` 要比分片起点往后多给的秒数。
+
+        ffmpeg 的 ``-ss`` 恰好等于关键帧时间时会退到前一个关键帧，所以要往后多给一点；
+        但不能越过下一个关键帧（每个关键帧都是一段，相邻关键帧可能只隔一两帧），
+        否则会落到下一段、整轮编号错一位。取两者较小：0.5 秒或到下一段距离的一半。
+        """
+        return min(_SEEK_PAD_S, self.duration_of(index) / 2)
+
 
 #: EXT-X-START 离分片两端的余量（秒），见 ``SegmentPlan.start_offset``
 _START_MARGIN_S = 0.002
+#: 直通档 seek 重启时 ``-ss`` 往分片起点后多给的上限（秒），见 ``SegmentPlan.seek_pad``
+_SEEK_PAD_S = 0.5
+#: 片头这么多秒内的关键帧不单独成段：要么是索引在开头补出来的 0 点之后那个真正的首帧
+#: （ffmpeg 不会在首个视频包上切），要么是首帧本身。真实的第二个关键帧紧挨着片头的情况几乎没有
+_HEAD_MERGE_S = 0.5
 
 
-def compute_segment_plan(
-    keyframes_s: tuple[float, ...] | list[float],
-    duration_s: float,
-    *,
-    target_s: float,
+def compute_keyframe_plan(
+    keyframes_s: tuple[float, ...] | list[float], duration_s: float
 ) -> SegmentPlan:
-    """按 ffmpeg hls muxer 的切分规则把关键帧表聚合成分片边界。
+    """直通档的分片规划：每个关键帧切一段（理由见模块文档）。
 
-    规则是**绝对栅格**而不是「上一切点 + target」：ffmpeg（hlsenc）的切分
-    目标是 ``k × hls_time``（从首包算起），在每个 ≥ 栅格点的第一个关键帧
-    切段，切完后栅格推进到下一个未跨过的整数倍。两种规则大部分时候结果
-    相同，但上一段超长（关键帧稀）时会分叉——实测触不可及 remux 第 12 段
-    就对不上。这里必须逐包吻合，规则以 ffmpeg 为准。
+    与 ffmpeg 一侧（``-hls_time`` 极小）逐包吻合：hls muxer 不在首个视频包上切，之后每个
+    关键帧都满足「pts − 起点 ≥ hls_time × 段数」。首段从 0 起；片头 ``_HEAD_MERGE_S`` 内的
+    关键帧并进首段（见常量注释）；不合并片尾的短段——ffmpeg 不会合并，列表也不能。
     """
     boundaries: list[float] = [0.0]
-    next_grid = target_s
-    for time_s in keyframes_s:
+    for time_s in sorted(keyframes_s):
         if time_s >= duration_s:
             break
-        if time_s >= next_grid:
-            boundaries.append(time_s)
-            next_grid = (math.floor(time_s / target_s) + 1) * target_s
-    # 末段短于半个目标时并入前一段：0.2 秒的尾巴单独成段只会让播放器多一次
-    # 请求，还容易与 ffmpeg 的收尾行为对不齐
-    if len(boundaries) > 1 and duration_s - boundaries[-1] < target_s / 2:
-        boundaries.pop()
+        if time_s < _HEAD_MERGE_S or time_s <= boundaries[-1]:
+            continue
+        boundaries.append(time_s)
     return SegmentPlan(boundaries=tuple(boundaries), duration_s=duration_s)
 
 

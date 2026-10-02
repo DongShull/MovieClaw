@@ -118,7 +118,7 @@ from movieclaw_playback.hls_vod import (
     SegmentPlan,
     build_master_playlist,
     build_media_playlist,
-    compute_segment_plan,
+    compute_keyframe_plan,
     compute_uniform_plan,
 )
 from movieclaw_playback.profile import media_profile_from_file
@@ -1235,7 +1235,7 @@ async def _disc_remux_spec(f: LibraryFile, params: TranscodeParams) -> _SessionS
     duration_s = float(f.duration_seconds or 0) or disc.duration_s
     keyframes = await asyncio.to_thread(disc.keyframe_index)
     segment_plan = (
-        compute_segment_plan(keyframes.times_s, duration_s, target_s=SEGMENT_SECONDS)
+        compute_keyframe_plan(keyframes.times_s, duration_s)
         if keyframes is not None and duration_s > 0
         else None
     )

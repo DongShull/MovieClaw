@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from movieclaw_api.services.playback.ffmpeg_args import (
+    COPY_HLS_TIME,
     MAX_GOP_FRAMES,
     NVENC_TONEMAP,
     SEGMENT_SECONDS,
@@ -145,6 +146,23 @@ def test_seek_flag_precedes_input():
         start_ms=90_000,
     )
     assert pair(transcode_argv, "-ss") == "90.000"
+
+
+def test_vod_copy_cuts_every_keyframe_and_restart_pad_comes_from_plan():
+    """直通档 VOD：-hls_time 给到极小，hls muxer 在每个关键帧切段（与预生成列表逐包吻合）；
+    重启的 -ss 往后多给的量由会话层按分片规划传入，不越过下一个关键帧。转码档照旧 4 秒。"""
+    argv = argv_of(plan(PlaybackTier.REMUX), start_ms=90_000, start_number=5, seek_pad_s=0.025)
+    assert pair(argv, "-hls_time") == str(COPY_HLS_TIME)
+    assert pair(argv, "-ss") == "90.025"
+    assert pair(argv, "-start_number") == "5"
+    transcode_argv = argv_of(
+        plan(
+            PlaybackTier.SOFTWARE_TRANSCODE,
+            video=VideoPlan(action="transcode", codec="h264", height=1080),
+        ),
+        start_number=5,
+    )
+    assert pair(transcode_argv, "-hls_time") == str(SEGMENT_SECONDS)
 
 
 def test_no_seek_flag_when_starting_from_zero():

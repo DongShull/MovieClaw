@@ -15,6 +15,19 @@ test("跳转途中不撤：readyState 可能还留着旧值，撤了会闪一下
   assert.equal(canReleaseFreeze({ seeking: true, readyState: 4 }), false);
 });
 
+test("原生 HLS 跳转：播放中要等播放头走过落点才撤，暂停着照通用判据", () => {
+  const base = { seeking: false, readyState: 3, holdUntilS: 1200 };
+  // seeked 了、readyState 也够，但播放头还停在落点：新画面没上屏，撤了就是黑屏
+  assert.equal(canReleaseFreeze({ ...base, paused: false, currentTime: 1200 }), false);
+  assert.equal(canReleaseFreeze({ ...base, paused: false, currentTime: 1200.02 }), false);
+  // 走过落点了：新画面在走
+  assert.equal(canReleaseFreeze({ ...base, paused: false, currentTime: 1200.1 }), true);
+  // 暂停着播放头不会走，只能照通用判据
+  assert.equal(canReleaseFreeze({ ...base, paused: true, currentTime: 1200 }), true);
+  // 不是原生 HLS 的跳转：不额外等
+  assert.equal(canReleaseFreeze({ seeking: false, readyState: 3, holdUntilS: null, paused: false, currentTime: 0 }), true);
+});
+
 /** 极简 canvas 替身：只记下 drawImage 的入参，用来钉住取源矩形的符号。 */
 function fakeCanvas() {
   const calls = [];

@@ -158,7 +158,7 @@ from movieclaw_playback.hls_vod import (
     build_master_playlist,
     build_media_playlist,
     build_subtitle_playlist,
-    compute_segment_plan,
+    compute_keyframe_plan,
     compute_uniform_plan,
 )
 from movieclaw_playback.keyframes import read_keyframe_index, schedule_background_index
@@ -1279,7 +1279,7 @@ async def start_playback_session(
     # 注意不能改用**播放请求**的 Host 头推导——那是浏览器够得着的地址，
     # 和 Worker 够得着的地址不是一回事。
     remote_base_url = effective_remote_transcode_config().base_url
-    # VOD 预生成规划（§12）：直通档按全片关键帧索引算分片边界；转码档
+    # VOD 预生成规划（§12）：直通档每个关键帧一段（hls_vod 模块文档）；转码档
     # force_key_frames 在绝对栅格上强插关键帧，用等长规划。规划失败（时长
     # 未知 / 关键帧索引读不出）退回旧的会话相对模式，一切照旧。
     segment_plan = None
@@ -1288,9 +1288,7 @@ async def start_playback_session(
         if view.video and view.video.action == "transcode":
             segment_plan = compute_uniform_plan(duration_s, target_s=SEGMENT_SECONDS)
         elif keyframe_index is not None:
-            segment_plan = compute_segment_plan(
-                keyframe_index.times_s, duration_s, target_s=SEGMENT_SECONDS
-            )
+            segment_plan = compute_keyframe_plan(keyframe_index.times_s, duration_s)
     start_ms = resolved_start_ms
     if segment_plan is None and start_ms > 0 and view.video and view.video.action == "copy":
         # 旧模式的关键帧校正（VOD 下不需要：start() 自己对齐到分片边界）

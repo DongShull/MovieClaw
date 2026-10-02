@@ -55,6 +55,7 @@ import {
 import { planAudioOptions } from "@/lib/player/audio-tracks";
 import { chromeMustStayVisible, shouldHideOnPointerLeave } from "@/lib/player/chrome";
 import { createFrameDropTracker } from "@/lib/player/framedrop";
+import { parseSegmentStarts, snapToKeyframe } from "@/lib/player/keyframe-snap";
 import {
   FREEZE_FRAME_MAX_MS,
   canReleaseFreeze,
@@ -62,6 +63,7 @@ import {
   drawTile,
 } from "@/lib/player/freeze-frame";
 import {
+  canReadVideoFrames,
   planSystemTrackModes,
   resolvePlaybackMode,
   shouldApplyPostAttachSeek,
@@ -554,6 +556,16 @@ export function VideoPlayer(props: VideoPlayerProps) {
    */
   const freezeTokenRef = useRef(0);
   /**
+   * 原生 HLS 跳转时冻结帧要撑到的落点（元素秒数），见 freeze-frame.ts 的 canReleaseFreeze。
+   * 每次冻结先清空，只有跳转那条路在冻完之后再设上；null = 照通用判据撤。
+   */
+  const freezeHoldRef = useRef<number | null>(null);
+  /**
+   * 原生 HLS 的关键帧表（每个分片的起点，秒）：跳转吸附到关键帧用（keyframe-snap.ts）。
+   * 换会话时清空重读；没读到（还在路上 / 读失败）就照原目标跳。
+   */
+  const segmentStartsRef = useRef<number[] | null>(null);
+  /**
    * 松手提交时元素还在为跟随的 seek 忙着、落点又不是同一个：提交的落点
    * （会话秒数）先记在这儿，等元素落地再发。**同一时刻元素上最多只有一次
    * seek 在途**是 §19.5 的规矩——两次叠在一起，浏览器会把上一次正在取的索引
@@ -597,7 +609,10 @@ export function VideoPlayer(props: VideoPlayerProps) {
       if (!video || !canvas) return;
       const token = freezeTokenRef.current + 1;
       freezeTokenRef.current = token;
-      if (captureFrame(video, canvas)) setFrozen(true);
+      freezeHoldRef.current = null;
+      // 原生 HLS 不抓当前帧（canReadVideoFrames）：AVPlayer 跳转时上一帧本来就留在屏上，
+      // 只等缩略图到了把落点那一格盖上去
+      if (canReadVideoFrames(engineLabelRef.current) && captureFrame(video, canvas)) setFrozen(true);
 
       // 走 ref 读 trickplay：把它写进依赖会让 freezeFrame 在索引加载完成时
       // 换掉身份，而挂引擎那个 effect 依赖它——那就是一次无谓的销毁重挂流。
@@ -618,13 +633,27 @@ export function VideoPlayer(props: VideoPlayerProps) {
         image.src = tile.url;
         cache.set(tile.url, image);
       }
-      const paint = () => {
+      const paint = (late: boolean) => {
         // 过期的那张不能画：这几十毫秒里可能已经撤了冻结、或者又跳了一次
         if (freezeTokenRef.current !== token) return;
+        // 图是后到的、而这一跳已经落地（原生 HLS 不先抓帧，冻结全靠这张图，没人替它
+        // 递增 token）：这时再盖，就是把正在走的画面拽回一张缩略图
+        if (
+          late &&
+          canReleaseFreeze({
+            seeking: video.seeking,
+            readyState: video.readyState,
+            holdUntilS: freezeHoldRef.current,
+            paused: video.paused,
+            currentTime: video.currentTime,
+          })
+        ) {
+          return;
+        }
         if (drawTile(canvas, image, tile)) setFrozen(true);
       };
-      if (image.complete) paint();
-      else image.addEventListener("load", paint, { once: true });
+      if (image.complete) paint(false);
+      else image.addEventListener("load", () => paint(true), { once: true });
     },
     [video],
   );
@@ -645,7 +674,16 @@ export function VideoPlayer(props: VideoPlayerProps) {
       // 松手提交还排在在途 seek 后面：这一刻落地的是**跟随**的位置，盖着的是
       // 落点的缩略图，撤了就先露一帧别处的画面、再黑一下才到落点。等提交发出去
       if (pendingCommitRef.current !== null) return;
-      if (canReleaseFreeze({ seeking: video.seeking, readyState: video.readyState })) {
+      if (
+        canReleaseFreeze({
+          seeking: video.seeking,
+          readyState: video.readyState,
+          holdUntilS: freezeHoldRef.current,
+          paused: video.paused,
+          currentTime: video.currentTime,
+        })
+      ) {
+        freezeHoldRef.current = null;
         // 递增 token 让在途的缩略图作废：晚到的那张不能把已经出画的画面
         // 重新盖回去（远跳时雪碧图与首帧常常是前后脚到）
         freezeTokenRef.current += 1;
@@ -1857,13 +1895,14 @@ export function VideoPlayer(props: VideoPlayerProps) {
     const onSeeked = () => {
       if (!isCurrentSession()) return;
       qoe({ type: "seeked", at: performance.now() });
-      // 跳转落地 = 落点的画面上屏：等下一帧（requestVideoFrameCallback），没有就以 seeked 为准
+      // 跳转落地 = 落点的画面上屏：等下一帧（requestVideoFrameCallback），没有就以 seeked 为准。
+      // 原生 HLS 不让读帧（canReadVideoFrames），同样以 seeked 为准
       const record = recordRef.current;
       if (!record?.seekInFlight) return;
       const withFrameCallback = video as HTMLVideoElement & {
         requestVideoFrameCallback?: (cb: () => void) => number;
       };
-      if (withFrameCallback.requestVideoFrameCallback) {
+      if (withFrameCallback.requestVideoFrameCallback && canReadVideoFrames(engineLabelRef.current)) {
         withFrameCallback.requestVideoFrameCallback(() => {
           if (recordRef.current === record && !video.seeking) record.seekPresented();
         });
@@ -2247,24 +2286,32 @@ export function VideoPlayer(props: VideoPlayerProps) {
    *
    * `canplay` / `playing` / `loadeddata` 全都早于真实出画（有时早几百毫秒），
    * 用它们量首帧会系统性偏乐观，然后困惑「数据好看但用户说慢」。
+   *
+   * 例外是原生 HLS：那里不让读帧（canReadVideoFrames），以 `playing` 为首帧。AVPlayer 的
+   * `playing` 在首帧就绪之后才来（真机起播分段：首帧 924 → 播放 1142 毫秒），只会略偏保守。
    */
   useEffect(() => {
     if (!video) return;
-    const withFrameCallback = video as HTMLVideoElement & {
-      requestVideoFrameCallback?: (cb: () => void) => number;
-      cancelVideoFrameCallback?: (handle: number) => void;
-    };
-    if (!withFrameCallback.requestVideoFrameCallback) return;
-    const handle = withFrameCallback.requestVideoFrameCallback(() => {
+    const onFirstFrame = () => {
       qoe({ type: "first-frame", at: performance.now() });
       startupRef.current?.mark("首帧");
       reportStartup();
       // 每路新流出画都记：第一次是起播，之后结束换轨 / 重连 / 换会话式跳转的计时
       recordRef.current?.noteFirstFrame();
       showRememberedNoticeRef.current();
-    });
+    };
+    if (!canReadVideoFrames(mode?.engine)) {
+      video.addEventListener("playing", onFirstFrame, { once: true });
+      return () => video.removeEventListener("playing", onFirstFrame);
+    }
+    const withFrameCallback = video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (cb: () => void) => number;
+      cancelVideoFrameCallback?: (handle: number) => void;
+    };
+    if (!withFrameCallback.requestVideoFrameCallback) return;
+    const handle = withFrameCallback.requestVideoFrameCallback(onFirstFrame);
     return () => withFrameCallback.cancelVideoFrameCallback?.(handle);
-  }, [video, state.session?.session_id, qoe, reportStartup]);
+  }, [video, state.session?.session_id, mode?.engine, qoe, reportStartup]);
 
   /**
    * 每秒采一次观看时长与掉帧。掉帧既进 QoE 指标，也是**降档回路的真实证据**：
@@ -2282,6 +2329,10 @@ export function VideoPlayer(props: VideoPlayerProps) {
     if (!video) return;
     const tracker = createFrameDropTracker();
     const videoIsCopy = state.session?.decision.video?.action === "copy";
+    // 原生 HLS 不判「直通放不动」：AVPlayer 的掉帧数按访问日志粗粒度、滞后地更新，还把跳转时
+    // 从关键帧解到落点、没上屏的那些帧算进去——模拟器里实测把能放的流误判成 26% 掉帧，
+    // 白白切回了更卡的 hls.js。掉帧数照样进播放记录和诊断面板，只是不拿它做决定
+    const nativeHls = mode?.engine === "native-hls";
     const onVisibility = () => tracker.reset();
     const onSeeking = () => tracker.reset();
     document.addEventListener("visibilitychange", onVisibility);
@@ -2291,7 +2342,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
       const stats = engineRef.current?.stats();
       if (stats?.totalFrames == null || stats.droppedFrames == null) return;
       qoe({ type: "frames", dropped: stats.droppedFrames, total: stats.totalFrames });
-      if (!videoIsCopy || document.visibilityState !== "visible" || video.paused) return;
+      if (!videoIsCopy || nativeHls || document.visibilityState !== "visible" || video.paused) return;
       // 长按倍速时浏览器按音频节奏主动丢帧跟上，掉帧是预期内的，不能判成「直通放不动」
       // （iOS 真机实测一按倍速 3 秒就被判掉帧、白白换成了转码）
       if (video.playbackRate !== 1) {
@@ -2313,7 +2364,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
       document.removeEventListener("visibilitychange", onVisibility);
       video.removeEventListener("seeking", onSeeking);
     };
-  }, [video, qoe, state.session]);
+  }, [video, qoe, state.session, mode?.engine]);
 
   /**
    * 进度条缩略图：服务端在开会话时后台生成，这里轮询到就绪为止。
@@ -2322,8 +2373,13 @@ export function VideoPlayer(props: VideoPlayerProps) {
    * 拉一条长连接不值当。没就绪就是没有预览，不影响播放，所以失败一律吞掉；
    * 试满十次（约两分钟）还拿不到就是这部片生成不了，别一直打服务端。
    */
+  // 缩略图接口认的是文件级取流凭证：直出档的视频地址就带着；服务端流（档 1 起）的视频地址是
+  // 会话地址，没有文件号，要改用字幕地址（同样是文件级凭证）。两者都没有就是没有预览
+  const trickplaySource = [state.session?.stream_url, ...(state.session?.subtitle_urls ?? [])].find(
+    (url) => url && /\/files\/\d+\//.test(url),
+  );
   useEffect(() => {
-    const source = state.session?.stream_url;
+    const source = trickplaySource;
     if (!source) return;
     let cancelled = false;
     let attempts = 0;
@@ -2347,7 +2403,25 @@ export function VideoPlayer(props: VideoPlayerProps) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [state.session?.stream_url]);
+  }, [trickplaySource]);
+
+  /** 原生 HLS：读一遍媒体列表，拿到关键帧表（跳转吸附用，见 segmentStartsRef） */
+  useEffect(() => {
+    segmentStartsRef.current = null;
+    if (mode?.engine !== "native-hls" || !mode.streamUrl) return;
+    let cancelled = false;
+    void fetch(resolveStreamUrl(mode.streamUrl))
+      .then((response) => (response.ok ? response.text() : ""))
+      .then((text) => {
+        if (cancelled) return;
+        const starts = parseSegmentStarts(text);
+        segmentStartsRef.current = starts.length > 1 ? starts : null;
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [mode?.engine, mode?.streamUrl]);
 
   /**
    * 会话续命 + 掉线自愈 + 离开时显式收尾。
@@ -2813,7 +2887,11 @@ export function VideoPlayer(props: VideoPlayerProps) {
       // 一次都不会 seek，元素事件永远不来——而会话拆除 + 重开 + ffmpeg
       // 起转正是用户等的那几秒（见 qoe.ts 的 seek-requested）。
       if (plan.kind === "native") {
-        const seconds = Math.max(0, plan.seconds);
+        const requested = Math.max(0, plan.seconds);
+        // 原生 HLS 落在关键帧上：AVPlayer 跳到非关键帧要从前一个关键帧追帧，声音走了画面还黑着
+        // （理由与真机实测见 keyframe-snap.ts）
+        const starts = mode?.engine === "native-hls" ? segmentStartsRef.current : null;
+        const seconds = starts ? snapToKeyframe(starts, requested, video.currentTime) : requested;
         const inFlight = seekAlreadyInFlight({
           currentTimeSeconds: video.currentTime,
           targetSeconds: seconds,
@@ -2833,7 +2911,12 @@ export function VideoPlayer(props: VideoPlayerProps) {
         // 看着像卡了一下。
         // 带上落点：远跳盖的是**落点的缩略图**而不是上一帧，这一跳视觉上
         // 当场就落地（§2.G4）。
-        if (!isWithinRanges(video.buffered, seconds)) freezeFrame(fileMs);
+        // 原生 HLS（iPhone 的 HEVC）盖的只有缩略图（不抓帧，见 canReadVideoFrames），
+        // 而且要撑到播放头真的走过落点再撤（理由见 freeze-frame.ts 的 canReleaseFreeze）。
+        if (!isWithinRanges(video.buffered, seconds)) {
+          freezeFrame(fileMs);
+          if (mode?.engine === "native-hls") freezeHoldRef.current = seconds;
+        }
         // 拖动跟随已经为这个落点发了 seek（或早已停在这儿）就不再叠一次：
         // 第二次 seek 会把第一次正在取的索引/数据请求掐掉，浏览器退回顺序扫描
         // ——这正是「松手后画面停在原地、圆点不动」的来路（§19.5）。seek 途中
@@ -3027,7 +3110,11 @@ export function VideoPlayer(props: VideoPlayerProps) {
    * 「手指停住才跟」。转码会话拖出缓冲绝不跟——那是杀 ffmpeg 重启。
    */
   const canScrubFollow = useCallback(
-    (fileMs: number) => mode?.engine === "direct" || isCheapSeek(fileMs),
+    // 原生 HLS（iPhone 的 HEVC）拖动中不跟：AVPlayer 每跟一次都要现取落点那一段、从关键帧
+    // 解起（4K HDR 一段就是几 MB），一秒几次地跟，拖一下就是几十段的流量和解码，全是白花的。
+    // 拖的时候看进度条上的缩略图预览，松手再跳
+    (fileMs: number) =>
+      mode?.engine !== "native-hls" && (mode?.engine === "direct" || isCheapSeek(fileMs)),
     [mode, isCheapSeek],
   );
   const canScrubFollowRef = useRef(canScrubFollow);

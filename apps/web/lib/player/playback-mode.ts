@@ -79,6 +79,25 @@ export function shouldApplyPostAttachSeek(
 }
 
 /**
+ * 这条引擎上能不能读视频帧：`drawImage(video)` 抓冻结帧、`requestVideoFrameCallback`
+ * 量首帧与跳转落地。
+ *
+ * 原生 HLS（iPhone / iPad Safari 的 AVPlayer）**不能读**。Safari 要把帧交给页面，就得给
+ * AVPlayer 额外挂一路帧输出，而且挂上就不再摘——此后每一帧 4K HDR 画面都要多出一份。解码
+ * 一旦追不上，AVPlayer 直接丢帧，画面黑到下一个关键帧为止，声音和字幕照走。这就是网页版
+ * 拖动进度条后「黑屏 + 掉帧高」、而 App 与裸 `<video>` 同一条流都没事的原因（2026-10-02
+ * 模拟器真 Safari 录屏逐帧量：同一套 8 次拖动，播放器黑 8 次；抓帧、帧回调只关一样仍黑 6 次；
+ * 两样都不读黑 1 次，与裸 `<video>` 同一处）。
+ *
+ * 读帧换来的只是冻结帧与计时，都有不读帧的替代：冻结只盖进度条缩略图（图片，不碰视频），
+ * 首帧以 `playing` 计、跳转落地以 `seeked` 计。参数收引擎标签——`PlaybackEngineKind` 或
+ * `engine.stats().engine`，原生 HLS 在两边同名。
+ */
+export function canReadVideoFrames(engine: string | null | undefined): boolean {
+  return engine !== "native-hls";
+}
+
+/**
  * 由会话与能力快照算出本次播放的完整模式。三态里只有 plan 会走到这里；
  * stream_url 缺失（consent/rejected）返回 null。
  */

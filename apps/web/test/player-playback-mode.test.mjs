@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  canReadVideoFrames,
   planSystemTrackModes,
   resolvePlaybackMode,
   shouldApplyPostAttachSeek,
@@ -128,4 +129,15 @@ test("系统轨 mode 规划：选中恒 showing，其余 disabled", () => {
   assert.deepEqual(planSystemTrackModes(3, 1), ["disabled", "showing", "disabled"]);
   assert.deepEqual(planSystemTrackModes(2, -1), ["disabled", "disabled"]);
   assert.deepEqual(planSystemTrackModes(0, 0), []);
+});
+
+test("原生 HLS 上不读视频帧：抓帧 / 帧回调会让 AVPlayer 多挂一路帧输出，4K HDR 拖动后黑屏掉帧", () => {
+  assert.equal(canReadVideoFrames("native-hls"), false);
+  // 其余引擎照常读：MSE / 直出的冻结帧与首帧计时都靠它
+  assert.equal(canReadVideoFrames("mse"), true);
+  assert.equal(canReadVideoFrames("hls.js"), true);
+  assert.equal(canReadVideoFrames("direct"), true);
+  // 引擎还没定（挂流前）：不是原生 HLS，照常
+  assert.equal(canReadVideoFrames(""), true);
+  assert.equal(canReadVideoFrames(undefined), true);
 });

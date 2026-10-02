@@ -91,7 +91,8 @@ def install_fake(monkeypatch, body: str, *, delay: float = 0.0) -> None:
     live.m3u8，会话相对模式是 index.m3u8。"""
 
     def fake_build(
-        plan, *, source_path, session_dir, start_ms=0, hw_backend=None, start_number=None
+        plan, *, source_path, session_dir, start_ms=0, hw_backend=None, start_number=None,
+        seek_pad_s=0.5,
     ):
         name = "live.m3u8" if start_number is not None else "index.m3u8"
         playlist = Path(session_dir) / name
@@ -977,6 +978,7 @@ async def test_remote_start_failure_does_not_fallback_to_local_software(manager,
         start_number=None,
         output_base_url=None,
         output_url_suffix="",
+        seek_pad_s=0.5,
     ):
         name = "live.m3u8" if start_number is not None else "index.m3u8"
         playlist = Path(session_dir) / name
@@ -1959,7 +1961,8 @@ async def test_writer_that_never_produces_segment_is_not_restarted_forever(
     spawns: list[int | None] = []
 
     def fake_build(
-        plan, *, source_path, session_dir, start_ms=0, hw_backend=None, start_number=None
+        plan, *, source_path, session_dir, start_ms=0, hw_backend=None, start_number=None,
+        seek_pad_s=0.5,
     ):
         spawns.append(start_number)
         playlist = Path(session_dir) / "live.m3u8"

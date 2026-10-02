@@ -73,11 +73,15 @@ def segment_type(plan: PlaybackPlan) -> str:
     return "mpegts" if is_mpegts(plan) else "fmp4"
 
 
-#: 分片时长（秒）。转码档自己控制 GOP，可以精确对齐；直通档 copy 模式下
-#: ffmpeg 只能切在源片已有的关键帧上，这个值是「至少多久」，实际分片会更长。
-#: 取 4：VOD 预生成列表的分片栅格与这里必须同值（hls_vod.compute_segment_plan），
-#: 2 秒的列表对两小时的片有三千多行，4 秒折半，起播首段转出也只多等两秒。
+#: 分片时长（秒）。转码档自己控制 GOP，可以精确对齐：VOD 预生成列表的等长栅格
+#: （hls_vod.compute_uniform_plan）与这里必须同值。2 秒的列表对两小时的片有三千多行，
+#: 4 秒折半，起播首段转出也只多等两秒。直通档的 VOD 不用它，见 COPY_HLS_TIME。
 SEGMENT_SECONDS = 4
+#: 直通档 VOD 的 ``-hls_time``：给到极小，hls muxer 就在**每个关键帧**切一段，与预生成
+#: 列表（hls_vod.compute_keyframe_plan）逐包吻合，从片头转与 seek 重启转切得一样。
+#: 用 4 秒的话 muxer 按「pts − 本次起点 ≥ 4 × 已切段数」切，关键帧稀的片子与列表
+#: 分叉、重启后栅格还会平移（理由与实测见 hls_vod 模块文档）。
+COPY_HLS_TIME = 0.001
 # VideoToolbox 在带 ``-copyts`` 的高位点 seek 下可能自行选择过短的 GOP。
 # 以常见最高 60fps 计算上限，配合下面的强制关键帧把转码档稳定在 4 秒分片；
 # 这不是目标 GOP，而是防止编码器提前插入关键帧把 fMP4 切碎。
@@ -464,6 +468,7 @@ def build_hls_command(
     input_format: str | None = None,
     worker_caps: WorkerVideoCaps | None = None,
     progressive: bool = False,
+    seek_pad_s: float = 0.5,
 ) -> TranscodeCommand:
     """把播放计划翻成 ffmpeg 命令。档 0（Direct Play）不该走到这里。
 
@@ -479,6 +484,9 @@ def build_hls_command(
 
     ``worker_caps`` 是接单的远程 Worker 申报的视频能力（远程任务恒传，本机执行为
     None），VideoToolbox 命令按它分流，见 ``_videotoolbox_mode``。
+
+    ``seek_pad_s``：直通档 ``-ss`` 往起点后多给的秒数（见下面的注释）。VOD 重启由会话层按
+    分片规划给（``SegmentPlan.seek_pad``），不能越过下一个关键帧。
 
     ``progressive``（只对远程 VOD 的 fMP4 任务有效）：不用 HLS muxer，输出一整条分片化
     MP4（每 0.5 秒一个片段，时间戳保持文件绝对时间），由 Worker 按分片栅格切段、边产出
@@ -509,10 +517,10 @@ def build_hls_command(
         seek_s = start_ms / 1000
         # 直通档的 start_ms 已被上游校正到关键帧（routes 里查 keyframe），但
         # ffmpeg 在 seek 目标**恰好等于**关键帧时间时会回退到前一个关键帧
-        # （Jellyfin EncodingHelper 同款 workaround）——加 0.5 秒让它精确
+        # （Jellyfin EncodingHelper 同款 workaround）——往后多给一点让它精确
         # 落在目标关键帧上。转码档不加：accurate_seek 解码丢帧，本来就精确。
         if not transcoding_video:
-            seek_s += 0.5
+            seek_s += seek_pad_s
         argv += ["-ss", f"{seek_s:.3f}"]
     # 视频直通时给缺 PTS 的包现算 PTS（输入选项，放输出侧无效）。转码档
     # 解码器自己会重建时间戳，不需要；copy 档少了它，只有 DTS 的源（TS 转
@@ -591,9 +599,12 @@ def build_hls_command(
     if progressive:
         argv += _progressive_args()
     else:
+        # 直通档 VOD 每个关键帧切一段（COPY_HLS_TIME）；会话相对制仍按 4 秒
+        vod_copy = start_number is not None and not transcoding_video
         argv += _hls_args(
             session_dir,
             mpegts=is_mpegts(plan),
+            hls_time=COPY_HLS_TIME if vod_copy else SEGMENT_SECONDS,
             start_number=start_number,
             output_base_url=output_base_url,
             output_url_suffix=output_url_suffix,
@@ -949,6 +960,7 @@ def _hls_args(
     session_dir: Path,
     *,
     mpegts: bool = False,
+    hls_time: float = SEGMENT_SECONDS,
     start_number: int | None = None,
     output_base_url: str | None = None,
     output_url_suffix: str = "",
@@ -982,7 +994,7 @@ def _hls_args(
     args = [
         *(["-rw_timeout", str(REMOTE_IO_TIMEOUT_US)] if output_base_url else []),
         "-f", "hls",
-        "-hls_time", str(SEGMENT_SECONDS),
+        "-hls_time", str(hls_time),
     ]
     if mpegts:
         args += ["-hls_segment_type", "mpegts"]

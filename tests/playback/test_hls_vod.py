@@ -10,38 +10,42 @@ from movieclaw_playback.hls_vod import (
     build_master_playlist,
     build_media_playlist,
     build_subtitle_playlist,
-    compute_segment_plan,
+    compute_keyframe_plan,
+    compute_uniform_plan,
 )
 
-# 1 秒一个关键帧的理想片源
-KF_1S = tuple(float(i) for i in range(0, 30))
+
+def test_copy_plan_cuts_at_every_keyframe():
+    """直通档每个关键帧一段（ffmpeg 侧 -hls_time 极小）：与从哪起转无关，连续转与重启转一致。"""
+    plan = compute_keyframe_plan((0.0, 1.2, 3.9, 5.1, 8.0, 9.9, 12.5), 14.5)
+    assert plan.boundaries == (0.0, 1.2, 3.9, 5.1, 8.0, 9.9, 12.5)
+    assert plan.duration_of(plan.count - 1) == 2.0
 
 
-def test_boundaries_follow_ffmpeg_rule():
-    """目标 4 秒 → 每 4 个关键帧切一段；边界都落在关键帧上。"""
-    plan = compute_segment_plan(KF_1S, 30.0, target_s=4.0)
-    assert plan.boundaries == (0.0, 4.0, 8.0, 12.0, 16.0, 20.0, 24.0, 28.0)
-    assert plan.duration_of(0) == 4.0
-    assert plan.duration_of(plan.count - 1) == 2.0  # 末段吃掉余量
+def test_copy_plan_keeps_tail_and_drops_out_of_range():
+    """片尾短段不合并（ffmpeg 不会合并）；时长之外、重复、乱序的关键帧不影响结果。"""
+    plan = compute_keyframe_plan((8.0, 0.0, 4.0, 4.0, 9.5, 12.0), 9.0)
+    assert plan.boundaries == (0.0, 4.0, 8.0)
+    assert plan.duration_of(2) == 1.0
 
 
-def test_irregular_keyframes_follow_absolute_grid():
-    """ffmpeg 的切分目标是绝对栅格 k×target：栅格 4→切 5.1，栅格 8→切 8.0，
-    栅格 12→切 12.5（若上一段超长，栅格不按切点顺延——这是与「起点+target」
-    规则的分叉点，实测以 ffmpeg 为准）。"""
-    plan = compute_segment_plan((0.0, 1.2, 3.9, 5.1, 8.0, 9.9, 12.5), 14.5, target_s=4.0)
-    assert plan.boundaries == (0.0, 5.1, 8.0, 12.5)
+def test_copy_plan_merges_keyframes_hugging_the_head():
+    """索引开头补出来的 0 点之后紧跟真正的首帧（0.083）：ffmpeg 不在首包上切，首段从 0 起。"""
+    plan = compute_keyframe_plan((0.0, 0.083, 4.2, 6.0), 10.0)
+    assert plan.boundaries == (0.0, 4.2, 6.0)
 
 
-def test_tiny_tail_merges_into_last_segment():
-    """片尾不足半个目标的尾巴并入前一段，不单独成段。"""
-    plan = compute_segment_plan((0.0, 4.0, 8.0), 9.0, target_s=4.0)
-    assert plan.boundaries == (0.0, 4.0)
-    assert plan.duration_of(1) == 5.0
+def test_seek_pad_never_crosses_the_next_keyframe():
+    """重启时 -ss 往后多给的量：0.5 秒，但相邻关键帧很近时只给到一半，不能落进下一段。"""
+    plan = compute_keyframe_plan((0.0, 4.0, 4.05, 9.0), 12.0)
+    assert plan.seek_pad(0) == 0.5
+    assert abs(plan.seek_pad(1) - 0.025) < 1e-9
+    assert plan.seek_pad(2) == 0.5
+    assert plan.seek_pad(3) == 0.5  # 末段止于片长，同样不越界
 
 
 def test_segment_for_position():
-    plan = compute_segment_plan(KF_1S, 30.0, target_s=4.0)
+    plan = compute_uniform_plan(30.0, target_s=4.0)
     assert plan.segment_for(0) == 0
     assert plan.segment_for(3.999) == 0
     assert plan.segment_for(4.0) == 1
@@ -50,7 +54,7 @@ def test_segment_for_position():
 
 
 def test_media_playlist_is_vod_with_endlist():
-    plan = compute_segment_plan(KF_1S, 30.0, target_s=4.0)
+    plan = compute_uniform_plan(30.0, target_s=4.0)
     text = build_media_playlist(
         plan, init_name="init.mp4", segment_name="seg%05d.m4s", query="?token=t1"
     )
@@ -71,7 +75,7 @@ def test_media_playlist_is_vod_with_endlist():
 def test_media_playlist_starts_at_resume_point():
     """续播：列表写 EXT-X-START，播放器第一个请求就取续播点所在的分片——
     不写的话 AVPlayer 先要第 0 段，把正从续播点起转的转码拉回片头重启一轮。"""
-    plan = compute_segment_plan(KF_1S, 30.0, target_s=4.0)
+    plan = compute_uniform_plan(30.0, target_s=4.0)
     text = build_media_playlist(
         plan, init_name="init.mp4", segment_name="seg%05d.m4s", start_s=13.25
     )
@@ -88,8 +92,8 @@ def test_media_playlist_starts_at_resume_point():
 def test_start_offset_stays_inside_the_segment_the_server_starts_from():
     """起播点正压在分片边界（整秒 + 恰好是关键帧）：播放器按 6 位小数的 EXTINF
     累加找段，误差会把它算进前一段；写进列表的位置要夹进服务端起转那一段的内部。"""
-    plan = compute_segment_plan(
-        (0.0, 2.48, 597.52, 600.0, 600.96, 604.0, 896.6, 900.0, 903.0), 1000.0, target_s=4.0
+    plan = compute_keyframe_plan(
+        (0.0, 2.48, 597.52, 600.0, 600.96, 604.0, 896.6, 900.0, 903.0), 1000.0
     )
     for start in (600.0, 900.0, 897.0, 899.9999):
         head = plan.segment_for(start)

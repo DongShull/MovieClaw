@@ -31,7 +31,8 @@ from movieclaw_playback.hls_vod import SegmentPlan
 logger = logging.getLogger("movieclaw_api.playback.cache")
 
 #: 命令装配的输出版本。ffmpeg_args 里任何会改变分片字节的改动都要 +1。
-CACHE_VERSION = 1
+#: 2：直通档改为每个关键帧切一段（hls_vod 模块文档）——旧缓存的分片与列表错位，整体作废
+CACHE_VERSION = 2
 #: 台账文件名。目录里没有它就是上次进程没走完 stop 的残留，启动时清掉。
 MANIFEST_NAME = "manifest.json"
 #: 台账格式版本，与 CACHE_VERSION 分开：前者管「文件内容还认不认」，

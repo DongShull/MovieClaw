@@ -294,6 +294,17 @@ class PartialSegment:
         event.set()
 
 
+
+def _seek_pad(session: TranscodeSession, start_number: int | None) -> float:
+    """直通档从第 ``start_number`` 段起转时 ``-ss`` 往后多给的秒数（``SegmentPlan.seek_pad``）。
+
+    VOD 直通每个关键帧一段，相邻关键帧可能只隔一两帧：固定多给 0.5 秒会越过下一个关键帧，
+    落到下一段、整轮编号错一位。没有规划（会话相对制）照旧 0.5 秒。
+    """
+    if start_number is None or session.segment_plan is None:
+        return 0.5
+    return session.segment_plan.seek_pad(start_number)
+
 @dataclass
 class TranscodeSession:
     """一个在跑的转码/直通会话。"""
@@ -1024,6 +1035,7 @@ class TranscodeSessionManager:
             start_ms=session.start_ms,
             hw_backend=session.hw_backend,
             start_number=start_number,
+            seek_pad_s=_seek_pad(session, start_number),
             **extra,
         )
 
@@ -1135,6 +1147,7 @@ class TranscodeSessionManager:
             input_format="concat" if disc else None,
             worker_caps=connection.capabilities.video_caps,
             progressive=progressive,
+            seek_pad_s=_seek_pad(session, start_number),
         )
         return command, source_url, artifact_base, token_suffix, poster_url
 
