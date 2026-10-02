@@ -5,13 +5,12 @@
   </picture>
 </p>
 
-<h3 align="center">The all-in-one media server with an AI agent built in</h3>
+<h3 align="center">The next-gen AI media server</h3>
 
 <p align="center">
-  Point MovieClaw at the folders where your media lives, and everything downstream just works:<br>
-  the poster wall, series subscriptions, playback on every device.<br>
-  One container replaces Jellyfin + Sonarr + Radarr + Prowlarr + Bazarr + Overseerr.<br>
-  Everything stays on your own hardware.
+  One server replaces your entire media stack.<br>
+  A web app and a native iPhone app included, with an AI agent that actually gets things done.<br>
+  Everything stays on your own hardware. Free for personal and household use.
 </p>
 
 <p align="center">
@@ -20,8 +19,8 @@
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
-  <a href="#screenshots">Screenshots</a> ·
-  <a href="#features">Features</a> ·
+  <a href="https://demo.movieclaw.io">Live Demo</a> ·
+  <a href="#just-say-the-word-it-handles-the-rest">AI Agent</a> ·
   <a href="#boundaries">Boundaries</a> ·
   <a href="#control-it-from-anywhere">CLI</a> ·
   <a href="docs/design/">Design Docs</a> ·
@@ -39,109 +38,172 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/home-library.jpg" width="900" alt="MovieClaw library home page">
+  <img src="docs/images/home.jpg" width="900" alt="The MovieClaw library: Continue Watching, favorites, and all your libraries">
 </p>
 
-## Why MovieClaw
+<p align="center">
+  Want to look around first? Open the <a href="https://demo.movieclaw.io">live demo</a>: the sign-in page lists four demo accounts, one click each.
+  It's read-only and resets every day. (The interface and logs are currently in Chinese.)
+</p>
 
-Strip everything away and there's only one thing you actually want: see a show, hit
-**Subscribe**, and have it appear on your poster wall — downloaded, renamed, ready to
-play — the moment a release drops. At home, that one workflow has traditionally meant six
-containers: Jellyfin to serve the library, Sonarr and Radarr for subscriptions,
-Prowlarr for indexers, Bazarr for subtitles, Overseerr so the family can request things —
-and it's on you to keep all six agreeing about the same library.
+## One install. That's all you need.
 
-MovieClaw collapses the whole pipeline into one container:
+It used to take six or seven services, six or seven configs, and a lot of effort to keep
+them all agreeing about the same library. Now it's just MovieClaw:
 
 | The job | The usual stack | MovieClaw |
 | --- | --- | --- |
 | Playback, poster wall, watch progress | Jellyfin / Emby / Plex | Built in |
+| Disc rips and 4K HDR on an iPhone | A third-party player like Infuse | A native app of its own, and Infuse still connects |
 | Metadata | Whatever the server ships, plus tinyMediaManager for the hard cases | Built in, with TMDB and Douban as dual sources |
 | Subscriptions and automatic downloads | Sonarr + Radarr | Built in |
-| Indexers and tracker sites | Prowlarr / Jackett | Built in, 23 private trackers preconfigured |
-| Subtitles | Bazarr | Built in, including PGS-to-SRT conversion |
+| Indexers and tracker sites | Prowlarr / Jackett | Built in |
+| Subtitles | Bazarr | Built in, with PGS-to-SRT conversion and AI translation when none exist |
 | Family requests and permissions | Overseerr / Jellyseerr | Built-in member management |
-| Running all of the above from a chat message | Nothing does this | Built-in AI assistant |
+| Running all of the above from a single sentence | Nothing does this | Built-in AI agent, and outside agents can plug in too |
 | Total | 6 containers, 6 configs | 1 container, 1 `data` directory |
 
-All-in-one has its trade-offs — they're laid out honestly in [Boundaries](#boundaries).
+All-in-one has its trade-offs, and they're laid out honestly in [Boundaries](#boundaries).
 
-## Screenshots
+## Native apps, with playback that rivals Infuse
 
-Four screens, in the order you'll actually use them: land on the home page, browse the
-library, open a title, subscribe. Every screenshot is from a live instance, with real
-metadata scraped from TMDB.
+Watch right in your browser, or in the native iPhone app. Built on its own playback
+engine: FFmpeg unpacks, Apple plays.
+
+<p align="center">
+  <img src="docs/images/player.jpg" width="900" alt="Landscape playback on iPhone: Liquid Glass controls, audio and subtitle tracks, AirPlay, and live download speed">
+  <br>
+  <sub>Frame from the public trailer for Avatar: Fire and Ash, shown only to demonstrate playback. All rights belong to their owners. Rights holders can email service@movieclaw.io to have it removed.</sub>
+</p>
+
+- Dolby Vision and Dolby Atmos; 4K HDR and Blu-ray disc rips play directly.
+- Hardware decoding first, software decoding as the fallback, and transcoding only as a last resort.
+- 4K over cellular starts in a second or two; when your connection can't keep up with the bitrate, it suggests dropping a quality tier.
+- Progress syncs across the web app, the iPhone app, and Infuse, so you pick up wherever you left off.
+- **Clips**: swipe vertically through highlights pulled from your own movies and shows.
+
+**Getting the app**: download `MovieClaw-iOS-unsigned.ipa` from
+[Releases](https://github.com/movieclaw/movieclaw/releases) and sideload it with AltStore,
+SideStore, or Sideloadly using your own Apple ID (iOS 26 or later). A public TestFlight is
+coming. Trackers and download clients are configured in the web app.
+
+The web app is liquid glass: the sidebar, inputs, and floating buttons refract whatever
+background image you choose, with a touch of chromatic aberration at the edges. Swap the
+background under **Settings → Appearance**, and it stays consistent on every device
+connected to the same instance.
+
+
+## Just say the word. It handles the rest.
+
+MovieClaw puts an autonomous, general-purpose AI agent inside your media server.
+Organizing your library, making subtitles, handling all those quirky one-off requests:
+all you have to do is ask.
+
+- "Any ideas for something light to watch with the kids tonight?" It searches your library, picks three by runtime and rating, and shows them as poster cards.
+- "Elephants Dream doesn't have Spanish subtitles. Can you make some?" It finds subtitles in another language, translates them to match the film's tone, syncs the timing, and saves a sidecar SRT.
+- "If Charge ever comes out in 4K, swap it in for me." It sets up an upgrade rule. When a better release appears it's downloaded and swapped in, and the old file goes to the recycle bin first.
+- "Who watched the most this week?" It pulls this week's watch history and totals it up per family member.
+
+You can talk to it from WeChat too, by text or voice; Telegram and Discord work as well,
+and Feishu groups can join as a push-only outlet. It checks with you before deleting
+anything, and every tool it calls is right there for you to see. The rules are spelled
+out under [Boundaries](#boundaries).
+
+The agent needs an LLM connected under **Settings → AI Models** (any OpenAI-compatible
+endpoint). Skip it and everything else still works. Teach it "skills" in plain Markdown:
+drop a directory with a `SKILL.md` into `data/agent-skills/` (a `description` in the
+frontmatter, instructions in the body, scripts welcome) and the agent loads it on its own
+whenever a web-session task matches. Changes take effect immediately, no restart. A skill
+sharing a name with a built-in one overrides it (the log says so). Details in
+[`docs/design/agent-skills.md`](docs/design/agent-skills.md).
+
+### Fast, accurate release parsing
+
+Release names aren't guessed at with regexes. A small NER model, distilled from a large
+language model, parses one in about 3 ms on a plain CPU, and resolution, source, codec,
+subtitles, audio, and release group each get their own field:
+
+```text
+三体.Three-Body.2023.S01E05.2160p.WEB-DL.H265.AAC.国语中字-OurTV
+↓
+Series · Season 1 Episode 5 · 2160p · H.265 · WEB-DL · AAC
+Subtitles: Chinese    Audio: Mandarin    Release group: OurTV
+```
+
+Even shorthand like "国语中字" (Mandarin audio, Chinese subs), which only exists on
+Chinese trackers, splits cleanly into separate subtitle and audio fields. When it isn't
+sure, it doesn't guess: ambiguous items land in a *pending identification* queue with a
+plain-language reason ("3 equally plausible matches; not choosing for you"), and one
+confirmation resolves the whole group.
+
+### Any agent can run every feature
+
+<p align="center">
+  <img src="docs/images/agent.en.jpg" width="900" alt="Architecture: you use the web and iOS apps, while agents like ChatGPT, Claude, and Cursor use MCP or the mclaw CLI, all through one shared API covering subscriptions, upgrades, downloads, organizing, identification, subtitles, members, and stats">
+</p>
+
+Every feature is available through the `mclaw` CLI and MCP. Connect ChatGPT, Claude,
+WorkBuddy, Cursor, or Claude Code, and they can subscribe, run quality upgrades, and
+organize your library: anything you can do in the web app. The command tree is generated
+straight from the server's API, so ship a feature on the backend and every agent can use it.
+
+- **MCP, on your terms**: create an MCP endpoint and pick exactly what it can do. Every endpoint gets its own token, revocable anytime.
+- **The CLI runs anywhere**: a single static binary. See [Control It from Anywhere](#control-it-from-anywhere).
+- **Your models**: plug in OpenAI, any OpenAI-compatible provider, or your own vLLM.
+
+### One pipeline, from subscription to library
+
+Subscribe to a show, and everything after that (search, download, identify, fetch
+metadata, import, notify) runs on its own. No more keeping settings in sync across a
+handful of services.
+
+- Quality upgrades: describe your target quality as a rule and MovieClaw swaps in better releases as they appear. Replaced files go to a delayed-deletion recycle queue, and if you'd rather keep the 1080p REMUX *and* the 4K, turn on side-by-side versions.
+- Health check: dry-runs every step of the chain (trackers, download client, library) so you can spot where it would get stuck.
+- Just joined a private tracker and need to protect your ratio? Turn on site protection: subscriptions steer around that site while manual search still works, so you can build up your ratio before opening it up.
+
+## Here's what your day looks like
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/library-movies.jpg" alt="Movie library"></td>
-    <td width="50%"><img src="docs/images/series-detail.jpg" alt="Series detail"></td>
+    <td width="50%" valign="top">
+      <img src="docs/images/scene-1.jpg" alt="Continue Watching in the web app, and the same movie on iPhone ready to resume at 10:44">
+      <p><b>8:30 AM, on the train</b>: pick up last night's movie on your phone. In the browser, in the native iPhone app, or in players like Infuse, your progress comes with you.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/scene-2.jpg" alt="The Subscriptions screen on iPhone, with Coffee Run just added">
+      <p><b>6:20 PM, heading home</b>: new episode out? Nothing to do. Once you subscribe, new releases are downloaded and added to your library, and you get a note on WeChat or Telegram.</p>
+    </td>
   </tr>
   <tr>
-    <td><b>Library</b>: localized titles, posters, and years, with an A–Z index down the right edge for fast jumps</td>
-    <td><b>Series detail</b>: episode stills, audio and subtitle track listings — missing episodes are greyed out, so gaps are obvious at a glance</td>
-  </tr>
-  <tr>
-    <td><img src="docs/images/discover.jpg" alt="Discover page"></td>
-    <td><img src="docs/images/subscriptions.jpg" alt="Subscriptions"></td>
-  </tr>
-  <tr>
-    <td><b>Discover</b>: flip between TMDB and Douban charts — anything you see, you can subscribe to on the spot</td>
-    <td><b>Subscriptions</b>: delivery progress for every show, plus a forecast of what may land over the next seven days</td>
+    <td width="50%" valign="top">
+      <img src="docs/images/scene-3.en.jpg" alt="The Activity screen on iPhone with four devices playing, and each member's permissions below">
+      <p><b>8:30 PM, living room</b>: everyone watches their own thing. Everyone gets an account, the kids only see cartoons rated for them, and nobody's in anyone's way.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/scene-4.en.jpg" alt="Asking MovieClaw in a chat app to pick a cartoon and subscribe (illustration)">
+      <p><b>11:10 PM, in bed</b>: ask in a chat tonight, watch it tomorrow. It finds the title and subscribes; by morning it's on your poster wall. <sub>(Chat window is an illustration.)</sub></p>
+    </td>
   </tr>
 </table>
 
-The interface is liquid glass: the sidebar, inputs, and floating buttons refract whatever
-background image you choose, with a touch of chromatic aberration at the edges. Swap the
-background under **Settings → Appearance** and the refraction follows — consistently, on
-every device connected to the same instance.
+Screenshots are from the public [live demo](https://demo.movieclaw.io), featuring open
+movies released by the Blender Foundation and others (CC BY).
 
-<p align="center">
-  <img src="docs/images/glass.jpg" width="900" alt="Workbench with liquid glass panels refracting the background image">
-</p>
+## The little things, already taken care of
 
-Your phone gets the same interface, not a cut-down companion app. On iOS,
-**Add to Home Screen** runs MovieClaw as a standalone app — no address bar, and the layout
-respects the notch and home-indicator safe areas.
+### Library
 
-<p align="center">
-  <img src="docs/images/mobile.jpg" width="620" alt="Library and series detail on a phone">
-</p>
-
-## Features
-
-### Subscriptions & downloads
-
-- Hit **Subscribe** on a show and forget about it: when a release appears, it's downloaded, renamed, and filed into your library automatically.
-- Quality upgrades: describe your target quality as a rule and MovieClaw swaps in better releases as they appear. Replaced files go to a delayed-deletion recycle queue — and if you'd rather keep the 1080p REMUX *and* the 4K, turn on side-by-side versions.
-- Torrent names aren't guessed at with regexes. Resolution, source, codec, subtitles, audio, and release group each get parsed into their own field:
-
-  ```text
-  三体.Three-Body.2023.S01E05.2160p.WEB-DL.H265.AAC.国语中字-OurTV
-  ↓
-  Series · Season 1 Episode 5 · 2160p · H.265 · WEB-DL · AAC
-  Subtitles: Chinese    Audio: Mandarin    Release group: OurTV
-  ```
-
-  Even shorthand like "国语中字" (Mandarin audio, Chinese subs), which only exists on Chinese trackers, splits cleanly into separate subtitle and audio fields — courtesy of a small ML model shipped in the image, not a pile of regexes.
-
-- Just joined a private tracker and need to protect your ratio? Turn on site protection: subscriptions steer around that site while manual search still works, so you can build up your ratio before opening it up.
-
-### Media library
-
-- You open the app to a poster wall. Synopses, ratings, cast, and episode stills are all stored locally — browse it all completely offline.
-- It never demands renaming: point it at your existing directories and it works with them as-is. Letting MovieClaw organize your files is a separate opt-in, off by default — it doesn't touch your disks until you say so.
-- When it isn't sure, it doesn't guess. Ambiguous items land in a *pending identification* queue with a plain-language reason — "3 equally plausible matches; not choosing for you" — and one confirmation resolves the whole group.
-- Scraping is a matter of taste, so it's configurable: language, artwork, naming templates, NFO files, episode stills — all under **Settings → Scraping & Organizing**. Don't like an auto-picked poster? Replace it and lock it in.
-- Not everything is a movie or a show. An **"Other"** library takes home videos, recordings, and anything you'd rather not scrape: nothing gets identified or renamed, a sidecar NFO is honored when present, otherwise the file name is the title, and thumbnails are grabbed from the video itself. Files a movie or TV library can't identify stay visible and playable too, flagged for you to claim later.
-- Photos have a home too. A **"Photos"** library scans every image under its folders and lays them out as a Pinterest-style masonry wall grouped by month, ordered by EXIF capture time. Click any photo to view the original full-screen, zoom with the wheel, flip with the arrow keys. The wall only ever loads thumbnails downscaled from the originals — never the originals themselves.
+- You open the app to a poster wall. Synopses, ratings, cast, and episode stills are all stored locally, so you can browse completely offline.
+- It never demands renaming: point it at your existing directories and it works with them as-is. Letting MovieClaw organize your files is a separate opt-in, off by default.
+- Scraping is a matter of taste, so it's configurable: language, artwork, naming templates, NFO files, episode stills, all under **Settings → Scraping & Organizing**. Don't like an auto-picked poster? Replace it and lock it in.
+- An **"Other"** library takes home videos and recordings: nothing gets identified or renamed, a sidecar NFO is honored when present, and thumbnails are grabbed from the video itself.
+- A **"Photos"** library lays your images out as a masonry wall grouped by month, ordered by EXIF capture time. The wall only ever loads thumbnails.
 
 ### Playback
 
-- Add the server address to Infuse and you're in: MovieClaw looks exactly like a Jellyfin server to third-party players, and watch progress syncs back.
-- Or play straight in the browser — audio tracks, subtitles, and resume positions all there. Direct play whenever possible; transcoding only kicks in for codecs the browser can't handle, and it tells you the cost first.
-- No hardware transcoding on your box? Hand it to a Mac: the remote transcode worker is a menu-bar app for Apple Silicon that encodes through VideoToolbox.
-- On the phone it's the same UI; on iOS, **Add to Home Screen** makes it a standalone app with no address bar.
+- Add the server address to Infuse or VidHub and you're in: MovieClaw looks exactly like a Jellyfin server to third-party players, and watch progress syncs back.
+- Play straight in the browser too. Direct play whenever possible; transcoding only kicks in for codecs the browser can't handle, and it tells you the cost first.
+- No hardware transcoding on your box? Hand it to a Mac: the remote transcoder is a menu-bar app for Apple Silicon that encodes through VideoToolbox.
 
 ### Family & permissions
 
@@ -150,19 +212,7 @@ respects the notch and home-indicator safe areas.
 ### Maintenance
 
 - Updates and rollbacks are buttons in the web UI. Routine upgrades download only a few megabytes, a broken update rolls itself back, and your data is never touched.
-- Errors are written for humans — for the person who deploys things but doesn't write code. (Log and UI messages are currently in Chinese.)
-
-### AI assistant
-
-The assistant needs an LLM connected under **Settings → AI Models** (any OpenAI-compatible
-endpoint). Skip it and everything else still works.
-
-- Talk to your library from WeChat — "subscribe to Three-Body season 2 as soon as it's out" — by text or voice. Telegram and Discord work too. Feishu groups can join as a push-only outlet — paste a custom-bot webhook URL and it's bound.
-- Under the hood, the assistant drives MovieClaw's own CLI rather than guessing at APIs. Ship a new backend endpoint and the assistant gains that ability automatically; long conversations compact their own context. The same CLI is [yours to install](#control-it-from-anywhere) — on any machine, for any agent.
-- Missing subtitles? It makes its own: when none exist in your target language, it finds subtitles in another language, translates them, and saves the result as an external SRT next to the video.
-- Teach it "skills" in plain Markdown: drop a directory with a `SKILL.md` into `data/agent-skills/` (a `description` in the frontmatter, instructions in the body, scripts welcome) and the assistant loads it on its own whenever a web-session task matches — changes take effect immediately, no restart. A skill sharing a name with a built-in one overrides it (the log says so). Details in [`docs/design/agent-skills.md`](docs/design/agent-skills.md).
-
-What the assistant is and isn't allowed to do is covered next.
+- Errors are written for humans, for the person who deploys things but doesn't write code. (Log and UI messages are currently in Chinese.)
 
 ## Boundaries
 
@@ -192,6 +242,12 @@ constraints here are enforced in code, not politely requested in a prompt:
 - Every tool call is visible in the conversation and traceable after the fact — if something goes wrong, you can see exactly which step did it.
 
 ## Quick Start
+
+Got one of these? You're good to go:
+
+- **A NAS**: Synology, QNAP, Unraid, and more, using their built-in Docker apps.
+- **A Mac mini**: runs great on Apple Silicon, and doubles as a transcoding box.
+- **A mini PC, an old computer, or a cloud server**: Linux or Windows, x86 or ARM, all from the same image.
 
 One prerequisite: Docker (Synology's built-in Container Manager counts; other NAS brands
 have their own Docker packages). The official image
