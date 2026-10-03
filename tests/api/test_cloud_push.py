@@ -1082,3 +1082,87 @@ def test_new_version_pushed_once(client: TestClient, world: World) -> None:
         e["key"] for e in _data(_as_app(client, member_bearer, "GET", "/api/v1/push/me"))["events"]
     }
     assert "new_version" not in keys
+
+
+def test_manual_download_imported_once(client: TestClient, world: World) -> None:
+    """手动下载入库推「入库完成」给点下载的人；他开着「媒体库有新片」也不重复。"""
+    from datetime import timedelta
+
+    from movieclaw_api.services.push import arrivals
+    from movieclaw_api.services.push import events as push_events
+    from movieclaw_api.settings import get_setting_store
+    from movieclaw_api.settings.cloud import ArrivalsProgress
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models import FileSource, LibraryFile, MediaItem, utcnow
+    from movieclaw_db.repositories.library_repo import LibraryRepository
+
+    _connect(client, world)
+    _create_member(client)
+    member_bearer = _app_login(client, _MEMBER, installation="manual-m-1", name="家人手机")
+    _, key = _register(client, member_bearer, token="a2" * 32)
+    _data(
+        _as_app(
+            client,
+            member_bearer,
+            "PUT",
+            "/api/v1/push/me/preferences",
+            json={"events": {"library_new": True}},
+        )
+    )
+    relay = world.relays["push.test"]
+    assert client.portal is not None
+
+    async def seed() -> tuple[int, int]:
+        await get_setting_store().set(
+            ArrivalsProgress(started_at=utcnow() - timedelta(seconds=1), marks={})
+        )
+        async with get_database().session() as session:
+            library = await LibraryRepository(session).create(
+                name="电影", kind="movie", root_paths=["/m"]
+            )
+            library.created_at = utcnow() - timedelta(days=3)
+            item = MediaItem(
+                kind="movie", tmdb_id=777001, title="我下载的片", original_title="Mine", year=2024
+            )
+            session.add_all([library, item])
+            await session.commit()
+            await session.refresh(item)
+            session.add(
+                LibraryFile(
+                    library_id=library.id,
+                    media_item_id=item.id,
+                    season_number=0,
+                    episode_number=0,
+                    file_path="/m/我下载的片 (2024)/我下载的片 (2024).mkv",
+                    size_bytes=1,
+                    source=FileSource.IMPORTED,
+                )
+            )
+            await session.commit()
+            return library.id, item.id
+
+    library_id, item_id = client.portal.call(seed)
+    _in_app(
+        client,
+        lambda: push_events.manual_imported(
+            member_ids={1},
+            item_id=item_id,
+            library_id=library_id,
+            title="我下载的片",
+            year=2024,
+            kind="movie",
+            since=utcnow() - timedelta(minutes=5),
+            image_url=None,
+        ),
+    )
+    _wait(lambda: len(relay.messages) >= 1)
+    plain = _open(relay.messages[-1], key)
+    assert plain["title"] == "我下载的片 已入库"
+    assert plain["open"].startswith(f"/library/{library_id}/item/{item_id}")
+
+    async def check() -> int:
+        return await arrivals.check_once(utcnow() + timedelta(minutes=10))
+
+    client.portal.call(check)
+    time.sleep(0.5)
+    assert len(relay.messages) == 1  # 「媒体库有新片」不再推这部

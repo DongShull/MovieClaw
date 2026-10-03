@@ -287,6 +287,8 @@ async def submit_download(
             save_path=derived_path,
             site_id=payload.site_id,
             torrent_id=payload.torrent_id,
+            # 入库时把「入库完成」推给点下载的人；超管、Agent 都记作超管（NULL）
+            submitted_by_member_id=None if principal.is_admin else principal.member_id,
         )
     view = DownloadSubmitView(
         info_hash=result.info_hash,

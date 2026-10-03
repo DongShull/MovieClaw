@@ -30,7 +30,7 @@ PUSH_EVENTS: tuple[PushEvent, ...] = (
     PushEvent(
         "imported",
         "入库完成",
-        "你订阅的电影、剧集整理进媒体库时",
+        "你订阅或手动下载的电影、剧集整理进媒体库时",
         group="我的订阅",
         default=True,
     ),

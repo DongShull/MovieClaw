@@ -29,6 +29,7 @@ from movieclaw_api.services.push.events import (
     _lazy_image,
     _library_path,
     episode_label,
+    manually_downloaded,
 )
 from movieclaw_api.services.push.notify import AlertContent, notify
 from movieclaw_api.settings.cloud import ArrivalsProgress
@@ -241,7 +242,11 @@ def _content(library: Library, arrivals: list[ItemArrival]):  # type: ignore[no-
     images = {a.item.id: _lazy_image(_image_url(a.item)) for a in arrivals}
 
     async def build(session: AsyncSession, member_id: int) -> AlertContent | None:
-        mine = await _subscribed(session, member_id, {a.item.id for a in arrivals if a.item.id})
+        item_ids = {a.item.id for a in arrivals if a.item.id}
+        # 自己订阅的、自己手动下载的都已经收到「入库完成」，这里不重复
+        mine = await _subscribed(session, member_id, item_ids) | manually_downloaded(
+            member_id, item_ids
+        )
         visible = [
             a
             for a in arrivals

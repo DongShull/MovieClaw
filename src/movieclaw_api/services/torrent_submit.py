@@ -457,6 +457,7 @@ async def anchor_manual_download(
     downloader_id: int | None = None,
     download_name: str | None = None,
     save_path: str | None = None,
+    submitted_by_member_id: int | None = None,
 ) -> None:
     """按 infohash 保存手动下载的已确认身份，供监听导入完成后直接认领。
 
@@ -490,6 +491,7 @@ async def anchor_manual_download(
                 save_path=save_path,
                 site_id=site_id,
                 torrent_id=torrent_id,
+                submitted_by_member_id=submitted_by_member_id,
             )
         )
         try:

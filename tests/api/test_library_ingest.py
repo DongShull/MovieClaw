@@ -2294,6 +2294,54 @@ async def test_manual_download_identity_claim_via_info_hash(db, tmp_path, monkey
 
 
 @pytest.mark.asyncio
+async def test_manual_download_import_notifies_submitter(db, tmp_path, monkeypatch):
+    """手动下载入库：把「入库完成」推给点下载的人（docs/design/cloud-push.md §5）。"""
+    from movieclaw_api.services.push import events as push_events
+    from movieclaw_downloader import TorrentBrief
+
+    root, watch = tmp_path / "movies", tmp_path / "watch"
+    watch.mkdir()
+    library_id = await _make_library(db, kind=MediaKind.MOVIE, root=root)
+    item = await _make_item(db, kind=MediaKind.MOVIE, title="我下载的片", year=2024)
+    monkeypatch.setattr(ingest_mod, "probe_media", lambda p: _FAKE_SPEC)
+
+    async def identify_none(session, kind, watch_root, main, spec):
+        return None
+
+    monkeypatch.setattr(ingest_mod, "_identify", identify_none)
+    calls: list[dict] = []
+    monkeypatch.setattr(push_events, "manual_imported", lambda **kw: calls.append(kw))
+    async with db.session() as session:
+        assert item.id is not None
+        session.add(
+            ManualDownloadIntent(
+                info_hash="mine",
+                media_item_id=item.id,
+                library_id=library_id,
+                site_id="mteam",
+                submitted_by_member_id=None,  # 超管点的
+            )
+        )
+        await session.commit()
+
+    async def briefs():
+        return [TorrentBrief(name="Mine", content_name="Mine", completed=True, info_hash="mine")]
+
+    monkeypatch.setattr(ingest_mod, "_downloader_briefs", briefs)
+    entry = watch / "Mine"
+    entry.mkdir()
+    (entry / "video.mkv").write_bytes(b"video")
+    rule = ImportWatch(source_path=str(watch), strategy="hardlink", library_id=None, kind="movie")
+    await ingest_mod._sweep_dir(rule, None, execute_inline=True)
+
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["member_ids"] == {0} and call["item_id"] == item.id
+    assert call["library_id"] == library_id and call["title"] == "我下载的片"
+    assert call["kind"] == "movie" and call["since"] is not None
+
+
+@pytest.mark.asyncio
 async def test_probe_gate_applies_per_file(db, tmp_path, monkeypatch):
     """季包部分探测失败：完整集照常入库，但条目保留 failed 供自动重试。"""
     root, watch = tmp_path / "tv", tmp_path / "watch"

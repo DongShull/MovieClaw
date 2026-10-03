@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import functools
 import logging
+import time
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -257,6 +259,77 @@ def upgraded(
         )
 
     notify("upgraded", subscribers(subscription_id), build)
+
+
+#: 手动下载入库后推过「入库完成」的 (成员, 条目) → 时间。手动下载锚入库即删，
+#: 「媒体库有新片」几分钟后才检查，靠这里知道这部是谁自己下载的、不再重复推。
+#: 只在内存里：服务恰好在这几分钟里重启，最坏是多收一条「媒体库有新片」。
+_recent_manual: dict[tuple[int, int], float] = {}
+_RECENT_MANUAL_S = 3 * 3600
+
+
+def manually_downloaded(member_id: int, item_ids: set[int]) -> set[int]:
+    """这些条目里，这个人最近手动下载、已经推过「入库完成」的。"""
+    now = time.monotonic()
+    for key, at in list(_recent_manual.items()):
+        if now - at > _RECENT_MANUAL_S:
+            del _recent_manual[key]
+    return {i for i in item_ids if (member_id, i) in _recent_manual}
+
+
+@_never_raise
+def manual_imported(
+    *,
+    member_ids: set[int],
+    item_id: int,
+    library_id: int,
+    title: str,
+    year: int | None,
+    kind: str,
+    since: datetime,
+    image_url: str | None,
+) -> None:
+    """手动下载的内容整理进媒体库了：推给点下载的人（与订阅入库同一个开关、同样的文案）。"""
+    now = time.monotonic()
+    for member_id in member_ids:
+        _recent_manual[(member_id, item_id)] = now
+    image = _lazy_image(image_url)
+    name = _display_title(title, year)
+
+    async def build(session: AsyncSession, member_id: int) -> AlertContent | None:
+        from movieclaw_db.models import LibraryFile
+
+        if not await _item_visible(session, member_id, item_id):
+            return None
+        # 这次落库的季集：这个条目在这个库里、本次入库开始之后新建的台账行
+        rows = await session.execute(
+            select(LibraryFile.season_number, LibraryFile.episode_number).where(  # type: ignore[call-overload]
+                LibraryFile.library_id == library_id,
+                LibraryFile.media_item_id == item_id,
+                LibraryFile.created_at >= since,  # type: ignore[operator]
+            )
+        )
+        units = sorted({(int(s), int(e)) for s, e in rows.all()})
+        single = units[0] if len(units) == 1 else None
+        path = await _library_path(session, member_id, item_id, single)
+        label = episode_label(units)
+        if kind == "tv" and label:
+            return AlertContent(
+                title=f"{name} 更新了",
+                body=f"{label}已入库，点开就能看",
+                image=await image(),
+                open=path,
+                thread=f"item-{item_id}",
+            )
+        return AlertContent(
+            title=f"{name} 已入库",
+            body="点开就能看",
+            image=await image(),
+            open=path,
+            thread=f"item-{item_id}",
+        )
+
+    notify("imported", set(member_ids), build)
 
 
 # ----------------------------------------------------------------------
