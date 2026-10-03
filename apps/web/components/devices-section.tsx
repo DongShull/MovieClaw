@@ -39,6 +39,7 @@ import {
   resolveServerAddress,
   revokeConsequence,
 } from "@/lib/devices-display";
+import { TONE_COLOR, devicePushNote } from "@/lib/cloud-push-display";
 import { accessiblePathFor } from "@/lib/permissions";
 import { useSession } from "@/lib/session";
 import { formatDateTime } from "@/lib/time";
@@ -300,6 +301,7 @@ function DeviceRow({
   onRevoke: () => void;
 }) {
   const live = deviceLive(device);
+  const pushNote = devicePushNote(device.push);
   const identity = [
     device.kind_label,
     device.platform,
@@ -348,6 +350,15 @@ function DeviceRow({
         {isStale(device.last_seen_at, device.created_at) && (
           <p className="mt-1 text-caption text-[var(--warn)]">
             已超过 {STALE_AFTER_DAYS} 天没有活跃（不会自动失效），不再使用的话建议注销。
+          </p>
+        )}
+        {/* App 收不到通知时写一行原因；能收到就什么都不写（docs/design/cloud-push.md §8） */}
+        {pushNote && (
+          <p
+            className="mt-1 text-caption"
+            style={{ color: pushNote.tone === "neutral" ? "var(--text-faint)" : TONE_COLOR[pushNote.tone] }}
+          >
+            {pushNote.text}
           </p>
         )}
       </div>
