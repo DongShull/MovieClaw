@@ -122,6 +122,9 @@ dl torrent
 dl torrent delete
 dl torrent replace
 dl update
+dl usage
+dl usage show
+dl usage update
 dl verify
 download
 extension
