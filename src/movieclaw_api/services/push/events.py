@@ -320,3 +320,29 @@ def system_alert(*, dedupe_key: str, source: str, title: str, message: str, payl
         )
 
     notify("system_alert", {0}, build, collapse=("notice", dedupe_key))
+
+
+# ----------------------------------------------------------------------
+# 有新版本（管理员）
+# ----------------------------------------------------------------------
+
+
+@_never_raise
+def new_version(*, version: str, compatible: bool) -> None:
+    """MovieClaw 发布了新版本：推给管理员（调用方保证每个版本只调一次）。"""
+
+    async def build(_session: AsyncSession, _member_id: int) -> AlertContent:
+        how = (
+            "在「设置 → 更新与维护」里一键更新"
+            if compatible
+            else "这个版本要更新 Docker 镜像，步骤见「设置 → 更新与维护」"
+        )
+        return AlertContent(
+            title=f"MovieClaw {version} 可以更新了",
+            body=how,
+            open="/settings/app",
+            thread="update",
+            source="server",
+        )
+
+    notify("new_version", {0}, build, collapse=("update", "app"))

@@ -1026,3 +1026,59 @@ def test_library_new_arrivals(client: TestClient, world: World) -> None:
         return await arrivals.check_once(utcnow())
 
     assert client.portal.call(check_now) == 0
+
+
+def test_new_version_pushed_once(client: TestClient, world: World) -> None:
+    from movieclaw_api.schemas.app_update import UpdateCheckView
+    from movieclaw_api.services import app_update
+
+    _connect(client, world)
+    _create_member(client)
+    admin_bearer = _app_login(client, _ADMIN, installation="ver-admin-1", name="管理员手机")
+    member_bearer = _app_login(client, _MEMBER, installation="ver-member-1", name="家人手机")
+    _, admin_key = _register(client, admin_bearer, token="e1" * 32)
+    _register(client, member_bearer, token="f1" * 32)
+    relay = world.relays["push.test"]
+    relay.messages.clear()
+
+    def check(version: str) -> None:
+        view = UpdateCheckView(
+            current_version="0.30.0",
+            latest_version=version,
+            update_available=True,
+            compatible=True,
+            requires_runtime=17,
+            changelog="",
+            published_at="",
+            latest_known_bad=False,
+        )
+
+        async def go() -> None:
+            await app_update._record_app_check(view)
+
+        assert client.portal is not None
+        client.portal.call(go)
+
+    check("0.31.0")
+    _wait(lambda: len(relay.messages) >= 1)
+    time.sleep(0.3)
+    assert [m["token"] for m in relay.messages] == ["e1" * 32]  # 只推管理员
+    plain = _open(relay.messages[-1], admin_key)
+    assert plain["title"] == "MovieClaw 0.31.0 可以更新了" and plain["open"] == "/settings/app"
+
+    check("0.31.0")  # 每小时的检查不会反复推同一个版本
+    time.sleep(0.5)
+    assert len(relay.messages) == 1
+    check("0.31.1")
+    _wait(lambda: len(relay.messages) >= 2)
+
+    # 管理员关掉这一项就不推
+    _data(client.put("/api/v1/push/me/preferences", json={"events": {"new_version": False}}))
+    check("0.32.0")
+    time.sleep(0.5)
+    assert len(relay.messages) == 2
+    # 成员看不到这个开关
+    keys = {
+        e["key"] for e in _data(_as_app(client, member_bearer, "GET", "/api/v1/push/me"))["events"]
+    }
+    assert "new_version" not in keys

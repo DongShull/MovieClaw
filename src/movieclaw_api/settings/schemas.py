@@ -543,6 +543,8 @@ class AppUpdateStateSetting(SettingSchema):
     app_changelog: str = Field(default="", description="该版本的 Release 说明（Markdown 原文）")
     app_published_at: str = Field(default="", description="该版本的发布时间（ISO8601）")
     model_latest_tag: str = Field(default="", description="可更新的 NER 模型 tag；空 = 无可用更新")
+    # 「有新版本」推送（docs/design/cloud-push.md §5）：每个版本只推一次
+    app_pushed_version: str = Field(default="", description="已经推送过「有新版本」的版本号")
     # 镜像基线版本：跑基线代码时（MOVIECLAW_CODE_SOURCE=baseline）由启动流程
     # 记下 __version__。overlay 运行期读不到基线代码的版本号，回退列表要向
     # 用户明示「回落镜像内置版本 = 回到 v 几」，只能靠这份历史记录
