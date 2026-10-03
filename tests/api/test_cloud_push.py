@@ -205,7 +205,10 @@ class FakeRelay:
                     result = {"id": m["id"], "result": code}
                     if code == "rate_limited":
                         result.update(
-                            reason="day", limit="day", retry_after=3600, message="今天的推送已达上限"
+                            reason="day",
+                            limit="day",
+                            retry_after=3600,
+                            message="今天的推送已达上限",
                         )
                 results.append(result)
             return httpx.Response(
@@ -612,7 +615,9 @@ def test_push_end_to_end_through_official_relay(client: TestClient, world: World
     assert plain["open"] == "/settings/notifications"
 
     # 待处理事项 → 推给管理员，同一个问题用同一个 collapse_id
-    _raise_notice(client, "site:mteam", source="site", title="站点登录失效", message="请更新 Cookie")
+    _raise_notice(
+        client, "site:mteam", source="site", title="站点登录失效", message="请更新 Cookie"
+    )
     _wait(lambda: len(relay.messages) >= 2)
     alert = relay.messages[-1]
     plain = _open(alert, key)
@@ -1241,6 +1246,8 @@ def test_manual_download_landing_in_library_folder(client: TestClient, world: Wo
     他开着「媒体库有新片」也不重复；别的家人照常收到「媒体库有新片」。"""
     from datetime import timedelta
 
+    from sqlmodel import select
+
     from movieclaw_api.services.push import arrivals
     from movieclaw_api.services.push import downloads as push_downloads
     from movieclaw_api.settings import get_setting_store
@@ -1248,7 +1255,6 @@ def test_manual_download_landing_in_library_folder(client: TestClient, world: Wo
     from movieclaw_db.engine import get_database
     from movieclaw_db.models import FileSource, LibraryFile, MediaItem, PushDownloadWatch, utcnow
     from movieclaw_db.repositories.library_repo import LibraryRepository
-    from sqlmodel import select
 
     _connect(client, world)
     _create_member(client)
@@ -1329,7 +1335,8 @@ def test_manual_download_landing_in_library_folder(client: TestClient, world: Wo
 
     async def watches() -> list[str]:
         async with get_database().session() as session:
-            return [w.info_hash for w in (await session.execute(select(PushDownloadWatch))).scalars()]
+            rows = (await session.execute(select(PushDownloadWatch))).scalars()
+            return [w.info_hash for w in rows]
 
     assert client.portal.call(watches) == []  # 对上就用掉了
     relay.messages.clear()
@@ -1440,10 +1447,11 @@ def test_registration_survives_cold_start_and_token_races(
     client: TestClient, world: World
 ) -> None:
     """冷启动先只报了权限：已有的令牌留着；关了通知才清。旧令牌的失效结果不动新登记。"""
+    from sqlmodel import select
+
     from movieclaw_api.services.push import registration
     from movieclaw_db.engine import get_database
     from movieclaw_db.models import LoginDevice
-    from sqlmodel import select
 
     _connect(client, world)
     bearer = _app_login(client, _ADMIN, installation="cold-1-install", name="iPhone")
@@ -1489,9 +1497,10 @@ def test_shared_phone_uses_the_account_still_on_it(client: TestClient, world: Wo
     共同的通知用还在手机上的那个账号的密钥；只给已退出那个账号的，不再推到这台手机。"""
     from datetime import timedelta
 
+    from sqlalchemy import update
+
     from movieclaw_db.engine import get_database
     from movieclaw_db.models import LoginDevice, utcnow
-    from sqlalchemy import update
 
     _connect(client, world)
     _create_member(client)
