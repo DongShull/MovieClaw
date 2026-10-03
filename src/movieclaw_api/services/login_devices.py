@@ -161,6 +161,7 @@ async def issue(
     「同设备覆盖」不同）。
     """
     installation_id = _clip(installation_id, 128)
+    replaced: list[LoginDevice] = []
     if installation_id:
         replaced = await _delete_where(
             session,
@@ -200,6 +201,18 @@ async def issue(
         row.id,
         "超管" if member_id == 0 else f"成员 #{member_id}",
     )
+    # 新设备登录：告诉本人的其他设备（docs/design/cloud-push.md §5）。网页登录太频繁、
+    # 同一台设备重新登录（替换旧凭证）也不算新设备，都不推
+    if kind != "web" and not replaced:
+        from movieclaw_api.services.push import events as push_events
+
+        push_events.new_device(
+            member_id=member_id,
+            device_id=row.id or 0,
+            name=row.name,
+            kind_label=spec_of(kind).label,
+            ip=ip or None,
+        )
     return plaintext, row
 
 

@@ -267,6 +267,13 @@ def build_lifespan(settings: Settings):
         from movieclaw_api.services.im_channel import init_im_channels
 
         await init_im_channels()
+        # MovieClaw Cloud：已连接就起续签循环，未连接时对云端不发任何请求；推送通道的
+        # 能力快照（/v1/info）每半小时检查一次是否过期（docs/design/cloud-push.md §2、§3）
+        from movieclaw_api.services.cloud import init_cloud_service
+        from movieclaw_api.services.push.channels import start_refresh_loop
+
+        await init_cloud_service()
+        start_refresh_loop()
         # Jellyfin 兼容层的局域网自动发现（UDP 7359）：开关关闭/端口被占时
         # 内部自行降级，不阻断启动
         from movieclaw_jellyfin.udp import start_discovery
@@ -343,6 +350,11 @@ def build_lifespan(settings: Settings):
             from movieclaw_api.services.im_channel import close_im_channels
 
             await close_im_channels()
+            from movieclaw_api.services.cloud import close_cloud_service
+            from movieclaw_api.services.push.channels import stop_refresh_loop
+
+            await stop_refresh_loop()
+            await close_cloud_service()
             # 持久化任务先在安全边界暂停并退回数据库队列，必须早于 LLM 与
             # 数据库释放；下次启动会由租约与领域检查点直接继续。
             from movieclaw_api.services.jobs import close_job_dispatcher

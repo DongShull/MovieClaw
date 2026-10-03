@@ -680,6 +680,15 @@ _MEMBER_ALLOWLIST = {
     ("POST", "/api/v1/subscriptions/{subscription_id}/missing-resource-searches"),
     # 一轮洗版与「立即搜索」同口径：订阅能力 + 归属校验（路由内 assert_can_manage）
     ("POST", "/api/v1/subscriptions/{subscription_id}/upgrade-runs"),
+    # App 推送（docs/design/cloud-push.md §7.3）：每个人只管自己的通知开关、设备状态、
+    # 测试通知；App 登记只认这台设备自己的凭证（服务层判定，网页会话登记不了）
+    ("GET", "/api/v1/push/me"),
+    ("PUT", "/api/v1/push/me/preferences"),
+    ("POST", "/api/v1/push/me/test"),
+    ("PUT", "/api/v1/push/me/registration"),
+    ("DELETE", "/api/v1/push/me/registration"),
+    # 推送配图：公开区（地址自带签名），成员自然可达
+    ("GET", "/api/v1/push/images/{token}"),
 }
 
 # 路径参数哑值（与 test_auth.py 的匿名守护测试保持一致）
@@ -734,6 +743,9 @@ _PATH_DUMMIES = {
     "{key}": "cache.images",
     # 播放体验记录的播放编号
     "{attempt_id}": "test-attempt",
+    # App 推送的自建中继、推送配图的签名
+    "{relay_id}": "r_test",
+    "{token}": "no-such-image",
 }
 
 

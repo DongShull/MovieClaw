@@ -153,6 +153,28 @@ var knownNonGenerated = []string{
 	"reels.feed",
 	"reels.facets",
 	"reels.events",
+	// MovieClaw Cloud 与 App 推送（docs/design/cloud-push.md）：连接要在官网批准、看配对码，
+	// 推送通道、通知开关、App 登记都是设置页和 App 的事，命令行没有对应形态
+	"cloud.status",
+	"cloud.pairing.start",
+	"cloud.pairing.cancel",
+	"cloud.renew",
+	"cloud.disconnect",
+	"cloud.settings.set",
+	"cloud.notices.dismiss",
+	"push.channels.list",
+	"push.channels.official.set",
+	"push.relays.probe",
+	"push.relays.create",
+	"push.relays.update",
+	"push.relays.delete",
+	"push.relays.refresh",
+	"push.me.show",
+	"push.me.preferences.set",
+	"push.me.test",
+	"push.me.registration.set",
+	"push.me.registration.delete",
+	"push.images.get",
 }
 
 // TestNonGeneratedEndpointsAreAllKnown 强制新端点显式表态：进命令树，或登记豁免。

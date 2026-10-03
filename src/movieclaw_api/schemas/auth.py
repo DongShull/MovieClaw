@@ -241,6 +241,15 @@ class DeviceLoginRequest(BaseModel):
     client: DeviceClientInfo
 
 
+class DevicePushView(BaseModel):
+    """App 设备能不能收到推送（docs/design/cloud-push.md §4）。界面只在不是 ok 时提示。"""
+
+    status: str = Field(
+        description="ok / permission_denied / no_channel / bad_token / not_registered"
+    )
+    status_text: str
+
+
 class LoginDeviceView(BaseModel):
     """「我的设备」列表里的一台设备（登录设备或 Jellyfin 播放器）。"""
 
@@ -272,6 +281,9 @@ class LoginDeviceView(BaseModel):
     owner_id: int = Field(description="主人：成员 id；0 = 超管")
     owner_username: str
     owner_nickname: str
+    push: DevicePushView | None = Field(
+        default=None, description="推送状态；只有 App 类设备、且在设备列表里才有"
+    )
 
 
 class DeviceLoginView(BaseModel):

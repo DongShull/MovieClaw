@@ -297,6 +297,13 @@ class Settings(BaseSettings):
     update_manifest_pubkey: str = Field(default="", alias="UPDATE_MANIFEST_PUBKEY")
 
     # ------------------------------------------------------------------
+    # MovieClaw Cloud（docs/design/cloud-push.md）
+    # ------------------------------------------------------------------
+    # 云端 api 地址：写进每个版本、上线后不改；开发、预发环境和分支版本用环境变量
+    # 覆盖。之后的认领、续签以发现文档里的 api 为准。未连接时实例对它不发任何请求。
+    cloud_url: str = Field(default="https://api.movieclaw.io", alias="MOVIECLAW_CLOUD_URL")
+
+    # ------------------------------------------------------------------
     # 定时任务调度配置
     # ------------------------------------------------------------------
     # 调度总开关：置 false 可让部署者完全关掉定时任务（如临时排障、多实例部署时

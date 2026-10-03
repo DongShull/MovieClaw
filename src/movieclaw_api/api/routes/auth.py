@@ -59,6 +59,7 @@ from movieclaw_api.schemas.auth import (
     DeviceBrief,
     DeviceLoginRequest,
     DeviceLoginView,
+    DevicePushView,
     DeviceRequestView,
     DeviceTokenRequest,
     DeviceTokenView,
@@ -77,6 +78,8 @@ from movieclaw_api.services import avatar as avatar_media
 from movieclaw_api.services import login_devices
 from movieclaw_api.services import members as members_service
 from movieclaw_api.services.auth import Principal, SavedAccount
+from movieclaw_api.services.push import me as push_me
+from movieclaw_api.services.push import registration as push_registration
 from movieclaw_api.settings import (
     AdminAccountSetting,
     AppServerSetting,
@@ -934,9 +937,14 @@ def _device_view(
     principal: Principal,
     owners: dict[int, tuple[str, str]],
     connected: set[int] | None = None,
+    push_channels: list | None = None,
 ) -> LoginDeviceView:
     assert device.id is not None
     spec = login_devices.spec_of(device.kind)
+    push = None
+    if push_channels is not None and device.kind in push_registration.PUSH_KINDS:
+        status, text, _channel = push_me.device_status(device, push_channels)
+        push = DevicePushView(status=status, status_text=text)
     username, nickname = owners.get(device.member_id, (f"#{device.member_id}", "已删除的成员"))
     return LoginDeviceView(
         id=login_devices.playback_device_id(device.id),
@@ -957,6 +965,7 @@ def _device_view(
         owner_id=device.member_id,
         owner_username=username,
         owner_nickname=nickname,
+        push=push,
     )
 
 
@@ -1041,8 +1050,18 @@ async def list_devices(
     owner_filter = None if all_members else principal.owner_id
     owners = await _owner_labels(session)
     connected = _connected_device_ids()
+    # 推送状态挂在设备上：没问题时界面什么都不显示，只在收不到通知的设备下面写原因
+    from movieclaw_api.services.push.channels import load_channels
+
+    push_channels = await load_channels()
     views = [
-        _device_view(row, principal=principal, owners=owners, connected=connected)
+        _device_view(
+            row,
+            principal=principal,
+            owners=owners,
+            connected=connected,
+            push_channels=push_channels,
+        )
         for row in await login_devices.list_devices(session, member_id=owner_filter)
     ]
     stmt = select(JellyfinDevice)

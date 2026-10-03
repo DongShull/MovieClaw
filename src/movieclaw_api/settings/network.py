@@ -55,6 +55,17 @@ BUILTIN_EGRESS_SERVICES: list[dict[str, str]] = [
         "endpoint 可单独选择直连（默认）或走代理",
     },
     {
+        "id": "movieclaw_cloud",
+        "label": "MovieClaw Cloud",
+        "description": "连接、续签与上报（api.movieclaw.io）；未连接时不发任何请求",
+    },
+    {
+        "id": "movieclaw_push",
+        "label": "App 推送",
+        "description": "推送中继（官方 push.movieclaw.io 与公网上的自建中继）；"
+        "局域网里的自建中继总是直连",
+    },
+    {
         "id": "github",
         "label": "GitHub 更新",
         "description": "应用内更新的检查与产物下载（api.github.com / github.com），"

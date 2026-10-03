@@ -451,6 +451,19 @@ async def dispatch(
             event="dispatch",
             image_url=tmdb_push_image_url(item.backdrop_path, item.poster_path),
         )
+        # App 推送：推给订阅的人，后台发送（docs/design/cloud-push.md §5）
+        from movieclaw_api.services.push import events as push_events
+
+        push_events.download_started(
+            subscription_id=subscription.id,
+            item_id=item.id,
+            title=item.title,
+            year=item.year,
+            units=[(w.season_number, w.episode_number) for w in all_targets],
+            detail=candidate.attrs.resolution or "",
+            upgrade=bool(upgrade_rows and not claimed),
+            image_url=tmdb_push_image_url(item.backdrop_path, item.poster_path),
+        )
         # 事件 Webhook(与 IM 推送同点位:种子已真实提交,事件即事实)
         from movieclaw_api.services.subscription.events import build_download_started_event
         from movieclaw_api.services.webhook import emit_events
