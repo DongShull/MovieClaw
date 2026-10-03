@@ -346,22 +346,25 @@ struct PushPayloadTests {
 struct PushTapTargetTests {
     private let nas = PushLoginInfo(origin: "http://192.168.1.10:3000", username: "Dad", serverName: "192.168.1.10:3000", accountName: "爸爸")
 
-    /// 通知扩展解开时写进 userInfo 的 key_id 和 open
-    @Test func readsWhatTheExtensionWrote() {
+    /// 中继能在推送里随便加键：冒充「点开去哪」的键一律不认，只认解得开的密文
+    @Test func ignoresKeysTheRelayCouldForge() throws {
         let isolated = IsolatedStore()
         defer { isolated.tearDown() }
         isolated.store.save(PushCryptoTests.vectorKey, keyID: PushCryptoTests.vectorKeyID, for: nas)
-        let target = PushTapTarget(userInfo: ["mc_key_id": PushCryptoTests.vectorKeyID, "mc_open": "/subscriptions/42"], store: isolated.store)
+        // 密文是乱码、旁边塞了「去批准一台设备」：什么都不做
+        #expect(PushTapTarget(userInfo: ["mc_key_id": PushCryptoTests.vectorKeyID, "mc_open": "/activate?code=EVIL-CODE",
+                                         "e": "v1.\(PushCryptoTests.vectorKeyID).AAAA.BBBB"], store: isolated.store) == nil)
+        // 密文解得开：按明文里的 open 走，旁边塞的键不管
+        let payload = try PushCrypto.seal(Data(#"{"v":1,"type":"alert","title":"T","open":"/subscriptions/42"}"#.utf8),
+                                          key: PushCryptoTests.vectorKey, keyID: PushCryptoTests.vectorKeyID)
+        let target = PushTapTarget(userInfo: ["mc_open": "/activate?code=EVIL-CODE", "e": payload], store: isolated.store)
         #expect(target == PushTapTarget(login: nas, openPath: "/subscriptions/42"))
         #expect(target?.login.server == ServerAddress(origin: URL(string: "http://192.168.1.10:3000")!))
         #expect(AppRoute(webPath: target?.openPath ?? "") == .subscription(id: 42), "用现有的网页路径路由打开")
-
-        let switchOnly = PushTapTarget(userInfo: ["mc_key_id": PushCryptoTests.vectorKeyID], store: isolated.store)
-        #expect(switchOnly == PushTapTarget(login: nas, openPath: nil), "没有 open：只切到那个账号")
     }
 
-    /// 扩展没解开（当时读不到密钥）：App 自己再解一次
-    @Test func fallsBackToDecryptingInTheApp() throws {
+    /// 点开时在 App 里解密：从明文取是哪个登录、去哪
+    @Test func decryptsInTheApp() throws {
         let isolated = IsolatedStore()
         defer { isolated.tearDown() }
         isolated.store.save(PushCryptoTests.vectorKey, keyID: PushCryptoTests.vectorKeyID, for: nas)
@@ -379,7 +382,7 @@ struct PushTapTargetTests {
     @Test func unknownLoginsAreIgnored() {
         let isolated = IsolatedStore()
         defer { isolated.tearDown() }
-        #expect(PushTapTarget(userInfo: ["mc_key_id": "unknownkey1", "mc_open": "/x"], store: isolated.store) == nil)
+        #expect(PushTapTarget(userInfo: ["mc_open": "/x"], store: isolated.store) == nil)
         #expect(PushTapTarget(userInfo: ["e": PushCryptoTests.vectorPayload], store: isolated.store) == nil)
         #expect(PushTapTarget(userInfo: ["aps": ["alert": "你有一条新通知"]], store: isolated.store) == nil)
     }
@@ -387,6 +390,26 @@ struct PushTapTargetTests {
 
 struct PushRegistrationTests {
     private let key: PushKeyStore.Key = ("k7Qm2xP9Hn4", PushCryptoTests.vectorKey)
+
+    /// APNs 环境按签名里的 aps-environment：描述文件是 CMS 签名包着的 plist，前后都是二进制
+    @Test func apsEnvironmentComesFromTheProvisioningProfile() {
+        func profile(_ environment: String) -> Data {
+            var data = Data([0x30, 0x82, 0x4E, 0x00, 0xFF, 0x01])
+            data.append(Data("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0"><dict><key>Name</key><string>MovieClaw Dev</string>
+            <key>Entitlements</key><dict><key>aps-environment</key><string>\(environment)</string></dict></dict></plist>
+            """.utf8))
+            data.append(Data([0xA0, 0x82, 0x0B, 0x00]))
+            return data
+        }
+        #expect(PushCenter.apsEnvironment(provisioningProfile: profile("development")) == "development")
+        #expect(PushCenter.apsEnvironment(provisioningProfile: profile("production")) == "production",
+                "Ad Hoc / 企业分发的描述文件是 production")
+        #expect(PushCenter.apsEnvironment(provisioningProfile: nil) == nil, "App Store、TestFlight 的包里没有描述文件")
+        #expect(PushCenter.apsEnvironment(provisioningProfile: Data("garbage".utf8)) == nil)
+    }
 
     @Test func authorizedWithTokenSendsKey() throws {
         let body = API.PushRegistrationRequest.make(permission: .authorized, apnsToken: "a1b2c3", topic: "io.movieclaw.app",

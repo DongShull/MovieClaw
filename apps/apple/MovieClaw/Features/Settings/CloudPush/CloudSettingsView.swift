@@ -245,13 +245,13 @@ private struct CloudSettingsContent: View {
             }
             .accessibilityIdentifier("cloud-disconnect")
         } footer: {
-            Text("家人手机上的官方推送会在 5 分钟内停止。自建推送中继不受影响。")
+            Text("家人手机上的官方推送会立即停止。自建推送中继不受影响。")
         }
     }
 
     /// 断开要二次确认；云端连不上时再问一次，确认后只删这台服务器上的凭证
     private func disconnect() async {
-        guard await feedback.confirm("断开 MovieClaw Cloud？", message: "家人手机上的官方推送会在 5 分钟内停止。自建推送中继不受影响。",
+        guard await feedback.confirm("断开 MovieClaw Cloud？", message: "家人手机上的官方推送会立即停止。自建推送中继不受影响。",
                                      confirmTitle: "断开", destructive: true) else { return }
         do {
             try await connection.disconnect(force: false)
@@ -300,7 +300,8 @@ private struct CloudSettingsContent: View {
     }
 
     private func limitsText(_ limits: [String: Int]) -> String {
-        guard let day = limits["day"] else { return "给登录了这台服务器的手机发通知" }
+        // 负数是不限（云端协议），不写「每天最多 -1 条」
+        guard let day = limits["day"], day > 0 else { return "给登录了这台服务器的手机发通知" }
         return "给登录了这台服务器的手机发通知，每天最多 \(day) 条"
     }
 

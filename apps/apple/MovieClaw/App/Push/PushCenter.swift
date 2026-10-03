@@ -8,10 +8,13 @@ import UserNotifications
 ///   还有账号安全、管理员告警，等第一次订阅再问就晚了。系统只会弹一次，之后每次启动只读取当前状态。
 /// - **登记**：给本机保存的每一个登录（每台服务器 × 每个账号）各登记一次：每个登录一把自己的密钥
 ///   （`PushKeyStore`），用那个登录自己的设备令牌调 `PUT /push/me/registration`。每次启动、每次新登录、
-///   APNs 令牌变化、回到前台时权限变了都重新登记，内容没变的不重复发。用户关掉了通知、拿不到 APNs 令牌
-///   （模拟器、没有推送权限的侧载包）时只上报权限状态。登记失败只记日志，不打扰用户。
-/// - **点开**：按 `key_id` 认出是哪个登录，记进 `pendingTap`；主界面出来后由它切账号、打开 `open`
-///   （见 MainTabView.openPushTarget）。人在欢迎页时不跳转（见 RootView）。
+///   APNs 令牌变化、回到前台都登记一遍：内容没变、今天已经登记过的不重复发，没登记成功的下次接着登——
+///   每天至少一次，服务器据此认出哪些账号还在这台手机上。APNs 回话（拿到令牌或失败）之前不登记：
+///   上次的令牌存在本机先用着，冷启动抢在令牌前只报权限会让服务器以为这台设备没有令牌。用户关掉了通知、
+///   拿不到 APNs 令牌（模拟器、没有推送权限的侧载包）时只上报权限。服务器说这个登录已失效（401）就删掉
+///   它的令牌和推送密钥；别的失败只记日志，不打扰用户。
+/// - **点开**：在 App 里重新解密，从明文认出是哪个登录、打开哪里，记进 `pendingTap`；主界面出来后由它切账号、
+///   打开 `open`（见 MainTabView.openPushTarget）。人在欢迎页时不跳转（见 RootView）。
 @Observable
 final class PushCenter: NSObject {
     static let shared = PushCenter()
@@ -23,7 +26,10 @@ final class PushCenter: NSObject {
     /// 每登记完一轮加一：「通知」页据此刷新「我的设备」
     private(set) var registrationRound = 0
 
-    @ObservationIgnored private var apnsToken: String?
+    /// APNs 令牌：上次拿到的存在本机，这次启动拿到新的再换
+    @ObservationIgnored private var apnsToken: String? = UserDefaults.standard.string(forKey: PushCenter.apnsTokenKey)
+    /// 这次启动里 APNs 回过话了（拿到令牌或失败）。回话之前不登记
+    @ObservationIgnored private var apnsAnswered = false
     @ObservationIgnored private var syncing = false
     @ObservationIgnored private var syncAgain = false
     /// 这次运行里每个登录最近一次登记成功的内容（设备令牌 + 登记内容的摘要）：没变就不重复登记
@@ -31,6 +37,7 @@ final class PushCenter: NSObject {
     @ObservationIgnored private var foregroundObserver: (any NSObjectProtocol)?
 
     private nonisolated static let log = Logger(subsystem: "io.movieclaw.push", category: "registration")
+    private static let apnsTokenKey = "movieclaw.push.apnsToken"
 
     // MARK: - 启动
 
@@ -46,18 +53,25 @@ final class PushCenter: NSObject {
             await refreshPermission()
             // 每次启动都向 APNs 注册（不弹任何框）：令牌可能变了；拒绝了通知也照样拿，以后打开就能直接收到
             UIApplication.shared.registerForRemoteNotifications()
+            // 上次退出、移除账号时没能在服务器上注销的，再试一次
+            await FirstFrameGate.wait()
+            await PendingRevocations.retry()
         }
     }
 
     func didRegister(deviceToken: Data) {
-        apnsToken = deviceToken.map { String(format: "%02x", $0) }.joined()
+        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        apnsToken = token
+        apnsAnswered = true
+        UserDefaults.standard.set(token, forKey: Self.apnsTokenKey)
         Task { await sync() }
     }
 
-    /// 模拟器、没有推送权限的包拿不到令牌：只上报权限
+    /// 拿不到令牌：模拟器、没有推送权限的包从来就没有，只上报权限；以前拿到过的（这次只是一时连不上 APNs）
+    /// 接着用上次的
     func didFailToRegister(_ error: any Error) {
         Self.log.info("APNs 注册失败：\(error.localizedDescription, privacy: .public)")
-        apnsToken = nil
+        apnsAnswered = true
         Task { await sync() }
     }
 
@@ -94,14 +108,15 @@ final class PushCenter: NSObject {
         await sync()
     }
 
-    /// 回到前台：权限在系统设置里改过就重新登记（允许了要带上令牌，关掉了要告诉服务器别再发）
+    /// 回到前台：再登记一遍（权限在系统设置里改过要告诉服务器；上次没登记成功的接着登；内容没变的不重复发），
+    /// 没能在服务器上注销的再试一次
     private func returnedToForeground() {
         Task {
             let before = permission
             await refreshPermission()
-            guard permission != before else { return }
-            UIApplication.shared.registerForRemoteNotifications()
+            if permission != before { UIApplication.shared.registerForRemoteNotifications() }
             await sync()
+            await PendingRevocations.retry()
         }
     }
 
@@ -133,7 +148,11 @@ final class PushCenter: NSObject {
     }
 
     private func registerAll() async {
+        // APNs 还没回话：等它（回话时会再来一轮）。用户关了通知不用等，只报权限
+        guard apnsAnswered || permission == .denied else { return }
         let store = PushKeyStore.shared
+        // 每天至少登记一次：服务器按「最近一次登记」认出哪些账号还在这台手机上（cloud-push.md §5）
+        let day = Int(Date().timeIntervalSince1970 / 86_400)
         var jobs: [Job] = []
         for login in Self.savedLogins() {
             let body = API.PushRegistrationRequest.make(permission: permission, apnsToken: apnsToken, topic: Self.topic,
@@ -141,38 +160,56 @@ final class PushCenter: NSObject {
             var hasher = Hasher()
             hasher.combine(login.token)
             hasher.combine(body)
+            hasher.combine(day)
             let fingerprint = hasher.finalize()
             guard registered[login.info.login.account] != fingerprint else { continue }
-            jobs.append(Job(account: login.info.login.account, host: login.server.hostLabel,
+            jobs.append(Job(account: login.info.login.account, server: login.server, username: login.info.username,
                             client: APIClient(server: login.server, token: login.token), body: body, fingerprint: fingerprint))
         }
         guard !jobs.isEmpty else { return }
         // 各台服务器同时登记：一台连不上不耽误别的
-        let done = await withTaskGroup(of: (String, Int)?.self) { group in
+        let results = await withTaskGroup(of: (Job, Outcome).self) { group in
             for job in jobs {
                 group.addTask {
                     do {
                         _ = try await job.client.pushMeRegistrationSet(body: job.body)
-                        return (job.account, job.fingerprint)
+                        return (job, .registered)
+                    } catch let error as APIError where error.isUnauthorized {
+                        return (job, .loginExpired)
                     } catch {
-                        // 只记日志：服务器还不支持推送（404）、连不上、令牌失效（401 由全局处理）都不打扰用户
-                        Self.log.info("推送登记失败 \(job.host, privacy: .public)：\(error.localizedDescription, privacy: .public)")
-                        return nil
+                        // 只记日志：服务器还不支持推送（404）、连不上都不打扰用户，回到前台再试
+                        Self.log.info("推送登记失败 \(job.server.hostLabel, privacy: .public)：\(error.localizedDescription, privacy: .public)")
+                        return (job, .failed)
                     }
                 }
             }
-            var done: [(String, Int)] = []
-            for await result in group {
-                if let result { done.append(result) }
-            }
-            return done
+            var results: [(Job, Outcome)] = []
+            for await result in group { results.append(result) }
+            return results
         }
-        for (account, fingerprint) in done { registered[account] = fingerprint }
+        for (job, outcome) in results {
+            switch outcome {
+            case .registered:
+                registered[job.account] = job.fingerprint
+            case .loginExpired:
+                // 这个登录在服务器上已经失效（被注销、改了密码）：令牌和推送密钥一起删掉，账号快照留着，
+                // 点它时重新输密码（同 AppModel.refreshAccounts）
+                Self.log.info("推送登记：\(job.server.hostLabel, privacy: .public) 上的登录已失效，删掉本机令牌")
+                TokenVault.delete(server: job.server, username: job.username)
+            case .failed:
+                break
+            }
+        }
+    }
+
+    private enum Outcome: Sendable {
+        case registered, loginExpired, failed
     }
 
     private struct Job: Sendable {
         var account: String
-        var host: String
+        var server: ServerAddress
+        var username: String
         var client: APIClient
         var body: API.PushRegistrationRequest
         var fingerprint: Int
@@ -193,13 +230,28 @@ final class PushCenter: NSObject {
     /// 推送的 Bundle ID（自己打包的 App 是自己的 Bundle ID，实例据此选通道）
     static var topic: String { Bundle.main.bundleIdentifier ?? "" }
 
-    /// 调试版走 APNs 的开发环境，TestFlight 与 App Store 是生产环境
-    static var environment: String {
-        #if DEBUG
-        "development"
+    /// APNs 环境：按这个包签名里的 `aps-environment` 定，不按编译配置——Release 配置用开发证书签名的包
+    /// （Xcode 的 Profile、自己用开发方式导出的包）拿到的是沙盒令牌，报成 production 苹果会说令牌无效。
+    /// App Store 和 TestFlight 的包里没有描述文件，是 production；模拟器是 development
+    static let environment: String = {
+        #if targetEnvironment(simulator)
+        return "development"
         #else
-        "production"
+        return apsEnvironment(provisioningProfile: Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision")
+            .flatMap { try? Data(contentsOf: $0) }) ?? "production"
         #endif
+    }()
+
+    /// 从描述文件（`embedded.mobileprovision`，CMS 签名包着一份 plist）里读 `aps-environment`
+    nonisolated static func apsEnvironment(provisioningProfile data: Data?) -> String? {
+        guard let data, let text = String(data: data, encoding: .isoLatin1),
+              let start = text.range(of: "<?xml"), let end = text.range(of: "</plist>", range: start.upperBound..<text.endIndex),
+              let plistData = String(text[start.lowerBound..<end.upperBound]).data(using: .isoLatin1),
+              let plist = try? PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any],
+              let entitlements = plist["Entitlements"] as? [String: Any],
+              let environment = entitlements["aps-environment"] as? String
+        else { return nil }
+        return environment == "development" ? "development" : "production"
     }
 
     /// 包里有通知扩展：未签名的侧载包（scripts/build-unsigned-ipa.sh）去掉了它，也没有推送权限，收不到推送

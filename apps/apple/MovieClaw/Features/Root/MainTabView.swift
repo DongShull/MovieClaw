@@ -257,6 +257,10 @@ struct MainTabView: View {
         .onChange(of: push.pendingTap, initial: true) { _, target in
             openPushTarget(target, permissions: permissions)
         }
+        .onChange(of: router.player == nil) { _, closed in
+            // 播放时点开了别的账号的通知：播放器关掉后接着处理
+            if closed { openPushTarget(push.pendingTap, permissions: permissions) }
+        }
         .onAppear { if scenePhase == .active { wasActive = true } }
         .onDisappear {
             // 会话过期被打回登录页：记下此刻的位置，重新登录后回到这里（Web 401 → /login?next=原路径）
@@ -386,7 +390,8 @@ extension MainTabView {
             push.pendingTap = nil
             return
         }
-        guard !switchingAccount else { return }
+        // 正在播放时不切账号（切账号会把主界面连同播放器整个重建）：留着，关掉播放器后再切
+        guard router.player == nil, !switchingAccount else { return }
         switchingAccount = true
         Task {
             defer { switchingAccount = false }

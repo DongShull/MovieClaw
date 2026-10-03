@@ -9,9 +9,9 @@ import UserNotifications
 /// 1. 按密文里的 `key_id` 从 App Group 共享的钥匙串取这个登录的密钥，解密、校验 `type`；
 /// 2. 换上真正的标题、副标题、正文、分组（按服务器分开）、类别、声音；按明文的 `source` 在副标题标出服务器或账号
 ///    （本机连了多台服务器 / 同一台上登了多个账号时才标，内容类通知不标）；
-/// 3. 有配图时从「服务器地址 + 路径」下载（路径带签名，不用登录），5 秒内拿不到就不带图；
-/// 4. 把 `open` 和 `key_id` 写进 userInfo，App 点开时据此切账号、跳页面。
+/// 3. 有配图时从「服务器地址 + 路径」下载（路径带签名，不用登录），5 秒内拿不到就不带图。
 ///
+/// 点开后切哪个账号、跳哪个页面由 App 重新解密决定（PushTapTarget），这里不往 userInfo 里写任何东西。
 /// 任何一步失败都保留中继的通用文案，不报错。不碰登录令牌。
 final class NotificationService: UNNotificationServiceExtension {
     private var delivery: Delivery?
@@ -25,7 +25,7 @@ final class NotificationService: UNNotificationServiceExtension {
         else { return delivery.finish() }
 
         let presentation = PushAlertPresentation(push, logins: Array(store.registry.entries.values))
-        presentation.apply(to: content, keyID: push.keyID)
+        presentation.apply(to: content)
         delivery.update(content)
         guard let imageURL = presentation.imageURL else { return delivery.finish() }
         PushImageDownload.attachment(from: imageURL) { attachment in
@@ -40,7 +40,7 @@ final class NotificationService: UNNotificationServiceExtension {
 }
 
 private extension PushAlertPresentation {
-    func apply(to content: UNMutableNotificationContent, keyID: String) {
+    func apply(to content: UNMutableNotificationContent) {
         if let title { content.title = title }
         if let subtitle { content.subtitle = subtitle }
         if let body { content.body = body }
@@ -49,10 +49,6 @@ private extension PushAlertPresentation {
         if let sound {
             content.sound = sound == "default" ? .default : UNNotificationSound(named: UNNotificationSoundName(sound))
         }
-        var userInfo = content.userInfo
-        userInfo[PushUserInfoKey.keyID] = keyID
-        if let openPath { userInfo[PushUserInfoKey.open] = openPath }
-        content.userInfo = userInfo
     }
 }
 

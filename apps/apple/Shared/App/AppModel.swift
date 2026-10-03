@@ -211,10 +211,13 @@ final class AppModel {
             }
             activate(server, session: try await api.authMe(), token: token)
         } catch let error as APIError where error.isUnauthorized {
-            // 当前账号的令牌失效了（被注销、改了密码）：预填快照里它的用户名，让用户只输密码
+            // 当前账号的令牌失效了（被注销、改了密码）：预填快照里它的用户名，让用户只输密码。
+            // 失效的令牌连同推送密钥一起删掉（docs/design/cloud-push.md §9）
+            let username = savedServers.first { $0.address == server }?.activeAccount?.username
+            if let username { TokenVault.delete(server: server, username: username) }
             forgetCurrentToken()
             launchError = nil
-            expiredUsername = savedServers.first { $0.address == server }?.activeAccount?.username
+            expiredUsername = username
             phase = .needsLogin
         } catch {
             // 服务器连不上：不当成「要重新登录」——令牌还在，恢复后点重试就能进
@@ -335,7 +338,7 @@ final class AppModel {
         let isCurrent = address == server && session?.username == username
         if isCurrent { return await logout() }
         if let saved = TokenVault.token(server: address, username: username) {
-            await Self.revokeDevice(APIClient(server: address, token: saved))
+            await Self.revokeDevice(APIClient(server: address, token: saved), server: address)
         }
         TokenVault.delete(server: address, username: username)
         SessionPrewarm.forget(server: address, username: username)
@@ -390,32 +393,43 @@ final class AppModel {
     func logout() async -> API.SessionView? {
         resumePoint = nil
         guard let server, let current = session else { return nil }
-        if let token { await Self.revokeDevice(APIClient(server: server, token: token)) }
+        if let token { await Self.revokeDevice(APIClient(server: server, token: token), server: server) }
         TokenVault.delete(server: server, username: current.username)
         SessionPrewarm.forget(server: server, username: current.username)
         forgetCurrentToken()
         savedServers = SavedServers.removingAccount(savedServers, current.username, from: server)
         persist()
-        if let next = await switchToAnotherAccount(on: server) {
+        switch await switchToAnotherAccount(on: server) {
+        case let .switched(next):
             // 退出后人还在 App 里，很容易以为没退成：明确说出现在换成了谁
             pendingNotice = "已退出「\(current.nickname)」，已切换到「\(next.nickname)」"
             return next
+        case let .unreachable(nextToken):
+            // 服务器连不上，验证不了下一个账号：它的登录留着（不能因为断网把同一台服务器上的别的账号
+            // 一起删掉），停在「连不上」，服务器恢复后点「重试」就进去
+            token = nextToken
+            AuthTokenRegistry.shared.setCurrent(nextToken, server: server)
+            launchError = "已退出「\(current.nickname)」。服务器暂时连不上，恢复后点「重试」进入其他账号"
+            phase = .unreachable
+            return nil
+        case .noneLeft:
+            leaveCurrentServer()
+            return nil
         }
-        leaveCurrentServer()
-        return nil
     }
 
     /// 退出本机全部账号（所有服务器上的），共用设备交还前用。
     /// 本机的令牌立即全部删掉；服务端的注销在后台逐台尽力而为——服务器连不上也能在本机退干净。
     func logoutEverywhere() {
         resumePoint = nil
-        let targets: [APIClient] = savedServers.flatMap { saved in
+        let targets: [(ServerAddress, APIClient)] = savedServers.flatMap { saved in
             saved.accounts.compactMap { account in
-                TokenVault.token(server: saved.address, username: account.username).map { APIClient(server: saved.address, token: $0) }
+                TokenVault.token(server: saved.address, username: account.username)
+                    .map { (saved.address, APIClient(server: saved.address, token: $0)) }
             }
         }
         Task.detached {
-            for client in targets { await Self.revokeDevice(client) }
+            for (address, client) in targets { await Self.revokeDevice(client, server: address) }
         }
         TokenVault.clearAll()
         SessionCache.clearAll()
@@ -428,22 +442,29 @@ final class AppModel {
         phase = .needsLogin
     }
 
-    /// 同一台服务器上找一个本机还能用的账号切过去（退出 / 移除当前账号后）；一个都没有返回 nil
-    private func switchToAnotherAccount(on address: ServerAddress) async -> API.SessionView? {
+    private enum NextAccount {
+        case switched(API.SessionView)
+        /// 还有账号，但服务器连不上、验证不了：带着它的令牌
+        case unreachable(String)
+        case noneLeft
+    }
+
+    /// 同一台服务器上找一个本机还能用的账号切过去（退出 / 移除当前账号后）
+    private func switchToAnotherAccount(on address: ServerAddress) async -> NextAccount {
         let candidates = savedServers.first(where: { $0.address == address })?.accounts ?? []
         for account in candidates {
             guard let saved = TokenVault.token(server: address, username: account.username) else { continue }
             do {
                 let session = try await APIClient(server: address, token: saved).authMe()
                 activate(address, session: session, token: saved)
-                return session
+                return .switched(session)
             } catch let error as APIError where error.isUnauthorized {
                 TokenVault.delete(server: address, username: account.username)
             } catch {
-                return nil
+                return .unreachable(saved)
             }
         }
-        return nil
+        return .noneLeft
     }
 
     /// 当前服务器上已经没有能用的账号：清空它的快照，去欢迎页
@@ -459,10 +480,13 @@ final class AppModel {
         phase = accountsOnOtherServers.isEmpty ? .needsLogin : .chooseAccount
     }
 
-    /// 在服务端注销这台设备上某个账号的登录（`DELETE /auth/devices/current`）。尽力而为：
-    /// 服务器连不上、令牌已失效都不影响本机退出，5 秒超时，不让用户对着转圈等
-    private nonisolated static func revokeDevice(_ client: APIClient) async {
-        _ = try? await client.send("DELETE", "/auth/devices/current", timeout: 5, as: API.JSONValue?.self)
+    /// 在服务端注销这台设备上某个账号的登录（`DELETE /auth/devices/current`）。服务器连不上、令牌已失效都不影响
+    /// 本机退出，5 秒超时，不让用户对着转圈等；连不上的记进 `PendingRevocations`，以后再去注销
+    private nonisolated static func revokeDevice(_ client: APIClient, server: ServerAddress) async {
+        guard let token = client.token else { return }
+        if !(await PendingRevocations.revoke(client, timeout: 5)) {
+            PendingRevocations.add(server: server, token: token)
+        }
     }
 
     // MARK: - 内部

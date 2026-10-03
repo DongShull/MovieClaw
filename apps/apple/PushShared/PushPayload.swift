@@ -61,14 +61,10 @@ nonisolated struct PushPlaintext: Decodable, Equatable, Sendable {
     var isNewer: Bool { (version ?? Self.supportedVersion) > Self.supportedVersion }
 }
 
-/// 推送 `userInfo` 里的几个键
+/// 推送 `userInfo` 里的键
 nonisolated enum PushUserInfoKey {
-    /// 实例加密的密文（中继原样放在推送的顶层）
+    /// 实例加密的密文（中继原样放在推送的顶层）。推送里别的键都是中继能随便填的，一律不信
     static let ciphertext = "e"
-    /// 通知扩展解开后写进去的：点开后打开的站内路径
-    static let open = "mc_open"
-    /// 通知扩展解开后写进去的：来自哪个登录
-    static let keyID = "mc_key_id"
 }
 
 /// 解开的一条提醒推送
@@ -154,16 +150,12 @@ nonisolated struct PushTapTarget: Equatable, Sendable {
         self.openPath = openPath
     }
 
-    /// 通知扩展解开时已经把 `key_id` 和 `open` 写进了 userInfo；扩展没解开（比如它当时读不到密钥）
-    /// 就在 App 里再解一次。认不出是哪个登录（已退出、通用文案的推送）返回 nil
+    /// 点开时在 App 里重新解一次密文，从明文里取是哪个登录、打开哪个页面：推送里密文以外的键都是中继
+    /// 能随便填的（中继不可信，见 push-payload.md §1），拿它们来切账号、跳页面，等于让中继替用户点链接。
+    /// 认不出是哪个登录（已退出、解不开、通用文案的推送）返回 nil
     init?(userInfo: [AnyHashable: Any], store: PushKeyStore) {
-        if let keyID = userInfo[PushUserInfoKey.keyID] as? String, let info = store.registry.info(forKeyID: keyID) {
-            self.init(login: info, openPath: Self.sitePath(userInfo[PushUserInfoKey.open] as? String))
-        } else if let push = DecryptedPush(userInfo: userInfo, store: store) {
-            self.init(login: push.login, openPath: push.plaintext.isNewer ? nil : Self.sitePath(push.plaintext.open))
-        } else {
-            return nil
-        }
+        guard let push = DecryptedPush(userInfo: userInfo, store: store) else { return nil }
+        self.init(login: push.login, openPath: push.plaintext.isNewer ? nil : Self.sitePath(push.plaintext.open))
     }
 
     /// 只认站内路径（`/` 开头）：外部地址、`//主机` 形式、自定义协议一律不认

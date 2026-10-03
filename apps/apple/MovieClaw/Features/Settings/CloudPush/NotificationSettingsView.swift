@@ -6,7 +6,7 @@ import SwiftUI
 /// - 这台手机的系统通知权限：关掉了给「去系统设置开启」，还没问过给「开启通知」；
 /// - 服务器还没有可用的推送通道时：管理员看到「开启手机通知」，在这里一步走完连接 MovieClaw Cloud；
 ///   成员看到「管理员还没有开启手机通知」（开关照样能改，开启后立刻生效）；
-/// - 事件开关按 `group` 分组，乐观更新、失败回滚；
+/// - 事件开关按 `group` 分组，乐观更新；连点时按顺序写，失败按服务器上的为准；
 /// - 发一条测试通知（发给能收到的那几台）。
 ///
 /// 设备只在「设置 → 设备」一个地方管：这里不列设备，都好就什么也不说；有收不到的才提一句，带去「设备」页看是哪台。
@@ -37,24 +37,43 @@ final class NotificationSettingsModel {
         }
     }
 
-    /// 改一个事件的开关：乐观更新，失败回滚
-    func setEvent(_ key: String, enabled: Bool) async throws {
-        guard var next = state.value, let index = next.events.firstIndex(where: { $0.key == key }) else { return }
-        let previous = next
-        next.events[index].enabled = enabled
-        state = .loaded(next)
-        do {
-            state = .loaded(try await api.pushMePreferencesSet(body: .init(events: [key: enabled])))
-        } catch {
-            state = .loaded(previous)
+    /// 写入排队：连点几下时请求按点的顺序一个个发，服务器上最后生效的就是最后点的那次
+    @ObservationIgnored private var lastWrite: Task<Void, Never>?
+    @ObservationIgnored private var writes = 0
+
+    /// 发一次写入（界面已经乐观更新过）。只采用最后一次的结果：前面的回来晚了不能把界面盖回旧的；
+    /// 最后一次失败就重新从服务器读一遍，界面和服务器保持一致
+    private func write(_ send: @escaping @Sendable () async throws -> API.MyPushView) async throws {
+        writes += 1
+        let mine = writes
+        let previous = lastWrite
+        let request = Task { () -> Result<API.MyPushView, any Error> in
+            await previous?.value
+            do { return .success(try await send()) } catch { return .failure(error) }
+        }
+        lastWrite = Task { _ = await request.value }
+        switch await request.value {
+        case let .success(view):
+            if mine == writes { state = .loaded(view) }
+        case let .failure(error):
+            if mine == writes { await load() }
             throw error
         }
+    }
+
+    /// 改一个事件的开关：乐观更新，失败按服务器上的为准
+    func setEvent(_ key: String, enabled: Bool) async throws {
+        guard var next = state.value, let index = next.events.firstIndex(where: { $0.key == key }) else { return }
+        next.events[index].enabled = enabled
+        state = .loaded(next)
+        let api = api
+        try await write { try await api.pushMePreferencesSet(body: .init(events: [key: enabled])) }
     }
 
     /// 「媒体库有新片」的事件键
     static let libraryEvent = "library_new"
 
-    /// 勾 / 取消勾一个库（乐观更新，失败回滚）：原来是「全部」就从全部里去掉它；勾到全部都选上回到「全部」
+    /// 勾 / 取消勾一个库（乐观更新，失败按服务器上的为准）：原来是「全部」就从全部里去掉它；勾到全部都选上回到「全部」
     /// （包括以后新建的库）；一个都不剩 = 关掉「媒体库有新片」并回到「全部」，下次打开就是全勾上（同网页）
     func toggleLibrary(_ id: Int) async throws {
         guard let current = state.value else { return }
@@ -71,12 +90,8 @@ final class NotificationSettingsModel {
             body = LibrarySelection(ids: nil, events: [Self.libraryEvent: false])
         }
         state = .loaded(optimistic)
-        do {
-            state = .loaded(try await api.send("PUT", "/push/me/preferences", body: body))
-        } catch {
-            state = .loaded(current)
-            throw error
-        }
+        let api = api
+        try await write { try await api.send("PUT", "/push/me/preferences", body: body) }
     }
 
     enum LibrarySelectionChange: Equatable {
