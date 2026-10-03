@@ -49,6 +49,13 @@ PUSH_EVENTS: tuple[PushEvent, ...] = (
         default=False,
     ),
     PushEvent(
+        "library_new",
+        "媒体库有新片",
+        "你关心的媒体库来了新片或新剧集，不管是谁下载的",
+        group="媒体库",
+        default=False,
+    ),
+    PushEvent(
         "new_device",
         "新设备登录",
         "有新的 App、命令行或转码器登录了你的账号",
@@ -105,10 +112,52 @@ async def wants(session: AsyncSession, member_ids: set[int], event: str) -> set[
     }
 
 
+#: ``update`` 的 library_ids 不传时的占位：区分「不改」和「改成全部（None）」
+KEEP = object()
+
+
+async def library_selection(session: AsyncSession, member_id: int) -> list[int] | None:
+    """「媒体库有新片」关心的库；None = 能看到的全部（含以后新建的）。"""
+    row = (
+        await session.execute(select(PushPreference).where(PushPreference.member_id == member_id))
+    ).scalar_one_or_none()
+    if row is None or row.library_ids is None:
+        return None
+    return [int(i) for i in row.library_ids if isinstance(i, int)]
+
+
+async def library_selections(
+    session: AsyncSession, member_ids: set[int]
+) -> dict[int, list[int] | None]:
+    """批量读：成员 → 关心的库（None = 全部）。没有偏好行的成员按全部算。"""
+    rows = (
+        await session.execute(
+            select(PushPreference).where(PushPreference.member_id.in_(member_ids))  # type: ignore[attr-defined]
+        )
+    ).scalars()
+    found = {
+        row.member_id: (
+            None
+            if row.library_ids is None
+            else [int(i) for i in row.library_ids if isinstance(i, int)]
+        )
+        for row in rows
+    }
+    return {m: found.get(m) for m in member_ids}
+
+
 async def update(
-    session: AsyncSession, member_id: int, changes: dict[str, bool], *, is_admin: bool
+    session: AsyncSession,
+    member_id: int,
+    changes: dict[str, bool],
+    *,
+    is_admin: bool,
+    library_ids: object = KEEP,
 ) -> dict[str, bool]:
-    """改开关。不认识的事件、成员改管理员专属事件一律忽略。"""
+    """改开关。不认识的事件、成员改管理员专属事件一律忽略。
+
+    ``library_ids``：不传 = 不改；None = 能看到的全部库；列表 = 只关心这些库。
+    """
     allowed = {e.key for e in events_for(is_admin=is_admin)}
     row = (
         await session.execute(select(PushPreference).where(PushPreference.member_id == member_id))
@@ -122,6 +171,10 @@ async def update(
     else:
         row.events = current
         row.updated_at = utcnow()
+    if library_ids is not KEEP:
+        row.library_ids = (
+            None if library_ids is None else sorted({int(i) for i in library_ids})  # type: ignore[union-attr]
+        )
     session.add(row)
     await session.commit()
     return await effective(session, member_id)

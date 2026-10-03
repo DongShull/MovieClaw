@@ -837,3 +837,192 @@ def test_episode_label() -> None:
     assert episode_label([(0, 3)]) == "特别篇第 3 集"
     assert episode_label([(1, 1), (1, 2), (1, 3)]) == "第 1 季 3 集"
     assert episode_label([(1, 8), (2, 1)]) == "2 集"
+
+
+# ----------------------------------------------------------------------
+# 媒体库有新片
+# ----------------------------------------------------------------------
+
+
+def test_library_new_arrivals(client: TestClient, world: World) -> None:
+    from datetime import timedelta
+
+    from movieclaw_api.services.push import arrivals
+    from movieclaw_api.settings import get_setting_store
+    from movieclaw_api.settings.cloud import ArrivalsProgress
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models import (
+        FileSource,
+        LibraryFile,
+        MediaItem,
+        RuleSet,
+        Subscription,
+        utcnow,
+    )
+    from movieclaw_db.repositories.library_repo import LibraryRepository
+
+    _connect(client, world)
+    _create_member(client)
+    admin_bearer = _app_login(client, _ADMIN, installation="arr-admin-1", name="管理员手机")
+    member_bearer = _app_login(client, _MEMBER, installation="arr-member-1", name="家人手机")
+    _register(client, admin_bearer, token="c1" * 32)
+    _, member_key = _register(client, member_bearer, token="d1" * 32)
+    relay = world.relays["push.test"]
+    assert client.portal is not None
+
+    async def seed_libraries() -> tuple[int, int, int]:
+        async with get_database().session() as session:
+            repo = LibraryRepository(session)
+            movies = await repo.create(name="电影", kind="movie", root_paths=["/m"])
+            shows = await repo.create(name="剧集", kind="tv", root_paths=["/t"])
+            fresh = await repo.create(name="刚建的库", kind="movie", root_paths=["/f"])
+            old = utcnow() - timedelta(days=3)
+            movies.created_at = shows.created_at = old  # 老库；fresh 是刚建的
+            session.add_all([movies, shows])
+            await session.commit()
+            return movies.id, shows.id, fresh.id
+
+    movies_id, shows_id, fresh_id = client.portal.call(seed_libraries)
+    # 家人打开「媒体库有新片」，只关心电影库和刚建的库
+    view = _data(
+        _as_app(
+            client,
+            member_bearer,
+            "PUT",
+            "/api/v1/push/me/preferences",
+            json={"events": {"library_new": True}, "library_ids": [movies_id, fresh_id]},
+        )
+    )
+    assert view["library_ids"] == [movies_id, fresh_id]
+    assert {lib["name"] for lib in view["libraries"]} >= {"电影", "剧集", "刚建的库"}
+
+    async def start_progress() -> None:
+        await get_setting_store().set(
+            ArrivalsProgress(started_at=utcnow() - timedelta(seconds=1), marks={})
+        )
+
+    client.portal.call(start_progress)
+
+    async def add_files(
+        specs: list[tuple[int, str, str, tuple[int, int], FileSource]],
+    ) -> list[int]:
+        ids = []
+        async with get_database().session() as session:
+            for library_id, kind, title, (season, episode), source in specs:
+                item = (
+                    await session.execute(
+                        __import__("sqlmodel").select(MediaItem).where(MediaItem.title == title)
+                    )
+                ).scalar_one_or_none()
+                if item is None:
+                    item = MediaItem(
+                        kind=kind,
+                        tmdb_id=1000 + abs(hash(title)) % 100000,
+                        title=title,
+                        original_title=title,
+                        year=2024,
+                    )
+                    session.add(item)
+                    await session.commit()
+                    await session.refresh(item)
+                session.add(
+                    LibraryFile(
+                        library_id=library_id,
+                        media_item_id=item.id,
+                        season_number=season,
+                        episode_number=episode,
+                        file_path=f"/x/{library_id}/{title}/{season}-{episode}-{len(ids)}-{utcnow().timestamp()}.mkv",
+                        size_bytes=1,
+                        source=source,
+                    )
+                )
+                ids.append(item.id)
+            await session.commit()
+        return ids
+
+    def run_check() -> int:
+        async def go() -> int:
+            return await arrivals.check_once(utcnow() + timedelta(minutes=10))
+
+        return client.portal.call(go)
+
+    # ① 电影库来了一部新片 → 家人收到单条；管理员没打开这项，收不到
+    (movie_id,) = client.portal.call(
+        add_files, [(movies_id, "movie", "流浪地球 2", (0, 0), FileSource.IMPORTED)]
+    )
+    assert run_check() == 1
+    _wait(lambda: len(relay.messages) >= 1)
+    time.sleep(0.3)
+    assert [m["token"] for m in relay.messages] == ["d1" * 32]
+    plain = _open(relay.messages[-1], member_key)
+    assert plain["title"] == "新片：流浪地球 2" and "已加入「电影」" in plain["body"]
+    assert plain["open"].startswith(f"/library/{movies_id}/item/{movie_id}")
+
+    # ② 同一部又来一个更好的版本（洗版）→ 不算新片
+    relay.messages.clear()
+    client.portal.call(add_files, [(movies_id, "movie", "流浪地球 2", (0, 0), FileSource.IMPORTED)])
+    assert run_check() == 0
+
+    # ③ 一批三部 → 合成一条
+    client.portal.call(
+        add_files,
+        [
+            (movies_id, "movie", "奥本海默", (0, 0), FileSource.SCANNED),
+            (movies_id, "movie", "沙丘 2", (0, 0), FileSource.SCANNED),
+            (movies_id, "movie", "首尔之春", (0, 0), FileSource.SCANNED),
+        ],
+    )
+    assert run_check() == 1
+    _wait(lambda: len(relay.messages) >= 1)
+    plain = _open(relay.messages[-1], member_key)
+    assert plain["title"] == "「电影」新增 3 部" and "奥本海默" in plain["body"]
+    assert plain["open"] == f"/library/{movies_id}"
+
+    # ④ 家人自己订阅了的片 → 已有「入库完成」，这里不重复
+    relay.messages.clear()
+
+    async def subscribe_as_member(title: str) -> None:
+        async with get_database().session() as session:
+            item = MediaItem(
+                kind="movie", tmdb_id=900001, title=title, original_title=title, year=2024
+            )
+            rule_set = RuleSet(name=f"规则-{title}", spec={})
+            session.add_all([item, rule_set])
+            await session.commit()
+            await session.refresh(item)
+            await session.refresh(rule_set)
+            session.add(
+                Subscription(
+                    media_item_id=item.id,
+                    kind="movie",
+                    rule_set_id=rule_set.id,
+                    created_by_member_id=1,
+                )
+            )
+            await session.commit()
+
+    client.portal.call(subscribe_as_member, "我订阅的片")
+    client.portal.call(add_files, [(movies_id, "movie", "我订阅的片", (0, 0), FileSource.IMPORTED)])
+    run_check()
+    time.sleep(0.5)
+    assert relay.messages == []
+
+    # ⑤ 没勾选的剧集库、刚建的库的首次扫描 → 都不推
+    client.portal.call(
+        add_files,
+        [
+            (shows_id, "tv", "漫长的季节", (1, 7), FileSource.IMPORTED),
+            (fresh_id, "movie", "首次扫描出来的", (0, 0), FileSource.SCANNED),
+        ],
+    )
+    run_check()
+    time.sleep(0.5)
+    assert relay.messages == []
+
+    # ⑥ 还在陆续入库（5 分钟内有新行）就先不发
+    client.portal.call(add_files, [(movies_id, "movie", "刚到的", (0, 0), FileSource.IMPORTED)])
+
+    async def check_now() -> int:
+        return await arrivals.check_once(utcnow())
+
+    assert client.portal.call(check_now) == 0

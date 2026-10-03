@@ -169,7 +169,13 @@ async def update_preferences(
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[MyPushView]:
     await preferences.update(
-        session, principal.owner_id, payload.events, is_admin=principal.is_admin
+        session,
+        principal.owner_id,
+        payload.events,
+        is_admin=principal.is_admin,
+        library_ids=(
+            payload.library_ids if "library_ids" in payload.model_fields_set else preferences.KEEP
+        ),
     )
     return ok(await me.build_view(session, principal))
 

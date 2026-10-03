@@ -158,3 +158,11 @@ class PushChannelsSetting(SettingSchema):
                 data["token"] = get_secret_box().encrypt(data["token"])
             result.append(data)
         return result
+
+
+@register_setting(namespace="push.arrivals", title="媒体库新片推送进度")
+class ArrivalsProgress(SettingSchema):
+    """「媒体库有新片」检查到哪了：每个库一个水位，水位之前的台账行都处理过了。"""
+
+    started_at: datetime | None = Field(default=None, description="第一次运行的时间（不回溯）")
+    marks: dict[str, datetime] = Field(default_factory=dict, description="库 id → 水位")

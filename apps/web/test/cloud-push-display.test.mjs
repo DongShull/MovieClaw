@@ -18,6 +18,7 @@ import {
   groupEvents,
   healthMessage,
   healthTone,
+  libraryChecked,
   myDeviceTone,
   noticeTone,
   pairingFailureText,
@@ -29,6 +30,7 @@ import {
   secondsLeft,
   summarizePushTest,
   testTargetHint,
+  toggleLibrary,
   uncoveredSummary,
 } from "../lib/cloud-push-display.ts";
 
@@ -354,4 +356,17 @@ test("测试通知回执：发出去几台，没发出去的逐台说原因", ()
     tone: "error",
     message: "没有能收通知的设备",
   });
+});
+
+test("媒体库有新片：null 是全部（含以后新建的），取消一个就换成明确的列表", () => {
+  const visible = [1, 2, 3];
+  assert.equal(libraryChecked(null, 2), true);
+  assert.equal(libraryChecked([1, 3], 2), false);
+  assert.deepEqual(toggleLibrary(null, visible, 2, false), { libraryIds: [1, 3], turnOff: false });
+  // 勾满了就是「全部」，包括以后新建的库
+  assert.deepEqual(toggleLibrary([1, 3], visible, 2, true), { libraryIds: null, turnOff: false });
+  // 一个都不剩 = 关掉开关，库选择回到全部
+  assert.deepEqual(toggleLibrary([3], visible, 3, false), { libraryIds: null, turnOff: true });
+  // 看不见的库不算进列表
+  assert.deepEqual(toggleLibrary([1, 9], visible, 2, true), { libraryIds: [1, 2], turnOff: false });
 });

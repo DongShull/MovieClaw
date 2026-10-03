@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Banner, ErrorBanner, LINK_CLASS, Toggle } from "@/components/cloud-push-ui";
 import { useToast } from "@/components/feedback";
 import {
+  type MyPushLibrary,
   type MyPushView,
   getMyPush,
   sendMyPushTest,
@@ -26,9 +27,14 @@ import {
 import {
   attentionLine,
   groupEvents,
+  libraryChecked,
   summarizePushTest,
   testTargetHint,
+  toggleLibrary,
 } from "@/lib/cloud-push-display";
+
+/** 「媒体库有新片」的事件键：打开时在它下面选关心哪些库 */
+const LIBRARY_EVENT = "library_new";
 
 export function NotificationsSection() {
   const toast = useToast();
@@ -52,27 +58,53 @@ export function NotificationsSection() {
     void load();
   }, [load]);
 
-  const setEventEnabled = (key: string, enabled: boolean) =>
-    setView((prev) =>
-      prev && {
-        ...prev,
-        events: prev.events.map((event) => (event.key === key ? { ...event, enabled } : event)),
-      },
-    );
-
-  const toggle = async (key: string, enabled: boolean) => {
+  /**
+   * 改偏好：先按 optimistic 把页面拨过去，再存。失败时不猜怎么回滚，直接从服务端
+   * 重读一份——开关和选库会连着改，逐项回滚容易把后一次的改动一起冲掉。
+   */
+  const save = async (
+    patch: Parameters<typeof updateMyPushPreferences>[0],
+    optimistic: (prev: MyPushView) => MyPushView,
+  ) => {
     const seq = ++seqRef.current;
     setError(null);
-    setEventEnabled(key, enabled); // 乐观更新，失败回滚
+    setView((prev) => prev && optimistic(prev));
     try {
-      const next = await updateMyPushPreferences({ [key]: enabled });
+      const next = await updateMyPushPreferences(patch);
       if (seq === seqRef.current) setView(next);
     } catch (e) {
-      setEventEnabled(key, !enabled);
       setError((e as Error).message);
+      void load();
     }
   };
 
+  const withEvent = (prev: MyPushView, key: string, enabled: boolean): MyPushView => ({
+    ...prev,
+    events: prev.events.map((event) => (event.key === key ? { ...event, enabled } : event)),
+  });
+
+  const toggle = (key: string, enabled: boolean) =>
+    void save({ events: { [key]: enabled } }, (prev) => withEvent(prev, key, enabled));
+
+  /** 勾 / 取消一个库；一个都不剩就等于关掉「媒体库有新片」 */
+  const pickLibrary = (id: number, checked: boolean) => {
+    if (view == null) return;
+    const visible = view.libraries.map((lib) => lib.id);
+    const result = toggleLibrary(view.library_ids, visible, id, checked);
+    if (result.turnOff) {
+      void save({ events: { [LIBRARY_EVENT]: false }, library_ids: null }, (prev) => ({
+        ...withEvent(prev, LIBRARY_EVENT, false),
+        library_ids: null,
+      }));
+    } else {
+      void save({ library_ids: result.libraryIds }, (prev) => ({
+        ...prev,
+        library_ids: result.libraryIds,
+      }));
+    }
+  };
+
+  /** 回到「全部」：包括以后新建的库 */
   const sendTest = async () => {
     setTesting(true);
     try {
@@ -173,10 +205,19 @@ export function NotificationsSection() {
                 <Toggle
                   checked={event.enabled}
                   label={`${event.title}通知`}
-                  onChange={(next) => void toggle(event.key, next)}
+                  onChange={(next) => toggle(event.key, next)}
                 />
               </div>
             ))}
+            {/* 「媒体库有新片」打开、而且能看到不止一个库时，就地选关心哪些库 */}
+            {group.items.some((e) => e.key === LIBRARY_EVENT && e.enabled) &&
+              view.libraries.length > 1 && (
+                <LibraryPicker
+                  libraries={view.libraries}
+                  libraryIds={view.library_ids}
+                  onPick={pickLibrary}
+                />
+              )}
           </div>
         </section>
       ))}
@@ -196,3 +237,40 @@ export function NotificationsSection() {
   );
 }
 
+/**
+ * 「媒体库有新片」下面的选库：每个库一行勾选框。默认「全部」（含以后新建的库），
+ * 取消任何一个就变成明确的列表；全部勾上又回到「全部」。
+ */
+function LibraryPicker({
+  libraries,
+  libraryIds,
+  onPick,
+}: {
+  libraries: MyPushLibrary[];
+  libraryIds: number[] | null;
+  onPick: (id: number, checked: boolean) => void;
+}) {
+  const all = libraryIds == null;
+  return (
+    <div className="border-t border-white/[0.06] px-4 pb-3 pt-2">
+      <ul>
+        {libraries.map((lib) => (
+          <li key={lib.id}>
+            <label className="-mx-1.5 flex cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-white/[0.04]">
+              <input
+                type="checkbox"
+                checked={libraryChecked(libraryIds, lib.id)}
+                onChange={(e) => onPick(lib.id, e.target.checked)}
+                className="size-4 shrink-0 accent-[var(--accent)]"
+              />
+              <span className="min-w-0 truncate text-sub text-[var(--text)]">{lib.name}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1 text-caption leading-5 text-[var(--text-faint)]">
+        {all ? "全选时包括以后新建的库" : "只推勾上的库；全部勾上时也包括以后新建的库"}
+      </p>
+    </div>
+  );
+}

@@ -5703,6 +5703,10 @@ nonisolated extension API {
         var events: [API.PushEventView]
         /// 我能收到通知的设备数
         var readyDevices: Int
+        /// 我能看到的媒体库（「媒体库有新片」的选项）
+        var libraries: [API.PushLibraryView]
+        /// 「媒体库有新片」关心的库；null = 能看到的全部（含以后新建的）
+        var libraryIds: [Int]?
         /// 我收不到通知的设备；空 = 没问题
         var attention: [API.PushAttentionView]
 
@@ -5711,6 +5715,8 @@ nonisolated extension API {
             case isAdmin = "is_admin"
             case events
             case readyDevices = "ready_devices"
+            case libraries
+            case libraryIds = "library_ids"
             case attention
         }
     }
@@ -7388,11 +7394,27 @@ nonisolated extension API {
         }
     }
 
+    /// 「媒体库有新片」可选的库：我能看到的库。
+    struct PushLibraryView: Codable, Hashable, Sendable {
+        var id: Int
+        var name: String
+        var kind: String
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case kind
+        }
+    }
+
     struct PushPreferencesRequest: Codable, Hashable, Sendable {
-        var events: [String: Bool]
+        var events: [String: Bool]?
+        /// 「媒体库有新片」关心的库；null = 全部；不传这个字段 = 不改
+        var libraryIds: [Int]?
 
         enum CodingKeys: String, CodingKey {
             case events
+            case libraryIds = "library_ids"
         }
     }
 

@@ -140,6 +140,7 @@ App 里：
 | `imported` | 入库完成 | 订阅的人（发起人 + 关注者） | 开 | 媒体库里的这一部 / 这一集，找不到就订阅详情 |
 | `download_started` | 开始下载 | 订阅的人 | 关 | 订阅详情 |
 | `upgraded` | 洗版完成 | 订阅的人 | 关 | 订阅详情 |
+| `library_new` | 媒体库有新片 | 打开了这项、勾选了这个库（或选了「全部」）的人 | 关 | 这部片 / 这一集；一批时到这个库 |
 | `new_device` | 新设备登录 | 账号本人（不发给刚登录的那台） | 开 | 账号 → 设备 |
 | `system_alert` | 需要处理的问题 | 管理员 | 开 | 能修它的设置页 |
 
@@ -151,7 +152,16 @@ App 里：
 - 同一事件、同一台手机（APNs 令牌相同）只推一条：一台 iPad 上登了家里两个人，不响两次。
 - 偏好存在 `push_preference` 表，每人一行，没写过的事件用默认值。成员看不到、也改
   不了 `system_alert`。
-- 「媒体库有新片」「有新版本」本期不做：前者要先有不会被首次扫描刷屏的入库事件。
+- `library_new`（services/push/arrivals.py）：
+  - **入口只有「账号 → 通知」**：打开开关后勾选关心的库，默认「全部」（我能看到的库，含以后
+    新建的）。低频设定，不在媒体库页面放入口。
+  - **怎么判断新片**：后台每两分钟看台账里新出现的行，不在各个入库路径上挂钩子。某部片（某一集）
+    **第一次**出现在这个库里才算；同库同单元已有更早的行（洗版、多版本、改名）不算；扫描发现的
+    文件在库建好后的头 24 小时内不算（新建库的首次全量扫描）。
+  - **攒一攒再发**：一个库连续 5 分钟没有新行才发，最多等 30 分钟；不止一部就合成一条
+    「『电影』新增 N 部：A、B、C 等」。同一部剧的多集合成一条。
+  - 自己订阅了的片已经会收到「入库完成」，这里不重复；看不到的库、超出分级的片不推。
+- 「有新版本」本期不做。
 
 ## 6. 密文、图片、collapse_id
 
@@ -296,6 +306,8 @@ App 里：
     {"key": "imported", "title": "入库完成", "description": "你订阅的电影、剧集整理进媒体库时", "group": "我的订阅", "enabled": true, "default": true}
   ],
   "ready_devices": 2,
+  "libraries": [{"id": 1, "name": "电影", "kind": "movie"}, {"id": 2, "name": "剧集", "kind": "tv"}],
+  "library_ids": null,
   "attention": [
     {"device_id": "ld-15", "device_name": "iPad", "status": "permission_denied", "status_text": "系统通知已关闭，在这台设备的设置里打开"}
   ]
@@ -306,6 +318,8 @@ App 里：
 | --- | --- |
 | `instance_ready` | 服务器有没有任何可用通道（没有时成员看到「管理员还没有开启手机通知」） |
 | `ready_devices` | 我能收到通知的设备数 |
+| `libraries` | 我能看到的媒体库，「媒体库有新片」的选项 |
+| `library_ids` | 「媒体库有新片」关心的库；`null` = 能看到的全部（含以后新建的） |
 | `attention` | 我收不到通知、需要处理的设备（`permission_denied` / `no_channel` / `bad_token`）；空 = 没问题，页面不提示 |
 
 设备的推送状态挂在设备上：`GET /api/v1/auth/devices` 每台 App 类设备多一个
@@ -314,7 +328,7 @@ App 里：
 
 | 接口 | 说明 |
 | --- | --- |
-| `PUT /api/v1/push/me/preferences` `{events: {<key>: bool}}` | 改开关，返回 `MyPushView` |
+| `PUT /api/v1/push/me/preferences` `{events?: {<key>: bool}, library_ids?: [int] \| null}` | 改开关和关心的库（`library_ids`：`null` = 全部，不传 = 不改），返回 `MyPushView` |
 | `POST /api/v1/push/me/test` | 给自己的设备发一条测试通知，返回 `{sent, results: [{device_id, device_name, result, message}]}`；10 秒内只能发一次 |
 | `PUT /api/v1/push/me/registration` | App 登记（只接受 App 类设备凭证），见下 |
 | `DELETE /api/v1/push/me/registration` | 清掉这台设备的推送登记 |
@@ -396,6 +410,6 @@ App 里：
 
 - tvOS App 的推送（角标、刷新顶栏）：实例按设备上报的推送类型发，tvOS 以后只报
   `background` 即可，实例不用改。
-- 「媒体库有新片」「有新版本」两个事件。
+- 「有新版本」事件。
 - 实时活动、小组件推送。
 - 检测同一份凭证被两台实例同时使用（从备份恢复到另一台机器时）。

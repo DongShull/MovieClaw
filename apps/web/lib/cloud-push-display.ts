@@ -322,6 +322,34 @@ export function groupEvents<T extends { group: string }>(
   return groups;
 }
 
+/** 这个库现在算不算勾上：null = 全部（含以后新建的）都算。 */
+export function libraryChecked(libraryIds: number[] | null, id: number): boolean {
+  return libraryIds == null || libraryIds.includes(id);
+}
+
+/**
+ * 勾 / 取消一个库之后要存什么：
+ * - 从「全部」里取消一个 → 换成明确的列表（剩下的那些）；
+ * - 再勾回来也保持明确列表——「全部（含以后新建的）」只由「全部」那个快捷键选；
+ * - 一个都不剩 → 等于不想收了：关掉开关，库选择回到「全部」，下次打开就是全部。
+ * 列表只算看得见的库（visibleIds）：看不见的库本来就不推，留着只会让人困惑。
+ */
+export function toggleLibrary(
+  libraryIds: number[] | null,
+  visibleIds: number[],
+  id: number,
+  checked: boolean,
+): { libraryIds: number[] | null; turnOff: boolean } {
+  const current = visibleIds.filter((v) => libraryChecked(libraryIds, v));
+  const next = checked
+    ? visibleIds.filter((v) => v === id || current.includes(v))
+    : current.filter((v) => v !== id);
+  // 一个都不剩 = 关掉这一项，选择回到全部（下次打开就是全选）；勾满了 = 全部（含以后新建的）
+  if (next.length === 0) return { libraryIds: null, turnOff: true };
+  if (next.length === visibleIds.length) return { libraryIds: null, turnOff: false };
+  return { libraryIds: next, turnOff: false };
+}
+
 export function myDeviceTone(status: MyDeviceStatus | string): Tone {
   if (status === "ok") return "ok";
   if (status === "no_channel" || status === "permission_denied") return "warn";

@@ -274,6 +274,10 @@ def build_lifespan(settings: Settings):
 
         await init_cloud_service()
         start_refresh_loop()
+        # 「媒体库有新片」：每两分钟看一眼台账里新出现的行（services/push/arrivals.py）
+        from movieclaw_api.services.push import arrivals as push_arrivals
+
+        push_arrivals.start()
         # Jellyfin 兼容层的局域网自动发现（UDP 7359）：开关关闭/端口被占时
         # 内部自行降级，不阻断启动
         from movieclaw_jellyfin.udp import start_discovery
@@ -351,8 +355,10 @@ def build_lifespan(settings: Settings):
 
             await close_im_channels()
             from movieclaw_api.services.cloud import close_cloud_service
+            from movieclaw_api.services.push import arrivals as push_arrivals
             from movieclaw_api.services.push.channels import stop_refresh_loop
 
+            await push_arrivals.stop()
             await stop_refresh_loop()
             await close_cloud_service()
             # 持久化任务先在安全边界暂停并退回数据库队列，必须早于 LLM 与

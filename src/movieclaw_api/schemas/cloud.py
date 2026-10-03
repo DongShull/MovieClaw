@@ -179,16 +179,34 @@ class PushAttentionView(BaseModel):
     status_text: str
 
 
+class PushLibraryView(BaseModel):
+    """「媒体库有新片」可选的库：我能看到的库。"""
+
+    id: int
+    name: str
+    kind: str
+
+
 class MyPushView(BaseModel):
     instance_ready: bool = Field(description="服务器有没有任何可用通道")
     is_admin: bool
     events: list[PushEventView]
     ready_devices: int = Field(description="我能收到通知的设备数")
+    libraries: list[PushLibraryView] = Field(
+        description="我能看到的媒体库（「媒体库有新片」的选项）"
+    )
+    library_ids: list[int] | None = Field(
+        description="「媒体库有新片」关心的库；null = 能看到的全部（含以后新建的）"
+    )
     attention: list[PushAttentionView] = Field(description="我收不到通知的设备；空 = 没问题")
 
 
 class PushPreferencesRequest(BaseModel):
-    events: dict[str, bool]
+    events: dict[str, bool] = Field(default_factory=dict)
+    library_ids: list[int] | None = Field(
+        default=None,
+        description="「媒体库有新片」关心的库；null = 全部；不传这个字段 = 不改",
+    )
 
 
 class PushTestResultView(BaseModel):

@@ -51,6 +51,67 @@ final class NotificationSettingsModel {
         }
     }
 
+    /// 「媒体库有新片」的事件键
+    static let libraryEvent = "library_new"
+
+    /// 勾 / 取消勾一个库（乐观更新，失败回滚）：原来是「全部」就从全部里去掉它；勾到全部都选上回到「全部」
+    /// （包括以后新建的库）；一个都不剩 = 关掉「媒体库有新片」并回到「全部」，下次打开就是全勾上（同网页）
+    func toggleLibrary(_ id: Int) async throws {
+        guard let current = state.value else { return }
+        let change = Self.librarySelection(after: id, selected: current.libraryIds, all: current.libraries.map(\.id))
+        var optimistic = current
+        let body: LibrarySelection
+        switch change {
+        case let .libraries(next):
+            optimistic.libraryIds = next
+            body = LibrarySelection(ids: next)
+        case .turnOff:
+            optimistic.libraryIds = nil
+            if let index = optimistic.events.firstIndex(where: { $0.key == Self.libraryEvent }) { optimistic.events[index].enabled = false }
+            body = LibrarySelection(ids: nil, events: [Self.libraryEvent: false])
+        }
+        state = .loaded(optimistic)
+        do {
+            state = .loaded(try await api.send("PUT", "/push/me/preferences", body: body))
+        } catch {
+            state = .loaded(current)
+            throw error
+        }
+    }
+
+    enum LibrarySelectionChange: Equatable {
+        /// 一个都不剩：关掉「媒体库有新片」，选择回到「全部」
+        case turnOff
+        /// 新的 `library_ids`（nil = 全部，包括以后新建的库）
+        case libraries([Int]?)
+    }
+
+    /// 点了一个库之后的选择（`selected` 为 nil 表示全部）；结果按库的顺序排
+    static func librarySelection(after tapped: Int, selected: [Int]?, all: [Int]) -> LibrarySelectionChange {
+        var chosen = selected ?? all
+        if chosen.contains(tapped) { chosen.removeAll { $0 == tapped } } else { chosen.append(tapped) }
+        if chosen.isEmpty { return .turnOff }
+        return .libraries(Set(chosen) == Set(all) ? nil : all.filter(chosen.contains))
+    }
+
+    /// `library_ids` 要能明确发 null（= 全部）：生成的 `PushPreferencesRequest` 遇到 nil 是不发这个字段（= 不改），
+    /// 所以这一个请求手写
+    struct LibrarySelection: Encodable, Sendable {
+        let ids: [Int]?
+        var events: [String: Bool]?
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(ids, forKey: .libraryIds)
+            try container.encodeIfPresent(events, forKey: .events)
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case libraryIds = "library_ids"
+            case events
+        }
+    }
+
     /// 给自己的设备发一条测试通知（10 秒内只能发一次，后端拒绝时带可读的原因）
     func sendTest() async throws -> API.PushTestView {
         try await api.pushMeTest()
@@ -244,14 +305,48 @@ private struct NotificationSettingsContent: View {
                         SettingsRowText(title: event.title, detail: event.description)
                     }
                     .accessibilityIdentifier("notifications-event-\(event.key)")
+                    if event.key == NotificationSettingsModel.libraryEvent, event.enabled, settings.libraries.count > 1 {
+                        libraryRows(settings)
+                    }
                 }
             } header: {
                 Text(group.title)
             } footer: {
-                if index == groups.count - 1, !settings.instanceReady {
-                    Text("开启前改的开关也会保存，开启后立刻生效。")
+                VStack(alignment: .leading, spacing: 4) {
+                    if group.events.contains(where: { $0.key == NotificationSettingsModel.libraryEvent && $0.enabled }),
+                       settings.libraries.count > 1 {
+                        Text(settings.libraryIds == nil ? "全选时包括以后新建的库" : "只推勾上的库；全部勾上时也包括以后新建的库")
+                    }
+                    if index == groups.count - 1, !settings.instanceReady {
+                        Text("开启前改的开关也会保存，开启后立刻生效。")
+                    }
                 }
             }
+        }
+    }
+
+    /// 「媒体库有新片」打开时，下面列出能看到的库，打勾的才通知；全勾上 = 全部（包括以后新建的库）
+    @ViewBuilder
+    private func libraryRows(_ settings: API.MyPushView) -> some View {
+        ForEach(settings.libraries, id: \.id) { library in
+            let selected = settings.libraryIds?.contains(library.id) ?? true
+            Button {
+                Task {
+                    do { try await model.toggleLibrary(library.id) } catch { feedback.error(error) }
+                }
+            } label: {
+                HStack {
+                    Text(library.name).foregroundStyle(Theme.text)
+                    Spacer()
+                    if selected {
+                        Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(Theme.accentStrong)
+                    }
+                }
+                .padding(.leading, 12)
+                .contentShape(Rectangle())
+            }
+            .accessibilityAddTraits(selected ? .isSelected : [])
+            .accessibilityIdentifier("notifications-library-\(library.name)")
         }
     }
 

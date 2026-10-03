@@ -185,6 +185,13 @@ export interface MyPushAttention {
   status_text: string;
 }
 
+/** 我能看到的一个媒体库（「媒体库有新片」选库用） */
+export interface MyPushLibrary {
+  id: number;
+  name: string;
+  kind: string;
+}
+
 export interface MyPushView {
   /** 服务器有没有任何可用通道 */
   instance_ready: boolean;
@@ -194,6 +201,10 @@ export interface MyPushView {
   ready_devices: number;
   /** 只有 permission_denied / no_channel / bad_token；空 = 没问题，页面不提示 */
   attention: MyPushAttention[];
+  /** 我能看到的媒体库 */
+  libraries: MyPushLibrary[];
+  /** 「媒体库有新片」关心的库；null = 能看到的全部（含以后新建的） */
+  library_ids: number[] | null;
 }
 
 export interface PushTestResult {
@@ -205,11 +216,17 @@ export function getMyPush(): Promise<MyPushView> {
   return unwrap(request<ApiEnvelope<MyPushView>>("/push/me"));
 }
 
-export function updateMyPushPreferences(events: Record<string, boolean>): Promise<MyPushView> {
+/**
+ * 改通知偏好：只传要改的部分。library_ids 不传 = 不改，null = 全部（含以后新建的库）。
+ */
+export function updateMyPushPreferences(patch: {
+  events?: Record<string, boolean>;
+  library_ids?: number[] | null;
+}): Promise<MyPushView> {
   return unwrap(
     request<ApiEnvelope<MyPushView>>("/push/me/preferences", {
       method: "PUT",
-      body: JSON.stringify({ events }),
+      body: JSON.stringify(patch),
     }),
   );
 }

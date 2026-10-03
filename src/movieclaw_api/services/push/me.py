@@ -12,6 +12,7 @@ from movieclaw_api.schemas.cloud import (
     MyPushView,
     PushAttentionView,
     PushEventView,
+    PushLibraryView,
     PushRegistrationView,
     PushTestResultView,
     PushTestView,
@@ -82,12 +83,24 @@ async def build_view(session: AsyncSession, principal: Principal) -> MyPushView:
                     status_text=text,
                 )
             )
+    from movieclaw_api.services.library.access import visible_library_ids
+    from movieclaw_db.models import Library
+
+    visible = await visible_library_ids(session, principal)
+    libraries = [
+        PushLibraryView(id=lib.id or 0, name=lib.name, kind=lib.kind)
+        for lib in (await session.execute(select(Library).order_by(Library.id))).scalars()
+        if lib.id in visible
+    ]
+    chosen = await preferences.library_selection(session, principal.owner_id)
     return MyPushView(
         instance_ready=any(c.usable for c in channels),
         is_admin=principal.is_admin,
         events=events,
         ready_devices=ready,
         attention=attention,
+        libraries=libraries,
+        library_ids=None if chosen is None else [i for i in chosen if i in visible],
     )
 
 

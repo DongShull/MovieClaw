@@ -425,6 +425,41 @@ struct PushRegistrationTests {
     }
 }
 
+/// 「媒体库有新片」选哪些库（docs/design/cloud-push.md §7.3）
+struct PushLibrarySelectionTests {
+    private let all = [1, 2, 3]
+
+    @Test func tappingFromAllRemovesThatLibrary() {
+        #expect(NotificationSettingsModel.librarySelection(after: 2, selected: nil, all: all) == .libraries([1, 3]))
+    }
+
+    @Test func checkingEveryLibraryGoesBackToAll() {
+        #expect(NotificationSettingsModel.librarySelection(after: 2, selected: [3, 1], all: all) == .libraries(nil),
+                "全勾上 = 全部（包括以后新建的库）")
+        #expect(NotificationSettingsModel.librarySelection(after: 3, selected: [1], all: all) == .libraries([1, 3]), "按库的顺序")
+    }
+
+    @Test func uncheckingTheLastOneTurnsTheEventOff() {
+        #expect(NotificationSettingsModel.librarySelection(after: 1, selected: [1], all: all) == .turnOff)
+    }
+
+    /// 「全部」要明确发 null：生成的请求遇到 nil 不发字段（= 不改）
+    @Test func selectionEncodesExplicitNull() throws {
+        let all = try JSONSerialization.jsonObject(with: JSONEncoder().encode(NotificationSettingsModel.LibrarySelection(ids: nil))) as? [String: Any]
+        #expect(all?.keys.contains("library_ids") == true && all?["library_ids"] is NSNull)
+        let some = try JSONSerialization.jsonObject(with: JSONEncoder().encode(NotificationSettingsModel.LibrarySelection(ids: [2]))) as? [String: Any]
+        #expect(some?["library_ids"] as? [Int] == [2])
+        #expect(some?["events"] == nil, "只改选的库时不碰开关")
+        // 一个都不剩：关掉事件，同时回到「全部」（下次打开就是全勾上）
+        let off = try JSONSerialization.jsonObject(with: JSONEncoder().encode(
+            NotificationSettingsModel.LibrarySelection(ids: nil, events: ["library_new": false]))) as? [String: Any]
+        #expect(off?["library_ids"] is NSNull)
+        #expect((off?["events"] as? [String: Bool]) == ["library_new": false])
+        let omitted = try JSONSerialization.jsonObject(with: JSONEncoder().encode(API.PushPreferencesRequest(events: ["library_new": true]))) as? [String: Any]
+        #expect(omitted?["library_ids"] == nil, "只改开关时不碰选的库")
+    }
+}
+
 private extension Data {
     init(hex: String) {
         var bytes: [UInt8] = []

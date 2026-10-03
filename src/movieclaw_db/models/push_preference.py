@@ -26,3 +26,8 @@ class PushPreference(MemberScopedMixin, TimestampMixin, table=True):
         sa_column=Column(JSON, nullable=False),
         description="改过的事件开关 {事件键: bool}；没出现的事件用默认值",
     )
+    library_ids: list | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+        description="「媒体库有新片」关心哪些库；空 = 我能看到的全部（含以后新建的）",
+    )
