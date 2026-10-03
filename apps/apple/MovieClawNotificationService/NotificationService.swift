@@ -7,7 +7,8 @@ import UserNotifications
 ///
 /// 推送经中继到达时只带通用文案（「MovieClaw」「你有一条新通知」）和密文 `e`。这里：
 /// 1. 按密文里的 `key_id` 从 App Group 共享的钥匙串取这个登录的密钥，解密、校验 `type`；
-/// 2. 换上真正的标题、副标题、正文、分组、类别、声音；本机登记了不止一个登录时在副标题标出「服务器 · 账号」；
+/// 2. 换上真正的标题、副标题、正文、分组（按服务器分开）、类别、声音；按明文的 `source` 在副标题标出服务器或账号
+///    （本机连了多台服务器 / 同一台上登了多个账号时才标，内容类通知不标）；
 /// 3. 有配图时从「服务器地址 + 路径」下载（路径带签名，不用登录），5 秒内拿不到就不带图；
 /// 4. 把 `open` 和 `key_id` 写进 userInfo，App 点开时据此切账号、跳页面。
 ///
@@ -23,7 +24,7 @@ final class NotificationService: UNNotificationServiceExtension {
               let content = request.content.mutableCopy() as? UNMutableNotificationContent
         else { return delivery.finish() }
 
-        let presentation = PushAlertPresentation(push, loginCount: store.registry.count)
+        let presentation = PushAlertPresentation(push, logins: Array(store.registry.entries.values))
         presentation.apply(to: content, keyID: push.keyID)
         delivery.update(content)
         guard let imageURL = presentation.imageURL else { return delivery.finish() }

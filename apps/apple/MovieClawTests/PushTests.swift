@@ -259,44 +259,82 @@ struct PushPayloadTests {
         #expect(try push(#"{"v":1,"type":"alert","title":"ok"}"#) != nil)
     }
 
-    @Test func presentationForSingleLogin() throws {
-        let presentation = PushAlertPresentation(try #require(try push(PushCryptoTests.vectorPlaintext)), loginCount: 1)
+    // 本机登记了推送的登录（key_id 对照里的）：nas 上爸爸，另一台服务器、同一台服务器上的另一个账号
+    private var nasMom: PushLoginInfo {
+        PushLoginInfo(origin: nas.origin, username: "mom", serverName: nas.serverName, accountName: "妈妈")
+    }
+    private let office = PushLoginInfo(origin: "https://movie.example.com", username: "dad", serverName: "movie.example.com", accountName: "爸爸")
+
+    private func alert(_ extra: String = "") -> String {
+        #"{"v":1,"type":"alert","title":"T","body":"B","server":{"id":"s1","name":"客厅 NAS"},"account":{"id":"u7","name":"爸爸"}"# + extra + "}"
+    }
+
+    @Test func presentationOfTestVector() throws {
+        let presentation = PushAlertPresentation(try #require(try push(PushCryptoTests.vectorPlaintext)), logins: [nas, office, nasMom])
         #expect(presentation.title == "流浪地球 2 已入库")
         #expect(presentation.body == "4K · HDR · 已添加到「电影」")
-        #expect(presentation.subtitle == nil, "只连了一台服务器一个账号：不标来源")
-        #expect(presentation.thread == "library")
+        #expect(presentation.subtitle == nil, "没有 source（内容类）：多台服务器、多个账号也不标来源")
+        #expect(presentation.thread == "http://192.168.1.10:3000:library", "分组按服务器分开")
         #expect(presentation.category == "library.added")
         #expect(presentation.sound == "default")
         #expect(presentation.imageURL == URL(string: "http://192.168.1.10:3000/api/push/images/abc123"), "配图 = 服务器地址 + 带签名的路径")
         #expect(presentation.openPath == nil, "open 不是站内路径（movieclaw://）不跳")
     }
 
-    /// 连了多台服务器或多个账号：副标题标出「服务器 · 账号」，接在原来的副标题后面
-    @Test func presentationLabelsSourceWhenSeveralLogins() throws {
-        let labeled = PushAlertPresentation(try #require(try push(PushCryptoTests.vectorPlaintext)), loginCount: 2)
-        #expect(labeled.subtitle == "客厅 NAS · 爸爸")
-
-        let withSubtitle = PushAlertPresentation(
-            try #require(try push(#"{"v":1,"type":"alert","title":"T","body":"B","subtitle":"第 7 集","open":"/subscriptions/42"}"#)), loginCount: 3)
-        #expect(withSubtitle.subtitle == "第 7 集 · 192.168.1.10:3000 · 爸爸", "明文没带服务器名、账号名时用本机记的")
-        #expect(withSubtitle.openPath == "/subscriptions/42")
+    /// source = server（管理员告警）：本机连了不止一台服务器才标服务器名
+    @Test func serverSourceNeedsSeveralServers() throws {
+        let decrypted = try #require(try push(alert(#","source":"server","subtitle":"下载器""#)))
+        #expect(PushAlertPresentation(decrypted, logins: [nas]).subtitle == "下载器")
+        #expect(PushAlertPresentation(decrypted, logins: [nas, nasMom]).subtitle == "下载器", "同一台服务器上的两个账号不算两台")
+        #expect(PushAlertPresentation(decrypted, logins: [nas, office]).subtitle == "下载器 · 客厅 NAS")
+        let unnamed = try #require(try push(#"{"v":1,"type":"alert","title":"T","body":"B","source":"server"}"#))
+        #expect(PushAlertPresentation(unnamed, logins: [nas, office]).subtitle == "192.168.1.10:3000", "明文没带服务器名时用本机记的")
     }
 
-    /// 更高版本的明文：只尽力显示标题和正文
+    /// source = account（新设备登录）：同一台服务器上登了不止一个账号才标账号名；别的服务器上的账号不算
+    @Test func accountSourceNeedsSeveralAccountsOnThatServer() throws {
+        let decrypted = try #require(try push(alert(#","source":"account""#)))
+        #expect(PushAlertPresentation(decrypted, logins: [nas]).subtitle == nil)
+        #expect(PushAlertPresentation(decrypted, logins: [nas, office]).subtitle == nil)
+        #expect(PushAlertPresentation(decrypted, logins: [nas, nasMom]).subtitle == "爸爸")
+        let unnamed = try #require(try push(#"{"v":1,"type":"alert","title":"T","body":"B","source":"account"}"#))
+        #expect(PushAlertPresentation(unnamed, logins: [nas, nasMom]).subtitle == "爸爸", "明文没带账号名时用本机记的昵称")
+    }
+
+    /// 没有 source、或不认识的 source：不标
+    @Test func absentOrUnknownSourceAddsNothing() throws {
+        for extra in ["", #","source":"device""#, #","source":3"#] {
+            let decrypted = try #require(try push(alert(extra)))
+            #expect(PushAlertPresentation(decrypted, logins: [nas, office, nasMom]).subtitle == nil, "\(extra)")
+        }
+        let withSubtitle = try #require(try push(alert(#","subtitle":"第 7 集""#)))
+        #expect(PushAlertPresentation(withSubtitle, logins: [nas, office]).subtitle == "第 7 集")
+    }
+
+    /// 分组：「服务器:thread」，没有 thread 时只按服务器
+    @Test func threadIsScopedPerServer() throws {
+        let threaded = try #require(try push(alert(#","thread":"system""#)))
+        #expect(PushAlertPresentation(threaded, logins: [nas]).thread == "http://192.168.1.10:3000:system")
+        let bare = try #require(try push(alert()))
+        #expect(PushAlertPresentation(bare, logins: [nas]).thread == "http://192.168.1.10:3000")
+    }
+
+    /// 更高版本的明文：只尽力显示标题和正文（来源、分组照样按规则来）
     @Test func newerVersionShowsOnlyTitleAndBody() throws {
-        let decrypted = try #require(try push(#"{"v":2,"type":"alert","title":"T","body":"B","subtitle":"S","image":"/img","open":"/subscriptions/1","thread":"x","sound":"chime","new_field":{"a":1}}"#))
-        let presentation = PushAlertPresentation(decrypted, loginCount: 1)
+        let decrypted = try #require(try push(#"{"v":2,"type":"alert","title":"T","body":"B","subtitle":"S","image":"/img","open":"/subscriptions/1","thread":"x","sound":"chime","source":"server","new_field":{"a":1}}"#))
+        let presentation = PushAlertPresentation(decrypted, logins: [nas])
         #expect(presentation.title == "T")
         #expect(presentation.body == "B")
-        #expect(presentation.subtitle == nil && presentation.thread == nil && presentation.sound == nil)
+        #expect(presentation.subtitle == nil && presentation.sound == nil)
+        #expect(presentation.thread == "http://192.168.1.10:3000")
         #expect(presentation.imageURL == nil && presentation.openPath == nil)
-        #expect(PushAlertPresentation(decrypted, loginCount: 2).subtitle == "192.168.1.10:3000 · 爸爸", "来源照样标")
+        #expect(PushAlertPresentation(decrypted, logins: [nas, office]).subtitle == "192.168.1.10:3000")
     }
 
     @Test func rejectsOffSiteImagesAndLinks() throws {
         let presentation = PushAlertPresentation(
             try #require(try push(#"{"v":1,"type":"alert","title":"T","body":"B","image":"https://evil.example/x.jpg","open":"//evil.example/x"}"#)),
-            loginCount: 1)
+            logins: [nas])
         #expect(presentation.imageURL == nil)
         #expect(presentation.openPath == nil)
         #expect(PushTapTarget.sitePath(" /library/3/item/7?season=1 ") == "/library/3/item/7?season=1")

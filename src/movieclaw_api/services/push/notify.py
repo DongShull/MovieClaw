@@ -39,8 +39,12 @@ class AlertContent:
     image: str | None = None
     #: 点开后的网页站内路径，网页和 App 用同一套路由
     open: str | None = None
-    #: 通知分组（threadIdentifier）
+    #: 通知分组（threadIdentifier）；App 会再按服务器分开，不同服务器的通知不混在一组
     thread: str | None = None
+    #: 要不要在手机上标出来源（push-payload.md §3.1 的 ``source``）：None = 不标（内容类，
+    #: 点开时 App 自动切过去）；"server" = 手机连了不止一台服务器时标服务器名（管理员告警）；
+    #: "account" = 同一台服务器上登了不止一个账号时标账号名（账号安全，服务器名已写进正文）
+    source: str | None = None
 
 
 #: 按收件人写文案：同一事件对不同的人可能跳到不同的页面（比如各自能看到的库）。
@@ -50,7 +54,7 @@ ContentBuilder = Callable[[AsyncSession, int], Awaitable[AlertContent | None]]
 Recipients = set[int] | Callable[[AsyncSession], Awaitable[set[int]]]
 
 
-async def _server_identity() -> dict:
+async def server_identity() -> dict:
     """明文里的 ``server``：Jellyfin 兼容层的服务器 ID 和名称（连接云时用的名称优先）。"""
     from movieclaw_api.settings import CloudSetting, get_setting_store
     from movieclaw_api.settings.schemas import get_jellyfin_compat
@@ -88,6 +92,8 @@ def _plaintext(content: AlertContent, *, server: dict, account: dict) -> dict:
         message["open"] = content.open
     if content.thread:
         message["thread"] = content.thread
+    if content.source:
+        message["source"] = content.source
     message["sound"] = "default"
     message["server"] = server
     message["account"] = account
@@ -125,7 +131,7 @@ async def prepare(
     ]
     if not devices:
         return []
-    server = await _server_identity()
+    server = await server_identity()
     names = await _account_names(session, {d.member_id for d in devices})
     collapse_value = None
     if collapse is not None:

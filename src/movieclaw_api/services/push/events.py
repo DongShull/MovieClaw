@@ -19,7 +19,7 @@ from sqlmodel import select
 
 from movieclaw_api.exceptions import NotFoundException
 from movieclaw_api.services.push.images import image_path
-from movieclaw_api.services.push.notify import AlertContent, notify
+from movieclaw_api.services.push.notify import AlertContent, notify, server_identity
 
 logger = logging.getLogger("movieclaw_api.push.events")
 
@@ -272,14 +272,17 @@ def new_device(
     where = f"，来源 {ip}" if ip else ""
 
     async def build(_session: AsyncSession, _member_id: int) -> AlertContent:
+        # 安全提醒一定要说清是哪台服务器：不知道在哪，就没法判断是不是自己、去哪注销
+        server = (await server_identity())["name"]
         return AlertContent(
             title="新设备登录了你的账号",
             body=(
-                f"「{name}」（{kind_label}）刚刚登录{where}。"
+                f"你在「{server}」上的账号刚在新设备登录：「{name}」（{kind_label}）{where}。"
                 "不是你本人的话，去「账号 → 设备」注销它。"
             ),
             open="/settings/devices",
             thread="account",
+            source="account",
         )
 
     notify("new_device", {member_id}, build, exclude_device_ids=frozenset({device_id}))
@@ -313,6 +316,7 @@ def system_alert(*, dedupe_key: str, source: str, title: str, message: str, payl
             body=message,
             open=notice_path(source, payload),
             thread="system",
+            source="server",
         )
 
     notify("system_alert", {0}, build, collapse=("notice", dedupe_key))

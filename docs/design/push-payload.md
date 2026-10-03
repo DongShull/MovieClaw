@@ -59,7 +59,8 @@ v1.<key_id>.<nonce>.<密文>
 | `subtitle` | 可选，副标题 |
 | `image` | 可选，配图地址：带签名的相对路径（相对实例地址，如 `/api/v1/push/images/<签名>`），不需要登录凭证，见第 6 节 |
 | `open` | 可选，点开后的页面：网页站内路径（如 `/subscriptions/42`），网页和 App 用同一套路由 |
-| `thread` | 可选，分组（设置为通知的 `threadIdentifier`） |
+| `thread` | 可选，分组（设置为通知的 `threadIdentifier`；App 会再按服务器分开，不同服务器的通知不混在一组） |
+| `source` | 可选，要不要在手机上标出来源：没有这个字段 = 不标；`server` = 手机连了不止一台服务器时标服务器名；`account` = 同一台服务器上登了不止一个账号时标账号名 |
 | `category` | 可选，通知类别（操作按钮） |
 | `sound` | 可选，`default` 或 App 内置的声音名 |
 
@@ -98,7 +99,7 @@ collapse_id = base64url( HMAC-SHA256(collapse_key, "<对象类型>:<对象 ID>")
 
 1. 从 `userInfo["e"]` 取密文，按 `key_id` 在共享钥匙串里找密钥；
 2. 解密、校验 `type`；失败（没有这把密钥、认证失败、格式不对）就保留中继填的通用文案（「MovieClaw」「你有一条新通知」）；
-3. 设置标题、副标题、正文、分组（`threadIdentifier`）、类别（`categoryIdentifier`）、声音；在副标题或正文里标出来自哪台服务器和哪个账号；
+3. 设置标题、副标题、正文、分组（`threadIdentifier`）、类别（`categoryIdentifier`）、声音；按 `source` 决定要不要在副标题标出服务器或账号（内容类不标：点开时 App 会自动切到对应的服务器和账号）；
 4. 有 `image` 时从「实例地址 + `image`」下载配图，超时 5 秒，失败就不带图。地址自带签名（只含一张图片地址和过期时间），通知扩展不需要 App 的登录令牌；签名在密文里，中继和苹果看不到。不直接用 TMDB 图床：国内经常连不上，还会把手机 IP 暴露给 TMDB。只开放局域网的实例，手机在外网时收到的通知不带图；
 5. 点开时按 `open` 跳转，必要时先切换到对应的服务器和账号。
 

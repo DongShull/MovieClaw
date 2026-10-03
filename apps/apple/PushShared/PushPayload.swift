@@ -26,12 +26,14 @@ nonisolated struct PushPlaintext: Decodable, Equatable, Sendable {
     var thread: String?
     var category: String?
     var sound: String?
+    /// 要不要在手机上标出来源：没有 = 不标（内容类，点开会自动切账号）；`server` = 标服务器名；`account` = 标账号名
+    var source: String?
 
     enum CodingKeys: String, CodingKey {
         case version = "v"
         case type
         case sentAt = "sent_at"
-        case server, account, title, body, subtitle, image, open, thread, category, sound
+        case server, account, title, body, subtitle, image, open, thread, category, sound, source
     }
 
     init(from decoder: Decoder) throws {
@@ -52,6 +54,7 @@ nonisolated struct PushPlaintext: Decodable, Equatable, Sendable {
         thread = lenient(.thread)
         category = lenient(.category)
         sound = lenient(.sound)
+        source = lenient(.source)
     }
 
     /// 比这个版本的 App 新的结构：只尽力显示标题和正文
@@ -103,25 +106,40 @@ nonisolated struct PushAlertPresentation: Equatable, Sendable {
     /// 点开后打开的站内路径
     var openPath: String?
 
-    /// - Parameter loginCount: 本机登记了推送的登录数。不止一个（连了多台服务器或多个账号）时，
-    ///   在副标题标出「服务器 · 账号」，原来有副标题就接在后面
-    init(_ push: DecryptedPush, loginCount: Int) {
+    /// - Parameter logins: 本机登记了推送的全部登录（`PushLoginRegistry`）。按明文的 `source` 决定副标题要不要标来源
+    ///   （docs/design/push-payload.md §3.1）：`server` 时本机连了不止一台服务器才标服务器名，`account` 时同一台服务器上
+    ///   登了不止一个账号才标账号名，没有（内容类通知）就不标。原来有副标题就接在后面
+    init(_ push: DecryptedPush, logins: [PushLoginInfo]) {
         let plaintext = push.plaintext
         title = plaintext.title.nonEmpty
         body = plaintext.body.nonEmpty
-        let source = loginCount > 1
-            ? "\(plaintext.server?.name.nonEmpty ?? push.login.serverName) · \(plaintext.account?.name.nonEmpty ?? push.login.accountName)"
-            : nil
+        let source = Self.sourceLabel(push, logins: logins)
+        // 分组按服务器分开：两台服务器各自的「入库」不混在一组
+        let server = push.login.origin
         guard !plaintext.isNewer else {
             subtitle = source
+            thread = server
             return
         }
         subtitle = [plaintext.subtitle.nonEmpty, source].compactMap { $0 }.joined(separator: " · ").nonEmpty
-        thread = plaintext.thread.nonEmpty
+        thread = plaintext.thread.nonEmpty.map { "\(server):\($0)" } ?? server
         category = plaintext.category.nonEmpty
         sound = plaintext.sound.nonEmpty
         imageURL = PushTapTarget.sitePath(plaintext.image).flatMap { URL(string: push.login.origin + $0) }
         openPath = PushTapTarget.sitePath(plaintext.open)
+    }
+
+    static func sourceLabel(_ push: DecryptedPush, logins: [PushLoginInfo]) -> String? {
+        switch push.plaintext.source {
+        case "server":
+            guard Set(logins.map(\.origin)).count > 1 else { return nil }
+            return push.plaintext.server?.name.nonEmpty ?? push.login.serverName
+        case "account":
+            guard Set(logins.filter { $0.origin == push.login.origin }.map(\.login)).count > 1 else { return nil }
+            return push.plaintext.account?.name.nonEmpty ?? push.login.accountName
+        default:
+            return nil
+        }
     }
 }
 

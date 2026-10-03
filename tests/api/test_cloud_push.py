@@ -535,6 +535,7 @@ def test_push_end_to_end_through_official_relay(client: TestClient, world: World
     alert = relay.messages[-1]
     plain = _open(alert, key)
     assert plain["title"] == "站点登录失效" and plain["open"] == "/settings/sites"
+    assert plain["source"] == "server"  # 管理员告警：连了多台服务器时标服务器名
     assert alert["collapse_id"] and len(alert["collapse_id"]) == 16
 
     # 覆盖视图：官方 App 的设备走官方通道
@@ -636,6 +637,7 @@ def test_new_device_login_notifies_other_devices(client: TestClient, world: Worl
     _wait(lambda: len(relay.messages) >= 1)
     plain = _open(relay.messages[-1], key)
     assert plain["title"] == "新设备登录了你的账号" and "新 iPad" in plain["body"]
+    assert "「客厅 NAS」" in plain["body"] and plain["source"] == "account"
     # 同一台设备重新登录不算新设备
     count = len(relay.messages)
     _app_login(client, _ADMIN, installation="inst-ipad-9", name="新 iPad")
@@ -816,6 +818,7 @@ def test_imported_goes_to_subscribers_who_can_see_it(client: TestClient, world: 
     assert member_plain["body"] == "第 1 季第 7 集已入库，点开就能看"
     assert member_plain["open"] == f"/library/{library_id}/item/{item_id}?season=1&episode=7"
     assert member_plain["account"] == {"id": "1", "name": "家人"}
+    assert "source" not in member_plain  # 内容类不标来源：点开时 App 自动切过去
     assert _open(by_token["a0" * 32], admin_key)["title"] == "漫长的季节 更新了"
 
     # 只对选中成员开放、家人不在名单里：家人看不到，就不推给家人
