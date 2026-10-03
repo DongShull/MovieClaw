@@ -45,6 +45,8 @@ struct MainTabView: View {
     @State private var switchingAccount = false
     /// 标签栏上方的「接着看」条（见 ResumeAccessory）
     @State private var resume = ResumeBarStore()
+    /// 点开的推送通知（见 openPushTarget）
+    @Environment(PushCenter.self) private var push
 
     /// 当前停在「片段」页（媒体库页签栈顶）
     private var onReels: Bool {
@@ -252,6 +254,9 @@ struct MainTabView: View {
             // 退出 / 移除当前账号后自动换到了下一个账号：这里才弹得出提示（见 AppModel.pendingNotice）
             if let notice = model.takeNotice() { feedback.success(notice) }
         }
+        .onChange(of: push.pendingTap, initial: true) { _, target in
+            openPushTarget(target, permissions: permissions)
+        }
         .onAppear { if scenePhase == .active { wasActive = true } }
         .onDisappear {
             // 会话过期被打回登录页：记下此刻的位置，重新登录后回到这里（Web 401 → /login?next=原路径）
@@ -363,6 +368,38 @@ extension MainTabView {
             router.present(.accountSwitcher)
         } catch {
             feedback.error(error)
+        }
+    }
+
+    /// 点开推送通知（docs/design/cloud-push.md §9）：来自当前账号就按 `open` 打开站内路径；来自本机别的账号
+    /// 先切过去——主界面按账号整棵重建，新的主界面接着处理同一条（`pendingTap` 这时还留着）
+    private func openPushTarget(_ target: PushTapTarget?, permissions: Permissions) {
+        guard let target, let server = model.server, let session = model.session else { return }
+        if target.login.login == PushLogin(server: server, username: session.username) {
+            push.pendingTap = nil
+            guard let path = target.openPath else { return }
+            router.permissions = permissions // 冷启动时可能抢在 onChange 同步权限之前
+            router.open(webPath: path)
+            return
+        }
+        guard let address = target.login.server else {
+            push.pendingTap = nil
+            return
+        }
+        guard !switchingAccount else { return }
+        switchingAccount = true
+        Task {
+            defer { switchingAccount = false }
+            do {
+                try await model.switchAccount(to: target.login.username, on: address)
+            } catch AppModel.AccountError.needsPassword {
+                push.pendingTap = nil
+                feedback.error("「\(target.login.accountName)」的登录已失效，点它重新输入密码")
+                router.present(.accountSwitcher)
+            } catch {
+                push.pendingTap = nil
+                feedback.error(error)
+            }
         }
     }
 

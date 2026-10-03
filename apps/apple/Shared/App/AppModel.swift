@@ -58,6 +58,9 @@ final class AppModel {
     /// 自动换了账号时要告诉用户的一句话（「已退出 A，已切换到 B」）。换账号后主界面整棵重建，
     /// 提示条也跟着重建，当场弹的提示会丢，所以先存在这里，新的主界面出现时取走弹出来
     private(set) var pendingNotice: String?
+    /// 新登录的次数（账号密码登录、创建管理员、配对码登录；切换账号、冷启动恢复不算）。
+    /// iPhone 版据此在登录后马上请求通知权限、登记推送（docs/design/cloud-push.md §9）
+    private(set) var freshLogins = 0
 
     var api: APIClient? { server.map { APIClient(server: $0, token: token) } }
 
@@ -257,6 +260,7 @@ final class AppModel {
         let session = try await APIClient(server: address, token: token).authMe()
         TokenVault.save(token, server: address, username: session.username)
         activate(address, session: session, token: token)
+        freshLogins += 1
     }
 
     /// 用账号密码换这台设备的令牌，存钥匙串并进入该账号
@@ -270,6 +274,7 @@ final class AppModel {
         }
         TokenVault.save(login.token, server: api.server, username: login.session.username)
         activate(api.server, session: login.session, token: login.token)
+        freshLogins += 1
     }
 
     /// 测通服务器：确认地址上跑的是健康的 MovieClaw，返回它是否已完成初始化

@@ -98,11 +98,11 @@ enum AppRoute: Hashable {
 /// 已接受的平台差异）；`/settings/appearance` 深链因此落到设置首页。
 enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
     case overview, profile
-    case members, devices
+    case members, devices, notifications
     case subscription, sites, downloaders, importWatch = "import-watch"
     case scrape, playback
-    case imPush = "im-push", webhook, llm, mcp, ai
-    case app, network, logs
+    case appPush = "app-push", imPush = "im-push", webhook, llm, mcp, ai
+    case cloud, app, network, logs
 
     var id: String { rawValue }
 
@@ -112,17 +112,20 @@ enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
         case .profile: "个人信息"
         case .members: "成员"
         case .devices: "设备"
+        case .notifications: "通知"
         case .subscription: "订阅规则"
         case .sites: "资源站点"
         case .downloaders: "下载器"
         case .importWatch: "自动入库"
         case .scrape: "刮削与整理"
         case .playback: "播放"
-        case .imPush: "消息推送"
+        case .appPush: "App 推送"
+        case .imPush: "IM 推送"
         case .webhook: "Webhook"
         case .llm: "模型接入"
         case .mcp: "MCP 服务"
         case .ai: "AI 设定"
+        case .cloud: "MovieClaw Cloud"
         case .app: "更新与维护"
         case .network: "网络"
         case .logs: "系统日志"
@@ -135,17 +138,20 @@ enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
         case .profile: "头像、昵称与登录密码"
         case .members: "家庭成员账号、能力开关与可见范围"
         case .devices: "登录着你的账号的浏览器、App、命令行与转码器"
+        case .notifications: "自己收哪些通知，哪些设备能收到"
         case .subscription: "订阅规则组与投递模拟预演"
         case .sites: "站点接入与鉴权、搜索分类、插件 Cookie 同步"
         case .downloaders: "qBittorrent / Transmission 接入"
         case .importWatch: "监听下载目录，下载完成后自动整理进媒体库"
         case .scrape: "海报、简介、命名与目录整理的全局默认"
         case .playback: "远程转码与播放体验"
+        case .appPush: "官方推送与自建推送中继，各 App 走哪个通道"
         case .imPush: "微信 / Telegram / Discord / 飞书 推送与 AI 对话"
         case .webhook: "向外部服务推送播放、收藏等事件"
         case .llm: "接入 OpenAI、百炼等模型供应商，可同时接入多家"
         case .mcp: "把 movieclaw 的能力开放给 Claude Code、Cursor 等 AI 客户端"
         case .ai: "智能体与字幕处理使用的默认模型"
+        case .cloud: "连接到 MovieClaw 账号，家人的手机就能收到通知"
         case .app: "版本更新与应用重启"
         case .network: "代理、镜像与外部访问地址，解决 TMDB 等不可达"
         case .logs: "后端运行日志，按天存档"
@@ -158,45 +164,50 @@ enum SettingsSection: String, CaseIterable, Hashable, Identifiable {
         case .profile: "person.crop.circle"
         case .members: "person.2.badge.key"
         case .devices: "laptopcomputer.and.iphone"
+        case .notifications: "bell.badge"
         case .subscription: "bookmark"
         case .sites: "server.rack"
         case .downloaders: "arrow.down.circle"
         case .importWatch: "folder.badge.gearshape"
         case .scrape: "photo.on.rectangle"
         case .playback: "play.rectangle"
+        case .appPush: "app.badge"
         case .imPush: "bubble.left.and.bubble.right"
         case .webhook: "paperplane"
         case .llm: "sparkles"
         case .mcp: "powerplug"
         case .ai: "wand.and.stars"
+        case .cloud: "cloud"
         case .app: "gearshape.2"
         case .network: "globe"
         case .logs: "terminal"
         }
     }
 
-    /// 成员能看到「个人信息」与「设备」（自己的设备），其余分区仅超级管理员可见
-    var memberVisible: Bool { self == .profile || self == .devices }
+    /// 成员能看到「个人信息」「设备」（自己的设备）与「通知」（自己收什么），其余分区仅超级管理员可见
+    var memberVisible: Bool { self == .profile || self == .devices || self == .notifications }
 
     /// App 不提供的分区：资源与下载的配置（订阅规则、资源站点、下载器、自动入库）只在网页端管理，
     /// 降低审核按条款 5.2.3（便利文件共享）拒审的风险（2026-09-29 用户决定只维护这一个版本）。
     /// 「概览」同理：它的主体是订阅链路体检（站点 / 下载器是否配齐），一并交给网页端。
+    /// 「App 推送」（推送通道与自建中继）表单多、低频，也只在网页端管理（docs/design/cloud-push.md §1）。
     /// 设置首页不列出；其他页面写死的跳转与深链照常解析，分区页显示「请在网页端管理」
     var availableInApp: Bool {
-        ![.overview, .subscription, .sites, .downloaders, .importWatch].contains(self)
+        ![.overview, .subscription, .sites, .downloaders, .importWatch, .appPush].contains(self)
     }
 
     /// 分组（空标题的组不渲染组头）。「个人信息」不列在设置目录里：「我的」页顶部的头像卡
     /// 就是它的入口（2026-09-27 用户要求去掉重复入口），分区本身与 /settings/profile 深链照旧可用
     static let groups: [(title: String, items: [SettingsSection])] = [
         ("", [.overview]),
-        // 「设备」人人可用（成员看自己的设备，docs/design/login-devices.md）；「个人信息」走「我的」页头像卡。
-        // 「成员」并进这一组（原先各自单成一组、每组只有一行，2026-09-29 用户要求合并）；成员身份只看得到「设备」
-        ("账号", [.devices, .members]),
+        // 「设备」「通知」人人可用（成员看自己的设备、管自己收什么）；「个人信息」走「我的」页头像卡。
+        // 「成员」并进这一组（原先各自单成一组、每组只有一行，2026-09-29 用户要求合并）；成员身份只看得到前两项
+        ("账号", [.devices, .notifications, .members]),
         ("资源与下载", [.subscription, .sites, .downloaders, .importWatch]),
         ("媒体库", [.scrape, .playback]),
-        ("通知与集成", [.imPush, .webhook, .llm, .mcp, .ai]),
-        ("系统", [.app, .network, .logs]),
+        ("通知与集成", [.appPush, .imPush, .webhook, .llm, .mcp, .ai]),
+        // 「MovieClaw Cloud」：整台服务器连到管理员的 MovieClaw 账号（docs/design/cloud-push.md §1）
+        ("系统", [.cloud, .app, .network, .logs]),
     ]
 }
 

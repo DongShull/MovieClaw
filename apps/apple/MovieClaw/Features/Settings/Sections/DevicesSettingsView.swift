@@ -154,6 +154,12 @@ struct DevicesSettingsView: View {
                 }
                 Text(DeviceText.summary(device, showOwner: showAll))
                     .font(.caption).foregroundStyle(Theme.textFaint).lineLimit(2)
+                // App 收不到推送时说一句为什么（能收到就不提，docs/design/cloud-push.md §7.3）
+                if let push = device.push, push.status != "ok" {
+                    Label(push.statusText, systemImage: "bell.slash")
+                        .font(.caption).foregroundStyle(Theme.warning)
+                        .accessibilityIdentifier("device-push-\(device.name)")
+                }
                 if DeviceText.isDormant(device) {
                     Text("超过 90 天没有用过，不认识或不再用的设备可以注销")
                         .font(.caption).foregroundStyle(Theme.warning)

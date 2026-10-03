@@ -35,15 +35,23 @@ nonisolated enum TokenVault {
         return String(data: data, encoding: .utf8)
     }
 
+    /// 删掉一个登录的令牌（退出、移除账号、令牌失效）。iPhone 上这个登录的推送密钥一起删
+    /// （docs/design/cloud-push.md §9）：之后那台服务器推来的内容解不开，只显示通用文案
     static func delete(server: ServerAddress, username: String) {
         SecItemDelete(baseQuery(server, username) as CFDictionary)
         AuthTokenRegistry.shared.forget(server: server, username: username)
+        #if os(iOS)
+        PushKeyStore.shared.remove(for: PushLogin(server: server, username: username))
+        #endif
     }
 
-    /// 清空全部令牌（UI 测试重置、退出全部账号）
+    /// 清空全部令牌（UI 测试重置、退出全部账号），推送密钥同上
     static func clearAll() {
         SecItemDelete(KeychainScope.shared([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service]) as CFDictionary)
         AuthTokenRegistry.shared.forgetAll()
+        #if os(iOS)
+        PushKeyStore.shared.removeAll()
+        #endif
     }
 
     private static func baseQuery(_ server: ServerAddress, _ username: String) -> [String: Any] {

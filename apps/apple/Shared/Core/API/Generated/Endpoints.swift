@@ -354,6 +354,48 @@ nonisolated extension APIClient {
         return try await send("POST", "/channels/weixin/bindings/\(challengeId)/verify-code", body: body)
     }
 
+    /// MovieClaw Cloud 的连接状态
+    /// `GET /cloud`
+    func cloudStatus() async throws -> API.CloudStatusView {
+        return try await send("GET", "/cloud")
+    }
+
+    /// 断开 MovieClaw Cloud（云端连不上时可强制只删本地凭证）
+    /// `POST /cloud/disconnect`
+    func cloudDisconnect(body: API.CloudDisconnectRequest) async throws -> API.CloudStatusView {
+        return try await send("POST", "/cloud/disconnect", body: body)
+    }
+
+    /// 关掉一条 MovieClaw Cloud 的服务通知
+    /// `POST /cloud/notices/{notice_id}/dismiss`
+    func cloudNoticesDismiss(noticeId: String) async throws -> API.CloudStatusView {
+        return try await send("POST", "/cloud/notices/\(noticeId)/dismiss")
+    }
+
+    /// 取消配对
+    /// `DELETE /cloud/pairing`
+    func cloudPairingCancel() async throws -> API.CloudStatusView {
+        return try await send("DELETE", "/cloud/pairing")
+    }
+
+    /// 开始连接：申请配对码，到 movieclaw.io 批准
+    /// `POST /cloud/pairing`
+    func cloudPairingStart(body: API.CloudPairingRequest) async throws -> API.CloudStatusView {
+        return try await send("POST", "/cloud/pairing", body: body)
+    }
+
+    /// 立即和 MovieClaw Cloud 同步一次
+    /// `POST /cloud/renew`
+    func cloudRenew() async throws -> API.CloudStatusView {
+        return try await send("POST", "/cloud/renew")
+    }
+
+    /// 上报统计信息的开关
+    /// `PUT /cloud/settings`
+    func cloudSettingsSet(body: API.CloudSettingsRequest) async throws -> API.CloudStatusView {
+        return try await send("PUT", "/cloud/settings", body: body)
+    }
+
     /// 合集列表（按元数据可见性过滤，成员为空的不列）
     /// `GET /collections`
     func collectionList(libraryId: Int? = nil, includeEmpty: Bool? = nil, includeHidden: Bool? = nil) async throws -> [API.CollectionView] {
@@ -1813,6 +1855,78 @@ nonisolated extension APIClient {
         return try await send("GET", "/playback/up-next", query: query)
     }
 
+    /// 推送通道与设备覆盖
+    /// `GET /push/channels`
+    func pushChannelsList() async throws -> API.PushChannelsView {
+        return try await send("GET", "/push/channels")
+    }
+
+    /// 启用 / 停用官方推送通道
+    /// `PUT /push/channels/official`
+    func pushChannelsOfficialSet(body: API.OfficialChannelRequest) async throws -> API.PushChannelsView {
+        return try await send("PUT", "/push/channels/official", body: body)
+    }
+
+    /// 我的通知开关与能收通知的设备
+    /// `GET /push/me`
+    func pushMeShow() async throws -> API.MyPushView {
+        return try await send("GET", "/push/me")
+    }
+
+    /// 改我的通知开关
+    /// `PUT /push/me/preferences`
+    func pushMePreferencesSet(body: API.PushPreferencesRequest) async throws -> API.MyPushView {
+        return try await send("PUT", "/push/me/preferences", body: body)
+    }
+
+    /// 清掉这台设备的推送登记
+    /// `DELETE /push/me/registration`
+    func pushMeRegistrationDelete() async throws -> Void {
+        let _: API.JSONValue? = try await send("DELETE", "/push/me/registration")
+    }
+
+    /// App 登记推送（只接受 App 类设备自己的凭证）
+    /// `PUT /push/me/registration`
+    func pushMeRegistrationSet(body: API.PushRegistrationRequest) async throws -> API.PushRegistrationView {
+        return try await send("PUT", "/push/me/registration", body: body)
+    }
+
+    /// 给我的设备发一条测试通知
+    /// `POST /push/me/test`
+    func pushMeTest() async throws -> API.PushTestView {
+        return try await send("POST", "/push/me/test")
+    }
+
+    /// 添加自建中继
+    /// `POST /push/relays`
+    func pushRelaysCreate(body: API.RelayCreateRequest) async throws -> API.PushChannelsView {
+        return try await send("POST", "/push/relays", body: body)
+    }
+
+    /// 检测一个自建中继
+    /// `POST /push/relays/probe`
+    func pushRelaysProbe(body: API.RelayProbeRequest) async throws -> API.RelayProbeView {
+        return try await send("POST", "/push/relays/probe", body: body)
+    }
+
+    /// 删除自建中继
+    /// `DELETE /push/relays/{relay_id}`
+    func pushRelaysDelete(relayId: String) async throws -> API.PushChannelsView {
+        return try await send("DELETE", "/push/relays/\(relayId)")
+    }
+
+    /// 修改自建中继（改地址、换令牌会重新检测）
+    /// `PATCH /push/relays/{relay_id}`
+    func pushRelaysUpdate(relayId: String, body: API.RelayUpdateRequest) async throws -> API.PushChannelsView {
+        return try await send("PATCH", "/push/relays/\(relayId)", body: body)
+    }
+
+    /// 重新读取中继的能力（/v1/info）
+    /// `POST /push/relays/{relay_id}/refresh`
+    func pushRelaysRefresh(relayId: String) async throws -> API.PushChannelsView {
+        return try await send("POST", "/push/relays/\(relayId)/refresh")
+    }
+
     /// 刷片：取一页片段
     /// `GET /reels`
     func reelsFeed(seed: Int? = nil, offset: Int? = nil, limit: Int? = nil, modes: String? = nil, kind: String? = nil, g: String? = nil, c: String? = nil, d: String? = nil, w: String? = nil, ratingGte: Double? = nil, rt: String? = nil, lang: String? = nil, res: String? = nil, hdr: Bool? = nil, stock: String? = nil, seriesKeys: String? = nil) async throws -> API.ReelFeedView {
@@ -2504,6 +2618,7 @@ nonisolated extension APIClient {
 // - GET /api/v1/playback/sessions/{session_id}/master.m3u8（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/playback/sessions/{session_id}/sub{index}.m3u8（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/playback/sessions/{session_id}/{name}（无响应模型：文件流/SSE 等，需手写）
+// - GET /api/v1/push/images/{token}（无响应模型：文件流/SSE 等，需手写）
 // - GET /api/v1/search/torrents/stream（无响应模型：文件流/SSE 等，需手写）
 // - POST /api/v1/sessions/attachments（multipart 表单上传，需手写）
 // - GET /api/v1/sessions/{session_id}/attachments/{attachment_id}（无响应模型：文件流/SSE 等，需手写）

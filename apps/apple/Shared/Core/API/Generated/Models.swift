@@ -877,6 +877,143 @@ nonisolated extension API {
     typealias ClientType = String
     // 取值：'qbittorrent', 'transmission'
 
+    struct CloudConnectionView: Codable, Hashable, Sendable {
+        var instanceId: String
+        var instanceName: String
+        /// 打了掩码的账号标识，如 y•••@gmail.com
+        var accountDisplay: String
+        var connectedAt: String?
+        var lastRenewAt: String?
+        var tokenExpiresAt: String?
+        var scopes: [String]
+        var capabilities: [String]
+        var limits: [String: Int]
+
+        enum CodingKeys: String, CodingKey {
+            case instanceId = "instance_id"
+            case instanceName = "instance_name"
+            case accountDisplay = "account_display"
+            case connectedAt = "connected_at"
+            case lastRenewAt = "last_renew_at"
+            case tokenExpiresAt = "token_expires_at"
+            case scopes
+            case capabilities
+            case limits
+        }
+    }
+
+    struct CloudDisconnectRequest: Codable, Hashable, Sendable {
+        /// 云端连不上时只删除本地凭证
+        var force: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case force
+        }
+    }
+
+    struct CloudDisconnectView: Codable, Hashable, Sendable {
+        /// revoked：在官网解绑或账号已删除
+        var reason: String
+        var message: String
+        var at: String?
+
+        enum CodingKeys: String, CodingKey {
+            case reason
+            case message
+            case at
+        }
+    }
+
+    struct CloudNoticeView: Codable, Hashable, Sendable {
+        var id: String
+        /// info / warning
+        var level: String
+        var message: String
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case level
+            case message
+        }
+    }
+
+    struct CloudPairingRequest: Codable, Hashable, Sendable {
+        /// 服务器名称
+        var instanceName: String?
+
+        enum CodingKeys: String, CodingKey {
+            case instanceName = "instance_name"
+        }
+    }
+
+    struct CloudPairingView: Codable, Hashable, Sendable {
+        var userCode: String
+        var verificationUri: String
+        var verificationUriComplete: String
+        /// verification_uri_complete 的二维码（SVG data URL）
+        var qrcodeImage: String
+        var expiresAt: String
+        /// pending / denied / expired / error
+        var status: String
+        var message: String?
+        var instanceName: String
+
+        enum CodingKeys: String, CodingKey {
+            case userCode = "user_code"
+            case verificationUri = "verification_uri"
+            case verificationUriComplete = "verification_uri_complete"
+            case qrcodeImage = "qrcode_image"
+            case expiresAt = "expires_at"
+            case status
+            case message
+            case instanceName = "instance_name"
+        }
+    }
+
+    struct CloudSettingsRequest: Codable, Hashable, Sendable {
+        var reportStats: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case reportStats = "report_stats"
+        }
+    }
+
+    struct CloudStatusView: Codable, Hashable, Sendable {
+        /// disconnected / pairing / connected
+        var state: String
+        /// 已连接时：ok / unreachable / expired / unsupported
+        var health: String?
+        var healthMessage: String?
+        var cloudUrl: String
+        /// 设置了 MOVIECLAW_CLOUD_URL
+        var customCloudUrl: Bool
+        /// 连接时默认的服务器名称
+        var serverName: String
+        var pairing: API.CloudPairingView?
+        var connection: API.CloudConnectionView?
+        var lastDisconnect: API.CloudDisconnectView?
+        var reportStats: Bool
+        var lastReport: [String: API.JSONValue]?
+        var lastReportAt: String?
+        var notices: [API.CloudNoticeView]
+
+        enum CodingKeys: String, CodingKey {
+            case state
+            case health
+            case healthMessage = "health_message"
+            case cloudUrl = "cloud_url"
+            case customCloudUrl = "custom_cloud_url"
+            case serverName = "server_name"
+            case pairing
+            case connection
+            case lastDisconnect = "last_disconnect"
+            case reportStats = "report_stats"
+            case lastReport = "last_report"
+            case lastReportAt = "last_report_at"
+            case notices
+        }
+    }
+
     /// 合集卡片的一张封面图。
     /// 合集自己没有图，封面就是成员的海报。由服务端在列合集时一并给出——否则
     /// 客户端要为每个合集再请求一次成员才画得出卡片，一屏合集就是一屏请求。
@@ -1315,6 +1452,18 @@ nonisolated extension API {
             case token
             case device
             case session
+        }
+    }
+
+    /// App 设备能不能收到推送（docs/design/cloud-push.md §4）。界面只在不是 ok 时提示。
+    struct DevicePushView: Codable, Hashable, Sendable {
+        /// ok / permission_denied / no_channel / bad_token / not_registered
+        var status: String
+        var statusText: String
+
+        enum CodingKeys: String, CodingKey {
+            case status
+            case statusText = "status_text"
         }
     }
 
@@ -4749,6 +4898,8 @@ nonisolated extension API {
         var ownerId: Int
         var ownerUsername: String
         var ownerNickname: String
+        /// 推送状态；只有 App 类设备、且在设备列表里才有
+        var push: API.DevicePushView?
 
         enum CodingKeys: String, CodingKey {
             case id
@@ -4769,6 +4920,7 @@ nonisolated extension API {
             case ownerId = "owner_id"
             case ownerUsername = "owner_username"
             case ownerNickname = "owner_nickname"
+            case push
         }
     }
 
@@ -5544,6 +5696,25 @@ nonisolated extension API {
         }
     }
 
+    struct MyPushView: Codable, Hashable, Sendable {
+        /// 服务器有没有任何可用通道
+        var instanceReady: Bool
+        var isAdmin: Bool
+        var events: [API.PushEventView]
+        /// 我能收到通知的设备数
+        var readyDevices: Int
+        /// 我收不到通知的设备；空 = 没问题
+        var attention: [API.PushAttentionView]
+
+        enum CodingKeys: String, CodingKey {
+            case instanceReady = "instance_ready"
+            case isAdmin = "is_admin"
+            case events
+            case readyDevices = "ready_devices"
+            case attention
+        }
+    }
+
     /// 侧边栏主导航的个人排序。
     /// 只存**顺序**（导航项 id 的列表），不存导航项本身——导航有哪些项、叫什么、
     /// 什么权限可见，全部由前端与权限决定，这里存下来的仅仅是"这个人希望它们按
@@ -5683,6 +5854,14 @@ nonisolated extension API {
             case payload
             case createdAt = "created_at"
             case updatedAt = "updated_at"
+        }
+    }
+
+    struct OfficialChannelRequest: Codable, Hashable, Sendable {
+        var enabled: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case enabled
         }
     }
 
@@ -7122,12 +7301,179 @@ nonisolated extension API {
         }
     }
 
+    /// 我的一台收不到通知的设备。
+    struct PushAttentionView: Codable, Hashable, Sendable {
+        var deviceId: String
+        var deviceName: String
+        /// permission_denied / no_channel / bad_token
+        var status: String
+        var statusText: String
+
+        enum CodingKeys: String, CodingKey {
+            case deviceId = "device_id"
+            case deviceName = "device_name"
+            case status
+            case statusText = "status_text"
+        }
+    }
+
+    struct PushChannelView: Codable, Hashable, Sendable {
+        var id: String
+        /// official / custom
+        var kind: String
+        var name: String
+        var enabled: Bool
+        /// inactive / ok / warning / error
+        var state: String
+        var statusText: String
+        var url: String?
+        /// issuer / static / none；没拉到过 /v1/info 为空
+        var authMode: String?
+        var tokenHint: String?
+        var software: String?
+        var topics: [String]
+        var quota: API.PushQuotaView?
+        var lastSuccessAt: String?
+        var lastError: String?
+        var deviceCount: Int
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case kind
+            case name
+            case enabled
+            case state
+            case statusText = "status_text"
+            case url
+            case authMode = "auth_mode"
+            case tokenHint = "token_hint"
+            case software
+            case topics
+            case quota
+            case lastSuccessAt = "last_success_at"
+            case lastError = "last_error"
+            case deviceCount = "device_count"
+        }
+    }
+
+    struct PushChannelsView: Codable, Hashable, Sendable {
+        /// disconnected / pairing / connected
+        var cloudState: String
+        var channels: [API.PushChannelView]
+        /// 没有可用通道的 App 版本；空 = 每台登记过的设备都有通道
+        var uncovered: [API.UncoveredAppView]
+
+        enum CodingKeys: String, CodingKey {
+            case cloudState = "cloud_state"
+            case channels
+            case uncovered
+        }
+    }
+
+    struct PushEventView: Codable, Hashable, Sendable {
+        var key: String
+        var title: String
+        var description: String
+        var group: String
+        var enabled: Bool
+        var `default`: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case key
+            case title
+            case description
+            case group
+            case enabled
+            case `default`
+        }
+    }
+
+    struct PushPreferencesRequest: Codable, Hashable, Sendable {
+        var events: [String: Bool]
+
+        enum CodingKeys: String, CodingKey {
+            case events
+        }
+    }
+
+    struct PushQuotaView: Codable, Hashable, Sendable {
+        var limit: Int?
+        var used: Int?
+        var remaining: Int?
+        var resetAt: String?
+
+        enum CodingKeys: String, CodingKey {
+            case limit
+            case used
+            case remaining
+            case resetAt = "reset_at"
+        }
+    }
+
+    struct PushRegistrationRequest: Codable, Hashable, Sendable {
+        var token: String?
+        var topic: String?
+        var environment: String?
+        var types: [String]?
+        var keyId: String?
+        var key: String?
+        var permission: String
+
+        enum CodingKeys: String, CodingKey {
+            case token
+            case topic
+            case environment
+            case types
+            case keyId = "key_id"
+            case key
+            case permission
+        }
+    }
+
+    struct PushRegistrationView: Codable, Hashable, Sendable {
+        var registered: Bool
+        var status: String
+        var statusText: String
+        var channelName: String?
+
+        enum CodingKeys: String, CodingKey {
+            case registered
+            case status
+            case statusText = "status_text"
+            case channelName = "channel_name"
+        }
+    }
+
     /// 测试推送文本(缺省用默认文案)。
     struct PushTestPayload: Codable, Hashable, Sendable {
         var text: String?
 
         enum CodingKeys: String, CodingKey {
             case text
+        }
+    }
+
+    struct PushTestResultView: Codable, Hashable, Sendable {
+        var deviceId: String
+        var deviceName: String
+        var result: String
+        var message: String
+
+        enum CodingKeys: String, CodingKey {
+            case deviceId = "device_id"
+            case deviceName = "device_name"
+            case result
+            case message
+        }
+    }
+
+    struct PushTestView: Codable, Hashable, Sendable {
+        var sent: Int
+        var results: [API.PushTestResultView]
+
+        enum CodingKeys: String, CodingKey {
+            case sent
+            case results
         }
     }
 
@@ -7791,6 +8137,67 @@ nonisolated extension API {
             case value
             case label
             case count
+        }
+    }
+
+    struct RelayCreateRequest: Codable, Hashable, Sendable {
+        var name: String?
+        var url: String
+        var token: String?
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case url
+            case token
+        }
+    }
+
+    struct RelayProbeRequest: Codable, Hashable, Sendable {
+        var url: String
+
+        enum CodingKeys: String, CodingKey {
+            case url
+        }
+    }
+
+    struct RelayProbeView: Codable, Hashable, Sendable {
+        var url: String
+        var reachable: Bool
+        var error: String?
+        var software: String?
+        var `protocol`: Int?
+        var authMode: String?
+        var topics: [String]
+        var types: [String]
+        var matchedDevices: Int
+        var warnings: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case url
+            case reachable
+            case error
+            case software
+            case `protocol`
+            case authMode = "auth_mode"
+            case topics
+            case types
+            case matchedDevices = "matched_devices"
+            case warnings
+        }
+    }
+
+    struct RelayUpdateRequest: Codable, Hashable, Sendable {
+        var name: String?
+        var url: String?
+        /// 空串表示不改
+        var token: String?
+        var enabled: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case url
+            case token
+            case enabled
         }
     }
 
@@ -10551,6 +10958,17 @@ nonisolated extension API {
             case scrim
             case nav
             case home
+        }
+    }
+
+    /// 登记了推送、但没有任何可用通道能推的 App 版本（按 Bundle ID 汇总）。
+    struct UncoveredAppView: Codable, Hashable, Sendable {
+        var topic: String
+        var deviceCount: Int
+
+        enum CodingKeys: String, CodingKey {
+            case topic
+            case deviceCount = "device_count"
         }
     }
 
