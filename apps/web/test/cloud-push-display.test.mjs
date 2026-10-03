@@ -239,6 +239,11 @@ test("添加中继：检测结果决定能不能保存", () => {
     relayAddBlocker({ ...base, token: "mcpush_x", probe: { reachable: true, auth_mode: "static" } }),
     null,
   );
+  // 不认识的鉴权方式也要令牌（中继协议第 3 节：照样带上配置的令牌）
+  assert.equal(
+    relayAddBlocker({ ...base, probe: { reachable: true, auth_mode: "oauth" } }),
+    "填写中继的令牌",
+  );
   // none 不用令牌
   assert.equal(relayAddBlocker({ ...base, probe: { reachable: true, auth_mode: "none" } }), null);
   assert.equal(

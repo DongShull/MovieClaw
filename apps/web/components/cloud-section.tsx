@@ -352,7 +352,7 @@ function ConnectedView({ status, run }: { status: CloudStatusView; run: Run }) {
     const ok = await confirm({
       title: "断开与 MovieClaw 账号的连接？",
       description:
-        "家人手机上的官方推送会在 5 分钟内停止；自建中继和 IM 推送不受影响。以后可以随时重新连接。",
+        "家人手机上的官方推送会立即停止；自建中继和 IM 推送不受影响。以后可以随时重新连接。",
       confirmLabel: "断开",
       tone: "danger",
     });
@@ -468,7 +468,7 @@ function ConnectedView({ status, run }: { status: CloudStatusView; run: Run }) {
         <div className="min-w-0 flex-1">
           <p className="text-body font-medium text-[var(--text)]">断开连接</p>
           <p className="mt-0.5 text-caption leading-5 text-[var(--text-faint)]">
-            家人手机上的官方推送会在 5 分钟内停止。自建中继不受影响
+            家人手机上的官方推送会立即停止。自建中继不受影响
           </p>
         </div>
         <button
@@ -550,7 +550,7 @@ function SummaryCard({
             <p className="mt-0.5 text-caption leading-5 text-[var(--text-faint)]">
               {row.id === "push"
                 ? row.granted
-                  ? `给登录了这台服务器的手机发通知${dailyLimit ? ` · 每天最多 ${dailyLimit} 条` : ""}`
+                  ? `给登录了这台服务器的手机发通知${dailyLimit != null && dailyLimit > 0 ? ` · 每天最多 ${dailyLimit} 条` : ""}`
                   : "这台服务器没有使用官方推送的权限"
                 : row.granted
                   ? "已授予这台服务器"

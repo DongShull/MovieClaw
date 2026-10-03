@@ -166,3 +166,19 @@ class ArrivalsProgress(SettingSchema):
 
     started_at: datetime | None = Field(default=None, description="第一次运行的时间（不回溯）")
     marks: dict[str, datetime] = Field(default_factory=dict, description="库 id → 水位")
+    held: dict[str, datetime] = Field(
+        default_factory=dict,
+        description="认不出、等认出来再推的台账行 id → 第一次看到的时间（最多等 24 小时）",
+    )
+
+
+@register_setting(namespace="push.signed_out", title="自己退出登录的设备")
+class SignedOutDevices(SettingSchema):
+    """在设备上自己退出登录的 App、命令行：同一台再登录回来不算「新设备登录」。
+
+    只记设备自己退出的（``DELETE /auth/devices/current``）；在「账号 → 设备」里被注销的
+    不记——那可能正是要赶走的陌生设备，它再登录必须提醒。键是
+    「成员 + 客户端类型 + 安装标识」的哈希，30 天后作废。
+    """
+
+    entries: dict[str, datetime] = Field(default_factory=dict, description="哈希 → 退出时间")

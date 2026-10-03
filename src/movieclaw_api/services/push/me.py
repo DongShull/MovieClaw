@@ -84,13 +84,17 @@ async def build_view(session: AsyncSession, principal: Principal) -> MyPushView:
                 )
             )
     from movieclaw_api.services.library.access import visible_library_ids
+    from movieclaw_api.services.push.arrivals import watchable
     from movieclaw_db.models import Library
 
     visible = await visible_library_ids(session, principal)
+    # 「媒体库有新片」的选项：能看到的、能播放的库（图片库不推），顺序和媒体库页一致
     libraries = [
         PushLibraryView(id=lib.id or 0, name=lib.name, kind=lib.kind)
-        for lib in (await session.execute(select(Library).order_by(Library.id))).scalars()
-        if lib.id in visible
+        for lib in (
+            await session.execute(select(Library).order_by(Library.sort_order, Library.id))
+        ).scalars()
+        if lib.id in visible and watchable(lib)
     ]
     chosen = await preferences.library_selection(session, principal.owner_id)
     return MyPushView(
@@ -100,7 +104,9 @@ async def build_view(session: AsyncSession, principal: Principal) -> MyPushView:
         ready_devices=ready,
         attention=attention,
         libraries=libraries,
-        library_ids=None if chosen is None else [i for i in chosen if i in visible],
+        library_ids=(
+            None if chosen is None else [i for i in chosen if i in {lib.id for lib in libraries}]
+        ),
     )
 
 

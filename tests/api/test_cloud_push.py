@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import secrets
 import time
@@ -49,6 +50,7 @@ class FakeCloud:
         self.push_endpoints = [_PUSH]
         self.requests: list[str] = []
         self.issued = 0
+        self.limits: dict[str, int] = {"day": 5000, "device_day": 500}
 
     def grant(self) -> dict:
         self.issued += 1
@@ -58,7 +60,7 @@ class FakeCloud:
             "expires_in": 86400,
             "scope": "push",
             "scopes": ["push"],
-            "limits": {"day": 5000, "device_day": 500},
+            "limits": dict(self.limits),
             "capabilities": ["push"],
             "renew_interval": 3600,
             "account": {"display": "a•••@example.com"},
@@ -143,7 +145,8 @@ class FakeRelay:
         self.mode = mode
         self.token = token
         self.down = False
-        self.results: dict[str, str] = {}  # 设备令牌 → 结果码
+        self.reject = False  # 整批 401（令牌失效、在官网解绑了）
+        self.results: dict[str, str | dict] = {}  # 设备令牌 → 结果码，或完整的单条结果
         self.messages: list[dict] = []
         self.bearers: list[str | None] = []
 
@@ -168,6 +171,8 @@ class FakeRelay:
             )
         if request.url.path == "/v1/push":
             bearer = request.headers.get("authorization", "").removeprefix("Bearer ") or None
+            if self.reject:
+                return httpx.Response(401, json={"error": "unauthorized", "message": "实例已解绑"})
             if self.mode == "static" and bearer != self.token:
                 return httpx.Response(401, json={"error": "unauthorized", "message": "令牌无效"})
             if self.mode == "issuer" and not (bearer or "").startswith("jwt-"):
@@ -184,9 +189,14 @@ class FakeRelay:
             results = []
             for m in messages:
                 code = self.results.get(m["token"], "ok")
-                result = {"id": m["id"], "result": code}
-                if code == "rate_limited":
-                    result.update(retry_after=3600, message="今天的推送已达上限")
+                if isinstance(code, dict):
+                    result = {"id": m["id"], **code}
+                else:
+                    result = {"id": m["id"], "result": code}
+                    if code == "rate_limited":
+                        result.update(
+                            reason="day", limit="day", retry_after=3600, message="今天的推送已达上限"
+                        )
                 results.append(result)
             return httpx.Response(
                 200,
@@ -248,11 +258,16 @@ def world(tmp_path, monkeypatch):  # type: ignore[no-untyped-def]
     reset_setting_store()
     reset_secret_box()
     reset_auth_state()
-    from movieclaw_api.services.push import channels, me
+    from movieclaw_api.services.push import channels, events, me
 
     channels.reset_runtime()
     me.reset_state()
+    events.reset_state()
+    # 推送的几个等待（攒一攒再发）在测试里缩到零点几秒
+    monkeypatch.setattr(events, "_ALERT_DELAY_S", 0.2)
+    monkeypatch.setattr(events, "_MERGE_QUIET_S", 0.2)
     yield w
+    events.reset_state()
     reset_setting_store()
     reset_secret_box()
     reset_auth_state()
@@ -298,7 +313,8 @@ def _connect(client: TestClient, world: World) -> dict:
     assert status["state"] == "pairing"
     world.cloud.approval = "approved"
     _wait(lambda: _data(client.get("/api/v1/cloud"))["state"] == "connected")
-    _wait(lambda: len(world.cloud.reports) >= 1)
+    # 等第一次续签的结果落库（云端先收到上报、实例后保存，中间有一小段空档）
+    _wait(lambda: _data(client.get("/api/v1/cloud"))["last_report"] is not None)
     return _data(client.get("/api/v1/cloud"))
 
 
@@ -353,6 +369,37 @@ def _register(
 
 def _open(message: dict, key: bytes) -> dict:
     return json.loads(crypto.open_sealed(message["payload"], key=key))
+
+
+def _raise_notice(
+    client: TestClient,
+    key: str,
+    *,
+    source: str,
+    title: str,
+    message: str = "",
+    payload: dict | None = None,
+    severity: str = "error",
+) -> None:
+    """在应用里点亮一条待处理事项（和业务代码一样走 upsert_notice）。"""
+    from movieclaw_api.services.system_notice import upsert_notice
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models import NoticeSeverity
+
+    async def go() -> None:
+        async with get_database().session() as session:
+            await upsert_notice(
+                session,
+                dedupe_key=key,
+                severity=NoticeSeverity(severity),
+                source=source,
+                title=title,
+                message=message,
+                payload=payload,
+            )
+
+    assert client.portal is not None
+    client.portal.call(go)
 
 
 def _create_member(client: TestClient) -> None:
@@ -519,18 +566,7 @@ def test_push_end_to_end_through_official_relay(client: TestClient, world: World
     assert plain["open"] == "/settings/notifications"
 
     # 待处理事项 → 推给管理员，同一个问题用同一个 collapse_id
-    from movieclaw_api.services.push import events
-
-    _in_app(
-        client,
-        lambda: events.system_alert(
-            dedupe_key="site:mteam",
-            source="site",
-            title="站点登录失效",
-            message="请更新 Cookie",
-            payload={},
-        ),
-    )
+    _raise_notice(client, "site:mteam", source="site", title="站点登录失效", message="请更新 Cookie")
     _wait(lambda: len(relay.messages) >= 2)
     alert = relay.messages[-1]
     plain = _open(alert, key)
@@ -556,8 +592,8 @@ def test_same_phone_two_accounts_gets_one_push(client: TestClient, world: World)
     token = "cd" * 32
     admin_bearer = _app_login(client, _ADMIN, installation="shared-ipad-1", name="客厅 iPad")
     member_bearer = _app_login(client, _MEMBER, installation="shared-ipad-1", name="客厅 iPad")
-    _, admin_key = _register(client, admin_bearer, token=token)
-    _register(client, member_bearer, token=token)
+    _register(client, admin_bearer, token=token)
+    _, member_key = _register(client, member_bearer, token=token)
 
     from movieclaw_api.services.push import notify
 
@@ -569,7 +605,8 @@ def test_same_phone_two_accounts_gets_one_push(client: TestClient, world: World)
     _wait(lambda: len(relay.messages) >= 1)
     time.sleep(0.3)
     assert len(relay.messages) == 1
-    assert _open(relay.messages[0], admin_key)["title"] == "给 0"
+    # 用最近登记的那个账号的密钥（两个账号都在这台 iPad 上，用哪个都解得开）
+    assert _open(relay.messages[0], member_key)["title"] == "给 1"
 
 
 def test_preferences_and_member_view(client: TestClient, world: World) -> None:
@@ -978,10 +1015,10 @@ def test_library_new_arrivals(client: TestClient, world: World) -> None:
     assert plain["title"] == "「电影」新增 3 部" and "奥本海默" in plain["body"]
     assert plain["open"] == f"/library/{movies_id}"
 
-    # ④ 家人自己订阅了的片 → 已有「入库完成」，这里不重复
+    # ④ 家人自己订阅了的片：对账先推了「入库完成」，「媒体库有新片」不再重复推给他
     relay.messages.clear()
 
-    async def subscribe_as_member(title: str) -> None:
+    async def subscribe_as_member(title: str) -> tuple[int, int]:
         async with get_database().session() as session:
             item = MediaItem(
                 kind="movie", tmdb_id=900001, title=title, original_title=title, year=2024
@@ -991,21 +1028,39 @@ def test_library_new_arrivals(client: TestClient, world: World) -> None:
             await session.commit()
             await session.refresh(item)
             await session.refresh(rule_set)
-            session.add(
-                Subscription(
-                    media_item_id=item.id,
-                    kind="movie",
-                    rule_set_id=rule_set.id,
-                    created_by_member_id=1,
-                )
+            subscription = Subscription(
+                media_item_id=item.id,
+                kind="movie",
+                rule_set_id=rule_set.id,
+                created_by_member_id=1,
             )
+            session.add(subscription)
             await session.commit()
+            await session.refresh(subscription)
+            return subscription.id, item.id
 
-    client.portal.call(subscribe_as_member, "我订阅的片")
+    subscription_id, item_id = client.portal.call(subscribe_as_member, "我订阅的片")
     client.portal.call(add_files, [(movies_id, "movie", "我订阅的片", (0, 0), FileSource.IMPORTED)])
+    from movieclaw_api.services.push import events as push_events
+
+    _in_app(
+        client,
+        lambda: push_events.imported(
+            subscription_id=subscription_id,
+            item_id=item_id,
+            title="我订阅的片",
+            year=2024,
+            kind="movie",
+            units=[(0, 0)],
+            image_url=None,
+        ),
+    )
+    _wait(lambda: len(relay.messages) >= 1)
+    assert _open(relay.messages[-1], member_key)["title"] == "我订阅的片 已入库"
     run_check()
     time.sleep(0.5)
-    assert relay.messages == []
+    assert len(relay.messages) == 1  # 只有那条「入库完成」
+    relay.messages.clear()
 
     # ⑤ 没勾选的剧集库、刚建的库的首次扫描 → 都不推
     client.portal.call(
@@ -1084,37 +1139,101 @@ def test_new_version_pushed_once(client: TestClient, world: World) -> None:
     assert "new_version" not in keys
 
 
-def test_manual_download_imported_once(client: TestClient, world: World) -> None:
-    """手动下载入库推「入库完成」给点下载的人；他开着「媒体库有新片」也不重复。"""
+def _notify(client: TestClient, members: set[int], title: str) -> None:
+    """在应用的事件循环里推一条简单的「入库完成」（只看收件人、偏好和设备）。"""
+    from movieclaw_api.services.push.notify import AlertContent, notify
+
+    async def build(_session, _member_id: int) -> AlertContent:  # type: ignore[no-untyped-def]
+        return AlertContent(title=title)
+
+    _in_app(client, lambda: notify("imported", set(members), build))
+
+
+def _seed_subscription(
+    client: TestClient, *, kind: str, title: str, creator: int | None, followers: list[int]
+) -> tuple[int, int]:
+    """建一个订阅（发起人 + 关注者），返回 (订阅 id, 条目 id)。"""
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models import MediaItem, RuleSet, Subscription, SubscriptionFollower
+
+    async def go() -> tuple[int, int]:
+        async with get_database().session() as session:
+            item = MediaItem(
+                kind=kind,
+                tmdb_id=500000 + abs(hash(title)) % 100000,
+                title=title,
+                original_title=title,
+                year=2024,
+            )
+            rule_set = RuleSet(name=f"规则-{title}", spec={})
+            session.add_all([item, rule_set])
+            await session.commit()
+            await session.refresh(item)
+            await session.refresh(rule_set)
+            subscription = Subscription(
+                media_item_id=item.id,
+                kind=kind,
+                rule_set_id=rule_set.id,
+                created_by_member_id=creator,
+            )
+            session.add(subscription)
+            await session.commit()
+            await session.refresh(subscription)
+            for member_id in followers:
+                session.add(
+                    SubscriptionFollower(subscription_id=subscription.id, member_id=member_id)
+                )
+            await session.commit()
+            return subscription.id or 0, item.id or 0
+
+    assert client.portal is not None
+    return client.portal.call(go)
+
+
+def test_manual_download_landing_in_library_folder(client: TestClient, world: World) -> None:
+    """直接下进库目录的手动下载：扫描入账后按路径对上，「入库完成」推给点下载的家人，
+    他开着「媒体库有新片」也不重复；别的家人照常收到「媒体库有新片」。"""
     from datetime import timedelta
 
     from movieclaw_api.services.push import arrivals
-    from movieclaw_api.services.push import events as push_events
+    from movieclaw_api.services.push import downloads as push_downloads
     from movieclaw_api.settings import get_setting_store
     from movieclaw_api.settings.cloud import ArrivalsProgress
     from movieclaw_db.engine import get_database
-    from movieclaw_db.models import FileSource, LibraryFile, MediaItem, utcnow
+    from movieclaw_db.models import FileSource, LibraryFile, MediaItem, PushDownloadWatch, utcnow
     from movieclaw_db.repositories.library_repo import LibraryRepository
+    from sqlmodel import select
 
     _connect(client, world)
     _create_member(client)
     member_bearer = _app_login(client, _MEMBER, installation="manual-m-1", name="家人手机")
-    _, key = _register(client, member_bearer, token="a2" * 32)
-    _data(
-        _as_app(
-            client,
-            member_bearer,
-            "PUT",
-            "/api/v1/push/me/preferences",
-            json={"events": {"library_new": True}},
+    admin_bearer = _app_login(client, _ADMIN, installation="manual-a-1", name="管理员手机")
+    _, member_key = _register(client, member_bearer, token="a2" * 32)
+    _, admin_key = _register(client, admin_bearer, token="a3" * 32)
+    for bearer in (member_bearer, admin_bearer):
+        _data(
+            _as_app(
+                client,
+                bearer,
+                "PUT",
+                "/api/v1/push/me/preferences",
+                json={"events": {"library_new": True}},
+            )
         )
-    )
     relay = world.relays["push.test"]
+    relay.messages.clear()
     assert client.portal is not None
 
     async def seed() -> tuple[int, int]:
         await get_setting_store().set(
             ArrivalsProgress(started_at=utcnow() - timedelta(seconds=1), marks={})
+        )
+        # 家人在搜索页选「电影」库下载：记下是他点的（下到库目录里的条目目录）
+        await push_downloads.remember(
+            member_id=1,
+            info_hash="ABCDEF",
+            save_path="/m/我下载的片 (2024)",
+            download_name="Mine.2024.1080p",
         )
         async with get_database().session() as session:
             library = await LibraryRepository(session).create(
@@ -1127,42 +1246,556 @@ def test_manual_download_imported_once(client: TestClient, world: World) -> None
             session.add_all([library, item])
             await session.commit()
             await session.refresh(item)
+            # 下载完，库目录扫描把它入了账
             session.add(
                 LibraryFile(
                     library_id=library.id,
                     media_item_id=item.id,
                     season_number=0,
                     episode_number=0,
-                    file_path="/m/我下载的片 (2024)/我下载的片 (2024).mkv",
+                    file_path="/m/我下载的片 (2024)/Mine.2024.1080p/Mine.2024.1080p.mkv",
                     size_bytes=1,
-                    source=FileSource.IMPORTED,
+                    source=FileSource.SCANNED,
                 )
             )
             await session.commit()
-            return library.id, item.id
+            return library.id or 0, item.id or 0
 
     library_id, item_id = client.portal.call(seed)
+
+    async def check(minutes: int) -> int:
+        return await arrivals.check_once(utcnow() + timedelta(minutes=minutes))
+
+    # 刚入账还不到 3 分钟：先不推
+    client.portal.call(check, 1)
+    time.sleep(0.3)
+    assert relay.messages == []
+    # 安静了：点下载的家人收到「入库完成」，管理员收到「媒体库有新片」，各一条
+    client.portal.call(check, 10)
+    _wait(lambda: len(relay.messages) >= 2)
+    time.sleep(0.5)
+    assert sorted(m["token"] for m in relay.messages) == sorted(["a2" * 32, "a3" * 32])
+    by_token = {m["token"]: m for m in relay.messages}
+    mine = _open(by_token["a2" * 32], member_key)
+    assert mine["title"] == "我下载的片 已入库"
+    assert mine["open"].startswith(f"/library/{library_id}/item/{item_id}")
+    assert _open(by_token["a3" * 32], admin_key)["title"] == "新片：我下载的片"
+
+    async def watches() -> list[str]:
+        async with get_database().session() as session:
+            return [w.info_hash for w in (await session.execute(select(PushDownloadWatch))).scalars()]
+
+    assert client.portal.call(watches) == []  # 对上就用掉了
+    relay.messages.clear()
+    client.portal.call(check, 20)
+    time.sleep(0.5)
+    assert relay.messages == []
+
+
+def test_rate_limits_only_block_what_they_hit(client: TestClient, world: World) -> None:
+    """一台手机到了「每台设备每天」的上限只挡它；整台服务器的额度用完才停通道；
+    云端调了额度，续签之后马上恢复。"""
+    _connect(client, world)
+    _create_member(client)
+    admin_bearer = _app_login(client, _ADMIN, installation="rl-admin-install", name="管理员手机")
+    member_bearer = _app_login(client, _MEMBER, installation="rl-member-install", name="家人手机")
+    _register(client, admin_bearer, token="e2" * 32)
+    _register(client, member_bearer, token="f2" * 32)
+    relay = world.relays["push.test"]
+    relay.messages.clear()
+    relay.results["e2" * 32] = {
+        "result": "rate_limited",
+        "reason": "device_day",
+        "limit": "device_day",
+        "retry_after": 3600,
+        "message": "这台设备今天收到的推送已达上限",
+    }
+    _notify(client, {0, 1}, "第一条")
+    _wait(lambda: len(relay.messages) >= 2)
+    relay.messages.clear()
+    _notify(client, {0, 1}, "第二条")
+    _wait(lambda: len(relay.messages) >= 1)
+    time.sleep(0.3)
+    assert [m["token"] for m in relay.messages] == ["f2" * 32]  # 只挡管理员那台
+
+    # 整台服务器今天的额度用完：通道停发，设置页说明原因
+    relay.results["f2" * 32] = "rate_limited"
+    relay.messages.clear()
+    _notify(client, {1}, "第三条")
+    _wait(lambda: len(relay.messages) >= 1)
+    relay.messages.clear()
+    _notify(client, {1}, "第四条")
+    time.sleep(0.5)
+    assert relay.messages == []
+    official = _data(client.get("/api/v1/push/channels"))["channels"][0]
+    assert official["state"] == "warning" and "上限" in official["status_text"]
+
+    # 云端给这台服务器加了额度：续签拿到新限额，不用等到 UTC 零点
+    relay.results.clear()
+    world.cloud.limits = {"day": 20000, "device_day": 500}
+    _data(client.post("/api/v1/cloud/renew"))
+    _notify(client, {1}, "第五条")
+    _wait(lambda: len(relay.messages) >= 1)
+
+
+def test_official_relay_rejection_renews_early(
+    client: TestClient, world: World, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    """官方中继拒绝令牌（在官网解绑了）：马上续签一次，很快显示「已断开」，不等一小时。"""
+    import types
+
+    from movieclaw_api.services.cloud import service as cloud_service
+
+    monkeypatch.setattr(cloud_service, "random", types.SimpleNamespace(uniform=lambda a, b: a))
+    _connect(client, world)
+    bearer = _app_login(client, _ADMIN, installation="rej-1-install", name="iPhone")
+    _register(client, bearer, token="ab" * 32)
+    reports = len(world.cloud.reports)
+    world.relays["push.test"].reject = True
+    world.cloud.revoked = True
+
+    result = _data(_as_app(client, bearer, "POST", "/api/v1/push/me/test"))
+    assert result["results"][0]["result"] == "queued"
+    _wait(lambda: _data(client.get("/api/v1/cloud"))["state"] == "disconnected")
+    assert len(world.cloud.reports) == reports + 1
+    # 中继回了 401：连得通（上报给云端的 reachable 不能说成「连不上」）
+    assert world.cloud.reports[-1]["relay"]["reachable"] is True
+
+
+def test_official_relay_without_auth_keeps_working(client: TestClient, world: World) -> None:
+    """运营方把官方中继切到不要凭证（停运时的退路）：令牌过期了也照样推。"""
+    from datetime import timedelta
+
+    from movieclaw_api.settings import CloudSetting, get_setting_store
+    from movieclaw_db.models import utcnow
+
+    _connect(client, world)
+    bearer = _app_login(client, _ADMIN, installation="open-1-install", name="iPhone")
+    _register(client, bearer, token="ac" * 32)
+    relay = world.relays["push.test"]
+    relay.mode = "none"
+    _data(client.post("/api/v1/push/relays/official/refresh"))
+
+    async def expire() -> None:
+        store = get_setting_store()
+        cloud = (await store.get(CloudSetting)).model_copy(deep=True)
+        cloud.token_expires_at = utcnow() - timedelta(hours=1)
+        await store.set(cloud)
+
+    assert client.portal is not None
+    client.portal.call(expire)
+    relay.messages.clear()
+    result = _data(_as_app(client, bearer, "POST", "/api/v1/push/me/test"))
+    assert result["results"][0]["result"] == "ok"
+    assert relay.bearers[-1] is None  # 不带凭证
+
+
+def test_registration_survives_cold_start_and_token_races(
+    client: TestClient, world: World
+) -> None:
+    """冷启动先只报了权限：已有的令牌留着；关了通知才清。旧令牌的失效结果不动新登记。"""
+    from movieclaw_api.services.push import registration
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models import LoginDevice
+    from sqlmodel import select
+
+    _connect(client, world)
+    bearer = _app_login(client, _ADMIN, installation="cold-1-install", name="iPhone")
+    _register(client, bearer, token="a5" * 32)
+    view = _data(
+        _as_app(
+            client,
+            bearer,
+            "PUT",
+            "/api/v1/push/me/registration",
+            json={"permission": "authorized"},
+        )
+    )
+    assert view["registered"] is True and view["status"] == "ok"
+
+    _register(client, bearer, token="a6" * 32)  # 令牌换了
+
+    async def stale_result() -> str | None:
+        async with get_database().session() as session:
+            device = (
+                await session.execute(select(LoginDevice).where(LoginDevice.name == "iPhone"))
+            ).scalar_one()
+        await registration.mark_unregistered(device.id or 0, "a5" * 32)  # 旧令牌晚到的结果
+        await registration.mark_problem(device.id or 0, "bad_token", "a5" * 32)
+        async with get_database().session() as session:
+            device = await session.get(LoginDevice, device.id)
+            assert device is not None
+            return f"{device.push_token}|{device.push_problem}"
+
+    assert client.portal is not None
+    assert client.portal.call(stale_result) == f"{'a6' * 32}|None"
+
+    view = _data(
+        _as_app(
+            client, bearer, "PUT", "/api/v1/push/me/registration", json={"permission": "denied"}
+        )
+    )
+    assert view["registered"] is False and view["status"] == "permission_denied"
+
+
+def test_shared_phone_uses_the_account_still_on_it(client: TestClient, world: World) -> None:
+    """一台手机登了两个账号，其中一个只在手机上退出了（服务器上还留着登记）：
+    共同的通知用还在手机上的那个账号的密钥；只给已退出那个账号的，不再推到这台手机。"""
+    from datetime import timedelta
+
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models import LoginDevice, utcnow
+    from sqlalchemy import update
+
+    _connect(client, world)
+    _create_member(client)
+    token = "b5" * 32
+    admin_bearer = _app_login(client, _ADMIN, installation="share-2-install", name="iPad")
+    member_bearer = _app_login(client, _MEMBER, installation="share-2-install", name="iPad")
+    _register(client, admin_bearer, token=token)
+    _, member_key = _register(client, member_bearer, token=token)
+
+    async def age_admin() -> None:
+        async with get_database().session() as session:
+            await session.execute(
+                update(LoginDevice)
+                .where(LoginDevice.member_id == 0)
+                .values(push_registered_at=utcnow() - timedelta(days=8))
+            )
+            await session.commit()
+
+    assert client.portal is not None
+    client.portal.call(age_admin)
+    relay = world.relays["push.test"]
+    relay.messages.clear()
+    _notify(client, {0, 1}, "两个人都收的")
+    _wait(lambda: len(relay.messages) >= 1)
+    time.sleep(0.3)
+    assert len(relay.messages) == 1
+    assert _open(relay.messages[0], member_key)["title"] == "两个人都收的"
+    relay.messages.clear()
+    _notify(client, {0}, "只给管理员的")
+    time.sleep(0.6)
+    assert relay.messages == []
+
+
+def test_system_alerts_fold_into_one(client: TestClient, world: World) -> None:
+    """待处理事项：一次故障冒出来一串只推根因；同时冒出的合成一条；马上好了的不推；
+    6 小时内复发不再推。"""
+    from movieclaw_api.services.system_notice import resolve_notices
+    from movieclaw_db.engine import get_database
+
+    _connect(client, world)
+    bearer = _app_login(client, _ADMIN, installation="alert-1-install", name="iPhone")
+    _, key = _register(client, bearer, token="c6" * 32)
+    relay = world.relays["push.test"]
+    relay.messages.clear()
+
+    group = "downloader.landing:1:/x"
+    for torrent, sub in (("aa", 5), ("bb", 6)):
+        _raise_notice(
+            client,
+            f"subscription.landing:{sub}:{torrent}",
+            source="subscription",
+            title=f"订阅 {sub} 的种子无法入库",
+            payload={"subscription_id": sub, "grouped_under": group},
+        )
+    _raise_notice(
+        client, group, source="downloader", title="目录 /x 看不到", payload={"group_key": group}
+    )
+    _wait(lambda: len(relay.messages) >= 1)
+    time.sleep(0.5)
+    assert len(relay.messages) == 1
+    plain = _open(relay.messages[0], key)
+    assert plain["title"] == "目录 /x 看不到" and plain["open"] == "/settings/downloaders"
+
+    relay.messages.clear()
+    _raise_notice(client, "site:a", source="site", title="站点 A 登录失效")
+    _raise_notice(client, "site:b", source="site", title="站点 B 登录失效", severity="warning")
+    _wait(lambda: len(relay.messages) >= 1)
+    time.sleep(0.5)
+    assert len(relay.messages) == 1
+    plain = _open(relay.messages[0], key)
+    assert plain["title"] == "有 2 个问题需要处理" and "站点 A 登录失效" in plain["body"]
+
+    async def resolve(key: str) -> None:
+        async with get_database().session() as session:
+            await resolve_notices(session, dedupe_key=key)
+
+    assert client.portal is not None
+    relay.messages.clear()
+    _raise_notice(client, "downloader:9", source="downloader", title="下载器连不上")
+    client.portal.call(resolve, "downloader:9")  # 马上又好了
+    client.portal.call(resolve, "site:a")
+    _raise_notice(client, "site:a", source="site", title="站点 A 登录失效")  # 6 小时内复发
+    time.sleep(0.8)
+    assert relay.messages == []
+
+
+def test_subscription_pushes_merge_and_skip_the_clicker(client: TestClient, world: World) -> None:
+    """一集一集入账的季包、一集一集验证的洗版，各合成一条；手动选种的人自己不收「开始下载」。"""
+    from movieclaw_api.services.push import events as push_events
+
+    _connect(client, world)
+    _create_member(client)
+    admin_bearer = _app_login(client, _ADMIN, installation="merge-a-install", name="管理员手机")
+    member_bearer = _app_login(client, _MEMBER, installation="merge-m-install", name="家人手机")
+    _, admin_key = _register(client, admin_bearer, token="d8" * 32)
+    _register(client, member_bearer, token="d9" * 32)
+    for bearer in (admin_bearer, member_bearer):
+        _data(
+            _as_app(
+                client,
+                bearer,
+                "PUT",
+                "/api/v1/push/me/preferences",
+                json={"events": {"download_started": True, "upgraded": True}},
+            )
+        )
+    subscription_id, item_id = _seed_subscription(
+        client, kind="tv", title="漫长的季节", creator=None, followers=[1]
+    )
+    relay = world.relays["push.test"]
+    relay.messages.clear()
+
+    def imported(episode: int) -> None:
+        push_events.imported(
+            subscription_id=subscription_id,
+            item_id=item_id,
+            title="漫长的季节",
+            year=2023,
+            kind="tv",
+            units=[(1, episode)],
+            image_url=None,
+        )
+
+    _in_app(client, lambda: imported(1))
+    _in_app(client, lambda: imported(2))
+    _wait(lambda: len(relay.messages) >= 1)
+    time.sleep(0.6)
+    mine = [m for m in relay.messages if m["token"] == "d8" * 32]
+    assert len(mine) == 1
+    plain = _open(mine[0], admin_key)
+    assert plain["title"] == "漫长的季节 更新了" and plain["body"].startswith("第 1 季 2 集")
+
+    relay.messages.clear()
+
+    def upgraded(episode: int) -> None:
+        push_events.upgraded(
+            subscription_id=subscription_id,
+            item_id=item_id,
+            title="漫长的季节",
+            year=2023,
+            unit=(1, episode),
+            old_label="1080p",
+            new_label="2160p",
+            image_url=None,
+        )
+
+    _in_app(client, lambda: upgraded(1))
+    _in_app(client, lambda: upgraded(2))
+    _wait(lambda: len(relay.messages) >= 1)
+    time.sleep(0.6)
+    mine = [m for m in relay.messages if m["token"] == "d8" * 32]
+    assert len(mine) == 1
+    assert _open(mine[0], admin_key)["body"] == "第 1 季 2 集 · 1080p → 2160p"
+
+    relay.messages.clear()
     _in_app(
         client,
-        lambda: push_events.manual_imported(
-            member_ids={1},
+        lambda: push_events.download_started(
+            subscription_id=subscription_id,
             item_id=item_id,
-            library_id=library_id,
-            title="我下载的片",
-            year=2024,
-            kind="movie",
-            since=utcnow() - timedelta(minutes=5),
+            title="漫长的季节",
+            year=2023,
+            units=[(1, 3)],
+            detail="2160p",
+            upgrade=False,
             image_url=None,
+            skip_member_id=0,  # 管理员自己在订阅页选的种
         ),
     )
     _wait(lambda: len(relay.messages) >= 1)
-    plain = _open(relay.messages[-1], key)
-    assert plain["title"] == "我下载的片 已入库"
-    assert plain["open"].startswith(f"/library/{library_id}/item/{item_id}")
+    time.sleep(0.4)
+    assert [m["token"] for m in relay.messages] == ["d9" * 32]
 
-    async def check() -> int:
-        return await arrivals.check_once(utcnow() + timedelta(minutes=10))
 
-    client.portal.call(check)
+def test_new_device_rules(client: TestClient, world: World) -> None:
+    """新设备登录：别的设备登录提醒；自己退出又登录回来不算；Infuse 第一次登录提醒、
+    再登录不提醒；在手机上批准配对，这台手机自己不收提醒。"""
+    _connect(client, world)
+    phone = _app_login(client, _ADMIN, installation="nd-phone-install", name="我的 iPhone")
+    _, key = _register(client, phone, token="e7" * 32)
+    relay = world.relays["push.test"]
+    relay.messages.clear()
+
+    ipad = _app_login(client, _ADMIN, installation="nd-ipad-install", name="iPad")
+    _wait(lambda: len(relay.messages) >= 1)
+    assert "「iPad」" in _open(relay.messages[-1], key)["body"]
+
+    relay.messages.clear()
+    assert _as_app(client, ipad, "DELETE", "/api/v1/auth/devices/current").status_code == 200
+    _app_login(client, _ADMIN, installation="nd-ipad-install", name="iPad")
+    time.sleep(0.6)
+    assert relay.messages == []
+
+    header = (
+        'MediaBrowser Client="Infuse", Device="Living Room", DeviceId="atv-1", Version="8.2"'
+    )
+    resp = client.post(
+        "/Users/AuthenticateByName",
+        json={"Username": _ADMIN["username"], "Pw": _ADMIN["password"]},
+        headers={"Authorization": header},
+    )
+    assert resp.status_code == 200, resp.text
+    _wait(lambda: len(relay.messages) >= 1)
+    body = _open(relay.messages[-1], key)["body"]
+    assert "「Living Room」（Infuse）" in body
+    relay.messages.clear()
+    resp = client.post(
+        "/Users/AuthenticateByName",
+        json={"Username": _ADMIN["username"], "Pw": _ADMIN["password"]},
+        headers={"Authorization": header},
+    )
+    assert resp.status_code == 200
+    time.sleep(0.6)
+    assert relay.messages == []
+
+    started = client.post(
+        f"{_AUTH}/device/authorize",
+        json={"client_type": "cli", "client_name": "mclaw", "installation_id": "cli-1-install"},
+    )
+    user_code = _data(started)["user_code"]
+    approved = _as_app(client, phone, "POST", f"{_AUTH}/devices/requests/{user_code}/approve")
+    assert approved.status_code == 200, approved.text
+    time.sleep(0.6)
+    assert relay.messages == []  # 批准的就是这台手机，不用再提醒它
+
+
+def test_library_new_kinds_and_unrecognized_files(client: TestClient, world: World) -> None:
+    """图片库不推、也不出现在可选的库里；「其他」库叫「新视频」；认不出的文件等认出来
+    再按正确的片名推；扫进来的老文件（给库加了个目录）不算新片。"""
+    from datetime import timedelta
+
+    from movieclaw_api.services.push import arrivals
+    from movieclaw_api.settings import get_setting_store
+    from movieclaw_api.settings.cloud import ArrivalsProgress
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models import FileSource, LibraryFile, MediaItem, utcnow
+    from movieclaw_db.repositories.library_repo import LibraryRepository
+
+    _connect(client, world)
+    bearer = _app_login(client, _ADMIN, installation="kinds-1-install", name="iPhone")
+    _, key = _register(client, bearer, token="f7" * 32)
+    _data(
+        _as_app(
+            client,
+            bearer,
+            "PUT",
+            "/api/v1/push/me/preferences",
+            json={"events": {"library_new": True}},
+        )
+    )
+    relay = world.relays["push.test"]
+    assert client.portal is not None
+
+    async def seed() -> dict[str, int]:
+        await get_setting_store().set(
+            ArrivalsProgress(started_at=utcnow() - timedelta(seconds=1), marks={})
+        )
+        async with get_database().session() as session:
+            repo = LibraryRepository(session)
+            libs = {
+                "movie": await repo.create(name="电影", kind="movie", root_paths=["/m"]),
+                "video": await repo.create(
+                    name="家庭录像", kind="video", source="local", root_paths=["/v"]
+                ),
+                "photo": await repo.create(
+                    name="相册", kind="photo", source="local", root_paths=["/p"]
+                ),
+            }
+            for lib in libs.values():
+                lib.created_at = utcnow() - timedelta(days=3)
+                session.add(lib)
+            await session.commit()
+            return {k: v.id or 0 for k, v in libs.items()}
+
+    libs = client.portal.call(seed)
+    view = _data(_as_app(client, bearer, "GET", "/api/v1/push/me"))
+    assert [lib["name"] for lib in view["libraries"]] == ["电影", "家庭录像"]
+
+    async def add(
+        library: str, title: str, *, source: str = "local", unidentified: bool = False,
+        mtime_days: float = 0,
+    ) -> int:
+        async with get_database().session() as session:
+            item = MediaItem(
+                kind={"movie": "movie", "video": "video", "photo": "photo"}[library],
+                source=source,
+                external_id=f"local-{title}" if source == "local" else None,
+                tmdb_id=None if source == "local" else 880000 + abs(hash(title)) % 10000,
+                title=title,
+                original_title=title,
+                year=2024,
+            )
+            session.add(item)
+            await session.commit()
+            await session.refresh(item)
+            mtime = utcnow() - timedelta(days=mtime_days)
+            row = LibraryFile(
+                library_id=libs[library],
+                media_item_id=item.id,
+                season_number=0,
+                episode_number=0,
+                file_path=f"/{library}/{title}.mkv",
+                size_bytes=1,
+                file_mtime_ns=int(mtime.timestamp() * 1e9),
+                source=FileSource.SCANNED,
+                unidentified_code="no_match" if unidentified else None,
+            )
+            session.add(row)
+            await session.commit()
+            await session.refresh(row)
+            return row.id or 0
+
+    def check() -> int:
+        async def go() -> int:
+            return await arrivals.check_once(utcnow() + timedelta(minutes=10))
+
+        return client.portal.call(go)
+
+    relay.messages.clear()
+    client.portal.call(add, "photo", "IMG_0001")
+    client.portal.call(add, "video", "2026-09-20 生日")
+    raw_row = client.portal.call(
+        functools.partial(add, "movie", "Some.Raw.Name.2024", unidentified=True)
+    )
+    client.portal.call(functools.partial(add, "movie", "老片子", source="tmdb", mtime_days=400))
+    check()
+    _wait(lambda: len(relay.messages) >= 1)
     time.sleep(0.5)
-    assert len(relay.messages) == 1  # 「媒体库有新片」不再推这部
+    assert len(relay.messages) == 1  # 只有家庭录像那条
+    plain = _open(relay.messages[0], key)
+    assert plain["title"] == "新视频：2026-09-20 生日"
+
+    # 认出来了（重新识别把文件挂到 TMDB 条目上）：按正确的片名推
+    async def recognize() -> None:
+        async with get_database().session() as session:
+            item = MediaItem(
+                kind="movie", tmdb_id=990001, title="流浪地球 3", original_title="W3", year=2027
+            )
+            session.add(item)
+            await session.commit()
+            await session.refresh(item)
+            row = await session.get(LibraryFile, raw_row)
+            assert row is not None
+            row.media_item_id = item.id
+            row.unidentified_code = None
+            session.add(row)
+            await session.commit()
+
+    relay.messages.clear()
+    client.portal.call(recognize)
+    check()
+    _wait(lambda: len(relay.messages) >= 1)
+    assert _open(relay.messages[-1], key)["title"] == "新片：流浪地球 3"

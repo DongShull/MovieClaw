@@ -58,7 +58,7 @@ PUSH_EVENTS: tuple[PushEvent, ...] = (
     PushEvent(
         "new_device",
         "新设备登录",
-        "有新的 App、命令行或转码器登录了你的账号",
+        "有新的 App、播放器、命令行或转码器登录了你的账号",
         group="账号安全",
         default=True,
     ),

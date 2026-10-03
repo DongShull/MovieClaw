@@ -22,6 +22,7 @@ import io
 import logging
 import platform
 import random
+import time
 from base64 import b64encode
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -51,6 +52,8 @@ _BACKOFF_FIRST_S = 30
 _BACKOFF_MAX_S = 3600
 #: 令牌剩不到这么久还没续上，就在待处理事项里告诉管理员
 _EXPIRY_WARNING = timedelta(hours=6)
+#: 官方中继拒绝令牌时提前续签，最多这么久一次（中继一直拒绝时不把云端打爆）
+_FORCED_RENEW_INTERVAL_S = 300
 #: 待处理事项（system_notice）里云端相关的 dedupe_key 前缀
 NOTICE_PREFIX = "cloud:"
 
@@ -125,6 +128,8 @@ class CloudService:
         #: 连续续签失败的次数与最近一次失败的说明（只在内存里，显示在 health 上）
         self._failures = 0
         self._last_error = ""
+        #: 上一次因中继拒绝令牌而提前续签的时间（monotonic）
+        self._forced_renew_at: float | None = None
 
     # ------------------------------------------------------------------
     # 生命周期
@@ -333,6 +338,14 @@ class CloudService:
                     # RFC 8628 §3.5：之后一直用加了 5 秒的间隔
                     interval += 5
                     continue
+                if not error or reply.status == 429:
+                    # 不是云端的答复（网关、CDN 返回的限流或拦截页）：当作暂时连不上，接着轮询
+                    pairing.message = (
+                        f"MovieClaw Cloud 暂时不可用（HTTP {reply.status}），正在重试…"
+                    )
+                    if reply.status == 429:
+                        interval += 5
+                    continue
                 if error == "access_denied":
                     pairing.status = "denied"
                     pairing.message = "这次连接在 movieclaw.io 上被拒绝了"
@@ -383,6 +396,7 @@ class CloudService:
             self._pairing = None
             self._pairing_task = None
             self._failures, self._last_error = 0, ""
+        _reset_official_channel()
         logger.info("已连接到 MovieClaw Cloud：实例 %s", data["instance_id"])
         await _resolve_cloud_notices()
         # 马上续签一次，把上报发上去（官网实例详情才有内容）
@@ -451,6 +465,9 @@ class CloudService:
             ):
                 data = reply.body["data"]
                 now = utcnow()
+                limits_changed = isinstance(data.get("limits"), dict) and (
+                    data["limits"] != setting.limits
+                )
 
                 def apply(s: CloudSetting) -> None:
                     _apply_grant(s, data, now)
@@ -468,10 +485,17 @@ class CloudService:
                 await self._update(apply)
                 self._failures, self._last_error = 0, ""
                 logger.info("已续签 MovieClaw Cloud")
+                if limits_changed:
+                    # 云端调了额度（比如管理员给这台服务器加了额度）：之前因额度用完的封锁
+                    # 解除，下一条推送以中继的答复为准，不用等到 UTC 零点
+                    from movieclaw_api.services.push import channels
+
+                    channels.runtime(channels.OFFICIAL_ID).clear_blocks()
                 await _resolve_cloud_notices()
                 return "ok"
 
-            if reply.status == 401:
+            if reply.status == 401 and reply.code in ("UNAUTHORIZED", "INSTANCE_REVOKED"):
+                # 只认云端自己的答复：网关、代理返回的 401 不能让管理员重新配对
                 message = reply.message or "这台服务器已经和 MovieClaw 账号断开"
                 await self._drop_credentials(reason="revoked", message=message)
                 logger.warning(
@@ -533,6 +557,25 @@ class CloudService:
             )
         return "failed"
 
+    def request_renew(self) -> None:
+        """官方中继拒绝了令牌：不等下一个整点，马上在后台续签一次（5 分钟内最多一次）。
+
+        中继每次推送都查实例状态：在官网解绑后，续签会拿到 401 并显示「已断开」；
+        只是令牌失效的话，续签换到新令牌，推送的重试就能接上。
+        """
+        if self._closed or self._renew_task is None or self._renew_task.done():
+            return  # 没在续签（未连接）就不用管
+        now = time.monotonic()
+        if (
+            self._forced_renew_at is not None
+            and now - self._forced_renew_at < _FORCED_RENEW_INTERVAL_S
+        ):
+            return
+        self._forced_renew_at = now
+        logger.info("官方推送中继拒绝了令牌，提前续签一次")
+        # 错开几秒到半分钟：中继配置出错时所有实例同时被拒，不能同一时刻一起去续签
+        asyncio.get_running_loop().call_later(random.uniform(1, 30), self._wake.set)
+
     async def renew_now(self) -> None:
         """管理员点「立即同步」：在请求里同步续签一次，结果反映在 health 上。"""
         setting = await self.load()
@@ -587,6 +630,7 @@ class CloudService:
 
         await self._update(apply)
         self._failures, self._last_error = 0, ""
+        _reset_official_channel()
 
     # ------------------------------------------------------------------
     # 其他设置
@@ -626,6 +670,13 @@ def _apply_grant(setting: CloudSetting, data: dict, now: datetime) -> None:
     setting.last_renew_at = now
 
 
+def _reset_official_channel() -> None:
+    """断开或重新连接：官方通道的运行期状态（额度、封锁、最近的错误）属于上一次连接，清掉。"""
+    from movieclaw_api.services.push import channels
+
+    channels.reset_runtime(channels.OFFICIAL_ID)
+
+
 async def build_report(report_stats: bool) -> dict:
     """续签时的上报：版本信息必报；统计开关打开时再报设备数和中继连通情况。"""
     report = runtime_report_basics()
@@ -634,9 +685,8 @@ async def build_report(report_stats: bool) -> dict:
     from movieclaw_api.services.push.channels import official_relay_status
     from movieclaw_api.services.push.registration import device_counts
 
-    devices = await device_counts()
-    if devices:
-        report["devices"] = devices
+    # 没有设备也照报（空列表）：不报会被官网当成「关了统计」
+    report["devices"] = await device_counts()
     relay = official_relay_status()
     if relay is not None:
         report["relay"] = relay

@@ -152,6 +152,7 @@ async def issue(
     user_agent: str | None = None,
     ip: str | None = None,
     expires_at: datetime | None = None,
+    approver_device_id: int | None = None,
 ) -> tuple[str, LoginDevice]:
     """签发一枚设备令牌，返回 (明文, 行)。明文仅此一次，服务端只存哈希。
 
@@ -159,6 +160,8 @@ async def issue(
     App 重新登录、命令行重新 ``mclaw login`` 都不该越积越多。换人登录同一台
     设备则各占一行——一台手机上登多个账号是正常用法（这点与 Jellyfin 的
     「同设备覆盖」不同）。
+
+    ``approver_device_id``：配对时在 App 上点批准的那台，「新设备登录」不再提醒它。
     """
     installation_id = _clip(installation_id, 128)
     replaced: list[LoginDevice] = []
@@ -202,17 +205,18 @@ async def issue(
         "超管" if member_id == 0 else f"成员 #{member_id}",
     )
     # 新设备登录：告诉本人的其他设备（docs/design/cloud-push.md §5）。网页登录太频繁、
-    # 同一台设备重新登录（替换旧凭证）也不算新设备，都不推
+    # 同一台设备重新登录（替换旧凭证，或之前在这台上自己退出过）都不算新设备，不推
     if kind != "web" and not replaced:
         from movieclaw_api.services.push import events as push_events
 
-        push_events.new_device(
-            member_id=member_id,
-            device_id=row.id or 0,
-            name=row.name,
-            kind_label=spec_of(kind).label,
-            ip=ip or None,
-        )
+        if not await push_events.returning_device(member_id, kind, installation_id):
+            push_events.new_device(
+                member_id=member_id,
+                device_ids=frozenset(i for i in (row.id, approver_device_id) if i is not None),
+                name=row.name,
+                kind_label=spec_of(kind).label,
+                ip=ip or None,
+            )
     return plaintext, row
 
 

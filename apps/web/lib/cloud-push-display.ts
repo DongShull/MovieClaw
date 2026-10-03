@@ -276,8 +276,17 @@ export function uncoveredSummary(uncovered: PushUncoveredApp[]): string | null {
 /* —— 添加自建中继 —— */
 
 /**
+ * 这个鉴权方式要不要填令牌：static 和不认识的方式都要（中继协议第 3 节：不认识的
+ * 方式也照样带上配置的令牌）；none 不要；issuer 这里加不了；没声明的不强求。
+ * 与服务端 services/push/channels.needs_token 同一规则。
+ */
+export function relayNeedsToken(mode: string | null | undefined): boolean {
+  return !!mode && mode !== "none" && mode !== "issuer";
+}
+
+/**
  * 保存键为什么还不能按；能保存返回 null。检测结果决定后面的表单：
- * static 必须填令牌，none 不用填，issuer 这里加不了（要签发方的令牌）。
+ * 要令牌的必须填令牌，none 不用填，issuer 这里加不了（要签发方的令牌）。
  * 连上了但加不了（协议不兼容等）时服务端把原因写在 error 里。
  * 地址在检测之后又改过，结果就作废，要重新检测。
  */
@@ -293,7 +302,7 @@ export function relayAddBlocker(input: {
   if (!probe.reachable) return "中继连不上，检查地址后重新检测";
   if (probe.error?.trim()) return probe.error.trim();
   if (probe.auth_mode === "issuer") return "这个中继需要签发方的令牌，暂不支持在这里添加";
-  if (probe.auth_mode === "static" && !input.token.trim()) return "填写中继的令牌";
+  if (relayNeedsToken(probe.auth_mode) && !input.token.trim()) return "填写中继的令牌";
   if (!input.name.trim()) return "给中继起个名字";
   return null;
 }

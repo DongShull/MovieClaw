@@ -45,24 +45,48 @@ class ChannelRuntime:
     last_error: str | None = None
     last_error_at: datetime | None = None
     consecutive_failures: int = 0
+    #: 最近一次失败是连不上（网络错误）。中继回了 401、503 这类 HTTP 错误不算——
+    #: 上报给云端时据此区分「中继出了问题」和「这台服务器出不了网」
+    unreachable: bool = False
     quota: dict | None = None
     blocked_until: datetime | None = None
     blocked_message: str | None = None
+    #: 单台设备触发的限额（如 ``device_day``）：设备令牌 → (解除时间, 说明)。只挡这台
+    #: 设备，不能因为一台手机超限就停掉整个通道；中继按令牌计数，这里也按令牌记
+    device_blocks: dict[str, tuple[datetime, str]] = field(default_factory=dict)
 
     def record_success(self, quota: dict | None) -> None:
         self.last_success_at = utcnow()
         self.consecutive_failures = 0
         self.last_error = None
-        if quota is not None:
-            self.quota = quota
+        self.unreachable = False
+        # 不带 quota（不限额、none 模式）就清掉旧读数，免得一直显示过时的额度
+        self.quota = quota
 
-    def record_failure(self, message: str) -> None:
+    def record_failure(self, message: str, *, unreachable: bool = False) -> None:
         self.consecutive_failures += 1
         self.last_error = message
         self.last_error_at = utcnow()
+        self.unreachable = unreachable
 
     def blocked(self) -> bool:
         return self.blocked_until is not None and self.blocked_until > utcnow()
+
+    def device_block(self, token: str) -> str | None:
+        """这台设备在这个通道上还在限额里：返回说明；没有返回 None。"""
+        entry = self.device_blocks.get(token)
+        if entry is None:
+            return None
+        if entry[0] <= utcnow():
+            del self.device_blocks[token]
+            return None
+        return entry[1]
+
+    def clear_blocks(self) -> None:
+        """限额可能变了（云端调了额度、重新连接）：解除封锁，下一条推送以中继的答复为准。"""
+        self.blocked_until = None
+        self.blocked_message = None
+        self.device_blocks.clear()
 
 
 _runtime: dict[str, ChannelRuntime] = {}
@@ -72,9 +96,13 @@ def runtime(channel_id: str) -> ChannelRuntime:
     return _runtime.setdefault(channel_id, ChannelRuntime())
 
 
-def reset_runtime() -> None:
-    """测试用：清空运行期状态。"""
-    _runtime.clear()
+def reset_runtime(channel_id: str | None = None) -> None:
+    """清掉运行期状态。给通道 id 只清它（断开、重新连接 MovieClaw Cloud 时）；
+    不给就清全部（测试用）。"""
+    if channel_id is None:
+        _runtime.clear()
+    else:
+        _runtime.pop(channel_id, None)
 
 
 @dataclass
@@ -122,6 +150,12 @@ def mask_token(token: str) -> str | None:
     return token[:4] + "…"
 
 
+def needs_token(auth_mode: str) -> bool:
+    """自建中继要不要填令牌：``static`` 和不认识的方式都要（照样带上配置的令牌，中继
+    协议第 3 节）；``none`` 不要；``issuer`` 这里加不了；没声明的不强求。"""
+    return auth_mode not in ("none", "issuer", "")
+
+
 def _custom_problem(r: PushRelay) -> str | None:
     if r.info is None:
         return "还没连上过这个中继"
@@ -129,7 +163,7 @@ def _custom_problem(r: PushRelay) -> str | None:
         return f"中继的协议版本是 {r.info.protocol}，这个版本只支持 {SUPPORTED_PROTOCOL}"
     if r.info.auth_mode == "issuer":
         return "这个中继要签发方的令牌，这里还不能用"
-    if r.info.auth_mode == "static" and not r.token:
+    if needs_token(r.info.auth_mode) and not r.token:
         return "缺少中继令牌"
     return None
 
@@ -145,8 +179,13 @@ async def load_channels() -> list[Channel]:
 
     bearer = service.official_bearer(cloud)
     endpoints = service.push_endpoints(cloud)
+    # 官方中继声明不要凭证（运营方停运时的退路，协议第 3 节）：不带令牌直接推，
+    # 云端连不上、令牌过期、版本检查都不再挡着
+    open_relay = bool(config.official_info and config.official_info.auth_mode == "none")
     if not cloud.connected:
         problem = "正在连接 MovieClaw Cloud" if service.pairing else "未连接 MovieClaw Cloud"
+    elif open_relay:
+        problem = None if endpoints else "MovieClaw Cloud 没有给出推送中继地址"
     elif cloud.unsupported_message:
         problem = cloud.unsupported_message
     elif "push" not in cloud.scopes:
@@ -163,7 +202,7 @@ async def load_channels() -> list[Channel]:
         name=OFFICIAL_NAME,
         enabled=config.official_enabled,
         urls=endpoints,
-        bearer=bearer,
+        bearer=None if open_relay else bearer,
         info=config.official_info,
         lan_direct=False,
         usable=config.official_enabled and problem is None,
@@ -200,7 +239,8 @@ def official_relay_status() -> dict | None:
     state = _runtime.get(OFFICIAL_ID)
     if state is None or (state.last_success_at is None and state.last_error is None):
         return None
-    status: dict = {"reachable": state.consecutive_failures == 0}
+    # 收到了中继的答复（哪怕是 401、503）就算连得通：云端靠它区分中继故障和出不了网
+    status: dict = {"reachable": not state.unreachable}
     if state.last_success_at is not None:
         status["last_success_at"] = state.last_success_at.replace(microsecond=0).isoformat() + "Z"
     return status

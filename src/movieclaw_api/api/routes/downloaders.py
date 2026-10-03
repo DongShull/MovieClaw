@@ -287,8 +287,17 @@ async def submit_download(
             save_path=derived_path,
             site_id=payload.site_id,
             torrent_id=payload.torrent_id,
-            # 入库时把「入库完成」推给点下载的人；超管、Agent 都记作超管（NULL）
-            submitted_by_member_id=None if principal.is_admin else principal.member_id,
+        )
+    if result.info_hash:
+        # 入库时把「入库完成」推给点下载的人（docs/design/cloud-push.md §5）。
+        # 每次手动下载都记，不管选库、智能入库还是选目录；超管、Agent 都算超管
+        from movieclaw_api.services.push import downloads as push_downloads
+
+        await push_downloads.remember(
+            member_id=principal.owner_id,
+            info_hash=result.info_hash,
+            save_path=derived_path or row.save_path,
+            download_name=result.name or None,
         )
     view = DownloadSubmitView(
         info_hash=result.info_hash,

@@ -1105,6 +1105,8 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                         f"连续 {wanted.upgrade_verify_failures} 次抓到标称与实测不符的资源，"
                         "洗版已转入 30 天冷却。可在订阅详情检查候选质量或调整规则组。"
                     ),
+                    # 告警中心和手机推送据此直接跳到这个订阅
+                    payload={"subscription_id": wanted.subscription_id},
                 )
             logger.warning(
                 "洗版证伪：条目 #%s %s 标称与实测不符（连续 %d 次）",

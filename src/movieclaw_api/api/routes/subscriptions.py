@@ -746,6 +746,7 @@ async def grab_subscription_torrent(
         imdb_id=payload.imdb_id,
         douban_id=payload.douban_id,
         publish_time=payload.publish_time,
+        actor_member_id=principal.owner_id,
     )
     units = [
         DownloadUnitView(season_number=w.season_number, episode_number=w.episode_number)

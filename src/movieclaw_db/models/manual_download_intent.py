@@ -50,18 +50,6 @@ class ManualDownloadIntent(TimestampMixin, table=True):
         ),
         description="按收藏范围路由后确认的目标媒体库",
     )
-    # 谁点的下载：入库时把「入库完成」推给这个人（docs/design/cloud-push.md §5）。
-    # 与订阅的 created_by_member_id 同一约定：NULL = 超管；成员被删除时 SET NULL。
-    submitted_by_member_id: int | None = Field(
-        default=None,
-        sa_column=Column(
-            Integer,
-            ForeignKey("member.id", ondelete="SET NULL"),
-            nullable=True,
-            index=True,
-        ),
-        description="点下载的成员；NULL = 超管",
-    )
     downloader_id: int | None = Field(
         default=None,
         sa_column=Column(

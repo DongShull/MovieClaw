@@ -1034,6 +1034,7 @@ async def approve_device_request(user_code: str, approver: Principal) -> DeviceA
                 client_version=challenge.client_version,
                 platform=challenge.platform,
                 ip=challenge.source_ip or None,
+                approver_device_id=approver.device.id if approver.device else None,
             )
     except Exception:
         challenge.status = "pending"

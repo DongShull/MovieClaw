@@ -26,17 +26,26 @@ logger = logging.getLogger("movieclaw_api.push.relay")
 
 EGRESS_SERVICE = "movieclaw_push"
 _TIMEOUT = httpx.Timeout(15.0, connect=8.0)
+#: 推送要等中继把整批交给苹果才答复（中继等苹果最多 30 秒）：等得比它短，苹果一慢
+#: 实例就先超时，换地址重发，已经送达的通知再响一遍、额度也扣两次
+_PUSH_TIMEOUT = httpx.Timeout(60.0, connect=8.0)
 _LAN_SUFFIXES = (".local", ".lan", ".home", ".home.arpa", ".internal", ".localdomain")
 
 
 class RelayError(Exception):
-    """中继这次请求整体失败。``retryable`` 为真时换下一个地址 / 通道或稍后重试。"""
+    """中继这次请求整体失败。``retryable`` 为真时换下一个地址 / 通道或稍后重试。
 
-    def __init__(self, message: str, *, retryable: bool, code: str = "") -> None:
+    ``network`` 为真表示根本没连上（没收到任何 HTTP 答复）。
+    """
+
+    def __init__(
+        self, message: str, *, retryable: bool, code: str = "", network: bool = False
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.retryable = retryable
         self.code = code
+        self.network = network
 
 
 @dataclass
@@ -74,12 +83,12 @@ def _scope(url: str, *, lan_direct: bool) -> EgressScope:
     return EgressScope.LAN if lan_direct and is_lan_url(url) else EgressScope.WAN
 
 
-def _client(url: str, *, lan_direct: bool) -> httpx.AsyncClient:
+def _client(url: str, *, lan_direct: bool, timeout: httpx.Timeout = _TIMEOUT) -> httpx.AsyncClient:
     return httpx.AsyncClient(
         transport=egress_transport(
             EGRESS_SERVICE, scope=_scope(url, lan_direct=lan_direct), use_breaker=False
         ),
-        timeout=_TIMEOUT,
+        timeout=timeout,
         headers={"User-Agent": f"MovieClaw/{__version__}"},
         follow_redirects=False,
         # 是否走代理只由「设置 → 网络」的 movieclaw_push 标签决定，不隐式吃环境变量
@@ -135,7 +144,9 @@ async def fetch_info(url: str, *, lan_direct: bool = True) -> RelayInfo:
         async with _client(url, lan_direct=lan_direct) as client:
             response = await client.get(f"{url}/v1/info")
     except httpx.HTTPError as exc:
-        raise RelayError(f"中继{describe_network_error(exc)}", retryable=True) from exc
+        raise RelayError(
+            f"中继{describe_network_error(exc)}", retryable=True, network=True
+        ) from exc
     if response.status_code != 200:
         raise RelayError(
             f"中继返回 {_error_message(response)}",
@@ -153,12 +164,14 @@ async def push(
     """批量推送（一次最多 100 条）。整批失败抛 ``RelayError``，单条结果在返回值里。"""
     headers = {"Authorization": f"Bearer {bearer}"} if bearer else {}
     try:
-        async with _client(url, lan_direct=lan_direct) as client:
+        async with _client(url, lan_direct=lan_direct, timeout=_PUSH_TIMEOUT) as client:
             response = await client.post(
                 f"{url}/v1/push", json={"messages": messages}, headers=headers
             )
     except httpx.HTTPError as exc:
-        raise RelayError(f"中继{describe_network_error(exc)}", retryable=True) from exc
+        raise RelayError(
+            f"中继{describe_network_error(exc)}", retryable=True, network=True
+        ) from exc
     status = response.status_code
     if status == 200:
         try:

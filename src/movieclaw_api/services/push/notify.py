@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -26,6 +27,9 @@ from movieclaw_db.engine import get_database
 from movieclaw_db.models import LoginDevice, Member, utcnow
 
 logger = logging.getLogger("movieclaw_api.push.notify")
+
+#: 同一台手机上，比最新的登记旧这么久的账号登记当作已经不在这台手机上（见 ``prepare``）
+STALE_REGISTRATION = timedelta(days=7)
 
 
 @dataclass(frozen=True)
@@ -141,10 +145,23 @@ async def prepare(
     contents: dict[int, AlertContent | None] = {}
     seen_tokens: set[str] = set()
     outgoing: list[Outgoing] = []
-    # 按成员 id、设备 id 排序：同一台手机登了两个人时，固定用编号小的那个账号的密钥
-    for device in sorted(devices, key=lambda d: (d.member_id, d.id or 0)):
+    # 同一台手机（同一个 APNs 令牌）登了几个账号时只推一条，用最近登记过的那个账号的
+    # 密钥：App 每次打开都给手机上的每个账号重新登记，已经从手机上删掉的账号不会再登记，
+    # 它的密钥手机上也没有了。比这台手机最新的登记旧了一周以上的，当它已经不在这台手机上
+    newest = await registration.newest_registrations(
+        session, {(d.push_token or "").lower() for d in devices}
+    )
+    epoch = datetime(1970, 1, 1)
+    for device in sorted(
+        devices,
+        key=lambda d: (-(d.push_registered_at or epoch).timestamp(), d.member_id, d.id or 0),
+    ):
         token = (device.push_token or "").lower()
         if token in seen_tokens:
+            continue
+        latest = newest.get(token)
+        registered = device.push_registered_at or epoch
+        if latest is not None and latest - registered > STALE_REGISTRATION:
             continue
         if device.member_id not in contents:
             contents[device.member_id] = await build(session, device.member_id)

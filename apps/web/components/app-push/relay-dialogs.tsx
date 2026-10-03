@@ -4,7 +4,7 @@
  * 自建中继的添加与编辑弹窗（docs/design/cloud-push.md §3、§7.2；交互稿 3.2）。
  *
  * 添加是「先检测、再填表」：实例读中继的 /v1/info，按它声明的鉴权方式决定后面的
- * 表单——static 要填令牌，none 不用，issuer 要签发方的令牌，这里加不了。检测之后
+ * 表单——static（和不认识的方式）要填令牌，none 不用，issuer 要签发方的令牌，这里加不了。检测之后
  * 地址又改过，结果作废，要重新检测（规则在 lib/cloud-push-display 的 relayAddBlocker）。
  * 安全提示（http 走公网、无鉴权在公网）由服务端放进 warnings，只提示不拦。
  */
@@ -22,7 +22,12 @@ import {
   probeRelay,
   updateRelay,
 } from "@/lib/api/push";
-import { authModeLabel, relayAddBlocker, relayNameFromUrl } from "@/lib/cloud-push-display";
+import {
+  authModeLabel,
+  relayAddBlocker,
+  relayNameFromUrl,
+  relayNeedsToken,
+} from "@/lib/cloud-push-display";
 
 /** 公开仓库里的部署说明 */
 export const RELAY_DEPLOY_URL = "https://github.com/movieclaw/MovieClaw-Push";
@@ -77,7 +82,7 @@ export function AddRelayDialog({
       const view = await addRelay({
         name: trimmedName,
         url: probedUrl,
-        ...(current?.auth_mode === "static" ? { token: token.trim() } : {}),
+        ...(relayNeedsToken(current?.auth_mode) ? { token: token.trim() } : {}),
       });
       onAdded(view, trimmedName);
     } catch (e) {
@@ -144,7 +149,7 @@ export function AddRelayDialog({
             <Banner tone="warn">这个中继需要签发方的令牌，暂不支持在这里添加。</Banner>
           ) : (
             <>
-              {current.auth_mode === "static" && (
+              {relayNeedsToken(current.auth_mode) && (
                 <Field label="令牌" hint="在中继上运行 movieclaw-push token create 生成">
                   {(id) => (
                     <input

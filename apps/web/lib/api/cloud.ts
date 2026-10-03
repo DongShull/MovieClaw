@@ -40,7 +40,7 @@ export interface CloudPairingView {
   instance_name: string;
 }
 
-/** 签进令牌的限额（云端协议 §6.2），真正执行在中继 */
+/** 云端给这台服务器的默认限额，只用于展示（负数 = 不限）；实际额度以中继每次推送的答复为准 */
 export interface CloudLimits {
   /** 每天最多推送多少条 */
   day?: number;

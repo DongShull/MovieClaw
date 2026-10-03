@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections import defaultdict
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
@@ -29,8 +30,10 @@ _AUTH_LABELS = {"issuer": "签发方令牌", "static": "令牌", "none": "无鉴
 def _quota_view(channel: Channel, cloud_limits: dict[str, int]) -> PushQuotaView | None:
     quota = channel_registry.runtime(channel.id).quota
     day = quota.get("day") if isinstance(quota, dict) else None
+    reset_at = day.get("reset_at") if isinstance(day, dict) else None
+    if isinstance(reset_at, int) and reset_at <= time.time():
+        day = None  # 过了重置时间的读数是昨天的，不能还显示「已用完」
     if isinstance(day, dict):
-        reset_at = day.get("reset_at")
         return PushQuotaView(
             limit=day.get("limit") if isinstance(day.get("limit"), int) else None,
             used=day.get("used") if isinstance(day.get("used"), int) else None,
@@ -222,7 +225,7 @@ async def _checked_info(url: str, token: str) -> RelayInfo:
         raise BadRequestException(exc.message) from exc
     if problem := _incompatibility(info):
         raise BadRequestException(problem)
-    if info.auth_mode == "static":
+    if channel_registry.needs_token(info.auth_mode):
         if not token:
             raise BadRequestException(
                 "这个中继需要令牌：在中继上运行 movieclaw-push token create --name 名称 创建"
@@ -257,7 +260,7 @@ async def create_relay(*, name: str, url: str, token: str | None) -> None:
             id=channel_registry.new_relay_id(),
             name=name.strip() or (urlsplit(normalized).hostname or normalized),
             url=normalized,
-            token=token if info.auth_mode == "static" else "",
+            token=token if info.auth_mode != "none" else "",
             enabled=True,
             info=info,
             created_at=utcnow(),
@@ -292,7 +295,7 @@ async def update_relay(
         info = await _checked_info(new_url, new_token)
         target.info = info
         target.url = new_url
-        target.token = new_token if info.auth_mode == "static" else ""
+        target.token = new_token if info.auth_mode != "none" else ""
         channel_registry.runtime(relay_id).consecutive_failures = 0
     if name is not None:
         target.name = name.strip() or (urlsplit(target.url).hostname or target.url)

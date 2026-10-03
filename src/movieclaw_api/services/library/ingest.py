@@ -1731,8 +1731,6 @@ async def _ingest_entry(
     # 只保存本次作业实际新增的条目内相对文件名，供任务中心展示本轮成果；
     # 已在库而跳过的旧文件不计入，也不暴露监听目录或媒体库的绝对路径。
     imported_files: list[str] = []
-    #: 本次处理开始的时间：手动下载入库推送按它找出这次落库的季集
-    started_at = utcnow()
     # 同一个监听条目本轮成功搬入的文件属于一个用户可理解的入库批次；增量
     # 季包下一轮再补进来的集会拿新批次号，首页因此只摘要最后一次变化。
     added_batch_id = uuid4().hex
@@ -1747,8 +1745,6 @@ async def _ingest_entry(
     ) -> IngestEntry | _GroupOutcome:
         if grouped:
             return _GroupOutcome(status, message, imported, item, list(imported_files))
-        #: 本次入库消费掉的手动下载锚是谁点的（推「入库完成」用）
-        manual_submitters: set[int] = set()
         if status is IngestStatus.IMPORTED and not snap.fingerprint.startswith("ready:"):
             # 整树结论成功 = 条目当前所有文件都已处理：仍挂着的分批 blocked
             # 作业（白名单钉死、等人工）已被彻底取代，就地收口——否则它们会
@@ -1799,9 +1795,27 @@ async def _ingest_entry(
                     .all()
                 )
                 for intent in intents:
-                    manual_submitters.add(intent.submitted_by_member_id or 0)
                     await session.delete(intent)
                     logger.info("手动下载身份锚已随成功入库消费：hash=%s", intent.info_hash)
+        # 手动下载的人等的就是这一刻：按种子对上是谁点的，入库结论提交之后推「入库完成」
+        # （docs/design/cloud-push.md §5）。推送这边出任何错都不能影响入库
+        finished_downloads = []
+        if status is IngestStatus.IMPORTED and dest_library is not None and dest_library.id:
+            from movieclaw_api.services.push import downloads as push_downloads
+
+            try:
+                complete = matched_hashes if consumable_hashes is None else consumable_hashes
+                finished_downloads = await push_downloads.ingested(
+                    session,
+                    hashes=[*(matched_hashes or []), *(consumable_hashes or [])],
+                    complete=list(complete or []),
+                    batch_id=added_batch_id,
+                    imported=bool(imported_files),
+                    library_id=dest_library.id,
+                    item_id=item.id if item is not None else None,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("对照手动下载的推送对象失败（已忽略）")
         saved = await _save_record(
             session,
             dest_library,
@@ -1816,28 +1830,8 @@ async def _ingest_entry(
             unresolved_files=unresolved_files,
             collection_item_ids=collection_item_ids,
         )
-        if (
-            manual_submitters
-            and item is not None
-            and item.id is not None
-            and dest_library is not None
-            and dest_library.id is not None
-        ):
-            # 手动下载的人等的就是这一刻：推「入库完成」给点下载的人
-            # （docs/design/cloud-push.md §5，后台发送，失败不影响入库）
-            from movieclaw_api.services.channel_push import tmdb_push_image_url
-            from movieclaw_api.services.push import events as push_events
-
-            push_events.manual_imported(
-                member_ids=manual_submitters,
-                item_id=item.id,
-                library_id=dest_library.id,
-                title=item.title,
-                year=item.year,
-                kind=item.kind,
-                since=started_at,
-                image_url=tmdb_push_image_url(item.backdrop_path, item.poster_path),
-            )
+        if finished_downloads:
+            push_downloads.announce(finished_downloads)
         if status is IngestStatus.IMPORTED and job_context is not None and imported_files:
             await job_context.update_progress(
                 mode="determinate",

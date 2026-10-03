@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -95,7 +96,12 @@ def validate(
 
 
 async def save(session: AsyncSession, device: LoginDevice, reg: Registration) -> LoginDevice:
-    """把登记写到设备行上。只上报权限时清掉令牌（拿不到令牌的登记没法用）。"""
+    """把登记写到设备行上。
+
+    只上报权限、不带令牌时：权限是关着的（``denied`` / ``not_determined``）就清掉令牌；
+    权限开着就保留已有的令牌——App 冷启动时可能先上报权限、稍后才拿到 APNs 令牌，
+    这时清掉，中间这段的推送就丢了。令牌真失效了中继会说 ``unregistered``。
+    """
     device.push_permission = reg.permission
     device.push_registered_at = utcnow()
     if reg.token:
@@ -107,7 +113,7 @@ async def save(session: AsyncSession, device: LoginDevice, reg: Registration) ->
         device.push_types = list(reg.types)
         device.push_key_id = reg.key_id
         device.push_key = get_secret_box().encrypt(reg.key or "")
-    else:
+    elif reg.permission in ("denied", "not_determined"):
         _clear_push_fields(device, keep_permission=True)
     session.add(device)
     await session.commit()
@@ -141,12 +147,15 @@ async def clear(session: AsyncSession, device: LoginDevice) -> None:
     await session.commit()
 
 
-async def mark_unregistered(device_id: int) -> None:
-    """中继说令牌失效（App 被卸载或关了通知）：清掉登记，App 下次启动会重新登记。"""
+async def mark_unregistered(device_id: int, token: str) -> None:
+    """中继说令牌失效（App 被卸载或关了通知）：清掉登记，App 下次启动会重新登记。
+
+    只在登记的还是这个令牌时才清：发送途中 App 已经换了新令牌重新登记，就不能动。
+    """
     async with get_database().session() as session:
         await session.execute(
             update(LoginDevice)
-            .where(LoginDevice.id == device_id)
+            .where(LoginDevice.id == device_id, LoginDevice.push_token == token)
             .values(
                 push_token=None,
                 push_topic=None,
@@ -160,10 +169,13 @@ async def mark_unregistered(device_id: int) -> None:
         await session.commit()
 
 
-async def mark_problem(device_id: int, problem: str | None) -> None:
+async def mark_problem(device_id: int, problem: str | None, token: str) -> None:
+    """标记这台设备的推送问题（同上，只针对发出时用的令牌）。"""
     async with get_database().session() as session:
         await session.execute(
-            update(LoginDevice).where(LoginDevice.id == device_id).values(push_problem=problem)
+            update(LoginDevice)
+            .where(LoginDevice.id == device_id, LoginDevice.push_token == token)
+            .values(push_problem=problem)
         )
         await session.commit()
 
@@ -192,6 +204,18 @@ async def registered_devices(
             return []
         stmt = stmt.where(LoginDevice.member_id.in_(member_ids))  # type: ignore[attr-defined]
     return list((await session.execute(stmt.order_by(LoginDevice.id))).scalars().all())
+
+
+async def newest_registrations(session: AsyncSession, tokens: set[str]) -> dict[str, datetime]:
+    """这些设备令牌各自最近一次登记的时间（同一台手机上登了几个账号时取最新的）。"""
+    if not tokens:
+        return {}
+    rows = await session.execute(
+        select(LoginDevice.push_token, func.max(LoginDevice.push_registered_at))  # type: ignore[call-overload]
+        .where(LoginDevice.push_token.in_(tokens))  # type: ignore[union-attr]
+        .group_by(LoginDevice.push_token)
+    )
+    return {str(token): at for token, at in rows.all() if token and at is not None}
 
 
 async def device_counts() -> list[dict]:

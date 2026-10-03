@@ -1117,8 +1117,18 @@ async def revoke_current_device(
     device = await login_devices.get_device(session, principal.device.id)
     if device is None:
         raise NotFoundException("设备不存在或已被注销")
+    member_id, kind, installation_id, name = (
+        device.member_id,
+        device.kind,
+        device.installation_id,
+        device.name,
+    )
     await login_devices.revoke(session, device)
-    return ok(None, message=f"已注销「{device.name}」")
+    # 设备自己退出登录：之后同一台登录回来，不给本人的其他设备推「新设备登录」
+    from movieclaw_api.services.push import events as push_events
+
+    await push_events.remember_signed_out(member_id, kind, installation_id)
+    return ok(None, message=f"已注销「{name}」")
 
 
 @router.patch(

@@ -46,6 +46,11 @@ class Outgoing:
     #: 已经试过、整批失败的通道（换下一个候选时跳过）
     failed_channels: set[str] = field(default_factory=set)
 
+    @property
+    def token(self) -> str:
+        """发出时用的设备令牌（小写十六进制）。"""
+        return str(self.message.get("token") or "")
+
 
 @dataclass
 class Outcome:
@@ -116,7 +121,12 @@ async def deliver(items: list[Outgoing], *, attempt: int = 0) -> list[Outcome]:
                 for c in channel_registry.route(channels, item.topic)
                 if c.id not in item.failed_channels
             ]
-            available = [c for c in candidates if not channel_registry.runtime(c.id).blocked()]
+            available = [
+                c
+                for c in candidates
+                if not channel_registry.runtime(c.id).blocked()
+                and channel_registry.runtime(c.id).device_block(item.token) is None
+            ]
             if not candidates:
                 if item.failed_channels:
                     retry.append(item)
@@ -137,7 +147,9 @@ async def deliver(items: list[Outgoing], *, attempt: int = 0) -> list[Outcome]:
                         item.device_id,
                         item.device_name,
                         "rate_limited",
-                        state.blocked_message or "今天的推送额度已经用完",
+                        (state.blocked_message if state.blocked() else None)
+                        or state.device_block(item.token)
+                        or "今天的推送额度已经用完",
                         candidates[0].id,
                     )
                 )
@@ -166,10 +178,15 @@ async def deliver(items: list[Outgoing], *, attempt: int = 0) -> list[Outcome]:
             for item in retry:
                 item.failed_channels.clear()
             spawn(_retry_later(retry, attempt))
-        final.extend(
-            Outcome(i.device_id, i.device_name, "queued", "通道暂时不可用，稍后自动重试")
-            for i in retry
-        )
+            final.extend(
+                Outcome(i.device_id, i.device_name, "queued", "通道暂时不可用，稍后自动重试")
+                for i in retry
+            )
+        else:
+            final.extend(
+                Outcome(i.device_id, i.device_name, "failed", "通道一直不可用，重试后仍没发出去")
+                for i in retry
+            )
     return final
 
 
@@ -209,7 +226,13 @@ async def _send_batch(channel: Channel, batch: list[Outgoing]) -> list[Outcome] 
                 break
     if response is None:
         assert error is not None
-        state.record_failure(error.message)
+        state.record_failure(error.message, unreachable=error.network)
+        if channel.kind == "official" and error.code in ("unauthorized", "forbidden"):
+            # 官方中继每次都查实例状态：拒绝说明令牌失效或在官网解绑了。马上续签一次——
+            # 解绑了尽快显示「已断开」，令牌失效就换新的，稍后的重试用新令牌
+            from movieclaw_api.services.cloud import get_cloud_service
+
+            get_cloud_service().request_renew()
         if error.retryable:
             return None
         return [
@@ -238,15 +261,25 @@ async def _handle_result(channel: Channel, item: Outgoing, result: dict) -> Outc
     state = channel_registry.runtime(channel.id)
     if code == "ok":
         return outcome
+    # 只动发出时用的那个令牌：发送途中 App 换了令牌重新登记，不能把新登记一起清掉
     if code == "unregistered":
-        await registration.mark_unregistered(item.device_id)
+        await registration.mark_unregistered(item.device_id, item.token)
     elif code == "bad_token":
-        await registration.mark_problem(item.device_id, "bad_token")
+        await registration.mark_problem(item.device_id, "bad_token", item.token)
     elif code == "rate_limited":
         retry_after = result.get("retry_after")
         seconds = retry_after if isinstance(retry_after, int) and retry_after > 0 else 3600
-        state.blocked_until = utcnow() + timedelta(seconds=seconds)
-        state.blocked_message = message or "今天的推送额度已经用完"
+        until = utcnow() + timedelta(seconds=seconds)
+        if (result.get("limit") or result.get("reason")) == "day":
+            # 整台服务器当天的额度用完：这个通道到点之前不再发
+            state.blocked_until = until
+            state.blocked_message = message or "今天的推送额度已经用完"
+        else:
+            # 按设备（device_day）或别的维度的限制：只挡这台设备，家里别的设备照常收
+            state.device_blocks[item.token] = (
+                until,
+                message or "这台设备今天的推送已达上限",
+            )
     elif code == "apns_error" and result.get("retryable"):
         outcome.result = "retry"
     elif code == "topic_not_allowed":
