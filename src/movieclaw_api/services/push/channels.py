@@ -7,7 +7,8 @@
 - **能力快照落库**：每个通道的 ``GET /v1/info`` 定期刷新并存进配置域，重启时不用等它
   就能路由。官方通道没拉到过时按 ``io.movieclaw.app`` 处理。
 - **运行期状态只在内存里**：最近一次成功、最近的错误、当日额度、限额解除时间——重启
-  清零无妨，下一次推送就有了。
+  清零无妨，下一次推送就有了。上报给云端的官方中继连通情况例外：续签前例行检查一次，
+  结果存进 ``CloudSetting.relay_check``（见 ``check_official``）。
 """
 
 from __future__ import annotations
@@ -22,7 +23,13 @@ from datetime import datetime, timedelta
 from movieclaw_api.services.push import relay
 from movieclaw_api.services.push.relay import RelayError
 from movieclaw_api.settings import get_setting_store
-from movieclaw_api.settings.cloud import CloudSetting, PushChannelsSetting, PushRelay, RelayInfo
+from movieclaw_api.settings.cloud import (
+    CloudSetting,
+    OfficialRelayCheck,
+    PushChannelsSetting,
+    PushRelay,
+    RelayInfo,
+)
 from movieclaw_db.models import utcnow
 
 logger = logging.getLogger("movieclaw_api.push.channels")
@@ -234,16 +241,83 @@ def route(channels: list[Channel], topic: str, push_type: str = "alert") -> list
     return [c for c in channels if c.usable and c.supports(topic, push_type)]
 
 
-def official_relay_status() -> dict | None:
-    """上报用：官方中继能否连通、最近一次成功推送的时间。没用过就不报。"""
-    state = _runtime.get(OFFICIAL_ID)
-    if state is None or (state.last_success_at is None and state.last_error is None):
+async def check_official(cloud: CloudSetting) -> OfficialRelayCheck | None:
+    """续签前的例行检查：带上令牌调一次官方中继的 ``GET /v1/info``（推送中继协议 §4.1）。
+
+    - 官方中继据此记下「这台服务器最近一次连接」，没有推送的时候官网也知道它在线；
+    - 收到任何答复（包括 401、503）都算连得通，只有网络错误算连不上：云端靠它区分
+      「中继出了问题」和「这台服务器出不了网」；
+    - 顺带刷新能力快照和当日额度。
+
+    返回要存进 ``CloudSetting.relay_check`` 的结果；没连接、官方通道停用、没有地址时
+    返回 None（不检查，也不上报）。
+    """
+    from movieclaw_api.services.cloud import get_cloud_service
+
+    store = get_setting_store()
+    config = await store.get(PushChannelsSetting)
+    service = get_cloud_service()
+    urls = service.push_endpoints(cloud)
+    if not cloud.connected or not config.official_enabled or not urls:
         return None
-    # 收到了中继的答复（哪怕是 401、503）就算连得通：云端靠它区分中继故障和出不了网
-    status: dict = {"reachable": not state.unreachable}
-    if state.last_success_at is not None:
-        status["last_success_at"] = state.last_success_at.replace(microsecond=0).isoformat() + "Z"
-    return status
+    bearer = service.official_bearer(cloud)
+    now = utcnow()
+    error: RelayError | None = None
+    for url in urls:
+        try:
+            info, quota = await relay.check_info(url, bearer=bearer, lan_direct=False)
+        except RelayError as exc:
+            if not exc.network:  # 收到了答复，只是不对：连得通
+                error = None
+                break
+            error = exc
+            continue
+        error = None
+        fresh = config.model_copy(deep=True)
+        fresh.official_info = info
+        await store.set(fresh)
+        if quota is not None:
+            runtime(OFFICIAL_ID).quota = quota
+        break
+
+    previous = cloud.relay_check
+    state = _runtime.get(OFFICIAL_ID)
+    successes = [
+        t
+        for t in (previous and previous.last_success_at, state and state.last_success_at)
+        if t is not None
+    ]
+    check = OfficialRelayCheck(
+        reachable=error is None, checked_at=now, last_success_at=max(successes, default=None)
+    )
+    if error is not None:
+        check.error = error.message
+        if previous is not None and not previous.reachable and previous.failing_since:
+            check.failing_since = previous.failing_since
+        elif state is not None and state.unreachable and state.last_error_at:
+            check.failing_since = state.last_error_at  # 推送时就已经连不上了
+        else:
+            check.failing_since = now
+        logger.warning("例行检查：连不上官方推送中继（%s）", error.message)
+    return check
+
+
+def relay_report(check: OfficialRelayCheck | None) -> dict | None:
+    """把例行检查的结果写成上报里的 ``relay``（云端协议 §6.1）。"""
+    if check is None or check.checked_at is None:
+        return None
+
+    def iso(t: datetime) -> str:
+        return t.replace(microsecond=0).isoformat() + "Z"
+
+    report: dict = {"reachable": check.reachable, "checked_at": iso(check.checked_at)}
+    if check.last_success_at is not None:
+        report["last_success_at"] = iso(check.last_success_at)
+    if not check.reachable:
+        report["error"] = check.error
+        if check.failing_since is not None:
+            report["failing_since"] = iso(check.failing_since)
+    return report
 
 
 # ----------------------------------------------------------------------

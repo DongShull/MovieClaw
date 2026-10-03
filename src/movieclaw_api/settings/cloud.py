@@ -36,6 +36,24 @@ class CloudDiscovery(BaseModel):
     fetched_at: datetime | None = None
 
 
+class OfficialRelayCheck(BaseModel):
+    """这台服务器看到的官方推送中继连通情况（云端协议 §6.1 的 ``relay``）。
+
+    每次续签前带上令牌调一次官方中继的 ``GET /v1/info``（推送中继协议 §4.1）得出，存库，
+    重启后不丢。中继收不到请求时只有这里知道「连不上」，官网据此提示检查网络；连得通时
+    官网以中继自己记下的请求为准。
+    """
+
+    #: 最近一次调官方中继有没有收到答复（401、503 也算收到）
+    reachable: bool = True
+    checked_at: datetime | None = None
+    #: 最近一次成功推送（取推送时记下的和上次存的里更晚的）
+    last_success_at: datetime | None = None
+    #: 连不上时的原因（给人看）和从什么时候开始一直连不上
+    error: str = ""
+    failing_since: datetime | None = None
+
+
 class CloudNotice(BaseModel):
     """云端发来的服务通知（续签响应的 ``notices``）。"""
 
@@ -85,6 +103,9 @@ class CloudSetting(SettingSchema):
     report_stats: bool = Field(default=True, description="上报设备数和中继连通情况")
     last_report: dict | None = None
     last_report_at: datetime | None = None
+    relay_check: OfficialRelayCheck | None = Field(
+        default=None, description="续签前对官方中继的例行检查；没检查过、官方通道停用时为空"
+    )
 
     # -- 发现文档缓存 --------------------------------------------------------------
     discovery: CloudDiscovery | None = None

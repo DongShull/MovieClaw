@@ -140,9 +140,22 @@ def parse_info(body: object) -> RelayInfo:
 
 async def fetch_info(url: str, *, lan_direct: bool = True) -> RelayInfo:
     """读中继的能力声明。连不上、不是中继都抛 ``RelayError``。"""
+    info, _ = await check_info(url, bearer=None, lan_direct=lan_direct)
+    return info
+
+
+async def check_info(
+    url: str, *, bearer: str | None, lan_direct: bool = True
+) -> tuple[RelayInfo, dict | None]:
+    """带上凭证读 ``/v1/info``（协议 §4.1）：除了能力声明，凭证有效时还有剩余额度。
+
+    官方中继把带有效凭证的请求记作这台服务器的一次连接，续签前的例行检查用它。
+    凭证无效不会让请求失败，只是没有 ``quota``。
+    """
+    headers = {"Authorization": f"Bearer {bearer}"} if bearer else {}
     try:
         async with _client(url, lan_direct=lan_direct) as client:
-            response = await client.get(f"{url}/v1/info")
+            response = await client.get(f"{url}/v1/info", headers=headers)
     except httpx.HTTPError as exc:
         raise RelayError(
             f"中继{describe_network_error(exc)}", retryable=True, network=True
@@ -153,9 +166,12 @@ async def fetch_info(url: str, *, lan_direct: bool = True) -> RelayInfo:
             retryable=response.status_code >= 500,
         )
     try:
-        return parse_info(response.json())
+        body = response.json()
+        info = parse_info(body)
     except ValueError as exc:
         raise RelayError(str(exc), retryable=False) from exc
+    quota = body.get("quota") if isinstance(body.get("quota"), dict) else None
+    return info, quota
 
 
 async def push(

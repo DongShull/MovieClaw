@@ -450,7 +450,13 @@ class CloudService:
             with contextlib.suppress(CloudUnreachable):
                 await self._discover()
                 setting = await self.load()
-            report = await build_report(setting.report_stats)
+            # 例行检查官方中继：中继据此记下这台服务器在线；连不上时上报给云端。结果先存下，
+            # 这次续签失败也不丢
+            from movieclaw_api.services.push.channels import check_official
+
+            check = await check_official(setting)
+            setting = await self._update(lambda s: setattr(s, "relay_check", check))
+            report = await build_report(setting)
             try:
                 reply = await client.renew(
                     self.api_url(setting), instance_secret=setting.instance_secret, report=report
@@ -677,17 +683,17 @@ def _reset_official_channel() -> None:
     channels.reset_runtime(channels.OFFICIAL_ID)
 
 
-async def build_report(report_stats: bool) -> dict:
+async def build_report(setting: CloudSetting) -> dict:
     """续签时的上报：版本信息必报；统计开关打开时再报设备数和中继连通情况。"""
     report = runtime_report_basics()
-    if not report_stats:
+    if not setting.report_stats:
         return report
-    from movieclaw_api.services.push.channels import official_relay_status
+    from movieclaw_api.services.push.channels import relay_report
     from movieclaw_api.services.push.registration import device_counts
 
     # 没有设备也照报（空列表）：不报会被官网当成「关了统计」
     report["devices"] = await device_counts()
-    relay = official_relay_status()
+    relay = relay_report(setting.relay_check)
     if relay is not None:
         report["relay"] = relay
     return report

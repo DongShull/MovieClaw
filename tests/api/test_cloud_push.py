@@ -149,14 +149,24 @@ class FakeRelay:
         self.results: dict[str, str | dict] = {}  # 设备令牌 → 结果码，或完整的单条结果
         self.messages: list[dict] = []
         self.bearers: list[str | None] = []
+        self.info_bearers: list[str | None] = []  # 带凭证调 /v1/info（例行检查）时的凭证
 
     def handle(self, request: httpx.Request) -> httpx.Response:
         if self.down:
             raise httpx.ConnectError("连不上", request=request)
         if request.url.path == "/v1/info":
+            bearer = request.headers.get("authorization", "").removeprefix("Bearer ") or None
+            self.info_bearers.append(bearer)
+            # 协议 §4.1：凭证有效时多一个 quota，无效时照常返回
+            quota = (
+                {"day": {"limit": 5000, "used": 7, "remaining": 4993, "reset_at": 1767312000}}
+                if bearer and bearer.startswith("jwt-")
+                else None
+            )
             return httpx.Response(
                 200,
                 json={
+                    **({"quota": quota} if quota else {}),
                     "protocol": 1,
                     "software": "movieclaw-push/test",
                     "aud": "https://push.test",
@@ -439,6 +449,10 @@ def test_connect_renew_and_report(client: TestClient, world: World) -> None:
     assert status["health"] == "ok"
     report = world.cloud.reports[0]
     assert report["instance_version"] and report["os"] and report["arch"]
+    # 续签前带上令牌例行检查官方中继：上报里有检查时间，没推送过就没有 last_success_at
+    assert world.relays["push.test"].info_bearers[-1] == "jwt-1"
+    assert report["relay"]["reachable"] is True and report["relay"]["checked_at"].endswith("Z")
+    assert "last_success_at" not in report["relay"] and "error" not in report["relay"]
     assert status["last_report"]["instance_version"] == report["instance_version"]
 
     # 关掉统计后只上报版本信息
@@ -489,6 +503,38 @@ def test_version_unsupported_keeps_credentials(client: TestClient, world: World)
     world.cloud.renew_reply = None
     status = _data(client.post("/api/v1/cloud/renew"))
     assert status["health"] == "ok"
+
+
+def test_relay_check_reports_unreachable_and_survives_restart(
+    client: TestClient, world: World
+) -> None:
+    """例行检查连不上官方中继：上报原因和开始时间，开始时间跨续签保持；恢复后清掉。
+    结果存库，进程重启（运行期状态清零）后最近一次成功推送的时间还在。"""
+    from movieclaw_api.services.push import channels
+
+    _connect(client, world)
+    bearer = _app_login(client, _ADMIN, installation="inst-iphone-1", name="iPhone")
+    _register(client, bearer, token="ab" * 32)
+    assert _data(client.post("/api/v1/push/me/test"))["sent"] == 1
+    official = world.relays["push.test"]
+
+    official.down = True
+    world.relays["push2.test"].down = True
+    _data(client.post("/api/v1/cloud/renew"))
+    first = world.cloud.reports[-1]["relay"]
+    assert first["reachable"] is False and "连不上" in first["error"]
+    assert first["failing_since"] and first["last_success_at"]
+    _data(client.post("/api/v1/cloud/renew"))
+    assert world.cloud.reports[-1]["relay"]["failing_since"] == first["failing_since"]
+
+    official.down = False
+    world.relays["push2.test"].down = False
+    channels.reset_runtime()  # 模拟重启：内存里的最近成功清零
+    _data(client.post("/api/v1/cloud/renew"))
+    after = world.cloud.reports[-1]["relay"]
+    assert after["reachable"] is True and "error" not in after and "failing_since" not in after
+    assert after["last_success_at"] == first["last_success_at"]
+    assert channels.runtime(channels.OFFICIAL_ID).quota["day"]["used"] == 7
 
 
 def test_renew_failure_keeps_token(client: TestClient, world: World) -> None:
