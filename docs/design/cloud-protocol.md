@@ -19,7 +19,7 @@
 | 地址 | 给谁用 |
 | --- | --- |
 | `https://<域名>` | 管理员的浏览器：登录、批准认领、管理实例 |
-| `https://api.<域名>` | 实例、推送中继：发现文档、认领、续签与上报、公钥、吊销名单 |
+| `https://api.<域名>` | 实例：发现文档、认领、续签与上报 |
 | `https://push.<域名>` | 实例：推送中继 |
 
 `api.<域名>` 和 `push.<域名>` 写进每个实例版本，**上线后永不更改**。以后迁移服务，靠发现文档给出新地址。
@@ -35,7 +35,6 @@
     {"url": "https://push.example.com", "priority": 1},
     {"url": "https://push2.example.com", "priority": 2}
   ],
-  "jwks": {"keys": [{"kty": "OKP", "crv": "Ed25519", "x": "…", "kid": "…", "alg": "EdDSA", "use": "sig"}]},
   "min_instance_version": "0.30.0",
   "control_endpoint": null,
   "remote_domain": null
@@ -46,7 +45,6 @@
 | --- | --- |
 | `api` | api 地址。之后的认领、续签都用它 |
 | `push_endpoints` | 推送中继地址，按 `priority` 从小到大依次尝试：单个 IP 被墙或域名被污染时，换用下一个。主备中继认同一个实例令牌 |
-| `jwks` | 实例令牌的验签公钥（实例一般用不到，给第三方中继和排查用） |
 | `min_instance_version` | 云端还支持的最低实例版本，空串表示不限。低于它的实例续签会被拒绝 |
 | `control_endpoint` | 预留：以后实例与云端的长连接地址，本期为 `null` |
 | `remote_domain` | 预留：以后远程访问用的独立域名，本期为 `null` |
@@ -57,7 +55,7 @@
 
 | 接口 | 格式 |
 | --- | --- |
-| 发现文档、`/jwks.json`、`/v1/push/revocations` | 各自的标准格式（上面和推送中继协议里的样子） |
+| 发现文档 | 上面的样子 |
 | `/v1/instance/device-code`、`/v1/instance/token` | RFC 8628 的标准响应；错误是 RFC 6749 §5.2 的 `{"error": "…", "error_description": "…"}` |
 | 其余（`/v1/instance/renew`、`/v1/instance/unbind`） | 沿用 MovieClaw 的结构，实例可以复用解析代码 |
 
@@ -150,7 +148,7 @@ MovieClaw 结构：
   "instance_id": "7deac17f-022a-449f-bec4-0ab18dc5d27b",
   "instance_secret": "mcs_EKC5PFBFOLKJVCj-7FtO…",
   "scopes": ["push"],
-  "limits": {"day": 5000, "device_day": 500},
+  "limits": {"day": 1000, "device_day": 100},
   "capabilities": ["push"],
   "renew_interval": 3600,
   "account": {"display": "y•••@gmail.com"}
@@ -166,7 +164,7 @@ MovieClaw 结构：
 | 凭证 | 有效期 | 存放 | 用途 |
 | --- | --- | --- | --- |
 | `instance_secret` | 长期，直到解绑 | 实例数据库加密存储（`movieclaw_db.crypto`）；云端只存哈希 | 续签、解绑 |
-| `access_token` | 24 小时 | 和 `instance_secret` 一起加密存储（重启时云端恰好连不上，也能用到过期为止） | 调推送中继；Ed25519 签名的 JWT，中继用公钥本地验签，格式见推送中继协议第 11 节 |
+| `access_token` | 24 小时 | 和 `instance_secret` 一起加密存储（重启时云端恰好连不上，也能用到过期为止） | 调官方推送中继。实例把它当作不透明的字符串，原样放进 `Authorization: Bearer` |
 
 - `instance_secret` 以 `mcs_` 开头，便于识别泄露。实例只把它发给 `api` 地址，**不发给任何中继**。
 - `access_token` 只发给内置的官方中继（地址来自发现文档）或管理员配置过的中继。
@@ -242,7 +240,7 @@ Content-Type: application/json
     "expires_in": 86400,
     "expires_at": "2026-10-02T07:13:00Z",
     "scopes": ["push"],
-    "limits": {"day": 5000, "device_day": 500},
+    "limits": {"day": 1000, "device_day": 100},
     "capabilities": ["push"],
     "renew_interval": 3600,
     "account": {"display": "y•••@gmail.com"},
@@ -258,7 +256,7 @@ Content-Type: application/json
 - 续签间隔和退避间隔都要加 ±10% 的随机抖动，云端故障恢复时各实例不会挤在同一时刻续签。
 - `account` 同 4.3，每次续签都返回当前的值，实例用它覆盖本地保存的。
 - `notices` 是给实例管理员看的服务通知，只在实例设置页显示，不推送到手机。`level` 为 `info` 或 `warning`；实例按 `id` 去重，管理员关掉某条后，同一 `id` 不再显示。
-- `limits` 是签进令牌的限额，实例可以在设置页展示；真正执行在中继。
+- `limits` 是这台实例当前的限额，只用于在设置页展示；真正执行在中继，以中继每次推送响应里的 `quota` 为准。云端调整限额不用等续签，下一条推送就按新值算，这里的值在下次续签时更新。
 
 ### 6.3 错误
 
@@ -274,9 +272,9 @@ Content-Type: application/json
 
 - **在实例设置里解绑**：`POST /v1/instance/unbind`，`Authorization: Bearer <instance_secret>`，返回 `{"revoked": true}`，重复调用也成功。之后实例删除本地凭证。
 - **在官网解绑**：实例下次续签时收到 `INSTANCE_REVOKED`，设置页显示未连接。
-- **删除账号**：名下实例全部解绑；账号本身也以 `acct` 条目进吊销名单，兜住和删除并发认领出来的实例。已批准但还没领凭证的配对码领取时返回 `access_denied`，主人已删除的实例续签返回 `INSTANCE_REVOKED`。
+- **删除账号**：名下实例全部解绑；和删除并发认领出来的实例，因为主人已删除，同样当作已解绑。已批准但还没领凭证的配对码领取时返回 `access_denied`，主人已删除的实例续签返回 `INSTANCE_REVOKED`。
 
-解绑的实例进吊销名单，推送中继每 5 分钟拉一次，所以**解绑 5 分钟内**该实例的推送被拒。中继不存设备，解绑时没有设备记录需要删除。
+官方推送中继每个请求都查实例的状态，所以**解绑后下一条推送就被拒**（`401`，实例当作未连接处理）。中继不存设备，解绑时没有设备记录需要删除。
 
 ## 8. 推送中继的选择
 
