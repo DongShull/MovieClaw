@@ -560,7 +560,6 @@ struct ManageSwitchRow: View {
                 }
             }
         }
-        .tint(Theme.success)
         .accessibilityIdentifier(identifier)
     }
 }

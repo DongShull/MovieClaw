@@ -20,6 +20,7 @@ struct MovieClawApp: App {
             RootView()
                 .environment(model)
                 .preferredColorScheme(.dark)
+                .toggleStyle(SystemSwitchStyle())
         }
     }
 }
