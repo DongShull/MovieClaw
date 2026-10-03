@@ -23,9 +23,12 @@ import {
   type DownloaderPayload,
   type DownloaderStatus,
   type PathMapping,
+  type DownloaderUsage,
   createDownloader,
   deleteDownloader,
   getDownloaderLimits,
+  getDownloaderUsage,
+  setDownloaderUsage,
   listDownloaders,
   reverifyDownloader,
   setDefaultDownloader,
@@ -78,11 +81,15 @@ export function DownloaderConfigSection() {
   const [expanded, setExpanded] = useState<number | null>(null);
   // 当前亮出编辑表单的下载器 id（表单嵌在详情里；菜单「编辑配置」会先展开详情）
   const [editing, setEditing] = useState<number | null>(null);
+  // 按用途指定的下载器（订阅 / 刷流）；未配置时为 null = 跟随默认下载器
+  const [usage, setUsage] = useState<DownloaderUsage | null>(null);
+  const [savingUsage, setSavingUsage] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
       setDownloaders(await listDownloaders());
+      setUsage(await getDownloaderUsage());
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -93,6 +100,20 @@ export function DownloaderConfigSection() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const saveUsage = useCallback(async (next: DownloaderUsage) => {
+    setSavingUsage(true);
+    try {
+      setUsage(await setDownloaderUsage({
+        subscription_downloader_id: next.subscription_downloader_id,
+        boost_downloader_id: next.boost_downloader_id,
+      }));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSavingUsage(false);
+    }
+  }, []);
 
   // 体检修复卡跳转带来的映射建议（?suggest_mapping=/xx）：自动展开默认
   // 下载器的编辑表单并预填一条映射的本机侧，用户只需补下载器视角的路径
@@ -197,6 +218,35 @@ export function DownloaderConfigSection() {
         </div>
       )}
 
+      {/* 下载器用途：订阅 / 刷流分开指定（默认都跟随「默认下载器」） */}
+      {!loading && downloaders.length > 0 && usage && (
+        <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-body font-medium text-[var(--text)]">下载器用途</p>
+              <p className="mt-0.5 text-caption text-[var(--text-faint)]">
+                订阅投递与刷流取种是两条独立链路，可分别指定下载器，避免互相挤占队列；留空则跟随「默认下载器」。
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <UsageSelect
+              label="订阅下载"
+              value={usage.subscription_downloader_id}
+              options={downloaders}
+              disabled={savingUsage}
+              onChange={(id) => void saveUsage({ ...usage, subscription_downloader_id: id })}
+            />
+            <UsageSelect
+              label="刷流下载"
+              value={usage.boost_downloader_id}
+              options={downloaders}
+              disabled={savingUsage}
+              onChange={(id) => void saveUsage({ ...usage, boost_downloader_id: id })}
+            />
+          </div>
+        </div>
+      )}
       {/* 已配置下载器列表：扁平面板容器，行式布局 */}
       {loading ? (
         <div className="space-y-px overflow-hidden rounded-xl border border-white/[0.08]">
@@ -1346,3 +1396,39 @@ function DownloaderForm({
     </div>
   );
 }
+
+
+function UsageSelect({
+  label,
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  options: ConfiguredDownloader[];
+  disabled: boolean;
+  onChange: (id: number | null) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-caption font-medium text-[var(--text-muted)]">{label}</span>
+      <select
+        className="h-9 w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 text-sub text-[var(--text)] outline-none transition-colors focus:border-[var(--accent)] disabled:opacity-60"
+        value={value ?? ""}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+      >
+        <option value="">跟随默认下载器</option>
+        {options.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name}
+            {d.is_default ? "（默认）" : ""}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
