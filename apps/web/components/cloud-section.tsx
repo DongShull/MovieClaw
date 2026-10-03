@@ -13,8 +13,8 @@
  *     「不连接」的出口（IM 推送、自建中继）。不连接不是错误，页面不用警告色；
  *   - pairing：配对码弹窗（components/cloud/pairing-dialog.tsx）；关掉弹窗不取消，
  *     页面上留一张卡片可以重新打开；
- *   - connected：连在谁的账号下、权限和能力、异常横幅、服务通知、上报内容与
- *     统计开关、断开。
+ *   - connected：连在谁的账号下、权限和能力、异常横幅、服务通知、统计开关与
+ *     「上报哪些信息」的说明链接（官网隐私政策）、断开。
  */
 
 import Link from "next/link";
@@ -45,6 +45,7 @@ import {
 import {
   capabilityRows,
   cloudInstancesUrl,
+  cloudReportsInfoUrl,
   connectedAccountLine,
   healthMessage,
   healthTone,
@@ -426,7 +427,7 @@ function ConnectedView({ status, run }: { status: CloudStatusView; run: Run }) {
       <SummaryCard status={status} connection={connection} manageUrl={manageUrl} />
 
       <section>
-        <h3 className="group-label mb-2.5 px-1">上报给云端的信息</h3>
+        <h3 className="group-label mb-2.5 px-1">上报</h3>
         <div className="css-glass !rounded-2xl">
           <div className="flex items-center gap-3.5 px-5 py-4 max-sm:px-4">
             <div className="min-w-0 flex-1">
@@ -442,24 +443,15 @@ function ConnectedView({ status, run }: { status: CloudStatusView; run: Run }) {
               onChange={(next) => void toggleStats(next)}
             />
           </div>
-          <div className="border-t border-white/[0.06] px-5 py-4 max-sm:px-4">
-            <p className="text-body font-medium text-[var(--text)]">
-              最近一次上报的原始内容
-              {status.last_report_at && (
-                <span className="ml-1.5 text-caption font-normal text-[var(--text-faint)]">
-                  · {formatRelativeTime(status.last_report_at)}
-                </span>
-              )}
-            </p>
-            {status.last_report ? (
-              <pre className="scroll-thin mt-3 max-h-80 overflow-auto rounded-xl border border-white/[0.08] bg-black/[0.28] px-4 py-3.5 font-mono text-caption leading-relaxed text-[var(--text-muted)]">
-                {JSON.stringify(status.last_report, null, 2)}
-              </pre>
-            ) : (
-              <p className="mt-1 text-caption text-[var(--text-faint)]">
-                还没有上报过。每次和云端同步时上报一次，原样显示在这里。
-              </p>
-            )}
+          <div className="border-t border-white/[0.06] px-5 py-3.5 max-sm:px-4">
+            <a
+              href={cloudReportsInfoUrl(status.cloud_url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`text-sub ${LINK_CLASS}`}
+            >
+              连接后会向 MovieClaw Cloud 上报哪些信息？
+            </a>
           </div>
         </div>
       </section>

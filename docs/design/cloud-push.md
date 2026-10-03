@@ -40,7 +40,7 @@
 
 | 位置 | 谁能看 | 内容 |
 | --- | --- | --- |
-| 系统 → MovieClaw Cloud（`/settings/cloud`） | 管理员 | 连接 / 断开、连接到哪个账号、权限和能力、最近同步、服务通知、上报内容与统计开关 |
+| 系统 → MovieClaw Cloud（`/settings/cloud`） | 管理员 | 连接 / 断开、连接到哪个账号、权限和能力、最近同步、服务通知、统计开关与「上报哪些信息」的说明链接 |
 | 通知与集成 → App 推送（`/settings/app-push`） | 管理员 | 推送通道（官方 + 自建中继，各一个启用开关）、添加自建中继 |
 | 通知与集成 → IM 推送（`/settings/im-push`） | 管理员 | 原「消息推送」，只改名 |
 | 账号 → 设备（`/settings/devices`，原有） | 所有人（管理员可看全部成员） | 设备列表；每台 App 设备收不到通知时写一行原因 |
@@ -90,8 +90,9 @@ App 里：
   能用到过期为止。
 - 上报：`instance_version`、`runtime_version`（`python x.y.z`）、`os`、`arch` 必报；
   统计开关打开时（默认）再报 `devices`（有推送登记的设备，按平台和 App 版本汇总）和
-  `relay`（官方中继能否连通、最近一次成功推送的时间）。最近一次上报的原文保存下来，
-  原样显示在设置页。
+  `relay`（官方中继能否连通、最近一次成功推送的时间）。设置页不显示上报原文，统计开关旁边
+  放一个链接到官网隐私政策的「你的服务器会发给我们什么」一节（`/zh/privacy#server-reports`），
+  在那里用人话讲清发什么、为什么、能不能关。
 
 ### 2.4 结果处理
 
@@ -246,7 +247,7 @@ App 里：
 | `pairing` | `{user_code, verification_uri, verification_uri_complete, qrcode_image, expires_at, status, message, instance_name}`；`status` 为 `pending` / `denied` / `expired` / `error`；`qrcode_image` 是 `verification_uri_complete` 的二维码（SVG 的 data URL，与 IM 绑定同一套生成方式） |
 | `connection` | `{instance_id, instance_name, account_display, connected_at, last_renew_at, token_expires_at, scopes, capabilities, limits}` |
 | `last_disconnect` | 上次被动断开的原因 `{reason, message, at}`（`reason`: `revoked`），未连接时显示；重新连接后清空 |
-| `last_report` | 最近一次上报的原文（对象） |
+| `last_report` | 最近一次上报的原文（对象）；页面不再显示，留给排查用 |
 | `notices` | 云端发来的服务通知 `{id, level, message}`，已关闭的不再返回 |
 
 | 接口 | 说明 |

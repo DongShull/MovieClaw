@@ -221,17 +221,9 @@ private struct CloudSettingsContent: View {
                 SettingsRowText(title: "上报统计信息", detail: "关掉后只上报版本信息，推送不受影响，只是官网上少一些展示")
             }
             .accessibilityIdentifier("cloud-report-stats")
-            if let report = status.lastReport {
-                DisclosureGroup {
-                    Text(Self.prettyJSON(.object(report)))
-                        .font(.caption.monospaced())
-                        .foregroundStyle(Theme.textMuted)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } label: {
-                    Text("最近一次上报的原始内容" + (status.lastReportAt.map { " · \(SettingsBFormat.relative($0))" } ?? ""))
-                        .font(.subheadline)
-                }
+            if let url = Self.reportsInfoURL(cloudURL: status.cloudUrl) {
+                Link("连接后会向 MovieClaw Cloud 上报哪些信息？", destination: url)
+                    .font(.subheadline)
             }
         } header: {
             Text("上报")
@@ -305,11 +297,16 @@ private struct CloudSettingsContent: View {
         return "给登录了这台服务器的手机发通知，每天最多 \(day) 条"
     }
 
-    static func prettyJSON(_ value: API.JSONValue) -> String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        guard let data = try? encoder.encode(value), let text = String(data: data, encoding: .utf8) else { return "" }
-        return text
+    /// 官网隐私政策里「你的服务器会发给我们什么」那一节：官网地址由云端地址去掉开头的 `api.` 得出（同网页 cloudSiteOrigin）
+    static func reportsInfoURL(cloudURL: String) -> URL? {
+        guard var components = URLComponents(string: cloudURL), let host = components.host,
+              components.scheme == "https" || components.scheme == "http"
+        else { return URL(string: "https://movieclaw.io/zh/privacy#server-reports") }
+        components.host = host.hasPrefix("api.") ? String(host.dropFirst(4)) : host
+        components.path = "/zh/privacy"
+        components.query = nil
+        components.fragment = "server-reports"
+        return components.url
     }
 }
 

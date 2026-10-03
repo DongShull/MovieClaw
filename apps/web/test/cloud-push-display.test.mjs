@@ -9,6 +9,7 @@ import {
   channelDeviceCount,
   channelPill,
   cloudInstancesUrl,
+  cloudReportsInfoUrl,
   cloudSiteOrigin,
   connectedAccountLine,
   devicePushNote,
@@ -54,6 +55,10 @@ test("官网地址：解析不出来时回落到 movieclaw.io", () => {
 
 test("「在官网管理」指向官网的服务器列表", () => {
   assert.equal(cloudInstancesUrl("https://api.movieclaw.io"), "https://movieclaw.io/instances");
+  assert.equal(
+    cloudReportsInfoUrl("https://api.movieclaw.io"),
+    "https://movieclaw.io/zh/privacy#server-reports",
+  );
 });
 
 test("链接给人读的样子去掉协议头和末尾斜杠", () => {

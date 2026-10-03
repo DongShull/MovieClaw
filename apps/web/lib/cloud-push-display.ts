@@ -59,6 +59,11 @@ export function cloudInstancesUrl(cloudUrl: string | null | undefined): string {
   return `${cloudSiteOrigin(cloudUrl)}/instances`;
 }
 
+/** 官网隐私政策里「你的服务器会发给我们什么」那一节：连接后上报什么、为什么、能不能关。 */
+export function cloudReportsInfoUrl(cloudUrl: string | null | undefined): string {
+  return `${cloudSiteOrigin(cloudUrl)}/zh/privacy#server-reports`;
+}
+
 /** 链接给人读的样子：去掉协议头和末尾斜杠，如 movieclaw.io/activate。 */
 export function displayUrl(uri: string): string {
   return uri.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/\/+$/, "");
