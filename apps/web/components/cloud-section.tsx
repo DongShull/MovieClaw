@@ -9,7 +9,7 @@
  *
  * 页面按 GET /cloud 的 state 分三态，所有写接口都返回同一份 CloudStatusView，
  * 拿到响应就整页重画：
- *   - disconnected：讲清连接做什么、云端会知道什么 / 永远不会知道什么，留出
+ *   - disconnected：讲清连接做什么，「会上报哪些信息」链接到官网隐私政策的那一节，留出
  *     「不连接」的出口（IM 推送、自建中继）。不连接不是错误，页面不用警告色；
  *   - pairing：配对码弹窗（components/cloud/pairing-dialog.tsx）；关掉弹窗不取消，
  *     页面上留一张卡片可以重新打开；
@@ -169,7 +169,6 @@ function DisconnectedView({
   status: CloudStatusView;
   onConnect: () => void;
 }) {
-  const [showDetails, setShowDetails] = useState(false);
   const lastDisconnect = status.last_disconnect;
 
   return (
@@ -202,35 +201,17 @@ function DisconnectedView({
             >
               连接到 MovieClaw 账号
             </button>
-            <button
-              type="button"
-              aria-expanded={showDetails}
-              onClick={() => setShowDetails((v) => !v)}
+            <a
+              href={cloudReportsInfoUrl(status.cloud_url)}
+              target="_blank"
+              rel="noopener noreferrer"
               className="btn-glass px-4 py-2 text-ui font-medium"
             >
-              了解会发送什么
-            </button>
+              会向 MovieClaw Cloud 上报哪些信息？
+            </a>
           </div>
         </div>
       </div>
-
-      {showDetails && (
-        <div className="css-glass !rounded-2xl">
-          <div className="px-5 py-4">
-            <p className="text-body font-medium text-[var(--text)]">连接后云端会知道</p>
-            <p className="mt-1 text-caption leading-5 text-[var(--text-faint)]">
-              这台服务器的名字、MovieClaw 版本、系统和架构。可以关掉的统计项：按平台和 App
-              版本汇总的设备数、推送中继能不能连通。
-            </p>
-          </div>
-          <div className="border-t border-white/[0.06] px-5 py-4">
-            <p className="text-body font-medium text-[var(--text)]">云端永远不会知道</p>
-            <p className="mt-1 text-caption leading-5 text-[var(--text-faint)]">
-              通知内容、片名、站点、媒体库规模、家人是谁、哪台手机收到了什么——推送在这台服务器上加密，云端和中继都解不开。
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* 给不连接的人留出口 */}
       <Banner tone="info">
@@ -476,7 +457,7 @@ function ConnectedView({ status, run }: { status: CloudStatusView; run: Run }) {
   );
 }
 
-/** 连接概要：连在谁的账号下、什么时候连的、最近同步，以及权限与能力清单。 */
+/** 连接概要：连在谁的账号下、什么时候连的，以及权限与能力清单。 */
 function SummaryCard({
   status,
   connection,
@@ -488,14 +469,9 @@ function SummaryCard({
 }) {
   const rows = capabilityRows(connection?.scopes ?? [], connection?.capabilities ?? []);
   const dailyLimit = connection?.limits?.day;
-  const timeline = [
-    connection?.connected_at ? `连接于 ${formatDateTime(connection.connected_at)}` : null,
-    connection?.last_renew_at
-      ? `最近同步 ${formatRelativeTime(connection.last_renew_at)}`
-      : "还没同步过",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const timeline = connection?.connected_at
+    ? `连接于 ${formatDateTime(connection.connected_at)}`
+    : null;
 
   return (
     <div className="css-glass !rounded-2xl">
@@ -514,7 +490,7 @@ function SummaryCard({
           <p className="mt-1 text-sub text-[var(--text-muted)]">
             {connectedAccountLine(connection?.account_display)}
           </p>
-          <p className="mt-0.5 text-caption text-[var(--text-faint)]">{timeline}</p>
+          {timeline && <p className="mt-0.5 text-caption text-[var(--text-faint)]">{timeline}</p>}
         </div>
         <a
           href={manageUrl}

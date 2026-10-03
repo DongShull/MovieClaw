@@ -96,12 +96,10 @@ private struct CloudSettingsContent: View {
         }
 
         Section {
-            SettingsRowText(title: "连接后云端会知道",
-                            detail: "这台服务器的名字、MovieClaw 版本、系统和架构。可以关掉的统计：按平台和 App 版本汇总的设备数、推送中继是否连得通。",
-                            detailColor: Theme.textMuted)
-            SettingsRowText(title: "云端永远不会知道",
-                            detail: "通知内容、片名、站点、媒体库规模、家人是谁、哪台手机收到了什么——推送在这台服务器上加密，云端和推送中继都解不开。",
-                            detailColor: Theme.textMuted)
+            if let url = Self.reportsInfoURL(cloudURL: status.cloudUrl) {
+                Link("会向 MovieClaw Cloud 上报哪些信息？", destination: url)
+                    .font(.subheadline)
+            }
             if status.customCloudUrl {
                 SettingsBValueRow(label: "云端地址", value: status.cloudUrl, mono: true)
             }
@@ -150,7 +148,6 @@ private struct CloudSettingsContent: View {
                 if let connectedAt = link.connectedAt {
                     SettingsBValueRow(label: "连接于", value: Formatters.dateTime(connectedAt))
                 }
-                SettingsBValueRow(label: "最近同步", value: SettingsBFormat.relative(link.lastRenewAt))
             }
             if status.customCloudUrl {
                 SettingsBValueRow(label: "云端地址", value: status.cloudUrl, mono: true)
