@@ -78,7 +78,9 @@ TestFlight 的用户：用 AltStore / SideStore / Sideloadly 以自己的 Apple 
 签的包 7 天过期（AltStore / SideStore 可后台自动续签），付费开发者账号 1 年。
 
 - 与商店版**同一份代码、同一个发行版本**（§1），只是不签名；不需要任何签名密钥，fork 仓库也能产出。
-- App 没有扩展、没有特殊 entitlements，免费 Apple ID 也能签（只占 1 个 App ID）。
+- 打包时去掉通知扩展（`MovieClawNotificationService`）和推送、App Group 的 entitlements，免费
+  Apple ID 也能签（只占 1 个 App ID）。代价是侧载版**收不到推送**：免费 Apple ID 本来就没有推送能力，
+  官方推送中继也只推商店版的 Bundle ID。App 发现自己没带通知扩展时不请求通知权限、不登记推送。
 - 文件名固定，`releases/latest/download/MovieClaw-iOS-unsigned.ipa` 长期指向最新版。
 - 附在服务器 Release 上而不单开 iOS Release：应用内更新按 GitHub 的 latest Release 判断服务器新版本，
   单独的 iOS Release 会被当成最新服务器版本，打乱更新检查。App 自己的版本号见 §3。

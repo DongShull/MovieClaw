@@ -79,7 +79,8 @@ engine: FFmpeg unpacks, Apple plays.
 
 **Getting the app**: download `MovieClaw-iOS-unsigned.ipa` from
 [Releases](https://github.com/movieclaw/movieclaw/releases) and sideload it with AltStore,
-SideStore, or Sideloadly using your own Apple ID (iOS 26 or later). A public TestFlight is
+SideStore, or Sideloadly using your own Apple ID (iOS 26 or later; sideloaded builds can't
+receive push notifications). A public TestFlight is
 coming. Trackers and download clients are configured in the web app.
 
 The web app is liquid glass: the sidebar, inputs, and floating buttons refract whatever

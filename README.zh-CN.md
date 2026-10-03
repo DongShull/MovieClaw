@@ -74,7 +74,7 @@
 - 进度在网页、App 和 Infuse 之间同步，在哪看都接得上。
 - 「片段」：在片库里竖着滑，从自己的电影和剧集里刷精彩片段。
 
-**怎么装 App**：从 [Releases](https://github.com/movieclaw/movieclaw/releases) 下载 `MovieClaw-iOS-unsigned.ipa`，用 AltStore、SideStore 或 Sideloadly 以自己的 Apple ID 安装，需要 iOS 26 及以上；TestFlight 公开测试稍后开放。资源站点和下载器在网页端配置。
+**怎么装 App**：从 [Releases](https://github.com/movieclaw/movieclaw/releases) 下载 `MovieClaw-iOS-unsigned.ipa`，用 AltStore、SideStore 或 Sideloadly 以自己的 Apple ID 安装，需要 iOS 26 及以上（侧载版收不到推送通知）；TestFlight 公开测试稍后开放。资源站点和下载器在网页端配置。
 
 网页端是液态玻璃：侧栏、输入框、悬浮按钮会折射你设的背景图，边缘带一点色差。背景图在「设置 → 外观」里换，跨设备访问同一实例保持一致。
 
