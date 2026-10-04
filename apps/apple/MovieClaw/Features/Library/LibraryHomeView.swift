@@ -304,7 +304,7 @@ struct LibraryHomeView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     LibrarySectionHeader(title: row.title)
                     ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 10) {
+                        LazyHStack(spacing: 12) {
                             ForEach(genres, id: \.value) { genre in
                                 if let id = Int(genre.value) {
                                     NavigationLink(value: AppRoute.libraryKind(kind: kind, genre: id)) {
@@ -316,6 +316,8 @@ struct LibraryHomeView: View {
                             }
                         }
                         .padding(.horizontal, Theme.pagePadding)
+                        // 给色块的外发光投影留出位置，不压到下一行的标题
+                        .padding(.bottom, 10)
                     }
                     .scrollClipDisabled()
                 }
