@@ -141,7 +141,7 @@ export function Sidebar({
               width={256}
               height={256}
               priority
-              className="size-7 object-contain"
+              className="size-6 object-contain"
             />
           </BrandHome>
           <CollapseToggle collapsed onClick={onToggleCollapse} />
