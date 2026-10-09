@@ -37,14 +37,14 @@ import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Brightness6
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ClosedCaption
-import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.AlertDialog
@@ -102,6 +102,7 @@ import io.movieclaw.android.core.designsystem.GlassCapsule
 import io.movieclaw.android.core.designsystem.McType
 import io.movieclaw.android.core.designsystem.Success
 import io.movieclaw.android.core.designsystem.TextMuted
+import io.movieclaw.android.core.model.EpisodeView
 import io.movieclaw.android.core.model.PlaybackSessionView
 import io.movieclaw.android.core.model.PlaybackDecisionView
 import io.movieclaw.android.core.network.ApiFactory
@@ -213,6 +214,18 @@ class PlayerViewModel @Inject constructor(
                         ?.let { UpNext(nextSeason, it.episodeNumber, it.name.orEmpty(), fileIdOf(nextSeason, it.episodeNumber)) }
                 }
         }.getOrNull()
+    }
+
+    suspend fun episodeSeasons(target: PlayTarget): List<Int> {
+        val origin = sessionRepository.ui.value.origin ?: error("尚未连接服务器")
+        return (apiFactory.forOrigin(origin).libraryItemDetail(target.libraryId, target.mediaItemId)
+            .dataOrThrow().seasons + target.seasonNumber).distinct().sorted()
+    }
+
+    suspend fun seasonEpisodes(target: PlayTarget, season: Int): List<EpisodeView> {
+        val origin = sessionRepository.ui.value.origin ?: error("尚未连接服务器")
+        return apiFactory.forOrigin(origin).seasonEpisodes(target.libraryId, target.mediaItemId, season)
+            .dataOrThrow().episodes.sortedBy { it.episodeNumber }
     }
 
     fun playNext(upNext: UpNext) {
@@ -365,6 +378,8 @@ fun PlayerScreen(onExit: () -> Unit, vm: PlayerViewModel = hiltViewModel()) {
                 qualityOptions = vm.qualityOptions(),
                 onSelectQuality = vm::selectQuality,
                 onPlayNext = vm::playNext,
+                loadSeasons = vm::episodeSeasons,
+                loadEpisodes = vm::seasonEpisodes,
                 onExit = { vm.exit(); onExit() },
                 subStyle = subStyle,
                 onSubStyle = vm::updateSubtitleStyle,
@@ -390,6 +405,8 @@ private fun PlayingSurface(
     qualityOptions: List<PlayerViewModel.QualityOption>,
     onSelectQuality: (PlayerViewModel.QualityOption) -> Unit,
     onPlayNext: (PlayerViewModel.UpNext) -> Unit,
+    loadSeasons: suspend (PlayTarget) -> List<Int>,
+    loadEpisodes: suspend (PlayTarget, Int) -> List<EpisodeView>,
     onExit: () -> Unit,
     subStyle: io.movieclaw.android.core.playback.SubtitleStyle,
     onSubStyle: ((io.movieclaw.android.core.playback.SubtitleStyle) -> io.movieclaw.android.core.playback.SubtitleStyle) -> Unit,
@@ -424,6 +441,7 @@ private fun PlayingSurface(
     // 有菜单开着就**不许自动隐藏控制层**：菜单是控制层的子节点，控制层一收，
     // 菜单跟着消失——表现就是"没动它自己突然隐藏了"（用户反馈）
     var menuOpen by remember { mutableStateOf(false) }
+    var episodePickerOpen by remember(controller) { mutableStateOf(false) }
     // 跳转后给读数一段宽限期：Exo 的 seek 不是瞬时完成，立刻读回来的还是**旧位置**，
     // 小球就会"跳回原处再挪过来"（用户原话"落点位置会跳"）。宽限期内先按落点显示，
     // 等播放器真的追上来（或超时）再交回真实读数。
@@ -489,8 +507,21 @@ private fun PlayingSurface(
         }
     }
 
+    if (episodePickerOpen) {
+        PlayerEpisodePicker(
+            target = controller.target,
+            loadSeasons = loadSeasons,
+            loadEpisodes = loadEpisodes,
+            onDismiss = { episodePickerOpen = false },
+            onSelect = { season, episode ->
+                episodePickerOpen = false
+                onPlayNext(PlayerViewModel.UpNext(season, episode.episodeNumber, episode.name.orEmpty()))
+            },
+        )
+    }
+
     // 控制层常显条件(iOS):暂停中 / 拖动中 / 调节中
-    val mustStayVisible = !playing || scrubbing || adjusting || menuOpen
+    val mustStayVisible = !playing || scrubbing || adjusting || menuOpen || episodePickerOpen
     var chromeActivity by remember { mutableIntStateOf(0) }
     LaunchedEffect(chromeVisible, mustStayVisible, chromeActivity) {
         if (chromeVisible && !mustStayVisible) {
@@ -974,7 +1005,7 @@ private fun PlayingSurface(
         // 字幕还没放完画面就被抢走）：8 秒倒计时、连播 ≤3 集、任何用户操作清零（人半睡着时
         // 别让 NAS 白转一晚上）。倒计时 = 「立即播放」按钮本身的填充。
         if (upNextShowing) {
-            val nextArmed = upNext != null && inFileOutro && autoNextStreak < 3
+            val nextArmed = upNext != null && inFileOutro && autoNextStreak < 3 && !episodePickerOpen
             // A：片尾卡一露头就**预热下一集**的字幕（内封轨）。整轨要服务端通读整部片
             // （实测 5.7 GB / 39.7 秒），而卡最早只在结束前 40 秒出现——这段时间正好把
             // 下一集的抽取跑掉，切过去就是缓存命中（0.01 秒）。
@@ -996,7 +1027,7 @@ private fun PlayingSurface(
             // 语义照 iOS `advanceAutoNext`：**暂停冻住、播完照走**；未武装时进度清零。
             // 进度按**帧时钟**推进，每帧只加「这一帧真实流逝的时间」（暂停的那一帧不加）：
             // 早先是 100 毫秒跳 1/80，一格一格看得见台阶（用户反馈「不丝滑」）。
-            LaunchedEffect(upNextShowing, inFileOutro, upNext?.episodeNumber, upNextDismissed, locked) {
+            LaunchedEffect(upNextShowing, inFileOutro, upNext?.episodeNumber, upNextDismissed, locked, episodePickerOpen) {
                 autoNextProgress = 0f
                 if (!nextArmed) return@LaunchedEffect
                 var lastFrameNs: Long? = null
@@ -1193,6 +1224,19 @@ private fun PlayingSurface(
                                 .clip(RoundedCornerShape(3.dp))
                                 .background(AccentStrong),
                         )
+                        // 片头结束点与播放位置使用相同的文件时间和条宽；没有识别结果就不画。
+                        if (totalMs > 0) {
+                            state.session.segments.orEmpty().filter {
+                                it.type == "intro" && it.startMs >= 0 && it.endMs > it.startMs && it.endMs < totalMs
+                            }.forEach { segment ->
+                                val markerSize = 5.dp
+                                Box(
+                                    Modifier.align(Alignment.CenterStart)
+                                        .offset(x = travel * (segment.endMs.toFloat() / totalMs) + (handleSize - markerSize) / 2)
+                                        .size(markerSize).clip(CircleShape).background(Color.White),
+                                )
+                            }
+                        }
                         Box(
                             Modifier
                                 .align(Alignment.CenterStart)
@@ -1220,9 +1264,6 @@ private fun PlayingSurface(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        IconButton(onClick = { seekByRelative(-10_000) }) {
-                            Icon(Icons.Rounded.Replay10, contentDescription = "后退 10 秒", tint = Color.White)
-                        }
                         IconButton(
                             onClick = {
                                 autoNextStreak = 0   // 用户操作清零自动连播计数
@@ -1239,8 +1280,14 @@ private fun PlayingSurface(
                                 modifier = Modifier.size(30.dp),
                             )
                         }
-                        IconButton(onClick = { seekByRelative(10_000) }) {
-                            Icon(Icons.Rounded.Forward10, contentDescription = "前进 10 秒", tint = Color.White)
+                        if (controller.target.kind == "tv") {
+                            IconButton(
+                                onClick = { upNext?.let { autoNextStreak = 0; onPlayNext(it) } },
+                                enabled = upNext != null,
+                            ) {
+                                Icon(Icons.Rounded.SkipNext, contentDescription = "下一集",
+                                    tint = Color.White.copy(alpha = if (upNext != null) 1f else 0.35f))
+                            }
                         }
                         TrackMenuButton(
                             icon = Icons.Rounded.GraphicEq,
@@ -1270,6 +1317,11 @@ private fun PlayingSurface(
                             },
                         )
                         Spacer(Modifier.weight(1f))
+                        if (controller.target.kind == "tv") {
+                            IconButton(onClick = { episodePickerOpen = true; autoNextStreak = 0 }) {
+                                Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = "选集", tint = Color.White)
+                            }
+                        }
                         SpeedChip(controller)
                     }
                 }
