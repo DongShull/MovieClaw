@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ClosedCaption
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -21,6 +22,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
 import io.movieclaw.android.core.designsystem.MovieClawTheme
 import io.movieclaw.android.core.designsystem.McType
 import java.io.File
@@ -49,25 +51,33 @@ class PlayerControlsLayoutTest {
     private fun render(series: Boolean, name: String) {
         compose.setContent {
             MovieClawTheme {
-                Box(Modifier.fillMaxSize().background(Color(0xFF181A20)), contentAlignment = Alignment.BottomCenter) {
-                    PlayerBottomControls(true, series, true, {}, {}, {}, tracks = {
-                        IconButton(onClick = {}) { Icon(Icons.Rounded.GraphicEq, "音轨", tint = Color.White) }
-                        IconButton(onClick = {}) { Icon(Icons.Rounded.ClosedCaption, "字幕", tint = Color.White) }
-                    }, speed = {
-                        TextButton(onClick = {}) { Text("1.0×", style = McType.caption, color = Color.White) }
-                    })
+                Box(Modifier.fillMaxSize().background(Color(0xFF181A20))) {
+                    PlayerCenterControls(true, {}, {}, {}, Modifier.align(Alignment.Center))
+                    Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp)) {
+                        PlayerBottomControls(series, true, {}, {}, tracks = {
+                            IconButton(onClick = {}) { Icon(Icons.Rounded.GraphicEq, "音轨", tint = Color.White) }
+                            IconButton(onClick = {}) { Icon(Icons.Rounded.ClosedCaption, "字幕", tint = Color.White) }
+                        }, speed = {
+                            TextButton(onClick = {}) { Text("1.0×", style = McType.caption, color = Color.White) }
+                        })
+                    }
                 }
             }
         }
         val root = compose.onRoot().getUnclippedBoundsInRoot()
         val play = compose.onNodeWithContentDescription("暂停").getUnclippedBoundsInRoot()
+        val back = compose.onNodeWithContentDescription("后退 10 秒").getUnclippedBoundsInRoot()
+        val fwd = compose.onNodeWithContentDescription("前进 10 秒").getUnclippedBoundsInRoot()
+        val subs = compose.onNodeWithContentDescription("字幕").getUnclippedBoundsInRoot()
         assertEquals("Play button is not centered", (root.left.value + root.right.value) / 2, (play.left.value + play.right.value) / 2, 0.5f)
-        assertTrue("Play button clipped", play.right < root.right)
+        assertEquals("Play button is not vertically centered", (root.top.value + root.bottom.value) / 2, (play.top.value + play.bottom.value) / 2, 0.5f)
+        assertTrue("Seek buttons not around play", back.right < play.left && fwd.left > play.right)
+        assertTrue("Tool row overlaps transport", subs.top > play.bottom)
         if (series) {
             val next = compose.onNodeWithContentDescription("下一集").getUnclippedBoundsInRoot()
             val picker = compose.onNodeWithContentDescription("选集").getUnclippedBoundsInRoot()
-            assertTrue("Next overlaps play", next.left >= play.right)
-            assertTrue("Picker clipped", picker.right <= root.right - androidx.compose.ui.unit.Dp(35f))
+            assertTrue("Next not in tool row", next.top > play.bottom && next.left > fwd.right)
+            assertTrue("Picker clipped", picker.right <= root.right - 35.dp)
             assertTrue("Next overlaps picker", next.right <= picker.left)
         } else {
             compose.onNodeWithContentDescription("下一集").assertDoesNotExist()
