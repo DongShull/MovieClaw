@@ -1,6 +1,10 @@
 package io.movieclaw.android.feature.player
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
+import java.io.File
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -16,12 +20,37 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [34], qualifiers = "w800dp-h360dp-mdpi")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class PlayerEpisodePickerTest {
     @get:Rule val compose = createComposeRule()
     private val target = PlayTarget(379, 3, "tv", "仙逆", seasonNumber = 1, episodeNumber = 159)
+
+    @Test fun `long series picker renders near the current episode`() {
+        compose.setContent {
+            MovieClawTheme {
+                PlayerEpisodePicker(target, { listOf(1) }, { _, _ ->
+                    (1..170).map { EpisodeView(it, owned = it <= 161) }
+                }, {}, { _, _ -> })
+            }
+        }
+        compose.onNodeWithText("159").assertIsNotEnabled()
+        compose.onNodeWithText("160").assertIsEnabled()
+        File("build/ui-previews").mkdirs()
+        File("build/ui-previews/player-episodes-800.png").outputStream().use {
+            val globalClass = Class.forName("android.view.WindowManagerGlobal")
+            val global = globalClass.getMethod("getInstance").invoke(null)
+            @Suppress("UNCHECKED_CAST")
+            val views = globalClass.getDeclaredField("mViews").apply { isAccessible = true }.get(global) as List<View>
+            val view = views.last()
+            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(bitmap))
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
 
     @Test fun `current and missing episodes cannot switch but owned episodes can`() {
         var selected: Pair<Int, Int>? = null

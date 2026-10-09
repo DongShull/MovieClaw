@@ -1259,77 +1259,102 @@ private fun PlayingSurface(
                             color = Color.White.copy(alpha = 0.7f),
                         )
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        IconButton(
-                            onClick = {
-                                autoNextStreak = 0   // 用户操作清零自动连播计数
-                                controller.setPlaying(!playing)
-                            },
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(Color.White.copy(alpha = 0.14f), CircleShape),
-                        ) {
-                            Icon(
-                                if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                contentDescription = if (playing) "暂停" else "播放",
-                                tint = Color.White,
-                                modifier = Modifier.size(30.dp),
+                    PlayerBottomControls(
+                        playing = playing,
+                        series = controller.target.kind == "tv",
+                        hasNext = upNext != null,
+                        onToggle = { autoNextStreak = 0; controller.setPlaying(!playing) },
+                        onNext = { upNext?.let { autoNextStreak = 0; onPlayNext(it) } },
+                        onEpisodes = { episodePickerOpen = true; autoNextStreak = 0 },
+                        tracks = {
+                            TrackMenuButton(
+                                icon = Icons.Rounded.GraphicEq,
+                                label = "音轨",
+                                options = controller.audioOptions(),
+                                selectedRef = selectedAudioRef,
+                                includeOff = false,
+                                onSelect = controller::selectAudio,
+                                onExpandedChange = { menuOpen = it },
                             )
-                        }
-                        if (controller.target.kind == "tv") {
-                            IconButton(
-                                onClick = { upNext?.let { autoNextStreak = 0; onPlayNext(it) } },
-                                enabled = upNext != null,
-                            ) {
-                                Icon(Icons.Rounded.SkipNext, contentDescription = "下一集",
-                                    tint = Color.White.copy(alpha = if (upNext != null) 1f else 0.35f))
-                            }
-                        }
-                        TrackMenuButton(
-                            icon = Icons.Rounded.GraphicEq,
-                            label = "音轨",
-                            options = controller.audioOptions(),
-                            selectedRef = selectedAudioRef,
-                            includeOff = false,
-                            onSelect = controller::selectAudio,
-                            onExpandedChange = { menuOpen = it },
-                        )
-                        TrackMenuButton(
-                            icon = Icons.Rounded.ClosedCaption,
-                            label = "字幕",
-                            options = controller.subtitleOptions(),
-                            selectedRef = selectedSubtitleRef,
-                            includeOff = true,
-                            onSelect = controller::selectSubtitle,
-                            onExpandedChange = { menuOpen = it },
-                            // 样式行**永远显示**：以前按"有没有选中字幕"决定显不显示，
-                            // 关闭字幕时菜单就只剩上半截，看着像没显示全（用户反馈）
-                            styleEditor = {
-                                SubtitleStyleEditor(
-                                    style = subStyle,
-                                    onChange = onSubStyle,
-                                    subtitleActive = !selectedSubtitleRef.isNullOrEmpty() && selectedSubtitleRef != "off",
-                                )
-                            },
-                        )
-                        Spacer(Modifier.weight(1f))
-                        if (controller.target.kind == "tv") {
-                            IconButton(onClick = { episodePickerOpen = true; autoNextStreak = 0 }) {
-                                Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = "选集", tint = Color.White)
-                            }
-                        }
-                        SpeedChip(controller)
-                    }
+                            TrackMenuButton(
+                                icon = Icons.Rounded.ClosedCaption,
+                                label = "字幕",
+                                options = controller.subtitleOptions(),
+                                selectedRef = selectedSubtitleRef,
+                                includeOff = true,
+                                onSelect = controller::selectSubtitle,
+                                onExpandedChange = { menuOpen = it },
+                                // 样式行**永远显示**：以前按"有没有选中字幕"决定显不显示，
+                                // 关闭字幕时菜单就只剩上半截，看着像没显示全（用户反馈）
+                                styleEditor = {
+                                    SubtitleStyleEditor(
+                                        style = subStyle,
+                                        onChange = onSubStyle,
+                                        subtitleActive = !selectedSubtitleRef.isNullOrEmpty() && selectedSubtitleRef != "off",
+                                    )
+                                },
+                            )
+                        },
+                        speed = { SpeedChip(controller) },
+                    )
                 }
             }
         }
     }
 }
 
+
+/** 主播放键独立居中，左右工具与进度条共用 35dp 边距。 */
+@Composable
+internal fun PlayerBottomControls(
+    playing: Boolean,
+    series: Boolean,
+    hasNext: Boolean,
+    onToggle: () -> Unit,
+    onNext: () -> Unit,
+    onEpisodes: () -> Unit,
+    tracks: @Composable () -> Unit,
+    speed: @Composable () -> Unit,
+) {
+    Box(Modifier.fillMaxWidth().height(56.dp)) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 35.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            tracks()
+            Spacer(Modifier.weight(1f))
+            if (series) {
+                IconButton(onClick = onEpisodes) {
+                    Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = "选集", tint = Color.White)
+                }
+            }
+            speed()
+        }
+        IconButton(
+            onClick = onToggle,
+            modifier = Modifier.align(Alignment.Center).size(56.dp)
+                .background(Color.White.copy(alpha = 0.14f), CircleShape),
+        ) {
+            Icon(
+                if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                contentDescription = if (playing) "暂停" else "播放",
+                tint = Color.White,
+                modifier = Modifier.size(30.dp),
+            )
+        }
+        if (series) {
+            IconButton(
+                onClick = onNext,
+                enabled = hasNext,
+                modifier = Modifier.align(Alignment.Center).offset(x = 60.dp),
+            ) {
+                Icon(Icons.Rounded.SkipNext, contentDescription = "下一集",
+                    tint = Color.White.copy(alpha = if (hasNext) 1f else 0.35f))
+            }
+        }
+    }
+}
 
 /** 圆形玻璃图标键(锁屏/解锁):44 边 = 系统最小触控尺寸,玻璃底 38% 黑 */
 @Composable
