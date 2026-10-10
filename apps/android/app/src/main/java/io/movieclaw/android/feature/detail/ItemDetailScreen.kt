@@ -604,13 +604,35 @@ class ItemDetailViewModel @Inject constructor(
         _notice.value = null
     }
 
+    /**
+     * 两个标记的作用域不同（服务端口径）：收藏落在**整个条目**上，「已看」跟着当前播放单元——
+     * 电影是整条，剧集是选中的那一集。剧集一旦按单集取过「已看」，就不让整剧的结果覆盖它。
+     */
+    private var playedIsUnitScoped = false
+    private var unitPlayedJob: kotlinx.coroutines.Job? = null
+
     fun loadMarks(mediaItemId: Long) {
         viewModelScope.launch {
             val origin = repository.ui.value.origin ?: return@launch
             // 查不到收藏态不影响浏览，心按未收藏渲染即可
             runCatching {
                 apiFactory.forOrigin(origin).playbackMarks(mediaItemId).dataOrThrow()
-            }.onSuccess { _marks.value = it }
+            }.onSuccess { m -> _marks.update { s -> m.copy(played = if (playedIsUnitScoped) s.played else m.played) } }
+        }
+    }
+
+    /** 剧集换了选中的集：「已看」按这一集重新取（电影 0/0 用整条的结果，不用单取） */
+    fun loadUnitPlayed(mediaItemId: Long, seasonNumber: Int, episodeNumber: Int) {
+        if (seasonNumber <= 0 && episodeNumber <= 0) return
+        playedIsUnitScoped = true
+        unitPlayedJob?.cancel()   // 快速切集时，晚到的旧集结果不能盖掉新集
+        unitPlayedJob = viewModelScope.launch {
+            val origin = repository.ui.value.origin ?: return@launch
+            runCatching {
+                apiFactory.forOrigin(origin)
+                    .playbackMarks(mediaItemId, seasonNumber, episodeNumber)
+                    .dataOrThrow()
+            }.onSuccess { m -> _marks.update { it.copy(played = m.played) } }
         }
     }
 
@@ -623,8 +645,9 @@ class ItemDetailViewModel @Inject constructor(
                 apiFactory.forOrigin(origin)
                     .setPlaybackMarks(PlaybackMarksRequest(mediaItemId = mediaItemId, favorite = next))
                     .dataOrThrow()
-            }.onSuccess {
-                _marks.value = it
+            }.onSuccess { m ->
+                // 只取收藏：这次查的是整个条目，它的「已看」不是剧集当前那一集的
+                _marks.update { it.copy(isFavorite = m.isFavorite) }
                 // 收藏变了：首页「我的收藏」行与收藏墙立刻重拉（否则那两处还是进页时的快照）
                 io.movieclaw.android.core.model.LibraryMarksBus.bump()
             }
@@ -653,14 +676,15 @@ class ItemDetailViewModel @Inject constructor(
                     )
                     .dataOrThrow()
             }.onSuccess {
-                // 标已看会清零续播位置、取消会清零播放次数——结论以服务端为准，写完重查
+                // 标已看会清零续播位置、取消会清零播放次数——结论以服务端为准，写完重查。
+                // 只取「已看」：剧集这里查的是单集，单集上没有收藏（收藏在整剧上），整份覆盖会把心清掉
                 runCatching {
                     apiFactory.forOrigin(origin).playbackMarks(
                         mediaItemId = mediaItemId,
                         seasonNumber = seasonNumber,
                         episodeNumber = episodeNumber,
                     ).dataOrThrow()
-                }.onSuccess { fresh -> _marks.value = fresh }
+                }.onSuccess { fresh -> _marks.update { it.copy(played = fresh.played) } }
                 // 「已看」会影响首页的「接下来继续」与各行的进度，一起让首页重拉
                 io.movieclaw.android.core.model.LibraryMarksBus.bump()
             }.onFailure {
@@ -809,7 +833,10 @@ fun ItemDetailScreen(
                 marks = marks,
                 resume = resume,
                 unit = selectedUnit,
-                onResumeUnitChanged = { season, episode -> vm.loadResume(s.value.item.mediaItemId, season, episode) },
+                onResumeUnitChanged = { season, episode ->
+                    vm.loadResume(s.value.item.mediaItemId, season, episode)
+                    vm.loadUnitPlayed(s.value.item.mediaItemId, season, episode)
+                },
                 onToggleFavorite = { vm.toggleFavorite(s.value.item.mediaItemId) },
                 onTogglePlayed = { season, episode ->
                     vm.togglePlayed(s.value.item.mediaItemId, season, episode)
