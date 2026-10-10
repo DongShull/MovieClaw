@@ -792,9 +792,10 @@ private fun SubsHero(
     // 把进行中的翻页动画取消掉，轮播就卡在「左右各半张」（实机反馈）。
     // settledPage 只在滚动停稳后才更新——手动滑动也会因此自然重新计时（同 iOS）。
     val fill = remember { Animatable(0f) }
-    LaunchedEffect(pager.settledPage, slides.size) {
+    val tabActive = io.movieclaw.android.core.designsystem.LocalTabActive.current
+    LaunchedEffect(pager.settledPage, slides.size, tabActive) {
         fill.snapTo(0f)
-        if (slides.size <= 1) return@LaunchedEffect
+        if (slides.size <= 1 || !tabActive) return@LaunchedEffect
         fill.animateTo(1f, tween(8000, easing = LinearEasing))
         // 用户正在拖的时候让位；停稳后本次效果会重排，再重新计时
         if (pager.isScrollInProgress) return@LaunchedEffect
