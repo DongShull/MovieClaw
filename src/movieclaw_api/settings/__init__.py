@@ -75,6 +75,11 @@ from movieclaw_api.settings.webhook import (
     generate_webhook_secret,
     mask_webhook_secret,
 )
+from movieclaw_api.settings.xiaoyi_a2a import (
+    HEADER_STYLES,
+    TS_TOLERANCE_SECONDS,
+    XiaoyiA2aSetting,
+)
 
 __all__ = [
     "SmartAutomationSettings",
@@ -130,4 +135,8 @@ __all__ = [
     "WebhookEndpoint",
     "generate_webhook_secret",
     "mask_webhook_secret",
+    # 小艺云 A2A
+    "HEADER_STYLES",
+    "TS_TOLERANCE_SECONDS",
+    "XiaoyiA2aSetting",
 ]

@@ -115,6 +115,7 @@ BUILTIN_MANIFEST: tuple[Entry, ...] = tuple(
         agent.agent_runs,
         agent.agent_session_index,
         agent.agent_attachments,
+        agent.agent_xiaoyi_a2a,
         library.enrich_backfill,
         library.disc_image_durations,
         library.dolby_vision_backfill,

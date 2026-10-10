@@ -95,6 +95,7 @@ from movieclaw_db.models.subscription import (
 from movieclaw_db.models.subscription_activity import ActivityType, SubscriptionActivity
 from movieclaw_db.models.subtitle_auto_mute import SubtitleAutoMute
 from movieclaw_db.models.system_notice import NoticeSeverity, NoticeStatus, SystemNotice
+from movieclaw_db.models.xiaoyi_a2a_session import XiaoyiA2aSession
 
 __all__ = [
     "TimestampMixin",
@@ -160,6 +161,7 @@ __all__ = [
     "PlaybackState",
     "PluginCallback",
     "PluginData",
+    "XiaoyiA2aSession",
     "MediaSeason",
     "BoostTaskState",
     "Collection",

@@ -39,3 +39,15 @@ async def agent_attachments(ctx: Context) -> None:
 
     # 回收上传后从未发送的过期图片附件（staging 区，24h TTL），兜住「长期没人上传」的场景
     get_agent_attachment_store().cleanup_staging()
+
+
+@plugin("agent.xiaoyi-a2a", title="小艺云 A2A 运行中枢", inject=(AGENT_RUNS,), reloadable=True)
+async def agent_xiaoyi_a2a(ctx: Context) -> None:
+    from movieclaw_api.services.xiaoyi_a2a_sessions import (
+        close_xiaoyi_a2a_hub,
+        get_xiaoyi_a2a_hub,
+    )
+
+    # 后台任务与事件队列绑定当前事件循环；停机时取消运行并等待收尾
+    get_xiaoyi_a2a_hub()
+    ctx.effect(close_xiaoyi_a2a_hub, label="close-xiaoyi-a2a-hub")

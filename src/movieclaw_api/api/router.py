@@ -83,6 +83,8 @@ from movieclaw_api.api.routes.system_notices import router as system_notices_rou
 from movieclaw_api.api.routes.transcode_worker import router as transcode_worker_router
 from movieclaw_api.api.routes.ui import router as ui_router
 from movieclaw_api.api.routes.webhook import router as webhook_router
+from movieclaw_api.api.routes.xiaoyi_a2a import admin_router as xiaoyi_a2a_admin_router
+from movieclaw_api.api.routes.xiaoyi_a2a import router as xiaoyi_a2a_router
 
 api_router = APIRouter()
 
@@ -99,6 +101,9 @@ api_router.include_router(push_public_router)
 # 插件回调端点（docs/design/plugin-callbacks.md §4）：外部平台调进来的地址，地址里的密钥就是门票，
 # 没登记、已作废一律 404；不进 OpenAPI（不是 mclaw / AI 助手调的业务接口）
 api_router.include_router(hooks_router)
+# 小艺云 A2A 端点（docs/research/xiaoyi-cloud-a2a.md）：华为小艺平台调进来的
+# 单一 JSON-RPC 入口，AK/SK 验签是唯一门票（未启用时一律 404，对外隐身）
+api_router.include_router(xiaoyi_a2a_router)
 
 # ---- 扩展区（鉴权在各路由上自行声明：扩展侧 sync token / 管理侧 login）----
 api_router.include_router(extension_router)
@@ -200,6 +205,8 @@ _ADMIN_ROUTERS = [
     # G2 额度护栏一起评估（docs/design/subtitle-ai-translate.md §6）
     subtitle_gen_router,
     webhook_router,
+    # 小艺云 A2A 管理面（AK/SK 配置）
+    xiaoyi_a2a_admin_router,
     # 影片分享是把内容放到登录边界之外的动作，仅超管（media-share.md §2.1）
     shares_admin_router,
     # MovieClaw Cloud 与 App 推送通道：以整台服务器的名义连接云端、管理推送中继

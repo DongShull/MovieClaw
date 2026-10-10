@@ -36,6 +36,7 @@ import { SystemLogsSection } from "@/components/system-logs-section";
 import { TranscodeCacheToggleRow } from "@/components/transcode-cache-toggle-section";
 import { TrickplayToggleRow } from "@/components/trickplay-toggle-section";
 import { WebhookSection } from "@/components/webhook-section";
+import { XiaoyiA2aSection } from "@/components/xiaoyi-a2a-section";
 import { GlassPanel } from "@/components/glass-panel";
 import {
   SETTINGS_BUTTON_CLASS,
@@ -275,6 +276,8 @@ export function SettingsPanel({ active, item }: SettingsPanelProps) {
           <McpSection />
         ) : section.id === "webhook" ? (
           <WebhookSection />
+        ) : section.id === "xiaoyi-a2a" ? (
+          <XiaoyiA2aSection />
         ) : section.id === "network" ? (
           <NetworkConfigSection />
         ) : section.id === "logs" ? (
