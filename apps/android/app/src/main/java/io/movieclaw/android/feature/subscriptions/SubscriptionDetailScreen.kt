@@ -544,7 +544,8 @@ fun SubscriptionDetailScreen(
                         vm.loadRuleSets()
                         pickRule = true
                     },
-                    onTogglePause = { vm.setTracking(sub.status == "paused"); menuOpen = false },
+                    // 参数是**目标**状态：已暂停 → 恢复（以前传的是当前状态，暂停的订阅点「恢复追踪」又被暂停一次）
+                    onTogglePause = { vm.setTracking(paused = sub.status != "paused"); menuOpen = false },
                     onRemove = { menuOpen = false; cancelOpen = true },
                     onDismiss = { menuOpen = false },
                 )

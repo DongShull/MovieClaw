@@ -1252,7 +1252,8 @@ private fun Hero(
                     if (marks.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     marks.isFavorite,
                 ) { onToggleFavorite() }
-                GlassPill("标为已看", Icons.Rounded.CheckCircle, marks.played) {
+                // 已看时换文案（iOS / 网页同口径）：选中色与正文白几乎一样，只靠颜色看不出点没点上
+                GlassPill(if (marks.played) "已看完" else "标为已看", Icons.Rounded.CheckCircle, marks.played) {
                     onTogglePlayed(resumeSeason.takeIf { it > 0 }, resumeEpisode.takeIf { it > 0 })
                 }
             }
