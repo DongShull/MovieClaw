@@ -46,13 +46,13 @@ class KeepAliveTabsTest {
         val activeSeen = mutableMapOf<String, Boolean>()
         compose.setContent {
             KeepAliveTabs(listOf("A", "B", "C"), selected) { tab, _ ->
-                remember { pageBuilds[tab] = (pageBuilds[tab] ?: 0) + 1 }
+                remember { pageBuilds.merge(tab, 1, Int::plus) }
                 activeSeen[tab] = LocalTabActive.current
                 val list = rememberLazyListState()
                 TrackTabBarMinimize(list)
                 LazyColumn(Modifier.fillMaxSize().testTag("list-$tab"), state = list) {
                     items(60) { i ->
-                        remember { rowBuilds["$tab-$i"] = (rowBuilds["$tab-$i"] ?: 0) + 1 }
+                        remember { rowBuilds.merge("$tab-$i", 1, Int::plus) }
                         Text("$tab row $i", Modifier.height(60.dp))
                     }
                 }
