@@ -1167,9 +1167,16 @@ def _observed_units(files) -> set[tuple[int, int]]:
     季集识别的完整口径在库扫描侧（NER 模型），这里刻意不复用——救援
     巡检要在无模型环境同样工作，而轻量正则的漏认只会让判定更保守
     （认不出 → 不动），不会造成误退。
+
+    下载器里**未选中**的文件（qB priority=0）不算：它们永远不会被写到磁盘。
+    真实案例：全集包 208 集只勾了两集（MoviePilot 只补新集），订阅却按
+    「S01.Complete」把另外 67 集也挂在它名下——清单里 208 集「都在」，
+    核验判定不缺，67 集以 grabbed 永远挂着「等待入库」。
     """
     observed: set[tuple[int, int]] = set()
     for file in files:
+        if not file.selected:
+            continue
         for match in _FILE_UNIT_RE.finditer(file.path):
             season = int(match.group(1))
             numbers = [int(n) for n in _FILE_EP_RE.findall(match.group(2))]
