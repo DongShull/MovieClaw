@@ -1175,7 +1175,8 @@ def _observed_units(files) -> set[tuple[int, int]]:
     """
     observed: set[tuple[int, int]] = set()
     for file in files:
-        if not file.selected:
+        # 没有选中信息的文件（旧适配器 / 测试替身）按选中算，与 TorrentFile 默认一致
+        if not getattr(file, "selected", True):
             continue
         for match in _FILE_UNIT_RE.finditer(file.path):
             season = int(match.group(1))
