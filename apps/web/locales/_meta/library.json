@@ -2809,5 +2809,224 @@
   },
   "deletion.retryTasks": {
     "sourceHash": "b8e26ab3ab348289e481e15dc1ce4a8f14a624838c1b36fef595f550595893cf"
+  },
+  "claim.seasonNumber": {
+    "sourceHash": "cf495625659854e177e6503818189d2f0f30fa3d8e10aeb87e9a28482384341f"
+  },
+  "claim.detailFailed": {
+    "sourceHash": "45127e4958af76edc5e2b7f7d7ee34d4a33f1fc791d04060ba77f74f3a22a05c"
+  },
+  "claim.loadingDetails": {
+    "sourceHash": "7e74cabf57c08b9ba04faa29a15d4fa373d8a97da9afc18b97f57eb2d18154e2"
+  },
+  "claim.checkTmdb": {
+    "sourceHash": "030c7a11e2a998abf95aec4ade32c5631f472ba9848989c72916d8da61f80aaf"
+  },
+  "claim.multipleVersions": {
+    "sourceHash": "2cfefdc6a8fe3e87e969bcebb1d21e51b775f62cafd11778b12f14a7b8327b52"
+  },
+  "claim.queryPlaceholder": {
+    "sourceHash": "1440c33f2bb28d729647636e9689d3e0d13a5cfeb66175f78b0111c61f9eefe3"
+  },
+  "claim.viewId": {
+    "sourceHash": "1c24fd79362b4766282c114f8dc66f547ea106cdf8e7d1766a504ddcf840a28a"
+  },
+  "claim.searching": {
+    "sourceHash": "cc50237edca27e6d3348f09674d0f74af0a31e9ae025b75510a63be5672f2c6c"
+  },
+  "reidentify.pathTag": {
+    "sourceHash": "75076e68960b4715f51ad36aad68a380c57993124c0711a32dc27b2e67a2674e"
+  },
+  "reidentify.resolved": {
+    "sourceHash": "cff9e2c7dd1af6d38c2ee31953d7d7eebff08ab7d34b9a0ad2d4b6ee2a7bfcfb"
+  },
+  "reidentify.unreachable": {
+    "sourceHash": "85498a1821b5a502137d391add0baa8d6487a1701045748b8051e809d5f21518"
+  },
+  "reidentify.kindMismatch": {
+    "sourceHash": "081c47e8b8f0e20dc91219729edbfe8b2121d44183502a1a65a7cfef175883f5"
+  },
+  "reidentify.ambiguous": {
+    "sourceHash": "01c1cfed9a17eba7f134d7624aca93f104dbc3383456f31cf2142f7d5a17c1c5"
+  },
+  "reidentify.noMatch": {
+    "sourceHash": "12c02d0fc3a800682b87372cb0aeaf3e971bea3cea845d29f58cba7bee0eeab6"
+  },
+  "reidentify.unparsable": {
+    "sourceHash": "133fee35cff86b3729bff12b168ca08847042e945e0071033af40a18fbac340b"
+  },
+  "reidentify.noSeason": {
+    "sourceHash": "8d506095f78c2d3d324fa158464f671c542d276e2cacb26689c53760a8162dd5"
+  },
+  "reidentify.title": {
+    "sourceHash": "c464f4d8fb1db4ffffd07a69f7a093c313dc0dadc9b8e9de0a65b0faff111756"
+  },
+  "reidentify.running": {
+    "sourceHash": "011cc9b45b095fa619c1121b444849c98969c03a3944a33146d0616bbd1bfb6a"
+  },
+  "reidentify.networkHint": {
+    "sourceHash": "8072f394041b23cfe4201b558451c95a9f04feca21c33feb3f3e66122d88bf7a"
+  },
+  "reidentify.noFiles": {
+    "sourceHash": "32721cda92e17dd111d94b1b9169ad8b7e9080867ad682dfec046f82db90a79d"
+  },
+  "reidentify.allSettled": {
+    "sourceHash": "a6cff6941cafcb7c87db1abaa028f473ea913a184ecabcfd8cc1075fbcd31ba3"
+  },
+  "reidentify.manualHint": {
+    "sourceHash": "9a3bca65cacf914b63ff558e4ca1a31a06c20bf38efa4be718c162ad546b9b99"
+  },
+  "reidentify.current": {
+    "sourceHash": "febfae60a4295c2351427e866b5a1643792e27ded5275c2f7e14316114808a3d"
+  },
+  "reidentify.markExtras": {
+    "sourceHash": "e7a99fab0ad9b5a13b046e72bf14449529393205e16773591c6ccb0de7c00d03"
+  },
+  "reidentify.sameResult": {
+    "sourceHash": "54454edc098b88cc3741caf92ade1d72f2bd35f4adbbbf270910ee11bc30b8ef"
+  },
+  "reidentify.result": {
+    "sourceHash": "1b12ccbdad7ef2148c97ec5fc47dae270d63cb655dd7920a090a8fb334c77beb"
+  },
+  "reidentify.apply": {
+    "sourceHash": "54a2ac8139e40b2d90603fd9b46bb206bdfd5e96095eafd011da8f1499657016"
+  },
+  "reidentify.searchOwn": {
+    "sourceHash": "5e49b056ab5be6e79fe15a49ad486e57fd419d071374b61129a761dd87c8706c"
+  },
+  "reidentify.notStandalone": {
+    "sourceHash": "a178763f28a8b24489e98988b907c28fc199a87223d24181ade7336e619502fe"
+  },
+  "organize.title": {
+    "sourceHash": "0b02eaf1420362417fbb023d24a1d7c43b6048953985b18e9574cb48024ae3ca"
+  },
+  "organize.closeDialog": {
+    "sourceHash": "e80ddf46fb83dc2e314a253b8615b49ddcbecab4531ed25b6800051b28147760"
+  },
+  "organize.loading": {
+    "sourceHash": "35ac75851beec7a8127cea9fda275442a42ea078e809db0fd9bde5b394bee15f"
+  },
+  "organize.alreadyNeat": {
+    "sourceHash": "0c3dedae3b16d6895bbd139e93266c09e66a67438e79dfa4f876c349979ef407"
+  },
+  "organize.beforeStart": {
+    "sourceHash": "e4eb221551d282443d85cac8e1a50504503e44d0cc454e6ac5fd54ed6ac271dc"
+  },
+  "organize.playerHint": {
+    "sourceHash": "b9c46fb28dd1f9195efea1abcac13300249ef23d89de9ffee7f3d7197109f454"
+  },
+  "organize.acknowledge": {
+    "sourceHash": "bc2b9abad793ae85a5783afc8b8f671bba8a2a14cb2e269d1b0c4f8ba4646886"
+  },
+  "organize.runningSafe": {
+    "sourceHash": "cacc34d350741ffa383844db120e27f469cca4043df98ddee85335c58af34e34"
+  },
+  "organize.runningBackground": {
+    "sourceHash": "0a1a6ea5a7d64d6460eeb4e556476729be9d3404dfba4c695cf325db81a03217"
+  },
+  "organize.done": {
+    "sourceHash": "dbc8c2ebb07764bd24f4d77d24879259db0f36e02c13edee88b680cd6386dd83"
+  },
+  "claim.directors": {
+    "sourceHash": "c4805108de36ace17775b7e22e03af2624995cb3319cc1fcb05c57c14712a824"
+  },
+  "claim.cast": {
+    "sourceHash": "5edaed66ec61a8d4ce938a158d24e3107a7842b485ab6b0e5cdbce71c89796bc"
+  },
+  "claim.seasonEpisodes": {
+    "sourceHash": "cc942b53a09469d7d38d2064fdd9e0e08c4ac1be223d5024975fff82340bc836"
+  },
+  "claim.localEvidence": {
+    "sourceHash": "64e42dcfbcbdda52550d36c2ba4fd862ee341754918ef499c49d1c15df4867c7"
+  },
+  "claim.seasonInput": {
+    "sourceHash": "f67ee422d7fe321afd24f57af7fa73caf98757bfe92105edade246f9c27d08da"
+  },
+  "claim.assign": {
+    "sourceHash": "74d6e5527d043e61aa7e882a6a6b0fbf38e3ab80f2501668e83730bee065400c"
+  },
+  "claim.emptySearch": {
+    "sourceHash": "af8f17fd51010fa199602a4c3ca4fbfd02f1a1955e66a1be5814af740cb4871f"
+  },
+  "reidentify.intro": {
+    "sourceHash": "fe42e257c70b38cfb167afc78882377ef756bfcbfe186d335a5751f3a341fe58"
+  },
+  "reidentify.pinnedHint": {
+    "sourceHash": "681f96cda99539c5b673f0d18c4923222dc61c0e98006a0aa1cea6c9b14dd90d"
+  },
+  "reidentify.missingFiles": {
+    "sourceHash": "c7edce999aa923e341af5d4fd66fbab1c481261071cca7de3faf25dd70fce68d"
+  },
+  "reidentify.extrasTitle": {
+    "sourceHash": "7c23e2780740c56c59eb5e6c46e49547585a273736c8032c305a4164b52e6312"
+  },
+  "reidentify.extrasMarked": {
+    "sourceHash": "21cf834d2b4c0123bf8e6dda45b9771f7468af01a8847751c7bfdf56bb8acd35"
+  },
+  "reidentify.fileCount": {
+    "sourceHash": "32c60afe0f08824727d5598753a473dae12ed2812e02b7b212d2cfcb02188a2d"
+  },
+  "reidentify.basis": {
+    "sourceHash": "c5f3f76a98ab054b8e4969495716efca39bff1ee90379a9432c6c951a7e364a5"
+  },
+  "reidentify.assigned": {
+    "sourceHash": "6766cca96b4f246adbaa0bd9ed528805c52704cec63b5b9e41700f5ccb0394e4"
+  },
+  "organize.dialogTitle": {
+    "sourceHash": "da15150588ceb5a5387de8927da7f4053ab6053787ee6c4cd84f7571fc05bd87"
+  },
+  "organize.intro": {
+    "sourceHash": "8d8604a35a2ac575e52d56fc15dc41e9cd157d02432d96efd4456ff58473f662"
+  },
+  "organize.renameCount": {
+    "sourceHash": "78df39420f348c4e5545889a4d92ced38a1ad87e2f0448669a82a79fda615608"
+  },
+  "organize.sidecarCount": {
+    "sourceHash": "1de80ceb8274e15434286a200fecf7f98ea04fd65b3f1ed7e4d7275382720714"
+  },
+  "organize.assetCount": {
+    "sourceHash": "6fdb0120fcb1f445130631bdce54630eb0305a060aee3054e7fbb6188b2927d3"
+  },
+  "organize.alreadyCount": {
+    "sourceHash": "e713d787d17db3f4c5b9c3d23d5a9111b70fe32a9412a33d43e231183d70063d"
+  },
+  "organize.skipCount": {
+    "sourceHash": "d818f6e1cc90faa04a5f4d63fa14a56eaf2b908b3a8701a52f292c1276260b11"
+  },
+  "organize.skippedHint": {
+    "sourceHash": "2f04cd8d556121f5b6ede32ce62c2d585461e645d334010fc41aa3eca6513060"
+  },
+  "organize.noUndo": {
+    "sourceHash": "3242a62f9d2368b68e6fc21d80db84fcd9ebb71c5a7546794629ef7c72d01f97"
+  },
+  "organize.seedingHint": {
+    "sourceHash": "56dd29dfe136e9fc322719bdcc2bb7906e154167900c0eba1ac699fa66164633"
+  },
+  "organize.fileCount": {
+    "sourceHash": "32c60afe0f08824727d5598753a473dae12ed2812e02b7b212d2cfcb02188a2d"
+  },
+  "organize.sidecarDetails": {
+    "sourceHash": "65b10aae674c6775e8e87c45c0a13c0bb1583bf63fff88e81055bef61b0ca9b6"
+  },
+  "organize.showSkips": {
+    "sourceHash": "e22b1c4bba1c5d1c3b509d97f0579f22409e1f2649bde3aabc6bd7012868d1c3"
+  },
+  "organize.start": {
+    "sourceHash": "4682680acf9bdd8a89f1e4f14eb0039be5216038fef1656efa1805242dcbc2bd"
+  },
+  "organize.progress": {
+    "sourceHash": "5e8647f47c2cea0a98851728bdd0586aa1199dff0469e0c5d7aefecfbda2c8d9"
+  },
+  "organize.result": {
+    "sourceHash": "6518101d310c1ad170357542da68a062ad357252267ac6dd91f63d655788b84f"
+  },
+  "organize.errors": {
+    "sourceHash": "2cee20a256f89aa771d916a1f12218144c46db0590a7e1e551baf74ca0cc9a1e"
+  },
+  "reidentify.noResult": {
+    "sourceHash": "0c146b2e6c894de391266a879c42250f9dd1c48d21b8fea31f01cb03404d1695"
+  },
+  "reidentify.extrasDescription": {
+    "sourceHash": "a9817568464e17954052d2edecd497336aa2b54de6d83aba373982ef7d352488"
   }
 }

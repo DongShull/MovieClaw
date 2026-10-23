@@ -65,11 +65,14 @@ def localize_fields(value):
     if not isinstance(value, dict):
         return value
     result = {name: localize_fields(child) for name, child in value.items()}
-    for field in ("message", "label", "title"):
+    for field in ("message", "label", "title", "reason"):
         text = value.get(field)
         key = value.get(f"{field}_key")
         if isinstance(text, str) and (field == "message" or key):
             result[field] = stored_message(
                 text, key, value.get("message_params", value.get("params"))
             )
+    # Domain summaries retain a legacy string list beside their marked messages.
+    if value.get("error_messages"):
+        result["errors"] = [item["message"] for item in result["error_messages"]]
     return result

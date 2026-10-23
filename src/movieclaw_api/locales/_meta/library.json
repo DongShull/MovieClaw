@@ -346,5 +346,104 @@
   },
   "gallery.chapter": {
     "sourceHash": "594038fd563ca0e75798360f32d743653742bbc2358ae732425a44a28226b5dc"
+  },
+  "organize.cloudOnly": {
+    "sourceHash": "ec7a38eede677749caa2341b7d4525862cfc1733e86d9dcc852286103005f2ec"
+  },
+  "organize.unidentified": {
+    "sourceHash": "4245d1fc2df554f365a561e4be91577b59b62268d3807e233083f4b2f1233c25"
+  },
+  "organize.outsideRoots": {
+    "sourceHash": "f8e9c7a30c611e03b3906b4aee057705e715328468488cf72cf3b61334e5d7ef"
+  },
+  "organize.discDirectory": {
+    "sourceHash": "67c3dff52ad0a7f74aeae515980b6dbff713500967d9113b562282bec0b6c7eb"
+  },
+  "organize.unknownEpisode": {
+    "sourceHash": "a31060d055f58cddab87eca63fafe6ab39e60c27becfa0e493bb6a886b0962b3"
+  },
+  "organize.targetExists": {
+    "sourceHash": "65ffc406985af3d30898eefcd4780343c360c9d380337b7495ad4a0e25be893a"
+  },
+  "organize.alreadyRunning": {
+    "sourceHash": "03539ab79513c3e7a8332f825da8e814b295b3e550de3049164aa35657a408ba"
+  },
+  "organize.scanning": {
+    "sourceHash": "cf416dd70f20c5ad1a0d1a34e6c4ee8a6e067e960d143dcff1cfa1cb8bd55b7d"
+  },
+  "organize.transferring": {
+    "sourceHash": "558cf459d8ba144cf3e0cdd5eaa594180e54ab75ea91f370b437650624f89a16"
+  },
+  "organize.unexpected": {
+    "sourceHash": "3b103191dbc72d9f124208305ef0b568cc360096fa9cf1cd4daf0a5135e04f26"
+  },
+  "organize.libraryMissing": {
+    "sourceHash": "577d2ea99daa3c497f9028a42785fc1dc64508518b5d4e0c3ef2df8a9f82b94b"
+  },
+  "organize.preparing": {
+    "sourceHash": "9d9c7e14238f1753d9fd311000bf92acdbc97ae4b93c97cfbf361c4c6c9dc71b"
+  },
+  "organize.ledgerMissing": {
+    "sourceHash": "d3343d6797949236f994a39a99ca564aa2e5dadec270c23dc35ba36b81a7038f"
+  },
+  "organize.ledgerChanged": {
+    "sourceHash": "9b62f49896baf4505f9469a8a4dbb38d124f8fcd4de89ffd24d77ef75285f685"
+  },
+  "organize.bothMissing": {
+    "sourceHash": "db1951522fca675fdf1ab092e3c4ad72bc7bf1e8335d4ae6e60f3c83281f1f33"
+  },
+  "organize.sidecarMissing": {
+    "sourceHash": "e70db95da7c23ba09ab75286b3a3edfa388f3611a445954f0de4c6b297e05b1d"
+  },
+  "organize.sidecarFailed": {
+    "sourceHash": "bc71f915ddf23c55b1135892bbfdd2c455678deb5fbdf3f9203b4f1d28e7a529"
+  },
+  "organize.queued": {
+    "sourceHash": "2376b74798570644ef2cc2c3fddec5b105216d9a5fa09708e6ac805c885cd4cf"
+  },
+  "organize.invalidJob": {
+    "sourceHash": "bc8d49db0d094852ba3adf0da7447a9d8ba103539fc3ae8a8a06604030f31db6"
+  },
+  "organize.finishing": {
+    "sourceHash": "078861561e313e2852791365f124c3a96ad61f4446b8ac927125caf317f9f37b"
+  },
+  "organize.scanRetry": {
+    "sourceHash": "ae44361a639ea366936105cfd7a951af46972f35d1e02d84bcb8fd0466618f02"
+  },
+  "organize.transferRetry": {
+    "sourceHash": "580b540b93997206c3f786bc2a4d9c2adbfb0f0d4a4a44f2f865eaa08bace622"
+  },
+  "organize.completed": {
+    "sourceHash": "cad812ccdc915cc58e798998452c65499287cdbcbcd90e3d3cf89ebea9334afc"
+  },
+  "organize.assetsRemain": {
+    "sourceHash": "8eb1165fbfe8c87c96247530c28bcc9ecb409e806a3e26c63cd7abcb23b564f7"
+  },
+  "organize.assetConflict": {
+    "sourceHash": "0aeff26bd8a48604c4a41d6b8a7e452b05c0ccde10f7e5f1957d54e376f910d0"
+  },
+  "organize.assetFailed": {
+    "sourceHash": "fdee0dbab303717fe62116ae429c2c97add082ee40b2f695061d8f80f87d417d"
+  },
+  "organize.bothExist": {
+    "sourceHash": "349205ed1469cfd6a88041e74f8b378663970b9081d98e88efe0354f4b1e7b62"
+  },
+  "organize.sourceMissing": {
+    "sourceHash": "0c2b6e444962faca20210c8b2a327b01bf4246eb827d4de218f6ec7d3feafe1a"
+  },
+  "organize.mkdirFailed": {
+    "sourceHash": "7744e040e95dca1f682a82ece4b56fb22f58088470b6a8b63e1b776a2718e542"
+  },
+  "organize.targetOccupied": {
+    "sourceHash": "c92742e446b1d88f72f4a44db598883807df65ce8bd0bbb33e4962f2d72f307c"
+  },
+  "organize.crossDevice": {
+    "sourceHash": "bbf2fac010af18d66b5f07ecb8e908a6e147dd0d1bd647d596e0a723d8132a6b"
+  },
+  "organize.renameFailed": {
+    "sourceHash": "9073dc1c323ad0fc430e1595adfb517c85e849f70b978667be6a971e0998a721"
+  },
+  "organize.filesProgress": {
+    "sourceHash": "2243f0c713f64af0fb778efe661a4333c05ef4b55555fa46192c9d0581e926fa"
   }
 }

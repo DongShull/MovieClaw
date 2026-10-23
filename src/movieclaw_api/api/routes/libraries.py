@@ -29,7 +29,7 @@ from movieclaw_api.api.routes.images import WIDTH_QUERY, requested_width, sized_
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
 from movieclaw_api.i18n import t
 from movieclaw_api.i18n.media_labels import routing_options_labels
-from movieclaw_api.i18n.stored import localize_fields, reference
+from movieclaw_api.i18n.stored import localize_fields, reference, stored_message
 from movieclaw_api.schemas.library import (
     ActorView,
     ArtworkCandidatesView,
@@ -192,6 +192,7 @@ from movieclaw_api.services.library.organize import (
     is_organizing,
     last_organize,
     organize_progress,
+    render_organize_errors,
 )
 from movieclaw_api.services.library.origin import origin_of
 from movieclaw_api.services.library.preflight import (
@@ -797,7 +798,7 @@ def _last_organize_view(library_id: int) -> LastOrganizeView | None:
         already_ok=summary.already_ok,
         skipped=summary.skipped,
         removed_dirs=summary.removed_dirs,
-        errors=list(summary.errors),
+        errors=render_organize_errors(summary.errors, summary.error_messages),
     )
 
 
@@ -838,7 +839,9 @@ async def _persistent_organize_views(
                 already_ok=int(result.get("already_ok") or 0),
                 skipped=int(result.get("skipped") or 0),
                 removed_dirs=int(result.get("removed_dirs") or 0),
-                errors=list(result.get("errors") or []),
+                errors=render_organize_errors(
+                    result.get("errors") or [], result.get("error_messages") or []
+                ),
             ),
         )
     return False, None, legacy_last
@@ -2264,7 +2267,13 @@ async def preview_organize(
                 )
                 for a in plan.renames
             ],
-            skips=[OrganizeSkipView(file_path=s.file_path, reason=s.reason) for s in plan.skips],
+            skips=[
+                OrganizeSkipView(
+                    file_path=s.file_path,
+                    reason=stored_message(s.reason, s.reason_key, s.reason_params),
+                )
+                for s in plan.skips
+            ],
             entry_assets=[
                 OrganizeSidecarView(source_path=a.source_path, target_path=a.target_path)
                 for a in plan.entry_assets
