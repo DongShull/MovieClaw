@@ -2446,7 +2446,7 @@ async def build_gallery_groups(
                     kind="poster",
                     url=poster_url,
                     aspect=primary_aspect(item, width, height),
-                    label="海报",
+                    label=t("library.gallery.poster"),
                 )
             )
         if backdrop_file:
@@ -2458,7 +2458,10 @@ async def build_gallery_groups(
         if backdrop_url:
             images.append(
                 LibraryGalleryImageView(
-                    kind="backdrop", url=backdrop_url, aspect=_LANDSCAPE_ASPECT, label="剧照"
+                    kind="backdrop",
+                    url=backdrop_url,
+                    aspect=_LANDSCAPE_ASPECT,
+                    label=t("library.gallery.backdrop"),
                 )
             )
         is_tv = item.kind == "tv"
@@ -2478,7 +2481,12 @@ async def build_gallery_groups(
                             kind="still",
                             url=still_url,
                             aspect=_LANDSCAPE_ASPECT,
-                            label=f"第 {episode} 集" + (f" · {name}" if name else ""),
+                            label=t(
+                                "library.gallery.episode",
+                                episode=episode,
+                                name="yes" if name else "no",
+                                title=name,
+                            ),
                             season=season,
                             episode=episode,
                         )
@@ -2498,7 +2506,8 @@ async def build_gallery_groups(
                         kind="chapter",
                         url=f"/images/assets/{rel}?v={asset_version(rel)}",
                         aspect=_LANDSCAPE_ASPECT,
-                        label=chapter.title or f"章节 {chapter.index + 1}",
+                        label=chapter.title
+                        or t("library.gallery.chapter", index=chapter.index + 1),
                         season=season if is_tv else None,
                         episode=episode if is_tv else None,
                         t_seconds=(frame_ms if frame_ms is not None else chapter.start_ms) / 1000,

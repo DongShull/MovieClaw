@@ -1433,5 +1433,9 @@
   "units.date.monthDayPattern": "M 月 d 日",
   "units.duration.days": "{count} 天",
   "units.duration.minutes": "{count} 分钟",
-  "units.year.parenthesized": "（{year}）"
+  "units.year.parenthesized": "（{year}）",
+  "library.gallery.poster": "海报",
+  "library.gallery.backdrop": "剧照",
+  "library.gallery.episode": "第 {episode} 集{name, select, yes { · {title}} other {}}",
+  "library.gallery.chapter": "章节 {index}"
 }

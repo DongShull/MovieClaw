@@ -132,5 +132,11 @@
     "favorite": "My favorites",
     "missing": "Files missing",
     "unscraped": "No metadata"
+  },
+  "gallery": {
+    "poster": "Poster",
+    "backdrop": "Backdrop",
+    "episode": "Episode {episode}{name, select, yes { · {title}} other {}}",
+    "chapter": "Chapter {index}"
   }
 }

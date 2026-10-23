@@ -334,5 +334,17 @@
   },
   "collections.favoritesTitle": {
     "sourceHash": "9385bfefca5882f14f06c2dc0b4fbc86ce0764df443b068933f464b9b4b9da6d"
+  },
+  "gallery.poster": {
+    "sourceHash": "c60789cc44e89b26b124aba9ecda78b818c9cc094fb52a1951b5dbc14f224e49"
+  },
+  "gallery.backdrop": {
+    "sourceHash": "6a0d4732be6bcaade76908029441a1c7999444f6c690d3a9c7138647f996a6b1"
+  },
+  "gallery.episode": {
+    "sourceHash": "3bab442bd875ae0bd64be6f25b12969f1c114a7f10011390c045686f1124a65e"
+  },
+  "gallery.chapter": {
+    "sourceHash": "594038fd563ca0e75798360f32d743653742bbc2358ae732425a44a28226b5dc"
   }
 }

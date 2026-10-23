@@ -193,5 +193,31 @@
     "separator": ", ",
     "followTitle": "Auto-renew {title}",
     "fillMissingTitle": "Fill missing episodes of {title}"
+  },
+  "images": {
+    "actionFailed": "Action failed. Please try again.",
+    "browser": "Image viewer",
+    "closeBrowser": "Close image viewer",
+    "loadFailed": "This image could not be loaded",
+    "hostUnavailable": "The image host may be unavailable or may block external access",
+    "previous": "Previous image",
+    "next": "Next image",
+    "fileUnavailable": "The file may have been moved or deleted. Scan again to update it.",
+    "loadingOriginal": "Loading original image",
+    "loading": "Loading",
+    "zoomLoadFailed": "Could not load image",
+    "previousShortcut": "Previous image (←)",
+    "nextShortcut": "Next image (→)",
+    "closeShortcut": "Close (Esc)",
+    "zoomOutShortcut": "Zoom out (-)",
+    "zoomOut": "Zoom out",
+    "fitShortcut": "Fit to screen (0)",
+    "zoomInShortcut": "Zoom in (+)",
+    "zoomIn": "Zoom in",
+    "browserTitle": "Image viewer: {title}",
+    "index": "Image {index}",
+    "viewIndex": "View image {index}",
+    "zoomFit": "Currently {percent}%, click to fit to screen",
+    "viewTitle": "View {title}"
   }
 }

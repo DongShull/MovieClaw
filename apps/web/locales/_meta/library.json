@@ -1780,5 +1780,467 @@
   "inventory.summary": {
     "sourceHash": "d7bbf2a915db33136aab4f116a4f5b36b587b7952bc46ead2664f75ff517341f",
     "comment": "Poster hover inventory: season/episode modes describe completeness. All counts are raw numbers; partial single seasons show owned/total episodes."
+  },
+  "collections.allTitle": {
+    "sourceHash": "be4307c644c078aabfaa3a906036c360da7fd724044351394808b65e19a46ea8"
+  },
+  "collections.loading": {
+    "sourceHash": "1b3c82328f40dd682fdf0197c2236c1873ac676f743459bfb73ed738165eb17a"
+  },
+  "collections.none": {
+    "sourceHash": "6296843acc11b1d328f960bac46faa7ca29a22f9c1e2e720b476959cba88576a"
+  },
+  "collections.source": {
+    "sourceHash": "a488e93d69cc12961ea26e97b7d246d03a9af7334d2d84881dd7f702e801bf74"
+  },
+  "collections.emptyAll": {
+    "sourceHash": "bdf78e7c767c3070a352d82d639e66c4267af67a7c85a89f8260b95b1610d0a2"
+  },
+  "collections.crossLibrary": {
+    "sourceHash": "8ced2eab4af73b1774cb858e6150a0c87cba0992f30f98c23f3dad7f9df48b81"
+  },
+  "collections.crossLibraryHint": {
+    "sourceHash": "ea17b18e34adfdd6687d8495b3c11bbac71797a591985508b7f17c49e4f845e0"
+  },
+  "collections.userSource": {
+    "sourceHash": "cff953e275a8a23fc4c0ef232bf75b819a7618fb410c18c4925cac7225cb720b"
+  },
+  "collections.autoSource": {
+    "sourceHash": "7eb336e42cb5076b0eac0305418ecd8ff2833ad84645aedbe0d315ac017c798b"
+  },
+  "collections.emptyLibrary": {
+    "sourceHash": "b5872cbebe04a9195741bd7c536da6e8321c6a7c1b382f4c088b8354eb96c12e"
+  },
+  "collections.mine": {
+    "sourceHash": "72e43eae7a5ab5aa2e34aefd4008b6ca99f5d6bad8d024199c3b40a1fb496118"
+  },
+  "collections.series": {
+    "sourceHash": "232527192f3462a34c01b26719847bde0f5753325a6df3311ac44ec096dbcbc5"
+  },
+  "collections.seriesSuffix": {
+    "sourceHash": "ed09fc3b05c3ea4c882e917349766061958be253ddaba8dcf3f8899186d794c1"
+  },
+  "collections.autoSuffix": {
+    "sourceHash": "0ff32d9b8edfd0e775ff3a07f5a134bd5f7b8065b8485d32ae9e27e75b62dc5d"
+  },
+  "collections.privateSuffix": {
+    "sourceHash": "008518fc64b67e245dcc2dde1a328bdfa7b8e81ec736ce0286a0089504b81b23"
+  },
+  "collections.hiddenSuffix": {
+    "sourceHash": "9a41a572f51d62be3aec5d1c6be33fe8792346e5b2fd79a8595389779562b2f0"
+  },
+  "collections.customOrder": {
+    "sourceHash": "3dd3cf862a1bd854c877fb06989a786b7a6d98c04cadd54f1534c8b05457c784"
+  },
+  "collections.forward": {
+    "sourceHash": "6d91624318cd6ee411b453c73ae7b319c28c11b32873cb0b7e6af60b36aa869c"
+  },
+  "collections.reverse": {
+    "sourceHash": "7fd0cf65b630d3f14e8b9ad2e7b1b273034c542aceabacad3fb534341407ebf6"
+  },
+  "collections.releaseOrder": {
+    "sourceHash": "ccae6bab761e297a9181a9fe0a3d8516a069b714bf3161956daf68b5a0a420a7"
+  },
+  "collections.unavailable": {
+    "sourceHash": "bd3d91c15162c1fa954e79b8e124a3d6d5712f322147c27128b6d6a86c19123f"
+  },
+  "collections.favoriteFailed": {
+    "sourceHash": "99fe5f8b1edbb19a77d61538099e4b3fc6f86cd3114da7f5ed2195d18942e820"
+  },
+  "collections.membersFailed": {
+    "sourceHash": "b2c6ee6a0cc5cf7e19f78ea2065ed3965893e2fa712f80b481baaba84ff1cbbc"
+  },
+  "collections.nameLabel": {
+    "sourceHash": "9cb068ebb701eac4d4d94ddf04935fe1a1458ff0d4b72f1cc4bde27da93db5e5"
+  },
+  "collections.renamed": {
+    "sourceHash": "67fe314e5243810b88cdd9df2ec6d98dab529c2592eb2859232fdb5934694bca"
+  },
+  "collections.renameFailed": {
+    "sourceHash": "f0baa5a7b8fe8a937b47b8f358ee3b44e91e4cb3b78b4a06808fe463aceb2fa9"
+  },
+  "collections.homeRemoved": {
+    "sourceHash": "2d8af63416efad3913370e259a97ede064bc19d6ac168956b601915d21a71596"
+  },
+  "collections.homeAdded": {
+    "sourceHash": "a3406f0da073aa2331914ceca857edc0d0a40b9edf28a706b300768ae2cac4f0"
+  },
+  "collections.saveFailed": {
+    "sourceHash": "6309a3bb5ba4c71474ed20228224f29ea2d56302a7e37c5eac9adb6113d66197"
+  },
+  "collections.hideExplanation": {
+    "sourceHash": "cb812461d0889ab3fab10c7277882d997d7b94def48491bd29dab790d6164523"
+  },
+  "collections.deleteExplanation": {
+    "sourceHash": "94ef7da9663aa36d19afec2d18749c9b86d906d03f86d625c821d32e862c609b"
+  },
+  "collections.hide": {
+    "sourceHash": "145219e726b87790e7b498ab08dc15f50d1261ce1be942999aa42a87b8bc79df"
+  },
+  "collections.deleted": {
+    "sourceHash": "077a6d37719a0e21e68abe1bf3ec7b83cd05069cec86570c16de88640ffc519f"
+  },
+  "collections.hideFailed": {
+    "sourceHash": "af0798c738b2bc8dc2aadb481d1b6d944ba7eb5e58a00dae0aade9293352ddd2"
+  },
+  "collections.deleteFailed": {
+    "sourceHash": "c228558cf257fc4909ced5ffe9a4c147abde9460215da80bd39fde4159151ccb"
+  },
+  "collections.rulesSaved": {
+    "sourceHash": "514aa9135c30e0b6962bd503e1c72dbcb28b9a1d316008c979e3d45005582a18"
+  },
+  "collections.restored": {
+    "sourceHash": "74c8eace2744b252e37692b32d332697e97e70ba7a5bd7cd1e4ef61a73c2ec28"
+  },
+  "collections.restoreFailed": {
+    "sourceHash": "89281a45e04f34079e6e772749cb6ad354a6ced205832349ebc93ea45112d179"
+  },
+  "collections.rename": {
+    "sourceHash": "83c37e8a4a5f2c360b3e2d059866f96b5fa1758040129b617a83a542ecb28989"
+  },
+  "collections.shareFailed": {
+    "sourceHash": "e8f1a50d0aaa6aefbde6e9274f1cbaee7db0b157745a85fce0962dc49f51ec96"
+  },
+  "collections.share": {
+    "sourceHash": "a6e09bfc6210d1e0cfbb0bcbb565e76ff206c4c0aa45af77a525e0b35b413b1c"
+  },
+  "collections.editRules": {
+    "sourceHash": "48c7384d316270bc1cb6139da6573ee659b11e8ff25a35ae04b71e10e3d19b34"
+  },
+  "collections.orderMenu": {
+    "sourceHash": "ec35573b457784b9cd5539e02a4c23ab9d3493cac121a2a5bb12be748af23e44"
+  },
+  "collections.removeHome": {
+    "sourceHash": "fb0e18f9f76bc62a390e1504b9770037bf02c745a498fe0d6cc3f574f9b8d6b3"
+  },
+  "collections.showHome": {
+    "sourceHash": "19a71f6731d307e21532b2b2862aa4becea9c0f3d0c5ee6c0c528ab1b5938c3f"
+  },
+  "collections.restore": {
+    "sourceHash": "38f0f1404f1ab0b0fbef2fac9b3390f994a694b7174f1b655887cce0182e1398"
+  },
+  "collections.hideMenu": {
+    "sourceHash": "49db27fca965bdaa176a0b5f8ea8c0c4c55ea66ee2ef88b026b02ddeadd467f8"
+  },
+  "collections.deleteMenu": {
+    "sourceHash": "7b36051709fe99867cbae86adc6d2b1cd876bddd697577286e3a210fdfd7e970"
+  },
+  "collections.privateLongSuffix": {
+    "sourceHash": "4602e583676d98e5020a7cdad28a9be8812ec8a770a0eae883fd1a8b2b1c0a88"
+  },
+  "collections.saveRules": {
+    "sourceHash": "6073406f8233d73a3cd9d41738b140be8843afa82e924bac952ab65c90e8d978"
+  },
+  "collections.keepCondition": {
+    "sourceHash": "03516fb013217e8f073e39a613e7575f76beef4ddd2e54d4dbcb4455e5e6707e"
+  },
+  "collections.empty": {
+    "sourceHash": "28814d5fb55234e6163944cd08096e1669177493f8b4eaf00b12cc5ef73e8214"
+  },
+  "collections.tracking": {
+    "sourceHash": "85168c4cbd273777f629adb2f0b5fdc471b8766e74ccda7e8b28ac7e5b939adb"
+  },
+  "collections.notOwned": {
+    "sourceHash": "1e613f0f9eef5f906e8c58938a6556c607607828bebc45319a2033bd30bb316e"
+  },
+  "collections.seriesRule": {
+    "sourceHash": "bda3daddc6eeca00770cb5067d91e0e635437dbb1117cfb8871c687f3dd3cb09"
+  },
+  "collections.manualRule": {
+    "sourceHash": "f56c71ef33b17311a8ac094b447e253175c6fb3793519837d01caf5907f1e64d"
+  },
+  "collections.allRule": {
+    "sourceHash": "28fb4403e17c9d4da0ce0cd9de355c15c2c6c026f886dbf9d86cc242ffb0b848"
+  },
+  "collections.autoAdd": {
+    "sourceHash": "b57f49750c84799528449410b092d2a039384fad5b5ddfa441bc2861f7d6093b"
+  },
+  "collections.and": {
+    "sourceHash": "9f00f6770f8cfe0b1ec666b0af2ac6798bff6e9b98d51b3fe59a481c96d898cf"
+  },
+  "collections.or": {
+    "sourceHash": "a2123d69506f51ff112bad06f9c997cb4fa8b854ecce191a5204861bbb1ee732"
+  },
+  "collections.addTitle": {
+    "sourceHash": "750063d2281a7db7f42a37420fa347c5740f24fd66228276de1a8b7327cee710"
+  },
+  "collections.addHint": {
+    "sourceHash": "482e5fbf8ec010ab310d97b06ae913f76089a9cc8ae97e39078c0edd4c509796"
+  },
+  "collections.noManual": {
+    "sourceHash": "4c4ed8b777a20f5bb293743a22016a161d84925bed8bcb56d618a40e9ed0bd69"
+  },
+  "collections.newName": {
+    "sourceHash": "c9c0cf47862ca2babdd80c0fcfd13b32baa2f20450b2cae6bd068ea49ccdb4c5"
+  },
+  "collections.createAndAdd": {
+    "sourceHash": "37d69ca65194526c4349cd3d4ba51f82aaf8b48deabc551f10eb36d36b305afe"
+  },
+  "collections.nameRequired": {
+    "sourceHash": "3e674350744746b4c726f8cae2407b2e641253fe2297d09d883166fa20f86a9f"
+  },
+  "collections.saveError": {
+    "sourceHash": "3b40785bbeddd67ca065033acd0420da2a63dca20579bb0a2338e03b55c19aa8"
+  },
+  "collections.saveAs": {
+    "sourceHash": "c94b3c3ea29d4a55b4582275ac7b7c0449ff8e576a534d0cb1fa9c0b508d8ba1"
+  },
+  "collections.counting": {
+    "sourceHash": "03250bae9a4e23181cd1ae18cec8ea2585cb1a8eff90219dd97f6889d40fe1e5"
+  },
+  "collections.name": {
+    "sourceHash": "6773310492a96fcf96035a33dc957b7f552d26dd6630bc2c14189d2e6aa723ee"
+  },
+  "collections.autoAddHint": {
+    "sourceHash": "aecd39e7d386061f3b2660c85dccad40650135bef6cacc58da2af60484271446"
+  },
+  "collections.freeze": {
+    "sourceHash": "c43f657ff3c64ec7f1524bb63ce9829c1e0690c9cd89fbc91c0851f7d7c87186"
+  },
+  "collections.freezeHint": {
+    "sourceHash": "72d3f92d6fcb41a8162412c5e2438fc1381bd1979c34db298e94517c949002a3"
+  },
+  "collections.private": {
+    "sourceHash": "72698202c202ac2c37ba272ea04e73127017e08fd3af357bea0c15f2f9c2900c"
+  },
+  "collections.saving": {
+    "sourceHash": "ff509c9ba052a21c008c88b36ef5f13acc9cb693641689b35747be6daf11d9d6"
+  },
+  "collections.orderSaved": {
+    "sourceHash": "2c11b36ae30ed0295237de8d67896b24dc87602837053fc3bbd1e0dc4a44fb63"
+  },
+  "collections.orderTitle": {
+    "sourceHash": "20fbbb0c831d5037db201b05da8891d69e385cf6eb83c01399114856ec0bc18a"
+  },
+  "collections.orderHint": {
+    "sourceHash": "e6c89b7a0ab0a761cdfe12a9fbca1b0a732503f0f1762b3cf092b7072f223e9f"
+  },
+  "collections.up": {
+    "sourceHash": "f853a70b120418be90b9a7c66e8b870bf94c1c48cb4afb533c57ec8c37d92e9e"
+  },
+  "collections.down": {
+    "sourceHash": "e75e8b4e5c971227e1676bd7a771c400278ce0361860287b56e4c6ad0e330be9"
+  },
+  "collections.saveOrder": {
+    "sourceHash": "873e62b46f589c9893cdc26c2294724a2f74f05400ed3557ac00190781e8e313"
+  },
+  "mediaList.title": {
+    "sourceHash": "70e78302305fec8adee21d67d08d9ca7528c9e5d90d238d359a06e3dd91ee783"
+  },
+  "mediaList.loadFailed": {
+    "sourceHash": "0de592125686cf4c1b72a9e4df3c0b4a21c0a54cbaf8c72ed44d5978e9844428"
+  },
+  "mediaList.nextFailed": {
+    "sourceHash": "7a23a7830668aed7042c498c74612c74fe631993bd47e5ef5489b2531b6b03b0"
+  },
+  "mediaList.loading": {
+    "sourceHash": "4ce54c9e3aac53a4ffcf88bd720c3b1ecffe1d21c49118c34defaeddd5bf6b55"
+  },
+  "mediaList.searchLoaded": {
+    "sourceHash": "3f64e2c6d0266e3da87c773d4d58eb980b802f05f5426731db2f5f0c1eeaccc5"
+  },
+  "mediaList.search": {
+    "sourceHash": "c537cd524039aec9eaf37478a7c3b6084597139d178f85579a32c1bb5a19f40d"
+  },
+  "mediaList.searchLoadedLabel": {
+    "sourceHash": "4448f5e21551b787aaba4aad44b02b32ee685d4286dfd178f0ce64dc8481f84a"
+  },
+  "mediaList.searchLabel": {
+    "sourceHash": "9c8b8d694ae6c83a52e98dcb3b6c1344e883e186da898091fb1a15651c74b8e7"
+  },
+  "mediaList.loadedGenres": {
+    "sourceHash": "d9a77a337972c4d5816e70126802cdfa6888db3029cb3d08fc89b4c1c00c2f20"
+  },
+  "mediaList.empty": {
+    "sourceHash": "e0317c5e7e31dc5577c9e3947d98e33e6b88d2be3b2f9660e47e9fcc1e5f86e2"
+  },
+  "mediaList.retryNext": {
+    "sourceHash": "9567316b5f0d9b8d9f2ff259e7fdb144820d5e4ffc15aa25f258251aacae0894"
+  },
+  "mediaList.loadingNext": {
+    "sourceHash": "e43ad1eeea0d6b097834784978c118838d9c2996f249d4a66d8ad41efe2919d2"
+  },
+  "favorites.recent": {
+    "sourceHash": "167294be5e253ce63f4430f7b6c1d5d593a229d81dd9ce6652cae5bb2750399f"
+  },
+  "favorites.loading": {
+    "sourceHash": "0796b6df1dcec37d9c53ee4d83463a5f0e3cd18f2e1492ae222d2f97fcc0946c"
+  },
+  "favorites.empty": {
+    "sourceHash": "ac0ed51cf6e447668a3fe11b0554d2ecb5ca28d59c8517ed2fe7072006620b06"
+  },
+  "favorites.loadFailed": {
+    "sourceHash": "575dade6b2f92db7b2d167b1e21c0e9633a6237bd7bc7b738db0aca4aefb86cb"
+  },
+  "favorites.browseSettings": {
+    "sourceHash": "3fdc3b4ca90a4859b8838ded82b1acbb444f15882ce9ef82c702df625f12d725"
+  },
+  "gallery.groupByTitle": {
+    "sourceHash": "aec5410de475e8e7eb18d2af6465d25027516d44d21688fd6856d06096a81685"
+  },
+  "gallery.density": {
+    "sourceHash": "3f3db9d1cf507926a5cead98ad192251ffa8029d80cd0fde2ad6055c06bfe576"
+  },
+  "gallery.compact": {
+    "sourceHash": "5d63d587b0b05a752ae482f1acb2c12f3c7b91976371fb9767375653d2c2d5fb"
+  },
+  "gallery.standard": {
+    "sourceHash": "6bea77acefb364ac3d4024c2fd7d82b1426d931cf25274abdc9e2d77969e24d9"
+  },
+  "gallery.loose": {
+    "sourceHash": "051a34d53a739b7dc1a2b1ddf62e821e117aa1c4c69e1533670f9b44398c35dc"
+  },
+  "gallery.playHere": {
+    "sourceHash": "d4f02dfa56fbd53c1b5903915306ee1f23480256477da8bdcf5a5678bb2c822d"
+  },
+  "gallery.goToTitle": {
+    "sourceHash": "2ef661603b91e266ca441d902db79a5f163ae7c2d4f91098f3dc44daa3a04753"
+  },
+  "collections.homeTab": {
+    "sourceHash": "203c08e0d44ac3753a3c5b96644a6e10403bc0cbc5770b55cd1f775745a0a978"
+  },
+  "gallery.favorite": {
+    "sourceHash": "60a53514eb9228a2cee1e6914eb36819fd13716e5df64eb5e9dd1868ebda5a0b"
+  },
+  "gallery.unfavorite": {
+    "sourceHash": "dca60869e7d26839d6bb6310e1fcf6ccbdb3dda40f284bba1cfaaf5ebcde5881"
+  },
+  "collections.filteredSummary": {
+    "sourceHash": "fe665b4c5536d6084ae170ac265e8d76c5e1e2339dc34d555f0338a1d36c1fe0"
+  },
+  "collections.groupedSummary": {
+    "sourceHash": "6cddeaf4073cf87af66c099144ae0f463d1499b0983c8461fd73408d51bc0e16"
+  },
+  "collections.hideTitle": {
+    "sourceHash": "049ed32cfebc08ed1bb7e697fa41aeafd5d97d6bf90dbae46427198765ec8ec2"
+  },
+  "collections.deleteTitle": {
+    "sourceHash": "8b5cfacba09b2106f8063ad4519d399ea1528b45fea807fdce388066eaf3d442"
+  },
+  "collections.ownedSummary": {
+    "sourceHash": "5df97ee34d84c165aa64ed376dd3a26b443401379c63b1b227a35b91735f4caa"
+  },
+  "collections.itemCount": {
+    "sourceHash": "40a6a9251e78268086edb219f78f58e83d9ef3cfcc1ec28b674707d429ef5727"
+  },
+  "collections.shareSummary": {
+    "sourceHash": "51b7dd7953ae2ca44908a64442dd5e1893a3901a49468c04e345937633850ffb"
+  },
+  "mediaList.loadedCount": {
+    "sourceHash": "2b806670942a8356077c643e184d603fff106864cc503bfbb38d2285ecbcede4"
+  },
+  "mediaList.fullCount": {
+    "sourceHash": "d6ca8b6ae6838bbbeaa36087ea19f6f51574e465f0fe08584bb9dd52d57785ec"
+  },
+  "mediaList.clearCount": {
+    "sourceHash": "2e9bdf222ae23fcc143141edaa37556fb052e2d588c60e9e14b927b6dadda7d4"
+  },
+  "collections.added": {
+    "sourceHash": "4e5cd176fcc0adb1f934858dfa1533d62d12efd723a1547eeef15352e6b68252"
+  },
+  "collections.createdAndAdded": {
+    "sourceHash": "61647cce30d8df0838d42b6a862b1c78f8f538c410919aa74bd666e61c8f22d1"
+  },
+  "collections.savedAs": {
+    "sourceHash": "7e9955245468aa24b0cd88c0509e4359120c29b8ed72e1fa33782f029e9e588b"
+  },
+  "collections.matchCount": {
+    "sourceHash": "9588816d2e70e548fc0b2b06ba4ddbc0730f17f389b3236d375c9fe51c3b67cf"
+  },
+  "collections.freezeCount": {
+    "sourceHash": "7b89222fc82785ba84ed21f7687b8f38f11df10439d0acab34b553c4652e3be2"
+  },
+  "collections.ratingMinimum": {
+    "sourceHash": "611282374dea263864065591e0d0d2ff0bef3f9207b4745e5622dbc9c685982b"
+  },
+  "collections.open": {
+    "sourceHash": "bab7366644a602a12ec987d4fa545174885e7b0e34c595e2ad4d88acc2be06a7"
+  },
+  "collections.removeTitle": {
+    "sourceHash": "a35005281482681ce95b86725a3652ff6cad38a2e0f8b0acd95640af7e58c273"
+  },
+  "favorites.summary": {
+    "sourceHash": "908f4e1bf4ab13915371627582f315140a3b9fca297ffb8c1a9c037193ed5446"
+  },
+  "gallery.view": {
+    "sourceHash": "3c75ecb7a7bfe74d36254f7805386ba7f5090655da8e52c865dd6b0637c80c4e"
+  },
+  "gallery.startAt": {
+    "sourceHash": "b3a46869c193c3a35d4b5a9002e339262aba8dbf6aa3c3fc2bb89a0c667d4e32"
+  },
+  "gallery.viewImage": {
+    "sourceHash": "6bf4e42d09a02d79c7178a0b47000358e1a41bf1acd6c929b9f9e0b927613f30"
+  },
+  "gallery.imageCount": {
+    "sourceHash": "50cb5d35c65af798d87b72a8fa7679a7d1afc49897518cf85ee138b58c6e290e"
+  },
+  "gallery.dateUnknown": {
+    "sourceHash": "0a680746ce36d7a809acf7d6307aac03e441e41b51f86dd8ff9de7ca36e1dcdf"
+  },
+  "gallery.month": {
+    "sourceHash": "11276e78bb6e42bf0652c5841a0d1ca33c0c3d490a6d4d94765f34937b00ea1b"
+  },
+  "gallery.jumpMonth": {
+    "sourceHash": "4024ccde8083778a3e667f1eda3db9631603e977187476eda9a736e6c8e04f21"
+  },
+  "gallery.monthCount": {
+    "sourceHash": "48eb71d4d2a10a0ac4a024f49e4916973e9eaea92af52cbe2275929d9fb9d6ca"
+  },
+  "gallery.panorama": {
+    "sourceHash": "3daa593fc1281ddb039075820fe0e467e155f46b4652beaff070369d0d8377c5"
+  },
+  "gallery.tallImage": {
+    "sourceHash": "d8ba70e233e6b7e47e75785809574568caa7b06e83074fdb46c3956a2ac9f976"
+  },
+  "gallery.viewPhoto": {
+    "sourceHash": "1dfdacf99144aab4954e387c62f00c08007b0081140a01412a15684bc23c5cec"
+  },
+  "gallery.fileMissing": {
+    "sourceHash": "ec33a2bfde0a7e09541bbeb8c6884c3f2af9778a5c424589906b1eef98a31915"
+  },
+  "collections.hideDone": {
+    "sourceHash": "1f1bc0d5105cedff84b16d36d140c63b1ec2ba4af5051d010100d69568f74a13"
+  },
+  "gallery.preparingDownload": {
+    "sourceHash": "17460ffa6e70769380c944c7ac2bad300c736b8222a581d19853470f1bea5861"
+  },
+  "gallery.downloadFailed": {
+    "sourceHash": "02936cbfee13b2b2d7122f97f9dcd0576f06ff7df6330dbee344e595192ead70"
+  },
+  "gallery.filename": {
+    "sourceHash": "a6e48adc26d686d7e6cfc9769fe5df36594cc04e3326984a0981acea1d1b8938"
+  },
+  "gallery.captureDate": {
+    "sourceHash": "c0cc7503f85098ee7b97b59931b8d4bfe8a77f9e2e146feca660cb7218ec1f55"
+  },
+  "gallery.dimensions": {
+    "sourceHash": "246df7d8db841735af67be0ad56a5b830a2d2438b3d4284e3321b0512baf62fa"
+  },
+  "gallery.size": {
+    "sourceHash": "50db7447b966f5ef60a1d5fd1ad9f605ed40138f068015543745c9a227207f6b"
+  },
+  "gallery.format": {
+    "sourceHash": "0e8b1c78c5f335ba3c2e5ac0e42fc8975a1a67177de43299e8b94f1677a626b0"
+  },
+  "gallery.path": {
+    "sourceHash": "77e1ea5c5688eea4ebe3c16f8f0b7b7d7089c0fda949362eccdac2a59dcc71ac"
+  },
+  "gallery.downloadOriginal": {
+    "sourceHash": "833d680fe5a9944312e91644c0f93da89e39b277becd088b2529baa197f7ca74"
+  },
+  "gallery.infoShortcut": {
+    "sourceHash": "5f92ca054be7dd58740eea2fba7411283102e90482a65942ec95cd5c1c570ea3"
+  },
+  "gallery.info": {
+    "sourceHash": "c89617dc5807836e8cf66dc2e0d3e8c929d6289a4ccaed7e2e22e398123296d8"
+  },
+  "gallery.closeInfo": {
+    "sourceHash": "5c748dc957e5afdb697ef7c7da6ed816beb81a3e7dcbcb7bfaafe08c45b635ac"
+  },
+  "gallery.loadingInfo": {
+    "sourceHash": "cc1eba5971ec4a24284233e3a581f89b870dea797691ef8a39f0690937d921af"
+  },
+  "gallery.viewPhotoTitle": {
+    "sourceHash": "6dc9d2f8166e214557e2886627fca3b01f8987d2bb4d35ed7cdf878cd9b288ca"
   }
 }

@@ -132,5 +132,11 @@
     "favorite": "我收藏的",
     "missing": "文件失联",
     "unscraped": "没刮到档案"
+  },
+  "gallery": {
+    "poster": "海报",
+    "backdrop": "剧照",
+    "episode": "第 {episode} 集{name, select, yes { · {title}} other {}}",
+    "chapter": "章节 {index}"
   }
 }
