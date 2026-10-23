@@ -17,5 +17,7 @@
   "retry": "Retry",
   "back": "Back",
   "all": "All",
-  "selectAll": "Select all"
+  "selectAll": "Select all",
+  "stop": "Stop",
+  "search": "Search"
 }

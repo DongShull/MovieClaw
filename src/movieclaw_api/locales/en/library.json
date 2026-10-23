@@ -85,7 +85,8 @@
     "itemRemoved": "Removed from \"{name}\"",
     "hidden": "Hid \"{name}\". Restore it under Show hidden Collections.",
     "itemsAdded": "Added to \"{name}\"",
-    "itemsAlreadyPresent": "These titles are already in \"{name}\""
+    "itemsAlreadyPresent": "These titles are already in \"{name}\"",
+    "favoritesTitle": "My favorites"
   },
   "duplicates": {
     "staleResult": "This group’s results are outdated because the library changed. Scan again.",
@@ -110,5 +111,26 @@
     "poster": "Poster",
     "backdrop": "Backdrop",
     "logo": "Logo"
+  },
+  "filters": {
+    "genres": "Genres",
+    "decades": "Decade",
+    "regions": "Region",
+    "watch": "Watch status",
+    "rating": "Rating",
+    "runtime": "Runtime",
+    "language": "Language",
+    "quality": "Quality",
+    "dynamicRange": "Dynamic range",
+    "stock": "Inventory"
+  },
+  "facets": {
+    "earlier": "Earlier",
+    "unwatched": "Unwatched",
+    "watching": "In progress",
+    "played": "Watched",
+    "favorite": "My favorites",
+    "missing": "Files missing",
+    "unscraped": "No metadata"
   }
 }

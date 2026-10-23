@@ -17,5 +17,7 @@
   "retry": "重试",
   "back": "返回",
   "all": "全部",
-  "selectAll": "全选"
+  "selectAll": "全选",
+  "stop": "停止",
+  "search": "搜索"
 }

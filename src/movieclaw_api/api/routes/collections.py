@@ -39,6 +39,8 @@ from movieclaw_api.services.library.access import (
     visible_library_ids,
 )
 from movieclaw_api.services.library.collections import (
+    BUILTIN_FAVORITES,
+    builtin_key,
     cached_membership,
     cover_head,
     effective_rules,
@@ -125,6 +127,13 @@ def _kind_of(row: Collection) -> str:
     return "builtin" if row.builtin else "user"
 
 
+def _display_name(row: Collection) -> str:
+    # i18n-ignore: recognize the stored default name; custom collection names remain unchanged
+    if row.name == "我的收藏" and builtin_key(row) == BUILTIN_FAVORITES:
+        return t("library.collections.favoritesTitle")
+    return row.name
+
+
 async def _views(
     session: AsyncSession,
     rows: Sequence[Collection],
@@ -186,7 +195,7 @@ async def _views(
         views.append(
             CollectionView(
                 id=row.id or 0,
-                name=row.name,
+                name=_display_name(row),
                 library_id=row.library_id,
                 rules=effective_rules(row),
                 sort=row.sort,
@@ -593,9 +602,9 @@ async def add_collection_items(
     )
     await session.commit()
     message = (
-        t("library.collections.itemsAdded", name=row.name)
+        t("library.collections.itemsAdded", name=_display_name(row))
         if added
-        else t("library.collections.itemsAlreadyPresent", name=row.name)
+        else t("library.collections.itemsAlreadyPresent", name=_display_name(row))
     )
     return ok(view, message=message)
 
@@ -634,7 +643,7 @@ async def remove_collection_item(
         session, row, member_id=member_id, visible=visible, content_limit=content_limit
     )
     await session.commit()
-    return ok(view, message=t("library.collections.itemRemoved", name=row.name))
+    return ok(view, message=t("library.collections.itemRemoved", name=_display_name(row)))
 
 
 @router.put(
@@ -721,7 +730,7 @@ async def delete_collection(
         row.hidden = True
         await session.flush()
         await session.commit()
-        return ok(None, message=t("library.collections.hidden", name=row.name))
+        return ok(None, message=t("library.collections.hidden", name=_display_name(row)))
     await session.delete(row)
     await session.commit()
     return ok(None)

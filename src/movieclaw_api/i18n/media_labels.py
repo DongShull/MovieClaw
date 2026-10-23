@@ -70,6 +70,11 @@ def genre_label(kind: str, genre_id: int) -> str:
     return t(_GENRE_MESSAGE_KEYS[genre_id]) if genre_id in genres else str(genre_id)
 
 
+def country_label(code: str) -> str:
+    key = _COUNTRY_MESSAGE_KEYS.get(code)
+    return t(key) if key else code
+
+
 def routing_options_labels() -> dict:
     return {
         "movie_genres": [

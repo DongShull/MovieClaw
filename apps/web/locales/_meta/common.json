@@ -58,5 +58,11 @@
   },
   "selectAll": {
     "sourceHash": "3a5040b68abf75f96f27ffe441fe8876250befeb6b51b0232c347e58fc42bb28"
+  },
+  "stop": {
+    "sourceHash": "ca4d973c0b006b758c0766235c74abca876c5c7842200234aebb2af0fa69a7c4"
+  },
+  "search": {
+    "sourceHash": "44ce7ae909bbb28bbbe3cbbba8d617b71217869d62741b4c104dc123a6ef603d"
   }
 }

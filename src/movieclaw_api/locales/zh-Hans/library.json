@@ -85,7 +85,8 @@
     "itemRemoved": "已移出「{name}」",
     "hidden": "已隐藏「{name}」（在「显示已隐藏的合集」里可以放回来）",
     "itemsAdded": "已加入「{name}」",
-    "itemsAlreadyPresent": "这些作品已经在「{name}」里了"
+    "itemsAlreadyPresent": "这些作品已经在「{name}」里了",
+    "favoritesTitle": "我的收藏"
   },
   "duplicates": {
     "staleResult": "这一组的结果已经过期（库里有过改动），请重新扫描",
@@ -110,5 +111,26 @@
     "poster": "海报",
     "backdrop": "背景图",
     "logo": "徽标"
+  },
+  "filters": {
+    "genres": "类型",
+    "decades": "年代",
+    "regions": "地区",
+    "watch": "观看",
+    "rating": "评分",
+    "runtime": "片长",
+    "language": "语言",
+    "quality": "画质",
+    "dynamicRange": "动态范围",
+    "stock": "库存"
+  },
+  "facets": {
+    "earlier": "更早",
+    "unwatched": "未看",
+    "watching": "在看",
+    "played": "已看完",
+    "favorite": "我收藏的",
+    "missing": "文件失联",
+    "unscraped": "没刮到档案"
   }
 }
