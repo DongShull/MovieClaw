@@ -1,0 +1,17 @@
+{
+  "kind": {
+    "video": "其他",
+    "photo": "图片"
+  },
+  "scope": {
+    "collection": "收藏范围",
+    "applicability": "适用范围",
+    "genre": "类型",
+    "region": "区域"
+  },
+  "routing": {
+    "defaultCause": "{kind}默认库",
+    "scopeCause": "声明了收藏范围",
+    "candidateLabel": "「{name}」（{cause}）"
+  }
+}

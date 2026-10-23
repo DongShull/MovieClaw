@@ -1,0 +1,17 @@
+{
+  "kind": {
+    "video": "Other",
+    "photo": "Photos"
+  },
+  "scope": {
+    "collection": "Collection scope",
+    "applicability": "Applicability scope",
+    "genre": "Genre",
+    "region": "Region"
+  },
+  "routing": {
+    "defaultCause": "Default {kind} library",
+    "scopeCause": "Collection scope defined",
+    "candidateLabel": "\"{name}\" ({cause})"
+  }
+}

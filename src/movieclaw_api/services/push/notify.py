@@ -28,6 +28,8 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n import normalize_locale, t, use_locale
+from movieclaw_api.services.locale_preferences import member_locale
 from movieclaw_api.services.push import crypto, im, outbox, preferences, registration
 from movieclaw_api.services.push.dispatcher import Outcome, Outgoing, build_message, deliver, spawn
 from movieclaw_db.engine import get_database
@@ -239,7 +241,16 @@ async def prepare(
         from movieclaw_api.services.push.images import collapse_key
 
         collapse_value = crypto.collapse_id(await collapse_key(), *collapse)
-    contents: dict[int, AlertContent | None] = {}
+    contents: dict[tuple[int, str, str], AlertContent | None] = {}
+    member_locales = {member_id: await member_locale(member_id) for member_id in recipients}
+
+    async def content_for(member_id: int, locale: str, timezone: str = "UTC"):
+        key = (member_id, locale, timezone)
+        if key not in contents:
+            with use_locale(locale, timezone):
+                contents[key] = await build(session, member_id)
+        return contents[key]
+
     seen_tokens: set[str] = set()
     outgoing: list[Outgoing] = []
     # 同一台手机（同一个 APNs 令牌）登了几个账号时只推一条，用最近登记过的那个账号的
@@ -249,9 +260,11 @@ async def prepare(
         token = (device.push_token or "").lower()
         if token in seen_tokens:
             continue
-        if device.member_id not in contents:
-            contents[device.member_id] = await build(session, device.member_id)
-        content = contents[device.member_id]
+        content = await content_for(
+            device.member_id,
+            normalize_locale(device.locale or "") or member_locales[device.member_id],
+            device.timezone or "UTC",
+        )
         if content is None:
             continue
         key = registration.decrypt_key(device)
@@ -289,9 +302,11 @@ async def prepare(
         )
     queued: list[Outcome] = []
     for device in streams:
-        if device.member_id not in contents:
-            contents[device.member_id] = await build(session, device.member_id)
-        content = contents[device.member_id]
+        content = await content_for(
+            device.member_id,
+            normalize_locale(device.locale or "") or member_locales[device.member_id],
+            device.timezone or "UTC",
+        )
         if content is None:
             continue
         payload = _stream_payload(
@@ -318,9 +333,7 @@ async def prepare(
             outbox.wake(item.device_id)
     im_messages: list[im.ImMessage] = []
     for member_id in im_members:
-        if member_id not in contents:
-            contents[member_id] = await build(session, member_id)
-        content = contents[member_id]
+        content = await content_for(member_id, member_locales[member_id])
         if content is not None:
             im_messages.append(im.render(member_id, content))
     return Prepared(relay=outgoing, stream=queued, im=im_messages)
@@ -378,8 +391,8 @@ async def send_test(member_id: int) -> list[Outcome]:
 
     async def build(_session: AsyncSession, _member_id: int) -> AlertContent:
         return AlertContent(
-            title="测试通知",
-            body="能看到这条，说明这台设备能收到这台服务器的通知。",
+            title=t("notify.test.title"),
+            body=t("notify.test.body"),
             open="/settings/notifications",
             thread="system",
         )

@@ -91,7 +91,7 @@ async def read_log_day(
 ) -> ApiResponse[LogContent]:
     path = log_file_path(_log_dir(), date.fromisoformat(day))
     if not path.is_file():
-        raise NotFoundException(f"没有 {day} 的日志文件，可能当天服务未运行或日志已超期清理")
+        raise NotFoundException(message_key="errors.logs.dayMissing", params={"day": day})
 
     all_lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     truncated = tail > 0 and len(all_lines) > tail

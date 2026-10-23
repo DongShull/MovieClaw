@@ -393,18 +393,22 @@ async def proxy_site_request(
     try:
         config = get_site_config(site_id)
     except SiteNotFoundError:
-        raise NotFoundException(f"未知站点：{site_id}") from None
+        raise NotFoundException(
+            message_key="errors.network.siteUnknown", params={"id": site_id}
+        ) from None
     base = proxy_base_url(config, payload.base)
     url = join_proxy_url(base, payload.path)
     if not proxy_same_origin(base, url):
-        raise BadRequestException("路径不允许指定主机（只能给站内相对路径）")
+        raise BadRequestException(message_key="errors.sites.relativePathRequired")
 
     try:
         site = await get_site_access().get(site_id)
     except SiteUnavailableError as exc:
         raise ConflictException(str(exc)) from exc
     except TrackerAuthError as exc:
-        raise ConflictException(f"认证失败：{exc.message}") from exc
+        raise ConflictException(
+            message_key="errors.sites.authenticationFailed", params={"error": exc.message}
+        ) from exc
 
     headers = sanitize_proxy_headers(payload.headers)
     # POST 体：字典按 JSON 发；字符串按原始内容发（调用方自带 content-type）
@@ -425,10 +429,13 @@ async def proxy_site_request(
         )
     except httpx.TimeoutException as exc:
         raise ServiceUnavailableException(
-            f"站点响应超时（{payload.timeout_seconds:g}s）"
+            message_key="errors.sites.requestTimeout",
+            params={"seconds": f"{payload.timeout_seconds:g}"},
         ) from exc
     except httpx.TransportError as exc:
-        raise ServiceUnavailableException(f"无法连接站点：{exc}") from exc
+        raise ServiceUnavailableException(
+            message_key="errors.sites.connectionFailed", params={"error": exc}
+        ) from exc
 
     content_type = str(response.headers.get("content-type", ""))
     text, truncated = proxy_response_text(response.content, content_type)

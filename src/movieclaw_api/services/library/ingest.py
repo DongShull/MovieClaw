@@ -972,15 +972,27 @@ async def refresh_source_notice(session, source_path: str, present: set[str] | N
     if not failed:
         await resolve_notices(session, dedupe_key=key)
         return
-    names = "、".join(f"「{Path(r.entry_path).name}」" for r in failed[:3])
-    extra = f" 等 {len(failed)} 个条目" if len(failed) > 3 else ""
     await upsert_notice(
         session,
         dedupe_key=key,
         severity=NoticeSeverity.ERROR,
         source="ingest",
-        title=f"监听目录 {source} 有 {len(failed)} 个条目导入失败",
-        message=(f"{names}{extra}处理失败，将自动退避重试；具体原因见「设置 → 监听导入」的清单。"),
+        title_key="notify.ingestFailed.title",
+        message_key="notify.ingestFailed.body",
+        message_params={
+            "path": source,
+            "count": len(failed),
+            "names": {
+                "message_key": "notify.ingestFailed.names",
+                "params": {
+                    "first": Path(failed[0].entry_path).name,
+                    "second": Path(failed[1].entry_path).name if len(failed) > 1 else "",
+                    "third": Path(failed[2].entry_path).name if len(failed) > 2 else "",
+                    "count": min(len(failed), 3),
+                },
+            },
+            "overflow": "yes" if len(failed) > 3 else "no",
+        },
         payload={"source_path": source, "failed": len(failed)},
     )
 
@@ -4275,9 +4287,9 @@ async def ignore_entry(session, entry_id: int) -> IngestEntry:
 
     record = await session.get(IngestEntry, entry_id)
     if record is None:
-        raise NotFoundException(f"监听导入台账记录不存在：id={entry_id}")
+        raise NotFoundException(message_key="errors.ingest.entryMissing", params={"id": entry_id})
     if record.status == IngestStatus.IMPORTED:
-        raise BadRequestException("已入库的条目不需要忽略")
+        raise BadRequestException(message_key="errors.ingest.importedIgnore")
     record.status = IngestStatus.IGNORED
     record.message = "已手动忽略；如需处理可在清单中恢复"
     record.updated_at = utcnow()
@@ -4458,9 +4470,9 @@ async def restore_entry(session, entry_id: int) -> IngestEntry:
 
     record = await session.get(IngestEntry, entry_id)
     if record is None:
-        raise NotFoundException(f"监听导入台账记录不存在：id={entry_id}")
+        raise NotFoundException(message_key="errors.ingest.entryMissing", params={"id": entry_id})
     if record.status == IngestStatus.IMPORTED:
-        raise BadRequestException("该条目已入库，无需恢复")
+        raise BadRequestException(message_key="errors.ingest.importedRestore")
     record.status = IngestStatus.PENDING
     record.fingerprint = ""  # 与任何真实指纹都不同 → 下轮巡检必然重处理
     record.message = "已恢复，等待处理（需先通过下载完成检测）"
@@ -4506,9 +4518,9 @@ async def claim_entry(
 
     record = await session.get(IngestEntry, entry_id)
     if record is None:
-        raise NotFoundException(f"监听导入台账记录不存在：id={entry_id}")
+        raise NotFoundException(message_key="errors.ingest.entryMissing", params={"id": entry_id})
     if record.status == IngestStatus.IMPORTED:
-        raise BadRequestException("该条目已入库，无需认领")
+        raise BadRequestException(message_key="errors.ingest.importedClaim")
     entry = Path(record.entry_path)
     source = str(entry.parent)
     pair = (
@@ -4519,23 +4531,27 @@ async def claim_entry(
         )
     ).first()
     if pair is None:
-        raise BadRequestException(f"该条目所属的监听导入规则已删除（{source}），无法认领")
+        raise BadRequestException(
+            message_key="errors.ingest.ruleRemoved", params={"source": source}
+        )
     rule, library = pair
     if not entry.exists():
-        raise BadRequestException("条目已不在源目录（可能已被删除），无法认领")
+        raise BadRequestException(message_key="errors.ingest.sourceMissing")
     snap = await asyncio.to_thread(_snapshot, entry)
     briefs = await acquisition.current().download_tasks()
     matches = _match_briefs(entry.name, briefs)
     if snap.has_marker or _torrent_verdict(matches) == "downloading":
-        raise BadRequestException("条目似乎还在下载中（存在未完成标记文件），请等下载完成再认领")
+        raise BadRequestException(message_key="errors.ingest.stillDownloading")
     kind = MediaKind(library.kind if library is not None else rule.kind)
     unresolved = record.unresolved_files or []
     if file is None and len(unresolved) > 1:
         raise BadRequestException(
-            f"这是电影合集，有 {len(unresolved)} 个视频待认领，请先选择要认领的文件"
+            message_key="errors.ingest.collectionFileRequired", params={"count": len(unresolved)}
         )
     if file is not None and file not in unresolved:
-        raise BadRequestException(f"「{file}」不在该条目的待认领文件中，可能已识别或已被移走")
+        raise BadRequestException(
+            message_key="errors.ingest.fileNotUnclaimed", params={"file": file}
+        )
     item = await MediaLibraryService(session, get_tmdb_client()).ensure_media_item(kind, tmdb_id)
     if unresolved:
         # 合集逐文件认领：只钉这一个文件，不动整条目的认领身份

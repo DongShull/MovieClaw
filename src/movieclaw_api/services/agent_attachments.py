@@ -153,12 +153,9 @@ def _validate_attachment_id(attachment_id: str) -> str:
     这是路径拼接前的硬闸：不合法的 id 可能携带路径穿越片段（``../``），
     绝不允许进入文件系统操作。
     """
-    if (
-        len(attachment_id) == 32
-        and all(c in "0123456789abcdef" for c in attachment_id)
-    ):
+    if len(attachment_id) == 32 and all(c in "0123456789abcdef" for c in attachment_id):
         return attachment_id
-    raise BadRequestException("附件编号格式不正确")
+    raise BadRequestException(message_key="errors.agent.attachmentIdInvalid")
 
 
 class AgentAttachmentStore:
@@ -203,23 +200,27 @@ class AgentAttachmentStore:
         任何一步失败都以中文 BadRequest 报错（非开发者也能看懂并自行处理）。
         """
         if not data:
-            raise BadRequestException("上传的图片为空，请重新选择")
+            raise BadRequestException(message_key="errors.agent.imageEmpty")
         if len(data) > MAX_IMAGE_BYTES:
             limit_mb = MAX_IMAGE_BYTES // (1024 * 1024)
-            raise BadRequestException(f"图片过大，请控制在 {limit_mb}MB 以内")
+            raise BadRequestException(
+                message_key="errors.agent.imageTooLarge", params={"limit": limit_mb}
+            )
         mime = sniff_image_mime(data)
         if mime is None:
-            raise BadRequestException("不支持的图片格式，请上传 JPG / PNG / WebP / GIF 图片")
+            raise BadRequestException(message_key="errors.agent.imageFormatUnsupported")
         try:
             with Image.open(io.BytesIO(data)) as img:
                 width, height = img.size
                 img.verify()
         except Exception as exc:  # noqa: BLE001 - Pillow 的异常族杂，统一转中文提示
-            raise BadRequestException(f"图片无法解码，可能已损坏：{exc}") from exc
+            raise BadRequestException(
+                message_key="errors.agent.imageDecodeFailed", params={"error": exc}
+            ) from exc
         if max(width, height) > MAX_IMAGE_EDGE_PX:
             raise BadRequestException(
-                f"图片尺寸 {width}x{height} 超过最长边 {MAX_IMAGE_EDGE_PX}px 的限制，"
-                "请缩小后重新上传"
+                message_key="errors.agent.imageDimensions",
+                params={"width": width, "height": height, "limit": MAX_IMAGE_EDGE_PX},
             )
 
         meta = AttachmentMeta(
@@ -250,7 +251,10 @@ class AgentAttachmentStore:
         悬空引用。
         """
         if len(attachment_ids) > MAX_ATTACHMENTS_PER_MESSAGE:
-            raise BadRequestException(f"单条消息最多携带 {MAX_ATTACHMENTS_PER_MESSAGE} 张图片")
+            raise BadRequestException(
+                message_key="errors.agent.messageImageLimit",
+                params={"limit": MAX_ATTACHMENTS_PER_MESSAGE},
+            )
         # 不变量守门：所有 id 先过 32 位 hex 校验，之后才允许参与路径拼接
         attachment_ids = [_validate_attachment_id(a) for a in attachment_ids]
         assets = self._assets_dir(session_id)
@@ -261,8 +265,8 @@ class AgentAttachmentStore:
         pending = {a for a in attachment_ids if self._read_meta(assets, a) is None}
         if existing + len(pending) > MAX_SESSION_ATTACHMENTS:
             raise BadRequestException(
-                f"会话附件数量已达上限（{MAX_SESSION_ATTACHMENTS} 张），"
-                "请开启新会话后再发送图片"
+                message_key="errors.agent.sessionImageLimit",
+                params={"limit": MAX_SESSION_ATTACHMENTS},
             )
 
         out: list[AttachmentMeta] = []
@@ -273,7 +277,7 @@ class AgentAttachmentStore:
                 continue
             meta = self._read_meta(staging, attachment_id)
             if meta is None:
-                raise BadRequestException("附件不存在、已过期或已被其他会话使用，请重新上传")
+                raise BadRequestException(message_key="errors.agent.attachmentUnavailable")
             assets.mkdir(parents=True, exist_ok=True)
             src_file, src_sidecar = self._file_pair(staging, meta)
             dst_file, dst_sidecar = self._file_pair(assets, meta)
@@ -283,9 +287,7 @@ class AgentAttachmentStore:
                 os.replace(src_sidecar, dst_sidecar)
                 os.replace(src_file, dst_file)
             except FileNotFoundError as exc:
-                raise BadRequestException(
-                    "附件不存在、已过期或已被其他会话使用，请重新上传"
-                ) from exc
+                raise BadRequestException(message_key="errors.agent.attachmentUnavailable") from exc
             out.append(meta)
         return out
 
@@ -300,10 +302,10 @@ class AgentAttachmentStore:
         """会话内附件的文件路径（下载路由用）；不存在抛 404。"""
         meta = self.read_meta(session_id, attachment_id)
         if meta is None:
-            raise NotFoundException("附件不存在或已被清理")
+            raise NotFoundException(message_key="errors.agent.attachmentMissing")
         file_path, _ = self._file_pair(self._assets_dir(session_id), meta)
         if not file_path.is_file():
-            raise NotFoundException("附件不存在或已被清理")
+            raise NotFoundException(message_key="errors.agent.attachmentMissing")
         return file_path
 
     def read_base64(self, session_id: str, attachment_id: str) -> tuple[str, AttachmentMeta] | None:
@@ -537,11 +539,7 @@ async def hydrate_images(
         # 注文只在至少一张图真正进入请求时追加：图全部降级为占位文本的消息
         # 是纯文本，dehydrate 的「含图才剥注文」判据会失效，注文将泄漏进
         # 压缩 replacement_history 落库（违反「注文永不落库」的不变量）
-        if (
-            vision
-            and message.role == "user"
-            and any(isinstance(p, ImagePart) for p in parts)
-        ):
+        if vision and message.role == "user" and any(isinstance(p, ImagePart) for p in parts):
             has_user_text = any(
                 isinstance(p, TextPart) and p.text.strip() and not _is_attachment_note(p)
                 for p in message.content

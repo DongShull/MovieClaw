@@ -179,8 +179,7 @@ def _validate_page_times(
         )
     if len(values) != len(items):
         logger.warning(
-            "站点 %s 第 %d 页有 %d/%d 条未解析到发布时间；已保留为未知，"
-            "请检查站点选择器",
+            "站点 %s 第 %d 页有 %d/%d 条未解析到发布时间；已保留为未知，请检查站点选择器",
             site_id,
             page_num,
             len(items) - len(values),
@@ -463,9 +462,12 @@ async def _sync_one_site(cred: SiteCredential) -> None:
                 dedupe_key=f"site:{site_id}",
                 severity=NoticeSeverity.ERROR,
                 source="site",
-                title=f"站点「{site_id}」同步已熔断",
-                message=f"站点「{site_id}」{error or '原因未知'}。"
-                "该站点已不参与搜索与投递，请到「设置 → 站点」检查凭据并重新验证",
+                title_key="notify.siteSyncStopped.title",
+                message_key="notify.siteSyncStopped.body",
+                message_params={
+                    "site": site_id,
+                    "reason": error or {"message_key": "notify.siteVerification.unknown"},
+                },
                 payload={"site_id": site_id},
             )
     if tripped:

@@ -153,6 +153,6 @@ def report_app_error(
     found = plugin_web.find(get_settings(), entry_id)
     kernel = getattr(request.app.state, "kernel", None)
     if found is None or not plugin_web.visible_to(found, principal, kernel):
-        raise NotFoundException("没有这个插件页面")
+        raise NotFoundException(message_key="errors.plugins.pageMissing")
     plugin_web.log_page_error(entry_id, principal.name, body.message, body.detail)
     return ok(None)

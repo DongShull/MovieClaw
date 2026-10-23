@@ -30,6 +30,8 @@ from movieclaw_api.exceptions import (
     ForbiddenException,
     NotFoundException,
 )
+from movieclaw_api.i18n.stored import reference
+from movieclaw_api.services.library.profile import kind_reference
 from movieclaw_api.services.media_library import MediaLibraryService
 from movieclaw_api.services.rule_sets import RuleSetService
 from movieclaw_api.services.subscription import events as subscription_events
@@ -518,9 +520,9 @@ class SubscriptionService:
         from movieclaw_api.services.subscription.smart_memory import freeze_smart
 
         if selection_mode not in {"rules", "smart"}:
-            raise BadRequestException("订阅模式无效")
+            raise BadRequestException(message_key="errors.subscription.invalidMode")
         if selection_mode == "smart" and rule_set_id is not None:
-            raise BadRequestException("智能模式不能同时指定规则组")
+            raise BadRequestException(message_key="errors.subscription.smartRuleConflict")
         smart_policy = smart_overrides = None
         memory_changed = False
         if selection_mode == "smart":
@@ -544,9 +546,7 @@ class SubscriptionService:
         # 守卫拦的就是这条不变量，API / CLI / Agent 直连服务层，这里补齐。
         # 注意别塞进 _validate_selection：update 复用它，而“取消全部季”是合法操作。
         if kind is MediaKind.TV and not selected and not follow_future:
-            raise BadRequestException(
-                "剧集订阅至少要勾选一季；若只想追以后播出的新集，请打开自动续订"
-            )
+            raise BadRequestException(message_key="errors.subscription.seasonSelectionRequired")
         if kind is MediaKind.MOVIE:
             follow_future = False  # 电影没有"生长"，开关无意义，落库前归一
 
@@ -713,7 +713,7 @@ class SubscriptionService:
         new_rule_set = None
         if subscription.selection_mode == "smart":
             if rule_set_id not in (None, 0):
-                raise BadRequestException("智能订阅不能换绑规则组；请保持当前模式")
+                raise BadRequestException(message_key="errors.subscription.smartRuleRebind")
             # 旧客户端可能回传 API 的无规则占位值，不能把它当成真实外键。
             rule_set_id = None
         if rule_set_id is not None and rule_set_id != subscription.rule_set_id:
@@ -825,11 +825,11 @@ class SubscriptionService:
         for row in to_add:
             self._session.add(row)
         await self._session.flush()
-        cancelled_attempts, resumed_attempts, cancelled_hashes = (
-            await self._reconcile_attempt_scope(
-                subscription_id, [*existing, *to_add], now=now
-            )
-        )
+        (
+            cancelled_attempts,
+            resumed_attempts,
+            cancelled_hashes,
+        ) = await self._reconcile_attempt_scope(subscription_id, [*existing, *to_add], now=now)
         await self._session.commit()
         await self._session.refresh(subscription)
         for info_hash in cancelled_hashes:
@@ -891,7 +891,7 @@ class SubscriptionService:
         """独立开启/关闭剧集自动续订；重复设置同一状态保持幂等。"""
         subscription = await self._get_or_404(subscription_id)
         if MediaKind(subscription.kind) is not MediaKind.TV:
-            raise BadRequestException("只有剧集订阅可以设置自动续订")
+            raise BadRequestException(message_key="errors.subscription.followFutureTvOnly")
         if subscription.follow_future == enabled:
             return subscription
         return await self.update(subscription_id, follow_future=enabled)
@@ -940,10 +940,7 @@ class SubscriptionService:
 
         def _targets(row: SubscriptionDownloadAttempt) -> list[WantedItem]:
             source_hashes = {row.info_hash.lower()}
-            if (
-                row.status == DownloadAttemptStatus.TRIAL
-                and row.replaces_attempt_id is not None
-            ):
+            if row.status == DownloadAttemptStatus.TRIAL and row.replaces_attempt_id is not None:
                 parent = by_id.get(row.replaces_attempt_id)
                 if parent is not None:
                     # 试用阶段工单仍指向旧源；只有晋升成功后才改成试用源 hash。
@@ -983,10 +980,7 @@ class SubscriptionService:
                 cancelled += 1
                 cancelled_hashes.add(attempt.info_hash.lower())
                 continue
-            if (
-                targets
-                and attempt.status == DownloadAttemptStatus.CANCELLED
-            ):
+            if targets and attempt.status == DownloadAttemptStatus.CANCELLED:
                 # 未晋升的试用源在 CANCELLED 状态下按自身 hash 找不到目标，不会
                 # 复活；已经晋升并成为当前主源的子尝试则应随重新勾选立即恢复。
                 attempt.status = (
@@ -1117,7 +1111,7 @@ class SubscriptionService:
         """
         subscription = await self._get_or_404(subscription_id)
         if subscription.status == SubscriptionStatus.PAUSED:
-            raise BadRequestException("订阅已暂停，请先恢复追踪再触发搜索")
+            raise BadRequestException(message_key="errors.subscription.searchPaused")
         now = utcnow()
         today = now.date()
         is_movie = subscription.kind == MediaKind.MOVIE.value
@@ -1140,7 +1134,7 @@ class SubscriptionService:
         upgrade_reset = await reset_upgrade_search_now(self._session, subscription_id)
         reset += upgrade_reset
         if reset == 0:
-            raise BadRequestException("当前没有可立即搜索的缺口（在途/未定档/待播出的项无需触发）")
+            raise BadRequestException(message_key="errors.subscription.noSearchableGaps")
         await self._log(
             subscription,
             ActivityType.ADJUSTED,
@@ -1204,7 +1198,9 @@ class SubscriptionService:
             return
         if subscription_id in await self._repo.followed_subscription_ids(member_id):
             return
-        raise NotFoundException(f"订阅不存在：#{subscription_id}")
+        raise NotFoundException(
+            message_key="errors.subscription.missing", params={"id": subscription_id}
+        )
 
     async def assert_can_manage(self, subscription_id: int, member_id: int | None) -> None:
         """归属校验：修改/暂停订阅只有发起人与超管可以（§3.5）。
@@ -1216,9 +1212,7 @@ class SubscriptionService:
             return
         subscription = await self._get_or_404(subscription_id)
         if subscription.created_by_member_id != member_id:
-            raise ForbiddenException(
-                "只有订阅的发起人（或管理员）可以调整它；如不想再追，可在列表里取消关注"
-            )
+            raise ForbiddenException(message_key="errors.subscription.editPermission")
 
     async def unsubscribe(self, subscription_id: int, *, member_id: int) -> str:
         """让成员停止关注订阅，返回可直接展示的结果描述。
@@ -1234,9 +1228,7 @@ class SubscriptionService:
             if await self._repo.remove_follower(subscription_id, member_id):
                 logger.info("成员 #%d 已取消关注订阅 #%d", member_id, subscription_id)
                 return "已取消关注；订阅本身不受影响"
-            raise ForbiddenException(
-                "只有订阅的发起人（或管理员）可以删除它；你当前也没有关注本订阅"
-            )
+            raise ForbiddenException(message_key="errors.subscription.deletePermission")
         followers = await self._repo.follower_member_ids(subscription_id)
         if followers:
             heir = followers[0]
@@ -1297,13 +1289,21 @@ class SubscriptionService:
         subscription = await self._get_or_404(subscription_id)
         scope = {int(s) for s in seasons}
         if not scope:
-            raise BadRequestException("请至少指定一个已移出订阅范围的季")
+            raise BadRequestException(message_key="errors.subscription.cleanupSeasonsRequired")
         tracked = await self._tracked_seasons(subscription)
         overlap = sorted(scope & tracked)
         if overlap:
             raise BadRequestException(
-                f"{self._season_text(overlap)}仍在订阅范围内，不能按季清理；"
-                "请先在「调整订阅」里取消勾选"
+                message_key="errors.subscription.cleanupTrackedSeasons",
+                params={
+                    "seasons": reference(
+                        "subscription.scope.seasons",
+                        numbers={
+                            "message_list": [str(n) for n in overlap],
+                            "separator_key": "common.list.separator",
+                        },
+                    )
+                },
             )
 
         plan = await build_cleanup_plan(self._session, subscription, seasons=scope)
@@ -1473,7 +1473,7 @@ class SubscriptionService:
         for sub in subscriptions:
             item = items.get(sub.media_item_id)
             if item is None:  # 外键保证下理论不可达，口径同 _media_repo_get
-                raise NotFoundException("订阅关联的媒体条目不存在")
+                raise NotFoundException(message_key="errors.subscription.mediaMissing")
             rows.append((sub, item, counts.get(sub.id or -1, {})))
         return rows
 
@@ -1866,15 +1866,20 @@ class SubscriptionService:
         """校验目标库存在且类型匹配（电影订阅只能入电影库，剧集同理）。"""
         row = await LibraryRepository(self._session).get(library_id)
         if row is None:
-            raise BadRequestException(f"媒体库不存在：id={library_id}")
-        from movieclaw_api.services.library.profile import kind_label, profile_of
+            raise BadRequestException(
+                message_key="errors.subscription.libraryMissing", params={"id": library_id}
+            )
+        from movieclaw_api.services.library.profile import profile_of
 
         if row.kind != kind:
             raise BadRequestException(
-                f"媒体库「{row.name}」是{kind_label(row.kind)}库，与该订阅的类型不匹配"
+                message_key="errors.subscription.libraryKindMismatch",
+                params={"name": row.name, "kind": kind_reference(row.kind)},
             )
         if not profile_of(row).subscribable:
-            raise BadRequestException(f"媒体库「{row.name}」是本地内容库，不能作为订阅的入库目标")
+            raise BadRequestException(
+                message_key="errors.subscription.localLibraryTarget", params={"name": row.name}
+            )
         return row
 
     @staticmethod
@@ -1888,7 +1893,7 @@ class SubscriptionService:
         if not floors:
             return None
         if kind is not MediaKind.TV:
-            raise BadRequestException("只有剧集订阅可以调整集数")
+            raise BadRequestException(message_key="errors.subscription.episodeAdjustmentTvOnly")
         valid = {row.season_number for row in seasons}
         known_max: dict[int, int] = {}
         for episode in episodes:
@@ -1898,9 +1903,14 @@ class SubscriptionService:
         cleaned: dict[str, int] = {}
         for season, count in floors.items():
             if season not in valid:
-                raise BadRequestException(f"第 {season} 季不在这部剧的季列表里")
+                raise BadRequestException(
+                    message_key="errors.subscription.seasonMissing", params={"number": season}
+                )
             if not 0 <= count <= FLOOR_MAX:
-                raise BadRequestException(f"集数需在 0～{FLOOR_MAX} 之间")
+                raise BadRequestException(
+                    message_key="errors.subscription.episodeFloorRange",
+                    params={"maximum": FLOOR_MAX},
+                )
             if count > known_max.get(season, 0):
                 cleaned[str(season)] = count
         return cleaned or None
@@ -1952,7 +1962,7 @@ class SubscriptionService:
         item = await self._media_repo_get(subscription.media_item_id)
         known_max = await season_episode_max(self._session, subscription.media_item_id)
         if not dismiss_hint(subscription, season_number, known_max):
-            raise BadRequestException("这一季没有待确认的集数提示")
+            raise BadRequestException(message_key="errors.subscription.noEpisodeHint")
         await self._repo.save(subscription)
         await self._log(
             subscription,
@@ -1968,12 +1978,14 @@ class SubscriptionService:
     ) -> list[int]:
         if kind is MediaKind.MOVIE:
             if selected:
-                raise BadRequestException("电影订阅不支持季选择")
+                raise BadRequestException(message_key="errors.subscription.movieSeasonsUnsupported")
             return []
         known = {s.season_number for s in seasons}
         unknown = sorted(set(selected) - known)
         if unknown:
-            raise BadRequestException(f"该剧不存在这些季：{unknown}")
+            raise BadRequestException(
+                message_key="errors.subscription.unknownSeasons", params={"seasons": unknown}
+            )
         return sorted(set(selected))
 
     @staticmethod
@@ -1983,11 +1995,13 @@ class SubscriptionService:
     async def _get_or_404(self, subscription_id: int) -> Subscription:
         subscription = await self._repo.get(subscription_id)
         if subscription is None:
-            raise NotFoundException(f"订阅不存在：#{subscription_id}")
+            raise NotFoundException(
+                message_key="errors.subscription.missing", params={"id": subscription_id}
+            )
         return subscription
 
     async def _media_repo_get(self, media_item_id: int) -> MediaItem:
         item = await self._session.get(MediaItem, media_item_id)
         if item is None:  # 外键保证下理论不可达
-            raise NotFoundException("订阅关联的媒体条目不存在")
+            raise NotFoundException(message_key="errors.subscription.mediaMissing")
         return item

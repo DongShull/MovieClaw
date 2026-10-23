@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.exceptions import NotFoundException
+from movieclaw_api.i18n.stored import stored_message
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_db.engine import get_session
@@ -32,6 +33,9 @@ class NoticeView(BaseModel):
     source: str
     title: str
     message: str
+    title_key: str | None = None
+    message_key: str | None = None
+    message_params: dict | None = None
     payload: dict
     created_at: datetime
     updated_at: datetime
@@ -46,8 +50,11 @@ class NoticeView(BaseModel):
             id=row.id,
             severity=row.severity,
             source=row.source,
-            title=row.title,
-            message=row.message,
+            title=stored_message(row.title, row.title_key, row.message_params),
+            message=stored_message(row.message, row.message_key, row.message_params),
+            title_key=row.title_key,
+            message_key=row.message_key,
+            message_params=row.message_params,
             payload=row.payload,
             created_at=_utc(row.created_at),
             updated_at=_utc(row.updated_at),
@@ -90,7 +97,7 @@ async def dismiss_notice(
 ) -> ApiResponse[None]:
     row = await session.get(SystemNotice, notice_id)
     if row is None:
-        raise NotFoundException(f"待处理事项不存在：id={notice_id}")
+        raise NotFoundException(message_key="errors.notices.missing", params={"id": notice_id})
     if row.status == NoticeStatus.ACTIVE.value:
         row.status = NoticeStatus.DISMISSED.value
         row.resolved_at = utcnow()

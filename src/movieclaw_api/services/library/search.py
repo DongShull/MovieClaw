@@ -499,9 +499,9 @@ async def search_library(
             offset = int(offset_raw)
             browsing = _sessions[token]
         except (ValueError, KeyError) as exc:
-            raise BadRequestException("搜索结果已过期，请重新搜索") from exc
+            raise BadRequestException(message_key="errors.library.searchExpired") from exc
         if browsing.binding != binding or not 0 <= offset <= len(browsing.candidates):
-            raise BadRequestException("分页游标与当前搜索不匹配，请重新搜索")
+            raise BadRequestException(message_key="errors.library.searchCursorMismatch")
         candidates = browsing.candidates
     else:
         candidates, people, pending = await search_candidates(
@@ -513,7 +513,7 @@ async def search_library(
             person_id,
         )
         if len(candidates) > 100000:
-            raise BadRequestException("搜索结果过多，请补充片名或人物名称")
+            raise BadRequestException(message_key="errors.library.searchTooBroad")
         offset = 0
         token = secrets.token_urlsafe(24)
     eligible = _eligible(library_ids, member_id, content_limit, person_id)

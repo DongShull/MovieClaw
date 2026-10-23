@@ -333,13 +333,13 @@ class PluginCallbacks:
                         dedupe_key=_notice_key(entry_id, name),
                         severity=NoticeSeverity.WARNING,
                         source="plugin",
-                        title=f"插件 {entry_id} 的回调地址连续验证失败",
-                        message=(
-                            f"回调端点 {name} 连续 {FAILURE_NOTICE_AFTER} 次没通过插件的验证："
-                            "可能是平台后台填的令牌 / 密钥和插件里的不一致，"
-                            "也可能有人在试探这个地址。"
-                            "必要时在插件页换一个回调地址。"
-                        ),
+                        title_key="notify.callbackFailure.title",
+                        message_key="notify.callbackFailure.body",
+                        message_params={
+                            "plugin": entry_id,
+                            "endpoint": name,
+                            "count": FAILURE_NOTICE_AFTER,
+                        },
                         payload={"entry_id": entry_id, "endpoint": name},
                     )
             return

@@ -170,11 +170,13 @@ class AgentRunRegistry:
         ``terminal=True`` 且批次已追平时关闭连接。
         """
         if after_sequence < 0:
-            raise BadRequestException("SSE 事件游标不能为负数")
+            raise BadRequestException(message_key="errors.agent.negativeCursor")
         run = self._get_run(run_id)
         async with run.condition:
             if after_sequence > len(run.events):
-                raise BadRequestException(f"SSE 事件游标 {after_sequence} 超出当前事件范围")
+                raise BadRequestException(
+                    message_key="errors.agent.cursorOutOfRange", params={"cursor": after_sequence}
+                )
             if after_sequence == len(run.events) and not run.terminal:
                 try:
                     await asyncio.wait_for(
@@ -373,7 +375,7 @@ class AgentRunRegistry:
         self._prune_expired()
         run = self._runs.get(run_id)
         if run is None:
-            raise NotFoundException("Agent 运行不存在或事件历史已过期")
+            raise NotFoundException(message_key="errors.agent.runMissing")
         return run
 
     def _get_session_run(self, session_id: str) -> _AgentRun:
@@ -382,7 +384,7 @@ class AgentRunRegistry:
         run_id = self._latest_by_session.get(session_id)
         run = self._runs.get(run_id) if run_id else None
         if run is None:
-            raise NotFoundException("会话没有可跟随或停止的运行")
+            raise NotFoundException(message_key="errors.agent.noActiveRun")
         return run
 
     def _prune_expired(self) -> None:

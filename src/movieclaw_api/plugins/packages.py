@@ -92,11 +92,23 @@ class PackageError(ValueError):
 
 
 # ---------------------------------------------------------------------- 清单
+class LocalizedText(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    value: str
+    lang: str | None = None
+    dir: Literal["auto", "ltr", "rtl"] | None = None
+
+
+LocalizedMap = dict[str, str | LocalizedText]
+
+
 class _Plugin(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(max_length=64)
     title: str = Field(min_length=1, max_length=60)
+    title_localized: LocalizedMap = Field(default_factory=dict)
     version: str
     entry: str = ""
     runtime: Literal["process", "inline", "exec"] = "process"
@@ -105,6 +117,7 @@ class _Plugin(BaseModel):
     platforms: list[str] = Field(default_factory=list)
     sdk: str = "^1.0"
     description: str = Field(default="", max_length=500)
+    description_localized: LocalizedMap = Field(default_factory=dict)
 
     @field_validator("id")
     @classmethod
@@ -209,7 +222,9 @@ class _Theme(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     label: str = Field(min_length=1, max_length=20)
+    label_localized: LocalizedMap = Field(default_factory=dict)
     description: str = Field(default="", max_length=80)
+    description_localized: LocalizedMap = Field(default_factory=dict)
     preview: _ThemePreview
     theme_color: str = "#000000"
     """浏览器地址栏 / PWA 状态栏颜色"""
@@ -318,6 +333,29 @@ def read_archive(data: bytes) -> tuple[Manifest, zipfile.ZipFile]:
     if manifest.dependencies is not None:
         read_lock(manifest, archive)
     return manifest, archive
+
+
+#: 已安装包的清单缓存：按文件修改戳，每个静态文件请求都要查一次目录
+_manifest_cache: dict[Path, tuple[tuple[int, int], Manifest | None]] = {}
+
+
+def read_manifest(directory: Path) -> Manifest | None:
+    path = directory / MANIFEST
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    key = (stat.st_mtime_ns, stat.st_size)
+    cached = _manifest_cache.get(path)
+    if cached is not None and cached[0] == key:
+        return cached[1]
+    try:
+        manifest: Manifest | None = Manifest.model_validate(tomllib.loads(path.read_text("utf-8")))
+    except Exception:  # noqa: BLE001 -- 装好的包清单坏了：当它不是主题，别让整个目录挂掉
+        logger.exception("插件包清单读不出来：%s", path)
+        manifest = None
+    _manifest_cache[path] = (key, manifest)
+    return manifest
 
 
 def read_lock(manifest: Manifest, source: zipfile.ZipFile | Path) -> Any:

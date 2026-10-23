@@ -1133,11 +1133,13 @@ class SubscriptionDownloadView(BaseModel):
 
 
 class ActivityView(BaseModel):
-    """活动时间线的一条记录：message 已是完整中文句子，前端直接展示。"""
+    """活动时间线的一条记录：message 按读者语言渲染，旧客户端可直接展示。"""
 
     id: int
     type: str
     message: str
+    message_key: str | None = None
+    message_params: dict | None = None
     payload: dict
     created_at: datetime
     # 管线类活动挂在具体工单上（生命周期/搜索轮次等订阅级活动为 NULL）。
@@ -1151,10 +1153,14 @@ class ActivityView(BaseModel):
 
     @classmethod
     def from_model(cls, row: SubscriptionActivity) -> ActivityView:
+        from movieclaw_api.i18n.stored import stored_message
+
         return cls(
             id=row.id,  # type: ignore[arg-type]
             type=row.type,
-            message=row.message,
+            message=stored_message(row.message, row.message_key, row.message_params),
+            message_key=row.message_key,
+            message_params=row.message_params,
             payload=dict(row.payload),
             created_at=row.created_at,
             wanted_item_id=row.wanted_item_id,

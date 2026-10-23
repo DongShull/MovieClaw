@@ -113,7 +113,7 @@ def client(tmp_path, monkeypatch):
 
     from movieclaw_api.app import create_app
 
-    with TestClient(create_app()) as c:
+    with TestClient(create_app(), headers={"Accept-Language": "zh-Hans"}) as c:
         c.post("/api/v1/auth/bootstrap", json=_ADMIN)
         yield c
 
@@ -1563,8 +1563,7 @@ def test_remote_source_supports_range_without_mounting_nas(client, tmp_path):
     file_id = seed(client, tmp_path, container="mkv")
     grants = _install_remote_session(client, tmp_path, file_id)
     response = client.get(
-        f"/api/v1/transcode-worker/sessions/{grants['session_id']}/source"
-        f"?token={grants['source']}",
+        f"/api/v1/transcode-worker/sessions/{grants['session_id']}/source?token={grants['source']}",
         headers={"Range": "bytes=0-15"},
     )
     assert response.status_code == 206
@@ -1577,8 +1576,7 @@ def test_remote_source_redirects_strm_to_the_cloud_url(client, tmp_path):
     file_id = seed(client, tmp_path, container="mkv", strm=True)
     grants = _install_remote_session(client, tmp_path, file_id)
     response = client.get(
-        f"/api/v1/transcode-worker/sessions/{grants['session_id']}/source"
-        f"?token={grants['source']}",
+        f"/api/v1/transcode-worker/sessions/{grants['session_id']}/source?token={grants['source']}",
         headers={"Range": "bytes=0-15"},
         follow_redirects=False,
     )
@@ -1679,8 +1677,7 @@ def test_remote_worker_source_relays_lan_strm(client, tmp_path, lan_drive):
     file_id = seed(client, tmp_path, container="mkv", strm=True, strm_url=lan)
     grants = _install_remote_session(client, tmp_path, file_id)
     response = client.get(
-        f"/api/v1/transcode-worker/sessions/{grants['session_id']}/source"
-        f"?token={grants['source']}",
+        f"/api/v1/transcode-worker/sessions/{grants['session_id']}/source?token={grants['source']}",
         headers={"Range": "bytes=0-15"},
         follow_redirects=False,
     )
@@ -1905,7 +1902,7 @@ def _request_with_chunked_body(body: bytes) -> Request:
 def test_remote_artifact_upload_accepts_complete_chunked_body(client, tmp_path):
     file_id = seed(client, tmp_path, container="mkv")
     grants = _install_remote_session(client, tmp_path, file_id)
-    body = b"#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n"
+    body = b'#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n'
     request = _request_with_chunked_body(body)
 
     response = client.portal.call(

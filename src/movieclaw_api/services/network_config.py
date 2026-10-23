@@ -25,6 +25,7 @@ from movieclaw_api.core.config import (
     normalize_tmdb_base_url,
 )
 from movieclaw_api.exceptions import BadRequestException
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.schemas.network import (
     EgressServiceOption,
     NetworkConfigPayload,
@@ -114,11 +115,15 @@ def _validate_payload(payload: NetworkConfigPayload) -> None:
     proxy_url = payload.proxy_url.strip()
     if payload.proxy_mode == "manual":
         if not proxy_url:
-            raise BadRequestException("手动代理模式必须填写代理地址")
+            raise BadRequestException(message_key="errors.network.proxyRequired")
         scheme = urlsplit(proxy_url).scheme.lower()
         if scheme not in PROXY_SCHEMES:
             raise BadRequestException(
-                f"代理地址协议不支持：{scheme or '（缺失）'}，支持 {'/'.join(PROXY_SCHEMES)}"
+                message_key="errors.network.proxySchemeInvalid",
+                params={
+                    "scheme": scheme or reference("common.value.missing"),
+                    "supported": "/".join(PROXY_SCHEMES),
+                },
             )
     for name, value in (
         ("TMDB 接口镜像", payload.tmdb_api_base_url),
@@ -128,7 +133,9 @@ def _validate_payload(payload: NetworkConfigPayload) -> None:
     ):
         value = value.strip()
         if value and urlsplit(value).scheme not in ("http", "https"):
-            raise BadRequestException(f"{name}必须是 http(s) 地址")
+            raise BadRequestException(
+                message_key="errors.network.httpUrlRequired", params={"name": name}
+            )
 
 
 async def save_config(session: AsyncSession, payload: NetworkConfigPayload) -> NetworkConfigView:
@@ -238,11 +245,15 @@ async def _probe_target(service: str, session: AsyncSession) -> tuple[str, dict[
         channel_name = "Telegram" if service == "telegram" else "Discord"
         accounts = await ChannelAccountRepository(session).list_by_channel(service)
         if not accounts:
-            raise BadRequestException(f"尚未绑定 {channel_name} bot，无法测试")
+            raise BadRequestException(
+                message_key="errors.network.botMissing", params={"channel": channel_name}
+            )
         try:
             token = ChannelAccountRepository.credentials(accounts[0])["token"]
         except Exception as exc:  # noqa: BLE001 -- 凭据损坏时返回可操作的中文错误
-            raise BadRequestException(f"{channel_name} bot 凭据不可用，请重新绑定") from exc
+            raise BadRequestException(
+                message_key="errors.network.botCredentialsInvalid", params={"channel": channel_name}
+            ) from exc
         if service == "telegram":
             return f"https://api.telegram.org/bot{token}/getMe", {}
         return "https://discord.com/api/v10/users/@me", {"Authorization": f"Bot {token}"}
@@ -256,7 +267,9 @@ async def _probe_target(service: str, session: AsyncSession) -> tuple[str, dict[
             try:
                 creds = ChannelAccountRepository.credentials(accounts[0])
             except Exception as exc:  # noqa: BLE001 -- 凭据损坏时返回可操作的中文错误
-                raise BadRequestException("飞书机器人凭据不可用，请重新接入") from exc
+                raise BadRequestException(
+                    message_key="errors.network.feishuCredentialsInvalid"
+                ) from exc
             # 旧行的裸 URL 落在 token 里（见 feishu_channel.client.parse_credentials）
             webhook_url = creds.get("webhook_url") or creds.get("token") or ""
             host = urlsplit(webhook_url).hostname or host
@@ -283,9 +296,7 @@ async def _probe_target(service: str, session: AsyncSession) -> tuple[str, dict[
         )
         urls += [r.url for r in channels.relays if r.enabled and r.url and not is_lan_url(r.url)]
         if not urls:
-            raise BadRequestException(
-                "没有走这个出口的推送中继（局域网里的自建中继总是直连，不受此开关影响），无法测试"
-            )
+            raise BadRequestException(message_key="errors.network.relayNotAffected")
         return f"{urls[0]}/v1/info", {}
     if service == "webhook":
         setting = await get_setting_store().get(WebhookSetting)
@@ -294,7 +305,7 @@ async def _probe_target(service: str, session: AsyncSession) -> tuple[str, dict[
             None,
         )
         if endpoint is None:
-            raise BadRequestException("尚未配置可用的 Webhook endpoint，无法测试")
+            raise BadRequestException(message_key="errors.network.webhookMissing")
         return endpoint.url, dict(endpoint.headers)
     if service == "github":
         # 与应用内更新的检查请求同源（api.github.com 或 UPDATE_API_BASE_URL 反代）
@@ -322,8 +333,12 @@ async def _probe_target(service: str, session: AsyncSession) -> tuple[str, dict[
         try:
             return get_site_config(site_id).base_url, {}
         except SiteNotFoundError as exc:
-            raise BadRequestException(f"未知站点：{site_id}") from exc
-    raise BadRequestException(f"未知的服务标签：{service}")
+            raise BadRequestException(
+                message_key="errors.network.siteUnknown", params={"id": site_id}
+            ) from exc
+    raise BadRequestException(
+        message_key="errors.network.serviceUnknown", params={"service": service}
+    )
 
 
 def _classify_probe(service: str, status_code: int) -> NetworkTestResult:

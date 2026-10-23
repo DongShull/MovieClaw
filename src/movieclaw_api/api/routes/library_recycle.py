@@ -536,7 +536,7 @@ async def purge_trashed_files(
     """``ids`` 用于所选 / 条目行 / 单个文件，``filter`` 用于「立即清理全部」（服务端按筛选
     重新查一遍 id，不信任前端传来的数量）。做种中断的确认由前端负责。"""
     if (payload.ids is None) == (payload.filter is None):
-        raise BadRequestException("需要且只能提供 ids 或 filter 之一")
+        raise BadRequestException(message_key="errors.recycle.selectionConflict")
     remaining = 0
     if payload.ids is not None:
         ids = list(dict.fromkeys(payload.ids))
@@ -577,7 +577,7 @@ async def restore_trashed_files(
     """恢复是可逆动作，不设「按筛选恢复全部」（设计 §2.5）。恢复后文件重新计入在位
     库存，顺带重算所涉库的统计快照（下游媒体服务器刷新由订阅恢复事件的内置插件做）。"""
     if not payload.ids:
-        raise BadRequestException("ids 不能为空")
+        raise BadRequestException(message_key="errors.recycle.idsRequired")
     ids = list(dict.fromkeys(payload.ids))
     done, failed, library_ids = await _run_batch(session, ids, action="restore")
     if done:

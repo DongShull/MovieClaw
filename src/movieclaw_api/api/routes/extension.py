@@ -150,7 +150,9 @@ async def push_cookies(
         if drive is not None:
             return drive
         logger.warning("扩展推送的域名未匹配到受支持站点：域名=%s", payload.domain)
-        raise NotFoundException(f"该域名未匹配到任何受支持的站点：{payload.domain}")
+        raise NotFoundException(
+            message_key="errors.extension.siteUnsupported", params={"domain": payload.domain}
+        )
 
     logger.info(
         "收到扩展 Cookie 推送：域名=%s → 站点=%s（%s），共 %d 条 Cookie，开始保存并验证",

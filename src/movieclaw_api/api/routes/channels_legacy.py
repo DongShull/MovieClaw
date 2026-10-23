@@ -38,9 +38,7 @@ _IM_CHANNELS = ("telegram", "discord", "feishu")
 
 async def _require_llm(session: AsyncSession) -> None:
     if not await LlmProviderRepository(session).has_any():
-        raise BadRequestException(
-            "绑定需要先完成 AI 模型配置：请先在「设置 → 模型接入」接入模型供应商，再进行绑定"
-        )
+        raise BadRequestException(message_key="errors.channels.modelRequired")
 
 
 async def _begin(hub: ChannelHub, channel_id: str, fields: dict[str, str]) -> Binding:
@@ -51,7 +49,9 @@ async def _begin(hub: ChannelHub, channel_id: str, fields: dict[str, str]) -> Bi
     except ChannelUnavailable as exc:
         raise ConflictException(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 -- 网关不可达等，转成中文业务错误
-        raise BadRequestException(f"发起绑定失败：{exc}") from exc
+        raise BadRequestException(
+            message_key="errors.channels.pairingFailed", params={"error": exc}
+        ) from exc
 
 
 async def _row(channel_id: str, account_id: str | None) -> ChannelAccount | None:
@@ -86,7 +86,7 @@ def _im_account(row: ChannelAccount, hub: ChannelHub) -> ImAccountView:
 
 def _require_im(channel: str) -> str:
     if channel not in _IM_CHANNELS:
-        raise NotFoundException(f"未知通道：{channel}")
+        raise NotFoundException(message_key="errors.channels.unknown", params={"channel": channel})
     return channel
 
 
@@ -144,7 +144,7 @@ async def get_weixin_binding_status(challenge_id: str) -> ApiResponse[WeixinBind
     hub = _hub()
     binding = hub.binding(challenge_id)
     if binding is None:
-        raise NotFoundException("绑定流程不存在或已过期，请重新发起")
+        raise NotFoundException(message_key="errors.channels.pairingExpired")
     row = await _row("weixin", binding.account_id) if binding.status == "confirmed" else None
     return ok(
         WeixinBindingStatusView(
@@ -171,7 +171,7 @@ async def submit_weixin_verify_code(
     try:
         await _hub().binding_input(challenge_id, payload.code.strip())
     except LookupError as exc:
-        raise NotFoundException("绑定流程不存在或已结束，请重新发起") from exc
+        raise NotFoundException(message_key="errors.channels.pairingEnded") from exc
     return ok({}, message="配对码已提交，正在校验")
 
 
@@ -184,7 +184,7 @@ async def submit_weixin_verify_code(
 )
 async def unbind_weixin_account(account_id: str) -> ApiResponse[dict]:
     if not await _hub().unbind("weixin", account_id):
-        raise NotFoundException("账号不存在或已解绑")
+        raise NotFoundException(message_key="errors.channels.accountUnlinked")
     return ok({}, message="已解绑")
 
 
@@ -223,7 +223,7 @@ async def start_feishu_binding(payload: FeishuBindPayload) -> ApiResponse[ImAcco
     )
     row = await _row("feishu", binding.account_id)
     if row is None:
-        raise BadRequestException("接入飞书失败：账号没有保存")
+        raise BadRequestException(message_key="errors.channels.feishuSaveFailed")
     return ok(_im_account(row, hub), message="接入成功，欢迎消息已发送到群聊")
 
 
@@ -256,7 +256,7 @@ async def start_im_binding(
 ) -> ApiResponse[ImBindingView]:
     channel_id = _require_im(channel)
     if channel_id == "feishu":
-        raise BadRequestException("飞书通道不支持配对码绑定：请粘贴群机器人 Webhook 地址接入")
+        raise BadRequestException(message_key="errors.channels.feishuWebhookRequired")
     hub = _hub()
     await _require_llm(session)
     binding = await _begin(hub, channel_id, {"token": payload.token.strip()})
@@ -275,7 +275,7 @@ async def get_im_binding_status(channel: str, challenge_id: str) -> ApiResponse[
     hub = _hub()
     binding = hub.binding(challenge_id)
     if binding is None:
-        raise NotFoundException("绑定流程不存在或已过期，请重新发起")
+        raise NotFoundException(message_key="errors.channels.pairingExpired")
     return ok(await _im_binding_view(hub, binding))
 
 
@@ -289,5 +289,5 @@ async def get_im_binding_status(channel: str, challenge_id: str) -> ApiResponse[
 async def unbind_im_account(channel: str, account_id: str) -> ApiResponse[dict]:
     channel_id = _require_im(channel)
     if not await _hub().unbind(channel_id, account_id):
-        raise NotFoundException("账号不存在或已解绑")
+        raise NotFoundException(message_key="errors.channels.accountUnlinked")
     return ok({}, message="已解绑")

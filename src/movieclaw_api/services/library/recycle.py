@@ -344,11 +344,9 @@ async def _notify_held(count: int, size: int) -> None:
             dedupe_key="library.recycle.cloud-guard",
             severity=NoticeSeverity.WARNING,
             source="library",
-            title="回收站里到期的网盘文件太多，先没删",
-            message=(
-                f"有 {count} 个只在网盘上（或也在网盘上）的文件到期（约 {size / 1024**3:.1f} GB），"
-                "超过一次自动删除的上限。确认要删就到回收站点「立即清理」；不想删就恢复它们"
-            ),
+            title_key="notify.recycleHeld.title",
+            message_key="notify.recycleHeld.body",
+            message_params={"count": count, "size": size / 1024**3},
             payload={"action_href": "/library/manage?tab=recycle"},
         )
 

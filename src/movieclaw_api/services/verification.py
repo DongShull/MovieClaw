@@ -168,9 +168,12 @@ async def verify_site(site_id: str) -> None:
                 dedupe_key=f"site:{site_id}",
                 severity=NoticeSeverity.ERROR,
                 source="site",
-                title=f"站点「{site_id}」验证失败",
-                message=f"站点「{site_id}」凭据验证失败：{error or '原因未知'}。"
-                "该站点已不参与搜索与投递，请到「设置 → 站点」更新凭据",
+                title_key="notify.siteVerification.title",
+                message_key="notify.siteVerification.body",
+                message_params={
+                    "site": site_id,
+                    "reason": error or {"message_key": "notify.siteVerification.unknown"},
+                },
                 payload={"site_id": site_id},
             )
         # 验证成功时顺手把刚拉到的用户资料落为快照（零额外站点请求）；

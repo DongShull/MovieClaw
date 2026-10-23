@@ -1,0 +1,29 @@
+{
+  "kind.video": {
+    "sourceHash": "d2909f1647e7c891a8282759b2eaa961e84620ff04cda7b8b5478cb540d74fa4"
+  },
+  "kind.photo": {
+    "sourceHash": "d24c10d37db0feea7bd73498118e280e6b33ca93f53f34d5e1cca1ba3e83730d"
+  },
+  "scope.collection": {
+    "sourceHash": "cca1b08c5b8093ca8566024813835e43f1b60bb24ce6821c7e99a4513f70e463"
+  },
+  "scope.applicability": {
+    "sourceHash": "40781b5ae18a779127b18b3279d93e40ca6603b11bd97b65a110e26722b8dbf8"
+  },
+  "scope.genre": {
+    "sourceHash": "ba40014ff496f64e755492a5c6243cc0222a5d3e4b795ecfea7c9bed809adaab"
+  },
+  "scope.region": {
+    "sourceHash": "3382870bc4ada94e9371d9b27f78f9559f364b5ca211704fab935dc3166b495a"
+  },
+  "routing.defaultCause": {
+    "sourceHash": "6829f604f5a054423fce1a5df5d86808280fdfded5de3d159418d6b27c01f792"
+  },
+  "routing.scopeCause": {
+    "sourceHash": "a42c71218b9f22a333c0fee4733e7367b5172045dfa309583986dc45e953dbf0"
+  },
+  "routing.candidateLabel": {
+    "sourceHash": "8c504b6784e27c6b9ea12aada06da125d30bb3e80be0d7e12e7817cd6aec27e2"
+  }
+}

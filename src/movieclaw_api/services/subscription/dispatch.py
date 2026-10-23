@@ -351,8 +351,7 @@ async def dispatch(
                         **(row.selection_state or {}),
                         "reason": "reconciling",
                         "choice_explanation": (
-                            f"提交尚未完成：{reason}；"
-                            "重试同一任务，不自动改为全量下载。"
+                            f"提交尚未完成：{reason}；重试同一任务，不自动改为全量下载。"
                         ),
                     }
                 await session.commit()

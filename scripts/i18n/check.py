@@ -47,6 +47,31 @@ def parameters(message: str) -> set[str]:
     return visit(Parser({"allow_tags": True}).parse(message))
 
 
+def call_parameters(node: ast.Call) -> tuple[str, set[str]] | None:
+    """Check explicit call arguments; dynamic **params remain runtime-validated."""
+    if getattr(node.func, "id", "") in {"t", "stored_fields", "reference"} and node.args:
+        key = node.args[0]
+        if any(kw.arg is None for kw in node.keywords):
+            return None
+        names = {kw.arg for kw in node.keywords}
+    else:
+        key = next((kw.value for kw in node.keywords if kw.arg == "message_key"), None)
+        params = next(
+            (kw.value for kw in node.keywords if kw.arg in {"params", "message_params"}), None
+        )
+        if params is None:
+            names = set()
+        elif isinstance(params, ast.Dict) and all(
+            isinstance(name, ast.Constant) and isinstance(name.value, str) for name in params.keys
+        ):
+            names = {name.value for name in params.keys}
+        else:
+            return None
+    if isinstance(key, ast.Constant) and isinstance(key.value, str):
+        return key.value, names
+    return None
+
+
 def check_catalogs() -> list[str]:
     errors = []
     all_english = {}
@@ -73,7 +98,8 @@ def check_catalogs() -> list[str]:
                 if meta.get(key, {}).get("sourceHash") != hashlib.sha256(text.encode()).hexdigest():
                     errors.append(f"Stale English: {name}")
                 translated = english.get(key, "")
-                if text in terms and translated.lower() not in terms[text]:
+                allowed_terms = terms.get(name, terms.get(text))
+                if allowed_terms is not None and translated.lower() not in allowed_terms:
                     errors.append(f"Glossary mismatch: {name}")
                 if directory.parts[-2] == "web":
                     web_english[name] = translated
@@ -95,22 +121,68 @@ def check_catalogs() -> list[str]:
     for key, original in originals.items():
         if web_source.get(key) != original:
             errors.append(f"Chinese changed during migration: {key}")
+    server_originals = ROOT / "scripts/i18n/server-migrations.json"
+    if server_originals.exists():
+        for key, original in json.loads(server_originals.read_text()).items():
+            if server_source.get(key) != original:
+                errors.append(f"Server Chinese changed during migration: {key}")
     for path in (ROOT / "src/movieclaw_api").rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):
-            if not isinstance(node, ast.Call):
-                continue
-            key = None
-            if isinstance(node.func, ast.Name) and node.func.id == "t" and node.args:
-                key = node.args[0]
-            for keyword in node.keywords:
-                if keyword.arg == "message_key":
-                    key = keyword.value
-            if (
-                isinstance(key, ast.Constant)
-                and isinstance(key.value, str)
-                and key.value not in server_source
-            ):
-                errors.append(f"{path.relative_to(ROOT)}: unknown key {key.value}")
+            keys = []
+            fields = {"message_key", "title_key", "label_key", "separator_key"}
+            if isinstance(node, ast.Call):
+                arguments = call_parameters(node)
+                if arguments and arguments[0] in server_source:
+                    name, supplied = arguments
+                    for locale, catalog in (("zh-Hans", server_source), ("en", all_english)):
+                        expected = parameters(catalog[name])
+                        for keyword in node.keywords:
+                            if (
+                                keyword.arg in {"title_key", "label_key"}
+                                and isinstance(keyword.value, ast.Constant)
+                                and keyword.value.value in catalog
+                            ):
+                                expected |= parameters(catalog[keyword.value.value])
+                        if supplied != expected:
+                            errors.append(
+                                f"{path.relative_to(ROOT)}:{node.lineno}: "
+                                f"{locale} call parameters differ: {name}"
+                            )
+                if (
+                    isinstance(node.func, ast.Name)
+                    and node.func.id in {"t", "stored_fields", "reference"}
+                    and node.args
+                ):
+                    keys.append(node.args[0])
+                keys.extend(kw.value for kw in node.keywords if kw.arg in fields)
+                if getattr(node.func, "id", "") in {"Rule", "Aggregator"}:
+                    keys.extend(
+                        kw.value
+                        for kw in node.keywords
+                        if kw.arg in {"title", "description", "group"}
+                        and isinstance(kw.value, ast.Constant)
+                        and str(kw.value.value).startswith("notify.")
+                    )
+            elif isinstance(node, ast.Dict):
+                keys.extend(
+                    value
+                    for name, value in zip(node.keys, node.values, strict=True)
+                    if isinstance(name, ast.Constant) and name.value in fields
+                )
+            for key in keys:
+                if (
+                    isinstance(key, ast.Constant)
+                    and isinstance(key.value, str)
+                    and key.value not in server_source
+                ):
+                    errors.append(f"{path.relative_to(ROOT)}: unknown key {key.value}")
+    apple_originals = ROOT / "scripts/i18n/apple-migrations.json"
+    if apple_originals.exists():
+        catalog = json.loads((ROOT / "apps/apple/Shared/Localizable.xcstrings").read_text())
+        for key, original in json.loads(apple_originals.read_text()).items():
+            value = catalog["strings"].get(key, {}).get("localizations", {}).get("zh-Hans", {})
+            if value.get("stringUnit", {}).get("value") != original:
+                errors.append(f"Apple Chinese changed during migration: {key}")
     errors.extend(check_apple(ROOT, web_english, web_parameters, terms))
     return errors
 
@@ -123,6 +195,8 @@ def unused_keys() -> list[str]:
         (ROOT / "src/movieclaw_api", "locales/zh-Hans", ".py"),
     ):
         directories = [base / part for part in ("app", "components", "lib", "themes", "theme-sdk")]
+        if extension == ".tsx":
+            directories.append(ROOT / "plugins/netflix/src")
         paths = (
             [
                 p

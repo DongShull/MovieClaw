@@ -20,7 +20,12 @@ import logging
 from fastapi import APIRouter, Query
 
 from movieclaw_api.api.routes.channels import _qrcode_data_url
-from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
+from movieclaw_api.exceptions import (
+    BadRequestException,
+    ConflictException,
+    NotFoundException,
+    exception_fields,
+)
 from movieclaw_api.schemas.drives import (
     DriveAccountUpdatePayload,
     DriveAccountView,
@@ -254,9 +259,9 @@ async def list_dirs(
     except BackendUnavailable as exc:
         raise ConflictException(str(exc)) from exc
     except dv.NotFound as exc:
-        raise NotFoundException(exc.message) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     except dv.DriveError as exc:
-        raise BadRequestException(exc.message) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     base = "/".join(p for p in path.split("/") if p)
     async with get_database().session() as session:
         mounted = []
@@ -304,7 +309,7 @@ async def delete_account(account_id: int) -> ApiResponse[dict]:
     except ValueError as exc:
         raise ConflictException(str(exc)) from exc
     if not removed:
-        raise NotFoundException("网盘账号不存在")
+        raise NotFoundException(message_key="errors.drives.accountMissing")
     return ok({"removed": True}, message="已移除")
 
 
@@ -320,9 +325,9 @@ async def refresh_account(account_id: int) -> ApiResponse[DriveAccountView]:
     except BackendUnavailable as exc:
         raise ConflictException(str(exc)) from exc
     except dv.NotFound as exc:
-        raise NotFoundException(exc.message) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     except dv.DriveError as exc:
-        raise BadRequestException(exc.message) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     return ok(account_view(row))
 
 
@@ -381,7 +386,7 @@ def _done_view(backend: str, row: DriveAccount, created: bool) -> ApiResponse[Dr
 async def _login_view(login_id: str) -> DriveLoginView:
     item = accounts.login_session(login_id)
     if item is None:
-        raise NotFoundException("登录不存在或已过期，请重新扫码")
+        raise NotFoundException(message_key="errors.drives.loginExpired")
     account = None
     if item.status == "confirmed" and item.account_id is not None:
         async with get_database().session() as session:
@@ -414,7 +419,9 @@ async def start_login(payload: DriveLoginPayload) -> ApiResponse[DriveLoginView]
     except ValueError as exc:
         raise BadRequestException(str(exc)) from exc
     except dv.DriveError as exc:
-        raise BadRequestException(f"发起扫码失败：{exc.message}") from exc
+        raise BadRequestException(
+            message_key="errors.drives.qrStartFailed", params={"error": exc.message}
+        ) from exc
     return ok(await _login_view(item.login_id), message="请用手机扫码")
 
 

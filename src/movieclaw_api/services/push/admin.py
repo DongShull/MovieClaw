@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
-from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.exceptions import BadRequestException, NotFoundException, exception_fields
 from movieclaw_api.schemas.cloud import (
     PushChannelsView,
     PushChannelView,
@@ -222,16 +222,14 @@ async def _checked_info(url: str, token: str) -> RelayInfo:
     try:
         info = await relay.fetch_info(url)
     except RelayError as exc:
-        raise BadRequestException(exc.message) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     if problem := _incompatibility(info):
         raise BadRequestException(problem)
     if channel_registry.needs_token(info.auth_mode):
         if not token:
-            raise BadRequestException(
-                "这个中继需要令牌：在中继上运行 movieclaw-push token create --name 名称 创建"
-            )
+            raise BadRequestException(message_key="errors.push.relayTokenRequired")
         if not await _token_accepted(url, token):
-            raise BadRequestException("中继不认这个令牌，请检查是否复制完整、是否已被吊销")
+            raise BadRequestException(message_key="errors.push.relayTokenRejected")
     return info
 
 
@@ -252,7 +250,7 @@ async def create_relay(*, name: str, url: str, token: str | None) -> None:
     store = get_setting_store()
     config = (await store.get(PushChannelsSetting)).model_copy(deep=True)
     if any(r.url == normalized for r in config.relays):
-        raise BadRequestException("这个中继已经添加过了")
+        raise BadRequestException(message_key="errors.push.relayAlreadyAdded")
     token = (token or "").strip()
     info = await _checked_info(normalized, token)
     config.relays.append(
@@ -281,7 +279,7 @@ async def update_relay(
     config = (await store.get(PushChannelsSetting)).model_copy(deep=True)
     target = next((r for r in config.relays if r.id == relay_id), None)
     if target is None:
-        raise NotFoundException("中继不存在")
+        raise NotFoundException(message_key="errors.push.relayMissing")
     new_token = (token or "").strip() or target.token
     new_url = target.url
     if url is not None and url.strip():
@@ -290,7 +288,7 @@ async def update_relay(
         except ValueError as exc:
             raise BadRequestException(str(exc)) from exc
         if any(r.url == new_url and r.id != relay_id for r in config.relays):
-            raise BadRequestException("这个地址已经被另一个中继用了")
+            raise BadRequestException(message_key="errors.push.relayAddressInUse")
     if new_url != target.url or (token or "").strip():
         info = await _checked_info(new_url, new_token)
         target.info = info
@@ -309,7 +307,7 @@ async def delete_relay(relay_id: str) -> None:
     config = (await store.get(PushChannelsSetting)).model_copy(deep=True)
     remaining = [r for r in config.relays if r.id != relay_id]
     if len(remaining) == len(config.relays):
-        raise NotFoundException("中继不存在")
+        raise NotFoundException(message_key="errors.push.relayMissing")
     config.relays = remaining
     await store.set(config)
 
@@ -321,7 +319,7 @@ async def refresh_relay(relay_id: str) -> None:
     try:
         await channel_registry.refresh_relay_info(relay_id)
     except KeyError as exc:
-        raise NotFoundException("中继不存在") from exc
+        raise NotFoundException(message_key="errors.push.relayMissing") from exc
     except RelayError as exc:
-        raise BadRequestException(exc.message) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     channel_registry.runtime(relay_id).consecutive_failures = 0

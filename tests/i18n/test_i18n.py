@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import httpx
@@ -11,6 +12,7 @@ from fastapi import FastAPI
 from movieclaw_api.exceptions import AppException, BadRequestException
 from movieclaw_api.handlers import register_exception_handlers
 from movieclaw_api.i18n import current_locale, negotiate, render, t, use_locale
+from movieclaw_api.i18n.format import absolute_time, month_day
 from movieclaw_api.i18n.middleware import LocaleMiddleware
 
 CASES = json.loads(Path(__file__).with_name("negotiation.json").read_text())
@@ -33,7 +35,8 @@ def test_icu_rendering():
         render(message, "en", {"gender": "female", "name": "Sam", "count": 1200})
         == "Sam has 1,200 movies"
     )
-    assert render("{count} 部影片", "zh-Hans", {"count": 1200}) == "1,200 部影片"
+    assert render("{count} 部影片", "zh-Hans", {"count": 1200}) == "1200 部影片"
+    assert render("{count, number} 部影片", "zh-Hans", {"count": 1200}) == "1,200 部影片"
     assert render("{count, plural, =0 {Empty} other {# movies}}", "en", {"count": 0}) == "Empty"
     assert (
         render("{count, plural, offset:1 one {# movie} other {# movies}}", "en", {"count": 3})
@@ -42,6 +45,16 @@ def test_icu_rendering():
     assert render("Don't delete '{title}'", "en", {"title": "Movie"}) == "Don't delete {title}"
     with pytest.raises(KeyError):
         render("{title}", "en", {})
+
+
+def test_recipient_dates_and_timezones():
+    instant = datetime(2026, 10, 23, 12, tzinfo=UTC)
+    with use_locale("zh-Hans", "Asia/Shanghai"):
+        assert month_day(date(2026, 10, 23)) == "10 月 23 日"
+        assert absolute_time(instant) == "2026/10/23 20:00"
+    with use_locale("en", "America/New_York"):
+        assert month_day(date(2026, 10, 23)) == "Oct 23"
+        assert absolute_time(instant) == "Oct 23, 2026, 08:00"
 
 
 async def test_context_reset_and_concurrent_requests():

@@ -383,17 +383,13 @@ async def _record_failure(account_id: int, name: str, exc: dv.DriveError) -> Non
     async with get_database().session() as session:
         await DriveAccountRepository(session).set_status(account_id, status, exc.message, until)
         if status in (DRIVE_STATUS_AUTH_EXPIRED, DRIVE_STATUS_API_BROKEN):
-            title = (
-                f"网盘「{name}」需要重新登录"
-                if status == DRIVE_STATUS_AUTH_EXPIRED
-                else f"网盘「{name}」的接口有变化"
-            )
             await upsert_notice(
                 session,
                 dedupe_key=_notice_key(account_id),
                 severity=NoticeSeverity.WARNING,
                 source="drive",
-                title=title,
+                title_key="notify.driveFailure.title",
+                message_params={"name": name, "status": status},
                 message=exc.message,
                 payload={"account_id": account_id, "status": status},
             )

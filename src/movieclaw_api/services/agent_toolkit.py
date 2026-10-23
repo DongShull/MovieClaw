@@ -150,4 +150,10 @@ async def agent_system_prompt(
             sections.append(fragment)
     if "mclaw" in names:
         sections.append(render_service_block())
+    from movieclaw_api.i18n import current_locale
+
+    language = "Simplified Chinese" if current_locale.get() == "zh-Hans" else "English"
+    sections.insert(
+        1, f"Reply to the user in {language}. Use the same language for generated session titles."
+    )
     return "\n\n".join(sections)

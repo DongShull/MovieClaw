@@ -588,7 +588,7 @@ async def end_device_playback(
     """
     label = live_session_label(device_id)
     if label is None:
-        raise NotFoundException("这台设备当前没有在播放")
+        raise NotFoundException(message_key="errors.playback.notPlaying")
     await end_playback(device_id)
     return ok(None, message=f"已结束「{label}」的播放")
 
@@ -704,7 +704,7 @@ async def clear_playback_history(
         since = since.astimezone(UTC).replace(tzinfo=None)
     if scope == "item":
         if media_item_id is None:
-            raise BadRequestException("按条目清除需要 media_item_id")
+            raise BadRequestException(message_key="errors.playback.clearItemRequired")
         await assert_item_visible(session, principal, media_item_id)
         result = await playback_history.clear(
             session, member_id, media_item_id=media_item_id, since=since
@@ -712,7 +712,7 @@ async def clear_playback_history(
         message = "已清除这部作品的观看记录"
     elif scope == "library":
         if library_id is None:
-            raise BadRequestException("按库清除需要 library_id")
+            raise BadRequestException(message_key="errors.playback.clearLibraryRequired")
         await assert_library_visible(session, principal, library_id)
         result = await playback_history.clear(
             session, member_id, library_id=library_id, since=since
@@ -759,7 +759,7 @@ async def revoke_playback_device(
     """
     label = await revoke_device(session, device_id)
     if label is None:
-        raise NotFoundException("设备不存在或已注销")
+        raise NotFoundException(message_key="errors.playback.deviceMissing")
     return ok(None, message=f"已注销「{label}」，该设备需重新登录")
 
 
@@ -802,7 +802,7 @@ async def decide_playback_route(
     decision = await _decide(payload, principal, session)
 
     if decision is None:
-        raise NotFoundException("没有找到可播放的文件")
+        raise NotFoundException(message_key="errors.playback.noPlayableFile")
     return ok(playback_plan.to_view(decision))
 
 
@@ -992,7 +992,7 @@ async def _decide(
             max_height=payload.max_height,
             contexts=contexts,
         )
-    raise BadRequestException("需要提供 file_id 或 media_item_id")
+    raise BadRequestException(message_key="errors.playback.fileOrItemRequired")
 
 
 async def _requested_file_ids(session: AsyncSession, payload: PlaybackSessionRequest) -> list[int]:
@@ -1113,7 +1113,7 @@ async def start_playback_session(
     if activity.device_ended(device_id):
         # 管理员刚在活动页结束了这台浏览器的播放：拒绝窗口内不再开会话，
         # 否则播放器把会话 404 当成超时回收、原地重开，结束就等于没结束
-        raise ConflictException("管理员已结束本次播放，一分钟后可重新开始")
+        raise ConflictException(message_key="errors.playback.cooldown")
     watch_row = None
     watch_view: PlaybackStateView | None = None
     if payload.media_item_id is not None:
@@ -1141,7 +1141,7 @@ async def start_playback_session(
     decision = await _decide(payload, principal, session)
     decide_ms = int((time.perf_counter() - started_at) * 1000)
     if decision is None:
-        raise NotFoundException("没有找到可播放的文件")
+        raise NotFoundException(message_key="errors.playback.noPlayableFile")
     view = playback_plan.to_view(decision)
     if view.outcome != "plan":
         # 同一成员对同一文件的旧会话（换字幕要烧录、换音轨、降档重开时还没让出来的）可能正占着
@@ -1155,7 +1155,7 @@ async def start_playback_session(
         if replaced:
             decision = await _decide(payload, principal, session)
             if decision is None:
-                raise NotFoundException("没有找到可播放的文件")
+                raise NotFoundException(message_key="errors.playback.noPlayableFile")
             view = playback_plan.to_view(decision)
     if view.outcome != "plan":
         attempt_started(view.file_id, -1, view, decide=decide_ms)
@@ -1163,7 +1163,7 @@ async def start_playback_session(
 
     file = await session.get(LibraryFile, view.file_id)
     if file is None:
-        raise NotFoundException("文件已不在台账中")
+        raise NotFoundException(message_key="errors.playback.fileUntracked")
 
     manager = get_session_manager()
     if view.tier != int(Tier.DIRECT_PLAY):
@@ -1178,14 +1178,14 @@ async def start_playback_session(
         if replaced:
             decision = await _decide(payload, principal, session)
             if decision is None:
-                raise NotFoundException("没有找到可播放的文件")
+                raise NotFoundException(message_key="errors.playback.noPlayableFile")
             view = playback_plan.to_view(decision)
             if view.outcome != "plan":
                 attempt_started(view.file_id, -1, view, decide=decide_ms)
                 return ok(PlaybackSessionView(decision=view, watch=watch_view))
             file = await session.get(LibraryFile, view.file_id)
             if file is None:
-                raise NotFoundException("文件已不在台账中")
+                raise NotFoundException(message_key="errors.playback.fileUntracked")
 
     # 诊断面板的「源 → 处理」层次要有左半边：台账真值原样带回（§6.5）
     source_view = PlaybackSourceView(
@@ -1286,8 +1286,8 @@ async def start_playback_session(
     disc = await asyncio.to_thread(transcode_disc_source, file) if file.is_disc() else None
     if file.is_disc() and disc is None:
         if (file.container or "") == "iso":
-            raise NotFoundException("服务端读不了这个光盘镜像（ISO）的盘内结构，无法换封装或转码")
-        raise NotFoundException("原盘主播放列表不可读，无法播放；请检查 BDMV/PLAYLIST 是否完整")
+            raise NotFoundException(message_key="errors.playback.isoUnreadable")
+        raise NotFoundException(message_key="errors.playback.playlistUnreadable")
     # 光盘镜像的片长以盘内结构为准（蓝光主播放列表 / DVD 正片节目链）：台账里是 ffprobe 对整个
     # 镜像估的，常常离谱（NAS 实测一集 DVD 记成 4 秒、一部蓝光多出一小时），拿它排 VOD 分片，
     # 播放器会以为片子几秒就放完
@@ -1351,14 +1351,14 @@ async def start_playback_session(
         fallback_payload = payload.model_copy(update={"failed_tiers": retry_failed_tiers})
         decision = await _decide(fallback_payload, principal, session)
         if decision is None:
-            raise NotFoundException("没有找到可播放的文件")
+            raise NotFoundException(message_key="errors.playback.noPlayableFile")
         view = playback_plan.to_view(decision)
         if view.outcome != "plan":
             attempt_started(view.file_id, -1, view, decide=decide_ms)
             return ok(PlaybackSessionView(decision=view, watch=watch_view))
         file = await session.get(LibraryFile, view.file_id)
         if file is None:
-            raise NotFoundException("文件已不在台账中")
+            raise NotFoundException(message_key="errors.playback.fileUntracked")
         source_view = PlaybackSourceView(
             container=file.container,
             resolution=file.resolution,
@@ -1508,7 +1508,9 @@ async def start_playback_session(
             "远程 Worker" if use_remote else (hw_used or "本地软件/直通"),
             exc,
         )
-        raise ServiceUnavailableException(f"播放启动失败：{exc}") from exc
+        raise ServiceUnavailableException(
+            message_key="errors.playback.startFailed", params={"reason": str(exc)}
+        ) from exc
     spawn_ms = int((time.perf_counter() - spawn_started_at) * 1000)
 
     token = await issue_stream_token(
@@ -1606,7 +1608,7 @@ async def ping_playback_session(
     member_id = principal.member_id if principal.member_id is not None else 0
     manager = get_session_manager()
     if not manager.ping(session_id, member_id=member_id):
-        raise NotFoundException("会话不存在或已结束")
+        raise NotFoundException(message_key="errors.playback.sessionMissing")
     session = manager.get(session_id, member_id=member_id)
     failed = session is not None and session.state == "failed" and not session.remote
     return ok(
@@ -1634,7 +1636,7 @@ async def stop_playback_session(
     manager = get_session_manager()
     member_id = principal.member_id if principal.member_id is not None else 0
     if manager.get(session_id, member_id=member_id) is None:
-        raise NotFoundException("会话不存在或已结束")
+        raise NotFoundException(message_key="errors.playback.sessionMissing")
     await manager.stop(session_id)
     return ok({"stopped": True})
 
@@ -1658,10 +1660,10 @@ async def get_session_playlist(
     """
     grant = await verify_stream_token(token, session_id=session_id)
     if grant is None:
-        raise NotFoundException("播放地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.urlExpired")
     session = get_session_manager().get(session_id, member_id=grant.member_id)
     if session is None:
-        raise NotFoundException("会话不存在或已结束")
+        raise NotFoundException(message_key="errors.playback.sessionMissing")
     session.touch()  # 拉 playlist 也算活着
     if session.segment_plan is not None:
         start_s = session.playlist_start_ms / 1000
@@ -1684,7 +1686,7 @@ async def get_session_playlist(
             headers={"Cache-Control": "no-store"},
         )
     if not session.playlist_path.exists():
-        raise NotFoundException("会话不存在或已结束")
+        raise NotFoundException(message_key="errors.playback.sessionMissing")
     playlist = await asyncio.to_thread(session.playlist_path.read_text, encoding="utf-8")
     return Response(
         content=playlist_with_tokens(playlist, token),
@@ -1767,10 +1769,10 @@ async def get_session_master_playlist(
     """
     grant = await verify_stream_token(token, session_id=session_id)
     if grant is None:
-        raise NotFoundException("播放地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.urlExpired")
     session = get_session_manager().get(session_id, member_id=grant.member_id)
     if session is None or session.segment_plan is None:
-        raise NotFoundException("会话不存在或已结束")
+        raise NotFoundException(message_key="errors.playback.sessionMissing")
     session.touch()
     subtitles: list[tuple[str, str]] = []
     seen: dict[str, int] = {}
@@ -1806,13 +1808,13 @@ async def get_session_subtitle_playlist(
     """字幕组里一条轨的媒体列表：整片一个 VTT 分片。"""
     grant = await verify_stream_token(token, session_id=session_id)
     if grant is None:
-        raise NotFoundException("播放地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.urlExpired")
     session = get_session_manager().get(session_id, member_id=grant.member_id)
     if session is None or session.segment_plan is None:
-        raise NotFoundException("会话不存在或已结束")
+        raise NotFoundException(message_key="errors.playback.sessionMissing")
     tracks = _master_subtitle_tracks(session)
     if index >= len(tracks):
-        raise NotFoundException("字幕轨不存在")
+        raise NotFoundException(message_key="errors.playback.subtitleMissing")
     session.touch()
     file_token = await issue_stream_token(
         member_id=session.member_id, file_id=session.file_id, share_id=grant.share_id
@@ -1845,11 +1847,11 @@ async def get_session_diagnostics(
     """返回当前播放会话的脱敏执行与供片状态。"""
     grant = await verify_stream_token(token, session_id=session_id)
     if grant is None:
-        raise NotFoundException("播放地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.urlExpired")
     manager = get_session_manager()
     session = manager.get(session_id, member_id=grant.member_id)
     if session is None:
-        raise NotFoundException("会话不存在或已结束")
+        raise NotFoundException(message_key="errors.playback.sessionMissing")
     session.touch()
     return ok(_build_playback_diagnostics(session))
 
@@ -1993,16 +1995,16 @@ async def get_session_segment(
     ``ensure_segment`` 负责「等 ffmpeg 转过来」或「杀掉重启直奔目标」。
     """
     if not _SEGMENT_NAME.match(name):
-        raise NotFoundException("分片不存在")
+        raise NotFoundException(message_key="errors.playback.segmentMissing")
     grant = await verify_stream_token(token, session_id=session_id)
     if grant is None:
-        raise NotFoundException("播放地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.urlExpired")
     manager = get_session_manager()
     session = manager.get(session_id, member_id=grant.member_id)
     if session is None:
-        raise NotFoundException("会话不存在或已结束")
+        raise NotFoundException(message_key="errors.playback.sessionMissing")
     if grant.device_id and activity.device_ended(grant.device_id):
-        raise NotFoundException("播放已被管理员结束")
+        raise NotFoundException(message_key="errors.playback.endedByAdmin")
     uplink.note(network_side.request_side(request, route=grant.route))
     session.touch()
     meter = await _session_activity_meter(session, grant, request)
@@ -2021,9 +2023,9 @@ async def get_session_segment(
             )
         except ClientDisconnected:
             # 客户端已经走了，回什么都送不到；按「没有这一片」收尾
-            raise NotFoundException("客户端已断开") from None
+            raise NotFoundException(message_key="errors.playback.clientDisconnected") from None
         if ready is None:
-            raise NotFoundException("分片尚未就绪")
+            raise NotFoundException(message_key="errors.playback.segmentPending")
         if isinstance(ready, PartialSegment):
             return _PartialSegmentResponse(
                 ready, final_path=target, byte_sink=byte_sink, on_disconnect=on_disconnect
@@ -2051,9 +2053,9 @@ async def get_session_segment(
                 last_size = size
             await asyncio.sleep(0.05)
         if not target.exists() or target.stat().st_size == 0:
-            raise NotFoundException("分片尚未就绪")
+            raise NotFoundException(message_key="errors.playback.segmentPending")
     elif not target.exists():
-        raise NotFoundException("分片尚未就绪")
+        raise NotFoundException(message_key="errors.playback.segmentPending")
     # 分片与 init 段在一个会话的生命期内不可变，URL 又含会话 id 与签名 token
     # （换会话必换 URL）——放给浏览器缓存，用户往回拖（back buffer 只留 30
     # 秒，回看必然重新走 HTTP）就变成本地命中，不再打服务端。
@@ -2126,15 +2128,15 @@ async def stream_library_file(
     """
     grant = await verify_stream_token(token, file_id=file_id)
     if grant is None:
-        raise NotFoundException("播放地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.urlExpired")
     uplink.note(network_side.request_side(request, route=grant.route))
     if grant.device_id and activity.device_ended(grant.device_id):
         # 拒绝窗口内不再供流：直出播放器每次缓冲续拉都是新的 Range 连接，
         # 只掐当前连接挡不住它
-        raise NotFoundException("播放已被管理员结束")
+        raise NotFoundException(message_key="errors.playback.endedByAdmin")
     file = await session.get(LibraryFile, file_id)
     if file is None:
-        raise NotFoundException("文件不存在")
+        raise NotFoundException(message_key="errors.playback.fileMissing")
     # 读完台账立刻把数据库连接还回连接池。FastAPI 的 yield 依赖要等响应**发完**才收尾，
     # 而直出播放器按 Range 长连接续拉，一条流能挂几十分钟：不在这里提前释放，每条流都一直
     # 占着一个连接，十几条并发流（一个本机换封装的播放器同时开主读取、尾部预读、字幕预读几路）
@@ -2154,7 +2156,9 @@ async def stream_library_file(
         try:
             source = parse_strm(file.file_path)
         except StrmError as exc:
-            raise NotFoundException(f"strm 用不了：{exc}") from exc
+            raise NotFoundException(
+                message_key="errors.playback.strmUnavailable", params={"reason": str(exc)}
+            ) from exc
         if isinstance(source, StrmLink):
             target = await strm_redirect_target(source, request.headers.get("user-agent"))
             if target is None:
@@ -2176,11 +2180,11 @@ async def stream_library_file(
         disc = disc_source_for_file(file)
         clip = disc.single_clip if disc is not None else None
         if clip is None:
-            raise NotFoundException("原盘主片由多段剪辑组成（或是 DVD 目录），不能按单文件直出")
+            raise NotFoundException(message_key="errors.playback.discNotSingleFile")
         path = clip.path
         media_type = container_mime_type("m2ts")
     if not path.exists():
-        raise NotFoundException("文件已不在磁盘上")
+        raise NotFoundException(message_key="errors.playback.fileOffDisk")
     # strm 指向的本地文件：台账的大小是 strm 文本的，按真实文件
     size_bytes = path.stat().st_size if is_strm(file.file_path) else None
     # hev1 标签的 HEVC MP4 在 Safari 上直出必败，流里把标签改成 hvc1（#430）
@@ -2387,16 +2391,16 @@ async def _disc_file_owner(
     """目录直推、剪辑清单几个接口共用的校验：token、拒绝窗口、台账行（只认 ``containers``）。"""
     grant = await verify_stream_token(token, file_id=file_id)
     if grant is None:
-        raise NotFoundException("播放地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.urlExpired")
     if grant.device_id and activity.device_ended(grant.device_id):
-        raise NotFoundException("播放已被管理员结束")
+        raise NotFoundException(message_key="errors.playback.endedByAdmin")
     file = await session.get(LibraryFile, file_id)
     if file is None:
-        raise NotFoundException("文件不存在")
+        raise NotFoundException(message_key="errors.playback.fileMissing")
     # 与原文件直出同理：读完台账立刻还连接，往下只用已读出的列
     await session.close()
     if (file.container or "") not in containers:
-        raise NotFoundException("不是原盘目录（蓝光 BDMV / DVD VIDEO_TS），没有可直推的目录清单")
+        raise NotFoundException(message_key="errors.playback.notDiscDirectory")
     return grant, file
 
 
@@ -2421,7 +2425,7 @@ async def list_disc_files(
     disc_dir = PathLib(file.file_path)
     tree = await asyncio.to_thread(_disc_tree, disc_dir)
     if not tree:
-        raise NotFoundException("原盘目录不可读，请检查 BDMV / VIDEO_TS 是否完整")
+        raise NotFoundException(message_key="errors.playback.discDirectoryUnreadable")
     disc = await asyncio.to_thread(disc_source_for_file, file)
     files = [
         PlaybackDiscFileView(
@@ -2450,11 +2454,11 @@ async def stream_disc_file(
     """按 Range 出原盘目录里的一个文件：路径必须命中白名单、且是目录清单里真实存在的文件。"""
     grant, file = await _disc_file_owner(file_id, token, session)
     if not any(p.fullmatch(relative_path) for p in _DISC_FILE_PATTERNS):
-        raise NotFoundException("原盘目录里没有这个文件")
+        raise NotFoundException(message_key="errors.playback.discFileMissing")
     tree = await asyncio.to_thread(_disc_tree, PathLib(file.file_path))
     entry = tree.get(relative_path.upper())
     if entry is None:
-        raise NotFoundException("原盘目录里没有这个文件")
+        raise NotFoundException(message_key="errors.playback.discFileMissing")
     _rel, path, size = entry
     media_type = (
         container_mime_type("m2ts")
@@ -2472,7 +2476,7 @@ async def _bluray_source(file_id: int, token: str, session: AsyncSession):
     grant, file = await _disc_file_owner(file_id, token, session, _BLURAY_CONTAINERS)
     disc = await asyncio.to_thread(transcode_disc_source, file)
     if disc is None or disc.image == "dvd" or not disc.clips:
-        raise NotFoundException("读不出这张原盘的蓝光主片（MPLS / UDF 结构缺失或损坏）")
+        raise NotFoundException(message_key="errors.playback.discMainUnreadable")
     return grant, file, disc
 
 
@@ -2510,7 +2514,7 @@ async def get_bluray_clips(
     for index, clip in enumerate(disc.clips):
         points = await asyncio.to_thread(disc.clip_entry_points, clip)
         if not points:
-            raise NotFoundException("原盘剪辑信息（CLPI）读不出，播放器没法定位")
+            raise NotFoundException(message_key="errors.playback.clipInfoUnreadable")
         clips.append(
             PlaybackBlurayClipView(
                 url=f"/api/v1/playback/files/{file_id}/bluray/{index}?token={token}",
@@ -2547,10 +2551,10 @@ async def stream_bluray_clip(
     取流照常记到设备流与活动页。"""
     grant, file, disc = await _bluray_source(file_id, token, session)
     if index >= len(disc.clips):
-        raise NotFoundException("原盘剪辑不存在")
+        raise NotFoundException(message_key="errors.playback.clipMissing")
     clip = disc.clips[index]
     if clip.byte_ranges is None and not clip.path.is_file():
-        raise NotFoundException("原盘剪辑文件不存在")
+        raise NotFoundException(message_key="errors.playback.clipFileMissing")
     size = (
         sum(end - start for start, end in clip.byte_ranges)
         if clip.byte_ranges is not None
@@ -2623,10 +2627,10 @@ async def get_playback_subtitle(
     """
     grant = await verify_stream_token(token, file_id=file_id)
     if grant is None:
-        raise NotFoundException("字幕地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.subtitleUrlExpired")
     file = await session.get(LibraryFile, file_id)
     if file is None:
-        raise NotFoundException("文件不存在")
+        raise NotFoundException(message_key="errors.playback.fileMissing")
     ref = resolve_external_subtitle(file, track)
     if ref is None:
         index = parse_embedded_track(track)
@@ -2645,7 +2649,7 @@ async def get_playback_subtitle(
                 # 不能把真实的 asyncio.CancelledError 一并吞掉。
                 return Response(status_code=204)
     if ref is None:
-        raise NotFoundException("字幕轨不存在或暂不支持在网页端渲染")
+        raise NotFoundException(message_key="errors.playback.subtitleUnsupported")
     if ref.format == "sup":
         # PGS 位图轨：二进制、可达几十 MB，不进文本管线（那条路要按编码解码
         # 成 UTF-8）。FileResponse 流式发出，前端 libbitsub 边收边解。
@@ -2690,7 +2694,7 @@ async def _visible_unit(
         visible_library_ids=visible,
     )
     if not files:
-        raise NotFoundException("没有找到可播放的文件")
+        raise NotFoundException(message_key="errors.playback.noPlayableFile")
     return (media_item_id, season_number, episode_number)
 
 
@@ -2834,7 +2838,7 @@ async def _mark_target(
     而「能看到这部片的详情页」正是能给它点心的前提。
     """
     if season_number is None and episode_number is not None:
-        raise BadRequestException("给了集号就必须同时给季号")
+        raise BadRequestException(message_key="errors.playback.seasonRequired")
     await assert_item_visible(session, principal, media_item_id)
     return playback_marks.MarkTarget(media_item_id, season_number, episode_number)
 
@@ -2877,7 +2881,7 @@ async def set_playback_marks(
     ``playback_state``、发 webhook。整剧 / 整季的「已看」级联到全部集，收藏
     落在整剧 / 整季自己的哨兵单元上——在 Infuse 里看到的与这里点的完全一致。"""
     if payload.played is None and payload.favorite is None:
-        raise BadRequestException("played 与 favorite 至少要给一个")
+        raise BadRequestException(message_key="errors.playback.markRequired")
     target = await _mark_target(
         session, principal, payload.media_item_id, payload.season_number, payload.episode_number
     )
@@ -2895,7 +2899,7 @@ async def set_playback_marks(
             session, target, member_id=member_id, client=client, played=payload.played
         )
         if not hit:
-            raise NotFoundException("没有找到可标记的季或集")
+            raise NotFoundException(message_key="errors.playback.noMarkableEpisodes")
     if payload.favorite is not None:
         await playback_marks.set_favorite(
             session, target, member_id=member_id, client=client, favorite=payload.favorite
@@ -2914,7 +2918,7 @@ async def _visible_item(
     """
     item = await session.get(MediaItem, media_item_id)
     if item is None:
-        raise NotFoundException("媒体条目不存在（可能已被删除）")
+        raise NotFoundException(message_key="errors.playback.itemMissing")
     visible = await visible_library_ids(session, principal)
     library_ids = sorted(
         {
@@ -2933,7 +2937,7 @@ async def _visible_item(
         }
     )
     if not library_ids:
-        raise NotFoundException("没有找到可播放的文件")
+        raise NotFoundException(message_key="errors.playback.noPlayableFile")
     return item, library_ids[0]
 
 
@@ -3107,10 +3111,10 @@ async def list_playback_fonts(
     """
     grant = await verify_stream_token(token, file_id=file_id)
     if grant is None:
-        raise NotFoundException("字体地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.fontUrlExpired")
     file = await session.get(LibraryFile, file_id)
     if file is None:
-        raise NotFoundException("文件不存在")
+        raise NotFoundException(message_key="errors.playback.fileMissing")
     names = await asyncio.to_thread(extract_embedded_fonts, file)
     return ok(
         PlaybackFontsView(
@@ -3141,13 +3145,13 @@ async def get_playback_font(
     """
     grant = await verify_stream_token(token, file_id=file_id)
     if grant is None:
-        raise NotFoundException("字体地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.fontUrlExpired")
     safe = safe_font_name(name)
     if safe is None or safe != name:
-        raise NotFoundException("字体不存在")
+        raise NotFoundException(message_key="errors.playback.fontMissing")
     target = font_cache_dir(file_id) / safe
     if not target.is_file():
-        raise NotFoundException("字体不存在")
+        raise NotFoundException(message_key="errors.playback.fontMissing")
     return FileResponse(target, media_type="font/sfnt")
 
 
@@ -3199,7 +3203,7 @@ async def get_trickplay_index(
     """
     grant = await verify_stream_token(token, file_id=file_id)
     if grant is None:
-        raise NotFoundException("预览地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.previewUrlExpired")
     index = trickplay.load_index(file_id)
     if index is None:
         file = await session.get(LibraryFile, file_id)
@@ -3237,12 +3241,12 @@ async def get_trickplay_sheet(
     """取一张雪碧图。文件名走白名单——它虽然由服务端生成，但经过了 URL。"""
     grant = await verify_stream_token(token, file_id=file_id)
     if grant is None:
-        raise NotFoundException("预览地址无效或已过期")
+        raise NotFoundException(message_key="errors.playback.previewUrlExpired")
     if not _TRICKPLAY_SHEET_NAME.match(name):
-        raise NotFoundException("预览图不存在")
+        raise NotFoundException(message_key="errors.playback.previewMissing")
     target = trickplay.trickplay_dir(file_id) / name
     if not target.is_file():
-        raise NotFoundException("预览图不存在")
+        raise NotFoundException(message_key="errors.playback.previewMissing")
     return FileResponse(target, media_type="image/jpeg")
 
 
@@ -3514,9 +3518,19 @@ async def get_playback_attempt(
     服务端视角（会话、取流统计）、事件时间线，失败时还有引擎日志尾巴（playback-qoe.md §5.5）。"""
     row = await qoe.get_attempt(session, attempt_id)
     if row is None:
-        raise NotFoundException("没有这次播放的记录")
-    data = row.model_dump(exclude={"id", "updated_at", "ttff_ms", "hw_backend", "dropped_frames",
-                                   "total_frames", "seek_count", "metric_version"})
+        raise NotFoundException(message_key="errors.playback.historyMissing")
+    data = row.model_dump(
+        exclude={
+            "id",
+            "updated_at",
+            "ttff_ms",
+            "hw_backend",
+            "dropped_frames",
+            "total_frames",
+            "seek_count",
+            "metric_version",
+        }
+    )
     data["attempt_id"] = row.attempt_id or attempt_id
     data["created_at"] = utc_isoformat(row.created_at)
     data["ended_at"] = utc_isoformat(row.ended_at) if row.ended_at else None

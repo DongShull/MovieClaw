@@ -1,0 +1,12 @@
+{
+  "date": {
+    "monthDayPattern": "MMM d",
+    "absolutePattern": "MMM d, yyyy, HH:mm"
+  },
+  "year": {
+    "parenthesized": " ({year})"
+  },
+  "duration": {
+    "days": "{count, plural, one {# day} other {# days}}"
+  }
+}

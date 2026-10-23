@@ -63,6 +63,7 @@ from sqlalchemy import delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services import jobs
 from movieclaw_api.services.drives.registry import active as drives_active
 from movieclaw_api.services.foreground import yield_to_foreground
@@ -381,6 +382,19 @@ PHASE_LABELS: dict[ScanPhase, str] = {
     ScanPhase.ASSETS: "正在补齐图片资产",
     ScanPhase.REIDENTIFYING: "正在重新识别条目",
 }
+
+
+def phase_reference(phase: ScanPhase) -> dict:
+    return reference(
+        {
+            ScanPhase.WALKING: "activity.library.walking",
+            ScanPhase.INGESTING: "activity.library.ingesting",
+            ScanPhase.PROBING: "activity.library.probing",
+            ScanPhase.ASSETS: "activity.library.assets",
+            ScanPhase.REIDENTIFYING: "activity.library.reidentifying",
+        }[phase]
+    )
+
 
 # 可以中途叫停的阶段：重识别在改身份锚，半途而废会留下不一致的台账，
 # 因此不给停止入口（它本身也只处理单个条目、很快结束）

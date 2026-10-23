@@ -1,0 +1,17 @@
+{
+  "list.separator": {
+    "sourceHash": "c4a40ea8fe35627476f7f8cb9e1fc7f8898f428c6d1ff18b0bc5479d5db39c5f"
+  },
+  "list.emptySeparator": {
+    "sourceHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "value.missing": {
+    "sourceHash": "d83a494d6bd66b5e55b68ca63d5d8326fc50b77b5304386116021a30dde04e79"
+  },
+  "list.issueSeparator": {
+    "sourceHash": "b0d3c9cfa0e1ef6799ec266c5467a1dc04e54e2f22b853c2f35d1dec1bbd2e71"
+  },
+  "list.slashSeparator": {
+    "sourceHash": "005e1574a2b5c816304606c9672c7c18a7f1b343917e36fc1ed596dd80984650"
+  }
+}

@@ -96,21 +96,26 @@ async def update_scheduled_task(
 ) -> ApiResponse[ScheduledTaskView]:
     defn = get_task(task_key)
     if defn is None:
-        raise NotFoundException("没有这个定时任务")
+        raise NotFoundException(message_key="errors.scheduledTasks.missing")
     interval: int | None = None
     cron: str | None = None
     if payload.trigger_type == TriggerType.INTERVAL:
         if payload.interval_seconds is None or payload.interval_seconds < MIN_INTERVAL_SECONDS:
-            raise BadRequestException(f"间隔至少 {MIN_INTERVAL_SECONDS} 秒")
+            raise BadRequestException(
+                message_key="errors.scheduledTasks.intervalMinimum",
+                params={"minimum": MIN_INTERVAL_SECONDS},
+            )
         interval = int(payload.interval_seconds)
     else:
         cron = (payload.cron_expr or "").strip()
         if not cron:
-            raise BadRequestException("按固定时刻触发需要 cron 表达式（分 时 日 月 周）")
+            raise BadRequestException(message_key="errors.scheduledTasks.cronRequired")
         try:
             CronTrigger.from_crontab(cron)
         except ValueError as exc:
-            raise BadRequestException(f"cron 表达式无效：{exc}") from exc
+            raise BadRequestException(
+                message_key="errors.scheduledTasks.cronInvalid", params={"error": exc}
+            ) from exc
 
     repo = ScheduledTaskRepository(session)
     row = await repo.update_schedule(
@@ -121,7 +126,7 @@ async def update_scheduled_task(
         cron_expr=cron,
     )
     if row is None:
-        raise NotFoundException("没有这个定时任务")
+        raise NotFoundException(message_key="errors.scheduledTasks.missing")
     # 调度器在跑就立刻按新定义重排；没在跑（关闭了调度、测试环境）只落库，
     # 下次启动按新定义加载
     scheduler = try_get_scheduler()

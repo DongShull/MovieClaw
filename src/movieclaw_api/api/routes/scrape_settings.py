@@ -218,10 +218,7 @@ async def save_fanart_key(payload: FanartKeyPayload) -> ApiResponse[FanartStatus
     try:
         await verify_and_save_key(payload.api_key)
     except FanartAuthError as exc:
-        raise BadRequestException(
-            "Key 无效：Fanart.tv 返回「401 未授权」。请检查是否复制完整，"
-            "或到 fanart.tv 个人页重新生成"
-        ) from exc
+        raise BadRequestException(message_key="errors.scrape.fanartKeyInvalid") from exc
     except FanartNetworkError as exc:
         raise UpstreamUnreachableException(
             str(exc),

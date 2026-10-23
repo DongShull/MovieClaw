@@ -189,7 +189,7 @@ async def freeze_smart(
     """
     plan = await plan_for(session, item)
     if plan.profile is None or plan.prefs is None:
-        raise BadRequestException("请先保存智能设置")
+        raise BadRequestException(message_key="errors.subscription.smartSettingsRequiredGeneral")
     if revision != plan.profile.revision:
         raise conflict()
     memory, facts = plan.memory, plan.facts
@@ -224,7 +224,7 @@ async def freeze_smart(
             else:
                 parsed = parse_scope(scope, facts)
                 if parsed is None:
-                    raise BadRequestException("这部作品没有这个习惯范围")
+                    raise BadRequestException(message_key="errors.subscription.memoryScopeMissing")
                 key = f"{parsed[0]}:{facts.kind}:{parsed[1]}"
                 existing = next((h for h in memory.habits if h.key == key), None)
                 merged = {
@@ -367,6 +367,8 @@ async def notify_awaiting_subtitles(
             units=event_refs.units(sorted(states)),
             language=language_label(facts.language) if facts.language else "外语",
             acceptable=acceptable_text(policy.watchable_languages),
+            language_code=facts.language,
+            acceptable_languages=policy.watchable_languages,
             originals=max(s.subtitle_blocked for s in states.values()),
             waited_hours=max(1, int((now - first.anchor).total_seconds() // 3600)),
         ),

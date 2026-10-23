@@ -35,7 +35,7 @@ def client(tmp_path, monkeypatch):
 
     app = create_app()
     app.dependency_overrides[require_login] = lambda: Principal(kind="admin", name="tester")
-    with TestClient(app) as test_client:
+    with TestClient(app, headers={"Accept-Language": "zh-Hans"}) as test_client:
         yield test_client, tmp_path / "test.db"
     get_settings.cache_clear()
     reset_setting_store()

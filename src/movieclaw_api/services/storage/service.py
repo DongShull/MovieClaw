@@ -246,13 +246,19 @@ async def clean(key: str, mode: str) -> CleanResult:
     """清理一个登记目录里的条目。``mode`` 为 ``all`` 或 ``orphans``。"""
     spec = registry.find(key)
     if spec is None:
-        raise NotFoundException(f"没有名为 {key} 的登记目录")
+        raise NotFoundException(message_key="errors.storage.directoryUnknown", params={"name": key})
     if mode == "all" and not spec.clearable:
-        raise BadRequestException(f"「{spec.title}」不允许整体清空")
+        raise BadRequestException(
+            message_key="errors.storage.clearForbidden", params={"title": spec.title}
+        )
     if mode == "orphans" and spec.orphans is None:
-        raise BadRequestException(f"「{spec.title}」不支持按孤儿条目清理")
+        raise BadRequestException(
+            message_key="errors.storage.orphanCleanupUnsupported", params={"title": spec.title}
+        )
     if mode not in ("all", "orphans"):
-        raise BadRequestException(f"未知的清理模式：{mode}")
+        raise BadRequestException(
+            message_key="errors.storage.cleanupModeUnknown", params={"mode": mode}
+        )
 
     async with _clean_lock:
         path = spec.resolve(get_settings()).resolve()

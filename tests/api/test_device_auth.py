@@ -40,7 +40,7 @@ def _make_client(tmp_path, monkeypatch, *, name: str, peer=None):  # type: ignor
     from movieclaw_api.app import create_app
 
     kwargs = {"client": peer} if peer else {}
-    return TestClient(create_app(), **kwargs)
+    return TestClient(create_app(), headers={"Accept-Language": "zh-Hans"}, **kwargs)
 
 
 @pytest.fixture

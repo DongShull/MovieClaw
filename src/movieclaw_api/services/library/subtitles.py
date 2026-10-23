@@ -210,17 +210,26 @@ async def delete_external_subtitle(
     """
     video = Path(row.file_path)
     if "/" in filename or "\\" in filename or filename.startswith("."):
-        raise BadRequestException(f"字幕文件名不合法：{filename!r}")
+        raise BadRequestException(
+            message_key="errors.subtitles.filenameInvalid", params={"name": f"{filename!r}"}
+        )
     if match_subtitle_filename(video.stem, filename) is None:
-        raise BadRequestException(f"「{filename}」不是「{video.name}」的外挂字幕，拒绝删除")
+        raise BadRequestException(
+            message_key="errors.subtitles.deleteNotAttached",
+            params={"subtitle": filename, "video": video.name},
+        )
 
     path = video.parent / filename
     try:
         freed = await asyncio.to_thread(_unlink_with_size, path)
     except FileNotFoundError as exc:
-        raise NotFoundException(f"这个字幕文件已经不在磁盘上：{path}") from exc
+        raise NotFoundException(
+            message_key="errors.subtitles.fileOffDisk", params={"path": path}
+        ) from exc
     except OSError as exc:
-        raise BadRequestException(f"字幕文件删除失败（库目录是否只读？）：{path}（{exc}）") from exc
+        raise BadRequestException(
+            message_key="errors.subtitles.deleteFailed", params={"path": path, "error": exc}
+        ) from exc
 
     # 台账即时刷新：详情页与播放器都不必等下一次扫描就能看到少了这一条
     row.external_subtitles = await discover_external_subtitles_async(video)

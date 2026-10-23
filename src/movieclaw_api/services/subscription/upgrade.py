@@ -304,12 +304,14 @@ async def run_upgrade_round(
 
     subscription = await session.get(Subscription, subscription_id)
     if subscription is None:
-        raise NotFoundException(f"订阅不存在：#{subscription_id}")
+        raise NotFoundException(
+            message_key="errors.subscription.missing", params={"id": subscription_id}
+        )
     if subscription.status == "paused":
-        raise BadRequestException("订阅已暂停，请先恢复追踪再触发洗版")
+        raise BadRequestException(message_key="errors.subscription.upgradePaused")
     if subscription.selection_mode == "smart":
         if rule_set_id not in (None, 0):
-            raise BadRequestException("智能订阅不能换绑规则组")
+            raise BadRequestException(message_key="errors.subscription.smartRuleRebindShort")
         # 0 是旧客户端回传的无规则占位值，继续使用智能偏好快照。
         rule_set_id = None
 
@@ -317,14 +319,19 @@ async def run_upgrade_round(
     if rule_set_id is not None and rule_set_id != subscription.rule_set_id:
         rule_set = await session.get(RuleSet, rule_set_id)
         if rule_set is None:
-            raise NotFoundException(f"规则组不存在：#{rule_set_id}")
+            raise NotFoundException(
+                message_key="errors.subscription.ruleMissing", params={"id": rule_set_id}
+            )
         try:
             new_spec = RuleSetSpec.model_validate(rule_set.spec or {})
         except ValueError as exc:
-            raise BadRequestException(f"规则组「{rule_set.name}」的参数无法解析：{exc}") from exc
+            raise BadRequestException(
+                message_key="errors.subscription.ruleParseFailed",
+                params={"name": rule_set.name, "error": exc},
+            ) from exc
         if new_spec.upgrade_source is None:
             raise BadRequestException(
-                f"规则组「{rule_set.name}」未配置洗版目标，请先在规则组编辑器中选择「洗到哪一档」"
+                message_key="errors.subscription.ruleTargetRequired", params={"name": rule_set.name}
             )
         subscription.rule_set_id = rule_set_id
         subscription.updated_at = utcnow()
@@ -332,14 +339,11 @@ async def run_upgrade_round(
     specs = await _specs_for_subscriptions(session, {subscription_id})
     spec = specs.get(subscription_id)
     if spec is None:
-        raise BadRequestException("当前规则组的参数无法解析，请在规则组页面重新保存修正")
+        raise BadRequestException(message_key="errors.subscription.ruleInvalid")
     if spec.upgrade_source is None:
         # 成员也会走到这里（成员洗版只能沿用当前组，member-permissions-v2.md §3.3），
         # 文案要让不懂规则组的家人也知道下一步找谁
-        raise BadRequestException(
-            "当前规则组未配置洗版目标，暂时无法洗版：需要管理员在「设置 → 订阅 → 规则组」"
-            "里配置；管理员也可以在洗版时换用一个已配置洗版目标的规则组"
-        )
+        raise BadRequestException(message_key="errors.subscription.upgradeTargetRequired")
 
     # 物化存量单元 + 当场补快照（不等回填 tick——体检要看到每一集）
     await materialize_owned_wanted(session, subscription)
@@ -501,8 +505,10 @@ def _file_from_attempt(
     stamp = stamps.get(file.id or 0)
     if stamp and attempt.site_id:
         return stamp == (attempt.site_id, attempt.torrent_id)
-    return file.created_at is not None and attempt.created_at is not None and (
-        file.created_at >= attempt.created_at
+    return (
+        file.created_at is not None
+        and attempt.created_at is not None
+        and (file.created_at >= attempt.created_at)
     )
 
 
@@ -749,13 +755,10 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
         # 混合投递（缺口+洗版同一 attempt）里，缺口单元也在 attempt.units 中，
         # 但它是靠这次投递才入库的——不是洗版目标，绝不能拿它走证伪分支。
         # 判据：单元必须在 attempt 创建之前就已入库，才算该 attempt 要洗的对象
-        if (
-            attempt is not None
-            and (
-                wanted.imported_at is None
-                or attempt.created_at is None
-                or wanted.imported_at > attempt.created_at
-            )
+        if attempt is not None and (
+            wanted.imported_at is None
+            or attempt.created_at is None
+            or wanted.imported_at > attempt.created_at
         ):
             attempt = None
 
@@ -1014,8 +1017,7 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
             if honest:
                 attempt.status = DownloadAttemptStatus.CANCELLED
                 attempt.cleanup_note = (
-                    "洗版下载完成时基线已被更优版本抢先，本次结果不再需要；"
-                    "保留下载器任务"
+                    "洗版下载完成时基线已被更优版本抢先，本次结果不再需要；保留下载器任务"
                 )
                 attempt.updated_at = now
                 await session.commit()
@@ -1071,12 +1073,15 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                     ),
                     severity=NoticeSeverity.WARNING,
                     source="subscription",
-                    title="洗版连续证伪，已暂停该单元",
-                    message=(
-                        f"《{item.title if item else '未知条目'}》{_unit_text(wanted)}"
-                        f"连续 {wanted.upgrade_verify_failures} 次抓到标称与实测不符的资源，"
-                        "洗版已转入 30 天冷却。可在订阅详情检查候选质量或调整规则组。"
-                    ),
+                    title_key="notify.upgradePaused.title",
+                    message_key="notify.upgradePaused.body",
+                    message_params={
+                        "title": item.title if item else {"message_key": "media.kind.unknown"},
+                        "unit": _unit_text(wanted)
+                        if wanted.season_number or wanted.episode_number
+                        else {"message_key": "media.kind.feature"},
+                        "count": wanted.upgrade_verify_failures,
+                    },
                     # 告警中心和手机推送据此直接跳到这个订阅
                     payload={"subscription_id": wanted.subscription_id},
                 )
@@ -1103,9 +1108,7 @@ def _better(snapshot, baseline, spec) -> bool:
     if isinstance(spec, SmartPolicy):
         return is_upgrade(snapshot, baseline, spec)
 
-    return (
-        compare_ladder(ladder_vector(snapshot, spec), ladder_vector(baseline, spec)) == 1
-    )
+    return compare_ladder(ladder_vector(snapshot, spec), ladder_vector(baseline, spec)) == 1
 
 
 def _unit_text(wanted: WantedItem) -> str:

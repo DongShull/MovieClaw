@@ -66,10 +66,10 @@ async def build_manifest(
 
     file = await session.get(LibraryFile, file_id)
     if file is None or file.media_item_id is None:
-        raise NotFoundException("文件不存在")
+        raise NotFoundException(message_key="errors.offline.fileMissing")
     visible = await visible_library_ids(session, principal)
     if file.library_id not in visible:
-        raise NotFoundException("文件不存在")
+        raise NotFoundException(message_key="errors.offline.fileMissing")
     await assert_item_visible(session, principal, file.media_item_id)
     member_id = principal.member_id if principal.member_id is not None else 0
     season_number = file.season_number or 0

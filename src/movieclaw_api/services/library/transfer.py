@@ -489,14 +489,13 @@ class TransferSummary:
 def assert_transferable(source: Library, target: Library) -> None:
     """转移前的合法性校验（预览与执行共用；不合法抛中文报错）。"""
     if source.id == target.id:
-        raise BadRequestException("目标库与当前库相同，无需转移")
+        raise BadRequestException(message_key="errors.library.transferSame")
     if source.kind != target.kind or source.source != target.source:
-        raise BadRequestException(
-            "只能转移到同类型的媒体库（电影 ↔ 电影、剧集 ↔ 剧集、其他 ↔ 其他）；"
-            "如果是类型判错，请用「重新识别」或在待识别清单里人工认领"
-        )
+        raise BadRequestException(message_key="errors.library.transferKindMismatch")
     if not target.primary_root:
-        raise BadRequestException(f"目标库「{target.name}」没有配置根路径，无法接收转移")
+        raise BadRequestException(
+            message_key="errors.library.transferTargetRootMissing", params={"name": target.name}
+        )
     for library in (source, target):
         assert library.id is not None
         _assert_idle(library)
@@ -505,19 +504,25 @@ def assert_transferable(source: Library, target: Library) -> None:
 def _assert_idle(library: Library) -> None:
     """库必须空闲：扫描/重识别/整理/另一次转移在跑时一律不给转。"""
     from movieclaw_api.services.library.organize import is_organizing
-    from movieclaw_api.services.library.scan import PHASE_LABELS, busy_phase
+    from movieclaw_api.services.library.scan import busy_phase, phase_reference
 
     assert library.id is not None
     phase = busy_phase(library.id)
     if phase is not None:
         raise ConflictException(
-            f"「{library.name}」{PHASE_LABELS[phase]}，请等当前任务完成后再转移"
+            message_key="errors.library.phaseBeforeTransfer",
+            params={"name": library.name, "phase": phase_reference(phase)},
         )
     if is_organizing(library.id):
-        raise ConflictException(f"「{library.name}」正在整理文件名，请等整理完成后再转移")
+        raise ConflictException(
+            message_key="errors.library.organizeBeforeTransfer", params={"name": library.name}
+        )
     state = _transfer_tasks.state_of(library.id)
     if state is not None:
-        raise ConflictException(f"「{library.name}」正在转移「{state.title}」，请等待完成")
+        raise ConflictException(
+            message_key="errors.library.transferBusyTitle",
+            params={"name": library.name, "title": state.title},
+        )
 
 
 def start_transfer(plan: TransferPlan) -> TransferState:

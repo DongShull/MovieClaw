@@ -145,7 +145,7 @@ def start() -> tuple[TestClient, Who]:
     app.dependency_overrides[themes_routes._script_viewer] = lambda: (
         None if who.anonymous else who.current
     )
-    return TestClient(app), who
+    return TestClient(app, headers={"Accept-Language": "zh-Hans"}), who
 
 
 def upload(client: TestClient, data: bytes):
@@ -386,7 +386,7 @@ def test_stale_cookie_does_not_block_theme_styles(data_dir) -> None:
     from movieclaw_api.app import create_app
 
     write_tree(data_dir / "bundled" / "netflix", theme_files("netflix", label="Netflix"))
-    with TestClient(create_app()) as client:
+    with TestClient(create_app(), headers={"Accept-Language": "zh-Hans"}) as client:
         client.cookies.set("movieclaw_session", "stale-or-revoked")
         assert client.get("/api/v1/ui/themes.css").status_code == 200
         assert client.get("/api/v1/ui/themes/netflix/theme.css").status_code == 200

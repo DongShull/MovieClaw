@@ -111,7 +111,8 @@ class PluginHealthService:
                     dedupe_key=_notice_key(entry_id, key),
                     severity=NoticeSeverity.WARNING,
                     source="plugin",
-                    title=f"插件「{title}」运行异常",
+                    title_key="notify.pluginUnhealthy.title",
+                    message_params={"title": title},
                     message=message,
                     payload={"entry_id": entry_id, "key": key, "action_href": action_href},
                 )

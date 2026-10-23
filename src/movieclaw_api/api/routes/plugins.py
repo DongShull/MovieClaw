@@ -23,6 +23,7 @@ from movieclaw_api.exceptions import (
     ForbiddenException,
     NotFoundException,
     ServiceUnavailableException,
+    exception_fields,
 )
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
@@ -197,7 +198,7 @@ class SafeModeExitView(BaseModel):
 def _kernel(request: Request):
     kernel = getattr(request.app.state, "kernel", None)
     if kernel is None:
-        raise NotFoundException("插件内核未运行")
+        raise NotFoundException(message_key="errors.plugins.kernelStopped")
     return kernel
 
 
@@ -206,7 +207,7 @@ def _durable_store(request: Request):
 
     store = _kernel(request).service(DURABLE_EVENTS)
     if store is None:
-        raise ConflictException("可靠事件投递插件当前没有运行")
+        raise ConflictException(message_key="errors.plugins.deliveryStopped")
     return store
 
 
@@ -257,9 +258,26 @@ async def list_plugins(request: Request) -> ApiResponse[PluginsView]:
             return {"tier": None}
         return {"tier": tier_of(owner, bundled=bundled)}
 
+    from movieclaw_api.i18n.metadata import localized_text
+    from movieclaw_api.plugins import packages as pkg
+    from movieclaw_api.plugins.bundled import bundled as bundled_packages
+
+    manifests = {entry_id: item.manifest for entry_id, item in bundled_packages().items()}
+    for record in pkg.installed(settings).values():
+        manifest = pkg.read_manifest(pkg.version_dir(settings, record.id, record.version))
+        if manifest is not None:
+            manifests[record.id] = manifest
+
+    def display(item: dict) -> dict:
+        manifest = manifests.get(item["id"])
+        if manifest is None:
+            return {}
+        return {"title": localized_text(manifest.plugin.title, manifest.plugin.title_localized)}
+
     plugins = [
         {
             **item,
+            **display(item),
             **layer(item),
             **switch(item),
             "health": health.get(item["id"], []),
@@ -305,7 +323,7 @@ async def exit_safe_mode(request: Request) -> ApiResponse[SafeModeExitView]:
 
     kernel = _kernel(request)
     if not safe_mode.current().active:
-        raise ConflictException("当前没有处于安全模式")
+        raise ConflictException(message_key="errors.plugins.safeModeInactive")
     settings = get_settings()
     ids = [spec.id for spec in local_specs(settings) if not spec.disabled]
     ids += packages.package_ids(settings)
@@ -341,7 +359,9 @@ async def replay_dead_letter(letter_id: int, request: Request) -> ApiResponse[No
     except LookupError as exc:
         raise NotFoundException(str(exc)) from exc
     except ReplayError as exc:
-        raise ConflictException(f"重放失败：{exc}") from exc
+        raise ConflictException(
+            message_key="errors.plugins.replayFailed", params={"error": exc}
+        ) from exc
     return ok(None, message="已重放")
 
 
@@ -873,7 +893,7 @@ def _callbacks():  # noqa: ANN202 -- 回调底座关着时 503
 
     service = get_service()
     if service is None:
-        raise ServiceUnavailableException("插件回调端点没有启用")
+        raise ServiceUnavailableException(message_key="errors.plugins.callbackDisabled")
     return service
 
 
@@ -1028,14 +1048,11 @@ async def update_web_consent(
     # 插件网页以使用者的身份运行：同意这一步必须是人在网页里点的，Agent 与命令行的凭证不行
     # （本地插件常由 Agent 写出来，不能让它替用户点同意）
     if not principal.interactive:
-        raise ForbiddenException(
-            "插件网页会以使用者的身份运行，同意只能由管理员在网页里操作（设置 → 插件），"
-            "Agent 与命令行的凭证不能代为同意"
-        )
+        raise ForbiddenException(message_key="errors.plugins.webConsentInteractive")
     settings = get_settings()
     found = plugin_web.find(settings, entry_id)
     if found is None:
-        raise NotFoundException(f"插件 {entry_id} 没有网页")
+        raise NotFoundException(message_key="errors.plugins.webMissing", params={"id": entry_id})
     consent = plugin_web.Consent(nav=body.nav, members=body.members)
     if found.source == PACKAGE:
         await _packages(request).set_web(entry_id, consent.record())
@@ -1064,7 +1081,7 @@ async def revoke_web_consent(entry_id: str, request: Request) -> ApiResponse[Non
     settings = get_settings()
     found = plugin_web.find(settings, entry_id)
     if found is None:
-        raise NotFoundException(f"插件 {entry_id} 没有网页")
+        raise NotFoundException(message_key="errors.plugins.webMissing", params={"id": entry_id})
     if found.source == PACKAGE:
         await _packages(request).set_web(entry_id, None)
     else:
@@ -1186,12 +1203,12 @@ class MarketInstall(BaseModel):
 
 def _market_error(exc):  # noqa: ANN001, ANN202
     if exc.status == 404:
-        return NotFoundException(exc.message)
+        return NotFoundException(**exception_fields(exc))
     if exc.status == 409:
-        return ConflictException(exc.message)
+        return ConflictException(**exception_fields(exc))
     if exc.status == 503:
-        return ServiceUnavailableException(exc.message)
-    return BadRequestException(exc.message)
+        return ServiceUnavailableException(**exception_fields(exc))
+    return BadRequestException(**exception_fields(exc))
 
 
 @router.get(
@@ -1337,7 +1354,7 @@ async def show_plugin(entry_id: str, request: Request) -> ApiResponse[PluginDeta
     assert listed is not None
     item = next((p for p in listed.plugins if p.id == entry_id), None)
     if item is None:
-        raise NotFoundException(f"没有插件 {entry_id}")
+        raise NotFoundException(message_key="errors.plugins.missing", params={"id": entry_id})
     detail = await plugin_detail(kernel, get_settings(), entry_id, item.model_dump(mode="json"))
     return ok(PluginDetailView.model_validate({"plugin": item, **detail}))
 

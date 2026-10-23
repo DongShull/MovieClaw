@@ -229,7 +229,7 @@ async def read_member_avatar(member_id: int) -> FileResponse:
     """返回成员头像本体。挂在管理区，仅管理员可读（成员本人经 /auth/avatar 读取）。"""
     path = avatar_media.find_avatar(avatar_media.member_stem(member_id))
     if path is None:
-        raise NotFoundException("该成员尚未上传头像")
+        raise NotFoundException(message_key="errors.members.avatarMissing")
     return FileResponse(
         path,
         media_type=avatar_media.content_type_for(path),

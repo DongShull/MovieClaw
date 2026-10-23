@@ -28,6 +28,34 @@ def normalize_printf(text, names):
     return SPECIFIER.sub(replace, text), parameters
 
 
+def translation_units(localization):
+    if "stringUnit" in localization:
+        return {None: localization["stringUnit"]}
+    variations = localization["variations"]
+    if set(variations) != {"plural"}:
+        raise ValueError("Only explicit plural variations are supported")
+    plural = variations["plural"]
+    if "other" not in plural or set(plural) - {"zero", "one", "two", "few", "many", "other"}:
+        raise ValueError("Plural variations need an other branch and valid categories")
+    return {category: branch["stringUnit"] for category, branch in plural.items()}
+
+
+def normalized_translation(localization, record):
+    units = translation_units(localization)
+    names = record.get("parameters", [])
+    if None in units:
+        return normalize_printf(units[None]["value"], names)[0]
+    control = record["pluralParameter"]
+    if control not in names:
+        raise ValueError("Plural parameter must be explicitly mapped")
+    branches = []
+    for category in ("zero", "one", "two", "few", "many", "other"):
+        if category in units:
+            text, _ = normalize_printf(units[category]["value"], names)
+            branches.append(category + " {" + text.replace("{" + control + "}", "#") + "}")
+    return "{" + control + ", plural, " + " ".join(branches) + "}"
+
+
 def check_apple(root, web_english, web_parameters, terms=None):
     base = root / "apps/apple"
     meta_path = base / "Localization.meta.json"
@@ -60,21 +88,31 @@ def check_apple(root, web_english, web_parameters, terms=None):
                 errors.append(f"Apple key is not manual: {context}")
             try:
                 source = translations["zh-Hans"]["stringUnit"]["value"]
-                english = translations["en"]["stringUnit"]["value"]
                 record = records.get(key, {})
+                units = translation_units(translations["en"])
+                english = normalized_translation(translations["en"], record)
                 if record.get("sourceHash") != hashlib.sha256(source.encode()).hexdigest():
                     errors.append(f"Stale Apple English: {context}")
-                if translations["en"]["stringUnit"]["state"] != "translated":
-                    errors.append(f"Apple translation needs review: {context}")
-                if re.search(r"[\u3400-\u9fff，。！？：；「」《》、]", english):
-                    errors.append(f"Apple English contains Chinese: {context}")
-                if source in (terms or {}) and english.lower() not in terms[source]:
-                    errors.append(f"Apple glossary mismatch: {context}")
                 names = record.get("parameters", [])
                 _, source_params = normalize_printf(source, names)
-                normalized_english, english_params = normalize_printf(english, names)
-                if source_params != english_params or set(source_params) != set(range(len(names))):
+                if set(source_params) != set(range(len(names))):
                     errors.append(f"Apple printf parameters differ: {context}")
+                for unit in units.values():
+                    text = unit["value"]
+                    if unit["state"] != "translated":
+                        errors.append(f"Apple translation needs review: {context}")
+                    if re.search(r"[\u3400-\u9fff，。！？：；「」《》、]", text):
+                        errors.append(f"Apple English contains Chinese: {context}")
+                    allowed_terms = (terms or {}).get(key, (terms or {}).get(source))
+                    if allowed_terms is not None and text.lower() not in allowed_terms:
+                        errors.append(f"Apple glossary mismatch: {context}")
+                    _, english_params = normalize_printf(text, names)
+                    if None not in units:
+                        index = names.index(record["pluralParameter"])
+                        english_params.setdefault(index, source_params[index])
+                    if source_params != english_params:
+                        errors.append(f"Apple printf parameters differ: {context}")
+                normalized_english = english
                 if key in web_english:
                     if normalized_english != web_english[key]:
                         errors.append(f"Apple/Web English differs: {context}")

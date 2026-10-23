@@ -251,8 +251,9 @@ async def run_remove_source(context: jobs.JobContext, input_data: dict[str, Any]
                 dedupe_key=f"{NOTICE_PREFIX}{context.job_id}",
                 severity=NoticeSeverity.WARNING,
                 source="downloads",
-                title=f"《{request.title}》的下载任务没能全部删除",
-                message="媒体库文件已删除；" + message + "。可在「活动 → 任务」里重试",
+                title_key="notify.removeSourceFailed.title",
+                message_key="notify.removeSourceFailed.body",
+                message_params={"title": request.title, "detail": message},
                 payload={"job_id": context.job_id, "action_href": "/activity"},
             )
         raise jobs.JobFailed(message, code="REMOVE_SOURCE_FAILED")
@@ -346,8 +347,13 @@ async def after_local_released(released: Any) -> None:
                 dedupe_key=f"{NOTICE_PREFIX}released:{released.file_id}",
                 severity=NoticeSeverity.WARNING,
                 source="downloads",
-                title="文件已传到网盘，但下载任务没删掉",
-                message="；".join(failures)
-                + "。可以在下载器里手动删除，或关掉「设置 → 网盘」里的自动删除",
+                title_key="notify.cloudSourceKept.title",
+                message_key="notify.cloudSourceKept.body",
+                message_params={
+                    "detail": {
+                        "message_list": failures,
+                        "separator_key": "notify.details.separator",
+                    }
+                },
                 payload={"action_href": "/downloads"},
             )

@@ -21,6 +21,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from movieclaw_api.exceptions import BadRequestException
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services.library.layout import IMAGE_EXTS, SCAN_VIDEO_EXTS
 from movieclaw_db.models.media_item import MediaSource
 from movieclaw_media.models import MediaKind
@@ -162,6 +163,17 @@ KIND_LABELS: dict[MediaKind, str] = {
 }
 
 
+def kind_reference(kind: MediaKind | str) -> dict:
+    return reference(
+        {
+            MediaKind.MOVIE: "media.kind.movie",
+            MediaKind.TV: "media.kind.tv",
+            MediaKind.VIDEO: "library.kind.video",
+            MediaKind.PHOTO: "library.kind.photo",
+        }[MediaKind(kind)]
+    )
+
+
 def kind_label(kind: MediaKind | str) -> str:
     value = kind if isinstance(kind, MediaKind) else MediaKind(kind)
     return KIND_LABELS[value]
@@ -173,7 +185,7 @@ def default_source_for(kind: MediaKind | str) -> str:
     for (k, source), _profile in PROFILES.items():
         if k == value:
             return source
-    raise BadRequestException(f"不支持的媒体库类型：{value}")
+    raise BadRequestException(message_key="errors.library.kindUnsupported", params={"kind": value})
 
 
 def profile_for(kind: MediaKind | str, source: str | None = None) -> LibraryProfile:
@@ -187,7 +199,8 @@ def profile_for(kind: MediaKind | str, source: str | None = None) -> LibraryProf
     profile = PROFILES.get((value, resolved_source))
     if profile is None:
         raise BadRequestException(
-            f"不支持的媒体库类型组合：形态「{value}」× 来源「{resolved_source}」"
+            message_key="errors.library.kindSourceUnsupported",
+            params={"kind": value, "source": resolved_source},
         )
     return profile
 

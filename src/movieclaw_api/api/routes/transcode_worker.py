@@ -159,10 +159,7 @@ def _artifact_write_failure(
             errno_code,
             received_bytes,
         )
-        return InsufficientStorageException(
-            "远程转码缓存空间或磁盘配额不足，请在「设置 → 更新与维护 → 缓存管理」释放空间后重试。",
-            details=details,
-        )
+        return InsufficientStorageException(details=details, message_key="errors.workers.cacheFull")
     logger.error(
         "远程转码产物写入失败：缓存目录暂时不可写 session=%s name=%s "
         "errno=%s received_bytes=%s error=%s",
@@ -173,8 +170,7 @@ def _artifact_write_failure(
         exc,
     )
     return ServiceUnavailableException(
-        "远程转码缓存目录暂时不可写，请检查磁盘空间和权限后重试。",
-        details=details,
+        details=details, message_key="errors.workers.cacheUnwritable"
     )
 
 
@@ -205,7 +201,7 @@ async def save_transcode_worker_config(
 
 
 def _invalid_remote_grant() -> UnauthorizedException:
-    return UnauthorizedException("远程转码凭据无效或已过期")
+    return UnauthorizedException(message_key="errors.workers.credentialsInvalid")
 
 
 async def _verify_grant(
@@ -442,7 +438,7 @@ async def configure_transcode_worker(
 ) -> ApiResponse[WorkerConfigPayload]:
     device = await login_devices.get_device(session, device_id)
     if device is None or device.scope != "transcode":
-        raise NotFoundException("转码器不存在")
+        raise NotFoundException(message_key="errors.workers.missing")
     await save_worker_limit(device_id, payload.max_jobs)
     return ok(payload)
 
@@ -458,10 +454,10 @@ async def _remote_source_file(
         or not playback_session.remote
         or playback_session.file_id != grant.file_id
     ):
-        raise NotFoundException("远程转码会话不存在")
+        raise NotFoundException(message_key="errors.workers.sessionMissing")
     file = await session.get(LibraryFile, grant.file_id)
     if file is None:
-        raise NotFoundException("远程转码源文件不存在")
+        raise NotFoundException(message_key="errors.workers.sourceMissing")
     return file
 
 
@@ -476,7 +472,7 @@ def _missing_source(session_id: str, file: LibraryFile, path: Path) -> NotFoundE
         file.id,
         path,
     )
-    return NotFoundException("远程转码源文件已不在磁盘上")
+    return NotFoundException(message_key="errors.workers.sourceOffDisk")
 
 
 class _SourceReadMarks:
@@ -582,7 +578,9 @@ async def transcode_source(
         try:
             source = parse_strm(file.file_path)
         except StrmError as exc:
-            raise NotFoundException(f"strm 用不了：{exc}") from exc
+            raise NotFoundException(
+                message_key="errors.workers.strmUnavailable", params={"error": exc}
+            ) from exc
         if isinstance(source, StrmLink):
             target = await strm_redirect_target(source, request.headers.get("user-agent"))
             if target is None:
@@ -600,7 +598,7 @@ async def transcode_source(
         path = source
     elif file.is_disc():
         # 原盘是目录，没有单一源文件；新版 Worker 读 source.ffconcat，走不到这里
-        raise NotFoundException("原盘没有单一源文件，请改读 source.ffconcat 清单")
+        raise NotFoundException(message_key="errors.workers.discConcatRequired")
     if not path.is_file():
         raise _missing_source(session_id, file, path)
     return DisconnectAwareFileResponse(
@@ -632,7 +630,7 @@ async def transcode_disc_source(
     file = await _remote_source_file(session_id, token, session)
     disc = await asyncio.to_thread(resolve_transcode_disc, file) if file.is_disc() else None
     if disc is None:
-        raise NotFoundException("这个远程转码会话的源不是可读的原盘")
+        raise NotFoundException(message_key="errors.workers.discUnreadable")
     token_query = quote(token or "", safe="")
     playback_session = get_session_manager().get(session_id)
     caps = (
@@ -673,7 +671,7 @@ async def transcode_disc_clip(
     file = await _remote_source_file(session_id, token, session)
     disc = await asyncio.to_thread(resolve_transcode_disc, file) if file.is_disc() else None
     if disc is None or index >= len(disc.clips):
-        raise NotFoundException("原盘剪辑不存在")
+        raise NotFoundException(message_key="errors.workers.discClipMissing")
     clip = disc.clips[index]
     path = clip.path
     if not path.is_file():
@@ -717,7 +715,7 @@ async def transcode_poster(
     file = await _remote_source_file(session_id, token, session)
     item = await session.get(MediaItem, file.media_item_id) if file.media_item_id else None
     if item is None or item.id is None:
-        raise NotFoundException("这个转码任务没有对应的条目")
+        raise NotFoundException(message_key="errors.workers.mediaMissing")
     meta = await MediaItemRepository(session).get_metadata(item.id)
     poster_file = meta.poster_file if meta is not None else None
     target = media_scrape.resolve_asset_path(poster_file) if poster_file else None
@@ -736,7 +734,7 @@ async def transcode_poster(
             url, variant=ImageVariant.POSTER_CARD
         )
     else:
-        raise NotFoundException("这部片还没有海报")
+        raise NotFoundException(message_key="errors.workers.posterMissing")
     return FileResponse(
         variant.path, media_type=variant.content_type, headers={"Cache-Control": "no-store"}
     )
@@ -768,7 +766,7 @@ async def _append_progressive_part(
     """
     index = int(name[3:8]) if name.startswith("seg") else None
     if index is None or not playback_session.progressive:
-        raise NotFoundException("这个转码会话不是边产出边送")
+        raise NotFoundException(message_key="errors.workers.notStreaming")
     try:
         part = int(part_text)
     except ValueError:
@@ -870,7 +868,7 @@ async def put_transcode_artifact(
                 session_id,
                 name[:80],
             )
-        raise NotFoundException("远程转码产物名称无效")
+        raise NotFoundException(message_key="errors.workers.outputNameInvalid")
     grant = await _verify_grant(token, session_id=session_id, kind="artifact")
     playback_session = get_session_manager().get(session_id)
     if (
@@ -879,7 +877,7 @@ async def put_transcode_artifact(
         or playback_session.file_id != grant.file_id
         or grant.attempt_id != playback_session.remote_job_id
     ):
-        raise NotFoundException("远程转码会话不存在")
+        raise NotFoundException(message_key="errors.workers.sessionMissing")
     job_state = (
         get_remote_worker_registry().job_state(playback_session.remote_job_id or "")
         if playback_session.remote_job_id
@@ -888,7 +886,7 @@ async def put_transcode_artifact(
     if job_state and job_state.get("type") in {"job.failed", "job.finished"}:
         # Worker 断线/失败后，旧进程即使还持有短时 token，也不能继续覆盖 NAS
         # 缓存；seek 轮次则由 attempt_id 的相等性额外隔离。
-        raise NotFoundException("远程转码任务已结束")
+        raise NotFoundException(message_key="errors.workers.taskEnded")
     directory = playback_session.directory
     if not directory.is_dir():
         _warn_throttled(
@@ -896,7 +894,7 @@ async def put_transcode_artifact(
             "远程转码产物无处落盘：session=%s 的缓存目录不存在（被删除，或数据目录挂载失效）",
             session_id,
         )
-        raise NotFoundException("远程转码会话目录不存在")
+        raise NotFoundException(message_key="errors.workers.sessionDirectoryMissing")
     limit = effective_remote_transcode_config().max_artifact_bytes
     part_text = request.query_params.get("part")
     if part_text is not None:
@@ -1000,8 +998,7 @@ async def put_transcode_artifact(
                 attempt_id=grant.attempt_id,
             )
             logger.warning(
-                "远程转码产物上传客户端提前断开，但请求体已完整接收："
-                "session=%s name=%s bytes=%s",
+                "远程转码产物上传客户端提前断开，但请求体已完整接收：session=%s name=%s bytes=%s",
                 session_id,
                 name,
                 written,

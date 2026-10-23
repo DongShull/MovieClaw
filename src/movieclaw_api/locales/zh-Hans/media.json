@@ -1,0 +1,44 @@
+{
+  "season": {
+    "specials": "特别篇",
+    "title": "第 {number} 季"
+  },
+  "episodes": {
+    "rangeSeparator": "、",
+    "seasonSeparator": "、",
+    "truncated": "第 {ranges} 集等 {count} 集",
+    "range": "{count, plural, other {第 {ranges} 集}}",
+    "all": "全 {count} 集",
+    "withSeason": "{season}{episodes}",
+    "count": "{count} 集"
+  },
+  "language": {
+    "zh": "中文",
+    "yue": "粤语",
+    "en": "英语",
+    "ja": "日语",
+    "ko": "韩语",
+    "fr": "法语",
+    "de": "德语",
+    "es": "西班牙语",
+    "it": "意大利语",
+    "ru": "俄语",
+    "pt": "葡萄牙语",
+    "hi": "印地语",
+    "th": "泰语",
+    "sv": "瑞典语",
+    "da": "丹麦语",
+    "no": "挪威语",
+    "nl": "荷兰语",
+    "pl": "波兰语",
+    "tr": "土耳其语",
+    "foreign": "外语",
+    "or": "或"
+  },
+  "kind": {
+    "unknown": "未知条目",
+    "feature": "正片",
+    "movie": "电影",
+    "tv": "剧集"
+  }
+}

@@ -178,7 +178,7 @@ async def probe(
 
     result = await probe_file(file_id, respect_backoff=respect_backoff)
     if result.status == "missing":
-        raise NotFoundException(f"没有文件 #{file_id}")
+        raise NotFoundException(message_key="errors.library.fileIdMissing", params={"id": file_id})
     row = await session.get(LibraryFile, file_id)
     if row is not None:
         await session.refresh(row)

@@ -191,8 +191,8 @@ class PluginRoutes:
             key = await self._key(entry_id)
             digest = hmac.new(key, _canonical(request.url.path, items), hashlib.sha256)
             if not hmac.compare_digest(given, _b64(digest.digest())):
-                raise NotFoundException("链接无效")
+                raise NotFoundException(message_key="errors.plugins.linkInvalid")
             if exp is not None and (not exp.isdigit() or int(exp) < time.time()):
-                raise NotFoundException("链接已过期")
+                raise NotFoundException(message_key="errors.plugins.linkExpired")
 
         return verify_plugin_signature

@@ -51,6 +51,7 @@ import httpx
 from movieclaw_api import __version__
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import BadRequestException
+from movieclaw_api.i18n.stored import reference, render_value
 from movieclaw_api.schemas.app_update import (
     GithubTokenView,
     LastAbnormalExitView,
@@ -288,9 +289,11 @@ def _overlay_state(vdir: Path) -> tuple[str, bool, str]:
 def build_status() -> UpdateStatusView:
     updates = _updates_dir()
     state_dir = updates / "state"
-    bad_versions = sorted(
-        p.name.removeprefix("bad-") for p in state_dir.glob("bad-*")
-    ) if state_dir.is_dir() else []
+    bad_versions = (
+        sorted(p.name.removeprefix("bad-") for p in state_dir.glob("bad-*"))
+        if state_dir.is_dir()
+        else []
+    )
     previous = updates / "previous"
     # 回退目标的具体版本号：UI 要向用户明示「回退到 v 几」而不是含糊的
     # 「上一版本」——回退会全量重启，用户必须先知道自己会落在哪个版本上
@@ -358,17 +361,11 @@ def _verify_manifest_signature(raw: bytes, sig_text: bytes) -> None:
             base64.b64decode(get_settings().update_manifest_pubkey.strip())
         )
     except (binascii.Error, ValueError) as exc:
-        raise BadRequestException(
-            "UPDATE_MANIFEST_PUBKEY 配置无效（应为 base64 的 32 字节 Ed25519 公钥），"
-            "签名校验无法进行"
-        ) from exc
+        raise BadRequestException(message_key="errors.appUpdate.publicKeyInvalid") from exc
     try:
         pubkey.verify(base64.b64decode(sig_text.strip()), raw)
     except (InvalidSignature, binascii.Error, ValueError) as exc:
-        raise BadRequestException(
-            "更新清单的签名校验失败，发布内容可能被篡改，已放弃本次更新。"
-            "请改为直连 GitHub 重试，并向项目反馈"
-        ) from exc
+        raise BadRequestException(message_key="errors.appUpdate.signatureInvalid") from exc
 
 
 async def _download_manifest_bytes(client: httpx.AsyncClient, release: dict) -> bytes:
@@ -385,8 +382,8 @@ async def _download_manifest_bytes(client: httpx.AsyncClient, release: dict) -> 
     )
     if manifest_asset is None:
         raise BadRequestException(
-            f"发布（{release.get('tag_name', '?')}）没有携带更新清单，"
-            "可能是旧版发布或发布流程未完成，暂无法应用内更新"
+            message_key="errors.appUpdate.manifestMissing",
+            params={"tag": release.get("tag_name", "?")},
         )
 
     async def fetch(url: str) -> bytes:
@@ -397,23 +394,22 @@ async def _download_manifest_bytes(client: httpx.AsyncClient, release: dict) -> 
     try:
         raw = await fetch(manifest_asset["browser_download_url"])
     except httpx.HTTPError as exc:
-        raise BadRequestException(
-            "下载更新清单失败。为防篡改，未配置签名公钥时清单固定直连 GitHub 获取——"
-            "直连不可达时可配置代理，或配置 UPDATE_MANIFEST_PUBKEY 签名校验后走加速镜像"
-        ) from exc
+        raise BadRequestException(message_key="errors.appUpdate.manifestDownloadFailed") from exc
     if signed:
         sig_asset = next(
             (a for a in release.get("assets", []) if a.get("name") == _SIGNATURE_NAME), None
         )
         if sig_asset is None:
             raise BadRequestException(
-                f"本实例要求更新清单携带签名，但发布（{release.get('tag_name', '?')}）"
-                f"缺少 {_SIGNATURE_NAME}，已放弃本次更新"
+                message_key="errors.appUpdate.signatureMissing",
+                params={"tag": release.get("tag_name", "?"), "name": _SIGNATURE_NAME},
             )
         try:
             sig_raw = await fetch(sig_asset["browser_download_url"])
         except httpx.HTTPError as exc:
-            raise BadRequestException("下载更新清单签名失败，请稍后重试") from exc
+            raise BadRequestException(
+                message_key="errors.appUpdate.signatureDownloadFailed"
+            ) from exc
         _verify_manifest_signature(raw, sig_raw)
     return raw
 
@@ -428,9 +424,7 @@ def _parse_manifest(raw: bytes) -> dict:
             if not files[name]["sha256"]:
                 raise KeyError(name)
     except Exception as exc:
-        raise BadRequestException(
-            "更新清单（manifest.json）格式异常，可能是发布产物不完整，请稍后重试或反馈问题"
-        ) from exc
+        raise BadRequestException(message_key="errors.appUpdate.manifestInvalid") from exc
     return {"version": version, "requires_runtime": requires, "files": files, "raw": raw}
 
 
@@ -462,75 +456,73 @@ _RETRYABLE_NETWORK_ERRORS = (
 )
 
 
-def _proxy_hint() -> str:
-    """当前 GitHub 出口的中文描述，拼进错误信息里。
-
-    用户排查时的第一个疑问永远是「我配的代理到底生效了没」，把答案直接
-    写进报错，省掉一轮来回。
-    """
+def _proxy_reference() -> dict:
     proxy = resolve_proxy_url("github")
-    return f"当前经代理 {proxy} 访问" if proxy else "当前为直连（未对 GitHub 启用代理）"
+    return (
+        reference("errors.github.proxyHint", proxy=proxy)
+        if proxy
+        else reference("errors.github.directHint")
+    )
+
+
+def _proxy_hint() -> str:
+    return render_value(_proxy_reference())
 
 
 def _describe_github_error(exc: httpx.HTTPError, what: str, *, has_token: bool = False) -> str:
-    """把底层网络异常翻译成能直接指导下一步的中文说明。
+    return render_value(_github_error_reference(exc, what, has_token=has_token))
 
-    原先这里不分青红皂白统一报「无法连接 GitHub，请确认网络可达」，把限流、
-    超时、连接被拒糊成同一句话，异常本身（``__cause__``）又从不外露——用户在
-    「设置 → 网络」测出绿灯后完全无从下手。而绿灯与红灯并存本就是常态：
-    连通性测试把 403 判为「网络连通，但限流中」，这里却当成连不上。错误分类
-    必须与连通性测试同口径，两处结论才不会互相打架。
-    """
+
+def _github_error_reference(exc: httpx.HTTPError, what: str, *, has_token: bool = False) -> dict:
+    scope_keys = {
+        "应用更新": "settings.updates.applicationScope",
+        "模型更新": "settings.updates.modelScope",
+        "客户端更新": "settings.updates.clientScope",
+    }
+    scope = reference(scope_keys[what]) if what in scope_keys else what
+    proxy = _proxy_reference()
     if isinstance(exc, httpx.HTTPStatusError):
         response = exc.response
         if response.status_code == 401 and has_token:
-            return (
-                f"GitHub 拒绝了已配置的访问令牌（HTTP 401），无法检查{what}。"
-                "令牌可能填错、已过期或被撤销，请在「设置 → 更新与维护」中更换或清除令牌"
-            )
+            return reference("errors.github.tokenRejected", what=scope)
         if response.status_code in (403, 429):
             if response.headers.get("x-ratelimit-remaining") == "0":
                 reset = response.headers.get("x-ratelimit-reset", "")
                 recover = ""
                 if reset.isdigit():
                     minutes = max(0, int((int(reset) - time.time()) // 60)) + 1
-                    recover = f"约 {minutes} 分钟后自动恢复，"
-                quota_hint = (
-                    "当前已使用访问令牌，令牌账号的配额（5000 次/小时）也已耗尽。"
+                    recover = reference("errors.github.quotaRecovery", minutes=minutes)
+                quota = reference(
+                    "errors.github.authenticatedQuota"
                     if has_token
-                    else "未认证访问限 60 次/小时/IP，走代理时该配额由出口节点的所有用户"
-                    "共享，因此可能并非本机用量所致；可在「设置 → 更新与维护」配置 "
-                    "GitHub 访问令牌，改按你自己的账号计配额。"
+                    else "errors.github.anonymousQuota"
                 )
-                return (
-                    f"GitHub 接口配额已用尽，暂时无法检查{what}。{quota_hint}"
-                    f"{recover}期间不影响已装版本运行。{_proxy_hint()}"
+                return reference(
+                    "errors.github.quotaExhausted",
+                    what=scope,
+                    quota=quota,
+                    recover=recover,
+                    proxy=proxy,
                 )
-            return (
-                f"GitHub 拒绝了本次请求（HTTP {response.status_code}），无法检查{what}。"
-                f"通常是出口 IP 触发了频率限制或风控，稍后会自动重试。{_proxy_hint()}"
+            return reference(
+                "errors.github.requestRejected",
+                what=scope,
+                status=response.status_code,
+                proxy=proxy,
             )
-        return (
-            f"GitHub 返回异常状态（HTTP {response.status_code}），无法检查{what}，"
-            f"请稍后重试。{_proxy_hint()}"
+        return reference(
+            "errors.github.statusUnexpected", what=scope, status=response.status_code, proxy=proxy
         )
     if isinstance(exc, httpx.ProxyError):
-        # SOCKS5 用户最常撞上的一类：代理进程在线（所以「设置 → 网络」的测试
-        # 可能刚好赶上一次成功），但本次转发被拒——节点掉线、分流规则命中
-        # REJECT、认证失败都会走到这里。必须点名是代理拒绝而非 GitHub 不可达。
-        return (
-            f"代理拒绝了到 GitHub 的转发，无法检查{what}（{exc}）。{_proxy_hint()}；"
-            "请确认代理节点在线、认证信息正确，且 api.github.com 命中的分流规则"
-            "不是 REJECT/DIRECT"
-        )
+        return reference("errors.github.proxyRejected", what=scope, error=str(exc), proxy=proxy)
     if isinstance(exc, httpx.TimeoutException):
-        return (
-            f"连接 GitHub 超时，无法检查{what}。{_proxy_hint()}；"
-            "若代理按域名分流，请确认 api.github.com 走的是代理而非直连"
-        )
-    return (
-        f"无法连接 GitHub 检查{what}（{type(exc).__name__}：{exc}）。{_proxy_hint()}；"
-        "可在「设置 → 网络」调整代理，或用 UPDATE_API_BASE_URL 配置反代"
+        return reference("errors.github.timeout", what=scope, proxy=proxy)
+    return reference(
+        "errors.github.connectionFailed",
+        what=scope,
+        type=type(exc).__name__,
+        error=str(exc),
+        proxy=proxy,
     )
 
 
@@ -556,7 +548,7 @@ async def save_github_token(token: str) -> GithubTokenView:
     免得粘贴带出的换行/中文让每次请求都在底层报出难懂的编码错误。"""
     token = token.strip()
     if token and (not token.isascii() or any(c.isspace() for c in token)):
-        raise BadRequestException("令牌格式不正确：不能包含空格、换行或非英文字符，请重新复制")
+        raise BadRequestException(message_key="errors.appUpdate.tokenInvalid")
     prefs = await get_app_update_prefs()
     prefs.github_token = token
     await save_app_update_prefs(prefs)
@@ -607,7 +599,7 @@ async def _github_get(path: str, what: str, *, missing_ok: bool = False) -> obje
             except _RETRYABLE_NETWORK_ERRORS as exc:
                 if attempt == len(_RETRY_BACKOFF_SECONDS):
                     raise BadRequestException(
-                        _describe_github_error(exc, what, has_token=bool(token))
+                        **_github_error_reference(exc, what, has_token=bool(token))
                     ) from exc
                 delay = _RETRY_BACKOFF_SECONDS[attempt]
                 logger.info(
@@ -623,8 +615,8 @@ async def _github_get(path: str, what: str, *, missing_ok: bool = False) -> obje
                 # HTTP 状态错误不重试：限流/风控下重试只会加速耗尽配额，
                 # 直接交给错误分类给出准确结论
                 raise BadRequestException(
-                        _describe_github_error(exc, what, has_token=bool(token))
-                    ) from exc
+                    **_github_error_reference(exc, what, has_token=bool(token))
+                ) from exc
             break
         data = resp.json()
         etag = resp.headers.get("etag")
@@ -694,7 +686,7 @@ async def _fetch_latest_release() -> tuple[dict, dict]:
         "v", _STABLE_APP_TAG_RE, lambda tag: tuple(int(p) for p in tag[1:].split(".")), "更新"
     ) or _latest_app_release(await _fetch_releases("更新"))
     if release is None:
-        raise BadRequestException("未找到任何应用发布（vX.Y.Z 的 Release），暂无可用更新")
+        raise BadRequestException(message_key="errors.appUpdate.noRelease")
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "movieclaw-updater"}
     async with httpx.AsyncClient(
         # 走统一网络出口（服务标签 github），同 _fetch_releases 不上熔断
@@ -710,7 +702,8 @@ async def _fetch_latest_release() -> tuple[dict, dict]:
     tag = release.get("tag_name") or ""
     if tag != f"v{manifest['version']}":
         raise BadRequestException(
-            f"发布（{tag}）的更新清单声明的是 v{manifest['version']}，内容不匹配，已放弃"
+            message_key="errors.appUpdate.versionMismatch",
+            params={"tag": tag, "version": manifest["version"]},
         )
     return release, manifest
 
@@ -1084,9 +1077,11 @@ def _prune_versions(updates: Path, *, keep_versions: int, running: str | None = 
     # 版本号新的在前（_is_newer 的 semver 子集语义；解析失败的排最后）
     dirs.sort(
         key=cmp_to_key(
-            lambda a, b: -1
-            if _is_newer(a.name.removeprefix("v"), b.name.removeprefix("v"))
-            else (1 if _is_newer(b.name.removeprefix("v"), a.name.removeprefix("v")) else 0)
+            lambda a, b: (
+                -1
+                if _is_newer(a.name.removeprefix("v"), b.name.removeprefix("v"))
+                else (1 if _is_newer(b.name.removeprefix("v"), a.name.removeprefix("v")) else 0)
+            )
         )
     )
     # 标坏的版本不占保留名额也不保留（它已不是可用的回退目标，是纯磁盘死重）；
@@ -1118,9 +1113,7 @@ def _download_and_apply(
     try:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        base = (
-            f"https://github.com/{settings.update_repo}/releases/download/v{version}"
-        )
+        base = f"https://github.com/{settings.update_repo}/releases/download/v{version}"
         total = sum(int(manifest["files"][n].get("size") or 0) for n in _ARTIFACT_NAMES)
         done = 0
         with httpx.Client(
@@ -1182,21 +1175,24 @@ def _download_and_apply(
 async def start_update() -> UpdateProgressView:
     """发起一次更新：前置校验后交给后台线程执行，立即返回当前进度。"""
     if _runtime_version() is None:
-        raise BadRequestException(
-            "当前部署形态不支持应用内更新（仅 Docker 镜像部署支持；源码部署请用 git pull 更新）"
-        )
+        raise BadRequestException(message_key="errors.appUpdate.deploymentUnsupported")
     if _progress.busy():
-        raise BadRequestException("已有更新正在进行中，请等待其完成")
+        raise BadRequestException(message_key="errors.appUpdate.alreadyRunning")
     _progress.set("checking", "正在获取最新版本信息……", target_version=None)
     try:
         release, manifest = await _fetch_latest_release()
         if not _is_newer(manifest["version"], __version__):
-            raise BadRequestException(f"当前已是最新版本（v{__version__}），无需更新")
+            raise BadRequestException(
+                message_key="errors.appUpdate.alreadyLatest", params={"version": __version__}
+            )
         if manifest["requires_runtime"] != _runtime_version():
             raise BadRequestException(
-                f"新版本 v{manifest['version']} 包含运行时依赖变化"
-                f"（需要 runtime {manifest['requires_runtime']}，"
-                f"当前镜像为 {_runtime_version()}），请升级 Docker 镜像完成本次更新"
+                message_key="errors.appUpdate.runtimeRequired",
+                params={
+                    "version": manifest["version"],
+                    "required": manifest["requires_runtime"],
+                    "current": _runtime_version(),
+                },
             )
         keep_versions = (await get_app_update_prefs()).keep_versions
     except BaseException:
@@ -1266,9 +1262,7 @@ def _parse_model_manifest(raw: bytes) -> dict:
             if not files[name]["sha256"]:
                 raise KeyError(name)
     except Exception as exc:
-        raise BadRequestException(
-            "模型更新清单（manifest.json）格式异常，请稍后重试或反馈问题"
-        ) from exc
+        raise BadRequestException(message_key="errors.appUpdate.modelManifestInvalid") from exc
     return {"files": files, "raw": raw, "tag": manifest.get("tag") or ""}
 
 
@@ -1277,7 +1271,7 @@ async def _fetch_latest_model_release() -> dict:
         "torrent-ner-v", _MODEL_TAG_RE, _model_tag_num, "模型更新"
     ) or _latest_model_release(await _fetch_releases("模型更新"))
     if release is None:
-        raise BadRequestException("未找到任何模型发布（torrent-ner-v* 的 Release）")
+        raise BadRequestException(message_key="errors.appUpdate.noModelRelease")
     return release
 
 
@@ -1402,20 +1396,21 @@ def _download_and_apply_model(release: dict, manifest: dict) -> None:
 async def start_model_update() -> UpdateProgressView:
     """发起一次模型更新：前置校验后交给后台线程执行，立即返回当前进度。"""
     if _runtime_version() is None:
-        raise BadRequestException(
-            "当前部署形态不支持应用内更新模型（仅 Docker 镜像部署支持）"
-        )
+        raise BadRequestException(message_key="errors.appUpdate.modelDeploymentUnsupported")
     if _progress.busy():
-        raise BadRequestException("已有更新正在进行中，请等待其完成")
+        raise BadRequestException(message_key="errors.appUpdate.alreadyRunning")
     _progress.set("checking", "正在获取最新模型信息……", target_version=None)
     try:
         release = await _fetch_latest_model_release()
         tag = release["tag_name"]
         if _model_tag_num(tag) <= _model_tag_num(_current_model_tag()):
-            raise BadRequestException(f"当前模型已是最新（{_current_model_tag()}），无需更新")
+            raise BadRequestException(
+                message_key="errors.appUpdate.modelAlreadyLatest",
+                params={"tag": _current_model_tag()},
+            )
         if _model_manifest_asset(release) is None:
             raise BadRequestException(
-                f"模型发布 {tag} 未携带更新清单（manifest.json），暂无法应用内安装"
+                message_key="errors.appUpdate.modelManifestMissing", params={"tag": tag}
             )
         headers = {"User-Agent": "movieclaw-updater"}
         async with httpx.AsyncClient(
@@ -1431,7 +1426,8 @@ async def start_model_update() -> UpdateProgressView:
         # 兼容早期模型发布）
         if manifest.get("tag") and manifest["tag"] != tag:
             raise BadRequestException(
-                f"模型发布 {tag} 的更新清单声明的是 {manifest['tag']}，内容不匹配，已放弃安装"
+                message_key="errors.appUpdate.modelTagMismatch",
+                params={"tag": tag, "declared": manifest["tag"]},
             )
     except BaseException:
         _progress.set("idle", target_version=None)
@@ -1496,9 +1492,7 @@ async def _record_model_check(view: ModelUpdateCheckView) -> None:
     """
     state = await get_app_update_state()
     state.checked_at = utc_isoformat(utcnow())
-    state.model_latest_tag = (
-        view.latest_tag if view.update_available and view.installable else ""
-    )
+    state.model_latest_tag = view.latest_tag if view.update_available and view.installable else ""
     await save_app_update_state(state)
 
 
@@ -1651,17 +1645,14 @@ def rollback() -> str:
     """回退到上一版本（current/previous 互换，可再切回）；无上一版本时
     删除 current 回落镜像基线。返回给用户的中文说明。"""
     if _runtime_version() is None:
-        raise BadRequestException("当前部署形态不支持应用内回退（仅 Docker 镜像部署支持）")
+        raise BadRequestException(message_key="errors.appUpdate.rollbackUnsupported")
     if _progress.busy():
-        raise BadRequestException("已有更新正在进行中，无法回退")
+        raise BadRequestException(message_key="errors.appUpdate.rollbackWhileUpdating")
     updates = _updates_dir()
     current = updates / "current"
     previous = updates / "previous"
     if current.exists() and not current.is_symlink():
-        raise BadRequestException(
-            "updates/current 不是符号链接（可能被手工改动过），"
-            "请删除 data/updates/current 后重启容器回到镜像内置版本"
-        )
+        raise BadRequestException(message_key="errors.appUpdate.currentLinkInvalid")
     # 回退目标必须是 entrypoint 真实会采用的版本（runtime 匹配且未标坏）：
     # 否则用户会经历一次什么都没变的全量重启。不可用的 previous 视同不存在。
     if previous.is_symlink() and _overlay_state(Path(previous))[1]:
@@ -1678,7 +1669,7 @@ def rollback() -> str:
         current.unlink()
         message = "没有可用的更早版本，已回落到镜像内置版本，应用正在重启……"
     else:
-        raise BadRequestException("当前运行的就是镜像内置版本，没有可回退的目标")
+        raise BadRequestException(message_key="errors.appUpdate.noRollbackTarget")
     logger.info("应用回退：%s", message)
     # 占住 busy 态：重启前的窗口（响应缓冲 + 优雅停机最长约 11 秒）内
     # 拒绝并发的更新/再回退请求，与更新线程置 restarting 的做法对称
@@ -1782,9 +1773,11 @@ def _build_rollback_options(baseline_version: str, keep_versions: int) -> Rollba
     dirs = sorted(
         (d for d in versions_dir.iterdir() if d.is_dir()) if versions_dir.is_dir() else [],
         key=cmp_to_key(
-            lambda a, b: -1
-            if _is_newer(a.name.removeprefix("v"), b.name.removeprefix("v"))
-            else (1 if _is_newer(b.name.removeprefix("v"), a.name.removeprefix("v")) else 0)
+            lambda a, b: (
+                -1
+                if _is_newer(a.name.removeprefix("v"), b.name.removeprefix("v"))
+                else (1 if _is_newer(b.name.removeprefix("v"), a.name.removeprefix("v")) else 0)
+            )
         ),
     )
     for vdir in dirs:
@@ -1832,7 +1825,7 @@ def _build_rollback_options(baseline_version: str, keep_versions: int) -> Rollba
 async def rollback_options() -> RollbackOptionsView:
     """回退选择器数据（候选版本 + 保留策略现状）。"""
     if _runtime_version() is None:
-        raise BadRequestException("当前部署形态不支持应用内回退（仅 Docker 镜像部署支持）")
+        raise BadRequestException(message_key="errors.appUpdate.rollbackUnsupported")
     state = await get_app_update_state()
     prefs = await get_app_update_prefs()
     return await asyncio.to_thread(
@@ -1861,21 +1854,18 @@ def rollback_to(target: str, restore_backup: bool) -> str:
     连数据都能一并撤销）。
     """
     if _runtime_version() is None:
-        raise BadRequestException("当前部署形态不支持应用内回退（仅 Docker 镜像部署支持）")
+        raise BadRequestException(message_key="errors.appUpdate.rollbackUnsupported")
     if _progress.busy():
-        raise BadRequestException("已有更新正在进行中，无法回退")
+        raise BadRequestException(message_key="errors.appUpdate.rollbackWhileUpdating")
     updates = _updates_dir()
     current = updates / "current"
     if current.exists() and not current.is_symlink():
-        raise BadRequestException(
-            "updates/current 不是符号链接（可能被手工改动过），"
-            "请删除 data/updates/current 后重启容器回到镜像内置版本"
-        )
+        raise BadRequestException(message_key="errors.appUpdate.currentLinkInvalid")
     running = os.environ.get("MOVIECLAW_OVERLAY_VERSION")
 
     if target == "baseline":
         if not running:
-            raise BadRequestException("当前运行的就是镜像内置版本，无需回退")
+            raise BadRequestException(message_key="errors.appUpdate.builtinRunning")
         target_dir: Path | None = None
         target_label = "镜像内置版本"
         # 恢复源按记录过的基线版本号对时；没记录过就找不到（选项接口已把
@@ -1883,28 +1873,33 @@ def rollback_to(target: str, restore_backup: bool) -> str:
         restore_version = None
     else:
         if target == running:
-            raise BadRequestException(f"v{target} 正在运行，无需回退")
+            raise BadRequestException(
+                message_key="errors.appUpdate.targetRunning", params={"version": target}
+            )
         target_dir = updates / "versions" / f"v{_sanitize(target)}"
         version, usable, reason = _overlay_state(target_dir)
         if not usable:
-            raise BadRequestException(f"版本 v{target} 不可用：{reason}")
+            raise BadRequestException(
+                message_key="errors.appUpdate.targetUnavailable",
+                params={"version": target, "reason": reason},
+            )
         if version != target:
-            raise BadRequestException(f"版本目录 v{target} 的清单声明的是 v{version}，内容不匹配")
+            raise BadRequestException(
+                message_key="errors.appUpdate.rollbackVersionMismatch",
+                params={"target": target, "version": version},
+            )
         target_label = f"v{target}"
         restore_version = target
 
     backup: Path | None = None
     if restore_backup:
         if target == "baseline":
-            raise BadRequestException(
-                "镜像内置版本没有可对时的自动备份，无法随回退恢复数据；"
-                "如需恢复请在回退后从 data/updates/backup 手动恢复"
-            )
+            raise BadRequestException(message_key="errors.appUpdate.builtinBackupMissing")
         assert restore_version is not None
         backup = _latest_backup_for(updates, restore_version)
         if backup is None:
             raise BadRequestException(
-                f"没有找到离开 v{restore_version} 时的自动备份，无法随回退恢复数据"
+                message_key="errors.appUpdate.backupMissing", params={"version": restore_version}
             )
 
     # 保险备份：记录当前版本此刻的数据（含边车）。它同时是将来「切回来」时

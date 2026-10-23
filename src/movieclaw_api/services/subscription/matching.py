@@ -557,8 +557,7 @@ def _id_conflict_verdict(match: IdentityMatch) -> RuleVerdict:
         accepted=False,
         reason_code="identity_id_conflict",
         reason_text=(
-            f"站点信息与本条目不符（{match.id_conflict}）；"
-            "若确认是站点标错，可在搜索页手动选种投递"
+            f"站点信息与本条目不符（{match.id_conflict}）；若确认是站点标错，可在搜索页手动选种投递"
         ),
     )
 

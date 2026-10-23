@@ -1,0 +1,11 @@
+{
+  "llm": {
+    "agentScope": "Agent",
+    "subtitleScope": "Subtitle processing"
+  },
+  "updates": {
+    "applicationScope": "application updates",
+    "modelScope": "model updates",
+    "clientScope": "client updates"
+  }
+}

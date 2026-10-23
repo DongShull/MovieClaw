@@ -26,6 +26,7 @@ from movieclaw_api.exceptions import (
     ConflictException,
     NotFoundException,
     UpstreamServiceException,
+    exception_fields,
 )
 from movieclaw_api.services.network_egress import effective_tmdb_image_base_url
 from movieclaw_db.models import (
@@ -654,9 +655,9 @@ def _task_dict(
         or (manual or {}).get("site_id")
         or (boost or {}).get("site_id")
     )
-    quality = next(
-        (entry["_quality"] for entry in subscriptions if entry.get("_quality")), None
-    ) or {}
+    quality = (
+        next((entry["_quality"] for entry in subscriptions if entry.get("_quality")), None) or {}
+    )
     no_progress_seconds = None
     if rescue is not None and rescue.get("_last_progress_at") is not None:
         last_progress = rescue["_last_progress_at"]
@@ -783,7 +784,9 @@ async def _open_downloader_adapter(session: AsyncSession, downloader_id: int):
     repository = DownloaderRepository(session)
     row = await repository.get(downloader_id)
     if row is None:
-        raise NotFoundException(f"下载器不存在：id={downloader_id}")
+        raise NotFoundException(
+            message_key="errors.download.downloaderMissing", params={"id": downloader_id}
+        )
     adapter = create_downloader(
         DownloaderConfig(
             type=row.client_type,
@@ -805,7 +808,7 @@ async def get_downloader_limits(session: AsyncSession, downloader_id: int) -> Do
     try:
         return await adapter.get_limits()
     except DownloaderException as exc:
-        raise UpstreamServiceException(exc.message) from exc
+        raise UpstreamServiceException(**exception_fields(exc)) from exc
     finally:
         try:
             await adapter.close()
@@ -822,7 +825,7 @@ async def set_downloader_limits(
         await adapter.set_limits(limits)
         return await adapter.get_limits()
     except DownloaderException as exc:
-        raise UpstreamServiceException(exc.message) from exc
+        raise UpstreamServiceException(**exception_fields(exc)) from exc
     finally:
         try:
             await adapter.close()
@@ -946,7 +949,9 @@ async def plan_delete_download_task(
     repository = DownloaderRepository(session)
     row = await repository.get(downloader_id)
     if row is None:
-        raise NotFoundException(f"下载器不存在：id={downloader_id}")
+        raise NotFoundException(
+            message_key="errors.download.downloaderMissing", params={"id": downloader_id}
+        )
     normalized_hash = info_hash.lower()
     exists: bool | None
     title: str | None = None
@@ -1028,7 +1033,9 @@ async def delete_download_task(
     repository = DownloaderRepository(session)
     row = await repository.get(downloader_id)
     if row is None:
-        raise NotFoundException(f"下载器不存在：id={downloader_id}")
+        raise NotFoundException(
+            message_key="errors.download.downloaderMissing", params={"id": downloader_id}
+        )
 
     normalized_hash = info_hash.lower()
     if hooks.active(hooks.TORRENT_BEFORE_DELETE):
@@ -1041,7 +1048,9 @@ async def delete_download_task(
         )
         if veto is not None:
             logger.info("插件否决了删除下载任务 hash=%s：%s", normalized_hash, veto.reason)
-            raise ConflictException(f"插件不允许删除这个下载任务：{veto.reason}")
+            raise ConflictException(
+                message_key="errors.download.pluginDeleteVeto", params={"reason": veto.reason}
+            )
     adapter = _adapter_for(repository, row)
     try:
         await adapter.delete_torrent(normalized_hash, delete_files=delete_files)
@@ -1052,7 +1061,7 @@ async def delete_download_task(
             normalized_hash,
             exc.message,
         )
-        raise UpstreamServiceException(exc.message) from exc
+        raise UpstreamServiceException(**exception_fields(exc)) from exc
     finally:
         try:
             await adapter.close()
@@ -1242,11 +1251,15 @@ async def download_task_snapshot(session: AsyncSession) -> dict[str, list[dict[s
                     completed_manual[info_hash] = (row, detail)
         except Exception:  # noqa: BLE001 -- 单台失败必须降级，不能拖垮任务中心
             logger.exception("读取下载器「%s」的任务列表失败", row.name)
-            return {
-                **base,
-                "status": "error",
-                "message": "读取任务失败，请检查下载器连接",
-            }, [], {}
+            return (
+                {
+                    **base,
+                    "status": "error",
+                    "message": "读取任务失败，请检查下载器连接",
+                },
+                [],
+                {},
+            )
         finally:
             if adapter is not None:
                 try:

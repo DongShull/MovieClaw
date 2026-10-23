@@ -27,6 +27,7 @@ from sqlmodel import select
 from movieclaw_api.api.deps import require_admin, require_login
 from movieclaw_api.api.routes.images import WIDTH_QUERY, requested_width, sized_file
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.schemas.library import (
     ActorView,
     ArtworkCandidatesView,
@@ -198,7 +199,6 @@ from movieclaw_api.services.library.preflight import (
 )
 from movieclaw_api.services.library.profile import profile_for
 from movieclaw_api.services.library.scan import (
-    PHASE_LABELS,
     ScanPhase,
     busy_phase,
     enqueue_scan_job,
@@ -209,6 +209,9 @@ from movieclaw_api.services.library.scan import (
     request_stop_scan,
     scan_progress,
     scope_entries,
+)
+from movieclaw_api.services.library.scan import (
+    phase_reference as _phase_message,
 )
 from movieclaw_api.services.library.series import (
     ensure_series_collections_for_library,
@@ -292,7 +295,7 @@ def _assignment_target(title_ref: str) -> tuple[MediaKind, int]:
     except ValueError as exc:
         raise BadRequestException(str(exc)) from exc
     if provider is not MediaSource.TMDB or kind is None:
-        raise BadRequestException("文件身份指定只接受 Discover 返回的 TMDB title_ref")
+        raise BadRequestException(message_key="errors.library.titleRefRequired")
     return kind, int(external_id)
 
 
@@ -363,7 +366,7 @@ async def get_library_cover(
 
     result = await ensure_library_cover(library_id)
     if result is None:
-        raise NotFoundException("该库还没有可用的封面素材（无海报资产）")
+        raise NotFoundException(message_key="errors.library.coverUnavailable")
     path, key = result
     w = requested_width(w)
     etag = f'"{key}-w{w}"' if w else f'"{key}"'
@@ -406,9 +409,12 @@ async def upload_library_cover(
 
     data = await file.read()
     if not data:
-        raise BadRequestException("上传的图片为空，请重新选择")
+        raise BadRequestException(message_key="errors.library.emptyImage")
     if len(data) > MAX_UPLOAD_BYTES:
-        raise BadRequestException(f"图片过大，请控制在 {MAX_UPLOAD_BYTES // (1024 * 1024)}MB 以内")
+        raise BadRequestException(
+            message_key="errors.library.imageTooLarge",
+            params={"limit": MAX_UPLOAD_BYTES // (1024 * 1024)},
+        )
     try:
         # 解码与重编码是 CPU 活（大图能到几百毫秒），丢线程池，别堵事件循环
         image = await asyncio.to_thread(normalize_cover_image, data)
@@ -433,7 +439,7 @@ async def delete_library_cover(library_id: int) -> ApiResponse[dict]:
     from movieclaw_api.services.library.cover import remove_custom_cover
 
     if not await asyncio.to_thread(remove_custom_cover, library_id):
-        raise NotFoundException("这个库没有自定义封面")
+        raise NotFoundException(message_key="errors.library.customCoverMissing")
     return ok({}, message="已恢复自动拼贴封面")
 
 
@@ -1218,7 +1224,7 @@ async def search_library(
 
     q = q.strip()
     if not compact(q) and person_id is None:
-        raise BadRequestException("请输入片名、拼音或人物名称")
+        raise BadRequestException(message_key="errors.library.searchRequired")
     result = await ranked_search(
         session,
         q,
@@ -1314,7 +1320,7 @@ async def create_library(
     folder_specs: list[library_cloud.FolderSpec] = []
     if payload.cloud_folders:
         if not profile_for(payload.kind, payload.source).playable:
-            raise BadRequestException("这种库不能挂网盘目录")
+            raise BadRequestException(message_key="errors.library.cloudUnsupported")
         try:
             folder_specs = await library_cloud.validate_folders(
                 session, None, _folder_specs(payload.cloud_folders)
@@ -1372,14 +1378,17 @@ async def _assert_not_busy(session: AsyncSession, library_name: str, library_id:
     phase = busy_phase(library_id)
     if phase is not None:
         raise ConflictException(
-            f"「{library_name}」{PHASE_LABELS[phase]}，暂不能编辑或删除；请等当前任务完成"
+            message_key="errors.library.busyPhase",
+            params={"name": library_name, "phase": _phase_message(phase)},
         )
     if is_organizing(library_id):
         raise ConflictException(
-            f"「{library_name}」正在整理文件名，暂不能编辑或删除；请等待整理完成"
+            message_key="errors.library.organizingBusy", params={"name": library_name}
         )
     if is_transferring(library_id):
-        raise ConflictException(f"「{library_name}」正在转移条目，暂不能编辑或删除；请等待转移完成")
+        raise ConflictException(
+            message_key="errors.library.transferringBusy", params={"name": library_name}
+        )
     active = await jobs.list_jobs(
         session,
         active_only=True,
@@ -1388,16 +1397,16 @@ async def _assert_not_busy(session: AsyncSession, library_name: str, library_id:
         limit=20,
     )
     labels = {
-        "library.scan": "扫描媒体库",
-        "library.organize": "整理文件名",
-        "library.transfer": "转移条目",
-        "library.metadata.refresh": "刷新元数据",
+        "library.scan": reference("activity.library.scanAction"),
+        "library.organize": reference("activity.library.organizeAction"),
+        "library.transfer": reference("activity.library.transferAction"),
+        "library.metadata.refresh": reference("activity.library.metadataAction"),
     }
     blocking = next((row for row in active if row.job_type in labels), None)
     if blocking is not None:
         raise ConflictException(
-            f"「{library_name}」正在{labels[blocking.job_type]}，暂不能编辑或删除；"
-            "可到活动页查看进度"
+            message_key="errors.library.jobBusy",
+            params={"name": library_name, "action": labels[blocking.job_type]},
         )
 
 
@@ -1412,7 +1421,9 @@ async def _quiesce_scan_for_mutation(
     """
     phase = busy_phase(library_id)
     if phase is ScanPhase.REIDENTIFYING:
-        raise ConflictException(f"「{library_name}」正在重新识别条目，请等待完成后再操作")
+        raise ConflictException(
+            message_key="errors.library.reidentifyingBusy", params={"name": library_name}
+        )
     active = await jobs.list_jobs(
         session,
         active_only=True,
@@ -1448,7 +1459,9 @@ async def _quiesce_scan_for_mutation(
         if not remaining and busy_phase(library_id) is None:
             return
         await asyncio.sleep(0.05)
-    raise ConflictException(f"「{library_name}」的扫描正在安全停止，请稍后重试；可到活动页查看进度")
+    raise ConflictException(
+        message_key="errors.library.scanStopping", params={"name": library_name}
+    )
 
 
 @router.put(
@@ -1503,7 +1516,7 @@ async def update_library(
         except ValueError as exc:
             raise BadRequestException(str(exc)) from exc
         if folder_specs and not profile_for(before.kind, before.source).playable:
-            raise BadRequestException("这种库不能挂网盘目录")
+            raise BadRequestException(message_key="errors.library.cloudUnsupported")
         current = {
             (f.account_id, f.remote_dir_id)
             for f in await LibraryCloudRepository(session).folders(library_id)
@@ -1748,11 +1761,18 @@ async def start_scan(
             raise BadRequestException(str(exc)) from exc
     phase = busy_phase(library_id)
     if phase is not None:
-        raise ConflictException(f"「{library.name}」{PHASE_LABELS[phase]}，请等待完成")
+        raise ConflictException(
+            message_key="errors.library.phaseBusy",
+            params={"name": library.name, "phase": _phase_message(phase)},
+        )
     if is_organizing(library_id):
-        raise ConflictException(f"「{library.name}」正在整理文件名，请等待整理完成后再扫描")
+        raise ConflictException(
+            message_key="errors.library.organizeBeforeScan", params={"name": library.name}
+        )
     if is_transferring(library_id):
-        raise ConflictException(f"「{library.name}」正在转移条目，请等待转移完成后再扫描")
+        raise ConflictException(
+            message_key="errors.library.transferBeforeScan", params={"name": library.name}
+        )
     created = await enqueue_scan_job(
         session, library_id, library.name, origin=_job_origin(client_name), scope_paths=scope
     )
@@ -1775,7 +1795,9 @@ def _normalise_reconcile_root(path: str) -> str:
     """校验管理员修复入口的绝对根路径，保持与媒体库配置相同的尾斜杠语义。"""
     cleaned = path.strip()
     if not cleaned.startswith("/"):
-        raise BadRequestException(f"根路径必须是绝对路径：{path}")
+        raise BadRequestException(
+            message_key="errors.library.absoluteRootRequired", params={"path": path}
+        )
     return cleaned if cleaned == "/" else cleaned.rstrip("/")
 
 
@@ -1788,9 +1810,9 @@ def _validated_reconcile_roots(
     new_root = _normalise_reconcile_root(payload.new_root)
     current_roots = {_normalise_reconcile_root(root) for root in library.root_paths}
     if old_root in current_roots:
-        raise BadRequestException("旧根路径仍在当前媒体库配置中，不能作为已移除根修复")
+        raise BadRequestException(message_key="errors.library.oldRootStillConfigured")
     if new_root not in current_roots:
-        raise BadRequestException("目标根路径必须是当前媒体库已配置的根路径")
+        raise BadRequestException(message_key="errors.library.targetRootNotConfigured")
     return old_root, new_root
 
 
@@ -1901,8 +1923,13 @@ async def stop_scan(
         # 不能笼统回一句"没有扫描"让用户以为界面在骗人
         phase = busy_phase(library_id)
         if phase is not None:
-            raise ConflictException(f"「{library.name}」{PHASE_LABELS[phase]}，该任务不能中途停止")
-        raise ConflictException(f"「{library.name}」当前没有进行中的扫描")
+            raise ConflictException(
+                message_key="errors.library.phaseNotStoppable",
+                params={"name": library.name, "phase": _phase_message(phase)},
+            )
+        raise ConflictException(
+            message_key="errors.library.noActiveScan", params={"name": library.name}
+        )
     return ok({}, message=f"正在停止「{library.name}」的扫描（当前单位处理完即停下）")
 
 
@@ -1933,7 +1960,9 @@ async def start_chapter_images(
     service = LibraryConfigService(session)
     library = await service.get(library_id)
     if not library.extract_chapter_images:
-        raise ConflictException(f"「{library.name}」已关闭章节生成，请先在编辑库里打开")
+        raise ConflictException(
+            message_key="errors.library.chaptersDisabled", params={"name": library.name}
+        )
     created = await chapters_mod.enqueue_library_chapter_images_job(
         session, library_id, library.name, force=force, origin=_job_origin(client_name)
     )
@@ -1971,7 +2000,9 @@ async def regenerate_item_chapter_images(
     library = await LibraryConfigService(session).get(library_id)
     item, _rows = await _item_rows(session, library_id, media_item_id)
     if not library.extract_chapter_images:
-        raise ConflictException(f"「{library.name}」已关闭章节生成，请先在编辑库里打开")
+        raise ConflictException(
+            message_key="errors.library.chaptersDisabled", params={"name": library.name}
+        )
     created = await chapters_mod.enqueue_item_chapter_images_job(
         session, media_item_id, item.title, origin=_job_origin(client_name)
     )
@@ -2047,7 +2078,9 @@ async def stop_metadata_refresh(
     if active:
         await jobs.request_cancel(session, active[0].id, requested_by="媒体库页面")
     elif not media_scrape.request_stop_library_refresh(library_id):
-        raise ConflictException(f"「{library.name}」当前没有进行中的元数据刷新")
+        raise ConflictException(
+            message_key="errors.library.noMetadataRefresh", params={"name": library.name}
+        )
     return ok({}, message=f"正在停止「{library.name}」的元数据刷新（当前条目刷完即停下）")
 
 
@@ -2261,10 +2294,15 @@ async def start_organize(
     service = LibraryConfigService(session)
     library = await service.get(library_id)
     if is_organizing(library_id):
-        raise ConflictException(f"「{library.name}」正在整理中，请等待完成")
+        raise ConflictException(
+            message_key="errors.library.organizeRunning", params={"name": library.name}
+        )
     phase = busy_phase(library_id)
     if phase is not None:
-        raise ConflictException(f"「{library.name}」{PHASE_LABELS[phase]}，请等待完成后再整理")
+        raise ConflictException(
+            message_key="errors.library.phaseBeforeOrganize",
+            params={"name": library.name, "phase": _phase_message(phase)},
+        )
     # 用户确认后再按磁盘现场重算一次，并把这一份精确计划写进 Job。这样
     # 重启发生在“改名成功、台账提交前”时，处理器知道该补哪一行台账。
     plan = await build_organize_plan(session, library)
@@ -2684,7 +2722,7 @@ async def _metadata_item(session: AsyncSession, library_id: int, media_item_id: 
     """
     item = await session.get(MediaItem, media_item_id)
     if item is None:
-        raise NotFoundException("媒体条目不存在（可能已被删除）")
+        raise NotFoundException(message_key="errors.library.itemRemoved")
     has_row = (
         await session.execute(
             select(LibraryFile.id)
@@ -2699,7 +2737,9 @@ async def _metadata_item(session: AsyncSession, library_id: int, media_item_id: 
         return item
     resolved = await resolve_scrape_library(session, item)
     if resolved is None or resolved.id != library_id:
-        raise NotFoundException(f"「{item.title}」不在该媒体库中（无库存文件，刮削归属也不是该库）")
+        raise NotFoundException(
+            message_key="errors.library.itemNotInLibrary", params={"title": item.title}
+        )
     await session.commit()  # resolve 可能刚推断并固化了归属，落库保持口径稳定
     return item
 
@@ -2710,7 +2750,7 @@ async def _item_rows(
     """条目 + 它在该库的全部台账行；条目不存在或不在库中抛 404。"""
     item = await session.get(MediaItem, media_item_id)
     if item is None:
-        raise NotFoundException("媒体条目不存在（可能已被删除）")
+        raise NotFoundException(message_key="errors.library.itemRemoved")
     rows = list(
         (
             await session.execute(
@@ -2726,7 +2766,9 @@ async def _item_rows(
         .all()
     )
     if not rows:
-        raise NotFoundException(f"「{item.title}」在该媒体库中没有库存文件")
+        raise NotFoundException(
+            message_key="errors.library.itemHasNoFiles", params={"title": item.title}
+        )
     return item, rows
 
 
@@ -3252,7 +3294,7 @@ async def get_file_thumb(
     """路径由台账行推导（客户端只给 id），不存在路径注入面。"""
     row = await session.get(LibraryFile, file_id)
     if row is None:
-        raise NotFoundException("台账文件不存在")
+        raise NotFoundException(message_key="errors.library.fileMissing")
     # 成员按文件归属库做可见性判定（不可见与不存在同样 404）
     if row.library_id is not None:
         await assert_library_visible(session, principal, row.library_id)
@@ -3260,7 +3302,7 @@ async def get_file_thumb(
     # 就是一次往返，在事件循环里做会把同一时刻的其他请求一起卡住
     thumb = await asyncio.to_thread(find_episode_thumb, Path(row.file_path))
     if thumb is None:
-        raise NotFoundException("该文件没有本地缩略图")
+        raise NotFoundException(message_key="errors.library.thumbnailMissing")
     return await sized_file(
         thumb,
         source_key=f"file-thumb:{thumb}",
@@ -3298,12 +3340,12 @@ async def get_file_original(
     """
     row = await session.get(LibraryFile, file_id)
     if row is None or Path(row.file_path).suffix.lower() not in IMAGE_EXTS:
-        raise NotFoundException("台账文件不存在或不是图片")
+        raise NotFoundException(message_key="errors.library.imageRecordMissing")
     if row.library_id is not None:
         await assert_library_visible(session, principal, row.library_id)
     path = Path(row.file_path)
     if not await asyncio.to_thread(path.is_file):
-        raise NotFoundException("图片文件不在磁盘上（可能已被移动或删除）")
+        raise NotFoundException(message_key="errors.library.imageMissing")
     w = requested_width(w)
     if (size == "screen" or w) and not download:
         from movieclaw_api.services.image_variants import (
@@ -3357,7 +3399,7 @@ async def preview_file_subtitle(
 
     row = await session.get(LibraryFile, file_id)
     if row is None:
-        raise NotFoundException("台账文件不存在")
+        raise NotFoundException(message_key="errors.library.fileMissing")
     await assert_library_visible(session, principal, row.library_id)
     try:
         preview = await load_subtitle_preview(row, track)
@@ -3401,7 +3443,7 @@ async def delete_file_subtitle(
     """
     row = await session.get(LibraryFile, file_id)
     if row is None:
-        raise NotFoundException("台账文件不存在")
+        raise NotFoundException(message_key="errors.library.fileMissing")
     result = await delete_external_subtitle(session, row, filename)
     return ok(
         SubtitleDeleteResultView(path=result.path, freed_bytes=result.freed_bytes),
@@ -3439,7 +3481,7 @@ async def get_item_artwork(
             w=w,
             headers={"Cache-Control": "private, max-age=3600"},
         )
-    raise NotFoundException("条目目录里没有本地美术图")
+    raise NotFoundException(message_key="errors.library.localArtworkMissing")
 
 
 def _delete_view(result: DeleteResult, *, dry_run: bool = False) -> ItemDeleteResultView:
@@ -3561,7 +3603,10 @@ async def preview_library_delete(
     else:
         row = next((r for r in rows if r.id == file_id), None)
         if row is None:
-            raise NotFoundException(f"台账文件不存在或不属于「{item.title}」：id={file_id}")
+            raise NotFoundException(
+                message_key="errors.library.fileNotInItem",
+                params={"title": item.title, "id": file_id},
+            )
         scope, targets = "file", rows if len(rows) == 1 else [row]
         plan = await delete_single_file(session, library, row, rows, dry_run=True)
     whole = len(targets) == len(rows)
@@ -3683,7 +3728,9 @@ async def delete_library_file(
     item, rows = await _item_rows(session, library_id, media_item_id)
     row = next((r for r in rows if r.id == file_id), None)
     if row is None:
-        raise NotFoundException(f"台账文件不存在或不属于「{item.title}」：id={file_id}")
+        raise NotFoundException(
+            message_key="errors.library.fileNotInItem", params={"title": item.title, "id": file_id}
+        )
     file_name = PurePath(row.file_path).name
     if dry_run:
         plan = await delete_single_file(session, library, row, rows, dry_run=True)
@@ -3744,11 +3791,13 @@ async def restore_library_file(
     item, rows = await _item_rows(session, library_id, media_item_id)
     row = next((r for r in rows if r.id == file_id), None)
     if row is None:
-        raise NotFoundException(f"台账文件不存在或不属于「{item.title}」：id={file_id}")
+        raise NotFoundException(
+            message_key="errors.library.fileNotInItem", params={"title": item.title, "id": file_id}
+        )
     if row.state != FileState.TRASHED:
-        raise BadRequestException("该文件不在待回收状态，无需恢复")
+        raise BadRequestException(message_key="errors.library.restoreNotNeeded")
     if not await restore_file(session, row):
-        raise ConflictException("恢复失败：原路径已有同名文件，或文件已不存在——可稍后清理该记录")
+        raise ConflictException(message_key="errors.library.restoreFailed")
     await session.commit()
     return ok({}, message=f"「{PurePath(row.file_path).name}」已恢复为在位版本")
 
@@ -3775,13 +3824,15 @@ async def purge_library_file(
     item, rows = await _item_rows(session, library_id, media_item_id)
     row = next((r for r in rows if r.id == file_id), None)
     if row is None:
-        raise NotFoundException(f"台账文件不存在或不属于「{item.title}」：id={file_id}")
+        raise NotFoundException(
+            message_key="errors.library.fileNotInItem", params={"title": item.title, "id": file_id}
+        )
     if row.state != FileState.TRASHED:
-        raise BadRequestException("该文件不在待回收状态；删除在位文件请用「删除文件」")
+        raise BadRequestException(message_key="errors.library.recycleStateRequired")
     file_name = PurePath(row.file_path).name
     if not await purge_file(session, row):
         raise ConflictException(
-            f"清理「{file_name}」失败：目录内还有其他在案文件（需先处理），或文件权限不足——详见服务日志"
+            message_key="errors.library.cleanupFailed", params={"name": file_name}
         )
     await session.commit()
     return ok({}, message=f"「{file_name}」已清理")
@@ -3965,7 +4016,9 @@ async def annotate_item_media_source(
     missing-record-clearances 同风格）：订阅侧入口拿不到库 id，条目 id 已足够。"""
     item = await session.get(MediaItem, payload.media_item_id)
     if item is None:
-        raise NotFoundException(f"条目不存在：id={payload.media_item_id}")
+        raise NotFoundException(
+            message_key="errors.library.itemIdMissing", params={"id": payload.media_item_id}
+        )
     result = await source_annotation.annotate_media_source(
         session,
         media_item_id=payload.media_item_id,
@@ -4011,8 +4064,8 @@ async def _batch_transfer_context(
     assert_transferable(source, target)
     if not payload.all_items and len(payload.media_item_ids) > MAX_SELECTION:
         raise BadRequestException(
-            f"一次最多提交 {MAX_SELECTION} 个条目（收到 {len(payload.media_item_ids)} 个）；"
-            "要搬整个库请改用 all_items"
+            message_key="errors.library.selectionTooLarge",
+            params={"limit": MAX_SELECTION, "count": len(payload.media_item_ids)},
         )
     members = await resolve_members(
         session,
@@ -4021,9 +4074,7 @@ async def _batch_transfer_context(
         all_items=payload.all_items,
     )
     if not members:
-        raise BadRequestException(
-            "没有选中任何条目：请传 media_item_ids，或用 all_items 转移整个库"
-        )
+        raise BadRequestException(message_key="errors.library.selectionRequired")
     return source, target, members
 
 
@@ -4134,7 +4185,8 @@ async def start_batch_transfer(
             "",
         )
         raise BadRequestException(
-            f"选中的条目没有一个可以搬运：{detail}" if detail else "选中的条目没有可搬运的内容"
+            message_key="errors.library.selectionUnmovable",
+            params={"hasDetail": "yes" if detail else "no", "detail": detail},
         )
     created = await enqueue_batch_transfer_job(
         session,
@@ -4168,9 +4220,11 @@ def _validated_consolidate_roots(
     """校验归并的目标根与源根，返回规范化后的（into, from_roots）。"""
     into = payload.into.strip().rstrip("/")
     if not into:
-        raise BadRequestException("必须给出要并到的目标根路径")
+        raise BadRequestException(message_key="errors.library.targetRootRequired")
     if not Path(into).is_dir():
-        raise BadRequestException(f"目标根路径不存在或不可访问：{into}（盘未挂载？）")
+        raise BadRequestException(
+            message_key="errors.library.rootUnavailable", params={"path": into}
+        )
     current = [r.rstrip("/") for r in library.root_paths]
     sources = [r.strip().rstrip("/") for r in payload.from_roots if r.strip()]
     if not sources:
@@ -4179,12 +4233,13 @@ def _validated_consolidate_roots(
     unknown = [r for r in sources if r not in current]
     if unknown:
         raise BadRequestException(
-            "这些源根不在媒体库的配置里：" + "、".join(unknown) + "；请用 mclaw library get 核对"
+            message_key="errors.library.unknownSourceRoots",
+            params={"paths": {"message_list": unknown, "separator_key": "common.list.separator"}},
         )
     if into in sources:
-        raise BadRequestException("目标根不能同时出现在源根里")
+        raise BadRequestException(message_key="errors.library.targetIsSource")
     if not sources:
-        raise BadRequestException("没有要并过来的源根——这个库只有目标根一个根路径")
+        raise BadRequestException(message_key="errors.library.noSourceRoots")
     return into, sources
 
 
@@ -4275,9 +4330,7 @@ async def start_consolidate_roots(
     await _assert_not_busy(session, library.name, library_id)
     members = await resolve_members_under_roots(session, library_id, sources)
     if not members:
-        raise BadRequestException(
-            "这些源根下没有任何已入库的条目——如果只是想改配置，直接编辑媒体库的根路径即可"
-        )
+        raise BadRequestException(message_key="errors.library.noSourceItems")
     result = await build_preflight(
         session, library, Path(into), [(m.media_item_id, m.title) for m in members]
     )
@@ -4384,7 +4437,10 @@ async def transfer_library_item(
         raise ConflictException("；".join(plan.blocked))
     if not plan.moves and not plan.missing_file_ids:
         detail = "；".join(s.reason for s in plan.skips) or "台账为空"
-        raise BadRequestException(f"「{item.title}」没有可转移的内容：{detail}")
+        raise BadRequestException(
+            message_key="errors.library.itemUnmovable",
+            params={"title": item.title, "detail": detail},
+        )
     created = await enqueue_transfer_job(
         session,
         plan,
@@ -4679,12 +4735,12 @@ async def redownload_missing(
     await service.get(payload.library_id)  # 404 检查
     item = await session.get(MediaItem, payload.media_item_id)
     if item is None:
-        raise NotFoundException("媒体条目不存在")
+        raise NotFoundException(message_key="errors.library.itemMissing")
     rows = await LibraryFileRepository(session).list_missing(
         payload.library_id, media_item_id=payload.media_item_id
     )
     if not rows:
-        raise BadRequestException("该条目没有缺失文件")
+        raise BadRequestException(message_key="errors.library.noMissingFiles")
     units = {(r.season_number, r.episode_number) for r in rows}
     subscriptions = SubscriptionService(session, MediaLibraryService(session, get_tmdb_client()))
     subscription, requeued = await subscriptions.redownload_missing_units(
@@ -4781,7 +4837,7 @@ async def ignore_file(
     repo = LibraryFileRepository(session)
     row = await session.get(LibraryFile, file_id)
     if row is None:
-        raise NotFoundException(f"台账记录不存在：id={file_id}")
+        raise NotFoundException(message_key="errors.library.recordMissing", params={"id": file_id})
     _marked, displaced = await repo.mark_ignored([file_id])
     await LibraryRepository(session).refresh_stats([row.library_id])
     if displaced:
@@ -4821,7 +4877,7 @@ async def detach_files(
     )
     detached, displaced = await repo.detach_and_ignore(payload.file_ids)
     if detached == 0:
-        raise NotFoundException("这些台账记录都不存在（可能已被处理）")
+        raise NotFoundException(message_key="errors.library.recordsMissing")
     await LibraryRepository(session).refresh_stats(library_ids)
     # 摘锚后旧条目往往一个文件都不剩，连同图片资产清掉，不在库里留空壳
     if displaced:
@@ -4860,7 +4916,7 @@ async def restore_ignored_files(
     )
     restored = await repo.restore_ignored(payload.file_ids)
     if restored == 0:
-        raise NotFoundException("这些记录都不存在或本来就没被忽略")
+        raise NotFoundException(message_key="errors.library.ignoredRecordsMissing")
     await LibraryRepository(session).refresh_stats(library_ids)
     return ok(
         {"restored": restored},

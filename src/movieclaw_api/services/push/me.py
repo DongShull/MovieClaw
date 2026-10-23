@@ -148,12 +148,12 @@ async def build_view(session: AsyncSession, principal: Principal) -> MyPushView:
 async def _current_push_device(session: AsyncSession, principal: Principal) -> LoginDevice:
     """登记只接受 App 类设备自己的凭证。"""
     if principal.device is None:
-        raise ForbiddenException("只有 App 能登记推送：请在 MovieClaw App 里登录")
+        raise ForbiddenException(message_key="errors.push.appSignInRequired")
     if principal.device.kind not in registration.PUSH_KINDS:
-        raise ForbiddenException("只有 App 能登记推送")
+        raise ForbiddenException(message_key="errors.push.appOnly")
     device = await session.get(LoginDevice, principal.device.id)
     if device is None:
-        raise NotFoundException("设备不存在或已被注销")
+        raise NotFoundException(message_key="errors.push.deviceMissing")
     return device
 
 
@@ -163,10 +163,10 @@ async def stream_device(session: AsyncSession, principal: Principal) -> LoginDev
     网页会话、iOS 本来就没有实时通知：同 ``unregister`` 返回 404。
     """
     if principal.device is None or principal.device.kind not in registration.STREAM_KINDS:
-        raise NotFoundException("这台设备没有实时通知")
+        raise NotFoundException(message_key="errors.push.realtimeUnavailable")
     device = await _current_push_device(session, principal)
     if not device.push_stream:
-        raise ConflictException("这台设备还没有开启实时通知，请先登记")
+        raise ConflictException(message_key="errors.push.realtimeNotRegistered")
     return device
 
 
@@ -187,7 +187,7 @@ async def register(
 ) -> PushRegistrationView:
     device = await _current_push_device(session, principal)
     if stream and device.kind not in registration.STREAM_KINDS:
-        raise BadRequestException("只有 Android App 能开实时通知")
+        raise BadRequestException(message_key="errors.push.androidOnly")
     # 版本是登录时记下的，App 升级后不重新登录就一直是旧的；每次启动的登记顺手刷新
     if client_version and client_version.strip():
         device.client_version = client_version.strip()
@@ -215,7 +215,7 @@ async def register(
 async def unregister(session: AsyncSession, principal: Principal) -> None:
     """清掉这台设备的推送登记。不是 App（网页、命令行）本来就没有登记：404。"""
     if principal.device is None or principal.device.kind not in registration.PUSH_KINDS:
-        raise NotFoundException("这台设备没有推送登记")
+        raise NotFoundException(message_key="errors.push.registrationMissing")
     device = await _current_push_device(session, principal)
     await registration.clear(session, device)
 
@@ -225,7 +225,7 @@ async def test(principal: Principal) -> PushTestView:
     now = time.monotonic()
     last = _last_test.get(owner)
     if last is not None and now - last < _TEST_INTERVAL_S:
-        raise BadRequestException("刚发过一条测试通知，请稍等几秒再试")
+        raise BadRequestException(message_key="errors.push.testThrottled")
     _last_test[owner] = now
     outcomes = await send_test(owner)
     return PushTestView(

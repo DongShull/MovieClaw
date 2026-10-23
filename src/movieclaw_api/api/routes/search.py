@@ -405,18 +405,22 @@ def _validate_presets(payload: SearchPresetUpdate) -> None:
     """保存前的业务校验（结构校验已由 Pydantic 完成），全部中文报错。"""
     category_ids = [t.id for t in payload.presets if isinstance(t, CategoryTabItem)]
     if len(category_ids) != len(set(category_ids)):
-        raise BadRequestException("分类列表存在重复项，请刷新页面后重试")
+        raise BadRequestException(message_key="errors.search.duplicateOrder")
 
     presets = [t for t in payload.presets if isinstance(t, PresetTabItem)]
     if len(presets) > MAX_SEARCH_PRESETS:
-        raise BadRequestException(f"自定义分类最多创建 {MAX_SEARCH_PRESETS} 个")
+        raise BadRequestException(
+            message_key="errors.search.presetLimit", params={"limit": MAX_SEARCH_PRESETS}
+        )
     preset_ids = [p.id for p in presets]
     if len(preset_ids) != len(set(preset_ids)):
-        raise BadRequestException("自定义分类的标识重复，请刷新页面后重试")
+        raise BadRequestException(message_key="errors.search.duplicatePresetId")
     names = [p.name for p in presets]
     if len(names) != len(set(names)):
         dup = next(n for n in names if names.count(n) > 1)
-        raise BadRequestException(f"已存在同名的自定义分类：{dup}")
+        raise BadRequestException(
+            message_key="errors.search.duplicatePresetName", params={"name": dup}
+        )
 
     # 站点存在性：只认站点目录里的 site_id（目录是静态受支持集合）。
     # 站点是否「已配置/可用」不在此校验——预设允许先建后配，搜索时自动跳过不可用站点。
@@ -425,7 +429,11 @@ def _validate_presets(payload: SearchPresetUpdate) -> None:
         unknown = [s for s in preset.site_ids if s not in known_sites]
         if unknown:
             raise BadRequestException(
-                f"自定义分类「{preset.name}」勾选了不存在的站点：{'、'.join(unknown)}"
+                message_key="errors.search.presetSitesMissing",
+                params={
+                    "name": preset.name,
+                    "sites": {"message_list": unknown, "separator_key": "common.list.separator"},
+                },
             )
 
 
@@ -527,9 +535,9 @@ async def get_search_history_results(
     repo = SearchHistoryRepository(session)
     row = await repo.get_by_id(history_id)
     if row is None or row.member_id != _history_owner(principal):
-        raise NotFoundException("该搜索历史不存在或已被删除")
+        raise NotFoundException(message_key="errors.search.historyMissing")
     if not row.snapshot_json or row.snapshot_at is None:
-        raise NotFoundException("该搜索历史还没有结果快照，重新搜索后会自动生成")
+        raise NotFoundException(message_key="errors.search.historySnapshotMissing")
     data = json.loads(row.snapshot_json)
     assert row.id is not None  # 从库里读出的记录必有主键
     if row.vertical == "torrent":
@@ -561,7 +569,7 @@ async def get_search_history_results(
                 items=data["items"],
             )
         )
-    raise NotFoundException("该搜索历史的类型已不受支持")
+    raise NotFoundException(message_key="errors.search.historyKindUnsupported")
 
 
 @router.delete(
@@ -580,7 +588,7 @@ async def delete_search_history(
         history_id, member_id=_history_owner(principal)
     )
     if not deleted:
-        raise NotFoundException("该搜索历史不存在或已被删除")
+        raise NotFoundException(message_key="errors.search.historyMissing")
     return ok(None, message="已删除")
 
 

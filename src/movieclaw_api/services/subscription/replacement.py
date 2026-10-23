@@ -185,24 +185,20 @@ async def request_replacement(
         ).scalars()
     )
     if len(attempts) > 1:
-        raise BadRequestException(
-            "该下载任务同时关联多个订阅，无法安全判断要替换哪一个；请先在订阅详情中处理"
-        )
+        raise BadRequestException(message_key="errors.subscription.replacementAmbiguous")
     attempt = attempts[0] if attempts else None
     if attempt is None or attempt.id is None:
-        raise BadRequestException("该任务不是可换源的订阅主任务，或已经由其他资源接管")
+        raise BadRequestException(message_key="errors.subscription.replacementNotPrimary")
     if attempt.downloader_id != downloader_id and not await _torrent_exists_on_downloader(
         session, downloader_id, normalized
     ):
-        raise BadRequestException(
-            "任务所在下载器已变化，且指定下载器中查不到该任务，请刷新后重试"
-        )
+        raise BadRequestException(message_key="errors.subscription.downloaderChanged")
     if utcnow() - attempt.last_progress_at < timedelta(minutes=15):
-        raise BadRequestException("该任务尚未连续 15 分钟无进度，请稍后再试")
+        raise BadRequestException(message_key="errors.subscription.replacementTooSoon")
     if await _has_trial(session, attempt.id):
-        raise BadRequestException("同品质替代源已经在验证中，无需重复换种")
+        raise BadRequestException(message_key="errors.subscription.replacementVerifying")
     if not await _current_attempt_wanted(session, attempt):
-        raise BadRequestException("关联单元已退出当前订阅范围，不能再发起换种")
+        raise BadRequestException(message_key="errors.subscription.replacementOutOfScope")
 
     now = utcnow()
     # 任务中心传入的是本次实时快照实际命中的下载器；若用户迁移过任务，
@@ -227,7 +223,7 @@ async def request_replacement(
     )
     await session.commit()
     if not result.rowcount:
-        raise BadRequestException("任务状态已经变化，请刷新活动页后重试")
+        raise BadRequestException(message_key="errors.subscription.taskChanged")
     await session.refresh(attempt)
     await SubscriptionRepository(session).add_activity(
         SubscriptionActivity(
@@ -1125,22 +1121,26 @@ async def reconcile_pending_cleanup(attempt_id: int) -> bool:
         if old is None or old.status != DownloadAttemptStatus.CLEANUP_PENDING:
             return False
         new = (
-            await session.execute(
-                select(SubscriptionDownloadAttempt)
-                .where(
-                    SubscriptionDownloadAttempt.replaces_attempt_id == old.id,
-                    SubscriptionDownloadAttempt.status.in_(  # type: ignore[attr-defined]
-                        (
-                            DownloadAttemptStatus.ACTIVE,
-                            DownloadAttemptStatus.COMPLETED,
-                            # 洗版链路的新源在挂起旧任务时就已经入库了（见下）
-                            DownloadAttemptStatus.IMPORTED,
-                        )
-                    ),
+            (
+                await session.execute(
+                    select(SubscriptionDownloadAttempt)
+                    .where(
+                        SubscriptionDownloadAttempt.replaces_attempt_id == old.id,
+                        SubscriptionDownloadAttempt.status.in_(  # type: ignore[attr-defined]
+                            (
+                                DownloadAttemptStatus.ACTIVE,
+                                DownloadAttemptStatus.COMPLETED,
+                                # 洗版链路的新源在挂起旧任务时就已经入库了（见下）
+                                DownloadAttemptStatus.IMPORTED,
+                            )
+                        ),
+                    )
+                    .order_by(SubscriptionDownloadAttempt.id.desc())  # type: ignore[attr-defined]
                 )
-                .order_by(SubscriptionDownloadAttempt.id.desc())  # type: ignore[attr-defined]
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         if new is None:
             logger.warning("旧下载尝试 #%s 等待清理，但找不到仍有效的替代源台账", attempt_id)
             return False

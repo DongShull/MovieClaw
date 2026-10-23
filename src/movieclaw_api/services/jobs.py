@@ -24,6 +24,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_db.engine import get_database
 from movieclaw_db.models import (
     ACTIVE_JOB_STATUSES,
@@ -198,12 +199,12 @@ def _new_job_id() -> str:
     return f"job_{uuid.uuid4().hex}"
 
 
-def default_progress(message: str = "等待执行") -> dict[str, Any]:
+def default_progress(message: str | None = None) -> dict[str, Any]:
     """所有任务共享的进度外壳；领域明细只放 details，不污染公共契约。"""
     return {
         "mode": "waiting",
         "phase": "queued",
-        "message": message,
+        **({"message": message} if message is not None else stored_fields("activity.jobs.queued")),
         "current": None,
         "total": None,
         "percent": None,
@@ -279,7 +280,7 @@ async def create_job(
         )
         if existing is not None:
             if conflict_policy == "reject":
-                raise JobFailed("相同任务已在进行中", code="JOB_CONFLICT")
+                raise JobFailed(**stored_fields("activity.jobs.conflict"), code="JOB_CONFLICT")
             return CreateJobResult(existing, False)
 
     job = Job(
@@ -345,7 +346,9 @@ async def create_job(
         if existing is None:
             raise
         if conflict_policy == "reject":
-            raise JobFailed("相同任务已在进行中", code="JOB_CONFLICT") from None
+            raise JobFailed(
+                **stored_fields("activity.jobs.conflict"), code="JOB_CONFLICT"
+            ) from None
         return CreateJobResult(existing, False)
     await notify_job_change()
     return CreateJobResult(job, True)
@@ -572,7 +575,11 @@ async def request_cancel(
             **job.progress,
             "mode": "paused",
             "phase": "cancelled",
-            "message": reason or "任务已取消",
+            **(
+                {"message": reason, "message_key": None, "message_params": {}}
+                if reason
+                else stored_fields("activity.jobs.cancelled")
+            ),
         }
         await _record_transition(session, job, "cancelled", job.progress)
     else:
@@ -580,7 +587,7 @@ async def request_cancel(
         job.progress = {
             **job.progress,
             "mode": "waiting",
-            "message": "已请求取消，正在等待安全停止点",
+            **stored_fields("activity.jobs.cancelling"),
         }
         await _record_transition(session, job, "cancel_requested", job.progress)
     await session.commit()
@@ -609,7 +616,7 @@ async def dismiss_job(
         return None, False
     if job.status is not JobStatus.FAILED:
         raise JobFailed(
-            "只有失败的任务可以忽略；进行中的任务请使用取消",
+            **stored_fields("activity.jobs.dismissFailedOnly"),
             code="JOB_NOT_DISMISSABLE",
         )
     if job.dismissed_at is not None:
@@ -691,14 +698,16 @@ async def retry_job(
             **source.progress,
             "mode": "waiting",
             "phase": "queued",
-            "message": "已重新入队，正在等待执行",
+            **stored_fields("activity.jobs.requeued"),
         }
         await _record_transition(session, source, "unblocked", source.progress)
         await session.commit()
         await notify_job_change()
         return CreateJobResult(source, False)
     if source.status not in {JobStatus.FAILED, JobStatus.CANCELLED}:
-        raise JobFailed("只有失败、已取消或需要处理的任务可以重试", code="JOB_NOT_RETRYABLE")
+        raise JobFailed(
+            **stored_fields("activity.jobs.retryFinishedOnly"), code="JOB_NOT_RETRYABLE"
+        )
     resources = await resources_for_jobs(session, [source.id])
     return await create_job(
         session,
@@ -765,7 +774,9 @@ class JobContext:
         *,
         mode: str,
         phase: str,
-        message: str,
+        message: str = "",
+        message_key: str | None = None,
+        message_params: dict[str, Any] | None = None,
         current: int | None = None,
         total: int | None = None,
         percent: float | None = None,
@@ -777,7 +788,11 @@ class JobContext:
         progress = {
             "mode": mode,
             "phase": phase,
-            "message": message,
+            **(
+                stored_fields(message_key, **(message_params or {}))
+                if message_key
+                else {"message": message}
+            ),
             "current": current,
             "total": total,
             "percent": percent,
@@ -1083,7 +1098,7 @@ class JobDispatcher:
                     **candidate.progress,
                     "mode": "waiting",
                     "phase": "resuming",
-                    "message": "服务已恢复，正在从保存进度继续",
+                    **stored_fields("activity.jobs.resumed"),
                 }
                 # 多个存活实例可能同时发现同一过期租约。状态与过期时间条件让
                 # 只有一个实例能完成接管，也不会覆盖刚被其他实例重新领取的任务。
@@ -1234,18 +1249,32 @@ class JobDispatcher:
                 input_data = dict(job.input_data)
             if registration is None:
                 raise JobBlocked(
-                    "当前版本无法执行这类任务，请更新 MovieClaw 后重试",
+                    message_key="activity.jobs.handlerUnavailable",
                     code="JOB_HANDLER_UNAVAILABLE",
                     actions=[
-                        {"type": "update_runtime", "label": "检查更新"},
-                        {"type": "retry_job", "label": "更新后重试"},
+                        {
+                            "type": "update_runtime",
+                            "label": "检查更新",
+                            "label_key": "activity.jobs.update",
+                        },
+                        {
+                            "type": "retry_job",
+                            "label": "更新后重试",
+                            "label_key": "activity.jobs.retryAfterUpdate",
+                        },
                     ],
                 )
             if job.definition_version not in registration.definition_versions:
                 raise JobFailed(
-                    "任务定义与当前版本不兼容，请从原功能入口重新发起",
+                    message_key="activity.jobs.definitionUnsupported",
                     code="JOB_DEFINITION_UNSUPPORTED",
-                    actions=[{"type": "handoff_agent", "label": "交给 Agent"}],
+                    actions=[
+                        {
+                            "type": "handoff_agent",
+                            "label": "交给 Agent",
+                            "label_key": "activity.jobs.agent",
+                        }
+                    ],
                     details={
                         "definition_version": job.definition_version,
                         "supported_versions": sorted(registration.definition_versions),
@@ -1336,7 +1365,15 @@ class JobDispatcher:
                     **job.progress,
                     "mode": "determinate",
                     "phase": "completed",
-                    "message": result.get("message", "任务已完成"),
+                    **(
+                        {
+                            "message": result["message"],
+                            "message_key": result.get("message_key"),
+                            "message_params": result.get("message_params", {}),
+                        }
+                        if "message" in result
+                        else stored_fields("activity.jobs.completed")
+                    ),
                     "percent": 100.0,
                 }
                 await _record_transition(session, job, "succeeded", result)
@@ -1355,7 +1392,7 @@ class JobDispatcher:
             **job.progress,
             "mode": "paused",
             "phase": "cancelled",
-            "message": "任务已取消，已保存可复用的中间进度",
+            **stored_fields("activity.jobs.cancelledSaved"),
         }
         await _record_transition(session, job, "cancelled", job.progress)
 
@@ -1398,13 +1435,17 @@ class JobDispatcher:
             now = utcnow()
             job.status = status
             job.error = exc.as_error()
+            if exc.message_key:
+                job.error.update(stored_fields(exc.message_key, **exc.message_params))
             job.finished_at = now if status == JobStatus.FAILED else None
             job.retention_until = now + timedelta(days=90)
             job.progress = {
                 **job.progress,
                 "mode": "paused",
                 "phase": status.value,
-                "message": exc.message,
+                "message": job.error["message"],
+                "message_key": exc.message_key,
+                "message_params": exc.message_params,
             }
             await _record_transition(session, job, status.value, job.error)
             job.lease_owner = None
@@ -1433,16 +1474,29 @@ class JobDispatcher:
                     f"{exc.message}；已达到自动重试上限",
                     code="JOB_RETRY_EXHAUSTED",
                     actions=exc.actions,
+                    message_key="activity.jobs.retryExhausted",
+                    message_params={
+                        "reason": {
+                            "message_key": exc.message_key,
+                            "params": exc.message_params,
+                            "message": exc.message,
+                        }
+                        if exc.message_key
+                        else exc.message
+                    },
                 )
                 now = utcnow()
                 job.status = JobStatus.FAILED
                 job.error = terminal.as_error()
+                job.error.update(stored_fields(terminal.message_key, **terminal.message_params))
                 job.finished_at = now
                 job.retention_until = now + timedelta(days=90)
                 event_type = "failed"
             else:
                 job.status = JobStatus.RETRY_WAIT
                 job.error = exc.as_error()
+                if exc.message_key:
+                    job.error.update(stored_fields(exc.message_key, **exc.message_params))
                 job.available_at = utcnow() + timedelta(seconds=exc.delay_seconds)
                 event_type = "retry_scheduled"
             job.progress = {
@@ -1450,6 +1504,8 @@ class JobDispatcher:
                 "mode": "waiting",
                 "phase": job.status.value,
                 "message": job.error["message"],
+                "message_key": job.error.get("message_key"),
+                "message_params": job.error.get("message_params", {}),
             }
             await _record_transition(session, job, event_type, job.error)
             job.lease_owner = None
@@ -1476,30 +1532,38 @@ class JobDispatcher:
             if job.attempt < job.max_attempts:
                 job.status = JobStatus.RETRY_WAIT
                 job.available_at = utcnow() + timedelta(seconds=min(60, 5 * 2**job.attempt))
-                message = "任务遇到临时异常，稍后会自动重试"
+                message_fields = stored_fields("activity.jobs.unexpectedRetry")
                 event_type = "retry_scheduled"
             else:
                 now = utcnow()
                 job.status = JobStatus.FAILED
                 job.finished_at = now
                 job.retention_until = now + timedelta(days=90)
-                message = "任务未完成：发生未知错误，请查看任务详情或交给 Agent 处理"
+                message_fields = stored_fields("activity.jobs.unexpectedFailed")
                 event_type = "failed"
             job.error = {
                 "code": "JOB_UNEXPECTED_ERROR",
-                "message": message,
+                **message_fields,
                 "details": {},
                 "actions": [
-                    {"type": "retry_job", "label": "重试"},
-                    {"type": "inspect_logs", "label": "查看日志"},
-                    {"type": "handoff_agent", "label": "交给 Agent"},
+                    {"type": "retry_job", "label": "重试", "label_key": "activity.jobs.retry"},
+                    {
+                        "type": "inspect_logs",
+                        "label": "查看日志",
+                        "label_key": "activity.jobs.logs",
+                    },
+                    {
+                        "type": "handoff_agent",
+                        "label": "交给 Agent",
+                        "label_key": "activity.jobs.agent",
+                    },
                 ],
             }
             job.progress = {
                 **job.progress,
                 "mode": "waiting" if job.status == JobStatus.RETRY_WAIT else "paused",
                 "phase": job.status.value,
-                "message": message,
+                **message_fields,
             }
             await _record_transition(session, job, event_type, job.error)
             job.lease_owner = None
@@ -1523,7 +1587,7 @@ class JobDispatcher:
                 **job.progress,
                 "mode": "waiting",
                 "phase": "resuming",
-                "message": "服务正在重启，启动后会自动继续",
+                **stored_fields("activity.jobs.restarting"),
             }
             await _record_transition(session, job, "paused", job.progress)
             job.lease_owner = None

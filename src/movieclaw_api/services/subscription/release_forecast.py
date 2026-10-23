@@ -372,10 +372,9 @@ def _first_snapshot(forecast: dict[str, Any]) -> dict[str, Any]:
 def _same_forecast(left: dict[str, Any], right: dict[str, Any]) -> bool:
     """忽略生成时间、冻结副本与事后评估，只比较会影响调度的预测结论。"""
     ignored = {"generated_at", "first", "evaluation"}
-    return (
-        {key: value for key, value in left.items() if key not in ignored}
-        == {key: value for key, value in right.items() if key not in ignored}
-    )
+    return {key: value for key, value in left.items() if key not in ignored} == {
+        key: value for key, value in right.items() if key not in ignored
+    }
 
 
 # 观测只用得上这几列（to_candidate 的输入 + 观测的 id/站点/发布时间）：按列取 Core 行

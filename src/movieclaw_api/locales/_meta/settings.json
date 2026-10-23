@@ -1,0 +1,17 @@
+{
+  "llm.agentScope": {
+    "sourceHash": "2df7697dbb6128781c7871082454bcfa03686558e5afe7f28f6ca66ecc3b2d1d"
+  },
+  "llm.subtitleScope": {
+    "sourceHash": "eed32fffd393db8b22c3d2d135a650b86eb2d94f084d1b1bf770740b4333f1c6"
+  },
+  "updates.applicationScope": {
+    "sourceHash": "64c230d2256744e6ea3900ca04be010df9b850077d0dd427c066b22386a86dcd"
+  },
+  "updates.modelScope": {
+    "sourceHash": "f91662f29f66e2e8e678958bee62a1b696d0a1457ddd5126a42125a8aa8ec5ce"
+  },
+  "updates.clientScope": {
+    "sourceHash": "58004765e67622d6555e91b53652c2538a9d8399bb47f448335e31aa1be72a69"
+  }
+}

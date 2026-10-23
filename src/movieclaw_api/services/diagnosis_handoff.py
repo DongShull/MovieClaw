@@ -341,7 +341,7 @@ def _render(title: str, sections: list[tuple[str, list[str]]], actions: list[str
 async def _for_notice(session: AsyncSession, notice_id: int) -> HandoffPrompt:
     notice = await session.get(SystemNotice, notice_id)
     if notice is None:
-        raise NotFoundException(f"待处理事项不存在：id={notice_id}")
+        raise NotFoundException(message_key="errors.notices.missing", params={"id": notice_id})
     key = notice.dedupe_key
     payload = notice.payload or {}
     happened = [
@@ -587,7 +587,7 @@ async def _for_download(session: AsyncSession, info_hash: str) -> HandoffPrompt:
 async def _for_job(session: AsyncSession, job_id: str) -> HandoffPrompt:
     job = await session.get(Job, job_id)
     if job is None:
-        raise NotFoundException(f"任务不存在：{job_id}")
+        raise NotFoundException(message_key="errors.jobs.missingId", params={"id": job_id})
     error = job.error or {}
     happened = [
         f"- 任务 {job.id}（{job.job_type}）：{job.subject or '—'}",

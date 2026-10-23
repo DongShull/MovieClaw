@@ -1,0 +1,39 @@
+{
+  "task": {
+    "interrupted": "进程重启导致本次执行中断（启动自愈标记）"
+  },
+  "jobs": {
+    "queued": "等待执行",
+    "retryExhausted": "{reason}；已达到自动重试上限",
+    "unexpectedRetry": "任务遇到临时异常，稍后会自动重试",
+    "unexpectedFailed": "任务未完成：发生未知错误，请查看任务详情或交给 Agent 处理",
+    "retry": "重试",
+    "logs": "查看日志",
+    "agent": "交给 Agent",
+    "cancelled": "任务已取消",
+    "cancelling": "已请求取消，正在等待安全停止点",
+    "requeued": "已重新入队，正在等待执行",
+    "resumed": "服务已恢复，正在从保存进度继续",
+    "cancelledSaved": "任务已取消，已保存可复用的中间进度",
+    "restarting": "服务正在重启，启动后会自动继续",
+    "completed": "任务已完成",
+    "handlerUnavailable": "当前版本无法执行这类任务，请更新 MovieClaw 后重试",
+    "definitionUnsupported": "任务定义与当前版本不兼容，请从原功能入口重新发起",
+    "update": "检查更新",
+    "retryAfterUpdate": "更新后重试",
+    "conflict": "相同任务已在进行中",
+    "dismissFailedOnly": "只有失败的任务可以忽略；进行中的任务请使用取消",
+    "retryFinishedOnly": "只有失败、已取消或需要处理的任务可以重试"
+  },
+  "library": {
+    "walking": "正在盘点文件",
+    "ingesting": "正在扫描",
+    "probing": "正在补探介质规格",
+    "assets": "正在补齐图片资产",
+    "reidentifying": "正在重新识别条目",
+    "scanAction": "扫描媒体库",
+    "organizeAction": "整理文件名",
+    "transferAction": "转移条目",
+    "metadataAction": "刷新元数据"
+  }
+}

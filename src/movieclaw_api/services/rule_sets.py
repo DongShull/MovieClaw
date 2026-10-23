@@ -63,20 +63,20 @@ def validate_scope(raw: list | None) -> list[dict]:
     if not raw:
         return []
     if not isinstance(raw, list) or not all(isinstance(r, dict) for r in raw):
-        raise BadRequestException("适用范围条件必须是对象列表")
+        raise BadRequestException(message_key="errors.ruleSets.scopeListRequired")
     kind_rules = [r for r in raw if r.get("field") == _KIND_FIELD]
     if len(kind_rules) > 1:
-        raise BadRequestException("适用范围里同一字段只能出现一次（取值本身就是多选）")
+        raise BadRequestException(message_key="errors.ruleSets.scopeFieldDuplicate")
     cleaned: list[dict] = []
     if kind_rules:
         rule = kind_rules[0]
         if rule.get("op", "any_of") != "any_of":
-            raise BadRequestException("适用范围条件目前只支持 any_of（任一匹配）")
+            raise BadRequestException(message_key="errors.ruleSets.scopeOperator")
         values = rule.get("values")
         if not isinstance(values, list) or not values:
-            raise BadRequestException("适用范围条件「作品类型」的取值不能为空")
+            raise BadRequestException(message_key="errors.ruleSets.scopeKindRequired")
         if not all(v in _KIND_LABELS for v in values):
-            raise BadRequestException("作品类型只能是 movie（电影）或 tv（剧集）")
+            raise BadRequestException(message_key="errors.ruleSets.scopeKindInvalid")
         kinds = sorted(set(values))
         if len(kinds) < len(_KIND_LABELS):
             cleaned.append({"field": _KIND_FIELD, "op": "any_of", "values": kinds})
@@ -155,7 +155,9 @@ class RuleSetService:
     async def get(self, rule_set_id: int) -> RuleSet:
         row = await self._repo.get(rule_set_id)
         if row is None:
-            raise NotFoundException(f"规则组不存在：#{rule_set_id}")
+            raise NotFoundException(
+                message_key="errors.ruleSets.missing", params={"id": rule_set_id}
+            )
         return row
 
     async def pick(self, kind: str, facts: RoutingFacts | None) -> RuleSetPick:
@@ -189,7 +191,9 @@ class RuleSetService:
         except IntegrityError as exc:
             # 名称撞唯一约束：给可读中文错误，而不是让 500 裸奔到前端
             await self._repo.rollback()
-            raise ConflictException(f"规则组「{name.strip()}」已存在，请换一个名称") from exc
+            raise ConflictException(
+                message_key="errors.ruleSets.nameInUse", params={"name": name.strip()}
+            ) from exc
 
     async def update(
         self, rule_set_id: int, *, name: str, spec: dict, match_rules: list | None = None
@@ -207,7 +211,9 @@ class RuleSetService:
             return await self._repo.save(row)
         except IntegrityError as exc:
             await self._repo.rollback()
-            raise ConflictException(f"规则组「{new_name}」已存在，请换一个名称") from exc
+            raise ConflictException(
+                message_key="errors.ruleSets.nameInUse", params={"name": new_name}
+            ) from exc
 
     async def set_default(self, rule_set_id: int) -> RuleSet:
         """把默认标记转移到指定组：新订阅未指定规则组时用它。幂等。
@@ -225,12 +231,11 @@ class RuleSetService:
         """删除规则组。默认组与被订阅引用的组禁删（显式报错优于隐式改挂靠）。"""
         row = await self.get(rule_set_id)
         if row.is_default:
-            raise BadRequestException("默认规则组不可删除")
+            raise BadRequestException(message_key="errors.ruleSets.defaultDelete")
         references = await self._repo.count_references(rule_set_id)
         if references > 0:
             raise ConflictException(
-                f"规则组「{row.name}」正被 {references} 个订阅引用，"
-                "请先把这些订阅改到其他规则组再删除"
+                message_key="errors.ruleSets.inUse", params={"name": row.name, "count": references}
             )
         await self._repo.delete(row)
         logger.info("规则组「%s」已删除", row.name)
@@ -243,9 +248,11 @@ class RuleSetService:
         新版本加字段（如 dv）后回退旧版本，旧代码读到新字段不会报错。
         """
         if not name.strip():
-            raise BadRequestException("规则组名称不能为空")
+            raise BadRequestException(message_key="errors.ruleSets.nameRequired")
         try:
             parsed = RuleSetSpec.model_validate(spec)
         except ValueError as exc:
-            raise BadRequestException(f"规则组参数不合法：{exc}") from exc
+            raise BadRequestException(
+                message_key="errors.ruleSets.invalidSpec", params={"error": exc}
+            ) from exc
         return parsed.model_dump(exclude_defaults=True, mode="json")

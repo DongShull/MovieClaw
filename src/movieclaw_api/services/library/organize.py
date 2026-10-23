@@ -193,7 +193,7 @@ async def build_organize_plan(session, library: Library) -> OrganizePlan:
     assert library.id is not None
     if not profile_of(library).naming:
         raise BadRequestException(
-            f"「{library.name}」是本地内容库，文件按原名保存，没有可套用的规范命名"
+            message_key="errors.library.localOrganizeUnsupported", params={"name": library.name}
         )
     result = await session.execute(
         select(LibraryFile, MediaItem)

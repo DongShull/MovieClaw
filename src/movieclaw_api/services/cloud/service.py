@@ -259,10 +259,10 @@ class CloudService:
         async with self._lock:
             setting = await self.load()
             if setting.connected:
-                raise ConflictException("这台服务器已经连接到 MovieClaw 账号，要换账号请先断开")
+                raise ConflictException(message_key="errors.cloud.alreadyLinked")
             name = (instance_name or "").strip() or await self.default_instance_name()
             if len(name) > 64:
-                raise BadRequestException("服务器名称最长 64 个字")
+                raise BadRequestException(message_key="errors.cloud.nameTooLong")
             await self._stop_pairing()
             try:
                 discovery = await self._discover()
@@ -273,11 +273,13 @@ class CloudService:
                     "或在「设置 → 网络」里让 MovieClaw Cloud 走代理"
                 ) from exc
             if reply.status == 429:
-                raise BadRequestException("申请配对码太频繁，请稍后再试")
+                raise BadRequestException(message_key="errors.cloud.pairingThrottled")
             body = reply.body
             if reply.status != 200 or not body.get("device_code") or not body.get("user_code"):
                 raise BadRequestException(
-                    reply.message or f"MovieClaw Cloud 拒绝了连接请求（HTTP {reply.status}）"
+                    reply.message,
+                    message_key=None if reply.message else "errors.cloud.pairingRejected",
+                    params={"status": reply.status},
                 )
             complete = str(body.get("verification_uri_complete") or body.get("verification_uri"))
             pairing = Pairing(
@@ -514,11 +516,11 @@ class CloudService:
                 await _raise_notice(
                     "revoked",
                     severity="warning",
-                    title="这台服务器已和 MovieClaw Cloud 断开",
-                    message=(
-                        f"{message}。手机上的官方推送已停止；"
-                        "要继续使用，请在「设置 → MovieClaw Cloud」重新连接。"
-                    ),
+                    title_key="notify.cloudRevoked.title",
+                    message_key="notify.cloudRevoked.body",
+                    message_params={
+                        "reason": reply.message or {"message_key": "notify.cloudRevoked.reason"}
+                    },
                 )
                 return "disconnected"
 
@@ -535,15 +537,24 @@ class CloudService:
                 await _raise_notice(
                     "version",
                     severity="error",
-                    title="官方推送已暂停：需要升级",
-                    message=f"{message}。升级后会自动恢复，不用重新连接。",
+                    title_key="notify.cloudVersion.title",
+                    message_key="notify.cloudVersion.body",
+                    message_params={
+                        "reason": reply.message or {"message_key": "notify.cloudVersion.reason"}
+                    },
                 )
                 return "unsupported"
 
             detail = reply.message or f"HTTP {reply.status}"
-            return await self._renew_failed(setting, f"MovieClaw Cloud 拒绝了续签：{detail}")
+            return await self._renew_failed(
+                setting,
+                f"MovieClaw Cloud 拒绝了续签：{detail}",
+                reason={"message_key": "errors.cloud.renewRejected", "params": {"detail": detail}},
+            )
 
-    async def _renew_failed(self, setting: CloudSetting, error: str) -> str:
+    async def _renew_failed(
+        self, setting: CloudSetting, error: str, *, reason: dict | None = None
+    ) -> str:
         """续签失败：记下原因；令牌快过期了就告诉管理员。调用方持有锁。"""
         self._failures += 1
         self._last_error = error
@@ -554,16 +565,9 @@ class CloudService:
             await _raise_notice(
                 "unreachable",
                 severity="error" if expired else "warning",
-                title="连不上 MovieClaw Cloud",
-                message=(
-                    f"{error}。"
-                    + (
-                        "令牌已经过期，官方推送暂停；"
-                        if expired
-                        else "令牌快要过期，过期后官方推送会暂停；"
-                    )
-                    + "请检查这台服务器能不能上网，或在「设置 → 网络」里让 MovieClaw Cloud 走代理。"
-                ),
+                title_key="notify.cloudUnreachable.title",
+                message_key="notify.cloudUnreachable.body",
+                message_params={"reason": reason or error, "expired": "yes" if expired else "no"},
             )
         return "failed"
 
@@ -590,7 +594,7 @@ class CloudService:
         """管理员点「立即同步」：在请求里同步续签一次，结果反映在 health 上。"""
         setting = await self.load()
         if not setting.connected:
-            raise BadRequestException("这台服务器还没有连接到 MovieClaw 账号")
+            raise BadRequestException(message_key="errors.cloud.notLinked")
         outcome = await self.renew_once()
         if outcome != "disconnected":
             # 循环在跑就按它原来的节奏走（不再唤醒，免得连着续签两次）；没在跑才补起一个
@@ -703,7 +707,9 @@ async def build_report(setting: CloudSetting) -> dict:
     return report
 
 
-async def _raise_notice(key: str, *, severity: str, title: str, message: str) -> None:
+async def _raise_notice(
+    key: str, *, severity: str, title_key: str, message_key: str, message_params: dict
+) -> None:
     from movieclaw_api.services.system_notice import upsert_notice
     from movieclaw_db.engine import get_database
     from movieclaw_db.models import NoticeSeverity
@@ -715,8 +721,9 @@ async def _raise_notice(key: str, *, severity: str, title: str, message: str) ->
                 dedupe_key=f"{NOTICE_PREFIX}{key}",
                 severity=NoticeSeverity(severity),
                 source="cloud",
-                title=title,
-                message=message,
+                title_key=title_key,
+                message_key=message_key,
+                message_params=message_params,
             )
     except Exception:  # noqa: BLE001 -- 告警写不进去不影响连接本身
         logger.exception("写入 MovieClaw Cloud 的待处理事项失败")

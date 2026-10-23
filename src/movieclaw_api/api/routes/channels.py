@@ -63,7 +63,7 @@ def _qrcode_data_url(content: str) -> str:
 def _hub() -> ChannelHub:
     hub = get_hub()
     if hub is None:
-        raise ServiceUnavailableException("IM 通道中枢没有运行，请到「设置 → 插件 → 内置」查看原因")
+        raise ServiceUnavailableException(message_key="errors.channels.hubStopped")
     return hub
 
 
@@ -128,7 +128,7 @@ async def list_channels(session: AsyncSession = Depends(get_session)) -> ApiResp
 async def _binding_view(hub: ChannelHub, binding_id: str) -> ChannelBindingView:
     binding = hub.binding(binding_id)
     if binding is None:
-        raise NotFoundException("绑定不存在或已过期，请重新发起")
+        raise NotFoundException(message_key="errors.channels.bindingExpired")
     account = None
     if binding.status == "confirmed" and binding.account_id:
         from movieclaw_db.engine import get_database
@@ -174,9 +174,7 @@ async def start_binding(
         raise ConflictException(str(exc)) from exc
     # 能对话的通道完全由 AI 模型驱动：没配模型时绑定了也用不了，在入口拦下并引导去设置
     if driver.capabilities.receive and not await LlmProviderRepository(session).has_any():
-        raise BadRequestException(
-            "绑定需要先完成 AI 模型配置：请先在「设置 → 模型接入」接入模型供应商，再进行绑定"
-        )
+        raise BadRequestException(message_key="errors.channels.modelRequired")
     try:
         binding = await hub.begin_binding(channel_id, payload.fields)
     except ValueError as exc:
@@ -184,7 +182,9 @@ async def start_binding(
     except ChannelUnavailable as exc:
         raise ConflictException(str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 -- 网关不可达等，转成中文业务错误
-        raise BadRequestException(f"发起绑定失败：{exc}") from exc
+        raise BadRequestException(
+            message_key="errors.channels.pairingFailed", params={"error": exc}
+        ) from exc
     return ok(await _binding_view(hub, binding.binding_id), message="绑定已发起")
 
 
@@ -225,7 +225,7 @@ async def submit_binding_input(
 )
 async def unbind_account(channel_id: str, account_id: str) -> ApiResponse[dict]:
     if not await _hub().unbind(channel_id, account_id):
-        raise NotFoundException("账号不存在")
+        raise NotFoundException(message_key="errors.channels.accountMissing")
     return ok({}, message="已解绑")
 
 
@@ -242,7 +242,7 @@ async def send_test_push(payload: PushTestPayload) -> ApiResponse[dict]:
     text = payload.text.strip() or "📣 这是一条来自 MovieClaw 的测试推送。收到说明通道工作正常！"
     sent = await push_to_all_channels(text)
     if sent == 0:
-        raise BadRequestException("没有可推送的通道账号：请先完成绑定且确保通道在运行")
+        raise BadRequestException(message_key="errors.channels.noPushAccount")
     return ok({"sent": sent}, message=f"已推送到 {sent} 个账号")
 
 

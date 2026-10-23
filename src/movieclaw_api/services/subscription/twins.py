@@ -204,8 +204,10 @@ async def _inform_user(session: AsyncSession, *, subscription_id: int, item: Med
         await events.publish(
             session,
             SUBSCRIPTION_IDENTITY_SKIPPED,
-            lambda: SubscriptionIdentitySkipped(subscription_id=subscription_id, media=media)
-            if media is not None
-            else None,
+            lambda: (
+                SubscriptionIdentitySkipped(subscription_id=subscription_id, media=media)
+                if media is not None
+                else None
+            ),
         )
     await session.commit()

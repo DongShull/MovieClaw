@@ -1,0 +1,12 @@
+{
+  "manual": {
+    "episodeFloorHint": "；若这部剧实际集数比 TMDB 记录的多，可在「管理订阅 → 调整集数」里补上",
+    "completeSeries": "全集包",
+    "seasonPack": "第 {number} 季整季包",
+    "unknownUnits": "未知单元"
+  },
+  "scope": {
+    "noSeasons": "（未勾选任何季）",
+    "seasons": "第 {numbers} 季"
+  }
+}

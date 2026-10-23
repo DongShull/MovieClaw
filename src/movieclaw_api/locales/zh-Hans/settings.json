@@ -1,0 +1,11 @@
+{
+  "llm": {
+    "agentScope": "智能体",
+    "subtitleScope": "字幕处理"
+  },
+  "updates": {
+    "applicationScope": "应用更新",
+    "modelScope": "模型更新",
+    "clientScope": "客户端更新"
+  }
+}

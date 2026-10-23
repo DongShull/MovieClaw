@@ -112,6 +112,14 @@ async def close_media_service() -> None:
         _tmdb_client = None
 
 
+async def invalidate_discover_language() -> None:
+    """Refresh the discovery service that captures the configured metadata language."""
+    global _service
+    if _service is not None:
+        await _service.aclose()
+        _service = None
+
+
 def reset_media_service() -> None:
     """仅供测试：丢弃单例，让下个用例按新配置重建。"""
     global _service, _douban_service, _tmdb_client

@@ -134,7 +134,7 @@ async def resolve_download_target(
         if resolution.tmdb_id is not None:
             allowed.add((payload.kind, resolution.tmdb_id))
         if (kind, tmdb_id) not in allowed:
-            raise BadRequestException("确认的 TMDB 条目不在本次识别候选中，请重新识别后再选择")
+            raise BadRequestException(message_key="errors.downloaders.identificationChanged")
     else:
         kind, tmdb_id = payload.kind, resolution.tmdb_id
     if tmdb_id is None or kind is None:
@@ -205,13 +205,13 @@ async def submit_download(
         # 成员版强制自动路由（§2.2）：手选目录/指定下载器都是管理员的事——
         # 前端成员弹窗不提供这两项，这里是绕过前端也拦得住的服务端强制
         if payload.save_path is not None:
-            raise ForbiddenException("成员的一键下载不能手选保存目录，将按目标库自动选择")
+            raise ForbiddenException(message_key="errors.downloaders.memberSavePath")
         if payload.downloader_id is not None:
-            raise ForbiddenException("成员的一键下载不能指定下载器，将使用默认下载器")
+            raise ForbiddenException(message_key="errors.downloaders.memberDownloader")
         # 智能入库按收藏范围路由，可能选中成员不可见的库并回显库名/路由理由，
         # 与成员的库可见性隔离冲突；成员端也不提供该入口，服务端一并拦住
         if payload.auto_route:
-            raise ForbiddenException("成员的一键下载不支持智能入库，请选择可见的媒体库")
+            raise ForbiddenException(message_key="errors.downloaders.memberSmartImport")
         if payload.library_id is not None:
             await assert_library_visible(session, principal, payload.library_id)
         await assert_site_usable(session, principal, payload.site_id)
@@ -233,7 +233,7 @@ async def submit_download(
 
         if payload.media_kind is None or payload.tmdb_id is None or not payload.title:
             # schema 校验已保证；此处显式再守一道，避免校验演进后带残缺身份建档
-            raise BadRequestException("智能入库必须提供媒体类型、TMDB ID 和标题")
+            raise BadRequestException(message_key="errors.downloaders.smartIdentityRequired")
         manual_item = await MediaLibraryService(session, get_tmdb_client()).ensure_media_item(
             MediaKind(payload.media_kind), payload.tmdb_id, extra_aliases=[payload.title]
         )
@@ -241,7 +241,7 @@ async def submit_download(
         library = route.library
         route_reason = route.reason
         if library is None:
-            raise BadRequestException("没有可用的目标媒体库，无法启用自动入库；请先创建媒体库")
+            raise BadRequestException(message_key="errors.downloaders.noImportTarget")
         # 目标库要等条目建好才路由得出来，所以归属库在这里回填（设计文档 §14）
         if assign_scrape_library(manual_item, library):
             session.add(manual_item)

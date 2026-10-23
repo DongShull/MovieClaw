@@ -1,0 +1,20 @@
+{
+  "manual.episodeFloorHint": {
+    "sourceHash": "d901d5d7b9bdfc8f1b5659884f1b69fc530822fbe893902ab22f7b3c691488d5"
+  },
+  "manual.completeSeries": {
+    "sourceHash": "d403b5606a07a8e9e560933973a748417440b27da072fc2127157b5013a85cdc"
+  },
+  "manual.seasonPack": {
+    "sourceHash": "3637ada29cbc32accb28b13b136899b88c545192ed65f2f7c88108dea968af15"
+  },
+  "manual.unknownUnits": {
+    "sourceHash": "70cb9dd7932f7992d04e569538e74a7524c3cbdb6943f2ad6211bce04e92ec71"
+  },
+  "scope.noSeasons": {
+    "sourceHash": "815c874cc298f2e7ab4d54142a7ee91e4c2d6bc72142a188dec3eb71fdfbf946"
+  },
+  "scope.seasons": {
+    "sourceHash": "79fb4110762b9fe202a366586f65eae78d03aa023f3cba8f7684514931a91903"
+  }
+}

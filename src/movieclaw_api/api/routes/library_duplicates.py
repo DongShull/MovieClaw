@@ -182,9 +182,9 @@ async def list_duplicate_files(
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[DuplicateFilesData]:
     if tier is not None and tier not in duplicate_scan.TIER_LABELS:
-        raise BadRequestException("tier 只能是 safe / suggested / review")
+        raise BadRequestException(message_key="errors.duplicates.tierInvalid")
     if review_kind is not None and review_kind not in duplicate_scan.REVIEW_KIND_LABELS:
-        raise BadRequestException("review_kind 只能是 resolution / hdr / unknown / same_tier")
+        raise BadRequestException(message_key="errors.duplicates.reviewKindInvalid")
     state = await duplicate_scan.scan_state(session)
     summary = await duplicate_scan.summarize(session, library_id=library_id)
     total_items, items = await duplicate_scan.list_duplicate_items(
@@ -265,9 +265,9 @@ async def resolve_duplicates(
         payload.keep_all,
     ]
     if sum(chosen) != 1:
-        raise BadRequestException("keep_file_id / keep_version / keep_all 三选一，必须且只能给一个")
+        raise BadRequestException(message_key="errors.duplicates.keepChoiceRequired")
     if payload.keep_version is not None and "|" not in payload.keep_version:
-        raise BadRequestException("keep_version 必须是列表接口返回的 version_key（含「|」）")
+        raise BadRequestException(message_key="errors.duplicates.versionKeyRequired")
     keep: int | str = (
         "all"
         if payload.keep_all
@@ -321,7 +321,7 @@ async def resolve_all_duplicates(
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[TrashedBatchResultView]:
     if payload.review_kind is not None and payload.tier != "review":
-        raise BadRequestException("review_kind 只在 tier=review 时有意义")
+        raise BadRequestException(message_key="errors.duplicates.reviewKindScope")
     outcome = await duplicate_scan.resolve_group(
         session,
         tier=payload.tier,

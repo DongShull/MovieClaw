@@ -342,9 +342,9 @@ async def patch_smart_memory(
     if payload.language is not None:
         key = payload.language.casefold()
         if key == DEFAULT_UNDERSTOOD:
-            raise BadRequestException("中文默认看得懂，不能移除")
+            raise BadRequestException(message_key="errors.subscription.chineseRequired")
         if key not in LANGUAGE_LABELS:
-            raise BadRequestException("不支持这种语言")
+            raise BadRequestException(message_key="errors.subscription.languageUnsupported")
         current = next((a for a in memory.languages if a.key == key), None)
         updated = memory.with_language(
             key,
@@ -354,7 +354,7 @@ async def patch_smart_memory(
         )
     else:
         if not any(h.key == payload.remove_habit for h in memory.habits):
-            raise NotFoundException("这条习惯已经不存在")
+            raise NotFoundException(message_key="errors.subscription.habitMissing")
         updated = memory.without_habit(payload.remove_habit)
     await store_memory(session, updated, memory.revision)
     await apply_to_subscriptions(session)
@@ -385,9 +385,9 @@ async def update_smart_wait(
     )
     row = await session.get(WantedItem, wanted_id)
     if row is None or row.subscription_id != subscription_id:
-        raise NotFoundException("没有找到该单集")
+        raise NotFoundException(message_key="errors.subscription.episodeMissing")
     if bool(payload.extend_seconds) == bool(payload.candidate_key):
-        raise BadRequestException("请选择立即下载或延长等待其中一项")
+        raise BadRequestException(message_key="errors.subscription.waitActionRequired")
     from movieclaw_api.services.subscription.smart_selection import change_wait
 
     result = await change_wait(
@@ -665,7 +665,7 @@ async def _preview_title_ref(
         details = await get_title_discovery_service().get_title_details(title_ref)
         kind = details.title.media_type
         if kind is None:
-            raise BadRequestException("豆瓣条目缺少电影/剧集类型，暂时无法创建订阅")
+            raise BadRequestException(message_key="errors.subscription.doubanKindMissing")
         library = MediaLibraryService(session, get_tmdb_client())
         # 别名与首播日期是收敛证据：豆瓣把剧集按季拆条目，只有靠它们才能把
         # 「中餐厅 第十季」对上 TMDB 的《中餐厅》S10。详情本来就已拉回，不额外请求
@@ -747,13 +747,13 @@ async def create_subscription(
     service = _service(session)
     prepared = await _preview_title_ref(payload.title_ref, service=service, session=session)
     if prepared.status == "not_found":
-        raise NotFoundException("TMDB 未收录该条目，暂时无法订阅")
+        raise NotFoundException(message_key="errors.subscription.tmdbMissing")
     if prepared.status == "ambiguous":
         raise AppException(
             status_code=409,
             code="SUBSCRIPTION_TARGET_AMBIGUOUS",
-            message="该豆瓣条目对应多个可能的 TMDB 条目，请选择候选 title_ref 后重试",
             details=[candidate.model_dump(mode="json") for candidate in prepared.candidates],
+            message_key="errors.subscription.tmdbAmbiguous",
         )
     assert prepared.media is not None
     kind = prepared.media.kind
@@ -764,7 +764,7 @@ async def create_subscription(
         except ValueError as exc:
             raise BadRequestException(str(exc)) from exc
         if source_provider is not MediaSource.DOUBAN:
-            raise BadRequestException("source_title_ref 仅接受原始豆瓣 title_ref")
+            raise BadRequestException(message_key="errors.subscription.sourceRefRequired")
         douban_id = source_id
 
     is_member = not principal.is_admin
@@ -1410,7 +1410,7 @@ async def unsubscribe_from_subscription(
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[dict]:
     if principal.is_admin or principal.member_id is None:
-        raise ForbiddenException("管理员没有成员关注关系；永久删除请使用 subscriptions delete")
+        raise ForbiddenException(message_key="errors.subscription.adminNoFollow")
     message = await _service(session).unsubscribe(
         subscription_id,
         member_id=principal.member_id,

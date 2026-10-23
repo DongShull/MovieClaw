@@ -181,7 +181,7 @@ async def _load_row(session: AsyncSession, file_id: int) -> LibraryFile:
         await session.execute(select(LibraryFile).where(LibraryFile.id == file_id))
     ).scalar_one_or_none()
     if row is None or row.state != FileState.IN_PLACE:
-        raise NotFoundException(f"文件不存在或已丢失：id={file_id}")
+        raise NotFoundException(message_key="errors.subtitles.fileMissing", params={"id": file_id})
     return row
 
 
@@ -229,8 +229,8 @@ def ensure_language_token(target_language: str) -> str:
     token = target_language.strip().lower()
     if not _LANGUAGE_TOKEN.fullmatch(token):
         raise BadRequestException(
-            f"目标语言 token 不合法：{target_language!r}"
-            "（只允许 2-16 位小写字母/数字/连字符，如 chs）"
+            message_key="errors.subtitles.languageTokenInvalid",
+            params={"language": f"{target_language!r}"},
         )
     return token
 
@@ -242,11 +242,15 @@ def ensure_output_languages(
     target = ensure_language_token(target_language)
     secondary = ensure_language_token(secondary_language) if secondary_language else None
     if target not in OUTPUT_LANGUAGES:
-        raise BadRequestException(f"暂不支持生成 {target} 字幕")
+        raise BadRequestException(
+            message_key="errors.subtitles.languageUnsupported", params={"language": target}
+        )
     if secondary is not None and secondary not in OUTPUT_LANGUAGES:
-        raise BadRequestException(f"暂不支持生成 {secondary} 字幕")
+        raise BadRequestException(
+            message_key="errors.subtitles.languageUnsupported", params={"language": secondary}
+        )
     if secondary == target:
-        raise BadRequestException("双语字幕的第一行和第二行不能选择同一种语言")
+        raise BadRequestException(message_key="errors.subtitles.bilingualLanguagesSame")
     return target, secondary
 
 
@@ -346,18 +350,18 @@ async def _source_fingerprint(row: LibraryFile, selected_source_key: str) -> dic
     """记录预检实际读取的源文件身份，防止长时间排队后翻译另一份内容。"""
     kind, separator, key = selected_source_key.partition(":")
     if not separator or kind not in {"embedded", "external"}:
-        raise BadRequestException("参考字幕标识不合法，请重新预检")
+        raise BadRequestException(message_key="errors.subtitles.referenceInvalid")
     if kind == "external":
         known = {str(item.get("filename")) for item in row.external_subtitles or []}
         if key not in known:
-            raise BadRequestException("所选参考字幕已不存在，请重新扫描后再试")
+            raise BadRequestException(message_key="errors.subtitles.referenceRemoved")
         path = Path(row.file_path).parent / key
     else:
         path = Path(row.file_path)
     try:
         stat = await asyncio.to_thread(path.stat)
     except OSError as exc:
-        raise BadRequestException("参考字幕暂时无法读取，请检查文件后重试") from exc
+        raise BadRequestException(message_key="errors.subtitles.referenceUnreadable") from exc
     return {"size_bytes": stat.st_size, "file_mtime_ns": stat.st_mtime_ns}
 
 
@@ -393,9 +397,12 @@ def _select_reference(
     if requested_key is not None:
         selected = next((item for item in ranked if candidate_key(item) == requested_key), None)
         if selected is None:
-            raise BadRequestException("所选参考字幕已不存在，请重新选择")
+            raise BadRequestException(message_key="errors.subtitles.referenceMissing")
         if not candidate_selectable(selected):
-            raise BadRequestException(f"所选参考字幕不能用于翻译：{selected.excluded}")
+            raise BadRequestException(
+                message_key="errors.subtitles.referenceExcluded",
+                params={"reason": selected.excluded},
+            )
         return selected
 
     selectable = [item for item in ranked if candidate_selectable(item)]
@@ -787,7 +794,7 @@ async def _prepare_generation(
     )
     if pv.chosen is None:
         if source_candidate_key and pv.pgs_conversion is None:
-            raise BadRequestException("用户确认的 PGS 轨道已变化，请重新预检后再试")
+            raise BadRequestException(message_key="errors.subtitles.pgsChanged")
         language_ready = bool(
             pv.pgs_conversion
             and (
@@ -868,7 +875,7 @@ async def enqueue_generation_job(
     provider_ref = provider.name
     selected_source_key = pv.selected_source_key
     if selected_source_key is None:
-        raise BadRequestException("没有可用的参考字幕，请重新预检")
+        raise BadRequestException(message_key="errors.subtitles.referenceUnavailable")
     source_fingerprint = await _source_fingerprint(row, selected_source_key)
     input_data = {
         "file_id": file_id,
@@ -1229,8 +1236,7 @@ async def _follow_read_progress(state: GenState, row: LibraryFile) -> None:
             state.extract_queued = False
             state.extract_position_seconds = progress.position_seconds
             state.message = (
-                f"正在读取内封字幕：已读到 {_clock(progress.position_seconds)} / "
-                f"{_clock(duration)}"
+                f"正在读取内封字幕：已读到 {_clock(progress.position_seconds)} / {_clock(duration)}"
                 if progress.position_seconds is not None and duration
                 else "正在读取内封字幕"
             )
@@ -1542,7 +1548,7 @@ async def _build_chat(
         provider, resolved_model = router.resolve(model_ref or "")
     except LlmRoutingError as exc:
         raise BadRequestException(
-            f"任务使用的 AI 模型配置已不可用：{exc}。请恢复配置后重试任务"
+            message_key="errors.subtitles.modelUnavailable", params={"error": exc}
         ) from exc
     # K2.5/K2.6 官方默认为深度思考；字幕逐条映射不需要长推理。只在官方
     # Kimi 方言上发送已确认支持的参数，不把私有字段泄漏给其他兼容端点。
@@ -1597,7 +1603,7 @@ async def _build_chat(
             # 换模型，否则同一任务重试的结果不可复现。转成业务异常后，持久化
             # 调度器会把任务置为 blocked，并给前端与 Agent 返回恢复配置的动作。
             raise BadRequestException(
-                f"任务使用的 AI 模型配置已不可用：{exc}。请恢复配置后重试任务"
+                message_key="errors.subtitles.modelUnavailable", params={"error": exc}
             ) from exc
         except Exception as exc:
             duration_ms = max(1, int((time.monotonic() - started) * 1000))
@@ -1742,7 +1748,9 @@ async def calibrate_external_subtitle(
     不可用如实报错。校准量小于噪声阈值时不动文件（"本就同步"）。
     """
     if "/" in filename or "\\" in filename or filename.startswith("."):
-        raise BadRequestException(f"字幕文件名不合法：{filename!r}")
+        raise BadRequestException(
+            message_key="errors.subtitles.filenameInvalid", params={"name": f"{filename!r}"}
+        )
     row = await _load_row(session, file_id)
     entry = next(
         (e for e in row.external_subtitles or [] if e.get("filename") == filename),
@@ -1754,7 +1762,9 @@ async def calibrate_external_subtitle(
         discovered = await asyncio.to_thread(discover_external_subtitles, Path(row.file_path))
         entry = next((e for e in discovered if e.get("filename") == filename), None)
         if entry is None:
-            raise NotFoundException(f"没有找到这条外挂字幕文件：{filename}")
+            raise NotFoundException(
+                message_key="errors.subtitles.externalMissing", params={"name": filename}
+            )
     cand = source.SourceCandidate(
         kind="external",
         key=filename,

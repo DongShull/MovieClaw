@@ -34,6 +34,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from movieclaw_api.core.config import get_settings
+from movieclaw_api.i18n.metadata import localized_text
 from movieclaw_api.plugins import packages as pkg
 
 logger = logging.getLogger("movieclaw_api.plugin_market")
@@ -537,9 +538,13 @@ def plugin_view(
     author = plugin.get("author") if isinstance(plugin.get("author"), dict) else {}
     return {
         "id": plugin_id,
-        "name": str(plugin.get("name") or plugin_id),
-        "summary": str(plugin.get("summary") or ""),
-        "description": str(plugin.get("description") or ""),
+        "name": localized_text(str(plugin.get("name") or plugin_id), plugin.get("name_localized")),
+        "summary": localized_text(
+            str(plugin.get("summary") or ""), plugin.get("summary_localized")
+        ),
+        "description": localized_text(
+            str(plugin.get("description") or ""), plugin.get("description_localized")
+        ),
         "category": str(plugin.get("category") or "tools"),
         "author": {"name": str(author.get("name") or ""), "url": author.get("url")},
         "homepage": plugin.get("homepage"),

@@ -1,0 +1,44 @@
+{
+  "season": {
+    "specials": "Specials",
+    "title": "Season {number}"
+  },
+  "episodes": {
+    "rangeSeparator": ", ",
+    "seasonSeparator": "; ",
+    "truncated": "{count} episodes, including {ranges}",
+    "range": "{count, plural, one {Episode {ranges}} other {Episodes {ranges}}}",
+    "all": "All {count, plural, one {# episode} other {# episodes}}",
+    "withSeason": "{season}, {episodes}",
+    "count": "{count, plural, one {# episode} other {# episodes}}"
+  },
+  "language": {
+    "zh": "Chinese",
+    "yue": "Cantonese",
+    "en": "English",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "fr": "French",
+    "de": "German",
+    "es": "Spanish",
+    "it": "Italian",
+    "ru": "Russian",
+    "pt": "Portuguese",
+    "hi": "Hindi",
+    "th": "Thai",
+    "sv": "Swedish",
+    "da": "Danish",
+    "no": "Norwegian",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "tr": "Turkish",
+    "foreign": "a foreign language",
+    "or": " or "
+  },
+  "kind": {
+    "unknown": "Unknown item",
+    "feature": "Feature",
+    "movie": "Movie",
+    "tv": "Series"
+  }
+}

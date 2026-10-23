@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_message
 from movieclaw_db.models import PushPreference, utcnow
 
 
@@ -47,9 +48,9 @@ def push_events() -> list[PushEvent]:
     return [
         PushEvent(
             key=entry.pref_key,
-            title=entry.title,
-            description=entry.description,
-            group=entry.group,
+            title=stored_message(entry.title, entry.title),
+            description=stored_message(entry.description, entry.description),
+            group=stored_message(entry.group, entry.group),
             default=entry.default,
             admin_only=entry.admin_only,
         )

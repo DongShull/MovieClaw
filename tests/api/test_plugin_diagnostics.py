@@ -43,7 +43,7 @@ def make_admin_client() -> tuple[object, TestClient]:
     admin = Principal(kind="admin", name="tester")
     app.dependency_overrides[require_admin] = lambda: admin
     app.dependency_overrides[require_login] = lambda: admin
-    return app, TestClient(app)
+    return app, TestClient(app, headers={"Accept-Language": "zh-Hans"})
 
 
 def test_plugins_endpoint_lists_every_entry_and_contract(env) -> None:

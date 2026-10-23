@@ -450,7 +450,7 @@ class AgentSessionStore:
         """追加一条定稿消息，自动接到当前链尾，返回写入的 entry。"""
         path = self.path(session_id)
         if not path.is_file():
-            raise NotFoundException("Agent 会话不存在或转录文件已被删除")
+            raise NotFoundException(message_key="errors.agent.transcriptMissing")
         if session_id not in self._leaf_cache:
             _, entries, _ = self._read(path)
             self._leaf_cache[session_id] = entries[-1].uuid if entries else None
@@ -475,7 +475,7 @@ class AgentSessionStore:
         """追加一条压缩行，与 append 同款接到当前链尾（parent 链线性穿过压缩行）。"""
         path = self.path(session_id)
         if not path.is_file():
-            raise NotFoundException("Agent 会话不存在或转录文件已被删除")
+            raise NotFoundException(message_key="errors.agent.transcriptMissing")
         if session_id not in self._leaf_cache:
             _, entries, _ = self._read(path)
             self._leaf_cache[session_id] = entries[-1].uuid if entries else None
@@ -505,7 +505,7 @@ class AgentSessionStore:
         """给新建的空会话写入首条交接快照。"""
         path = self.path(session_id)
         if not path.is_file():
-            raise NotFoundException("Agent 会话不存在或转录文件已被删除")
+            raise NotFoundException(message_key="errors.agent.transcriptMissing")
         if session_id not in self._leaf_cache:
             _, entries, _ = self._read(path)
             self._leaf_cache[session_id] = entries[-1].uuid if entries else None
@@ -534,7 +534,7 @@ class AgentSessionStore:
         _, source_entries = self.read(source_session_id)
         history = _repair_handoff_history(self.build_history(source_session_id))
         if not history:
-            raise BadRequestException("源会话没有可继承的上下文")
+            raise BadRequestException(message_key="errors.agent.noInheritedContext")
         source_leaf_uuid = source_entries[-1].uuid if source_entries else None
         header = self.create()
         handoff = self.append_handoff(
@@ -605,12 +605,12 @@ class AgentSessionStore:
         header, entries = self.read(session_id)
         index = next((i for i, e in enumerate(entries) if e.uuid == message_id), None)
         if index is None:
-            raise NotFoundException("会话中没有这条记录，可能已被改写")
+            raise NotFoundException(message_key="errors.agent.recordMissing")
         target = entries[index]
         # 只允许从 user message 重试：从 assistant/tool 中间切一刀会留下没有
         # 回执的 tool_call，重建出的上下文喂回模型直接 400
         if not isinstance(target, SessionMessageEntry) or target.message.role != "user":
-            raise BadRequestException("只能重试用户消息")
+            raise BadRequestException(message_key="errors.agent.retryUserOnly")
 
         kept = entries[:index]
         path = self.path(session_id)
@@ -640,7 +640,7 @@ class AgentSessionStore:
         """读取整个会话（头 + 全部 entry，含压缩/交接行），坏行静默跳过。"""
         path = self.path(session_id)
         if not path.is_file():
-            raise NotFoundException("Agent 会话不存在或转录文件已被删除")
+            raise NotFoundException(message_key="errors.agent.transcriptMissing")
         header, entries, bad = self._read(path)
         if bad:
             logger.warning(
@@ -753,7 +753,7 @@ class AgentSessionStore:
                 except (ValidationError, json.JSONDecodeError):
                     bad += 1
         if header is None:
-            raise NotFoundException("Agent 会话文件为空或头记录损坏")
+            raise NotFoundException(message_key="errors.agent.transcriptInvalid")
         return header, entries, bad
 
 

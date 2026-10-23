@@ -198,7 +198,7 @@ async def mute_item(
     from movieclaw_db.models import MediaItem
 
     if await session.get(MediaItem, item_id) is None:
-        raise NotFoundException("没有这部片")
+        raise NotFoundException(message_key="errors.push.mediaMissing")
     await preferences.set_muted(session, principal.owner_id, item_id, True)
     return ok(await me.build_view(session, principal))
 
@@ -350,7 +350,7 @@ async def push_image(token: str) -> FileResponse:
 
     url = await resolve_image(token)
     if url is None:
-        raise NotFoundException("图片不存在")
+        raise NotFoundException(message_key="errors.push.imageMissing")
     # 条目图已落本地就用本地母版缩到推送宽度（图床被墙也带得出图），否则回源
     local = await local_push_image(url)
     if local is not None:
@@ -363,7 +363,7 @@ async def push_image(token: str) -> FileResponse:
     try:
         cached = await get_image_cache().get_or_fetch(url)
     except Exception as exc:  # noqa: BLE001 -- 取不到图对通知扩展来说就是「不带图」
-        raise NotFoundException("图片不存在") from exc
+        raise NotFoundException(message_key="errors.push.imageMissing") from exc
     return FileResponse(
         cached.path,
         media_type=cached.content_type,

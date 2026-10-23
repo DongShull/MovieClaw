@@ -91,6 +91,9 @@ class SubscriptionAwaitingSubtitles(Frozen):
     originals: int
     """已找到的原版数量。"""
     waited_hours: int
+    language_code: str | None = None
+    """原始语言代码；新增消费者按自己的语言渲染，旧版仍可读 language。"""
+    acceptable_languages: tuple[str, ...] = ()
 
 
 class SubscriptionDownloadStuck(Frozen):

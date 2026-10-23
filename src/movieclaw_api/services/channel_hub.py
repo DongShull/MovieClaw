@@ -423,8 +423,9 @@ class ChannelHub:
                     dedupe_key=_notice_key(channel_id, account_id),
                     severity=NoticeSeverity.WARNING,
                     source="channel",
-                    title=f"{title}账号失效，IM 通知发不出去了",
-                    message=f"{title}的登录凭据已失效，重新绑定后通知和 AI 对话才会恢复。",
+                    title_key="notify.channelStale.title",
+                    message_key="notify.channelStale.body",
+                    message_params={"channel": title},
                     payload={"channel_id": channel_id, "account_id": account_id},
                 )
             self._accounts.pop((channel_id, account_id), None)

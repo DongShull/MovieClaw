@@ -145,13 +145,10 @@ async def audit_ingest_specs(
         detail = "；".join(
             f"实测{d['dimension']} {d['measured']}，种子声称 {d['claimed']}" for d in diffs
         )
-        message = (
-            f"{_unit_text(wanted)}入库文件与种子声称的规格不符：{detail}。"
-            + (
-                f"{violation}，这个文件本不该入库，建议复查后手工删除并重新寻源"
-                if violation
-                else "文件仍满足规则组要求，已照常入库，仅作提醒"
-            )
+        message = f"{_unit_text(wanted)}入库文件与种子声称的规格不符：{detail}。" + (
+            f"{violation}，这个文件本不该入库，建议复查后手工删除并重新寻源"
+            if violation
+            else "文件仍满足规则组要求，已照常入库，仅作提醒"
         )
         await repo.add_activity(
             SubscriptionActivity(
@@ -182,8 +179,16 @@ async def audit_ingest_specs(
             ),
             severity=NoticeSeverity.WARNING,
             source="subscription",
-            title="入库文件规格与种子声称不符",
-            message=f"《{title}》{_unit_text(wanted)}{detail}。{violation}，请复查该文件。",
+            title_key="notify.specMismatch.title",
+            message_key="notify.specMismatch.body",
+            message_params={
+                "title": item.title if item else {"message_key": "media.kind.unknown"},
+                "unit": _unit_text(wanted)
+                if wanted.season_number or wanted.episode_number
+                else {"message_key": "media.kind.feature"},
+                "detail": detail,
+                "violation": violation,
+            },
             payload={
                 "subscription_id": wanted.subscription_id,
                 "info_hash": wanted.info_hash,

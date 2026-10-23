@@ -12,6 +12,7 @@ import logging
 import shutil
 from typing import Any
 
+from movieclaw_api.i18n.metadata import localized_text
 from movieclaw_api.plugins import packages as pkg
 from movieclaw_kernel import Kernel, State
 
@@ -118,9 +119,9 @@ def _view(
     approved_callbacks = current.callbacks if current else []
     return {
         "id": plugin.id,
-        "title": plugin.title,
+        "title": localized_text(plugin.title, plugin.title_localized),
         "version": plugin.version,
-        "description": plugin.description,
+        "description": localized_text(plugin.description, plugin.description_localized),
         "runtime": plugin.runtime,
         # 入口模块；留空 = 没有后端代码（只带网页 / 主题）
         "entry": plugin.entry,
@@ -138,7 +139,11 @@ def _view(
         "dependencies": plugin_deps.view(lock, current.dependencies if current else None),
         "dependency_progress": plugin_deps.progress(plugin.id) if lock is not None else None,
         # 带网页：批准页预览侧边栏入口，并须单独同意授信运行（plugin-web-pages.md §5）
-        "web": plugin_web.pending_preview(path, plugin.id, plugin.title) if path else None,
+        "web": plugin_web.pending_preview(
+            path, plugin.id, localized_text(plugin.title, plugin.title_localized)
+        )
+        if path
+        else None,
         # 主题：批准页预览选择卡；带外框组件的须单独同意（theme-plugins.md §4.6）
         "theme": _theme_preview(manifest, path),
     }
@@ -149,8 +154,8 @@ def _theme_preview(manifest: pkg.Manifest, path: Any) -> dict[str, Any] | None:
     if theme is None:
         return None
     return {
-        "label": theme.label,
-        "description": theme.description,
+        "label": localized_text(theme.label, theme.label_localized),
+        "description": localized_text(theme.description, theme.description_localized),
         "preview": {"bg": theme.preview.bg, "accent": theme.preview.accent},
         "layout": theme.layout,
         "glass": theme.glass,
@@ -240,10 +245,13 @@ class PackageManager:
         rows = []
         for item in packages.values():
             fiber = self._kernel.fiber(item.id)
+            manifest = pkg.read_manifest(pkg.version_dir(self._settings, item.id, item.version))
             rows.append(
                 {
                     "id": item.id,
-                    "title": item.title,
+                    "title": localized_text(item.title, manifest.plugin.title_localized)
+                    if manifest
+                    else item.title,
                     "version": item.version,
                     "runtime": item.runtime,
                     "operations": item.operations,
@@ -695,7 +703,8 @@ async def _notice(entry_id: str, title: str, message: str) -> None:
                 dedupe_key=f"{NOTICE_PREFIX}{entry_id}",
                 severity=NoticeSeverity.WARNING,
                 source="plugin",
-                title=f"插件「{title}」已自动回滚",
+                title_key="notify.pluginRollback.title",
+                message_params={"title": title},
                 message=message,
                 payload={"entry_id": entry_id, "action_href": MANAGE_HREF},
             )

@@ -11,7 +11,9 @@ from babel import Locale
 from babel.numbers import format_decimal
 from pyicumessageformat import Parser
 
-current_locale: ContextVar[str] = ContextVar("current_locale", default="zh-Hans")
+from movieclaw_kernel.observe import current_locale as current_locale
+
+current_timezone: ContextVar[str] = ContextVar("current_timezone", default="UTC")
 LOCALES = Path(__file__).resolve().parents[1] / "locales"
 
 
@@ -38,12 +40,14 @@ def negotiate(accept_language: str | None) -> str:
 
 
 @contextmanager
-def use_locale(locale: str):
+def use_locale(locale: str, timezone: str | None = None):
     token = current_locale.set(normalize_locale(locale) or "en")
+    timezone_token = current_timezone.set(timezone or current_timezone.get())
     try:
         yield
     finally:
         current_locale.reset(token)
+        current_timezone.reset(timezone_token)
 
 
 @lru_cache(maxsize=2)
@@ -95,13 +99,9 @@ def render(message: str, locale: str, params: dict) -> str:
             elif kind == "number":
                 if node.get("hash"):
                     value -= offsets.get(name, 0)
-                result.append(format_decimal(value, locale=babel_locale))
+                result.append(format_decimal(value, format=node.get("format"), locale=babel_locale))
             elif kind is None:
-                result.append(
-                    format_decimal(value, locale=babel_locale)
-                    if isinstance(value, (int, float))
-                    else str(value)
-                )
+                result.append(str(value))
             else:
                 raise ValueError(f"Unsupported ICU argument type: {kind}")
         return "".join(result)

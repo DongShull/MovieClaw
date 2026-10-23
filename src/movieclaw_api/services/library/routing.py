@@ -26,6 +26,7 @@ from dataclasses import dataclass, field, replace
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import reference
 from movieclaw_db.models import MediaItem, MediaMetadata, MediaSource
 from movieclaw_db.models.library import Library
 from movieclaw_db.repositories.library_repo import LibraryRepository
@@ -302,29 +303,58 @@ def validate_match_rules(raw: list | None, *, label: str = "收藏范围") -> li
     """
     from movieclaw_api.exceptions import BadRequestException
 
+    scope = (
+        reference(
+            {"收藏范围": "library.scope.collection", "适用范围": "library.scope.applicability"}[
+                label
+            ]
+        )
+        if label in {"收藏范围", "适用范围"}
+        else label
+    )
     if not raw:
         return []
     cleaned: list[dict] = []
     for rule in raw:
         if not isinstance(rule, dict):
-            raise BadRequestException(f"{label}条件必须是对象列表")
+            raise BadRequestException(
+                message_key="errors.library.scopeListRequired", params={"scope": scope}
+            )
         fld = rule.get("field")
         if fld not in RULE_FIELDS:
-            raise BadRequestException(f"{label}条件包含不支持的字段：{fld}")
+            raise BadRequestException(
+                message_key="errors.library.scopeFieldUnsupported",
+                params={"scope": scope, "field": fld},
+            )
         if rule.get("op", "any_of") != "any_of":
-            raise BadRequestException(f"{label}条件目前只支持 any_of（任一匹配）")
+            raise BadRequestException(
+                message_key="errors.library.scopeOperatorUnsupported", params={"scope": scope}
+            )
         values = rule.get("values")
         if not isinstance(values, list) or not values:
-            raise BadRequestException(f"{label}条件「{_FIELD_LABELS[fld]}」的取值不能为空")
+            raise BadRequestException(
+                message_key="errors.library.scopeValueRequired",
+                params={
+                    "scope": scope,
+                    "field": reference(
+                        {
+                            "genres": "library.scope.genre",
+                            "origin_countries": "library.scope.region",
+                        }[fld]
+                    ),
+                },
+            )
         if fld == "genres":
             if not all(isinstance(v, int) and not isinstance(v, bool) for v in values):
-                raise BadRequestException("类型条件的取值必须是 TMDB 类型 ID（整数）")
+                raise BadRequestException(message_key="errors.library.scopeGenreInvalid")
             deduped: list = sorted(set(values))
         else:
             if not all(isinstance(v, str) and v.strip() for v in values):
-                raise BadRequestException("区域条件的取值必须是国家/地区码")
+                raise BadRequestException(message_key="errors.library.scopeRegionInvalid")
             deduped = sorted({v.strip().upper() for v in values})
         cleaned.append({"field": fld, "op": "any_of", "values": deduped})
     if len({r["field"] for r in cleaned}) != len(cleaned):
-        raise BadRequestException(f"{label}里同一字段只能出现一次（取值本身就是多选）")
+        raise BadRequestException(
+            message_key="errors.library.scopeFieldDuplicate", params={"scope": scope}
+        )
     return cleaned

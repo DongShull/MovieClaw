@@ -72,7 +72,9 @@ async def set_feature(
 
     kernel = getattr(request.app.state, "kernel", None)
     if kernel is None:
-        raise AppException(status_code=503, code="KERNEL_NOT_RUNNING", message="插件内核未运行")
+        raise AppException(
+            status_code=503, code="KERNEL_NOT_RUNNING", message_key="errors.plugins.kernelStopped"
+        )
     try:
         await set_enabled(kernel, get_settings(), key, payload.enabled, actor=principal.name)
     except FeatureSwitchError as exc:

@@ -1,0 +1,12 @@
+{
+  "manual": {
+    "episodeFloorHint": "; if this series has more episodes than TMDB lists, add them in Manage subscription → Adjust episode count",
+    "completeSeries": "Complete series pack",
+    "seasonPack": "Season {number} pack",
+    "unknownUnits": "Unknown items"
+  },
+  "scope": {
+    "noSeasons": "(no seasons selected)",
+    "seasons": "Seasons {numbers}"
+  }
+}

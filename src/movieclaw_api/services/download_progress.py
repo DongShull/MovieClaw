@@ -390,9 +390,7 @@ async def _observe_attempt(
             if tracked and not any(row.in_scope for row in tracked):
                 attempt.status = DownloadAttemptStatus.CANCELLED
                 attempt.next_search_at = None
-                attempt.cleanup_note = (
-                    "关联单元已退出当前订阅范围；保留下载器任务，不再观察或换源"
-                )
+                attempt.cleanup_note = "关联单元已退出当前订阅范围；保留下载器任务，不再观察或换源"
                 attempt.updated_at = utcnow()
                 session.add(attempt)
                 await session.commit()
@@ -701,8 +699,7 @@ async def _handle_stalled_attempt(
             units=attempt.units,
             reason="no_byte_progress",
             message=(
-                "下载已连续 15 分钟没有进度，可在活动页立即换种；"
-                "30 分钟时将自动寻找同品质替代源"
+                "下载已连续 15 分钟没有进度，可在活动页立即换种；30 分钟时将自动寻找同品质替代源"
             ),
         )
     if elapsed < timedelta(minutes=AUTO_REPLACEMENT_MINUTES):
@@ -830,10 +827,7 @@ async def _cancel_attempt_if_out_of_scope(
 ) -> bool:
     """并发兜底：网络观察返回时目标若已退出范围，原地止损且不碰下载器。"""
     source = attempt
-    if (
-        attempt.status == DownloadAttemptStatus.TRIAL
-        and attempt.replaces_attempt_id is not None
-    ):
+    if attempt.status == DownloadAttemptStatus.TRIAL and attempt.replaces_attempt_id is not None:
         parent = await session.get(SubscriptionDownloadAttempt, attempt.replaces_attempt_id)
         if parent is None:
             return False
@@ -1083,8 +1077,7 @@ async def _verify_landing(
         )
     else:
         message = (
-            f"「{status.name}」已下载完成，但 movieclaw 在 {local_dir} 看不到它。"
-            f"{probe.detail}"
+            f"「{status.name}」已下载完成，但 movieclaw 在 {local_dir} 看不到它。{probe.detail}"
         )
     # 全局红灯（幂等 upsert，问题在就常亮）：时间线活动埋在单个订阅详情页里，
     # 这类"不修就永远卡着"的错误必须在任何页面都能被感受到
@@ -1093,8 +1086,18 @@ async def _verify_landing(
         dedupe_key=f"subscription.landing:{rows[0].subscription_id}:{info_hash}",
         severity=NoticeSeverity.ERROR,
         source="subscription",
-        title=f"「{status.name}」下载完成但无法入库",
-        message=message,
+        title_key="notify.landingFailed.title",
+        message_key="notify.landingFailed.body",
+        message_params={
+            "name": status.name,
+            "path": local_dir,
+            "root": root,
+            "downloader": downloader.name,
+            "healthy": "yes" if probe.healthy else "no",
+            "detail": {"message_key": probe.detail_key, "message": probe.detail}
+            if probe.detail_key
+            else probe.detail,
+        },
         payload={
             "subscription_id": rows[0].subscription_id,
             "info_hash": info_hash,

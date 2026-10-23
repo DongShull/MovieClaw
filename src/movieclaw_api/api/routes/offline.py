@@ -62,9 +62,9 @@ _HIDDEN = {"x-cli-hidden": True}
 async def _visible_file(session: AsyncSession, principal: Principal, file_id: int) -> LibraryFile:
     file = await session.get(LibraryFile, file_id)
     if file is None or file.media_item_id is None:
-        raise NotFoundException("文件不存在")
+        raise NotFoundException(message_key="errors.offline.fileMissing")
     if file.library_id not in await visible_library_ids(session, principal):
-        raise NotFoundException("文件不存在")
+        raise NotFoundException(message_key="errors.offline.fileMissing")
     await assert_item_visible(session, principal, file.media_item_id)
     return file
 
@@ -164,7 +164,7 @@ async def download_original_file(
     # 下载能挂几十分钟：读完台账就把数据库连接还回去（原文件直出同一个教训）
     await session.close()
     if file.is_disc():
-        raise NotFoundException("原盘暂不支持下载到设备")
+        raise NotFoundException(message_key="errors.offline.discUnsupported")
     path = PathLib(file.file_path)
     container = file.container
     if not file.local_bytes:
@@ -193,7 +193,9 @@ async def download_original_file(
         try:
             source = parse_strm(file.file_path)
         except StrmError as exc:
-            raise NotFoundException(f"strm 用不了：{exc}") from exc
+            raise NotFoundException(
+                message_key="errors.offline.strmUnavailable", params={"error": exc}
+            ) from exc
         if isinstance(source, StrmLink):
             # 一律由服务端转发，不 302：后台下载跟跳转时会把我们的设备令牌带给网盘
             meter = _register_download(request, principal, file, path.name, file.size_bytes or 0)
@@ -207,7 +209,7 @@ async def download_original_file(
         path = source
         container = local_strm_container(file.container, path)
     if not path.is_file():
-        raise NotFoundException("文件已不在磁盘上")
+        raise NotFoundException(message_key="errors.offline.fileOffDisk")
     size = path.stat().st_size
     meter = _register_download(request, principal, file, path.name, size)
     return DisconnectAwareFileResponse(
@@ -259,7 +261,7 @@ async def _visible_export(
     manager = exports.get_export_manager()
     state = manager.get(export_id)
     if state is None:
-        raise NotFoundException("导出不存在或已回收")
+        raise NotFoundException(message_key="errors.offline.exportMissing")
     return state, await _visible_file(session, principal, state.file_id)
 
 
@@ -317,7 +319,7 @@ async def download_offline_export(
         )
     path = manager.output_path(state)
     if state.status == exports.STATUS_DONE and not path.is_file():
-        raise NotFoundException("导出文件已回收")
+        raise NotFoundException(message_key="errors.offline.exportRemoved")
     if request.method == "HEAD":
         # 只问头：不登记到活动页（没有字节要发，登记了也没人收口）
         if state.status == exports.STATUS_RUNNING:

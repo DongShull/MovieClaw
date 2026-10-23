@@ -35,6 +35,7 @@ from urllib.parse import quote
 from fastapi import Request
 from fastapi.responses import StreamingResponse
 
+from movieclaw_api.i18n import current_locale
 from movieclaw_api.services.plugin_agent import PluginAgent
 from movieclaw_kernel import (
     DURABLE_EVENTS,
@@ -469,7 +470,7 @@ class Session:
                 },
                 "attempt": delivery.attempt,
             }
-        headers = {CALL_HEADER: call_id}
+        headers = {CALL_HEADER: call_id, "Accept-Language": current_locale.get()}
         path = f"/_mc/{kind or 'listener'}/{quote(listener, safe='')}"
         watcher: asyncio.Task[None] | None = None
         if cancel is not None:
@@ -634,7 +635,8 @@ def _route_proxy(session: Session, routes: list[dict[str, Any]]) -> Any:
         return AppException(
             status_code=503,
             code="PLUGIN_UNAVAILABLE",
-            message=f"插件 {session.entry_id} 暂时不可用（进程不在运行或正在重启），请稍后再试",
+            message_key="errors.plugins.temporarilyUnavailable",
+            params={"id": session.entry_id},
         )
 
     from movieclaw_api.services.plugin_files import SENDFILE_HEADER, sendfile
@@ -651,9 +653,10 @@ def _route_proxy(session: Session, routes: list[dict[str, Any]]) -> Any:
             for k, v in request.headers.items()
             if k.lower() not in _HOP_HEADERS
             and k.lower() not in _CREDENTIAL_HEADERS
-            and k.lower() != _CALL_HEADER
+            and k.lower() not in {_CALL_HEADER, "accept-language"}
         ]
         headers.append((CALL_HEADER, call_id))
+        headers.append(("Accept-Language", current_locale.get()))
         upstream = client.build_request(
             request.method,
             request.url.path,

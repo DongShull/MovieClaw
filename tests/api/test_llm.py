@@ -81,7 +81,8 @@ def client(tmp_path, monkeypatch):
     app = create_app()
     # 本文件只测 LLM 配置业务，登录鉴权用依赖覆盖绕过（鉴权本身在 test_auth 覆盖）
     app.dependency_overrides[require_login] = lambda: Principal(kind="admin", name="tester")
-    with TestClient(app) as c:  # with 块内触发 lifespan：建库、迁移、初始化加密器
+    # with 块内触发 lifespan：建库、迁移、初始化加密器
+    with TestClient(app, headers={"Accept-Language": "zh-Hans"}) as c:
         yield c, db_file
     get_settings.cache_clear()
 

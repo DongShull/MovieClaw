@@ -225,23 +225,24 @@ async def submit_torrent(
     队列重试，刚加进来的暂停任务一并移除。已存在的任务照旧不碰。
     """
     if not download_url:
-        raise BadRequestException("该种子没有可用的下载入口（download_url 缺失）")
+        raise BadRequestException(message_key="errors.torrent.downloadUrlMissing")
 
     # 1. 选下载器（先于取种：注定投不出去时不白打站点请求）。
     # 指定 id 时要求该台"启用 + 验证通过"，否则给指向明确的中文错误
     if downloader_id is not None:
         row = await session.get(DownloaderClient, downloader_id)
         if row is None:
-            raise BadRequestException(f"下载器不存在：#{downloader_id}")
+            raise BadRequestException(
+                message_key="errors.torrent.downloaderMissing", params={"id": downloader_id}
+            )
         if not row.enabled or row.status != ConfigStatus.ACTIVE:
             raise BadRequestException(
-                f"下载器「{row.name}」当前不可用（已停用或连接验证未通过），"
-                "请在「设置 → 下载器」里检查后重试，或改用其他下载器"
+                message_key="errors.torrent.downloaderUnavailable", params={"name": row.name}
             )
     else:
         row = await pick_downloader(session, route_hint)
     if row is None:
-        raise BadRequestException("没有可用的默认下载器（请在「设置 → 下载器」里添加并设为默认）")
+        raise BadRequestException(message_key="errors.torrent.defaultDownloaderMissing")
 
     # 2. 保存目录（库推导路径 > 下载器配置默认目录，均为 movieclaw 视角）+
     # 守门：下载器配了路径映射（跨容器部署的声明），保存目录却不在任何映射
@@ -255,10 +256,8 @@ async def submit_torrent(
         and not mapping_covers(effective_save_path, row.path_mappings)
     ):
         raise BadRequestException(
-            f"保存目录 {effective_save_path} 不在下载器「{row.name}」的路径映射覆盖范围内，"
-            "下载器可能无法访问该目录——请在「设置 → 下载器」为它补一条路径映射"
-            "（下载器实际可直达同名路径时，添加一条两边相同的映射即可），"
-            "或改用监听导入规则"
+            message_key="errors.torrent.pathUnmapped",
+            params={"path": effective_save_path, "name": row.name},
         )
     submit_save_path = translate_save_path(effective_save_path, row.path_mappings)
 
@@ -270,7 +269,9 @@ async def submit_torrent(
     try:
         torrent_bytes = await site.download_torrent(download_url)
     except Exception as exc:
-        raise UpstreamServiceException(f"从站点 {site_id} 取回种子失败：{exc}") from exc
+        raise UpstreamServiceException(
+            message_key="errors.torrent.fetchFailed", params={"id": site_id, "error": exc}
+        ) from exc
 
     # 4. 提交（幂等，重复种子不报错）
     repo = DownloaderRepository(session)
@@ -345,11 +346,11 @@ async def submit_torrent(
         from movieclaw_api.services.subscription.file_selection import UnsatisfiableSelection
         from movieclaw_api.services.subscription.smart_submission import SubmissionRejected
 
-        if isinstance(exc, UnsatisfiableSelection | SubmissionRejected):
-            # 文件清单的确定结论 / 提交前钩子的领域拒绝：调用方要据此收窄或
-            # 终止投递，包成上游故障会进入无限退避重试（issue #998）
-            raise
-        raise UpstreamServiceException(f"提交到下载器「{row.name}」失败：{exc}") from exc
+        if isinstance(exc, UnsatisfiableSelection):
+            raise  # 文件清单的确定结论，调用方要据此收窄投递，不能当网络故障
+        raise UpstreamServiceException(
+            message_key="errors.torrent.submitFailed", params={"name": row.name, "error": exc}
+        ) from exc
     finally:
         await downloader.close()
 

@@ -59,6 +59,29 @@ def test_rejects_unknown_server_key(catalog):
     assert any("unknown key common.missing" in error for error in check.check_catalogs())
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        'stored_fields("common.missing")',
+        'reference("common.missing")',
+        'upsert_notice(title_key="common.missing")',
+        '{"message_key": "common.missing"}',
+        '{"label_key": "common.missing"}',
+        'Rule(title="notify.missing")',
+    ],
+)
+def test_stored_and_notification_references_are_checked(catalog, source):
+    root, _ = catalog
+    (root / "src/movieclaw_api/example.py").write_text(source)
+    assert any("unknown key" in error for error in check.check_catalogs())
+
+
+def test_server_chinese_migration_is_locked(catalog):
+    root, write = catalog
+    write(root / "scripts/i18n/server-migrations.json", {"common.greeting": "原文"})
+    assert "Server Chinese changed during migration: common.greeting" in check.check_catalogs()
+
+
 def test_unused_keys_are_review_hints_and_glossary_is_enforced(catalog):
     root, write = catalog
     assert any("common.greeting" in warning for warning in check.unused_keys())
@@ -81,3 +104,37 @@ def test_ratchet_excludes_logs_and_honors_swift_data_exemptions(catalog, monkeyp
     tests.parent.mkdir(parents=True)
     tests.write_text('let expected = "中文断言"')
     assert check.baseline() == {"apps/apple/Shared/UI.swift": 1, "src/movieclaw_api/example.py": 1}
+
+
+def test_apple_chinese_migration_is_locked(catalog):
+    root, write = catalog
+    write(
+        root / "apps/apple/Shared/Localizable.xcstrings",
+        {
+            "strings": {
+                "common.confirm": {
+                    "localizations": {
+                        "zh-Hans": {"stringUnit": {"value": "确认"}},
+                    }
+                }
+            },
+        },
+    )
+    write(root / "scripts/i18n/apple-migrations.json", {"common.confirm": "确定"})
+    assert "Apple Chinese changed during migration: common.confirm" in check.check_catalogs()
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        't("common.greeting")',
+        'reference("common.greeting", wrong=1)',
+        'BadRequestException(message_key="common.greeting", params={"wrong": 1})',
+    ],
+)
+def test_literal_call_parameters_are_checked(catalog, source):
+    root, _ = catalog
+    (root / "src/movieclaw_api/example.py").write_text(source)
+    assert any(
+        "call parameters differ: common.greeting" in error for error in check.check_catalogs()
+    )

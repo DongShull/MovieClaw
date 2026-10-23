@@ -20,6 +20,9 @@ class AlertRaised(Frozen):
     """``downloader`` / ``site`` / ``subscription`` / ``ingest`` / ``plugin`` / ``cloud`` …"""
     title: str
     message: str
+    title_key: str | None = None
+    message_key: str | None = None
+    message_params: dict[str, Any] = Field(default_factory=dict)
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -30,6 +33,8 @@ class AlertResolved(Frozen):
     source: str
     title: str
     """出问题时的标题（「下载器 qb 连不上」）。"""
+    title_key: str | None = None
+    message_params: dict[str, Any] = Field(default_factory=dict)
 
 
 class UpdateAvailable(Frozen):

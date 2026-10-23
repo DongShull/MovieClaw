@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
 from movieclaw_api.services.download_health import adopt_landing_groups
-from movieclaw_api.services.downloader_paths import PathProbe, probe_mappings, summarize
+from movieclaw_api.services.downloader_paths import PathProbe, detail_key, probe_mappings, summarize
 from movieclaw_db.engine import get_database
 from movieclaw_db.models.downloader_client import DownloaderClient
 from movieclaw_db.models.site_credential import ConfigStatus
@@ -38,7 +38,9 @@ class DownloaderConfigService:
     def _assert_not_verifying(row: DownloaderClient) -> None:
         """若下载器正在测试连接，拒绝当前操作（409）。"""
         if row.status == ConfigStatus.VERIFYING:
-            raise ConflictException(f"下载器「{row.name}」正在测试连接，请等待完成后再操作")
+            raise ConflictException(
+                message_key="errors.downloaders.testing", params={"name": row.name}
+            )
 
     # -- 查询 --------------------------------------------------------------
 
@@ -50,7 +52,9 @@ class DownloaderConfigService:
         """按 id 获取；不存在抛 404。"""
         row = await self._repo.get(downloader_id)
         if row is None:
-            raise NotFoundException(f"下载器不存在：id={downloader_id}")
+            raise NotFoundException(
+                message_key="errors.downloaders.missing", params={"id": downloader_id}
+            )
         return row
 
     # -- 写入 --------------------------------------------------------------
@@ -59,7 +63,9 @@ class DownloaderConfigService:
         """名称唯一性校验（更新时排除自身）。"""
         existing = await self._repo.get_by_name(name)
         if existing is not None and existing.id != exclude_id:
-            raise ConflictException(f"名称「{name}」已被使用，请换一个")
+            raise ConflictException(
+                message_key="errors.downloaders.nameInUse", params={"name": name}
+            )
 
     @staticmethod
     def _assert_type_known(client_type: str) -> None:
@@ -70,8 +76,8 @@ class DownloaderConfigService:
         if client_type not in known:
             names = "、".join(f"{a.title}（{t}）" for t, a in known.items()) or "无"
             raise BadRequestException(
-                f"没有「{client_type}」这种下载器：可用的类型有 {names}。"
-                "其他下载器需要先安装对应的下载器插件"
+                message_key="errors.downloaders.typeMissing",
+                params={"type": client_type, "types": names},
             )
 
     async def create(
@@ -147,7 +153,9 @@ class DownloaderConfigService:
         """启用/停用；与验证状态正交，不受 VERIFYING 守卫限制。"""
         ok = await self._repo.set_enabled(downloader_id, enabled)
         if not ok:
-            raise NotFoundException(f"下载器不存在：id={downloader_id}")
+            raise NotFoundException(
+                message_key="errors.downloaders.missing", params={"id": downloader_id}
+            )
         return await self.get(downloader_id)
 
     async def set_default(self, downloader_id: int) -> DownloaderClient:
@@ -157,7 +165,9 @@ class DownloaderConfigService:
         """
         ok = await self._repo.set_default(downloader_id)
         if not ok:
-            raise NotFoundException(f"下载器不存在：id={downloader_id}")
+            raise NotFoundException(
+                message_key="errors.downloaders.missing", params={"id": downloader_id}
+            )
         return await self.get(downloader_id)
 
     async def delete(self, downloader_id: int) -> list[str]:
@@ -295,11 +305,13 @@ async def _notify_paths(
         dedupe_key=key,
         severity=NoticeSeverity.ERROR,
         source="downloader",
-        title=f"下载器「{name}」的下载目录 movieclaw 看不到",
-        message=(
-            f"连接正常，但 {len(broken)} 条路径映射的本地侧不可用，"
-            f"下载完成的内容将无法入库。{detail}"
-        ),
+        title_key="notify.downloaderPaths.title",
+        message_key="notify.downloaderPaths.body",
+        message_params={
+            "name": name,
+            "count": len(broken),
+            "detail": {"message_key": detail_key(state)},
+        },
         payload={
             "group_key": key,
             "downloader_id": downloader_id,
@@ -321,7 +333,8 @@ async def _notify_failed(session: AsyncSession, downloader_id: int, name: str, e
         dedupe_key=f"downloader:{downloader_id}",
         severity=NoticeSeverity.ERROR,
         source="downloader",
-        title=f"下载器「{name}」连接失败",
-        message=f"下载器「{name}」连接测试失败：{error}",
+        title_key="notify.downloader.connectionTitle",
+        message_key="notify.downloader.connectionBody",
+        message_params={"name": name, "reason": error},
         payload={"downloader_id": downloader_id},
     )

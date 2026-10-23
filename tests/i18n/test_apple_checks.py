@@ -124,3 +124,33 @@ def test_merge_cli_keeps_existing_output_on_conflict(tmp_path):
     assert result.returncode == 2
     assert "Conflicting catalog key: common.close" in result.stderr
     assert output.read_text() == "previous catalog"
+
+
+def test_catalog_checks_plural_variations_with_explicit_logical_parameter(catalog):
+    root, path, value, entry = catalog
+    key = "units.duration.hoursMinutes"
+    metadata_path = root / "apps/apple/Localization.meta.json"
+    metadata = json.loads(metadata_path.read_text())
+    metadata["Shared/Localizable.xcstrings"][key]["pluralParameter"] = "hours"
+    metadata_path.write_text(json.dumps(metadata))
+    entry["localizations"]["en"] = {
+        "variations": {
+            "plural": {
+                "one": {"stringUnit": {"state": "translated", "value": "%1$lld hour %2$lld min"}},
+                "other": {
+                    "stringUnit": {"state": "translated", "value": "%1$lld hours %2$lld min"}
+                },
+            }
+        },
+    }
+    path.write_text(json.dumps(value))
+    english = {key: "{hours, plural, one {# hour {minutes} min} other {# hours {minutes} min}}"}
+    assert apple.check_apple(root, english, {key: {"hours", "minutes"}}) == []
+    entry["localizations"]["en"]["variations"]["plural"]["one"]["stringUnit"]["value"] = "一 hour"
+    path.write_text(json.dumps(value))
+    errors = apple.check_apple(root, english, {key: {"hours", "minutes"}})
+    assert any("English contains Chinese" in error for error in errors)
+    assert any("printf parameters differ" in error for error in errors)
+    del entry["localizations"]["en"]["variations"]["plural"]["other"]
+    path.write_text(json.dumps(value))
+    assert any("other branch" in error for error in apple.check_apple(root, {}, {}))
