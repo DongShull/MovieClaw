@@ -1312,6 +1312,7 @@ class PipelineHealthView(BaseModel):
 class RuleSetView(BaseModel):
     id: int
     name: str
+    name_key: str | None = None
     is_default: bool
     spec: dict
     match_rules: list[dict] = Field(
@@ -1324,6 +1325,7 @@ class RuleSetView(BaseModel):
         return cls(
             id=row.id,  # type: ignore[arg-type]
             name=row.name,
+            name_key=row.name_key,
             is_default=row.is_default,
             spec=dict(row.spec),
             match_rules=list(row.match_rules or []),

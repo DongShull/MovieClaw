@@ -1746,5 +1746,6 @@
   "download.preview.noWatchLibrary": "没有可用的媒体库——种子会投到监听导入目录，但下载完成后无法自动入库；请先到「媒体库」创建",
   "download.preview.unmapped": "目录 {path} 不在下载器「{name}」的路径映射覆盖范围内，届时投递会被拒绝——请补一条覆盖该目录的路径映射（映射按前缀匹配，映射公共父目录即可覆盖其下所有库），或为这个库配置监听导入规则",
   "download.operations.routedLibrary": "{receipt}（{reason}）",
-  "library.routing.valueSeparator": "/"
+  "library.routing.valueSeparator": "/",
+  "subscription.rules.defaultName": "默认规则组"
 }

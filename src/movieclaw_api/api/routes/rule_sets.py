@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.subscription import RuleSetPayload, RuleSetView
-from movieclaw_api.services.rule_sets import RuleSetService
+from movieclaw_api.services.rule_sets import RuleSetService, rule_set_name_reference
 from movieclaw_db.engine import get_session
 
 router = APIRouter(prefix="/rule-sets", tags=["rule-sets"])
@@ -82,7 +83,9 @@ async def set_default_rule_set(
     references = await service.count_references(rule_set_id)
     return ok(
         RuleSetView.from_model(row, reference_count=references),
-        message=t("subscription.rules.defaultSaved", name=row.name),
+        message=t(
+            "subscription.rules.defaultSaved", name=render_value(rule_set_name_reference(row))
+        ),
     )
 
 

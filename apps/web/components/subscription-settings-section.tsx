@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import type { MediaSearchItem } from "@/lib/api/discover";
 import { searchTitles } from "@/lib/api/search";
@@ -31,14 +32,15 @@ import {
 
 /** 规则设置分区浏览，不改变订阅使用的模式；保留切换前未保存的表单。 */
 export function SubscriptionSettingsSection() {
+  const t = useTranslations();
   const [tab, setTab] = useState<"smart" | "rules">("smart");
   const [previewOpen, setPreviewOpen] = useState(false);
   const tabId = useId();
-  const tabs = [{ id: "smart", label: "智能选择", Icon: SparklesIcon }, { id: "rules", label: "自定义规则", Icon: ListIcon }] as const;
+  const tabs = [{ id: "smart", label: t("settings.subscription.smartTab"), Icon: SparklesIcon }, { id: "rules", label: t("settings.subscription.rulesTab"), Icon: ListIcon }] as const;
 
   return (
     <div className="space-y-6">
-      <div role="tablist" aria-label="订阅规则设置" className="grid grid-cols-2 border-b border-[var(--line)]">
+      <div role="tablist" aria-label={t("settings.subscription.tabsLabel")} className="grid grid-cols-2 border-b border-[var(--line)]">
         {tabs.map(({ id, label, Icon }, index) => (
           <button key={id} type="button" role="tab" id={`${tabId}-${id}`} aria-controls={`${tabId}-${id}-panel`} aria-selected={tab === id} tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}

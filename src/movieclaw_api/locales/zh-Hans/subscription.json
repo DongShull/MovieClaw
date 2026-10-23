@@ -13,7 +13,8 @@
     "created": "规则组已创建",
     "updated": "规则组已更新",
     "deleted": "已删除",
-    "defaultSaved": "「{name}」已设为默认规则组"
+    "defaultSaved": "「{name}」已设为默认规则组",
+    "defaultName": "默认规则组"
   },
   "operations": {
     "created": "已加入订阅，正在搜索缺失资源",

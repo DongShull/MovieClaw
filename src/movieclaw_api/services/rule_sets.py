@@ -43,7 +43,16 @@ from movieclaw_matcher import RuleSetSpec
 
 logger = logging.getLogger("movieclaw_api.rule_sets")
 
-_DEFAULT_NAME = "默认规则组"
+_DEFAULT_NAME_KEY = "subscription.rules.defaultName"
+
+
+def rule_set_name_reference(row: RuleSet) -> str | dict:
+    return (
+        {"message_key": _DEFAULT_NAME_KEY, "message_params": {}}
+        if row.name_key == _DEFAULT_NAME_KEY
+        else row.name
+    )
+
 
 # 懒种子默认组的安全预设：只收 1080p 及以上（顺序即偏好）、排除零做种死种。
 # 此前是"全不限"（spec={}），新用户第一批抓到的可能是低清枪版或没人做种的
@@ -125,7 +134,7 @@ def _pick_reason_message(kind: str, row: RuleSet, facts: RoutingFacts | None) ->
         parts += hit_part_references(kind, row.match_rules, facts)
     return stored_fields(
         "subscription.ruleRoute.matched",
-        name=row.name,
+        name=rule_set_name_reference(row),
         details={"message_list": parts, "separator_key": "common.list.separator"},
     )
 
@@ -144,7 +153,12 @@ class RuleSetService:
         if existing is not None:
             return existing
         row = await self._repo.save(
-            RuleSet(name=_DEFAULT_NAME, is_default=True, spec=dict(_DEFAULT_SPEC))
+            RuleSet(
+                name=stored_fields("subscription.rules.defaultName")["message"],
+                name_key=_DEFAULT_NAME_KEY,
+                is_default=True,
+                spec=dict(_DEFAULT_SPEC),
+            )
         )
         logger.info("已创建默认规则组（1080p 及以上、做种数 ≥1），新订阅未指定规则组时使用它")
         return row
@@ -185,11 +199,17 @@ class RuleSetService:
         default = await self.ensure_default()
         declared = any(r.match_rules for r in rows)
         if facts is None and declared:
-            message = stored_fields("subscription.ruleRoute.metadataDefault", name=default.name)
+            message = stored_fields(
+                "subscription.ruleRoute.metadataDefault", name=rule_set_name_reference(default)
+            )
         elif declared:
-            message = stored_fields("subscription.ruleRoute.unmatchedDefault", name=default.name)
+            message = stored_fields(
+                "subscription.ruleRoute.unmatchedDefault", name=rule_set_name_reference(default)
+            )
         else:
-            message = stored_fields("subscription.ruleRoute.defaultGroup", name=default.name)
+            message = stored_fields(
+                "subscription.ruleRoute.defaultGroup", name=rule_set_name_reference(default)
+            )
         return RuleSetPick(
             rule_set=default, matched=False, reason=message["message"], reason_message=message
         )
@@ -216,6 +236,8 @@ class RuleSetService:
         row = await self.get(rule_set_id)
         # rollback 会使 ORM 对象过期，异常分支不能再读 row.name——先落到局部变量
         new_name = name.strip() or row.name
+        if new_name != row.name:
+            row.name_key = None
         row.name = new_name
         row.spec = self._validate(new_name, spec)
         if match_rules is not None:

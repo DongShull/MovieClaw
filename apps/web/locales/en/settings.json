@@ -127,7 +127,10 @@
   },
   "subscription": {
     "title": "Subscription rules",
-    "description": "Manage smart selection preferences and custom rules"
+    "description": "Manage smart selection preferences and custom rules",
+    "smartTab": "Smart selection",
+    "rulesTab": "Custom rules",
+    "tabsLabel": "Subscription rule settings"
   },
   "sites": {
     "title": "Trackers",

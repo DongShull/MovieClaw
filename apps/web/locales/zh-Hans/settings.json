@@ -127,7 +127,10 @@
   },
   "subscription": {
     "title": "订阅规则",
-    "description": "管理智能选择偏好与自定义规则"
+    "description": "管理智能选择偏好与自定义规则",
+    "smartTab": "智能选择",
+    "rulesTab": "自定义规则",
+    "tabsLabel": "订阅规则设置"
   },
   "sites": {
     "title": "资源站点",

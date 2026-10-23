@@ -31,7 +31,7 @@ def _change_language(page, language):
     from playwright.sync_api import expect
 
     english = page.locator("html").get_attribute("lang") == "en"
-    page.get_by_role("button", name=re.compile("^AD admin")).click()
+    page.get_by_role("button", name=re.compile("^(AD admin|Account menu$|账号菜单$)")).click()
     page.get_by_role("button", name="Settings" if english else "设置", exact=True).click()
     page.get_by_role(
         "button", name="Appearance and language" if english else "外观与语言", exact=True

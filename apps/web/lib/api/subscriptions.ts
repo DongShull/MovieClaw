@@ -396,6 +396,7 @@ export interface ScopeRule {
 export interface RuleSet {
   id: number;
   name: string;
+  name_key?: string | null;
   is_default: boolean;
   spec: RuleSetSpec;
   /** 适用范围；空 = 未声明（只能手选或作为默认兜底） */

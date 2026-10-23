@@ -1170,5 +1170,14 @@
   },
   "scrape.regionOptions": {
     "sourceHash": "0b5daa927681e86358f4cd3b74e55df326f598e68980e27f282662529e309c40"
+  },
+  "subscription.smartTab": {
+    "sourceHash": "564149c74897db9aeeb1494cd8df79d25f6888deed106f9beb4fbc830fee2de4"
+  },
+  "subscription.rulesTab": {
+    "sourceHash": "51c22886b57358bde2f20b05eb741ea40c8a208a6fa6add6fed34c8948534af5"
+  },
+  "subscription.tabsLabel": {
+    "sourceHash": "65491f919e521517b01725ea4049780aa7c503bf3a080899a09cafc39d3e42ca"
   }
 }

@@ -67,5 +67,8 @@
   },
   "ruleRoute.defaultGroup": {
     "sourceHash": "02da4b748193e7ba88ea3f3f0d441fbe1b9b08a9e1c65a8a6f922f3e5003786b"
+  },
+  "rules.defaultName": {
+    "sourceHash": "5f52433dee41a8a87742b9ba90a8f401be6bd91b26a3e4421d111be9ca3a18e6"
   }
 }
