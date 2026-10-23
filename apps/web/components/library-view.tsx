@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { AppLocale } from "@/lib/i18n/negotiate";
 import { appTranslator } from "@/lib/i18n/translate";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
@@ -101,8 +102,8 @@ export function effectiveLibraryId(
 }
 
 /** 媒体库首页摘要：只聚合接口随库返回的预计算快照，不触发额外请求。 */
-export function libraryStatsSummary(libraries: MediaLibrary[] | null): string {
-  const t = appTranslator();
+export function libraryStatsSummary(libraries: MediaLibrary[] | null, locale?: AppLocale): string {
+  const t = appTranslator(locale);
   if (libraries === null) return t("library.home.loadingStats");
   if (libraries.length === 0) return t("library.home.noStats");
   const movieCount = libraries
@@ -156,6 +157,7 @@ let lastLoadedHome: {
 } | null = null;
 
 export function LibraryView({ hero }: { hero?: ReactNode }) {
+  const locale = useLocale();
   const t = useTranslations();
   const { canManageLibraries } = usePermissions();
   // 银玻璃手机：同原生 App 的媒体库首页（LibraryHomeView.swift）——左上角大字标题
@@ -619,7 +621,7 @@ export function LibraryView({ hero }: { hero?: ReactNode }) {
           <p className="text-on-image mt-1.5 text-ui text-[var(--text-muted)] max-md:mt-1 max-md:line-clamp-2 max-md:text-sub">
             {failed && libraries === null
               ? t("library.home.statsFailed")
-              : libraryStatsSummary(libraries === null ? null : visibleLibraries)}
+              : libraryStatsSummary(libraries === null ? null : visibleLibraries, locale)}
           </p>
         </div>
         {/* 两个页面级动作都是图标钮：自定义首页（所有人）、管理媒体库（有权限的人）。

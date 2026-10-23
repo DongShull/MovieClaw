@@ -1,3 +1,4 @@
+import type { AppLocale } from "./i18n/negotiate.ts";
 import { appTranslator } from "./i18n/translate.ts";
 import { formatList } from "./i18n/format.ts";
 
@@ -38,17 +39,17 @@ const SORT_LABELS = {
 } as const;
 
 /** 排序的全部取值（菜单按这个顺序列出） */
-export function discoverySorts(): Array<[DiscoverySort, string]> {
-  const t = appTranslator();
+export function discoverySorts(locale?: AppLocale): Array<[DiscoverySort, string]> {
+  const t = appTranslator(locale);
   return (Object.entries(SORT_LABELS) as Array<[DiscoverySort, typeof SORT_LABELS[DiscoverySort]]>).map(([value, key]) => [value, t(key)]);
 }
-export function discoveryCountries(): Array<[string, string]> {
-  const t = appTranslator();
+export function discoveryCountries(locale?: AppLocale): Array<[string, string]> {
+  const t = appTranslator(locale);
   return COUNTRY_KEYS.map(([code, key]) => [code, t(key)]);
 }
-function countryLabel(code: string): string {
+function countryLabel(code: string, locale?: AppLocale): string {
   const key = COUNTRY_LABELS.get(code);
-  return key ? appTranslator()(key) : code;
+  return key ? appTranslator(locale)(key) : code;
 }
 /** 最低评分、最长片长两个维度的可选档位 */
 export const DISCOVERY_RATING_STEPS = [6, 7, 8, 9] as const;
@@ -105,19 +106,19 @@ export function discoveryFilterCount(filters: DiscoveryFilters): number {
 /** 把 URL 筛选状态转为可扫读标签；类型名由后端本地化清单补齐。 */
 export function discoveryFilterLabels(
   filters: DiscoveryFilters,
-  genreNames: ReadonlyMap<number, string> = new Map(),
+  genreNames: ReadonlyMap<number, string> = new Map(), locale?: AppLocale,
 ): string[] {
   const labels = filters.genreIds.map((id) => genreNames.get(id)).filter(Boolean) as string[];
   if (filters.genreIds.length > 0 && labels.length === 0) {
-    labels.push(appTranslator()("media.filters.genreCount", { count: filters.genreIds.length }));
+    labels.push(appTranslator(locale)("media.filters.genreCount", { count: filters.genreIds.length }));
   }
   if (filters.originCountry) {
-    labels.push(countryLabel(filters.originCountry));
+    labels.push(countryLabel(filters.originCountry, locale));
   }
-  if (filters.year) labels.push(appTranslator()("media.filters.yearValue", { year: filters.year }));
-  if (filters.ratingGte !== undefined) labels.push(appTranslator()("media.filters.ratingValue", { rating: filters.ratingGte }));
-  if (filters.runtimeLte) labels.push(appTranslator()("media.filters.runtimeValue", { minutes: filters.runtimeLte }));
-  if (filters.sort !== "popular") labels.push(appTranslator()(SORT_LABELS[filters.sort]));
+  if (filters.year) labels.push(appTranslator(locale)("media.filters.yearValue", { year: filters.year }));
+  if (filters.ratingGte !== undefined) labels.push(appTranslator(locale)("media.filters.ratingValue", { rating: filters.ratingGte }));
+  if (filters.runtimeLte) labels.push(appTranslator(locale)("media.filters.runtimeValue", { minutes: filters.runtimeLte }));
+  if (filters.sort !== "popular") labels.push(appTranslator(locale)(SORT_LABELS[filters.sort]));
   return labels;
 }
 
@@ -155,9 +156,9 @@ export type DiscoveryFilterDimension = (typeof DISCOVERY_FILTER_DIMENSIONS)[numb
 /** 维度名；年份与片长按电影 / 剧集换说法 */
 export function discoveryDimensionTitle(
   dimension: DiscoveryFilterDimension,
-  mediaType: string,
+  mediaType: string, locale?: AppLocale,
 ): string {
-  const t = appTranslator();
+  const t = appTranslator(locale);
   const movie = mediaType === "movie";
   switch (dimension) {
     case "genres":
@@ -183,28 +184,28 @@ export function discoveryDimensionTitle(
 export function discoveryDimensionSummary(
   dimension: DiscoveryFilterDimension,
   filters: DiscoveryFilters,
-  genreNames: ReadonlyMap<number, string> = new Map(),
+  genreNames: ReadonlyMap<number, string> = new Map(), locale?: AppLocale,
 ): string | undefined {
   switch (dimension) {
     case "genres": {
       const ids = filters.genreIds;
       if (ids.length === 0) return undefined;
       const names = ids.map((id) => genreNames.get(id)).filter(Boolean) as string[];
-      if (names.length === ids.length && names.length <= 2) return formatList(names);
-      return names.length > 0 ? appTranslator()("media.filters.genreSummary", { name: names[0], count: ids.length }) : appTranslator()("media.filters.genreCount", { count: ids.length });
+      if (names.length === ids.length && names.length <= 2) return formatList(names, locale);
+      return names.length > 0 ? appTranslator(locale)("media.filters.genreSummary", { name: names[0], count: ids.length }) : appTranslator(locale)("media.filters.genreCount", { count: ids.length });
     }
     case "country":
       return filters.originCountry
-        ? (countryLabel(filters.originCountry))
+        ? (countryLabel(filters.originCountry, locale))
         : undefined;
     case "year":
-      return filters.year ? appTranslator()("media.filters.yearValue", { year: filters.year }) : undefined;
+      return filters.year ? appTranslator(locale)("media.filters.yearValue", { year: filters.year }) : undefined;
     case "rating":
-      return filters.ratingGte !== undefined ? appTranslator()("media.filters.ratingValue", { rating: filters.ratingGte }) : undefined;
+      return filters.ratingGte !== undefined ? appTranslator(locale)("media.filters.ratingValue", { rating: filters.ratingGte }) : undefined;
     case "runtime":
-      return filters.runtimeLte ? appTranslator()("media.filters.runtimeValue", { minutes: filters.runtimeLte }) : undefined;
+      return filters.runtimeLte ? appTranslator(locale)("media.filters.runtimeValue", { minutes: filters.runtimeLte }) : undefined;
     case "sort":
-      return filters.sort === "popular" ? undefined : appTranslator()(SORT_LABELS[filters.sort]);
+      return filters.sort === "popular" ? undefined : appTranslator(locale)(SORT_LABELS[filters.sort]);
   }
 }
 
@@ -244,14 +245,14 @@ export function clearDiscoveryDimension(
  */
 export function discoveryFilterButtonTitle(
   filters: DiscoveryFilters,
-  genreNames: ReadonlyMap<number, string> = new Map(),
+  genreNames: ReadonlyMap<number, string> = new Map(), locale?: AppLocale,
 ): string {
-  const t = appTranslator();
+  const t = appTranslator(locale);
   const [first] = filters.genreIds;
   if (first === undefined) return t("media.filters.all");
   const name = genreNames.get(first);
-  if (filters.genreIds.length === 1) return name ?? appTranslator()("media.filters.genreCount", { count: 1 });
-  return name ? appTranslator()("media.filters.genreSummary", { name, count: filters.genreIds.length }) : appTranslator()("media.filters.genreCount", { count: filters.genreIds.length });
+  if (filters.genreIds.length === 1) return name ?? appTranslator(locale)("media.filters.genreCount", { count: 1 });
+  return name ? appTranslator(locale)("media.filters.genreSummary", { name, count: filters.genreIds.length }) : appTranslator(locale)("media.filters.genreCount", { count: filters.genreIds.length });
 }
 
 /** 单选维度当前值的字符串形式（菜单单选组用）；未启用为 ""，排序给实际档位 */

@@ -1,3 +1,5 @@
+import { appTranslator } from "../i18n/translate.ts";
+import type { AppLocale } from "../i18n/negotiate.ts";
 import { publicEnv } from "@/lib/env";
 import { request, resolveRequestUrl } from "@/lib/http";
 import { snapWidth } from "@/lib/image-width";
@@ -199,24 +201,32 @@ export type ScanPhase =
   | "organizing"; // 批量规范化改名
 
 /** 各阶段的界面文案（唯一出处，卡片与详情页共用）。 */
-export const SCAN_PHASE_LABELS: Record<ScanPhase, string> = {
-  walking: "正在盘点文件",
-  ingesting: "正在扫描",
-  probing: "正在补探画质与音轨",
-  assets: "正在补齐海报与剧照",
-  reidentifying: "正在重新识别条目",
-  organizing: "正在整理文件名",
-};
+export function scanPhaseLabels(locale?: AppLocale): Record<ScanPhase, string> {
+  const t = appTranslator(locale);
+  return {
+    walking: t("library.scan.walking"),
+    ingesting: t("library.status.scanning"),
+    probing: t("library.scan.probing"),
+    assets: t("library.scan.assets"),
+    reidentifying: t("library.scan.reidentifying"),
+    organizing: t("library.status.organizing"),
+  };
+}
+export const SCAN_PHASE_LABELS = scanPhaseLabels("zh-Hans");
 
 /** 阶段对应的一句补充说明（详情页胶囊用，讲清"现在等的是什么"）。 */
-export const SCAN_PHASE_HINTS: Record<ScanPhase, string> = {
-  walking: "正在统计待处理的文件数",
-  ingesting: "识别到的内容会自动入库",
-  probing: "文件已全部入库，正在读取文件本体的规格",
-  assets: "文件已全部入库，正在下载图片",
-  reidentifying: "完成后条目身份会更新",
-  organizing: "完成后自动刷新",
-};
+export function scanPhaseHints(locale?: AppLocale): Record<ScanPhase, string> {
+  const t = appTranslator(locale);
+  return {
+    walking: t("library.status.counting"),
+    ingesting: t("library.scan.ingestingHint"),
+    probing: t("library.scan.probingHint"),
+    assets: t("library.scan.assetsHint"),
+    reidentifying: t("library.scan.reidentifyingHint"),
+    organizing: t("library.scan.organizingHint"),
+  };
+}
+export const SCAN_PHASE_HINTS = scanPhaseHints("zh-Hans");
 
 /** 扫描/整理的实时进度。 */
 export interface ScanProgress {

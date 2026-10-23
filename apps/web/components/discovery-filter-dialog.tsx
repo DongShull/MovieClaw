@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { AppLocale } from "@/lib/i18n/negotiate";
 import { appTranslator } from "@/lib/i18n/translate";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -153,6 +154,7 @@ function DimensionOptions({
   filters: DiscoveryFilters;
   onChange: (filters: DiscoveryFilters) => void;
 }) {
+  const locale = useLocale();
   const t = useTranslations();
   if (dimension === "genres") {
     if (!genres || genres.length === 0) {
@@ -185,7 +187,7 @@ function DimensionOptions({
   const unlimited: Array<[string, string]> = [["", t("media.filters.unlimited")]];
   const options: Array<[string, string]> =
     dimension === "country"
-      ? [...unlimited, ...discoveryCountries().map(([code, label]): [string, string] => [code, label])]
+      ? [...unlimited, ...discoveryCountries(locale).map(([code, label]): [string, string] => [code, label])]
       : dimension === "year"
         ? [
             ...unlimited,
@@ -198,7 +200,7 @@ function DimensionOptions({
           ? [...unlimited, ...DISCOVERY_RATING_STEPS.map((v): [string, string] => [String(v), t("media.filters.ratingValue", { rating: v })])]
           : dimension === "runtime"
             ? [...unlimited, ...DISCOVERY_RUNTIME_STEPS.map((v): [string, string] => [String(v), t("media.filters.runtimeValue", { minutes: v })])]
-            : discoverySorts();
+            : discoverySorts(locale);
   const value = discoveryDimensionValue(filters, dimension);
   return (
     // Radix 点已选中的那一项也会回调 onValueChange：同值直接忽略
@@ -219,8 +221,8 @@ function DimensionOptions({
 }
 
 /** 维度未启用时的占位文字（排序停在默认档也写出来） */
-function idleSummary(dimension: DiscoveryFilterDimension): string {
-  const t = appTranslator();
+function idleSummary(dimension: DiscoveryFilterDimension, locale?: AppLocale): string {
+  const t = appTranslator(locale);
   return dimension === "sort" ? t("media.filters.popular") : t("media.filters.unlimited");
 }
 
@@ -249,12 +251,13 @@ export function DiscoveryFilterMenu({
   /** 豆瓣源不支持筛选：桌面工具栏里禁用置灰原地保留（避免工具栏跳动） */
   disabled?: boolean;
 }) {
+  const locale = useLocale();
   const t = useTranslations();
   const genres = useDiscoveryGenres(mediaType, !disabled);
   const genreNames = useGenreNames(genres);
   const [level, setLevel] = useState<DiscoveryFilterDimension | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const title = discoveryFilterButtonTitle(filters, genreNames);
+  const title = discoveryFilterButtonTitle(filters, genreNames, locale);
 
   /** 换一级：面板回到顶部，焦点落到新一级的第一项（键盘操作不断档） */
   const go = (next: DiscoveryFilterDimension | null) => {
@@ -301,7 +304,7 @@ export function DiscoveryFilterMenu({
                 className={`${DISCOVER_MENU_ITEM_CLASS} font-semibold`}
               >
                 <ChevronLeftIcon className="size-4 shrink-0 text-white/55" />
-                {discoveryDimensionTitle(level, mediaType)}
+                {discoveryDimensionTitle(level, mediaType, locale)}
               </DropdownMenu.Item>
               <DropdownMenu.Separator className={MENU_SEPARATOR_CLASS} />
               <DimensionOptions
@@ -326,9 +329,9 @@ export function DiscoveryFilterMenu({
                     className={DISCOVER_MENU_ITEM_CLASS}
                   >
                     <Icon className="size-4 shrink-0 text-white/55" />
-                    <span className="shrink-0">{discoveryDimensionTitle(dimension, mediaType)}</span>
+                    <span className="shrink-0">{discoveryDimensionTitle(dimension, mediaType, locale)}</span>
                     <span className="ml-auto min-w-0 truncate text-caption text-[var(--text-muted)]">
-                      {discoveryDimensionSummary(dimension, filters, genreNames) ?? idleSummary(dimension)}
+                      {discoveryDimensionSummary(dimension, filters, genreNames, locale) ?? idleSummary(dimension, locale)}
                     </span>
                     <ChevronRightIcon className="size-3.5 shrink-0 text-white/40" />
                   </DropdownMenu.Item>
@@ -372,6 +375,7 @@ export function DiscoveryFilterChips({
   filters: DiscoveryFilters;
   onChange: (filters: DiscoveryFilters) => void;
 }) {
+  const locale = useLocale();
   const t = useTranslations();
   const genreNames = useGenreNames(genres);
   return (
@@ -382,8 +386,8 @@ export function DiscoveryFilterChips({
       aria-label={t("media.discovery.activeFilters")}
     >
       {DISCOVERY_FILTER_DIMENSIONS.map((dimension) => {
-        const summary = discoveryDimensionSummary(dimension, filters, genreNames);
-        const name = discoveryDimensionTitle(dimension, mediaType);
+        const summary = discoveryDimensionSummary(dimension, filters, genreNames, locale);
+        const name = discoveryDimensionTitle(dimension, mediaType, locale);
         return (
           <DropdownMenu.Root key={dimension}>
             <DropdownMenu.Trigger asChild>
@@ -456,6 +460,7 @@ export function DiscoveryFilterControl({
   /** 豆瓣源不支持筛选：禁用置灰原地保留（不整体隐藏，避免顶栏跳动重排） */
   disabled?: boolean;
 }) {
+  const locale = useLocale();
   const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(filters);
@@ -587,7 +592,7 @@ export function DiscoveryFilterControl({
               label={t("media.filters.country")}
               value={draft.originCountry ?? ""}
               onChange={(value) => setDraft((current) => ({ ...current, originCountry: value || undefined }))}
-              options={discoveryCountries().map(([value, label]) => ({ value, label }))}
+              options={discoveryCountries(locale).map(([value, label]) => ({ value, label }))}
             />
             <FilterSelect
               label={mediaType === "movie" ? t("media.filters.movieYear") : t("media.filters.tvYear")}

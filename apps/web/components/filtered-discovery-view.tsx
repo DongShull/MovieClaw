@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -40,6 +40,7 @@ export function FilteredDiscoveryView({
   currentYear: number;
   onChange: (filters: DiscoveryFilters) => void;
 }) {
+  const locale = useLocale();
   const t = useTranslations();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [nextPage, setNextPage] = useState(1);
@@ -138,8 +139,8 @@ export function FilteredDiscoveryView({
     [genres],
   );
   const filterLabels = useMemo(
-    () => discoveryFilterLabels(filters, genreNames),
-    [filters, genreNames],
+    () => discoveryFilterLabels(filters, genreNames, locale),
+    [filters, genreNames, locale],
   );
   const clearAll = () => onChange(EMPTY_DISCOVERY_FILTERS);
   const allLoaded = !hasMore && items.length > 0;

@@ -26,3 +26,17 @@ test("content labels follow the active language and preserve custom row names", 
     else globalThis.document = previous;
   }
 });
+
+test("server rendering can select a language without a browser document", () => {
+  const previous = globalThis.document;
+  delete globalThis.document;
+  try {
+    const filters = { genreIds: [], originCountry: "JP", runtimeLte: 90, sort: "popular" };
+    assert.equal(discoveryCountries("en").find(([code]) => code === "JP")[1], "Japan");
+    assert.equal(discoveryDimensionSummary("runtime", filters, new Map(), "en"), "Up to 90 min");
+    assert.equal(discoveryFilterButtonTitle(filters, new Map(), "en"), "All");
+    assert.equal(discoveryFilterLabels(filters, new Map(), "en")[0], "Japan");
+  } finally {
+    if (previous !== undefined) globalThis.document = previous;
+  }
+});
