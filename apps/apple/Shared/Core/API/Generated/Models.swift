@@ -772,6 +772,8 @@ nonisolated extension API {
         var scale: Double?
         var offsetMs: Int?
         var score: Double?
+        var messageKey: String?
+        var params: [String: API.JSONValue]?
 
         enum CodingKeys: String, CodingKey {
             case ok
@@ -779,6 +781,8 @@ nonisolated extension API {
             case scale
             case offsetMs = "offset_ms"
             case score
+            case messageKey = "message_key"
+            case params
         }
     }
 
@@ -2641,6 +2645,8 @@ nonisolated extension API {
         var downloaderName: String?
         /// 收藏范围路由结论：true=命中声明库 / false=默认库兜底；未走路由为 null
         var routeMatched: Bool?
+        var routeReasonKey: String?
+        var routeReasonParams: [String: API.JSONValue]?
         /// 路由理由（中文整句，弹窗徽标直接展示）
         var routeReason: String?
         /// 按规则组适用范围自动选出的规则组（与 route_* 同条件：走了路由才有）
@@ -2648,10 +2654,14 @@ nonisolated extension API {
         var ruleSetName: String?
         /// true=命中某组适用范围 / false=默认规则组兜底
         var ruleSetMatched: Bool?
+        var ruleSetReasonKey: String?
+        var ruleSetReasonParams: [String: API.JSONValue]?
         /// 选组理由（中文整句，弹窗与模拟一单直接展示）
         var ruleSetReason: String?
         /// 按当前配置投递能否顺利入库
         var ok: Bool
+        var warningKey: String?
+        var warningParams: [String: API.JSONValue]?
         /// 不 ok 时的中文指引
         var warning: String?
 
@@ -2664,12 +2674,18 @@ nonisolated extension API {
             case libraryName = "library_name"
             case downloaderName = "downloader_name"
             case routeMatched = "route_matched"
+            case routeReasonKey = "route_reason_key"
+            case routeReasonParams = "route_reason_params"
             case routeReason = "route_reason"
             case ruleSetId = "rule_set_id"
             case ruleSetName = "rule_set_name"
             case ruleSetMatched = "rule_set_matched"
+            case ruleSetReasonKey = "rule_set_reason_key"
+            case ruleSetReasonParams = "rule_set_reason_params"
             case ruleSetReason = "rule_set_reason"
             case ok
+            case warningKey = "warning_key"
+            case warningParams = "warning_params"
             case warning
         }
     }
@@ -6102,6 +6118,8 @@ nonisolated extension API {
         var sourceField: String
         var matchedName: String
         var label: String
+        var labelKey: String?
+        var labelParams: [String: API.JSONValue]?
         var personId: Int?
 
         enum CodingKeys: String, CodingKey {
@@ -6109,6 +6127,8 @@ nonisolated extension API {
             case sourceField = "source_field"
             case matchedName = "matched_name"
             case label
+            case labelKey = "label_key"
+            case labelParams = "label_params"
             case personId = "person_id"
         }
     }
@@ -6732,10 +6752,14 @@ nonisolated extension API {
         var stagingPath: String?
         /// 是否命中媒体库收藏范围
         var routeMatched: Bool?
+        var routeReasonKey: String?
+        var routeReasonParams: [String: API.JSONValue]?
         /// 媒体库路由理由
         var routeReason: String?
         /// 当前选择的下载器和投递配置能否自动入库
         var ok: Bool
+        var warningKey: String?
+        var warningParams: [String: API.JSONValue]?
         /// 不可自动入库时的中文指引
         var warning: String?
 
@@ -6753,8 +6777,12 @@ nonisolated extension API {
             case entryDir = "entry_dir"
             case stagingPath = "staging_path"
             case routeMatched = "route_matched"
+            case routeReasonKey = "route_reason_key"
+            case routeReasonParams = "route_reason_params"
             case routeReason = "route_reason"
             case ok
+            case warningKey = "warning_key"
+            case warningParams = "warning_params"
             case warning
         }
     }
@@ -11224,6 +11252,7 @@ nonisolated extension API {
     struct RuleSetView: Codable, Hashable, Sendable {
         var id: Int
         var name: String
+        var nameKey: String?
         var isDefault: Bool
         var spec: [String: API.JSONValue]
         /// 适用范围条件；空=未声明（只能手选或作默认兜底）
@@ -11234,6 +11263,7 @@ nonisolated extension API {
         enum CodingKeys: String, CodingKey {
             case id
             case name
+            case nameKey = "name_key"
             case isDefault = "is_default"
             case spec
             case matchRules = "match_rules"
@@ -11441,6 +11471,7 @@ nonisolated extension API {
         var keyword: String
         var alsoKeywords: [String]?
         var vertical: String
+        var labelKey: String?
         var label: String?
         var categories: [String]
         var siteIds: [String]
@@ -11454,6 +11485,7 @@ nonisolated extension API {
             case keyword
             case alsoKeywords = "also_keywords"
             case vertical
+            case labelKey = "label_key"
             case label
             case categories
             case siteIds = "site_ids"
@@ -11500,6 +11532,7 @@ nonisolated extension API {
     struct SearchResponse: Codable, Hashable, Sendable {
         var keyword: String
         var alsoKeywords: [String]?
+        var labelKey: String?
         var label: String?
         var categories: [String]
         var total: Int
@@ -11509,6 +11542,7 @@ nonisolated extension API {
         enum CodingKeys: String, CodingKey {
             case keyword
             case alsoKeywords = "also_keywords"
+            case labelKey = "label_key"
             case label
             case categories
             case total
@@ -12372,6 +12406,8 @@ nonisolated extension API {
         var siteName: String
         var count: Int
         var error: String?
+        var errorKey: String?
+        var errorParams: [String: API.JSONValue]?
         var elapsedMs: Int?
         var hasMore: Bool?
 
@@ -12380,6 +12416,8 @@ nonisolated extension API {
             case siteName = "site_name"
             case count
             case error
+            case errorKey = "error_key"
+            case errorParams = "error_params"
             case elapsedMs = "elapsed_ms"
             case hasMore = "has_more"
         }
@@ -12618,6 +12656,7 @@ nonisolated extension API {
         var subtitleLine: String?
         /// 仅管理员、且这种语言还没回答过时给出
         var question: API.SmartQuestionView?
+        var subtitleEditQuestion: API.SmartQuestionView?
         var scopeOptions: [API.SmartScopeOptionView]
         /// 管理员可改字幕、画质并写入记忆
         var canEdit: Bool
@@ -12637,6 +12676,7 @@ nonisolated extension API {
             case subtitleUnderstood = "subtitle_understood"
             case subtitleLine = "subtitle_line"
             case question
+            case subtitleEditQuestion = "subtitle_edit_question"
             case scopeOptions = "scope_options"
             case canEdit = "can_edit"
         }
@@ -13737,6 +13777,7 @@ nonisolated extension API {
         var historyId: Int
         var keyword: String
         var alsoKeywords: [String]?
+        var labelKey: String?
         var label: String?
         var categories: [String]
         var siteIds: [String]
@@ -13751,6 +13792,7 @@ nonisolated extension API {
             case historyId = "history_id"
             case keyword
             case alsoKeywords = "also_keywords"
+            case labelKey = "label_key"
             case label
             case categories
             case siteIds = "site_ids"
