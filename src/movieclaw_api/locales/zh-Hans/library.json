@@ -18,7 +18,15 @@
     "japanKorea": "日韩",
     "unitedStates": "美国",
     "europe": "欧洲",
-    "otherLanguages": "小语种"
+    "otherLanguages": "小语种",
+    "hitDetail": "{field}={values}",
+    "hitGeneric": "收藏范围命中",
+    "matchedLibrary": "命中「{name}」：{details}",
+    "noLibrary": "该类型没有可用的媒体库",
+    "metadataDefault": "作品元数据暂不可得，入库到默认库「{name}」",
+    "unmatchedDefault": "未命中任何收藏范围，入库到默认库「{name}」",
+    "defaultLibrary": "入库到默认库「{name}」",
+    "valueSeparator": "/"
   },
   "operations": {
     "coverSaved": "封面已更新",

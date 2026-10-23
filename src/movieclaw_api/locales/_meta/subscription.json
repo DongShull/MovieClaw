@@ -55,5 +55,17 @@
   },
   "operations.autoRenewDisabled": {
     "sourceHash": "a2f9b1d1614ab5666ac063db3fcdeab19296c68096d2c7510bc430c058914a32"
+  },
+  "ruleRoute.matched": {
+    "sourceHash": "e77ae294aef8b51905b28f45cda38e4565eccf2fa4200ae9a1fcf0474e8a3944"
+  },
+  "ruleRoute.metadataDefault": {
+    "sourceHash": "8fe5a05bd69928156ba0faa48b2cf3c046e84b939f08e0359cd4018fa184d1ba"
+  },
+  "ruleRoute.unmatchedDefault": {
+    "sourceHash": "2b09b24a2d22015b7d4135f35b8728176bb93941d9c73f51ac2feadcc29bbd53"
+  },
+  "ruleRoute.defaultGroup": {
+    "sourceHash": "02da4b748193e7ba88ea3f3f0d441fbe1b9b08a9e1c65a8a6f922f3e5003786b"
   }
 }

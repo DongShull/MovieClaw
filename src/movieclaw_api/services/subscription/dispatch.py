@@ -19,10 +19,10 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import stored_fields
-from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_api import hooks
 from movieclaw_api.core.config import get_settings
+from movieclaw_api.i18n.stored import localize_fields, stored_fields
+from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_db.models import (
     ActivityType,
     DownloadAttemptStatus,
@@ -306,11 +306,22 @@ async def dispatch(
                     released = await settle_unsatisfiable(session, intent, all_targets, exc)
                     if released:
                         await repo.add_activity(
-                            SubscriptionActivity(subscription_id=subscription.id, wanted_item_id=released[0].id, type=ActivityType.DISPATCH_FAILED, payload={
+                            SubscriptionActivity(
+                                subscription_id=subscription.id,
+                                wanted_item_id=released[0].id,
+                                type=ActivityType.DISPATCH_FAILED,
+                                payload={
                                     "site_id": candidate.site_id,
                                     "torrent_id": candidate.torrent_id,
                                     "source": source,
-                                }, **stored_fields('activity.subscription.releaseMissingUnits', units=units_reference(released), title=candidate.title, reason=str(exc)))
+                                },
+                                **stored_fields(
+                                    "activity.subscription.releaseMissingUnits",
+                                    units=units_reference(released),
+                                    title=candidate.title,
+                                    reason=str(exc),
+                                ),
+                            )
                         )
                     await session.commit()
                     await recompute_subscription_status(session, subscription, item)
@@ -358,11 +369,22 @@ async def dispatch(
                 return False
             await _rollback_claim(session, claimed, retry_delay=DISPATCH_RETRY_DELAY)
             await repo.add_activity(
-                SubscriptionActivity(subscription_id=subscription.id, wanted_item_id=all_targets[0].id, type=ActivityType.DISPATCH_FAILED, payload={
+                SubscriptionActivity(
+                    subscription_id=subscription.id,
+                    wanted_item_id=all_targets[0].id,
+                    type=ActivityType.DISPATCH_FAILED,
+                    payload={
                         "site_id": candidate.site_id,
                         "torrent_id": candidate.torrent_id,
                         "source": source,
-                    }, **stored_fields('activity.subscription.dispatchRetry', units=units_reference(all_targets), reason=reason, minutes=int(DISPATCH_RETRY_DELAY.total_seconds() // 60)))
+                    },
+                    **stored_fields(
+                        "activity.subscription.dispatchRetry",
+                        units=units_reference(all_targets),
+                        reason=reason,
+                        minutes=int(DISPATCH_RETRY_DELAY.total_seconds() // 60),
+                    ),
+                )
             )
             logger.warning(
                 "投递失败（%s）：《%s》%s ← %s/%s：%s",
@@ -705,6 +727,7 @@ async def preview_dispatch_route(
 
     route_matched: bool | None = None
     route_reason: str | None = None
+    route_fields: dict = {}
     routed_item = None
     rule_set_fields: dict = {}
     if library_id is None and tmdb_id is not None:
@@ -715,6 +738,12 @@ async def preview_dispatch_route(
         library = route_decision.library
         route_matched = route_decision.matched
         route_reason = route_decision.reason
+        message = getattr(route_decision, "reason_message", None)
+        if message:
+            route_fields = {
+                "route_reason_key": message["message_key"],
+                "route_reason_params": message["message_params"],
+            }
         routed_item = route_decision.item
         # 规则组按适用范围的预选与库路由同一时机、同一份作品事实（不重复装配）
         pick = await RuleSetService(session).pick(kind, route_decision.facts)
@@ -723,6 +752,14 @@ async def preview_dispatch_route(
             "rule_set_name": pick.rule_set.name,
             "rule_set_matched": pick.matched,
             "rule_set_reason": pick.reason,
+            **(
+                {
+                    "rule_set_reason_key": pick.reason_message["message_key"],
+                    "rule_set_reason_params": pick.reason_message["message_params"],
+                }
+                if getattr(pick, "reason_message", None)
+                else {}
+            ),
         }
     else:
         library = await LibraryConfigService(session).resolve_for_subscription(library_id, kind)
@@ -772,56 +809,53 @@ async def preview_dispatch_route(
 
     mode = decision.mode
     ok = True
-    warning: str | None = None
+    warning_message = None
     if downloader is None:
         ok = False
-        warning = (
-            f"指定下载器 #{downloader_id} 不存在"
+        warning_message = (
+            stored_fields("download.preview.downloaderMissing", id=downloader_id)
             if downloader_id is not None
-            else "没有可用的默认下载器，请先在「设置 → 下载器」添加并确保连接测试通过"
+            else stored_fields("download.preview.defaultMissing")
         )
     elif not downloader.enabled or downloader.status != ConfigStatus.ACTIVE:
         ok = False
-        warning = f"下载器「{downloader.name}」当前不可用（已停用或连接验证未通过）"
+        warning_message = stored_fields(
+            "download.preview.downloaderUnavailable", name=downloader.name
+        )
     elif base is None:
         ok = False
-        warning = "没有可用的媒体库（或库未配置根路径），下载会落到下载器默认目录且不会自动入库"
+        warning_message = stored_fields("download.preview.noRoot")
     elif library is None:
-        # 无库但存在同类型 auto/路径监听规则：种子有目录可投，但订阅闭环
-        # 需要库承接——不能因为"投得出去"就报可行
         ok = False
-        if getattr(decision.rule, "target_path", None):
-            warning = (
-                "没有可用的媒体库——下载完成后会整理到自定义目录，但没有库可承接"
-                "回流入账，订阅无法闭环；请先到「媒体库」创建"
-            )
-        else:
-            warning = (
-                "没有可用的媒体库——种子会投到监听导入目录，但下载完成后无法自动入库；"
-                "请先到「媒体库」创建"
-            )
+        warning_message = (
+            stored_fields("download.preview.noStagingLibrary")
+            if getattr(decision.rule, "target_path", None)
+            else stored_fields("download.preview.noWatchLibrary")
+        )
     elif downloader.path_mappings and not mapping_covers(base, downloader.path_mappings):
         ok = False
-        warning = (
-            f"目录 {base} 不在下载器「{downloader.name}」的路径映射覆盖范围内，"
-            "届时投递会被拒绝——请补一条覆盖该目录的路径映射（映射按前缀匹配，"
-            "映射公共父目录即可覆盖其下所有库），或为这个库配置监听导入规则"
+        warning_message = stored_fields(
+            "download.preview.unmapped", path=base, name=downloader.name
         )
-    return {
-        "mode": mode,
-        "path": base,
-        "entry_dir": entry_dir,
-        "staging_path": getattr(decision.rule, "target_path", None),
-        "library_id": library.id if library else None,
-        "library_name": library.name if library else None,
-        "downloader_name": downloader.name if downloader else None,
-        "route_matched": route_matched,
-        "route_reason": route_reason,
-        **rule_set_fields,
-        "ok": ok,
-        "warning": warning,
-    }
-
+    return localize_fields(
+        {
+            "mode": mode,
+            "path": base,
+            "entry_dir": entry_dir,
+            "staging_path": getattr(decision.rule, "target_path", None),
+            "library_id": library.id if library else None,
+            "library_name": library.name if library else None,
+            "downloader_name": downloader.name if downloader else None,
+            "route_matched": route_matched,
+            "route_reason": route_reason,
+            **route_fields,
+            **rule_set_fields,
+            "ok": ok,
+            "warning": warning_message["message"] if warning_message else None,
+            "warning_key": warning_message["message_key"] if warning_message else None,
+            "warning_params": warning_message["message_params"] if warning_message else None,
+        }
+    )
 
 async def _filter_upgrade_in_flight(
     session: AsyncSession,

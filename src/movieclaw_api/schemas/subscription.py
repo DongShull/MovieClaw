@@ -276,6 +276,8 @@ class DispatchPreviewView(BaseModel):
         default=None,
         description="收藏范围路由结论：true=命中声明库 / false=默认库兜底；未走路由为 null",
     )
+    route_reason_key: str | None = None
+    route_reason_params: dict | None = None
     route_reason: str | None = Field(
         default=None, description="路由理由（中文整句，弹窗徽标直接展示）"
     )
@@ -287,10 +289,14 @@ class DispatchPreviewView(BaseModel):
     rule_set_matched: bool | None = Field(
         default=None, description="true=命中某组适用范围 / false=默认规则组兜底"
     )
+    rule_set_reason_key: str | None = None
+    rule_set_reason_params: dict | None = None
     rule_set_reason: str | None = Field(
         default=None, description="选组理由（中文整句，弹窗与模拟一单直接展示）"
     )
     ok: bool = Field(description="按当前配置投递能否顺利入库")
+    warning_key: str | None = None
+    warning_params: dict | None = None
     warning: str | None = Field(default=None, description="不 ok 时的中文指引")
 
 

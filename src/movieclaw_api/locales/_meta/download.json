@@ -37,5 +37,29 @@
   },
   "removal.noTask": {
     "sourceHash": "8ececd6899fb2d4a5195aeb0fcb8021e958fd237984dc7e2a1084d37aa784322"
+  },
+  "preview.downloaderMissing": {
+    "sourceHash": "f7426745bb1fa4c3a99e6851005691657d9650b405cbb911d16d00a34d6b8f21"
+  },
+  "preview.defaultMissing": {
+    "sourceHash": "c3302dce2458c698db1dead82a5ada5206c9a72aaf9da008fec390dbbc81b6db"
+  },
+  "preview.downloaderUnavailable": {
+    "sourceHash": "ead5e449db6b1175a876aacd944ba5344666e1faeafdd831af56ca8cb3dc5496"
+  },
+  "preview.noRoot": {
+    "sourceHash": "79ec48cd60b3d0440e1ed4f61f20fa1c7439ba5fcd97245d291047531c8266a2"
+  },
+  "preview.noStagingLibrary": {
+    "sourceHash": "2f8b4486acc1998c0303d0b3fddc7500e5e3c8840f2c84ef7644d46f009734df"
+  },
+  "preview.noWatchLibrary": {
+    "sourceHash": "9e9cbe22a1cd7c34234bd77c0bf4df8c7a1025c6b6d317e4a11f2b09a6d9e17e"
+  },
+  "preview.unmapped": {
+    "sourceHash": "e9fef1318df48dd3847f6a89647cb58668c26f0fdc904efc4da46ea4636d21d8"
+  },
+  "operations.routedLibrary": {
+    "sourceHash": "09612e70408ebff4c4fa43d290caff2e661362f28f9a221a5a213116ad62e538"
   }
 }

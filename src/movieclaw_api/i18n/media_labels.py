@@ -1,6 +1,7 @@
 """Request-local labels for library criteria; stored genre IDs and country codes stay neutral."""
 
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import reference
 from movieclaw_media.genres import COUNTRY_NAMES, MOVIE_GENRES, REGION_PRESETS, TV_GENRES
 
 _GENRE_MESSAGE_KEYS = {
@@ -63,6 +64,16 @@ _PRESET_MESSAGE_KEYS = {
     "europe": "library.routing.europe",
     "minor_lang": "library.routing.otherLanguages",
 }
+
+
+def genre_reference(kind: str, genre_id: int) -> dict | str:
+    genres = MOVIE_GENRES if kind == "movie" else TV_GENRES
+    return reference(_GENRE_MESSAGE_KEYS[genre_id]) if genre_id in genres else str(genre_id)
+
+
+def country_reference(code: str) -> dict | str:
+    key = _COUNTRY_MESSAGE_KEYS.get(code)
+    return reference(key) if key else code
 
 
 def genre_label(kind: str, genre_id: int) -> str:

@@ -9,11 +9,21 @@
     "identityNotFound": "未能可靠识别该资源；请换个片名搜索，或手选保存目录",
     "alreadyAdded": "该种子已在下载器中，未重复添加",
     "submittedToLibrary": "已提交到「{downloader}」，入库到「{library}」",
-    "submitted": "已提交到「{name}」"
+    "submitted": "已提交到「{name}」",
+    "routedLibrary": "{receipt}（{reason}）"
   },
   "removal": {
     "optionLabel": "同时删除下载任务和源文件",
     "optionHelp": "把下载器里对应的任务连同下载目录里的数据一起删掉，真正腾出空间；源文件删除不可恢复",
     "noTask": "没找到对应的下载任务（扫描进来的文件或来源已不可考），只会删除媒体库文件"
+  },
+  "preview": {
+    "downloaderMissing": "指定下载器 #{id} 不存在",
+    "defaultMissing": "没有可用的默认下载器，请先在「设置 → 下载器」添加并确保连接测试通过",
+    "downloaderUnavailable": "下载器「{name}」当前不可用（已停用或连接验证未通过）",
+    "noRoot": "没有可用的媒体库（或库未配置根路径），下载会落到下载器默认目录且不会自动入库",
+    "noStagingLibrary": "没有可用的媒体库——下载完成后会整理到自定义目录，但没有库可承接回流入账，订阅无法闭环；请先到「媒体库」创建",
+    "noWatchLibrary": "没有可用的媒体库——种子会投到监听导入目录，但下载完成后无法自动入库；请先到「媒体库」创建",
+    "unmapped": "目录 {path} 不在下载器「{name}」的路径映射覆盖范围内，届时投递会被拒绝——请补一条覆盖该目录的路径映射（映射按前缀匹配，映射公共父目录即可覆盖其下所有库），或为这个库配置监听导入规则"
   }
 }

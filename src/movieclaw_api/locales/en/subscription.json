@@ -25,5 +25,11 @@
     "resumed": "Tracking resumed",
     "autoRenewEnabled": "Automatic renewal enabled",
     "autoRenewDisabled": "Automatic renewal disabled"
+  },
+  "ruleRoute": {
+    "matched": "Selected “{name}” by applicability: {details}",
+    "metadataDefault": "Title metadata is unavailable. Use the default rule group “{name}”",
+    "unmatchedDefault": "No rule group applicability matched. Use the default rule group “{name}”",
+    "defaultGroup": "Use the default rule group “{name}”"
   }
 }

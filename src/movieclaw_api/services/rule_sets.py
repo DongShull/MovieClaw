@@ -29,10 +29,12 @@ from movieclaw_api.exceptions import (
     ConflictException,
     NotFoundException,
 )
+from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.services.library.profile import kind_reference
 from movieclaw_api.services.library.routing import (
     RoutingFacts,
     evaluate,
-    hit_parts,
+    hit_part_references,
     validate_match_rules,
 )
 from movieclaw_db.models import RuleSet
@@ -110,16 +112,22 @@ class RuleSetPick:
     rule_set: RuleSet
     matched: bool  # True=命中某组的适用范围；False=默认规则组兜底
     reason: str  # 可直接展示的中文理由
+    reason_message: dict | None = None
 
 
-def _pick_reason(kind: str, row: RuleSet, facts: RoutingFacts | None) -> str:
-    parts: list[str] = []
-    for rule in row.match_rules:
-        if rule.get("field") == _KIND_FIELD:
-            parts.append(_KIND_LABELS.get(kind, kind))
+def _pick_reason_message(kind: str, row: RuleSet, facts: RoutingFacts | None) -> dict:
+    parts = [
+        kind_reference(kind) if kind in _KIND_LABELS else kind
+        for rule in row.match_rules
+        if rule.get("field") == _KIND_FIELD
+    ]
     if facts is not None:
-        parts += hit_parts(kind, row.match_rules, facts)
-    return f"按适用范围选用「{row.name}」：{'、'.join(parts)}"
+        parts += hit_part_references(kind, row.match_rules, facts)
+    return stored_fields(
+        "subscription.ruleRoute.matched",
+        name=row.name,
+        details={"message_list": parts, "separator_key": "common.list.separator"},
+    )
 
 
 class RuleSetService:
@@ -170,16 +178,21 @@ class RuleSetService:
         hits = [r for r in rows if scope_matches(r.match_rules, kind, facts)]
         if hits:
             best = sorted(hits, key=lambda r: (-len(r.match_rules), r.id))[0]
-            return RuleSetPick(rule_set=best, matched=True, reason=_pick_reason(kind, best, facts))
+            message = _pick_reason_message(kind, best, facts)
+            return RuleSetPick(
+                rule_set=best, matched=True, reason=message["message"], reason_message=message
+            )
         default = await self.ensure_default()
         declared = any(r.match_rules for r in rows)
         if facts is None and declared:
-            reason = f"作品元数据暂不可得，使用默认规则组「{default.name}」"
+            message = stored_fields("subscription.ruleRoute.metadataDefault", name=default.name)
         elif declared:
-            reason = f"未命中任何规则组的适用范围，使用默认规则组「{default.name}」"
+            message = stored_fields("subscription.ruleRoute.unmatchedDefault", name=default.name)
         else:
-            reason = f"使用默认规则组「{default.name}」"
-        return RuleSetPick(rule_set=default, matched=False, reason=reason)
+            message = stored_fields("subscription.ruleRoute.defaultGroup", name=default.name)
+        return RuleSetPick(
+            rule_set=default, matched=False, reason=message["message"], reason_message=message
+        )
 
     async def create(self, name: str, spec: dict, match_rules: list | None = None) -> RuleSet:
         cleaned = self._validate(name, spec)

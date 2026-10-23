@@ -26,11 +26,11 @@ from dataclasses import dataclass, field, replace
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n.media_labels import country_reference, genre_reference
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_db.models import MediaItem, MediaMetadata, MediaSource
 from movieclaw_db.models.library import Library
 from movieclaw_db.repositories.library_repo import LibraryRepository
-from movieclaw_media.genres import country_label, genre_label
 from movieclaw_media.library import extract_genre_ids, extract_origin_countries
 
 logger = logging.getLogger("movieclaw_api.library_routing")
@@ -38,7 +38,7 @@ logger = logging.getLogger("movieclaw_api.library_routing")
 # 收藏范围条件支持的字段（v1：区域 + 类型）。加维度（导演/公司/系列）时
 # 扩展这里与 evaluate 的取值分支即可——存储结构与算法不变
 RULE_FIELDS = ("genres", "origin_countries")
-_FIELD_LABELS = {"genres": "类型", "origin_countries": "区域"}
+_FIELD_LABELS = {"genres": "library.scope.genre", "origin_countries": "library.scope.region"}
 
 
 @dataclass(frozen=True)
@@ -64,6 +64,8 @@ class RouteDecision:
     facts: RoutingFacts | None = None
     """本次路由所依据的作品事实（走 route_for_item/route_for_tmdb 才有）。
     规则组按适用范围选组时复用它，同一次请求不再重复装配事实。"""
+
+    reason_message: dict | None = None
 
 
 def evaluate(rules: list, facts: RoutingFacts | None) -> bool:
@@ -95,31 +97,45 @@ def evaluate(rules: list, facts: RoutingFacts | None) -> bool:
     return True
 
 
-def hit_parts(kind: str, rules: list, facts: RoutingFacts) -> list[str]:
-    """逐条件列出**实际命中**的值（作品事实 ∩ 条件值），如 ``类型=动画``。
-
-    库路由与规则组适用范围共用：命中理由口径同源。未知字段跳过（求值已挡掉）。
-    """
-    parts: list[str] = []
+def hit_part_references(kind: str, rules: list, facts: RoutingFacts) -> list[dict]:
+    """Matched fact values remain references, so cached/persisted reasons can be reread."""
+    parts = []
     for rule in rules:
         fld = rule.get("field")
         values = set(rule.get("values") or [])
         if fld == "genres":
-            hit = [genre_label(kind, g) for g in facts.genre_ids if g in values]
+            hit = [genre_reference(kind, value) for value in facts.genre_ids if value in values]
         elif fld == "origin_countries":
-            hit = [country_label(c) for c in facts.origin_countries if c in values]
-        else:  # evaluate 已挡掉未知字段，这里只是防御
+            hit = [country_reference(value) for value in facts.origin_countries if value in values]
+        else:
             continue
         if hit:
-            parts.append(f"{_FIELD_LABELS[fld]}={'/'.join(hit)}")
+            parts.append(
+                reference(
+                    "library.routing.hitDetail",
+                    field=reference(_FIELD_LABELS[fld]),
+                    values={"message_list": hit, "separator_key": "library.routing.valueSeparator"},
+                )
+            )
     return parts
 
 
-def _hit_reason(kind: str, library: Library, facts: RoutingFacts) -> str:
-    """命中理由：逐条件展示**实际命中**的值（作品事实 ∩ 条件值）。"""
-    parts = hit_parts(kind, library.match_rules, facts)
-    detail = "、".join(parts) if parts else "收藏范围命中"
-    return f"命中「{library.name}」：{detail}"
+def hit_parts(kind: str, rules: list, facts: RoutingFacts) -> list[str]:
+    """Chinese compatibility view for existing routing producers."""
+    return [
+        stored_fields(part["message_key"], **part["params"])["message"]
+        for part in hit_part_references(kind, rules, facts)
+    ]
+
+
+def _hit_reason_message(kind: str, library: Library, facts: RoutingFacts) -> dict:
+    parts = hit_part_references(kind, library.match_rules, facts)
+    detail = (
+        {"message_list": parts, "separator_key": "common.list.separator"}
+        if parts
+        else reference("library.routing.hitGeneric")
+    )
+    return stored_fields("library.routing.matchedLibrary", name=library.name, details=detail)
 
 
 async def route(session: AsyncSession, kind: str, facts: RoutingFacts | None) -> RouteDecision:
@@ -131,18 +147,26 @@ async def route(session: AsyncSession, kind: str, facts: RoutingFacts | None) ->
         # 特异性（条件条数）优先，打平取 id 小者（创建早优先）
         best = sorted(hits, key=lambda lib: (-len(lib.match_rules), lib.id))[0]
         assert facts is not None  # 命中即有事实
-        return RouteDecision(library=best, matched=True, reason=_hit_reason(kind, best, facts))
+        message = _hit_reason_message(kind, best, facts)
+        return RouteDecision(
+            library=best, matched=True, reason=message["message"], reason_message=message
+        )
 
     default = await repo.get_default(kind)
     if default is None:
-        return RouteDecision(library=None, matched=False, reason="该类型没有可用的媒体库")
+        message = stored_fields("library.routing.noLibrary")
+        return RouteDecision(
+            library=None, matched=False, reason=message["message"], reason_message=message
+        )
     if facts is None and declared:
-        reason = f"作品元数据暂不可得，入库到默认库「{default.name}」"
+        message = stored_fields("library.routing.metadataDefault", name=default.name)
     elif declared:
-        reason = f"未命中任何收藏范围，入库到默认库「{default.name}」"
+        message = stored_fields("library.routing.unmatchedDefault", name=default.name)
     else:
-        reason = f"入库到默认库「{default.name}」"
-    return RouteDecision(library=default, matched=False, reason=reason)
+        message = stored_fields("library.routing.defaultLibrary", name=default.name)
+    return RouteDecision(
+        library=default, matched=False, reason=message["message"], reason_message=message
+    )
 
 
 async def gather_facts(

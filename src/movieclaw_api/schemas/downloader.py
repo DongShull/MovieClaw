@@ -568,8 +568,12 @@ class ManualDownloadTargetView(BaseModel):
     )
     staging_path: str | None = Field(default=None, description="自定义目录规则的整理落点")
     route_matched: bool | None = Field(default=None, description="是否命中媒体库收藏范围")
+    route_reason_key: str | None = None
+    route_reason_params: dict | None = None
     route_reason: str | None = Field(default=None, description="媒体库路由理由")
     ok: bool = Field(default=False, description="当前选择的下载器和投递配置能否自动入库")
+    warning_key: str | None = None
+    warning_params: dict | None = None
     warning: str | None = Field(default=None, description="不可自动入库时的中文指引")
 
 

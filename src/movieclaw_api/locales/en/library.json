@@ -18,7 +18,15 @@
     "japanKorea": "Japan and South Korea",
     "unitedStates": "United States",
     "europe": "Europe",
-    "otherLanguages": "Other languages"
+    "otherLanguages": "Other languages",
+    "hitDetail": "{field}={values}",
+    "hitGeneric": "Collection scope matched",
+    "matchedLibrary": "Matched “{name}”: {details}",
+    "noLibrary": "No library is available for this type",
+    "metadataDefault": "Title metadata is unavailable. Import into the default library “{name}”",
+    "unmatchedDefault": "No collection scope matched. Import into the default library “{name}”",
+    "defaultLibrary": "Import into the default library “{name}”",
+    "valueSeparator": "/"
   },
   "operations": {
     "coverSaved": "Cover updated",

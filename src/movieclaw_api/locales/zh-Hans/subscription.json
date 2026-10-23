@@ -25,5 +25,11 @@
     "resumed": "已恢复追踪",
     "autoRenewEnabled": "已开启自动续订",
     "autoRenewDisabled": "已关闭自动续订"
+  },
+  "ruleRoute": {
+    "matched": "按适用范围选用「{name}」：{details}",
+    "metadataDefault": "作品元数据暂不可得，使用默认规则组「{name}」",
+    "unmatchedDefault": "未命中任何规则组的适用范围，使用默认规则组「{name}」",
+    "defaultGroup": "使用默认规则组「{name}」"
   }
 }

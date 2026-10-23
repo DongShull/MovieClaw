@@ -9,11 +9,21 @@
     "identityNotFound": "Could not reliably identify this release. Search with another title or choose the save folder manually.",
     "alreadyAdded": "This torrent is already in the downloader; it was not added again",
     "submittedToLibrary": "Submitted to \"{downloader}\" for library \"{library}\"",
-    "submitted": "Submitted to \"{name}\""
+    "submitted": "Submitted to \"{name}\"",
+    "routedLibrary": "{receipt} ({reason})"
   },
   "removal": {
     "optionLabel": "Also delete download tasks and source files",
     "optionHelp": "Delete the matching downloader tasks and their data to free disk space. Source files cannot be recovered.",
     "noTask": "No matching download task was found (the file was scanned or its source is unknown). Only library files will be deleted."
+  },
+  "preview": {
+    "downloaderMissing": "Downloader #{id} does not exist",
+    "defaultMissing": "No default downloader is available. Add one in Settings → Downloaders and ensure its connection test passes.",
+    "downloaderUnavailable": "Downloader “{name}” is unavailable (disabled or not verified).",
+    "noRoot": "No library or library root is available. Downloads will use the downloader’s default directory and will not be imported automatically.",
+    "noStagingLibrary": "No library is available. Downloads will be organized into the custom directory, but returning files cannot be registered and subscriptions cannot complete. Create a library first.",
+    "noWatchLibrary": "No library is available. Torrents will download into the watched directory, but completed files cannot be imported automatically. Create a library first.",
+    "unmapped": "Directory {path} is not covered by downloader “{name}”’s path mappings, so submission will be rejected. Add a mapping for this directory or a shared parent directory, or configure a watched import rule for this library."
   }
 }

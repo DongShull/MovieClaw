@@ -11,6 +11,7 @@ from movieclaw_api import hooks
 from movieclaw_api.api.deps import require_login
 from movieclaw_api.exceptions import BadRequestException, ForbiddenException
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.downloader import (
     DownloaderLimitsUpdate,
@@ -240,7 +241,7 @@ async def submit_download(
         )
         route = await route_for_item(session, payload.media_kind, manual_item)
         library = route.library
-        route_reason = route.reason
+        route_reason = render_value(route.reason_message) if route.reason_message else route.reason
         if library is None:
             raise BadRequestException(message_key="errors.downloaders.noImportTarget")
         # 目标库要等条目建好才路由得出来，所以归属库在这里回填（设计文档 §14）
@@ -334,7 +335,7 @@ async def submit_download(
             "download.operations.submittedToLibrary", downloader=row.name, library=library.name
         )
         if route_reason:
-            message += f"（{route_reason}）"
+            message = t("download.operations.routedLibrary", receipt=message, reason=route_reason)
     else:
         message = t("download.operations.submitted", name=row.name)
     return ok(view, message=message)
