@@ -1,0 +1,182 @@
+"""Validate catalogs and the migration ratchet. Run from any directory with the dev environment."""
+
+from __future__ import annotations
+
+import ast
+import hashlib
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+from pyicumessageformat import Parser
+
+ROOT = Path(__file__).resolve().parents[2]
+HAN = re.compile(r"[\u3400-\u9fff]")
+
+
+def flatten(value: dict, prefix: str = "") -> dict[str, str]:
+    result = {}
+    for key, child in value.items():
+        name = f"{prefix}.{key}" if prefix else key
+        if isinstance(child, dict):
+            result.update(flatten(child, name))
+        else:
+            if not isinstance(child, str):
+                raise ValueError(f"Non-string message: {name}")
+            result[name] = child
+    return result
+
+
+def parameters(message: str) -> set[str]:
+    def visit(nodes):
+        result = set()
+        for node in nodes:
+            if isinstance(node, dict):
+                result.add(node["name"])
+                result.update(visit(node.get("contents", [])))
+                for option in node.get("options", {}).values():
+                    result.update(visit(option))
+        return result
+
+    return visit(Parser({"allow_tags": True}).parse(message))
+
+
+def check_catalogs() -> list[str]:
+    errors = []
+    all_english = {}
+    web_source = {}
+    server_source = {}
+    for directory in (ROOT / "apps/web/locales", ROOT / "src/movieclaw_api/locales"):
+        paths = list((directory / "zh-Hans").glob("*.json"))
+        if {p.name for p in paths} != {p.name for p in (directory / "en").glob("*.json")}:
+            errors.append(f"{directory}: namespace sets differ")
+        for path in paths:
+            source = flatten(json.loads(path.read_text()))
+            english = flatten(json.loads((directory / "en" / path.name).read_text()))
+            meta = json.loads((directory / "_meta" / path.name).read_text())
+            if source.keys() != english.keys() or source.keys() != meta.keys():
+                errors.append(f"{path}: message/metadata key sets differ")
+            for key, text in source.items():
+                name = f"{path.stem}.{key}"
+                if not re.fullmatch(r"[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*){1,3}", name):
+                    errors.append(f"Invalid semantic key: {name}")
+                if meta.get(key, {}).get("sourceHash") != hashlib.sha256(text.encode()).hexdigest():
+                    errors.append(f"Stale English: {name}")
+                translated = english.get(key, "")
+                if HAN.search(translated) or re.search(r"[，。！？：；「」《》、]", translated):
+                    errors.append(f"English contains Chinese text/punctuation: {name}")
+                try:
+                    if parameters(text) != parameters(translated):
+                        errors.append(f"Parameter mismatch: {name}")
+                except (ValueError, SyntaxError) as exc:
+                    errors.append(f"Invalid ICU: {name}: {exc}")
+                if name in all_english and all_english[name] != translated:
+                    errors.append(f"Cross-platform English mismatch: {name}")
+                all_english[name] = translated
+                (web_source if directory.parts[-2] == "web" else server_source)[name] = text
+    originals = json.loads((ROOT / "scripts/i18n/migrations.json").read_text())
+    for key, original in originals.items():
+        if web_source.get(key) != original:
+            errors.append(f"Chinese changed during migration: {key}")
+    for path in (ROOT / "src/movieclaw_api").rglob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not isinstance(node, ast.Call):
+                continue
+            key = None
+            if isinstance(node.func, ast.Name) and node.func.id == "t" and node.args:
+                key = node.args[0]
+            for keyword in node.keywords:
+                if keyword.arg == "message_key":
+                    key = keyword.value
+            if (
+                isinstance(key, ast.Constant)
+                and isinstance(key.value, str)
+                and key.value not in server_source
+            ):
+                errors.append(f"{path.relative_to(ROOT)}: unknown key {key.value}")
+    return errors
+
+
+def baseline() -> dict[str, int]:
+    counts = json.loads(
+        subprocess.check_output(["node", str(ROOT / "scripts/i18n/web-baseline.mjs")])
+    )
+    for path in (ROOT / "src/movieclaw_api").rglob("*.py"):
+        tree = ast.parse(path.read_text())
+        docstrings = {
+            id(node.body[0].value)
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.body
+            and isinstance(node.body[0], ast.Expr)
+            and isinstance(node.body[0].value, ast.Constant)
+        }
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id.lower() in {"logger", "logging", "log", "_logger", "_log"}
+            ):
+                docstrings.update(id(child) for child in ast.walk(node))
+        lines = path.read_text().splitlines()
+        count = sum(
+            1
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in docstrings
+            and HAN.search(node.value)
+            and not any(
+                "i18n-ignore" in line for line in lines[max(0, node.lineno - 2) : node.lineno]
+            )
+        )
+        if count:
+            counts[str(path.relative_to(ROOT))] = count
+    # Match Swift strings before comments so URLs and comment syntax inside text stay intact.
+    tokens = re.compile(r'"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|//[^\n]*|/\*[\s\S]*?\*/')
+    for path in (ROOT / "apps/apple").rglob("*.swift"):
+        if any(part in path.parts for part in (".build", "DerivedData", "SourcePackages")) or any(
+            part.endswith("Tests") for part in path.parts
+        ):
+            continue
+        source = path.read_text()
+        count = 0
+        for match in tokens.finditer(source):
+            line_start = source.rfind("\n", 0, match.start()) + 1
+            previous_start = source.rfind("\n", 0, max(0, line_start - 1)) + 1
+            line_end = source.find("\n", match.end())
+            if (
+                match[0].startswith('"')
+                and HAN.search(match[0])
+                and "i18n-ignore"
+                not in source[previous_start : line_end if line_end >= 0 else None]
+            ):
+                count += 1
+        if count:
+            counts[str(path.relative_to(ROOT))] = count
+    return dict(sorted(counts.items()))
+
+
+def main() -> int:
+    errors = check_catalogs()
+    current = baseline()
+    baseline_path = ROOT / "scripts/i18n/baseline.json"
+    if "--write-baseline" in sys.argv:
+        baseline_path.write_text(json.dumps(current, ensure_ascii=False, indent=2) + "\n")
+    else:
+        previous = json.loads(baseline_path.read_text())
+        for path, count in current.items():
+            if count > previous.get(path, 0):
+                errors.append(f"Bare Chinese increased: {path}: {previous.get(path, 0)} -> {count}")
+    if errors:
+        print("\n".join(errors), file=sys.stderr)
+        return 1
+    print("i18n catalogs, Chinese preservation and ratchet passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

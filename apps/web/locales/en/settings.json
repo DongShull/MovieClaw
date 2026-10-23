@@ -1,0 +1,9 @@
+{
+  "appearance": {
+    "title": "Appearance and language",
+    "description": "Language, home background and interface effects",
+    "language": "Language",
+    "browser": "Follow browser · {language}",
+    "saveFailed": "Could not save language. Please try again."
+  }
+}

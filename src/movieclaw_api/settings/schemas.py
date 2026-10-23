@@ -497,6 +497,7 @@ class HomeUiPrefs(BaseModel):
 class UiPreferencesSetting(SettingSchema):
     """全站界面样式偏好，按页面分组。新页面的设定加嵌套模型字段即可。"""
 
+    language: Literal["auto", "zh-Hans", "en"] = "auto"
     theme: str = Field(
         default="silver",
         max_length=32,

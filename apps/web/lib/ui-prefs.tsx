@@ -11,6 +11,8 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { useLanguage } from "@/lib/i18n/provider";
+
 import { useToast } from "@/components/feedback";
 import {
   fetchUiPreferences,
@@ -133,6 +135,7 @@ function themeIsPending(requested: string, catalogSettled: boolean): boolean {
 }
 
 export function UiPrefsProvider({ children }: { children: React.ReactNode }) {
+  const { setLanguage } = useLanguage();
   // 惰性初始化读缓存：本 Provider 只在 AuthGate 确认登录后于客户端渲染
   // （见 components/app-shell.tsx），不参与 SSR，故可直接读 localStorage。
   // 缓存内容不可信，统一过一遍 normalizeUiPreferences 补齐缺项（无缓存时
@@ -161,6 +164,10 @@ export function UiPrefsProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!loading) setLanguage(prefs.language);
+  }, [loading, prefs.language, setLanguage]);
 
   // 主题目录（docs/design/theme-plugins.md §4.3）：首帧先用上次的快照，这里拉服务端的
   // 整表替换。拉取失败也算「落定」：认不出的主题按默认渲染，不让外壳一直等。

@@ -1,0 +1,17 @@
+{
+  "appearance.title": {
+    "sourceHash": "d672315b194235f543af875aae126e5c71dac09fb8a0ecc897253593e4df9903"
+  },
+  "appearance.description": {
+    "sourceHash": "8881223447461d4f7c1662efbe9035da302707a5731431f8f83b75c8c0c6b3f0"
+  },
+  "appearance.language": {
+    "sourceHash": "9f6fee1aba17a56586bf16a77b07b1a76d8c4e867430c6ee6abfa3128b55fa98"
+  },
+  "appearance.browser": {
+    "sourceHash": "d822fd9c532dd339d040b2a977066010e846083d4e782e94e49b4d903a2ac215"
+  },
+  "appearance.saveFailed": {
+    "sourceHash": "6578b541aa18f7d7f78d097449386eb0843aa4d408e02624b0e320559b7b3c7e"
+  }
+}

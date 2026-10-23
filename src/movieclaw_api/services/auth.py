@@ -382,7 +382,7 @@ async def authenticate(username: str, password: str) -> AdminAccountSetting | Me
             return admin
         throttle.record_failure()
         logger.warning("登录失败：用户名或密码错误（用户名输入：%s）", username)
-        raise UnauthorizedException("用户名或密码错误")
+        raise UnauthorizedException(message_key="errors.auth.wrongPassword")
 
     async with get_database().session() as session:
         repo = MemberRepository(session)
@@ -393,7 +393,7 @@ async def authenticate(username: str, password: str) -> AdminAccountSetting | Me
         if member is None or not password_ok:
             throttle.record_failure()
             logger.warning("登录失败：用户名或密码错误（用户名输入：%s）", username)
-            raise UnauthorizedException("用户名或密码错误")
+            raise UnauthorizedException(message_key="errors.auth.wrongPassword")
         if member.status != "active":
             # 密码对但账号被停用：不计失败（不是爆破），明确告知找管理员
             logger.warning("登录被拒：成员 %s 已被停用", member.username)

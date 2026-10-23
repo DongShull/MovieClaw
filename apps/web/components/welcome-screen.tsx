@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import localFont from "next/font/local";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
@@ -40,11 +42,13 @@ const SCENE_MS = 9000;
  * 手机与桌面同一套版式：内容是一列最宽 440px 的竖排，桌面上整列在屏幕中间、限高。
  */
 export function WelcomeScreen({
+  footer,
   buttonLabel,
   initialStage = "home",
   ready = true,
   card,
 }: {
+  footer?: ReactNode;
   /** 首页按钮的文字（「登录」「开始使用」） */
   buttonLabel: string;
   /** 一进来就是卡片（会话过期回来、添加账号时）；挂载后才读 URL，所以允许后到 */
@@ -133,6 +137,7 @@ export function WelcomeScreen({
               {card({ close, autoFocus })}
             </div>
           )}
+          <div className="my-3 flex justify-center">{footer}</div>
         </div>
       </main>
     </div>
@@ -145,6 +150,7 @@ export function WelcomeScreen({
  * 打开卡片后整体缩小留在顶部。
  */
 function WelcomeMasthead({ compact }: { compact: boolean }) {
+  const t = useTranslations("auth");
   return (
     <header
       className="flex origin-top flex-col items-center gap-3.5 [text-shadow:0_0_16px_rgba(0,0,0,0.35)] transition-transform duration-600 ease-out"
@@ -161,7 +167,7 @@ function WelcomeMasthead({ compact }: { compact: boolean }) {
         className="welcome-reveal welcome-reveal--tagline pl-[8px] text-[13px] tracking-[8px] md:text-[14px] text-[var(--text-muted)]"
         style={{ fontFamily: WELCOME_SERIF }}
       >
-        智能影音服务器
+        {t("welcome.tagline")}
       </p>
     </header>
   );
@@ -275,6 +281,7 @@ export function WelcomeCard({
   onClose?: () => void;
   children: ReactNode;
 }) {
+  const t = useTranslations("common");
   return (
     <section className="welcome-glass rounded-[30px] p-[22px]">
       <header className="mb-4 flex items-start gap-3">
@@ -288,7 +295,7 @@ export function WelcomeCard({
           <button
             type="button"
             onClick={onClose}
-            aria-label="关闭"
+            aria-label={t("close")}
             className="grid size-[30px] shrink-0 place-items-center rounded-full border border-white/[0.08] bg-white/[0.05] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
           >
             <XIcon className="size-3.5" strokeWidth={2.6} />

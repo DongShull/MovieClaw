@@ -14204,6 +14204,7 @@ nonisolated extension API {
 
     /// 全站界面样式偏好，按页面分组。新页面的设定加嵌套模型字段即可。
     struct UiPreferencesSetting: Codable, Hashable, Sendable {
+        var language: String?
         /// 主题 id，取值见前端 lib/themes.ts 的注册表（silver / netflix）。存纯字符串并放宽校验：未知值由前端 normalizeThemeId 兜底为默认主题，老后端读到新主题 id 也不会整体拒绝（前向兼容）。
         var theme: String
         /// 桌面端（≥768px 视口）的主题 id 覆盖；空 = 跟随 theme。校验口径与 theme 相同（纯字符串、前端兜底未知值），2026-09 起桌面 / 移动端可分别选主题，见前端 lib/ui-prefs.tsx 的 resolveThemeId。
@@ -14220,6 +14221,7 @@ nonisolated extension API {
         var home: API.HomeUiPrefs
 
         enum CodingKeys: String, CodingKey {
+            case language
             case theme
             case themeDesktop = "theme_desktop"
             case themeMobile = "theme_mobile"
@@ -14232,6 +14234,7 @@ nonisolated extension API {
 
     /// 全站界面样式偏好，按页面分组。新页面的设定加嵌套模型字段即可。
     struct UiPreferencesSettingInput: Codable, Hashable, Sendable {
+        var language: String?
         /// 主题 id，取值见前端 lib/themes.ts 的注册表（silver / netflix）。存纯字符串并放宽校验：未知值由前端 normalizeThemeId 兜底为默认主题，老后端读到新主题 id 也不会整体拒绝（前向兼容）。
         var theme: String?
         /// 桌面端（≥768px 视口）的主题 id 覆盖；空 = 跟随 theme。校验口径与 theme 相同（纯字符串、前端兜底未知值），2026-09 起桌面 / 移动端可分别选主题，见前端 lib/ui-prefs.tsx 的 resolveThemeId。
@@ -14248,6 +14251,7 @@ nonisolated extension API {
         var home: API.HomeUiPrefsInput?
 
         enum CodingKeys: String, CodingKey {
+            case language
             case theme
             case themeDesktop = "theme_desktop"
             case themeMobile = "theme_mobile"

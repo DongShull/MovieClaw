@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 function trimTrailingSlash(value: string): string {
   return value !== "/" && value.endsWith("/") ? value.slice(0, -1) : value;
@@ -155,4 +156,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default createNextIntlPlugin("./lib/i18n/request.ts")(nextConfig);

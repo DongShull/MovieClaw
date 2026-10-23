@@ -1,5 +1,7 @@
 from typing import Any
 
+from movieclaw_api.i18n import t
+
 
 class AppException(Exception):
     def __init__(
@@ -7,9 +9,15 @@ class AppException(Exception):
         *,
         status_code: int,
         code: str,
-        message: str,
+        message: str = "",
         details: list[dict[str, Any]] | None = None,
+        message_key: str | None = None,
+        params: dict[str, Any] | None = None,
     ) -> None:
+        self.message_key = message_key
+        self.params = params or {}
+        if message_key:
+            message = t(message_key, **self.params)
         super().__init__(message)
         self.status_code = status_code
         self.code = code
@@ -36,12 +44,17 @@ class UnauthorizedException(AppException):
         self,
         message: str = "unauthorized",
         details: list[dict[str, Any]] | None = None,
+        *,
+        message_key: str | None = None,
+        params: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             status_code=401,
             code="UNAUTHORIZED",
             message=message,
             details=details,
+            message_key=message_key,
+            params=params,
         )
 
 

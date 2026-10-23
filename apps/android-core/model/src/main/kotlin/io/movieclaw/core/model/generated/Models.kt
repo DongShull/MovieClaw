@@ -2819,6 +2819,7 @@ data class TrickplayView(
  */
 @Serializable
 data class UiPreferencesSetting(
+    @SerialName("language") val language: String = "",
     /**
      * 主题 id，取值见前端 lib/themes.ts 的注册表（silver / netflix）。存纯字符串并放宽校验：未知值由前端 normalizeThemeId 兜底为默认主题，老后端读到新主题 id 也不会整体拒绝（前向兼容）。
      */

@@ -1,0 +1,9 @@
+{
+  "appearance": {
+    "title": "外观与语言",
+    "description": "语言、首页背景与界面质感",
+    "language": "语言",
+    "browser": "跟随浏览器 · {language}",
+    "saveFailed": "语言保存失败，请重试"
+  }
+}

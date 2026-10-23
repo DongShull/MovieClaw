@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { Route } from "next";
 
+import { LanguagePicker } from "@/components/language-picker";
 import { LockIcon, UserIcon } from "@/components/icons";
 import {
   WelcomeCard,
@@ -63,6 +65,7 @@ function isReturning(): boolean {
  * 并入本浏览器的账号列表）。添加账号的卡片 × 回到当前账号。
  */
 export default function LoginPage() {
+  const t = useTranslations("auth");
   // 挂载后再读 URL：服务端渲染没有 window，初值若按 URL 算会造成水合不一致
   const [adding, setAdding] = useState(false);
   const [returning, setReturning] = useState(false);
@@ -71,7 +74,7 @@ export default function LoginPage() {
     setAdding(isAddingAccount());
     setReturning(isReturning());
   }, []);
-  usePageTitle(adding ? "添加账号" : "登录");
+  usePageTitle(adding ? t("login.addAccount") : t("login.action"));
   const router = useRouter();
 
   useEffect(() => {
@@ -104,7 +107,8 @@ export default function LoginPage() {
 
   return (
     <WelcomeScreen
-      buttonLabel="登录"
+      footer={<LanguagePicker />}
+      buttonLabel={t("login.action")}
       ready={ready}
       initialStage={adding || returning ? "card" : "home"}
       card={({ close, autoFocus }) => (
@@ -127,6 +131,8 @@ function LoginCard({
   autoFocus: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("auth");
+  const common = useTranslations("common");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
@@ -154,18 +160,18 @@ function LoginCard({
       // 壁纸与界面偏好首帧缓存，进工作台不闪默认图（lib/account-reload.ts）
       await reloadAfterAccountChange(resolveNext(session), true);
     } catch (err) {
-      setError(err instanceof HttpError ? err.message : "网络异常，请稍后重试");
+      setError(err instanceof HttpError ? err.message : common("networkRetry"));
       setBusy(false);
     }
   };
 
   return (
     <WelcomeCard
-      title={adding ? "添加账号" : "登录 MovieClaw"}
+      title={adding ? t("login.addAccount") : t("login.title")}
       subtitle={
         adding
-          ? "登录另一个账号；之后可在用户菜单里一键切换，不用再输密码。"
-          : "使用你在这台服务器上的账号进入。"
+          ? t("login.addSubtitle")
+          : t("login.subtitle")
       }
       onClose={onClose}
     >
@@ -174,7 +180,7 @@ function LoginCard({
           <WelcomeField
             ref={usernameRef}
             icon={<UserIcon className="size-[18px]" />}
-            placeholder="用户名"
+            placeholder={t("login.username")}
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -186,7 +192,7 @@ function LoginCard({
           />
           <WelcomeField
             icon={<LockIcon className="size-[18px]" />}
-            placeholder="密码"
+            placeholder={t("login.password")}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -201,11 +207,11 @@ function LoginCard({
             onChange={(e) => setRemember(e.target.checked)}
             className="size-3.5 accent-[var(--accent-strong)]"
           />
-          30 天内记住我
+          {t("login.remember")}
         </label>
         <WelcomeError message={error} />
         <WelcomeSubmit busy={busy} disabled={busy || !username.trim() || !password}>
-          {busy ? "正在登录…" : adding ? "添加并切换" : "登录"}
+          {busy ? t("login.pending") : adding ? t("login.addAndSwitch") : t("login.action")}
         </WelcomeSubmit>
       </form>
     </WelcomeCard>

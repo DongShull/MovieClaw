@@ -1,0 +1,5 @@
+{
+  "auth": {
+    "wrongPassword": "Incorrect username or password"
+  }
+}

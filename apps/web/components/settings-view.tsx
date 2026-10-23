@@ -2,8 +2,10 @@
 
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { LanguageSettings } from "@/components/language-picker";
 import { LiquidGlassButton } from "@/components/liquid-glass";
 
 import { AppPushSection } from "@/components/app-push-section";
@@ -92,6 +94,7 @@ export interface SettingsSidebarProps {
 }
 
 export function SettingsSidebar({ active, onSelect, onBack }: SettingsSidebarProps) {
+  const t = useTranslations("settings.appearance");
   const { backdrop } = useBackdrop();
   // 成员只看到「账号」组（个人信息/设备/通知/外观）；管理分区后端一律 403，前端不给入口
   const { session } = useSession();
@@ -147,7 +150,7 @@ export function SettingsSidebar({ active, onSelect, onBack }: SettingsSidebarPro
                   >
                     <Icon className="size-4 shrink-0" />
                     <span className="flex-1 truncate text-ui font-medium">
-                      {section.label}
+                      {section.id === "appearance" ? t("title") : section.label}
                     </span>
                     {section.id === "app" && pendingUpdate && <AppUpdateDot />}
                   </button>
@@ -172,6 +175,7 @@ export interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ active, item }: SettingsPanelProps) {
+  const t = useTranslations("settings.appearance");
   // 成员直达管理分区地址（书签/手输 URL，含裸 /settings 服务端兜底到的概览）
   // 时回退到首个可见分区——界面兜底，真正的安全边界在后端 403
   const { session } = useSession();
@@ -226,14 +230,14 @@ export function SettingsPanel({ active, item }: SettingsPanelProps) {
             {/* 实色 + 暗投影（不用 text-sheen 渐变裁切——全站蒙版默认轻档、
                 背景大图透上来时，半透明渐变字压在亮背景上会发灰，实色白字最稳） */}
             <h1 className="text-on-image text-[22px] font-semibold tracking-tight text-[var(--text)] max-md:text-title-lg">
-              {section.label}
+              {section.id === "appearance" ? t("title") : section.label}
             </h1>
             <p className="text-on-image mt-0.5 text-ui text-[var(--text-muted)]">
               {/* 资源站点分区的副标题是活的：有站点时显示健康统计，无站点回落介绍 */}
               {section.id === "sites" ? (
                 <SitesSectionSubtitle fallback={section.description} />
               ) : (
-                section.description
+                section.id === "appearance" ? t("description") : section.description
               )}
             </p>
           </div>
@@ -739,6 +743,7 @@ function AppearanceSection() {
 
   return (
     <div className="space-y-10">
+      <LanguageSettings />
       <ThemeGroup />
       <div className="space-y-6">
         <SettingsTabs tabs={tabs} value={tab} onChange={setTab} />

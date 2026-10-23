@@ -1,0 +1,14 @@
+{
+  "close": {
+    "sourceHash": "3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7"
+  },
+  "networkRetry": {
+    "sourceHash": "9343a2458521b8afb0634054046335ccb19352d1fda51a20a93185a1a91af092"
+  },
+  "networkInterrupted": {
+    "sourceHash": "0c38a45c9db32cbd07d66a18d69353b2d186d95ab8a8e71ad33111ecfa049a65"
+  },
+  "networkTimeout": {
+    "sourceHash": "03b19e68c100ec37d171eb90773b9567d0c82e9d967d7157870361d1ab0d5686"
+  }
+}
