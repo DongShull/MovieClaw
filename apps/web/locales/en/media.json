@@ -6,7 +6,8 @@
     "tv": "Series",
     "movie": "Movie",
     "video": "Video",
-    "photo": "Photos"
+    "photo": "Photos",
+    "feature": "Feature"
   },
   "languages": {
     "simplifiedChinese": "Simplified Chinese",
@@ -267,5 +268,9 @@
   "sources": {
     "lowestManual": "Lowest tier (manually annotated)",
     "disc": "Disc"
+  },
+  "season": {
+    "specials": "Specials",
+    "title": "Season {number}"
   }
 }

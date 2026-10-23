@@ -160,5 +160,16 @@
     "india": "印度",
     "thailand": "泰国",
     "russia": "俄罗斯"
+  },
+  "quality": {
+    "unknownResolution": "分辨率未知",
+    "unknownSource": "片源未知",
+    "disc": "原盘",
+    "lowestManual": "最低档（人工标注）",
+    "bluray": "蓝光",
+    "head": "{resolution} {source}",
+    "label": "{parts}",
+    "separator": " · ",
+    "unrecognized": "版本未识别"
   }
 }

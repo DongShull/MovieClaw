@@ -61,5 +61,15 @@
     "languageQuestion": "这是{language}片，要{acceptable}字幕吗？",
     "asap": "尽快下载",
     "bluray": "蓝光"
+  },
+  "upgrade": {
+    "summaryUpgradable": "{count} 个单元可洗版，已排入立即搜索",
+    "summaryInFlight": "{count} 个已在洗版中",
+    "summaryAtCutoff": "{count} 个已达目标",
+    "summaryUnknown": "{count} 个无法确认当前版本档位",
+    "summaryMissing": "{count} 个缺失将照常下载",
+    "summarySeparator": "；",
+    "summary": "{parts}",
+    "noUnits": "没有可处理的单元"
   }
 }

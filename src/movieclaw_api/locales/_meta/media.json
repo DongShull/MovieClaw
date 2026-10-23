@@ -436,5 +436,32 @@
   },
   "regions.russia": {
     "sourceHash": "d8fcbae05f79fb85e2fea132a9d305f4b75e4e73b2155f9491d5e35afc4a033e"
+  },
+  "quality.unknownResolution": {
+    "sourceHash": "f35c4c1d0fe038f342f01794e731131a2af4190e023ba6277391d57430faf721"
+  },
+  "quality.unknownSource": {
+    "sourceHash": "d6c1009487878465077cce80087e15b7a63b59c998cfea049543fa5e380d4418"
+  },
+  "quality.disc": {
+    "sourceHash": "e231576ab2d628dc00ad9d4bb11b78dd76a0c291c3572c88ee86d330bb4a7168"
+  },
+  "quality.lowestManual": {
+    "sourceHash": "d30a2781c0f8b889f78f6e34cd69dbef322f45da19de22977852c895c5c18fb3"
+  },
+  "quality.bluray": {
+    "sourceHash": "0cde1d0445b15beeb659172f3b27d6c0da7706aaa2cd30a63bf5360b9f7588a3"
+  },
+  "quality.head": {
+    "sourceHash": "ab0bac58836accf81b97a2d8ccb44a3cad0c9dc184ee15351ef39dd7048c78d3"
+  },
+  "quality.label": {
+    "sourceHash": "ef898fa98f0a08884df077f173f8fa85804d46ab52df3229a10b4e8056eff265"
+  },
+  "quality.separator": {
+    "sourceHash": "588da410532073f8daec0cc62c6904f9d8a150b41ae3b1565c10069742cb18fc"
+  },
+  "quality.unrecognized": {
+    "sourceHash": "4cacba0d8a0ddfe1dde2bea64d4be3c4f49b8506d6530395d8ddbdf364a9217b"
   }
 }

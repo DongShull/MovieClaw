@@ -715,5 +715,14 @@
   },
   "sources.disc": {
     "sourceHash": "e231576ab2d628dc00ad9d4bb11b78dd76a0c291c3572c88ee86d330bb4a7168"
+  },
+  "kind.feature": {
+    "sourceHash": "9abc744d488eb3a01c6de14e1733bf45f79a2476d810091e45c16ef226223c74"
+  },
+  "season.specials": {
+    "sourceHash": "2ad1a072b5342586db1254a30abd3b918c4fd5087a599072f4ee57e3ae144117"
+  },
+  "season.title": {
+    "sourceHash": "4eb7e3568faf5bd686632310642e1a73b07c3ca50b499c55631d67fadc16bc7d"
   }
 }

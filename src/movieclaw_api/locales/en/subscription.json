@@ -61,5 +61,15 @@
     "languageQuestion": "This title is in {language}. Require {acceptable} subtitles?",
     "asap": "Download as soon as possible",
     "bluray": "Blu-ray"
+  },
+  "upgrade": {
+    "summaryUpgradable": "{count, plural, one {# unit ready for an upgrade; search queued} other {# units ready for an upgrade; search queued}}",
+    "summaryInFlight": "{count, plural, one {# upgrade already in progress} other {# upgrades already in progress}}",
+    "summaryAtCutoff": "{count, plural, one {# unit meets the target} other {# units meet the target}}",
+    "summaryUnknown": "{count, plural, one {# current version could not be identified} other {# current versions could not be identified}}",
+    "summaryMissing": "{count, plural, one {# missing unit will download normally} other {# missing units will download normally}}",
+    "summarySeparator": "; ",
+    "summary": "{parts}",
+    "noUnits": "No units to process"
   }
 }

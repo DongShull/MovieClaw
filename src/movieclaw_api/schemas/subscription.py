@@ -1060,13 +1060,14 @@ def _wanted_upgrades(
 
     规则组未配洗版目标 / spec 无法解析 → 全部 None（前端不显示洗版信息）。
     """
+    from movieclaw_api.i18n import t
+    from movieclaw_api.i18n.quality_labels import quality_reference, upgrade_target_reference
+    from movieclaw_api.i18n.stored import render_value
     from movieclaw_matcher import (
         QualitySnapshot,
         RuleSetSpec,
         provably_at_cutoff,
         provably_below_cutoff,
-        quality_label,
-        upgrade_target_label,
     )
     from movieclaw_matcher.smart import SmartPolicy
 
@@ -1078,7 +1079,7 @@ def _wanted_upgrades(
     from movieclaw_db.models import utcnow
 
     now = utcnow()
-    target = upgrade_target_label(rule_spec) or ""
+    target = render_value(upgrade_target_reference(rule_spec)) or ""
     result: dict[tuple[int, int], WantedUpgradeView | None] = {}
     for w in wanted_rows:
         if w.status != "imported" or w.quality is None:
@@ -1088,7 +1089,7 @@ def _wanted_upgrades(
             # 在追踪明细里与档位健康的单元毫无区别，用户以为它在洗版盘子里
             result[(w.season_number, w.episode_number)] = WantedUpgradeView(
                 active=False,
-                current_label="版本未识别",
+                current_label=t("media.quality.unrecognized"),
                 target_label=target,
                 search_attempts=w.search_attempts,
                 indeterminate=True,
@@ -1097,7 +1098,7 @@ def _wanted_upgrades(
         snapshot = QualitySnapshot.model_validate(w.quality)
         result[(w.season_number, w.episode_number)] = WantedUpgradeView(
             active=w.in_scope and upgrade_ready(w, rule_spec, now=now),
-            current_label=quality_label(snapshot, rule_spec),
+            current_label=render_value(quality_reference(snapshot, rule_spec)),
             target_label=target,
             search_attempts=w.search_attempts,
             indeterminate=not provably_below_cutoff(snapshot, rule_spec)

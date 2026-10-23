@@ -151,5 +151,29 @@
   },
   "smart.bluray": {
     "sourceHash": "0cde1d0445b15beeb659172f3b27d6c0da7706aaa2cd30a63bf5360b9f7588a3"
+  },
+  "upgrade.summaryUpgradable": {
+    "sourceHash": "a8561bfe2083369000421c4d41548673a1fba8b6c5497cf61ddd2fb4119fe09c"
+  },
+  "upgrade.summaryInFlight": {
+    "sourceHash": "868868d16a63881fd4dc6ed43f8a38455868fc033df77af39c21cfdb254f73f1"
+  },
+  "upgrade.summaryAtCutoff": {
+    "sourceHash": "4c299bc214bd488d9485dbec81bd3c6f1658bbf238a5a07f1a71f790d16767f2"
+  },
+  "upgrade.summaryUnknown": {
+    "sourceHash": "f487443ffe2bf117c9a24fea2950f96ee18eeb67503c80f1d7b804f7fcdb87ff"
+  },
+  "upgrade.summaryMissing": {
+    "sourceHash": "7c0c00b3d2fdfef8b8d7ec9e78c6c56da2db248f96c4b105ef34c7e914034cc3"
+  },
+  "upgrade.summarySeparator": {
+    "sourceHash": "b0d3c9cfa0e1ef6799ec266c5467a1dc04e54e2f22b853c2f35d1dec1bbd2e71"
+  },
+  "upgrade.summary": {
+    "sourceHash": "ef898fa98f0a08884df077f173f8fa85804d46ab52df3229a10b4e8056eff265"
+  },
+  "upgrade.noUnits": {
+    "sourceHash": "3bee6c010026b9a97c042927f4a99b5cddbf2fc48e982b7b338267d0d4436f88"
   }
 }

@@ -6,7 +6,8 @@
     "tv": "剧集",
     "movie": "电影",
     "video": "视频",
-    "photo": "图片"
+    "photo": "图片",
+    "feature": "正片"
   },
   "languages": {
     "simplifiedChinese": "简体中文",
@@ -267,5 +268,9 @@
   "sources": {
     "lowestManual": "最低档（人工标注）",
     "disc": "原盘"
+  },
+  "season": {
+    "specials": "特别篇",
+    "title": "第 {number} 季"
   }
 }

@@ -160,5 +160,16 @@
     "india": "India",
     "thailand": "Thailand",
     "russia": "Russia"
+  },
+  "quality": {
+    "unknownResolution": "Resolution unknown",
+    "unknownSource": "Source unknown",
+    "disc": "Disc",
+    "lowestManual": "Lowest tier (manual)",
+    "bluray": "Blu-ray",
+    "head": "{resolution} {source}",
+    "label": "{parts}",
+    "separator": " · ",
+    "unrecognized": "Version unrecognized"
   }
 }

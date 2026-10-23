@@ -1009,5 +1009,128 @@
   },
   "cancel.processing": {
     "sourceHash": "d3d21191f32e79a50dd0d1e30c2053bc547cfebc45fbe23926674e29cb8cc8c6"
+  },
+  "upgrade.loadFailed": {
+    "sourceHash": "8360d9696ec1e44175082b2117da8ae923cc449f88bf61f7e90dddd27a3ad605"
+  },
+  "upgrade.runFailed": {
+    "sourceHash": "66db174f21b17cfbf50cd41639c9f4c849eb744419ac2a7f496ad44128b0fe44"
+  },
+  "upgrade.title": {
+    "sourceHash": "436d09aeb2873286e2b400f2c16e808f30fbcb114266e19ae440f1c03322dd9b"
+  },
+  "upgrade.resume": {
+    "sourceHash": "267b157d43a795d6d497126c44d2f4461b6b2a5091802ae9f510f1828ab04b44"
+  },
+  "upgrade.start": {
+    "sourceHash": "7d9b972864412449fc0f60606c52b17cc4622da99e6bd516e61a839820a31921"
+  },
+  "upgrade.pausedHint": {
+    "sourceHash": "e7d469362c11652c438d3ee20238971de16f9364e3a11bc92830eaa72142ccf2"
+  },
+  "upgrade.target": {
+    "sourceHash": "4e8279729e99b47b1ca6db4e294a6e7cb2536b9562750ef141d50400c1e83004"
+  },
+  "upgrade.currentRules": {
+    "sourceHash": "453ff68b6c4f52ec1c2818b035d1cb14ebf7a7b9f0b964d0be1a51dd3c17fb00"
+  },
+  "upgrade.currentRulesSentence": {
+    "sourceHash": "5e885645fc954698fe025ceab809e107f76c1d8ec93d6309a90c106600bbf648"
+  },
+  "upgrade.noRulesHint": {
+    "sourceHash": "952cfbd78bb5f080492030a9f7cf7be0379295b3922d2aaf539175a66216651d"
+  },
+  "upgrade.chooseRulesHint": {
+    "sourceHash": "537a867496e4de87459e50ed3b55eeb191b6fd57df08c39eae70105fc5e30c5c"
+  },
+  "upgrade.loadingRules": {
+    "sourceHash": "94ac363b5db1f690dfc95d4bf5fd2362af4b32aa6c868332ebf75b9a9e07414a"
+  },
+  "upgrade.newRules": {
+    "sourceHash": "0dc4a7138a13a43963a58fe5a01bdd5ee1f5b53809b2d7e719f6dbddb7fe89bd"
+  },
+  "upgrade.outsideSeasons": {
+    "sourceHash": "02b373a1556b758ad5a55fc46852a1d324ab4c8bd3adf1abfa0380d3451b0aed"
+  },
+  "upgrade.outsideHint": {
+    "sourceHash": "bb54fa7308fc85ab36972cf880fd8c152e5deef7b417a5f56e6332f3bfdecad7"
+  },
+  "upgrade.noRules": {
+    "sourceHash": "66c811ab3e17dccc6fb4d6995f00f1891d2921aae193fc5bc69c29a6d3e3ce9b"
+  },
+  "upgrade.addRules": {
+    "sourceHash": "a2a4932434676d0db679a39d6122c8bdce40b5df10c2331ad2619212d80facad"
+  },
+  "upgrade.currentBadge": {
+    "sourceHash": "5ddff4afab2765c3f9e69e60262eda391f74b44f1a44a76a94d25d20f5de2412"
+  },
+  "upgrade.back": {
+    "sourceHash": "572cf45ba43634b3448aadbc48d5398a1b32ad8a97bf42b689c394de222c30a1"
+  },
+  "upgrade.stateUpgradable": {
+    "sourceHash": "dae9f42ee9cc3c93236d2b69e5af2d07df0d46ff426a1d05903f151db0bb1a2c"
+  },
+  "upgrade.stateInFlight": {
+    "sourceHash": "934d329106321b5baf2c709dfbc960792e304d32b0b33281494034e625026049"
+  },
+  "upgrade.stateAtCutoff": {
+    "sourceHash": "4332328f8e0934bf398de57ff3567e2842cbd436f85e3d3b282fcf9b136b7a89"
+  },
+  "upgrade.stateUnknown": {
+    "sourceHash": "effdfa4936e84e4809e2002cd2d3fdac615717e1ff448f7a55e3c0e2dc40133d"
+  },
+  "upgrade.stateMissing": {
+    "sourceHash": "65364e6fd8c7b5f19a8d86c13e6cd685ec5eeb267cac0faf18b8755e6b0e8089"
+  },
+  "upgrade.unknown": {
+    "sourceHash": "4d8c1c5b42830791a4ce99f630fb9f02ba08c67c5299d46d6cf76661bfd03584"
+  },
+  "upgrade.inFlightNote": {
+    "sourceHash": "d6e87c4e84497d94495ecaeddb952647b9054e10005c49f198b373d7cb5711f2"
+  },
+  "upgrade.unknownNote": {
+    "sourceHash": "9751e7261e2bbcd81392cc229e67cb78c0d142905fa6a3ea7c514be129835c91"
+  },
+  "upgrade.missingNote": {
+    "sourceHash": "13c7b58830cb06918188fd4853fb48f7edb6f4d4eb9e2f077d8a6e69b8833991"
+  },
+  "upgrade.reportTitle": {
+    "sourceHash": "4b750745c9c7918c4d2043b96e9d05c0384ca25b35660ff2b06c0fa80485e6fa"
+  },
+  "upgrade.annotateSource": {
+    "sourceHash": "423d46b7a3eca6a64aff9be85644dfb571c55b0dafc2d65cbdd32fcd4e97a487"
+  },
+  "upgrade.followUp": {
+    "sourceHash": "8682a4440d9ad3aded90e129bcda30e73b7f86bca4d4fbf1bf42f3f84f371570"
+  },
+  "upgrade.done": {
+    "sourceHash": "c0b3fbff51ccc40b8bf1a81666e7ecced016187cbe2ac6f1d627e0d7a287e04d"
+  },
+  "upgrade.description": {
+    "sourceHash": "28eba69bae1a6af80c653e0f529b47ef07f648f383af405179c3c235d97dff74"
+  },
+  "upgrade.smartDescription": {
+    "sourceHash": "db697bc824eb0a2bfd218ffbb8d40e23dc254cd4812809c3b8c400d72347aa2b"
+  },
+  "upgrade.memberHint": {
+    "sourceHash": "49108a2c205e58715f27600c358e5e0e77f91e6fc99ff54715b45914c5119c38"
+  },
+  "upgrade.namedRules": {
+    "sourceHash": "39c141eb988969c5a04303d1fde9c19aeeb96451370c112e6449a9a9eeb4c096"
+  },
+  "upgrade.upgradeTo": {
+    "sourceHash": "fe9bbf2e81421c7ed76f69dcae1cf2ad1f8b86e1d9c47e7b838962517604f580"
+  },
+  "upgrade.owned": {
+    "sourceHash": "8d70b259301e09bbe6dffad796c5444b698cd7e335b1232f4d1af8279e7a74a3"
+  },
+  "upgrade.upgradableNote": {
+    "sourceHash": "48800edfa03854927e5787b2033ee31d3d77aa72bda56b538fa59a33b45e0758"
+  },
+  "upgrade.atCutoffNote": {
+    "sourceHash": "f30fcb6f81166e95bb2803dc363db0fcd374d078cec527dc9ab0dbdf6dc415c4"
+  },
+  "upgrade.reportSubtitle": {
+    "sourceHash": "aae7f32360b4b8f4966431df8bfe6f89ba00c12fc8d3a2539443e471b52dfd2f"
   }
 }

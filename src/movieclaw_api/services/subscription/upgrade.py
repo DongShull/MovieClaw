@@ -36,10 +36,11 @@ from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import stored_fields
-from movieclaw_api.services.subscription.matching import units_reference
+from movieclaw_api.i18n.quality_labels import quality_reference, upgrade_target_reference
+from movieclaw_api.i18n.stored import reference, render_value, stored_fields
 from movieclaw_api.services.library.quality import file_sort_key as _file_sort_key
 from movieclaw_api.services.library.quality import snapshot_from_file
+from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_db.engine import get_database
 from movieclaw_db.models import (
     LibraryFile,
@@ -302,7 +303,7 @@ async def run_upgrade_round(
         SubscriptionActivity,
     )
     from movieclaw_db.repositories import SubscriptionRepository
-    from movieclaw_matcher import provably_at_cutoff, quality_label, upgrade_target_label
+    from movieclaw_matcher import provably_at_cutoff
 
     subscription = await session.get(Subscription, subscription_id)
     if subscription is None:
@@ -393,7 +394,8 @@ async def run_upgrade_round(
     # 逐集体检 + 可洗单元排期（用户显式触发 = 补旧级 priority 0，立即到期；
     # 熔断中的视为人工介入解除，与「立即搜索」同语义）
     now = utcnow()
-    target_label = upgrade_target_label(spec) or ""
+    target_message = upgrade_target_reference(spec)
+    target_label = render_value(target_message) or ""
     units: list[dict] = []
     counts = {"upgradable": 0, "at_cutoff": 0, "in_flight": 0, "not_comparable": 0, "missing": 0}
     for wanted in sorted(rows, key=lambda w: (w.season_number, w.episode_number)):
@@ -405,7 +407,7 @@ async def run_upgrade_round(
             state = "not_comparable"
         else:
             snapshot = QualitySnapshot.model_validate(wanted.quality)
-            current_label = quality_label(snapshot, spec)
+            current_label = render_value(quality_reference(snapshot, spec))
             if unit in in_flight:
                 state = "in_flight"
             elif upgrade_ready(wanted, spec, now=now) or (
@@ -446,24 +448,54 @@ async def run_upgrade_round(
 
     summary_parts = []
     if counts["upgradable"]:
-        summary_parts.append(f"{counts['upgradable']} 个单元可洗版，已排入立即搜索")
+        summary_parts.append(
+            reference("subscription.upgrade.summaryUpgradable", count=counts["upgradable"])
+        )
     if counts["in_flight"]:
-        summary_parts.append(f"{counts['in_flight']} 个已在洗版中")
+        summary_parts.append(
+            reference("subscription.upgrade.summaryInFlight", count=counts["in_flight"])
+        )
     if counts["at_cutoff"]:
-        summary_parts.append(f"{counts['at_cutoff']} 个已达目标")
+        summary_parts.append(
+            reference("subscription.upgrade.summaryAtCutoff", count=counts["at_cutoff"])
+        )
     if counts["not_comparable"]:
-        summary_parts.append(f"{counts['not_comparable']} 个无法确认当前版本档位")
+        summary_parts.append(
+            reference("subscription.upgrade.summaryUnknown", count=counts["not_comparable"])
+        )
     if counts["missing"]:
-        summary_parts.append(f"{counts['missing']} 个缺失将照常下载")
-    summary = "；".join(summary_parts) if summary_parts else "没有可处理的单元"
+        summary_parts.append(
+            reference("subscription.upgrade.summaryMissing", count=counts["missing"])
+        )
+    summary_message = (
+        reference(
+            "subscription.upgrade.summary",
+            parts={
+                "message_list": summary_parts,
+                "separator_key": "subscription.upgrade.summarySeparator",
+            },
+        )
+        if summary_parts
+        else reference("subscription.upgrade.noUnits")
+    )
+    summary = render_value(summary_message)
 
     await session.commit()
     await SubscriptionRepository(session).add_activity(
-        SubscriptionActivity(subscription_id=subscription_id, type=ActivityType.ADJUSTED, payload={
+        SubscriptionActivity(
+            subscription_id=subscription_id,
+            type=ActivityType.ADJUSTED,
+            payload={
                 "reason": "upgrade_run",
                 "counts": counts,
                 "rule_set_id": subscription.rule_set_id,
-            }, **stored_fields('activity.subscription.upgradeRequested', target=target_label, summary=summary))
+            },
+            **stored_fields(
+                "activity.subscription.upgradeRequested",
+                target=target_message,
+                summary=summary_message,
+            ),
+        )
     )
     if counts["upgradable"] or counts["missing"]:
         from movieclaw_api.services.subscription.wanted_search import kick_search_soon
@@ -972,10 +1004,19 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                 wanted.updated_at = now
                 await session.commit()
                 await repo.add_activity(
-                    SubscriptionActivity(subscription_id=wanted.subscription_id, wanted_item_id=wanted.id, type=ActivityType.UPGRADE_VERIFY_FAILED, payload={
+                    SubscriptionActivity(
+                        subscription_id=wanted.subscription_id,
+                        wanted_item_id=wanted.id,
+                        type=ActivityType.UPGRADE_VERIFY_FAILED,
+                        payload={
                             "reason": "manual_retained",
                             "units": [[wanted.season_number, wanted.episode_number]],
-                        }, **stored_fields('activity.subscription.manualVersionKept', units=units_reference([wanted])))
+                        },
+                        **stored_fields(
+                            "activity.subscription.manualVersionKept",
+                            units=units_reference([wanted]),
+                        ),
+                    )
                 )
                 continue
             # 防御：旧版本文件必须还在位才移走证伪文件（宁可留下劣质版本，
