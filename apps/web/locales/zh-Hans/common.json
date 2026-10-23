@@ -20,5 +20,6 @@
   "selectAll": "全选",
   "stop": "停止",
   "search": "搜索",
-  "done": "完成"
+  "done": "完成",
+  "notSelected": "未选择"
 }

@@ -20,5 +20,6 @@
   "selectAll": "Select all",
   "stop": "Stop",
   "search": "Search",
-  "done": "Done"
+  "done": "Done",
+  "notSelected": "Not selected"
 }
