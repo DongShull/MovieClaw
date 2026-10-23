@@ -16,5 +16,6 @@
   "loading": "Loading…",
   "retry": "Retry",
   "back": "Back",
-  "all": "All"
+  "all": "All",
+  "selectAll": "Select all"
 }

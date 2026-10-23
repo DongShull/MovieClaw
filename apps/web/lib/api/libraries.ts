@@ -1,3 +1,4 @@
+import { requestLocale } from "../i18n/negotiate.ts";
 import { appTranslator } from "../i18n/translate.ts";
 import type { AppLocale } from "../i18n/negotiate.ts";
 import { publicEnv } from "@/lib/env";
@@ -488,19 +489,21 @@ export interface RoutingOptions {
   country_names: Record<string, string>;
 }
 
-let _routingOptionsCache: Promise<RoutingOptions> | null = null;
+const routingOptionsCache = new Map<AppLocale, Promise<RoutingOptions>>();
 
-/** 收藏范围可选项（进程内缓存：静态常量，一次拉取全程复用）。 */
-export function listLibraryRoutingOptions(): Promise<RoutingOptions> {
-  if (!_routingOptionsCache) {
-    _routingOptionsCache = unwrap(
-      request<ApiEnvelope<RoutingOptions>>("/libraries/routing-options"),
-    ).catch((e) => {
-      _routingOptionsCache = null;
-      throw e;
+/** 收藏范围标签按语言缓存；条件里的 ID 和国家码不变。 */
+export function listLibraryRoutingOptions(locale: AppLocale = requestLocale() ?? "en"): Promise<RoutingOptions> {
+  let pending = routingOptionsCache.get(locale);
+  if (!pending) {
+    pending = unwrap(
+      request<ApiEnvelope<RoutingOptions>>("/libraries/routing-options", { headers: { "Accept-Language": locale } }),
+    ).catch((error) => {
+      routingOptionsCache.delete(locale);
+      throw error;
     });
+    routingOptionsCache.set(locale, pending);
   }
-  return _routingOptionsCache;
+  return pending;
 }
 
 /**

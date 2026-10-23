@@ -28,6 +28,7 @@ from movieclaw_api.api.deps import require_admin, require_login
 from movieclaw_api.api.routes.images import WIDTH_QUERY, requested_width, sized_file
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.media_labels import routing_options_labels
 from movieclaw_api.i18n.stored import reference
 from movieclaw_api.schemas.library import (
     ActorView,
@@ -275,7 +276,6 @@ from movieclaw_db.repositories.library_cloud_repo import LibraryCloudRepository
 from movieclaw_db.repositories.library_file_repo import LibraryFileRepository
 from movieclaw_db.repositories.library_repo import LibraryRepository
 from movieclaw_db.repositories.member_repo import MemberRepository
-from movieclaw_media.genres import COUNTRY_NAMES, MOVIE_GENRES, REGION_PRESETS, TV_GENRES
 from movieclaw_media.models import MediaKind, MediaSource
 from movieclaw_playback import state as playback_state
 
@@ -972,14 +972,7 @@ async def routing_options() -> ApiResponse[dict]:
     """genre ID↔中文名与区域预设的唯一真相源在后端（movieclaw_media.genres），
     前端不自带常量表——两处各维护一份迟早漂移。"""
 
-    return ok(
-        {
-            "movie_genres": [{"id": k, "label": v} for k, v in MOVIE_GENRES.items()],
-            "tv_genres": [{"id": k, "label": v} for k, v in TV_GENRES.items()],
-            "region_presets": REGION_PRESETS,
-            "country_names": COUNTRY_NAMES,
-        }
-    )
+    return ok(routing_options_labels())
 
 
 def _schedule_orphan_cleanup(item_ids: set[int]) -> None:

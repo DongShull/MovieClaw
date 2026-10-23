@@ -12,7 +12,13 @@
   "routing": {
     "defaultCause": "Default {kind} library",
     "scopeCause": "Collection scope defined",
-    "candidateLabel": "\"{name}\" ({cause})"
+    "candidateLabel": "\"{name}\" ({cause})",
+    "mainland": "Mainland China",
+    "hongKongTaiwan": "Hong Kong and Taiwan",
+    "japanKorea": "Japan and South Korea",
+    "unitedStates": "United States",
+    "europe": "Europe",
+    "otherLanguages": "Other languages"
   },
   "operations": {
     "coverSaved": "Cover updated",

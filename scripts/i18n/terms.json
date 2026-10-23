@@ -43,5 +43,8 @@
   ],
   "player.subtitles.off": [
     "off"
+  ],
+  "settings.scrape.languageOptions": [
+    "languages"
   ]
 }

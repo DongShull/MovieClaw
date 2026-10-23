@@ -1,3 +1,4 @@
+import type { AppLocale } from "@/lib/i18n/negotiate";
 import { FilmIcon, PhotoIcon, TvIcon, VideoIcon } from "@/components/icons";
 import { LIBRARY_KIND_LABELS, libraryKindLabels, type LibraryKind } from "@/lib/media-types";
 
@@ -12,8 +13,8 @@ export const LIBRARY_KIND_META: Record<LibraryKind, { label: string; Icon: typeo
   photo: { label: LIBRARY_KIND_LABELS.photo, Icon: PhotoIcon },
 };
 
-export function libraryKindMeta() {
-  const labels = libraryKindLabels();
+export function libraryKindMeta(locale?: AppLocale) {
+  const labels = libraryKindLabels(locale);
   return {
     movie: { ...LIBRARY_KIND_META.movie, label: labels.movie },
     tv: { ...LIBRARY_KIND_META.tv, label: labels.tv },

@@ -1830,7 +1830,7 @@ nonisolated extension API {
     struct CountryOption: Codable, Hashable, Sendable {
         /// ISO 3166-1 地区码（CN / US …）
         var code: String
-        /// 地区中文名（TMDB native_name，缺失回落英文名）
+        /// 按请求语言显示的地区名；中文保留 TMDB native_name
         var name: String
 
         enum CodingKeys: String, CodingKey {

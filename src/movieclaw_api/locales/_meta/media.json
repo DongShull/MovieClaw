@@ -298,5 +298,143 @@
   },
   "extent.compactMinutes": {
     "sourceHash": "b91e5d04376b91959e992ed53ad776d504208aa5b0aea1e8ec5ae15568594619"
+  },
+  "genres.action": {
+    "sourceHash": "be37d84119d6b71f344e66ee7a428c73883a0a35ab656d0dcccbf2630b66ef40"
+  },
+  "genres.adventure": {
+    "sourceHash": "c79e8435b942cd5f0458ba78f4ede83f64770b285e5c960d3754a659b2c30b9b"
+  },
+  "genres.animation": {
+    "sourceHash": "b15435ced2c912ca903518c01bed2c6a4abb33ee93099059d8b4b5c939fd2644"
+  },
+  "genres.comedy": {
+    "sourceHash": "ada3e1532fce874a8265308b9639e8f5f831bbc5dd6ad794545cffbf6d6b9775"
+  },
+  "genres.crime": {
+    "sourceHash": "bf575eb6b97b34abd4894e9beeaab56f94de3bdb0548aaf3edc9d4cee8bf213c"
+  },
+  "genres.documentary": {
+    "sourceHash": "786e05bf8e2a23cf400c373df7d650d53ea1289763539eff1caf20481965b2e8"
+  },
+  "genres.drama": {
+    "sourceHash": "ae9c2e9dfe6606efc94984da0420fa34d4daee6aedec29080b3df6282320204d"
+  },
+  "genres.family": {
+    "sourceHash": "a70a77c75b1dc74fd1a5173a6dce3ebf078ec5fcfae237effe81b6528b6eafb5"
+  },
+  "genres.fantasy": {
+    "sourceHash": "843164916b5d2a6d3f1c14be6439f502a23627f3430576a28ea9c4020944d406"
+  },
+  "genres.history": {
+    "sourceHash": "b0385cfe4b424d835963f2ce8a27a7fec98018affaf7c44645933266b8869727"
+  },
+  "genres.horror": {
+    "sourceHash": "7a0a8357e7d7862466dd475541e19b41101a28d8d05086d44c1f1705b72e117a"
+  },
+  "genres.music": {
+    "sourceHash": "db95142124934467ce25ba303416ab0a336497c498e709e2f522d789b76fb030"
+  },
+  "genres.mystery": {
+    "sourceHash": "caeec43f50a5e879ccb72bc6cd89841c75bae5d6b92710b3fbac1bf8d3ab1726"
+  },
+  "genres.romance": {
+    "sourceHash": "6fc05aeb5bb5688ebb58dc59527da0c8371e5246d05fe372fec4fe9f4f045ee2"
+  },
+  "genres.scienceFiction": {
+    "sourceHash": "c1613bc333ed5654b1e19b16fa65cee7f2bfad1cfb7c3bbafb99b5f10c2cb6a4"
+  },
+  "genres.tvMovie": {
+    "sourceHash": "8640500dcd41d650fb94392b257897536e60e7eb47877bcbc216333f2618394a"
+  },
+  "genres.thriller": {
+    "sourceHash": "f1f038591481b0f93831492446b3504f33082b91d468fe74d21251349b55ec07"
+  },
+  "genres.war": {
+    "sourceHash": "7b29b22454c87f29dabb8ee90142abb5dd0913697cb25ce3c6994c01178d3ecf"
+  },
+  "genres.western": {
+    "sourceHash": "dca3ed381925816dd8dbcfb8a3051a2df7f8a282e431aff180ab1354a29066b1"
+  },
+  "genres.actionAdventure": {
+    "sourceHash": "3f7827a9fa89913e15474c797650f1e4a0e31c395879876674ef0d9d8d61a484"
+  },
+  "genres.kids": {
+    "sourceHash": "5246f67f9da53c6644acd6e354d173a66a21b375bfa5f3c30102ba02c8058040"
+  },
+  "genres.news": {
+    "sourceHash": "d39567b2b9f17d731d9b1ea68a6520d4d95e1673e22da4f1f727448ff5e959f3"
+  },
+  "genres.reality": {
+    "sourceHash": "b211719f8b6771120c424ea3d84c881ff6b01158c4916f809f42180e9935eef2"
+  },
+  "genres.scienceFictionFantasy": {
+    "sourceHash": "fcfce2873c57b42f1561617afbd742d561d3082d4233003cfac7fa1bfd29c8a3"
+  },
+  "genres.soap": {
+    "sourceHash": "d1322e532b4a8f66bd135a9ada5970ecc3f70958610e60aca656eadc3db72b95"
+  },
+  "genres.talk": {
+    "sourceHash": "1c24d9d6ffe911ec0369dc7b22f7edd6655c48e42699dd25c9a285730acb2813"
+  },
+  "genres.warPolitics": {
+    "sourceHash": "cf1aa5765d11795dc553a9e1c394eb28e670c6fd0ed32b9f230d29142d4284a5"
+  },
+  "regions.mainlandChina": {
+    "sourceHash": "51536645bb38a4225be70d7f909fd34f4ce2b186ad83f9f37c4fbdcbaab77dad"
+  },
+  "regions.hongKong": {
+    "sourceHash": "d448d143c4e04eb6b4f4cc790d2c17f13d0776f63746be0c27134eb225a7d36d"
+  },
+  "regions.taiwan": {
+    "sourceHash": "33db161daa042c42b9f983758c3fd669559acdfc3ffa6f4bfeb3abf51ace90cf"
+  },
+  "regions.singapore": {
+    "sourceHash": "f98b2fc82a45eadf7a1438ed0b4be1c7825925ca6a2c2c41d31f163a19aca700"
+  },
+  "regions.japan": {
+    "sourceHash": "cf2abf0c5be326cb922a70f8163f91079c4d9aa8655c60ead89ad545c9de2e92"
+  },
+  "regions.southKorea": {
+    "sourceHash": "963cd73004547f843e0530d76c31051b3617b094aba2a9680f4dc8600a9554f5"
+  },
+  "regions.unitedStates": {
+    "sourceHash": "58857e5318f3090b61e8b0944298c0cb60fa0e2cfb89a34e50da12915a3efeb4"
+  },
+  "regions.unitedKingdom": {
+    "sourceHash": "d055c3998f13e70ea26810e935dbb4bb44aa7edaeb42eea0ff5abbc2b9aa75f7"
+  },
+  "regions.france": {
+    "sourceHash": "81678972842d466307496150b434ae4bfe5b2dbad0f8064d55af16d4593e9385"
+  },
+  "regions.germany": {
+    "sourceHash": "0a7e404732db8f485b2658a1507ca2fea0dfa79b04c379eb510f40390f639d4f"
+  },
+  "regions.italy": {
+    "sourceHash": "7d3566712e910adc6fec7507cc1c6858627a55d19c8fd6890474114ec637d44b"
+  },
+  "regions.spain": {
+    "sourceHash": "bde5cc5b7e1a7eb4d7bfa5436c286639b57a85a5e50b50734776f7d452f4b9db"
+  },
+  "regions.canada": {
+    "sourceHash": "6930e3f7dd59ab4d2f00e770a9e9ced0bef6c621d0692ba46a840598663b310a"
+  },
+  "regions.australia": {
+    "sourceHash": "0b1001a02c971a01ebc585b5cb04897b35e4cb4b8cb6f91bddd2b5c622064441"
+  },
+  "regions.newZealand": {
+    "sourceHash": "14c7289f304b915203f9ae815c751629205cb1919a8bc9b017a403b0b2b2f0b0"
+  },
+  "regions.ireland": {
+    "sourceHash": "6f8eab9a291791e8608141b6582b4fa162e37a063c2665f9db49201e4b9a3fe0"
+  },
+  "regions.india": {
+    "sourceHash": "fd41ccf562904e20c2584e34893684ad032a2175b245991d11b96534a20d1b34"
+  },
+  "regions.thailand": {
+    "sourceHash": "8f6ee8c64166eba0e61a8a30442ec5422edbc6a5c52464de6bc3afd5ba33a262"
+  },
+  "regions.russia": {
+    "sourceHash": "d8fcbae05f79fb85e2fea132a9d305f4b75e4e73b2155f9491d5e35afc4a033e"
   }
 }

@@ -262,5 +262,23 @@
   },
   "artwork.logo": {
     "sourceHash": "15d28a60c831aa981f5bb3564fd5e24e6a2d636e599379f7fe8160de8297d9d2"
+  },
+  "routing.mainland": {
+    "sourceHash": "fe38d6275b99be29acf1e6d87e132a1f73d4905615ae36368d1d2c35a085b456"
+  },
+  "routing.hongKongTaiwan": {
+    "sourceHash": "db6e51d75d5835fa678c3c21c70713594b55db91c421f00a2063484f308ac995"
+  },
+  "routing.japanKorea": {
+    "sourceHash": "e0a2cb158ab0f611e073e118a37ef58add69cdf371f7651728ddd0fba2e541b5"
+  },
+  "routing.unitedStates": {
+    "sourceHash": "58857e5318f3090b61e8b0944298c0cb60fa0e2cfb89a34e50da12915a3efeb4"
+  },
+  "routing.europe": {
+    "sourceHash": "8ef85828ff9c38e971b5bb419891dd12332a15a69ba3e7acf29d58cfb0e39ab8"
+  },
+  "routing.otherLanguages": {
+    "sourceHash": "e972e866a7c9b4c004b098b898a72b2654773dc38509acf9f9a06cdc423ab57b"
   }
 }

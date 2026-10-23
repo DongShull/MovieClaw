@@ -10,6 +10,7 @@
  */
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 import { InfoIcon, XIcon } from "@/components/icons";
 import { LiquidGlassButton } from "@/components/liquid-glass";
@@ -59,7 +60,7 @@ export function Banner({
   children,
   action,
   onDismiss,
-  dismissLabel = "关闭",
+  dismissLabel,
 }: {
   tone: Tone;
   title?: string;
@@ -68,6 +69,7 @@ export function Banner({
   onDismiss?: () => void;
   dismissLabel?: string;
 }) {
+  const t = useTranslations();
   return (
     <div
       role="status"
@@ -89,8 +91,8 @@ export function Banner({
         <button
           type="button"
           onClick={onDismiss}
-          aria-label={dismissLabel}
-          title={dismissLabel}
+          aria-label={dismissLabel ?? t("common.close")}
+          title={dismissLabel ?? t("common.close")}
           className="-mr-1 shrink-0 rounded-full p-1 text-[var(--text-faint)] transition-colors hover:bg-white/[0.08] hover:text-[var(--text)]"
         >
           <XIcon className="size-4" />
@@ -121,6 +123,7 @@ export function Toggle({
   disabled?: boolean;
   onChange: (next: boolean) => void;
 }) {
+  const t = useTranslations();
   const { backdrop } = useBackdrop();
   return (
     <LiquidGlassButton
@@ -132,7 +135,7 @@ export function Toggle({
       onCheckedChange={onChange}
       className="!min-h-0 !w-auto !gap-0 !bg-transparent !p-0"
     >
-      <span className="sr-only">{checked ? "已开启" : "已关闭"}</span>
+      <span className="sr-only">{checked ? t("settings.controls.enabled") : t("settings.controls.disabled")}</span>
     </LiquidGlassButton>
   );
 }

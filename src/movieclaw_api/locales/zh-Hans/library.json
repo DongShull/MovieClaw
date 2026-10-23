@@ -12,7 +12,13 @@
   "routing": {
     "defaultCause": "{kind}默认库",
     "scopeCause": "声明了收藏范围",
-    "candidateLabel": "「{name}」（{cause}）"
+    "candidateLabel": "「{name}」（{cause}）",
+    "mainland": "大陆",
+    "hongKongTaiwan": "港台",
+    "japanKorea": "日韩",
+    "unitedStates": "美国",
+    "europe": "欧洲",
+    "otherLanguages": "小语种"
   },
   "operations": {
     "coverSaved": "封面已更新",
