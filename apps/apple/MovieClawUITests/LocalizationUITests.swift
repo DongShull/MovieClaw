@@ -86,4 +86,47 @@ final class LocalizationUITests: XCTestCase {
         }
     }
 
+    @MainActor func testPlaybackMenusUseTheEffectiveLanguage() throws {
+        let env = ProcessInfo.processInfo.environment
+        let item = try XCTUnwrap(env["MC_TEST_PLAYER_ITEM"])
+        for (language, paused, quality, subtitles, diagnostics) in [
+            ("en", "Pause", "Quality", "Subtitles", "Playback diagnostics"),
+            ("zh-Hans", "暂停", "画质", "字幕", "播放诊断"),
+        ] {
+            app.launchArguments = ["--reset-state", "--ui-testing", "-mcServer", env["MC_TEST_SERVER"]!,
+                                   "-mcUser", "admin", "-mcPass", env["MC_TEST_PASSWORD"]!,
+                                   "-mcRoute", "/play/\(item)/s00e00?t=0", "-mcPlayerDiagnostics", "YES",
+                                   "-mcPlayerPinChrome", "YES", "-AppleLanguages", "(\(language))",
+                                   "-AppleLocale", "en_US"]
+            app.launch()
+            XCTAssertTrue(app.otherElements["player-screen"].waitForExistence(timeout: 30))
+            let time = app.staticTexts["player-time"]
+            let advanced = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                Int(time.value as? String ?? "0").map { $0 >= 2 } ?? false
+            }, object: time)
+            XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 60), .completed)
+            let pause = app.buttons["player-play-pause"]
+            XCTAssertEqual(pause.label, paused)
+            pause.tap()
+            XCTAssertTrue(app.staticTexts[diagnostics].exists)
+            if language == "en" {
+                let panel = app.otherElements["player-diagnostics"]
+                let text = panel.staticTexts.allElementsBoundByIndex.map(\.label).joined()
+                XCTAssertNil(text.range(of: "[\\u3400-\\u9fff]", options: .regularExpression), text)
+            }
+            let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            shot.name = "playback-diagnostics-\(language)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            app.buttons["player-设置"].tap()
+            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", quality)).firstMatch.waitForExistence(timeout: 5))
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.35)).tap()
+            app.buttons["player-字幕"].tap()
+            XCTAssertTrue(app.staticTexts[subtitles].waitForExistence(timeout: 5))
+            XCTAssertEqual(app.buttons["subtitle-off"].label, language == "en" ? "Off" : "关闭")
+            app.buttons["subtitle-off"].tap()
+            app.terminate()
+        }
+    }
+
 }

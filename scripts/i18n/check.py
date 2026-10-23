@@ -183,8 +183,16 @@ def check_catalogs() -> list[str]:
                     errors.append(f"{path.relative_to(ROOT)}: unknown key {key.value}")
     apple_originals = ROOT / "scripts/i18n/apple-migrations.json"
     if apple_originals.exists():
-        catalog = json.loads((ROOT / "apps/apple/Shared/Localizable.xcstrings").read_text())
-        for key, original in json.loads(apple_originals.read_text()).items():
+        catalogs = {}
+        for identifier, original in json.loads(apple_originals.read_text()).items():
+            path, key = (
+                identifier.split(":", 1)
+                if ":" in identifier
+                else ("Shared/Localizable.xcstrings", identifier)
+            )
+            if path not in catalogs:
+                catalogs[path] = json.loads((ROOT / "apps/apple" / path).read_text())
+            catalog = catalogs[path]
             value = catalog["strings"].get(key, {}).get("localizations", {}).get("zh-Hans", {})
             if value.get("stringUnit", {}).get("value") != original:
                 errors.append(f"Apple Chinese changed during migration: {key}")

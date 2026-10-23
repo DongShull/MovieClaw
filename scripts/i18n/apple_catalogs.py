@@ -4,7 +4,7 @@ import hashlib
 import json
 import re
 
-SPECIFIER = re.compile(r"%%|%(?:(\d+)\$)?(?:[-+ 0#]*\d*(?:\.\d+)?)?(lld|ld|d|llu|lu|u|f|@)")
+SPECIFIER = re.compile(r"%%|%(?:(\d+)\$)?(?:[-+ 0#]*\d*(?:\.\d+)?)?(lld|ld|d|llu|lu|u|lf|f|@)")
 
 
 def normalize_printf(text, names):

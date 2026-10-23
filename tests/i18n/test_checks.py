@@ -106,10 +106,17 @@ def test_ratchet_excludes_logs_and_honors_swift_data_exemptions(catalog, monkeyp
     assert check.baseline() == {"apps/apple/Shared/UI.swift": 1, "src/movieclaw_api/example.py": 1}
 
 
-def test_apple_chinese_migration_is_locked(catalog):
+@pytest.mark.parametrize(
+    "path,prefix",
+    [
+        ("Shared/Localizable.xcstrings", ""),
+        ("AetherCore/Localizable.xcstrings", "AetherCore/Localizable.xcstrings:"),
+    ],
+)
+def test_apple_chinese_migration_is_locked(catalog, path, prefix):
     root, write = catalog
     write(
-        root / "apps/apple/Shared/Localizable.xcstrings",
+        root / "apps/apple" / path,
         {
             "strings": {
                 "common.confirm": {
@@ -120,7 +127,7 @@ def test_apple_chinese_migration_is_locked(catalog):
             },
         },
     )
-    write(root / "scripts/i18n/apple-migrations.json", {"common.confirm": "确定"})
+    write(root / "scripts/i18n/apple-migrations.json", {prefix + "common.confirm": "确定"})
     assert "Apple Chinese changed during migration: common.confirm" in check.check_catalogs()
 
 

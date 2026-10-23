@@ -23,6 +23,14 @@ apple = load("apple_checks", "apple_catalogs.py")
 merger = load("catalog_merger", "xcstrings-merge.py")
 
 
+def test_double_printf_preserves_its_type_and_logical_parameter():
+    assert apple.normalize_printf("%.1lf 秒", ["seconds"]) == ("{seconds} 秒", {0: "lf"})
+    assert apple.normalize_printf("%1$.1lf seconds", ["seconds"]) == (
+        "{seconds} seconds",
+        {0: "lf"},
+    )
+
+
 @pytest.fixture
 def catalog(tmp_path):
     source = "%lld 小时 %lld 分钟"

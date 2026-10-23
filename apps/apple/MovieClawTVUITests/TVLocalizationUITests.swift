@@ -54,6 +54,36 @@ final class TVLocalizationUITests: XCTestCase {
         XCTAssertEqual(about.label, "About")
     }
 
+    @MainActor func testEnglishPlaybackPanelUsesRealMedia() throws {
+        let env = ProcessInfo.processInfo.environment
+        let item = try XCTUnwrap(env["MC_TEST_PLAYER_ITEM"])
+        let app = XCUIApplication()
+        app.launchArguments = ["--reset-state", "--ui-testing", "-mcServer", env["MC_TEST_SERVER"]!,
+                               "-mcUser", "admin", "-mcPass", env["MC_TEST_PASSWORD"]!,
+                               "-mcRoute", "/play/\(item)/s00e00?t=0", "-AppleLanguages", "(en)",
+                               "-AppleLocale", "en_US"]
+        app.launch()
+        let surface = app.element("tv-player-surface")
+        XCTAssertTrue(surface.waitForExistence(timeout: 30))
+        let focused = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasFocus == true"), object: surface)
+        XCTAssertEqual(XCTWaiter.wait(for: [focused], timeout: 12), .completed)
+        XCTAssertEqual(surface.label, "Pause")
+        let transport = app.element("tv-player-transport")
+        let playing = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            transport.label.range(of: "\\b0:(?!00)\\d\\d\\b", options: .regularExpression) != nil
+        }, object: transport)
+        XCTAssertEqual(XCTWaiter.wait(for: [playing], timeout: 60), .completed)
+        TVRemote.press(.down)
+        let panel = app.element("tv-player-panel")
+        XCTAssertTrue(panel.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Subtitles"].exists)
+        XCTAssertTrue(app.staticTexts["Audio track"].exists)
+        XCTAssertTrue(app.staticTexts["Quality"].exists)
+        let text = panel.staticTexts.allElementsBoundByIndex.map(\.label).joined()
+        XCTAssertNil(text.range(of: "[\\u3400-\\u9fff]", options: .regularExpression), text)
+        snapshot("tv-playback-panel-en")
+    }
+
     @MainActor func testTraditionalChineseUsesSimplifiedAlias() {
         let app = launch("zh-Hant")
         let about = app.buttons["tv-profiles-about"]

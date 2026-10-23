@@ -251,7 +251,7 @@ private struct TVPlayerContent: View {
         .disabled(panel != nil || isModal)
         .onMoveCommand(perform: handleMove)
         .ignoresSafeArea()
-        .accessibilityLabel(controller.paused ? "播放" : "暂停")
+        .accessibilityLabel(controller.paused ? String(localized: .playerControlsPlay) : String(localized: .playerControlsPause))
         .accessibilityIdentifier("tv-player-surface")
     }
 
@@ -284,7 +284,7 @@ private struct TVPlayerContent: View {
                 VStack(spacing: 6) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 22, weight: .bold))
-                    Text(TVPlayerPanel.tabs(for: controller).map(\.rawValue).joined(separator: " · "))
+                    Text(TVPlayerPanel.tabs(for: controller).map(\.title).joined(separator: " · "))
                         .font(.caption)
                 }
                 .foregroundStyle(.white.opacity(0.7))
@@ -370,13 +370,13 @@ private struct TVPlayerContent: View {
         } else if controller.asksStillWatching, let next = controller.nextEpisode {
             // 连播满上限后放完：停在这里问一句，不再自动接（返回键 = 不看了）
             TVPlayerDialog(
-                title: "还在看《\(controller.title)》吗？",
-                message: "已经连续自动播放 \(SkipSegments.autoNextMaxStreak) 集。下一集等你确认后再播。",
-                primary: ("继续看第 \(next.episodeNumber) 集", {
+                title: String(localized: .playerControlsStillWatchingTitle(controller.title)),
+                message: String(localized: .playerControlsAutoNextLimit(SkipSegments.autoNextMaxStreak)),
+                primary: (String(localized: .playerControlsContinueEpisode(next.episodeNumber)), {
                     controller.noteUserActivity()
                     controller.playNext()
                 }),
-                secondary: ("不看了", exit),
+                secondary: (String(localized: .playerControlsStopWatching), exit),
                 icon: nil
             )
             .focused($focus, equals: .dialog)
@@ -630,7 +630,7 @@ enum TVPlayerDebug {
         if pauseAt > 0 {
             Task {
                 try? await Task.sleep(for: .seconds(pauseAt))
-                log("暂停")
+                log(String(localized: .playerControlsPause))
                 controller.pause()
             }
         }

@@ -35,10 +35,10 @@ final class PlaybackController {
         /// 转圈时说清楚卡在哪一段（文案同 Web busyLabel）
         var busyLabel: String {
             switch self {
-            case .deciding: "正在判断播放方式…"
-            case .sessionStarting: "正在准备视频流…"
-            case .degrading: "这一档放不出来，正在降档重试…"
-            default: "正在缓冲…"
+            case .deciding: String(localized: .playerBusyDeciding)
+            case .sessionStarting: String(localized: .playerBusySessionStarting)
+            case .degrading: String(localized: .playerBusyDegrading)
+            default: String(localized: .playerBusyBuffering)
             }
         }
     }
@@ -577,7 +577,7 @@ final class PlaybackController {
         return code
     }
 
-    var title: String { info?.title ?? "正在播放" }
+    var title: String { info?.title ?? String(localized: .playerControlsPlaying) }
 
     func playNext() {
         guard let next = nextEpisode else { return }
@@ -878,7 +878,7 @@ final class PlaybackController {
                 // 播放中重开时服务端暂时连不上（多半在重启）：隔几秒自动再试，不直接落到错误页
                 log("reconnect-retry", ["reason": .string(error.localizedDescription), "delay_s": .int(Int(delay))])
                 record?.beginReconnect(reason: error.localizedDescription)
-                flash("连接中断，正在重连…")
+                flash(String(localized: .playerErrorsReconnecting))
                 try? await Task.sleep(for: .seconds(delay))
                 guard myAttempt == attempt, !closed else { return }
                 request(startMs: positionMs, phase: .sessionStarting)
@@ -923,7 +923,7 @@ final class PlaybackController {
                                      isAi: $0.isAi, title: $0.title, isForced: $0.isForced)
             },
             degradedFrom: nil, disc: nil, discPlaylist: nil, costHint: nil, canSelfEnable: nil,
-            settingNamespace: nil, settingKey: nil, reason: "播放 \(ClientPlatform.deviceName) 上的副本", suggestion: nil
+            settingNamespace: nil, settingKey: nil, reason: String(localized: .playerOfflinePlayingCopy(ClientPlatform.deviceName)), suggestion: nil
         )
         let session = API.PlaybackSessionView(
             decision: decision, sessionId: nil, streamUrl: file.absoluteString, progressiveSegments: false,
@@ -937,7 +937,7 @@ final class PlaybackController {
             chapters: spec?.chapters ?? [], segments: spec?.segments, matroskaCues: nil
         )
         localUnit = local
-        record?.event("local", "播放本机副本（\(local.profileLabel)）")
+        record?.event("local", String(localized: .playerOfflinePlayingProfile(local.profileLabel)))
         await handleSession(session, useNative: true, requestedStartMs: startMs, localFile: file)
     }
 
@@ -979,14 +979,14 @@ final class PlaybackController {
                 if dropped?.kind == "pgs" {
                     selectedSubtitle = nil
                     subtitleTouched = true
-                    flash("图形字幕需要服务端转码压制，当前未开启软件转码，已关闭字幕")
+                    flash(String(localized: .playerErrorsBitmapConsent))
                 }
                 request(startMs: positionMs, phase: .sessionStarting)
                 return
             }
             if consentGranted {
-                fail("软件转码开关已保存，但服务端仍在请求开启确认",
-                     suggestion: "开关可能没有生效（例如服务端刚重启）。请退出重试；若反复出现，请查看服务端日志排查。")
+                fail(String(localized: .playerErrorsConsentRepeated),
+                     suggestion: String(localized: .playerErrorsNativeConsentHint))
                 return
             }
             pendingDecision = decision
@@ -1000,7 +1000,7 @@ final class PlaybackController {
             consentGranted = false
         }
         guard let fileId = decision.fileId else {
-            fail("服务端没有给出可播放的文件", suggestion: nil)
+            fail(String(localized: .playerErrorsNoPlayableFile), suggestion: nil)
             return
         }
 
@@ -1046,7 +1046,7 @@ final class PlaybackController {
             activeSessionId = session.sessionId
         }
         guard let url else {
-            fail("服务端没有给出播放地址", suggestion: nil)
+            fail(String(localized: .playerErrorsNoStreamUrl), suggestion: nil)
             return
         }
         playsOriginalFile = original || decision.tier == 0
@@ -1098,7 +1098,7 @@ final class PlaybackController {
                 guard requestedAt == attempt, !closed else { return }
                 // 清单是向服务器要的：连不上是网络问题（隔几秒重开，不换播放器），404 是文件不在了，其余才算本机放不了
                 if Self.isTransient(error), let delay = reconnectBackoff.nextDelay() {
-                    flash("连接中断，正在重连…")
+                    flash(String(localized: .playerErrorsReconnecting))
                     try? await Task.sleep(for: .seconds(delay))
                     guard requestedAt == attempt, !closed else { return }
                     request(startMs: positionMs, phase: .sessionStarting)
@@ -1108,7 +1108,7 @@ final class PlaybackController {
                     failSourceMissing()
                     return
                 }
-                nativeFallback(reason: "原盘目录清单读取失败：\(error.localizedDescription)")
+                nativeFallback(reason: String(localized: .playerErrorsDiscListing(error.localizedDescription)))
                 return
             }
             // 拉清单期间用户退出、或已经发起了新的请求：这份结果作废
@@ -1262,7 +1262,7 @@ final class PlaybackController {
 
     /// 片源不在了（服务端对原文件回 404）：换什么播放器都一样，直接说明
     private func failSourceMissing() {
-        fail("服务器上找不到这个文件", suggestion: "文件可能被移动、删除，或存放它的磁盘没有挂上。检查后点「重试」。",
+        fail(String(localized: .playerErrorsSourceMissing), suggestion: String(localized: .playerErrorsNativeSourceMissingHint),
              category: "source_missing")
     }
 
@@ -1281,7 +1281,7 @@ final class PlaybackController {
     /// 原盘目录清单（`/playback/files/{id}/disc?token=`）→ 引擎要的文件列表（各文件地址已带取流令牌）
     private func discFolderFiles(fileId: Int, listing: URL) async throws -> [NativeDiscFile] {
         guard let token = PlaybackAPI.token(in: listing.absoluteString) else {
-            throw APIError.decoding("目录清单地址缺少取流令牌")
+            throw APIError.decoding(String(localized: .playerErrorsDiscTokenMissing))
         }
         let view = try await scope.api.playbackFileDiscList(fileId: fileId, token: token)
         return view.files.compactMap { file in
@@ -1313,7 +1313,7 @@ final class PlaybackController {
             }
             localUnit = nil
             if ServerReachability.shared.isOffline {
-                fail("\(ClientPlatform.deviceName) 上的这份副本放不了", suggestion: "文件可能已损坏。连上服务器后删除并重新下载。（\(reason)）", category: "decode")
+                fail(String(localized: .playerOfflineCopyFailed(ClientPlatform.deviceName)), suggestion: String(localized: .playerOfflineCopyFailedHint(reason)), category: "decode")
                 return
             }
             request(startMs: positionMs, phase: .degrading)
@@ -1325,7 +1325,7 @@ final class PlaybackController {
         print("[EngineFallback] 自研引擎 → 服务端流：\(reason)")
         // 引擎测试不许起服务端转码（转码器上会留下记录）：-mcNoServerFallback YES 时停在错误页
         if UserDefaults.standard.bool(forKey: "mcNoServerFallback") {
-            fail("自研引擎放不了：\(reason)", suggestion: "测试开关 -mcNoServerFallback 拦下了改走服务端流", category: "decode")
+            fail(String(localized: .playerEngineNativeFailedDetail(reason)), suggestion: "测试开关 -mcNoServerFallback 拦下了改走服务端流", category: "decode")
             return
         }
         #endif
@@ -1334,7 +1334,7 @@ final class PlaybackController {
             "from": .string("native"), "reason": .string(reason),
             "media_item_id": .int(unit.mediaItemId),
         ])
-        flash("本机解不了这个文件，改由服务端转换后播放")
+        flash(String(localized: .playerErrorsServerFallback))
         request(startMs: positionMs, phase: .sessionStarting)
     }
 
@@ -1363,7 +1363,7 @@ final class PlaybackController {
         let saved = try await scope.api.playbackPolicySet(body: API.PlaybackPolicyPayload(softwareTranscodeEnabled: true))
         // 保存接口回显的是落库后的取值：不是 true 说明开关根本没生效，不能假装成功
         guard saved.softwareTranscodeEnabled else {
-            throw APIError.http(status: 500, message: "软件转码开关保存后未生效，请重试或查看服务端日志", code: nil)
+            throw APIError.http(status: 500, message: String(localized: .playerErrorsNativeConsentSaveFailed), code: nil)
         }
         consentGranted = true
         record?.endUserWait()
@@ -1411,7 +1411,7 @@ final class PlaybackController {
                 }
                 #endif
             }
-            if !trace.has("播放") {
+            if !trace.has(String(localized: .playerControlsPlay)) {
                 trace.mark("播放")
                 reportStartupIfComplete()
                 Task { [weak self] in
@@ -1450,11 +1450,11 @@ final class PlaybackController {
             if holdSpeedActive, starved {
                 // 倍速吃光了前向缓冲：退回原速
                 endHoldSpeed()
-                flash("缓冲跟不上，已退出 2 倍速")
+                flash(String(localized: .playerErrorsSpeedBuffering))
             } else if rate > 1, starved, wasPlaying, seekStartedAt == nil {
                 // 菜单选的加速也一样：线路或转码供不上这个速度，退回正常速度（并记下，下一集不再卡）
                 selectRate(1)
-                flash("缓冲跟不上，已回到正常速度")
+                flash(String(localized: .playerErrorsSpeedNormal))
             }
         case .ended:
             guard [.buffering, .playing].contains(phase) else { return }
@@ -1508,7 +1508,7 @@ final class PlaybackController {
     /// 首帧上屏且已开始播放：把起播分段上报一次（服务端日志一行「起播分段」，开发期同时打控制台）。
     /// 引擎给不出首帧信号时（极少数流），开始播放 3 秒后照样报，只是缺「首帧」一项
     private func reportStartupIfComplete(force: Bool = false) {
-        guard trace.has("播放"), force || trace.has("首帧"), let marks = trace.finish() else { return }
+        guard trace.has(String(localized: .playerControlsPlay)), force || trace.has("首帧"), let marks = trace.finish() else { return }
         record?.noteStartupMarks(marks.map { ($0.name, $0.ms) })
         var detail: [String: API.JSONValue] = [
             "engine": .string(engine?.kind.rawValue ?? ""),
@@ -1595,20 +1595,20 @@ final class PlaybackController {
         case .retryNative:
             log("native-retry", ["reason": .string(reason)])
             record?.event("native_retry", "原位重开：\(reason)")
-            flash("播放出了点问题，正在原位重开")
+            flash(String(localized: .playerErrorsRestarting))
             request(startMs: positionMs, phase: .sessionStarting)
         case .retryNativeLowStorage:
             log("native-retry", ["reason": .string(reason), "low_storage": .bool(true)])
             record?.event("native_retry", "存储不足，收小缓存重开：\(reason)")
             forceMinimalStorage = true
-            flash("\(ClientPlatform.deviceNoun)存储空间不足，已减小缓存后继续播放")
+            flash(String(localized: .playerErrorsStorageReducedCache(ClientPlatform.deviceNoun)))
             request(startMs: positionMs, phase: .sessionStarting)
         case .failSourceMissing:
             log("source-missing", ["reason": .string(reason)])
             failSourceMissing()
         case .failNetwork:
             log("network-restart-exhausted", ["reason": .string(reason)])
-            fail("连接中断，重连了几次都没成功（\(reason)）", suggestion: "检查网络后点「重试」，会从刚才的位置接着放。",
+            fail(String(localized: .playerErrorsConnectionLost(reason)), suggestion: String(localized: .playerErrorsRetryHint),
                  category: "network")
         case .fallbackToServerStream:
             nativeFallback(reason: reason)
@@ -1627,7 +1627,7 @@ final class PlaybackController {
         failureInFlight = true
         let myAttempt = attempt
         phase = .sessionStarting
-        flash("连接中断，正在重连…")
+        flash(String(localized: .playerErrorsReconnecting))
         Task { [weak self] in
             var backoff = ReconnectBackoff()
             while true {
@@ -1646,7 +1646,7 @@ final class PlaybackController {
                     guard let delay = backoff.nextDelay() else {
                         self.failureInFlight = false
                         self.log("network-restart-exhausted", ["reason": .string(why)])
-                        self.fail("连接中断，重连了几次都没成功（\(why)）", suggestion: "检查网络后点「重试」，会从刚才的位置接着放。",
+                        self.fail(String(localized: .playerErrorsConnectionLost(why)), suggestion: String(localized: .playerErrorsRetryHint),
                                   category: "network")
                         return
                     }
@@ -1672,7 +1672,7 @@ final class PlaybackController {
         failedTiers = accumulated.sorted()
         failureCount += 1
         if tier >= 4 {
-            fail(reason, suggestion: "可以换一个版本重试；若反复出现，请打开「⋯ → 播放诊断」查看原因。", category: "decode")
+            fail(reason, suggestion: String(localized: .playerErrorsTryAnotherVersion), category: "decode")
             return
         }
         request(startMs: positionMs, phase: .degrading)
@@ -2302,7 +2302,7 @@ final class PlaybackController {
         guard state?.endedByAdmin == true, phase != .error else { return }
         engine?.pause()
         leaveUnit()
-        fail("管理员已结束本次播放", suggestion: "稍后可以重新开始播放；观看进度已经保存。")
+        fail(String(localized: .playerErrorsEndedByAdmin), suggestion: String(localized: .playerErrorsEndedByAdminHint))
     }
 
     // MARK: - 读数循环（4Hz 位置 / 1Hz 速度）
@@ -2438,7 +2438,7 @@ final class PlaybackController {
               let dropped = stats.droppedFrames, let total = stats.totalFrames else { return }
         if let ratio = frameDrops.sample(dropped: dropped, total: total), ratio >= FrameDropTracker.ratio {
             frameDrops.reset()
-            engineFailed(reason: "直通播放持续掉帧（\(Int((ratio * 100).rounded()))%），正在换转码重试", cause: .decode)
+            engineFailed(reason: String(localized: .playerErrorsNativeFrameDrops(Int((ratio * 100).rounded()))), cause: .decode)
         }
     }
 

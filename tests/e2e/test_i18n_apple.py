@@ -11,6 +11,7 @@ import plistlib
 import sqlite3
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -61,7 +62,47 @@ def test_apple_language_flow(tmp_path, platform):
         )
         try:
             theme._wait_http(f"{base}/api/v1/auth/bootstrap", 90)
-            assert httpx.post(f"{base}/api/v1/auth/bootstrap", json=theme.ADMIN).is_success
+            with httpx.Client(base_url=base) as fixture:
+                assert fixture.post("/api/v1/auth/bootstrap", json=theme.ADMIN).is_success
+                player_item = None
+                media = tmp_path / "media"
+                media.mkdir()
+                subprocess.run(
+                    [
+                        "ffmpeg", "-v", "error", "-f", "lavfi", "-i",
+                        "testsrc2=size=320x180:rate=24:duration=90", "-f", "lavfi", "-i",
+                        "sine=frequency=440:duration=90",
+                        "-map", "0:v", "-map", "1:a", "-map", "1:a",
+                        "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+                        "-c:a", "aac", "-metadata:s:a:0", "language=eng",
+                        "-metadata:s:a:1", "language=jpn",
+                        "-movflags", "+faststart", str(media / "English playback.mp4"),
+                    ],
+                    check=True,
+                )  # fmt: skip
+                (media / "English playback.en.srt").write_text(
+                    "1\n00:00:00,000 --> 00:01:30,000\nEnglish subtitle probe\n",
+                    encoding="utf8",
+                )
+                response = fixture.post(
+                    "/api/v1/libraries",
+                    json={
+                        "name": "Playback fixture",
+                        "kind": "video",
+                        "source": "local",
+                        "root_paths": [str(media)],
+                    },
+                )
+                assert response.is_success, response.text
+                library = response.json()["data"]["id"]
+                deadline = time.monotonic() + 60
+                while time.monotonic() < deadline:
+                    items = fixture.get(f"/api/v1/libraries/{library}/items").json()["data"]
+                    if items:
+                        player_item = items[0]["media_item_id"]
+                        break
+                    time.sleep(0.2)
+                assert player_item is not None
             for name in (
                 ("MovieClawTVUITests",)
                 if platform == "tvos"
@@ -74,6 +115,8 @@ def test_apple_language_flow(tmp_path, platform):
                         "MC_TEST_PASSWORD": theme.ADMIN["password"],
                     }
                 )
+                if player_item is not None:
+                    config[name]["EnvironmentVariables"]["MC_TEST_PLAYER_ITEM"] = str(player_item)
             run.write_bytes(plistlib.dumps(config))
             with (artifacts / "xcodebuild.log").open("w") as log:
                 result = subprocess.run(
@@ -100,6 +143,7 @@ def test_apple_language_flow(tmp_path, platform):
             expected = (
                 [
                     "testEnglishAccountAndAboutUseRealServer",
+                    "testEnglishPlaybackPanelUsesRealMedia",
                     "testTraditionalChineseUsesSimplifiedAlias",
                 ]
                 if platform == "tvos"
@@ -107,6 +151,7 @@ def test_apple_language_flow(tmp_path, platform):
                     "testFreshSignInUsesEnglishAndChineseMessages",
                     "testEnglishNetworkAndValidationErrors",
                     "testEnglishPluralVariations",
+                    "testPlaybackMenusUseTheEffectiveLanguage",
                 ]
             )
             for test_name in expected:

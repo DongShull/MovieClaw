@@ -575,7 +575,7 @@ private struct PlayerContent: View {
                     HStack {
                         Spacer()
                         PlayerUpNextCard(
-                            code: "第 \(next.episodeNumber) 集",
+                            code: String(localized: .mediaEpisodeNumber(next.episodeNumber)),
                             name: next.name.flatMap { $0.isEmpty ? nil : $0 },
                             still: controller.scope.api.image(next.stillUrl, width: ImageWidth.points(PlayerUpNextCard.stillWidth)),
                             countdown: controller.autoNextArmed ? controller.autoNextProgress : nil,
@@ -675,13 +675,13 @@ private struct PlayerContent: View {
     private func lockButton(unlock: Bool) -> some View {
         HStack {
             if unlock {
-                GlassIconButton(systemImage: "lock.open", label: "解锁", identifier: "player-unlock") {
+                GlassIconButton(systemImage: "lock.open", label: String(localized: .playerControlsUnlock), identifier: "player-unlock") {
                     locked = false
                     lockHint = false
                     chromeVisible = true
                 }
             } else {
-                GlassIconButton(systemImage: "lock", label: "锁屏", identifier: "player-lock") {
+                GlassIconButton(systemImage: "lock", label: String(localized: .playerControlsLock), identifier: "player-lock") {
                     locked = true
                     menu = .none
                     revealLock()
@@ -751,7 +751,7 @@ private struct PlayerContent: View {
         VStack {
             if controller.holdSpeedActive {
                 PlayerHUD {
-                    Text("2× 快进中").monospacedDigit()
+                    Text(String(localized: .playerControlsSpeedFastForward)).monospacedDigit()
                     Image(systemName: "forward.fill")
                 }
                 .accessibilityIdentifier("player-hold-speed")
@@ -759,7 +759,7 @@ private struct PlayerContent: View {
                 PlayerHUD {
                     Image(systemName: adjust.side == .brightness ? "sun.max.fill" : (adjust.value <= 0.001 ? "speaker.slash.fill" : "speaker.wave.2.fill"))
                     if adjust.side == .volume, volumeUnsupported {
-                        Text("音量由系统侧键控制")
+                        Text(String(localized: .playerControlsVolumeKeys))
                     } else {
                         LevelBar(value: adjust.value)
                     }

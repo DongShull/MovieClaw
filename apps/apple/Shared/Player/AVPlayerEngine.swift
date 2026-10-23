@@ -208,8 +208,8 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
         )
         sampleBandwidthFromLoading(loading, at: now)
         var details: [String] = []
-        if player.isExternalPlaybackActive { details.append("隔空播放中") }
-        if isPictureInPictureActive { details.append("画中画中") }
+        if player.isExternalPlaybackActive { details.append(String(localized: .playerEngineAirplayActive)) }
+        if isPictureInPictureActive { details.append(String(localized: .playerEnginePipActive)) }
         return EngineStats(
             engine: kind.rawValue,
             downlinkBps: bandwidthMeter.bps ?? observed,
@@ -411,7 +411,7 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
             center.addObserver(forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main) { [weak self] note in
                 let error = note.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
                 MainActor.assumeIsolated {
-                    self?.onEvent?(.failed(reason: Self.describe(error, fallback: "播放中断"), cause: Self.cause(of: error)))
+                    self?.onEvent?(.failed(reason: Self.describe(error, fallback: String(localized: .playerEngineInterrupted)), cause: Self.cause(of: error)))
                 }
             },
         ]
@@ -439,7 +439,7 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
                 beginPlayback()
             }
         case .failed:
-            onEvent?(.failed(reason: Self.describe(error, fallback: "系统播放器无法播放这个流"), cause: Self.cause(of: error)))
+            onEvent?(.failed(reason: Self.describe(error, fallback: String(localized: .playerEngineSystemFailed)), cause: Self.cause(of: error)))
         default:
             break
         }
@@ -491,7 +491,7 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
     private static func describe(_ error: Error?, fallback: String) -> String {
         guard let error = error as NSError? else { return fallback }
         let detail = error.localizedFailureReason ?? error.localizedDescription
-        return "\(fallback)（\(detail)，代码 \(error.code)）"
+        return String(localized: .playerEngineDetailedError(fallback, detail, error.code))
     }
 }
 

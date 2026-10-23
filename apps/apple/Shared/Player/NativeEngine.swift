@@ -302,8 +302,8 @@ final class NativeEngine: NSObject, PlayerEngine {
             bandwidthMeter.push(bps: loading, at: now)
         }
         var details = readouts.details
-        details.append(playsOriginalFile ? "直出原文件" : "播放服务端 HLS")
-        if isPictureInPictureActive { details.append("画中画中") }
+        details.append(playsOriginalFile ? String(localized: .playerEngineOriginalFile) : String(localized: .playerEngineServerHls))
+        if isPictureInPictureActive { details.append(String(localized: .playerEnginePipActive)) }
         let time = currentTime
         return EngineStats(
             engine: kind.rawValue,
@@ -591,7 +591,7 @@ final class NativeEngine: NSObject, PlayerEngine {
     private func handle(_ failure: AetherPlayback.Failure) {
         // 引擎的报错是英文；用户看得懂的几种先翻成中文
         let message = failure.message.hasPrefix("Device storage is full")
-            ? "\(ClientPlatform.deviceNoun)存储空间不足，视频分片写不进缓存，请清理存储后重试"
+            ? String(localized: .playerErrorsStorageFull(ClientPlatform.deviceNoun))
             : failure.message
         lastFailureKind = failure.kind
         let cause: EngineFailureCause = switch failure.category {
@@ -600,7 +600,7 @@ final class NativeEngine: NSObject, PlayerEngine {
         case .storageFull: .storageFull
         case let .decode(final): final ? .decodeFinal : .decode
         }
-        emit(.failed(reason: "自研引擎无法播放（\(message)）", cause: cause))
+        emit(.failed(reason: String(localized: .playerEngineNativeFailed(message)), cause: cause))
     }
 
     private func tracksChanged() {

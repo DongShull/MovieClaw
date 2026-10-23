@@ -1067,6 +1067,1130 @@
     },
     "settings.about.welcomeFont": {
       "sourceHash": "a858e53898e625bec3627fb9d77ccb007aad337b416de69da1511abcbf9696ab"
+    },
+    "player.display.fit": {
+      "sourceHash": "530aa02103692b72251d36545b56b3de1ea2177442937bf670850cbceee05f9d"
+    },
+    "player.display.fill": {
+      "sourceHash": "2bd69f764656d88733acdc2e4c356c87b4919d751b44a359c58f939dd142a1c2"
+    },
+    "player.display.stretch": {
+      "sourceHash": "9273ee4dc650d2735b73f73458b97ac319f60f165c00ac52aa0808a26fe50f7b"
+    },
+    "player.display.fitHint": {
+      "sourceHash": "0094f809a993ed1a38b779ab66948cf870eb63d0fe10b7df51695b8ad4d55809"
+    },
+    "player.display.fillHint": {
+      "sourceHash": "dbffa947c8d67cc9efcdc57000f0c6aea787a2780b9a85a7204549c509c5e5fe"
+    },
+    "player.display.stretchHint": {
+      "sourceHash": "2c7d6ae9e314b20f0cd739dc31dda60036dcb363ae6b823bf561d5fcae024f91"
+    },
+    "player.engine.system": {
+      "sourceHash": "0de1ab9686b58c15ec5e519c055365f21797ee00652fc0e42deb69a199fb91d7"
+    },
+    "player.engine.native": {
+      "sourceHash": "a3561c10ed8e09b0944fa1c84d3c69901ae2ce4d2be10a28f3680a724e334ffa"
+    },
+    "player.engine.airplayActive": {
+      "sourceHash": "2a39595444207118694da32694ada6788ab494d7dd683a69ea29d8b367e62c16"
+    },
+    "player.engine.pipActive": {
+      "sourceHash": "2cd523bb511e1895a4e8ef94202f459aab07df9e64a26cced3c3d11d6cbd6e40"
+    },
+    "player.engine.interrupted": {
+      "sourceHash": "2796d1b153d9de47259995f6b62cecda717f87d9db6d1202eb86e05bc3cf1e93"
+    },
+    "player.engine.systemFailed": {
+      "sourceHash": "8a354015b708a778391df1955f45e2e4b45560e98028a9da272e9994954581a9"
+    },
+    "player.quality.original": {
+      "sourceHash": "e890613e4c15b168444cc43eda24eda7672729bd13aeee5c61cb4329e6db1496"
+    },
+    "player.engine.originalFile": {
+      "sourceHash": "3e126e2be0299827ff5eb8ab83f1bfba3220fd9cd1c284224468930ecacda1c4"
+    },
+    "player.engine.serverHls": {
+      "sourceHash": "4205fcb133437b29c8f359faf8fbea7ec6dab2bd896627e45629409c42fcaa09"
+    },
+    "player.busy.deciding": {
+      "sourceHash": "d27e8c2be9155dcfac790948b25cd87113fa912cac0b03827969b8d8af97a759"
+    },
+    "player.busy.sessionStarting": {
+      "sourceHash": "af3104ef6e736146ff508c15336a5781a5a7057774b5655bec822a44e7eaf74f"
+    },
+    "player.busy.degrading": {
+      "sourceHash": "544773dcc8a89315728de6e4d04212a9408796e1941ddca095fa05ee71cc8a1e"
+    },
+    "player.busy.buffering": {
+      "sourceHash": "1686103b719242501920b3de6c46e391ae392d369bb4bd5a58639e31ad79b88f"
+    },
+    "player.controls.playing": {
+      "sourceHash": "e6666b2eb3327899a00d3a789e435dd56a5fa7923629bca608ee2e1f580263ce"
+    },
+    "player.errors.reconnecting": {
+      "sourceHash": "04f4755b0ad9992f6672791980bdf0a5c94fc83250ec17d8970556564cf1b85d"
+    },
+    "player.errors.bitmapConsent": {
+      "sourceHash": "ba81b9ab1ffd12040b67b0fa075f01e71ee089b8574e819c337643ad8c805394"
+    },
+    "player.errors.consentRepeated": {
+      "sourceHash": "ffcf071bed79e4ca81a9867a710293c8afeb725e41a78af7eac9e1c35962e6b9"
+    },
+    "player.errors.nativeConsentHint": {
+      "sourceHash": "46fa09ef2eb3fb3645c8e58dd851bb88e502bcae4848895b3eb7721279c8babc"
+    },
+    "player.errors.noPlayableFile": {
+      "sourceHash": "2fdb17e65124e661adf90fe89afc4f2f058a97f0843697c844cfd7ef460b296c"
+    },
+    "player.errors.noStreamUrl": {
+      "sourceHash": "cbe73cf5160cdb12460e701cc5b20ae91b3d6e58dba853ec0f3f5b3587599899"
+    },
+    "player.errors.sourceMissing": {
+      "sourceHash": "685605180bc18cdaf979d90df05a6bf68ffdd77633e5bddf88641b5dadabcaee"
+    },
+    "player.errors.nativeSourceMissingHint": {
+      "sourceHash": "9f6a15e8510fc70daa1eb49e72a4a1854db799bd2b33654512ddbeff33cfa600"
+    },
+    "player.errors.discTokenMissing": {
+      "sourceHash": "97705013e1097258ade471afdedaf6c0acacda820458b627608a1f602c06e262"
+    },
+    "player.errors.serverFallback": {
+      "sourceHash": "6206132956f552ed3f62985e3e90b49bd63ef6af416d60347579fd8c474faa34"
+    },
+    "player.errors.nativeConsentSaveFailed": {
+      "sourceHash": "dff0188c92385d098bb43d0e49272ed2aace058b46bb31a8f880c46e7a825417"
+    },
+    "player.controls.play": {
+      "sourceHash": "c3396195e91ccdd8468b38f08c58e5a7f13220f16ed29e668ffd4f58ef04f443"
+    },
+    "player.errors.speedBuffering": {
+      "sourceHash": "0b33b749c73199cc242176776bba7af45d3f91e3396cbdaa7f60083aa023d807"
+    },
+    "player.errors.speedNormal": {
+      "sourceHash": "285949625269970af54fa5f02e26424c1cc447b6fc723c13e6ae0b4d9d7e117f"
+    },
+    "player.errors.restarting": {
+      "sourceHash": "a700e4c0d321ce88141918486a5ddab0ca90e28944adae85b05cf36c44247a5f"
+    },
+    "player.errors.retryHint": {
+      "sourceHash": "4ee2e012110e2a40c6926734baea3bb9a18817fe79d0ee97a3cd899d0bfa8ea7"
+    },
+    "player.errors.tryAnotherVersion": {
+      "sourceHash": "e97d9c18827524bcd4c3b2db4b9744d35b8b0d8349d13a22657da9a9a14fce7e"
+    },
+    "player.errors.endedByAdmin": {
+      "sourceHash": "dd37defaf1bc7473f410e3db8f32912f063d022012d38236154edfd7340b31b2"
+    },
+    "player.errors.endedByAdminHint": {
+      "sourceHash": "187f162636c9ba5ce9b325c37cf268714ee2bfe57bc282c1f81364b4fb207a0e"
+    },
+    "media.languages.simplifiedChinese": {
+      "sourceHash": "9937e365aaf3a0854053a3179584ad9cd82e1164ea8535b50c1e6ae7102b373c"
+    },
+    "media.languages.traditionalChinese": {
+      "sourceHash": "7bf7a60617de1a5da9d96c0b77ec574ddb527f199694571d4cb234af2c2625ed"
+    },
+    "media.languages.chinese": {
+      "sourceHash": "72726d8818f693066ceb69afa364218b692e62ea92b385782363780f47529c21"
+    },
+    "media.languages.cantonese": {
+      "sourceHash": "3b0aa680e2b63ff24180c25bd4714dd905f6b99696e74b939fa7b6e48f05ec29"
+    },
+    "media.languages.english": {
+      "sourceHash": "d1648bacbc1630a60ebc0091fa7a4cb7d831c4696a80f302dcacfc59838895a0"
+    },
+    "media.languages.japanese": {
+      "sourceHash": "3a944ddb3868f4b21ed515205ad6a7e0177451af2549a6f55f1996fc5a3d7045"
+    },
+    "media.languages.korean": {
+      "sourceHash": "259cdcf751996c6c1d43b2bdcf714f2f24783c08180979dfd842e9750757ab4b"
+    },
+    "media.languages.french": {
+      "sourceHash": "99cdf164a8140865a706489a5fe02f38319be7d8dd030963575f5b568a800bca"
+    },
+    "media.languages.german": {
+      "sourceHash": "7566092dce7261d0feb9f7987b8d9ac297b352b81f5f74c5de37e3370cf20b8f"
+    },
+    "media.languages.spanish": {
+      "sourceHash": "6c872d27f8359dc7a5aba0230d9dbbbe2b9288c019638711664f9674b2a87635"
+    },
+    "media.languages.russian": {
+      "sourceHash": "bdb6608a4dc8d212b92d2a651215ac3b9a6eb95e7b4f89d973c13680598f879c"
+    },
+    "media.languages.italian": {
+      "sourceHash": "5bdde8257c53cfbc321499906fefbee23ea59d9eabc92a4fa4e26c02302ae3a7"
+    },
+    "media.languages.portuguese": {
+      "sourceHash": "6ce072a79389aa68ce3e81d881ba94d3e05ba3634ebc3f6d12b9876a26642362"
+    },
+    "media.languages.thai": {
+      "sourceHash": "a15fb0d0595f0bf84942ffe6726ca7d3ac4eafeda3ea973b3e28db08d8c209b3"
+    },
+    "media.languages.hindi": {
+      "sourceHash": "99012cae1587f2edfcf21cdb5de94883ff0d2448223ce6ba8c8ab1b8e4de7eda"
+    },
+    "player.subtitles.pgs": {
+      "sourceHash": "9722826a849873281115d112186ecb1d50a2c6fbcbb5cc24f4f22e407807d84c"
+    },
+    "player.subtitles.text": {
+      "sourceHash": "dd81861811e57bf7d235568e929fd62cac6a2aefa0743e141ae8af8862dea346"
+    },
+    "player.subtitles.unknownLanguage": {
+      "sourceHash": "623424b52ddf398150bf3895af185808977c0bff729375fce59a39ae5f5e31bd"
+    },
+    "player.subtitles.embedded": {
+      "sourceHash": "59485b0f83ad6fc169a880fca14f22f14f76cb6624f6c3d38ee927cfbc7d0bf5"
+    },
+    "player.subtitles.external": {
+      "sourceHash": "6b95fdc43c88f22c7c0bfbca218a01dc20984569e7feb3f6300d32c92e283f7e"
+    },
+    "player.subtitles.aiTranslated": {
+      "sourceHash": "5239fbb2909810d6a09f1d7ec6fc0b66190d12a98ad4613ebdc28ad0f4ffd4aa"
+    },
+    "player.subtitles.default": {
+      "sourceHash": "844b8cc8dff7c1d87b0f840c0a1271b227b332288a1a947f24fd376bfd12c1c9"
+    },
+    "player.subtitles.forced": {
+      "sourceHash": "dbbae07255459cfb5cf0c979c8471c223624cdb0ea2ae6e67fc14a68f0ade2ac"
+    },
+    "player.subtitles.noUrl": {
+      "sourceHash": "d41513d5f8331af1f677eec7405c11acea5123b48d2bfd40f625758e7d30baa6"
+    },
+    "player.subtitles.styled": {
+      "sourceHash": "8829dbcbcfce6e549aaec2674d28226091fb1a3411a25a336d3f3f87d7226259"
+    },
+    "player.subtitles.image": {
+      "sourceHash": "d3425cdb5f87a645c43fdb5eae6ebab2c9fdbcfbb114e8aca0795a8aa9e387be"
+    },
+    "player.subtitles.closedCaptions": {
+      "sourceHash": "2b890b3c2e0a3eb1d7d910721808736d02270aab4ca977347a7652faccdd5d41"
+    },
+    "player.subtitles.aribUnavailable": {
+      "sourceHash": "a2aa860281b16f0336aa50d00e59b7c386dba0629fe6cd2ae7f3dd9c72dc254c"
+    },
+    "player.subtitles.teletextUnavailable": {
+      "sourceHash": "bfac02792686c2a72b6a8a3959a3eb966c587bfcc83231d1033c4f8defb27146"
+    },
+    "player.tracks.unrecognized": {
+      "sourceHash": "fd92bcca78453ef3948566f15d9a19aaa6e10e7c274c9b58f86d04776167eee5"
+    },
+    "player.tracks.mono": {
+      "sourceHash": "d64650de26d2e470d79a1f63bce90619d3733d724b77e3bdaa5c31c9cf9d63b9"
+    },
+    "player.tracks.stereo": {
+      "sourceHash": "3acc9333db7aa28f1ffa02b51caf8d4f3f4bfe367adc19ab8ef1c06daab85963"
+    },
+    "player.tracks.unknownAudio": {
+      "sourceHash": "4adf5183e8d4a8814a3d5778654fe629d112d87fd49adf41986469ab3dda387f"
+    },
+    "player.skip.intro": {
+      "sourceHash": "38c0a31c3b0b1870c44a8e9fcecb184db6a7c01cfb86be3be7f1dd22b204fc92"
+    },
+    "player.skip.outro": {
+      "sourceHash": "05a6e4c3605d3c1084cf0982e210dd4a6d10bef40e4c0bb440b75da00b38ae92"
+    },
+    "player.skip.ad": {
+      "sourceHash": "9a3770b62f671f700f029a60ea497aca539f1868375947d84008e79960cb03d5"
+    },
+    "player.skip.preview": {
+      "sourceHash": "4aeb6b7875ac84212a15c9309ef75a0717b53019d5186c86e5b71b6037657c29"
+    },
+    "player.skip.other": {
+      "sourceHash": "83a8208ef60cf323a999ff5b366277e13b0c12e5424a2af7e33ed19d080644a4"
+    },
+    "player.segment.intro": {
+      "sourceHash": "6283c2e36bd63710072fe912b4bc990dca16dfc902e10ad3253502bd76ac3d38"
+    },
+    "player.segment.outro": {
+      "sourceHash": "cf93588026d5fd5e2a9e0eec95e70d158638bdca6ac4d3dcc519de3d38d3257c"
+    },
+    "player.segment.ad": {
+      "sourceHash": "5f9f1409615a5128339fd5e500c7d455ddee549730876056a48369c17f0a69c8"
+    },
+    "player.segment.preview": {
+      "sourceHash": "1fa3dc204c2d3b44e91e43764f7864db965c96b7cb4aaf7c676b7c2d04686dbd"
+    },
+    "player.segment.other": {
+      "sourceHash": "ee0c3c1d2d2a4f7855bcf1396bac9f2367ae53290816b07fb7d8c3dcdd4c6b65"
+    },
+    "player.quality.originalHint": {
+      "sourceHash": "da37d378ff4a109ef3e1b26f3e1f6e68634b15467c71a4af0a533808e575b202"
+    },
+    "player.quality.fullHdHint": {
+      "sourceHash": "54f6991b185bf3cae3bc286a55f794c642162cd3efb60c08e44e3fcba6cbd380"
+    },
+    "player.quality.hdHint": {
+      "sourceHash": "662485baad08ad4f5c0d0fa03c035b3f3308ffb59f3bd14769ec5b6d4e282da0"
+    },
+    "player.quality.sdHint": {
+      "sourceHash": "4f588ab91095faa95fc6c76bbea8bae280418c6240382bcbc9a573e1c0259aa4"
+    },
+    "player.speed.normal": {
+      "sourceHash": "296de0e31f8c22d9343c1f07f7fcd2e88a425d769cb0c88d8b24cc865f2c0685"
+    },
+    "player.controls.airplay": {
+      "sourceHash": "d7e9a12b1ae7edf9071a35821b4a92d7d5876084b1ad6e827ead6d7770766670"
+    },
+    "player.controls.exitFullscreen": {
+      "sourceHash": "0f1505b6ad3fafe48456efa68ff7d6ea746fc140ed10ac822b016ea9247d3f82"
+    },
+    "player.controls.exitLandscape": {
+      "sourceHash": "b592b0a570bc7d9005af9506cef2a64df4fef6137f3a06296bc629bfcd184c7e"
+    },
+    "player.controls.exit": {
+      "sourceHash": "9387b9ffca988381e082f3e70ccb6fc69ff65f88f308d45272d5d2726897e060"
+    },
+    "player.controls.exitPip": {
+      "sourceHash": "8fb522c9ce1b442d55a973b6e51e09b04abb281ab47889e9cb49abe7a1ece0b4"
+    },
+    "player.controls.pip": {
+      "sourceHash": "850875a7534d2ae8eb594f27a755c915089534b99c2bcc372a86dbaf95d0630d"
+    },
+    "player.controls.seekBack": {
+      "sourceHash": "6ffd3c04b1370caaf87dbc55ecfc353128f7b5cfee88ec3228245d4bba1d569b"
+    },
+    "player.controls.seekForward": {
+      "sourceHash": "f7d78f76e1921809a04b8936ee66704b7b5f351172749cabe524ab2c642748f9"
+    },
+    "player.controls.replay": {
+      "sourceHash": "4c5a69acca79ce26591aee4750169eac1c004f09b229ca930ecda8950034b347"
+    },
+    "player.controls.pause": {
+      "sourceHash": "8d12fc0d4eb26021d93db693a076e474b8fc6e01f8808666744816c8ba72b746"
+    },
+    "player.controls.quality": {
+      "sourceHash": "77ccdb7ba817da96fba36c30e269a9aef98d560a5371ed4c068f63cd578801a3"
+    },
+    "player.controls.display": {
+      "sourceHash": "3d5abddfe9dc609d8cc55c601ba0828b1c47427b28ee3b9453d9160988c13a3c"
+    },
+    "player.controls.speed": {
+      "sourceHash": "55020185554147176d775f7aae33a07e3c899b8beca27af75a2cf0f893e85926"
+    },
+    "player.controls.diagnostics": {
+      "sourceHash": "7363b0cba29e61d223c16bc2c42000ee09c54aed6235ba1f3214dcc0b6f82bc4"
+    },
+    "player.controls.settings": {
+      "sourceHash": "df3d58c7d84b85f2037cdd20ffca0f386668645ea53008c11b0c8887182b0356"
+    },
+    "player.controls.audio": {
+      "sourceHash": "b6dd16ff52ebd549e21c3c698949ece2295c5a6c23bcf7df2e800e08366749dc"
+    },
+    "player.controls.subtitles": {
+      "sourceHash": "60033a3bf561e656bd4d70070fba680e0fc1ecd08117e38656e14dad3a1b0a60"
+    },
+    "player.controls.fullMovie": {
+      "sourceHash": "e04388285f8aea1476d30597d457e7234791b631c5257b436318f1941e1e44f7"
+    },
+    "player.controls.landscape": {
+      "sourceHash": "055a6b3a3de7a78866002905c5a53b2dba7e328d0be505c26b60c61feacf84b3"
+    },
+    "player.controls.progress": {
+      "sourceHash": "fc16e2a0fca668842686ea2f1f864c67e3f09f7a803a7fd0642856cfc9662062"
+    },
+    "player.diagnostics.tier.direct": {
+      "sourceHash": "01a14d716ff4347e6caadc7782b33261e223d499bb6ec7cd4deff2a9f4162e16"
+    },
+    "player.diagnostics.tier.remux": {
+      "sourceHash": "992556812c74a95e05a6737eb8a4fb9ff0ad92ad3a01d7131450ea793a2f7d07"
+    },
+    "player.diagnostics.tier.audioTranscode": {
+      "sourceHash": "c824aa635fabf999965ab09e12f0b5b570880093332e05c0696da916a9123e65"
+    },
+    "player.diagnostics.tier.hardware": {
+      "sourceHash": "4d1dbf8c26285f1671d47467b02bbfe09c4d389afa870879881f16713219b1de"
+    },
+    "player.diagnostics.tier.software": {
+      "sourceHash": "44afccb494a6f7c5c100f6c614f828740dae974b38bbc5f39b2e085e0e5d958f"
+    },
+    "player.diagnostics.processing.remux": {
+      "sourceHash": "2887d6d10a55cb0580e0d8bc9d051d9678a36c7882d29c0a32b6561dad04d9e1"
+    },
+    "player.diagnostics.processing.audioTranscode": {
+      "sourceHash": "5250b2acd37b1c4ef1372491c05d58de2550c269d4391308aafd9e4db14e1a3f"
+    },
+    "player.diagnostics.processing.pending": {
+      "sourceHash": "f10e34d2fcb548f9d95489de370e8087518bb8d26b5aa3ecdb8ad1ab7f202695"
+    },
+    "player.diagnostics.processing.localHardware": {
+      "sourceHash": "ab39656487fa415a4b845d62192aa0e3acc528d16d4d0f8cae0b0237ce7f8edb"
+    },
+    "player.diagnostics.processing.localSoftware": {
+      "sourceHash": "54e64b333cc8114190197104aa8fdbc4961f84e5cc02a94d7e498fc971f900f0"
+    },
+    "player.diagnostics.processing.remoteHardware": {
+      "sourceHash": "acaabb88c72db6f1f48e119e0865e9a272bcd3fc05a6a53169867f0a884ab468"
+    },
+    "player.diagnostics.location.client": {
+      "sourceHash": "477581b84e505d10e22035af5e1e12cd18866268a64b3301fbcc9f79530a7ac0"
+    },
+    "player.diagnostics.location.remote": {
+      "sourceHash": "7c210fc76aac3cacac3fd87a5dd52504d2429fdcbd92f523760ddc0dc48be662"
+    },
+    "player.diagnostics.job.pending": {
+      "sourceHash": "d6f766f2adf532274a487ddd31db43c01eb635ff966d6c3c41d62250ed094354"
+    },
+    "player.diagnostics.job.accepted": {
+      "sourceHash": "201fbb7003a0232b8d4fd74852d38377fccd139c0e077f3b2ee504524fee6dc5"
+    },
+    "player.diagnostics.job.progress": {
+      "sourceHash": "fc8de65f8743469b7071a3917d15d7a7496cfc79ed743df67fafa3de2a2f2375"
+    },
+    "player.diagnostics.job.failed": {
+      "sourceHash": "558518b13361ab07d93b2c40cde4e649bff9654935bf12849bb57916ac89dd39"
+    },
+    "player.diagnostics.job.finished": {
+      "sourceHash": "f28461bb49c8564716309d575f90f72cf15b5c4667e40c2d037434bedb54a01a"
+    },
+    "player.diagnostics.close": {
+      "sourceHash": "9f6ab913443fabd1a651201da69349696ce10ebee57f0125d8eac3d395ed418b"
+    },
+    "player.diagnostics.startingSession": {
+      "sourceHash": "224ed8fe73e909480dc33c03dceb84b6d1c44742ebfc4d14fb88793cb9b7cfae"
+    },
+    "player.diagnostics.engine": {
+      "sourceHash": "78a7f252a6cba380f6b8b7e09c2058d2cd74c4a97eacf4f892b575fd49fd2114"
+    },
+    "player.diagnostics.stream": {
+      "sourceHash": "4545de5a0a02b220a617db84869f58e6a2646d2522871de8a1631f395fb89e96"
+    },
+    "player.diagnostics.unknown": {
+      "sourceHash": "4d8c1c5b42830791a4ce99f630fb9f02ba08c67c5299d46d6cf76661bfd03584"
+    },
+    "player.diagnostics.degraded": {
+      "sourceHash": "ab3d379deb43c02d007be3b9ec960d2ee679f828f324f68c2514b847cce1043b"
+    },
+    "player.diagnostics.execution": {
+      "sourceHash": "32c8d373afe083288422a6f2cafff08b030e090039666a1fbe4ad63e477e9bca"
+    },
+    "player.diagnostics.location.direct": {
+      "sourceHash": "620eb9693acde6962125d72af21194253d100880db352f62396255762e70bb40"
+    },
+    "player.diagnostics.reading": {
+      "sourceHash": "465c03b272eafb2e4cb98bea14364f6f8912fb713857e184bab05e5bf94c7f1d"
+    },
+    "player.diagnostics.online": {
+      "sourceHash": "d5cb84efe27732bdebdcdde95ba11a67e86b14a789ac2e2ead29a35d8148b91f"
+    },
+    "player.diagnostics.offline": {
+      "sourceHash": "8e1c1edf4a21200c5467c5742b7cf9317e68a65bdb9115838b18f6bebe973aeb"
+    },
+    "player.diagnostics.switching": {
+      "sourceHash": "04478166b303ce155405efa77e79a70d5c85ff580932a162aae46de684666ff9"
+    },
+    "media.kind.video": {
+      "sourceHash": "c20f7618d330a854e70c918789c8028a6ef3e642e7e6abac8e337aba741b3716"
+    },
+    "player.diagnostics.copy": {
+      "sourceHash": "fd4f079be4ac9cf5aed938430876b01f6f6607bb9a9712e19ff6eaf96c441eac"
+    },
+    "player.diagnostics.burnedSubtitles": {
+      "sourceHash": "6905287b350d4f63c29fd384ec75f918ecd1fc82d811de6c43c407d690d3a155"
+    },
+    "player.diagnostics.audio": {
+      "sourceHash": "296c632ec857a0ba59c608e9b4ba4ec436187a969b7776f4eda6e5b3d82263c6"
+    },
+    "player.diagnostics.default": {
+      "sourceHash": "a10f79ad92e6ebc88b88047602618611676ff7e31c8d50a87de4c86fb63b0503"
+    },
+    "player.diagnostics.transfer": {
+      "sourceHash": "a2f59f64d2623d19075349fd710efd72e6c5e16eab699d22ffba5c36fa43d502"
+    },
+    "player.diagnostics.buffering": {
+      "sourceHash": "976833723263eebf63344f10e40fdeea74354125d46ea513b797f34eedcbbf95"
+    },
+    "player.diagnostics.paused": {
+      "sourceHash": "eb0c326b60ae897a19080c0b21565029be8da614a7dd6ecad97da24f4cb8fc90"
+    },
+    "player.diagnostics.playing": {
+      "sourceHash": "8dc8241d68372cafea33e8131f818281d48eb4d20ba4c698067a18088e8dfe5f"
+    },
+    "player.diagnostics.segments": {
+      "sourceHash": "16c5a353b4991b4442d4baa1b68ec9afecc6255b0a3a98cdce672ea199ba205d"
+    },
+    "player.diagnostics.noPendingSegment": {
+      "sourceHash": "27e4544f74f3005ef0d7797ad26ce6fba76dc4d77ee3f03447b529e0474a57d0"
+    },
+    "player.diagnostics.pauseLead": {
+      "sourceHash": "aeb553bd30ee8f8e21d1dda22171e373294ab837060e1ec28ce3563ba5884762"
+    },
+    "player.diagnostics.pauseDisk": {
+      "sourceHash": "e71c0b4918fc3f2c4d9143759bfcd9d0af890a58c6acdf134dca149d796483c6"
+    },
+    "player.diagnostics.retryUpload": {
+      "sourceHash": "7b3859f84c82cca6023435286f819486a641bdc41d2e7df936bfd141e221fb4a"
+    },
+    "player.diagnostics.behindPlayhead": {
+      "sourceHash": "b932730bde63ceb44b02662c16a999eea813e681c252380fd84e3d9ed2d40bd2"
+    },
+    "player.diagnostics.success": {
+      "sourceHash": "053461ce86d265729d98285cb97f3b083d89546ced5ed9d8589ef641f0b227e3"
+    },
+    "player.controls.unlock": {
+      "sourceHash": "70fba17fffb72f1a38e31df23c2fd5efcf62b8c57e259b9572b97ae4048beb6e"
+    },
+    "player.controls.lock": {
+      "sourceHash": "1724a1a1b4bc658e7e6bd4e3d3c9a29579a44592c1a2620a08dd1ad3775db8ef"
+    },
+    "player.controls.speedFastForward": {
+      "sourceHash": "aede643cade1cdd00d141def953a235f474a2f94b453f322b0d750c3e0680c79"
+    },
+    "player.controls.volumeKeys": {
+      "sourceHash": "10a4edaf35d69edd1cd375aaa2c4e2619ed992524ae368394a768a204a50df0e"
+    },
+    "player.subtitles.audioRestartHint": {
+      "sourceHash": "f3c84e3ef13a4582993d531d7f18b11d53d34751ab312c19e5c988df0dbbf45b"
+    },
+    "player.subtitles.empty": {
+      "sourceHash": "70e1e86d1455bfb7f14a81b9ffa196cc4238e66cb4bf62754b50fc05553297a4"
+    },
+    "player.subtitles.bitmapHint": {
+      "sourceHash": "34ad74479540a69e2a0d1e45222d3eb90c9e6bf28ecf8c891bb9cb11cb3c7ae5"
+    },
+    "player.subtitles.offset": {
+      "sourceHash": "1de9cb58bf0b4969db4737d32c3bbc8e42231a1138c6de129330fabe0c250377"
+    },
+    "player.subtitles.fontSize": {
+      "sourceHash": "f71561b5af0abced5fa2570687f203d250aea84abee2ea4e6ad26d338c83a63f"
+    },
+    "player.subtitles.position": {
+      "sourceHash": "1fb4d574da92f1c182183f205b77a1fcfc538ab438a04f2399ceac29687a7a56"
+    },
+    "player.subtitles.background": {
+      "sourceHash": "f4b669c55756180ee9457b358a5132c298359a5dd46896e00a2aab9cb86b74e2"
+    },
+    "player.subtitles.ai": {
+      "sourceHash": "7714c1cdc14aba262f8bb62e4558423a5f879fd7b4dfb512cec617d79d374365"
+    },
+    "player.consent.nativeTitle": {
+      "sourceHash": "c0f41be43fad6e54eff91684b53109708b72ebe3021079d6f4d7c542c6e8cfcb"
+    },
+    "player.consent.reason": {
+      "sourceHash": "f029d9cb4a7614ef86725b1fafa5e78adb6eaff8efc5967ee952ac73cb39bd62"
+    },
+    "player.consent.cost": {
+      "sourceHash": "20cfb027827a43998f97d4a062b618dbfb21663a7e924fe5bbfb62421a863e89"
+    },
+    "player.consent.remoteHint": {
+      "sourceHash": "9df619ff02752909ed4dbf180763f468611db922528501b69b6222fbc6c7d0fa"
+    },
+    "player.consent.remoteSettings": {
+      "sourceHash": "7ac46717c21909db3f5dc58c1c32fbf5d9bc9e6ab83a8d416e2faf89d459a3b9"
+    },
+    "player.consent.persistent": {
+      "sourceHash": "e675d13ebc0bc309c223b2b7e9ea820ca769ae842ea603b3e4b97f0afa1f2900"
+    },
+    "player.consent.adminRequired": {
+      "sourceHash": "18d2f2b5278cc5752f1b8397d6b4c960c1894efe7d88a13d7d6abbe752b1eb95"
+    },
+    "player.consent.enabling": {
+      "sourceHash": "6dae991eea1501f16f51a2b0f088758c8be098a3bc319a0c80537bc631ce1262"
+    },
+    "player.consent.enableAndPlay": {
+      "sourceHash": "02225704f710830dae71b2b91940019d58a4a86301a841f21790296f9701969e"
+    },
+    "player.consent.acknowledge": {
+      "sourceHash": "de32e20193ad104208b76827aba34935d0f9864e271733f85915c19fbfacf902"
+    },
+    "player.controls.stillWatching": {
+      "sourceHash": "b3ac5ee56156a6a27c7b294f540a56bab3f8813380be9fa65bb0e6127046349a"
+    },
+    "player.controls.upNextTitle": {
+      "sourceHash": "f2f5516bf28163bcd7dc8a37caa9b537ef1d74653823f1f2668bffcc832d135b"
+    },
+    "player.controls.watchCredits": {
+      "sourceHash": "a52a280ef701c1de32ba682058d76eaafc1646c3e8ab3b01efdab29939f0fb63"
+    },
+    "player.controls.playNow": {
+      "sourceHash": "79aaf3909d9fc9c0d3d14a0dc75d4e37604a4ee6e94dd2b6285c448784f2ecdc"
+    },
+    "player.controls.autoSkipLearned": {
+      "sourceHash": "a77b6bc83bbe53d7c213e88003717b3d6a0b96c5e55ec53d739548a036cd038d"
+    },
+    "player.controls.autoSkipDisabled": {
+      "sourceHash": "ae97f09248102a02764612b87c4f8c242807ab24fb10e75ef4f79fe3ffd2e4c0"
+    },
+    "player.controls.undoSkip": {
+      "sourceHash": "6b5819895525906626fddf0796fd348fc0680d9344836d5363a19154a0f5f025"
+    },
+    "player.controls.declineAutoSkip": {
+      "sourceHash": "30a2338dfa5006d5aa8a687714af71154531ace34fa1beadbe3e73fd0695fd12"
+    },
+    "player.preview.ended": {
+      "sourceHash": "ad68dd8dc61923fc9ee0aaac99b143ec9a5acf4803e418c34bbef6d5a13bd061"
+    },
+    "player.preview.continueMovie": {
+      "sourceHash": "31b1db3941cd5558e6b38935c543d827d7f93ce0dae6f40f7a79c17d424fe7d3"
+    },
+    "player.preview.replay": {
+      "sourceHash": "f09ab0f1557a040d790d3faed8eca64d8a007309042154d82ced57d42170f1ac"
+    },
+    "player.controls.slowNetwork": {
+      "sourceHash": "dacd496863bbcee0d325b8d9d6e000330b22c9c1d85d0d10d739cbcee9f74e32"
+    },
+    "player.controls.keepQuality": {
+      "sourceHash": "18b1c07f2c6fb4368ee4af855539bc4805eea139dc94eeae54faddf02962b121"
+    },
+    "player.controls.slowMeasured": {
+      "sourceHash": "37ce089d94cad73e13d736c90bd116f2dcce76114d67eab6d9bb993b5cfa12d2"
+    },
+    "player.controls.slowRequired": {
+      "sourceHash": "550008868854b675694f6bd798a5c3cf73aa3e46aff8c409f7d59cc58017a50b"
+    },
+    "player.mac.closeShortcut": {
+      "sourceHash": "0b6d3f40609cff5c8afded1bd936dfc241c0d85fff82ec0f7c58002f3bb5c23a"
+    },
+    "player.mac.close": {
+      "sourceHash": "bc5cf63a431bb3898389f6ed7863addfb202509477d6a091e4adcb73166cde16"
+    },
+    "player.mac.speedShortcut": {
+      "sourceHash": "53a71eaf082bac4d971e54ea3f57b0844ca2868dccbe8963f9dfc4d37d8376b8"
+    },
+    "player.mac.showRemaining": {
+      "sourceHash": "b66f6d59591e1fc6be692654c86c30eaf730abe0e265ae9b190c7683ed1cab40"
+    },
+    "player.mac.showDuration": {
+      "sourceHash": "7aaefd6ef532c72bb7e4078a4ee3d96bf73a99778e1f247d898754071ad38334"
+    },
+    "player.mac.previousShortcut": {
+      "sourceHash": "c6de03fc3efe25475be44941461a0afce1cc44de14304f0fffcd16b40a939a3e"
+    },
+    "player.mac.backShortcut": {
+      "sourceHash": "1a5f4a53b8bc723718e914d114f1a6f774455d3d9ad51b2988f037768e3fbfe3"
+    },
+    "player.mac.playShortcut": {
+      "sourceHash": "fa71b66aea7c8c2e36c11afc61abbe24bd3e9713818eecff8a80d362adac9783"
+    },
+    "player.mac.pauseShortcut": {
+      "sourceHash": "57ff284c7a7467a786b0d3039fe9e6860f940c56ed67bd1c967673219ef1b4bf"
+    },
+    "player.mac.forwardShortcut": {
+      "sourceHash": "985eba8671a23d0abff0014dbaeb7ffe9d8ad57e8ed039e98817695d63b27545"
+    },
+    "player.mac.nextShortcut": {
+      "sourceHash": "67b9db7ef99d05f0c75200563f5edc82f38f5a3436c8583b731cde3371aa1c9c"
+    },
+    "player.mac.tracks": {
+      "sourceHash": "1eaa5011400c1257ae518f6420116d27a331f752d490f02f4c291665647ae0f7"
+    },
+    "player.mac.exitFullscreenShortcut": {
+      "sourceHash": "accf935b46fc7c4305f33fc69581b620fea4f3462ca292f65609643ead20a838"
+    },
+    "player.mac.fullscreenShortcut": {
+      "sourceHash": "2319d5f0b6abea3d62c33c172d8d84e2042e977b003ccc84fd8c4b26c87c6e0c"
+    },
+    "player.mac.more": {
+      "sourceHash": "ed96666bfa6caf9b86cd806324880f05f1c472fec124ddaec3ab63bb8004a311"
+    },
+    "player.mac.unmuteShortcut": {
+      "sourceHash": "f1a599a44532aeda7da13274d48443f6c445b0bcd0fb0b2ad9bab7f067e01b70"
+    },
+    "player.mac.muteShortcut": {
+      "sourceHash": "95acde7557322865d3c76ced741ed70afc0e72d6abb31ce3babac7fa28af4cee"
+    },
+    "player.mac.muted": {
+      "sourceHash": "e5e4686f651fff923ab7c0fb24829ab127f33c7dcd328e2c6e48ca02e6dfb39c"
+    },
+    "player.mac.volume": {
+      "sourceHash": "8bf8b9780d342816a2342d0af74a9bedc13387be59e709d30522883236f13e30"
+    },
+    "player.engine.playingVideo": {
+      "sourceHash": "38a0d999746990c2f9c22e5db8ef206d9c9a012aa1c53664c445f824a4af6c5b"
+    },
+    "player.controls.nextEpisode": {
+      "sourceHash": "5598ae0e76d88165a20213a55f9c61701598765f2190a10d87de888856002ed6"
+    },
+    "player.mac.skipNext": {
+      "sourceHash": "14e1c1bf93ec5c006d5ae166af79feb5ea7143135a648332a1f745a11980018d"
+    },
+    "player.mac.hideNext": {
+      "sourceHash": "ffdcf4480287d99835618d45011b3d0ea822e0796e51c93d5eb127d9aab12588"
+    },
+    "player.mac.video": {
+      "sourceHash": "d051df30a6362ad3a8609806ffb547db5d5ecc690640858cc163a6de79cda01d"
+    },
+    "player.controls.muted": {
+      "sourceHash": "7db2e189ecb010659eee6465bfc85b439c131650bdbf9b7e5b38405453581f16"
+    },
+    "player.tracks.unavailable": {
+      "sourceHash": "69676900cbabdda751496549d7f68ba20983e7272448d11b3ab473a803922160"
+    },
+    "player.tracks.selected": {
+      "sourceHash": "a737fd72b01601641cb48d1d4dc10d804a000bf5fb293f9b2ac690f302d7f47b"
+    },
+    "player.tracks.otherLanguages": {
+      "sourceHash": "3d231bd4aff54559986e04a318cffbd8a7cdc73452a7b36b0320df64d5e659e5"
+    },
+    "player.controls.stopWatching": {
+      "sourceHash": "3293f5811d1e9b0dfe4e83e425cf393a7d2450fd8bce3e1e9c5278e4011c1297"
+    },
+    "player.controls.watchCreditsButton": {
+      "sourceHash": "a9c730611d660b1b50cc8f91fcbe0ef2018793cb2f9d2523872a46caef5f800a"
+    },
+    "player.tracks.usingNow": {
+      "sourceHash": "0545f5b1d42ce4c4013770401f114bb053939c39773a34fa0ed8c4aedbb187a1"
+    },
+    "player.tracks.usedBefore": {
+      "sourceHash": "d835d0eae4483ef0f7bb42334be40bb25190198f0d9868b7544f09b2c8df6f64"
+    },
+    "player.engine.detailedError": {
+      "sourceHash": "73004dd6952f4927274447277ef23612ad025b02a7572540d5bdf5642f97e5b4",
+      "parameters": [
+        "fallback",
+        "detail",
+        "code"
+      ]
+    },
+    "player.errors.storageFull": {
+      "sourceHash": "d720324751d77aed8b10fdd1fed327bae6b36bb2d354dc0bf049701dc76b658a",
+      "parameters": [
+        "device"
+      ]
+    },
+    "player.engine.nativeFailed": {
+      "sourceHash": "3b3631639be847fd3a5240264b89fc744c37fc7b553043244bbbc92e99eb9b73",
+      "parameters": [
+        "reason"
+      ]
+    },
+    "player.offline.playingCopy": {
+      "sourceHash": "626ec77c719d005eb10e761ccbf18376df42a7d1fe94530d2cc95dbb38b5fb16",
+      "parameters": [
+        "device"
+      ]
+    },
+    "player.offline.playingProfile": {
+      "sourceHash": "b5bd53800005db669e9761cab9b38fb7bb13f06003ee4beb381e1d2337bffd41",
+      "parameters": [
+        "profile"
+      ]
+    },
+    "player.errors.discListing": {
+      "sourceHash": "d36769fcd1edbb0b8a62febb347f207f50a980d6c2c61495e215dc8bc3efde22",
+      "parameters": [
+        "reason"
+      ]
+    },
+    "player.offline.copyFailed": {
+      "sourceHash": "0791bac57f97a543d4e346d11abb6558c688f68190eae1ad86f2d8d68416db21",
+      "parameters": [
+        "device"
+      ]
+    },
+    "player.offline.copyFailedHint": {
+      "sourceHash": "e0ef6755c1e7a29bfcf59474e58712a9a991a144a521bb7b1df440d2d3439a6d",
+      "parameters": [
+        "reason"
+      ]
+    },
+    "player.engine.nativeFailedDetail": {
+      "sourceHash": "3a842726b7b82733c7caa520260039eb0ab6d951cd4edc964d599860efceeec8",
+      "parameters": [
+        "reason"
+      ]
+    },
+    "player.errors.storageReducedCache": {
+      "sourceHash": "b98835a65360fa8715ccf6da93301ab6bb6072fe9221218139f8996d5ee530cb",
+      "parameters": [
+        "device"
+      ]
+    },
+    "player.errors.connectionLost": {
+      "sourceHash": "4c587ace511967981c35f94cc5eaf5af6ab94570fa008484ca1d2ef6e5fdb7d2",
+      "parameters": [
+        "reason"
+      ]
+    },
+    "player.errors.nativeFrameDrops": {
+      "sourceHash": "0edd872c77ae98a8344eafdb4e9fd634579431519d77c85f120831cfab692121",
+      "parameters": [
+        "percent"
+      ]
+    },
+    "player.subtitles.embeddedTrack": {
+      "sourceHash": "0dfad08317a10e89071701dd5382f1b1d25ef3b5da37b4fbc0d3b7c67473fb92",
+      "parameters": [
+        "index"
+      ]
+    },
+    "player.subtitles.unsupported": {
+      "sourceHash": "6ec32d9fdd8c9bf38f6e0da94fc4eae51078ba6445e3d6fea5d948f3f5499d0b",
+      "parameters": [
+        "format"
+      ]
+    },
+    "player.tracks.audioIndex": {
+      "sourceHash": "ab172cc5309230b3fa6b815ba9e0f22e0f90281a3df5985dcf6862e42f080920",
+      "parameters": [
+        "index"
+      ]
+    },
+    "player.memory.networkQuality": {
+      "sourceHash": "2d40ced1b58a0b66468fc2b25624242f5598cb27ac1f599c8a34e4fab7b0ad73",
+      "parameters": [
+        "height",
+        "network"
+      ]
+    },
+    "player.memory.quality": {
+      "sourceHash": "83749a815afb84d87bde93755d1a0c5496373a7c6e2c5813bf1434d0410c5c02",
+      "parameters": [
+        "height"
+      ]
+    },
+    "player.memory.audio": {
+      "sourceHash": "ab172cc5309230b3fa6b815ba9e0f22e0f90281a3df5985dcf6862e42f080920",
+      "parameters": [
+        "label"
+      ]
+    },
+    "player.memory.subtitles": {
+      "sourceHash": "809ef57d89a91a3e69142097c3f383b291075e22b94bb53708c84b6bc842299e",
+      "parameters": [
+        "label"
+      ]
+    },
+    "player.memory.speed": {
+      "sourceHash": "b658981611c338d2294cb8c95a3168c0bb1e69cd73887fe190102df7bd8d5311",
+      "parameters": [
+        "speed"
+      ]
+    },
+    "player.errors.nativeDecodeStall": {
+      "sourceHash": "79e9ed64dbbe30533c3c11671cb0fee4c2eab8e589b7bfca16569fabac83e379",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.errors.directStall": {
+      "sourceHash": "08fb0b238a27d050ca3b54626c441dbd9dce6382edee8687071932f548010812",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.errors.serverStall": {
+      "sourceHash": "f1390017dc9ac3e137dcd751dfddaf6de0720aeee318c2f4c4b9a22984638d2f",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "media.episode.number": {
+      "sourceHash": "c7a7ada6a0907a2d05758c367e44450eaf2beeee321ee1e520655f1cc0e9fdf2",
+      "parameters": [
+        "episode"
+      ]
+    },
+    "player.subtitles.decrease": {
+      "sourceHash": "95c73bce7cac1b708e1e47b8527204716e54523f13aea61ab7d9300405e4f7fb",
+      "parameters": [
+        "label"
+      ]
+    },
+    "player.subtitles.increase": {
+      "sourceHash": "5c52dd3fe50d09be509cdcfadf68531833fe59787bb33c638004ee8a2ddf009e",
+      "parameters": [
+        "label"
+      ]
+    },
+    "player.controls.nativeUpNextCountdown": {
+      "sourceHash": "7e96fcac48360fcbff82cc4bbab14a51b00de8b7a6f3016bb32ed14fde050a0a",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.controls.skipped": {
+      "sourceHash": "826c0093dcfb69296cc90604d2b0d5fc40be0567add4626847f26edb2c9abce9",
+      "parameters": [
+        "segment"
+      ]
+    },
+    "player.controls.useQuality": {
+      "sourceHash": "21069f99540a9f10a7d178ac5161c2fe0133bbe8690d8fc426dbb577afef1081",
+      "parameters": [
+        "height"
+      ]
+    },
+    "media.episode.seasonAndEpisode": {
+      "sourceHash": "398cdbc77cd067773fb454d8c70f9c54cf75aefd36422cb7c6a0bbbb3bd62890",
+      "parameters": [
+        "season",
+        "episode"
+      ]
+    },
+    "player.controls.stillWatchingTitle": {
+      "sourceHash": "3f9ea2c7ffb5cf39817dd8d9570504038a24d575d59950357414d49f09d18ca5",
+      "parameters": [
+        "title"
+      ]
+    },
+    "player.controls.autoNextLimit": {
+      "sourceHash": "d0618468aade8973b2953e481b4396db8626ca0d5a32b2e93eb5b184456580d3",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "player.controls.continueEpisode": {
+      "sourceHash": "c3702b559f0137688f78357541ba6fbbbe458d404b09333d792d21c88f93d32b",
+      "parameters": [
+        "episode"
+      ]
+    },
+    "player.controls.nextCountdown": {
+      "sourceHash": "f6b94ed1ecb4c5575343e57c19e11bf1054058ac878a72e5c411351688b1fb2c",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.subtitles.expandOthers": {
+      "sourceHash": "39e336ce4d4cedb9e4cc92ba13c3b0b80393e32d3a27cb7c0e9a8d35c2274062",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "player.quality.reelsHint": {
+      "sourceHash": "cad2811ffe01a00edba7cd5facbb1d34690b35ce22be15ad36bc782bd5d6c435"
+    },
+    "player.network.home": {
+      "sourceHash": "df3a9408c29ed0cf37de0d30a04c8f9a940fa7133ef30f65bd4323333fcc6cc7"
+    },
+    "player.network.remote": {
+      "sourceHash": "32642114495399e69956a81d03a804117f66bb7ecd86fdf56363ea6d247fef03"
+    },
+    "player.memory.restored": {
+      "sourceHash": "266d2e98b149c3830924fdc6b3ea29d5f74d093b4aa15fcd2a6aec0ef6fa37c7",
+      "parameters": [
+        "choices"
+      ]
+    },
+    "player.memory.separator": {
+      "sourceHash": "ad9464da161a8d5ae3709ec94baad99de11664bfadb5d02d94caf72fa3bea203"
+    },
+    "player.tracks.channels": {
+      "sourceHash": "27c0567428ddc4bd6d39bf7cc5cdacbb6b360bbba270282a26c6e53b07fa0735",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "player.subtitles.signedOffset": {
+      "sourceHash": "392df122e61bdf79d762757fbf55dbf9260e6e45e1b31a8ccfcbf62f672b4c1f",
+      "parameters": [
+        "sign",
+        "seconds"
+      ]
+    },
+    "player.controls.slowDescription": {
+      "sourceHash": "c71124d7395a5e013f07e5cbf41c1c115e1bac3e0f9f0d41bc617e0eaf810b35",
+      "parameters": [
+        "measured",
+        "required",
+        "height"
+      ]
+    },
+    "player.diagnostics.nativeDirect": {
+      "sourceHash": "8114302ed5a3e4c2c875a57b17f6ee375a0b02232adf8b78645086fe71309fd7",
+      "parameters": [
+        "tier"
+      ]
+    },
+    "player.diagnostics.streamTarget": {
+      "sourceHash": "1a8a4df5bce5da66b6e98c3bfe55294f9ed2b8d1c15a06ad8aa685e7bad13dcb",
+      "parameters": [
+        "tier"
+      ]
+    },
+    "player.diagnostics.locationLine": {
+      "sourceHash": "48d3319ffae1dbea0a5cad9d5b9af327ce0943d2a361beb2eb329d70b6a230fa",
+      "parameters": [
+        "location"
+      ]
+    },
+    "player.diagnostics.backendLine": {
+      "sourceHash": "732596b74e6269c408b4ff685aee74acba6c749343b16ec73c9a689e66081f88",
+      "parameters": [
+        "backend"
+      ]
+    },
+    "player.diagnostics.platformLine": {
+      "sourceHash": "936e430d7e9c6c0e99f4fa0d9404acc072cf5f4afebe35ad2407f5ba6d09791e",
+      "parameters": [
+        "platform"
+      ]
+    },
+    "player.diagnostics.jobLine": {
+      "sourceHash": "9bf6abcc0b0462bebd142c0f189b8e72761f210565b23acfd35e48d8dc9a334f"
+    },
+    "player.diagnostics.exitCode": {
+      "sourceHash": "0cf12e1967920dad56365c7e81494f9142cb162bb509ee6e62939603ae97134d",
+      "parameters": [
+        "code"
+      ]
+    },
+    "player.diagnostics.transcode": {
+      "sourceHash": "d86ad6371911b9cc87d619bf5dc06367d092f39aee52c8c59b713d5dda78483e",
+      "parameters": [
+        "format"
+      ]
+    },
+    "player.diagnostics.software": {
+      "sourceHash": "d990dd4b26445a126e7bc71312039ff6f2f76d39e4cd6a51bcfad4829fbcb8bd"
+    },
+    "player.diagnostics.toneMap": {
+      "sourceHash": "f50827c07f7ca83987b99e9a6325a5cfaea6df9b1b50e2c3453cc30c1621a977"
+    },
+    "player.diagnostics.bandwidthCap": {
+      "sourceHash": "9ea63ae1a828cab0ac553b658b4d279799198df3e5e6217001a6428c7c7a61f3",
+      "parameters": [
+        "value"
+      ]
+    },
+    "player.diagnostics.downmix": {
+      "sourceHash": "4978a62899407a6954611d20eab3fa4d8872b9e7e8c26b1a9eab9b16231e3d67"
+    },
+    "player.diagnostics.frameCount": {
+      "sourceHash": "97434fb44844f95810077a14aa850cd22e50938c2b22c7893838f23e59b60faa",
+      "parameters": [
+        "frames"
+      ]
+    },
+    "player.diagnostics.liveBitrate": {
+      "sourceHash": "eba3a3a3d6b0d84d8edaf483155496ea1269724660dc38e66524d49103784089",
+      "parameters": [
+        "value"
+      ]
+    },
+    "player.diagnostics.bandwidth": {
+      "sourceHash": "22361ecf93a6bc9071395bd4fa7a98d60cc9e295bdcb08301a26f8b45dba2449",
+      "parameters": [
+        "value"
+      ]
+    },
+    "player.diagnostics.buffer": {
+      "sourceHash": "cf293ec2e493450ae8e0e79875a63edca67436e02aeb0f359fed8273a4133ed9",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.diagnostics.playhead": {
+      "sourceHash": "d83729c3dba4e9cee70f0c6655f8aa7e55429824add0509d2b84b106dac06a18",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.diagnostics.lastSeek": {
+      "sourceHash": "17fd333bc1c28e12f6c920e266f56454615275c6ca79e161ead27c04780a30b1",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.diagnostics.rebufferCount": {
+      "sourceHash": "566f3a4573ee2772c3d77c8a46e247e15e1565dab03fd7c8b08747e87095d662",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "player.diagnostics.rebufferTotal": {
+      "sourceHash": "5b9afd1292764d519a66a2b40c1d7c3548225c52d1562ba5e1136d3e07ea5f9b",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.diagnostics.session": {
+      "sourceHash": "a19632cb401e8399efaf2cc86a4e733fa7f3e2b58e73211020dd3acd7144dce1",
+      "parameters": [
+        "session"
+      ]
+    },
+    "player.diagnostics.noSession": {
+      "sourceHash": "5a8c166746f8dcfa3d91cf80024c9ed3ad24ff8b2dfd2ec98b487cb863dc0e52"
+    },
+    "player.diagnostics.pendingSegment": {
+      "sourceHash": "e7e610e97a98bf5554e0162aa39829fab386182f01a77c32b8ab82e0656403f4",
+      "parameters": [
+        "segment"
+      ]
+    },
+    "player.diagnostics.requestedSegment": {
+      "sourceHash": "762f4f0a27d7a6484f77d739f8737bb9f36adf4cd50d325bbc8fc4c6650ba62d",
+      "parameters": [
+        "segment"
+      ]
+    },
+    "player.diagnostics.produced": {
+      "sourceHash": "16b8b7f8d6f307073914fcf61dcd49eecbbf7d8d77c70c87bf64ebdc887e62a0",
+      "parameters": [
+        "produced",
+        "head",
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "player.diagnostics.lead": {
+      "sourceHash": "0012e54508a948ed210306d0a4fc77a1129109cdab5e43edf3d8f0051caf3cca",
+      "parameters": [
+        "seconds",
+        "pause"
+      ]
+    },
+    "player.diagnostics.cache": {
+      "sourceHash": "f5e2a77e21db84dd406b400846211ebf9d529119e25f5edcc6599ee33f1e41d4",
+      "parameters": [
+        "size",
+        "hit"
+      ]
+    },
+    "player.diagnostics.cacheHit": {
+      "sourceHash": "db3547da73d38432558798c68026539055e0d264894cc2036c974d9633e06657",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "player.diagnostics.failedSegment": {
+      "sourceHash": "f5a3700ef86f286540a7c66c9d49f95cb4418ea20642259d8b7e828a32edd983",
+      "parameters": [
+        "segment",
+        "details"
+      ]
+    },
+    "player.diagnostics.historicalFailure": {
+      "sourceHash": "ecb8676cddd37b8b13c8a7d57b2d71b175c19b21ef5e5dd76b3788fab380d01d",
+      "parameters": [
+        "segment",
+        "details"
+      ]
+    },
+    "player.diagnostics.multipleSegments": {
+      "sourceHash": "93c6d39508a27b10977fd98fa373e0d99324bd49dcf7e85b32fd0094b80174da",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "player.diagnostics.lastUpload": {
+      "sourceHash": "a6011dc7543cd4300f3cb27075892d313926573ac164eef8291d261c020f109e",
+      "parameters": [
+        "upload"
+      ]
+    },
+    "player.diagnostics.lastSegmentWait": {
+      "sourceHash": "932b3f9daf95a2657d5a27e786f9c54bc5355e8a451d17a659cfeb52b1a0ed92",
+      "parameters": [
+        "seconds"
+      ]
+    },
+    "player.diagnostics.expectedBytes": {
+      "sourceHash": "091cac0be01c4599dd5973a53c6072f4426385b14256ee1794ee669bf1e24198",
+      "parameters": [
+        "size"
+      ]
+    },
+    "player.diagnostics.unknownTier": {
+      "sourceHash": "43ca66b8464d7755e103c69c1bab183094d1d0f33253e9474b5f468b5f8eda55"
     }
   },
   "MovieClaw/InfoPlist.xcstrings": {
@@ -1100,7 +2224,89 @@
       "sourceHash": "33a82ee06c9d7ca8fe42bc21d3b875868e4dab5e45bd850675d3731feb9c18e1"
     }
   },
-  "AetherCore/Localizable.xcstrings": {},
+  "AetherCore/Localizable.xcstrings": {
+    "player.engine.routeDetails": {
+      "sourceHash": "f6ac92b140e7d2e625f9015a467617cc2d65dcb7d60f0fb045dd90c3794c69c5",
+      "parameters": [
+        "route"
+      ]
+    },
+    "player.engine.containerDetails": {
+      "sourceHash": "0bc10104df8e1031f50f75817de96c3b6de487501fc2c074447d517c0462aa8b",
+      "parameters": [
+        "container"
+      ]
+    },
+    "player.engine.videoDetails": {
+      "sourceHash": "cdc1e50ba651e17e70ee39f6210cdd478967d056733ba86e86c91f4d10061432",
+      "parameters": [
+        "decoder"
+      ]
+    },
+    "player.engine.pictureDetails": {
+      "sourceHash": "f9b5e23b5e615f000c4bdad1ebb9c9fea8ee5fcf2d6ccdaa9b055ec371c28f4a",
+      "parameters": [
+        "format"
+      ]
+    },
+    "player.engine.audioDetails": {
+      "sourceHash": "177717c72b471d072c0146a6ff75566bcdbce810e8b65fbb82ee9b5103a4207c",
+      "parameters": [
+        "decoder"
+      ]
+    },
+    "player.engine.audioDeliveryDetails": {
+      "sourceHash": "5a87df8eda974cfcfc01f952205e44f557ddeec6a5319c81eac91cb7fca58f24",
+      "parameters": [
+        "delivery"
+      ]
+    },
+    "player.engine.dolbyVision": {
+      "sourceHash": "7963e073e1d86d8965b99c5bbf476f0dd11a8f0f1ad3e29fc5ba1fbc735d35a1"
+    },
+    "player.engine.sourceDolbyProfile": {
+      "sourceHash": "6abe9cfc645a7344b2ab653ec432ae7558f8c0e5d3b9b196dcdec4324229f6a9",
+      "parameters": [
+        "profile"
+      ]
+    },
+    "player.engine.dolbyConverted": {
+      "sourceHash": "9ba1ee9d19dba9a75bc788739fa94cfe493ca811dbf0951b2d8d791f21184a95"
+    },
+    "player.engine.routeLoopback": {
+      "sourceHash": "88d37694437417af45343170c9bd3c6053247c529eb8a2bad2c10fa3c09a76eb"
+    },
+    "player.engine.routeSoftware": {
+      "sourceHash": "bf6a79404caf8d36d041fa51d4ab710dd464b83b43d5b97fac7a699d0b142485"
+    },
+    "player.engine.routeRemote": {
+      "sourceHash": "711fa09a98c18088f78392fdb7efe0d21c5d9f86ea2fc2587e856d0445efff4c"
+    },
+    "player.engine.routeAudio": {
+      "sourceHash": "6d7f65ede275a1e20d78ac62f4cd56958c6d27852c8b336e921dfec8ece79767"
+    },
+    "player.engine.routeNone": {
+      "sourceHash": "a697f62062a707b02ecc4713f1e6847e04f173069dcf6ab557118c4cf1a0fc1f"
+    },
+    "player.engine.deliveryCopy": {
+      "sourceHash": "2a82c0fbfe015d0a11da836df72d5c2b544d0a003f49bdd25416d32058676aad"
+    },
+    "player.engine.deliveryBridged": {
+      "sourceHash": "df2e9cb832aa5dd0df633799a809dd1f5a987cd9a64417a85eef602e8d5b767b"
+    },
+    "player.engine.deliveryDecoded": {
+      "sourceHash": "c6fb400f3f06e0b0750b60d61457db81ad3b89393d7ac186153b5cf695e0e983"
+    },
+    "player.engine.deliveryPlayer": {
+      "sourceHash": "179a137966454ca95cb722f012dcc41982a09536204f969a0f84f2751e85408e"
+    },
+    "player.engine.deliveryNoAudio": {
+      "sourceHash": "a85d44a7bdeffa79350ebc410f6d2681a580053624e13dfe78462fd68e869af6"
+    },
+    "player.engine.deliveryUnavailable": {
+      "sourceHash": "ac90a47dfeee17e1eb328615b3916e9229b4a0b877bdf5122845c5f86f77f948"
+    }
+  },
   "MovieClawNotificationService/Localizable.xcstrings": {},
   "MovieClawNotificationContent/Localizable.xcstrings": {},
   "MovieClawTVTopShelf/Localizable.xcstrings": {}

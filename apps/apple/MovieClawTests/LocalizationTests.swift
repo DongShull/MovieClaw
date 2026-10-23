@@ -23,6 +23,19 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(String(localized: .commonInputMaxLength(2)), "Up to 2 characters. Shorten the text to continue.")
     }
 
+    @MainActor func testEnglishPlaybackLabelsAndParameters() {
+        XCTAssertEqual(PlayerDisplayMode.fit.label, "Fit")
+        XCTAssertEqual(QualityOption.all.first?.label, "Original")
+        XCTAssertEqual(LanguageLabel.of("jpn"), "Japanese")
+        XCTAssertEqual(PlaybackSpeed.label(1), "Normal")
+        XCTAssertEqual(SkipSegments.label(.init(type: "intro", startMs: 0, endMs: 1000, toEnd: false)), "Skip intro")
+        XCTAssertEqual(String(localized: .playerTracksChannels(1)), "1 channel")
+        XCTAssertEqual(String(localized: .playerTracksChannels(3)), "3 channels")
+        XCTAssertEqual(String(localized: .playerDiagnosticsProduced("seg00001", "seg00000", 1)), "Produced through seg00001 · Head seg00000 · 1 segment total")
+        XCTAssertEqual(String(localized: .playerDiagnosticsBuffer(1.26)), "Buffered 1.3s")
+        XCTAssertEqual(String(localized: .playerSubtitlesSignedOffset("+", 0.5)), "+0.5s")
+    }
+
     func testEnglishNetworkAndValidationErrors() {
         XCTAssertEqual(ServerAddress.ParseError.empty.errorDescription, "Enter a server address")
         let refused = APIClient.networkMessage(URLError(.cannotConnectToHost))

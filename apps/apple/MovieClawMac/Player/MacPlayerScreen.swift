@@ -266,7 +266,7 @@ private struct MacPlayerContent: View {
                 showChrome()
             }
             .accessibilityElement()
-            .accessibilityLabel("画面")
+            .accessibilityLabel(String(localized: .playerMacVideo))
             .accessibilityValue(stateSummary)
             .accessibilityIdentifier("mac-player-surface")
     }
@@ -528,7 +528,7 @@ private struct MacPlayerContent: View {
 
     private func toggleMute() {
         volume.toggleMute()
-        flash = MacPlayerFlash(symbol: volume.symbol, text: volume.muted ? "静音" : "\(Int((volume.level * 100).rounded()))%")
+        flash = MacPlayerFlash(symbol: volume.symbol, text: volume.muted ? String(localized: .playerControlsMuted) : "\(Int((volume.level * 100).rounded()))%")
     }
 
     /// Esc：收起面板 → 退出全屏 → 关闭播放器

@@ -267,7 +267,7 @@ final class MacDisplaySleepGuard {
     func update(playing: Bool) {
         if playing, activity == nil {
             activity = ProcessInfo.processInfo.beginActivity(
-                options: [.idleDisplaySleepDisabled, .userInitiated], reason: "正在播放视频"
+                options: [.idleDisplaySleepDisabled, .userInitiated], reason: String(localized: .playerEnginePlayingVideo)
             )
         } else if !playing, let activity {
             ProcessInfo.processInfo.endActivity(activity)

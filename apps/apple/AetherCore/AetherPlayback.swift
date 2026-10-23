@@ -632,12 +632,12 @@ public final class AetherPlayback {
     public func readouts() -> Readouts {
         let telemetry = engine.liveTelemetry
         var details: [String] = []
-        details.append("通路 \(Self.routeLabel(engine.videoRoute))")
-        if let container = engine.sourceContainerFormat { details.append("容器 \(container)") }
-        if let decoder = engine.activeVideoDecoder { details.append("视频 \(decoder)") }
-        details.append("画面 \(formatLabel)")
-        if let decoder = engine.activeAudioDecoder { details.append("音频 \(decoder)") }
-        details.append("音频交付 \(Self.deliveryLabel(engine.audioDelivery))")
+        details.append(String(localized: .playerEngineRouteDetails(Self.routeLabel(engine.videoRoute))))
+        if let container = engine.sourceContainerFormat { details.append(String(localized: .playerEngineContainerDetails(container))) }
+        if let decoder = engine.activeVideoDecoder { details.append(String(localized: .playerEngineVideoDetails(decoder))) }
+        details.append(String(localized: .playerEnginePictureDetails(formatLabel)))
+        if let decoder = engine.activeAudioDecoder { details.append(String(localized: .playerEngineAudioDetails(decoder))) }
+        details.append(String(localized: .playerEngineAudioDeliveryDetails(Self.deliveryLabel(engine.audioDelivery))))
         var readouts = Readouts(
             route: engine.videoRoute.rawValue,
             sourceBytesFetched: telemetry?.demuxerBytesFetched,
@@ -705,34 +705,34 @@ public final class AetherPlayback {
         case .sdr: "SDR"
         case .hdr10: "HDR10"
         case .hdr10Plus: "HDR10+"
-        case .dolbyVision: "杜比视界"
+        case .dolbyVision: String(localized: .playerEngineDolbyVision)
         case .hlg: "HLG"
         }
         if let profile = engine.sourceDVProfile {
-            label += " · 片源 DV P\(profile)"
-            if engine.dolbyVisionConversion == .profile7ToProfile81 { label += "（已转 8.1）" }
+            label += String(localized: .playerEngineSourceDolbyProfile(profile))
+            if engine.dolbyVisionConversion == .profile7ToProfile81 { label += String(localized: .playerEngineDolbyConverted) }
         }
         return label
     }
 
     private static func routeLabel(_ route: VideoRoute) -> String {
         switch route {
-        case .loopback: "本机换封装 → AVPlayer"
-        case .software: "本机软解 → 系统显示层"
-        case .remoteBypass: "AVPlayer 直连"
-        case .audio: "纯音频"
-        case .none: "未装载"
+        case .loopback: String(localized: .playerEngineRouteLoopback)
+        case .software: String(localized: .playerEngineRouteSoftware)
+        case .remoteBypass: String(localized: .playerEngineRouteRemote)
+        case .audio: String(localized: .playerEngineRouteAudio)
+        case .none: String(localized: .playerEngineRouteNone)
         }
     }
 
     private static func deliveryLabel(_ delivery: AudioDelivery) -> String {
         switch delivery {
-        case .streamCopy: "原样拷贝"
-        case .bridged: "本机解码后重编"
-        case .decoded: "本机解码"
-        case .playerManaged: "系统播放器处理"
-        case .noAudioInSource: "片源无音轨"
-        case .droppedNoPipeline: "无法输出（静音）"
+        case .streamCopy: String(localized: .playerEngineDeliveryCopy)
+        case .bridged: String(localized: .playerEngineDeliveryBridged)
+        case .decoded: String(localized: .playerEngineDeliveryDecoded)
+        case .playerManaged: String(localized: .playerEngineDeliveryPlayer)
+        case .noAudioInSource: String(localized: .playerEngineDeliveryNoAudio)
+        case .droppedNoPipeline: String(localized: .playerEngineDeliveryUnavailable)
         case .none: "—"
         }
     }
