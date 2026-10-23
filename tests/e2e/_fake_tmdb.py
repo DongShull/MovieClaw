@@ -107,6 +107,22 @@ def serve(log_path: Path) -> tuple[ThreadingHTTPServer, int]:
             parsed = urlparse(self.path)
             with lock, log_path.open("a", encoding="utf-8") as fh:
                 fh.write(parsed.path + "\n")
+            if os.environ.get("E2E_I18N_ARTWORK") == "1" and parsed.path.rsplit("/", 1)[-1] in {
+                "i18n-blue.png",
+                "i18n-red.png",
+                "i18n-poster.png",
+                "i18n-logo.png",
+            }:
+                color = "#d02030" if parsed.path.endswith("red.png") else "#2030d0"
+                output = io.BytesIO()
+                Image.new("RGB", (1600, 900), color).save(output, format="PNG")
+                body = output.getvalue()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             if parsed.path.endswith("/i18n.png"):
                 body = poster.getvalue()
                 self.send_response(200)
@@ -140,6 +156,23 @@ def serve(log_path: Path) -> tuple[ThreadingHTTPServer, int]:
                         "total_pages": 1,
                         "total_results": len(discovery_titles),
                     }
+            if os.environ.get("E2E_I18N_ARTWORK") == "1" and parsed.path == "/3/movie/300/images":
+
+                def artwork(path, language=None, width=1600, height=900):
+                    return {
+                        "file_path": path,
+                        "iso_639_1": language,
+                        "width": width,
+                        "height": height,
+                        "vote_average": 8,
+                        "vote_count": 20,
+                    }
+
+                payload = {
+                    "backdrops": [artwork("/i18n-blue.png"), artwork("/i18n-red.png", "en")],
+                    "posters": [artwork("/i18n-poster.png", "zh", 1000, 1500)],
+                    "logos": [artwork("/i18n-logo.png", "ja", 1600, 600)],
+                }
             body = json.dumps(payload or {}).encode("utf-8")
             self.send_response(200 if payload is not None else 404)
             self.send_header("Content-Type", "application/json")

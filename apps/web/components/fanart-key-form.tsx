@@ -13,7 +13,7 @@
  * 已保存的旧 Key 不受影响。
  */
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { appTranslator } from "@/lib/i18n/translate";
 import { useCallback, useEffect, useState } from "react";
 
@@ -58,6 +58,7 @@ export function FanartKeyForm({
   className?: string;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const copy = fanartCopy(t)[variant];
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -123,6 +124,7 @@ export function FanartKeyForm({
       {error && <p className="mt-2 text-caption leading-relaxed text-[#ff9f9f]">{error}</p>}
       <p className="mt-2 text-micro text-[var(--text-faint)]">
         {t("settings.scrape.fanartNeedKey")}
+        {locale === "zh-Hans" ? "" : " "}
         <a
           href={FANART_KEY_URL}
           target="_blank"
