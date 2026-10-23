@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { formatNumber } from "@/lib/i18n/format";
 
 /**
@@ -422,6 +424,7 @@ export function SubtitleGenPanel({
   /** 产物落盘后回调（详情页借此重拉字幕清单，新字幕立刻可见） */
   onChanged?: () => void;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const { start: startAgent } = useAgentConversations();
   const { isAdmin } = usePermissions();
@@ -683,9 +686,9 @@ export function SubtitleGenPanel({
   let badgeClass = AI_BADGE_IDLE;
   // 已经生成过也不改口称「新建 AI 版本」：那是在讲实现（又加一个文件），
   // 用户要的答案始终是同一句「让 AI 给这个片子做字幕」。
-  let badgeText = "AI 生成字幕";
+  let badgeText = t("media.subtitles.generateBadge");
   if (previewing) {
-    badgeText = "正在检查";
+    badgeText = t("media.subtitles.checkingBadge");
   } else if (running) {
     badgeClass = AI_BADGE_RUNNING;
     badgeText = runningBadgeText(progress);
@@ -694,7 +697,7 @@ export function SubtitleGenPanel({
     badgeClass = AI_BADGE_IDLE;
   } else if (hasTerminalIssue) {
     badgeClass = AI_BADGE_FAILED;
-    badgeText = "AI 未完成";
+    badgeText = t("media.subtitles.unfinishedBadge");
   }
   const runningTarget = progress?.target_language || targetLanguage;
   const runningSecondary = progress?.secondary_language ?? null;
@@ -734,7 +737,7 @@ export function SubtitleGenPanel({
           actionButton
         )
       ) : (
-        <LlmCapabilityGate feature="生成字幕能力" noticeVariant="inline">
+        <LlmCapabilityGate feature={t("media.subtitles.generationFeature")} noticeVariant="inline">
           {actionButton}
         </LlmCapabilityGate>
       )}

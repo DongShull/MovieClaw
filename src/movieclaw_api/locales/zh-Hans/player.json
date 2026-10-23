@@ -104,5 +104,25 @@
     "audioTarget": "音频 → {codec}{downmix}",
     "audio": "音频转码",
     "remux": "重封装"
+  },
+  "defaults": {
+    "audioRemembered": "你上次看时换的音轨",
+    "audioSeries": "沿用这部剧上一集换的音轨",
+    "audioOriginalLanguage": "影片原声",
+    "audioDefaultFlag": "片源标注的默认音轨",
+    "audioFirst": "第一条音轨",
+    "audioNone": "没有音轨",
+    "subtitleRemembered": "你上次看时选的字幕",
+    "subtitleSeries": "沿用这部剧上一集选的字幕",
+    "subtitleLibraryLanguage": "媒体库语言的字幕",
+    "subtitleForced": "原声就是媒体库语言，只开强制字幕（片中外语对白的翻译）",
+    "subtitleSameLanguageOff": "原声就是媒体库语言，默认不开字幕",
+    "subtitleNoLanguageMatch": "原声就是媒体库语言、又没有这种语言的字幕，默认不开",
+    "subtitleExternal": "外挂字幕优先",
+    "subtitleDefaultFlag": "片源标注的默认字幕",
+    "subtitleForcedOnly": "只有强制字幕",
+    "subtitleNone": "没有要自动开的字幕",
+    "subtitleOffRemembered": "你上次看时关掉了字幕",
+    "subtitleOffSeries": "沿用这部剧上一集：不开字幕"
   }
 }

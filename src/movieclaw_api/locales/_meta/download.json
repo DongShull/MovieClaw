@@ -28,5 +28,14 @@
   },
   "operations.submitted": {
     "sourceHash": "ea955daab6e13316a8c1f34317fbea892e792fc6abb812606ea794a655519230"
+  },
+  "removal.optionLabel": {
+    "sourceHash": "95487c34ae8c720a1e864823781b040c7c52a96f2deb006999091de0391c1bce"
+  },
+  "removal.optionHelp": {
+    "sourceHash": "c717b0d5269f9a2d9bfc527a5cd63e437cd0310446d29639a8040490d6d548a2"
+  },
+  "removal.noTask": {
+    "sourceHash": "8ececd6899fb2d4a5195aeb0fcb8021e958fd237984dc7e2a1084d37aa784322"
   }
 }

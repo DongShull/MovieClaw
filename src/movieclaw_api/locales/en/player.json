@@ -104,5 +104,25 @@
     "audioTarget": "Audio → {codec}{downmix}",
     "audio": "Audio transcoding",
     "remux": "Remux"
+  },
+  "defaults": {
+    "audioRemembered": "The audio track you chose last time",
+    "audioSeries": "Uses the audio track chosen for the previous episode",
+    "audioOriginalLanguage": "Original audio",
+    "audioDefaultFlag": "The release’s default audio track",
+    "audioFirst": "The first audio track",
+    "audioNone": "No audio tracks",
+    "subtitleRemembered": "The subtitle you chose last time",
+    "subtitleSeries": "Uses the subtitle chosen for the previous episode",
+    "subtitleLibraryLanguage": "Subtitles in the library language",
+    "subtitleForced": "Audio is in the library language; only forced subtitles are enabled for foreign dialogue",
+    "subtitleSameLanguageOff": "Audio is in the library language; subtitles are off by default",
+    "subtitleNoLanguageMatch": "Audio is in the library language and no matching subtitles are available; subtitles are off by default",
+    "subtitleExternal": "External subtitles take priority",
+    "subtitleDefaultFlag": "The release’s default subtitle",
+    "subtitleForcedOnly": "Only forced subtitles are available",
+    "subtitleNone": "No subtitles to enable automatically",
+    "subtitleOffRemembered": "You turned subtitles off last time",
+    "subtitleOffSeries": "Uses the previous episode’s choice: subtitles off"
   }
 }

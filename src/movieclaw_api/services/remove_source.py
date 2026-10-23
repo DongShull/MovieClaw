@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.exceptions import AppException
+from movieclaw_api.i18n import messages, t
 from movieclaw_api.services import jobs
 from movieclaw_api.services.download_sources import FileTorrent, torrents_for_files
 from movieclaw_api.services.library.delete_participants import (
@@ -142,7 +143,7 @@ async def preview(request: DeleteRequest) -> Preview:
         if not assessed:
             return Preview(
                 available=False,
-                reason="没找到对应的下载任务（扫描进来的文件或来源已不可考），只会删除媒体库文件",
+                reason=t("download.removal.noTask"),
             )
         lines: list[PreviewLine] = []
         found: list[tuple[str, str]] = []
@@ -196,8 +197,10 @@ async def preview(request: DeleteRequest) -> Preview:
 
 
 PARTICIPANT = DeleteParticipant(
-    label="同时删除下载任务和源文件",
-    help="把下载器里对应的任务连同下载目录里的数据一起删掉，真正腾出空间；源文件删除不可恢复",
+    label=messages("zh-Hans")["download.removal.optionLabel"],
+    label_key="download.removal.optionLabel",
+    help=messages("zh-Hans")["download.removal.optionHelp"],
+    help_key="download.removal.optionHelp",
     preview=preview,
     job_type=JOB_TYPE,
 )

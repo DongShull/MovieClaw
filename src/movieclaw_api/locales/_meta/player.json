@@ -286,5 +286,59 @@
   },
   "delivery.remux": {
     "sourceHash": "033bde86a4e44b1a8758b6bb66e5930f9115d9e5922bad75434d272bd168e8f5"
+  },
+  "defaults.audioRemembered": {
+    "sourceHash": "00a606d020443e3d16eafe979333d624fc905ab379718d5c16943081e34039b4"
+  },
+  "defaults.audioSeries": {
+    "sourceHash": "e58bc563cc0db1d289cdca5ca174c6dbf82a42c544791cba2e155c63fc036292"
+  },
+  "defaults.audioOriginalLanguage": {
+    "sourceHash": "477587621def120eb523aba5f208b28a263e92440be865857ebb58fe93a94363"
+  },
+  "defaults.audioDefaultFlag": {
+    "sourceHash": "13d2c3869d72cbbd0c6a3c6b59b9854474d36d798f4bdda54d37e6b23bfc7e5a"
+  },
+  "defaults.audioFirst": {
+    "sourceHash": "7835ca7584b88252fd5fe64c05211f9e45ee8cc923e33018f9abff7c3cfaba1f"
+  },
+  "defaults.audioNone": {
+    "sourceHash": "4017851cf3da20b02d1cbbb5dedcc353252cf2bb410694203002bcba65a721c1"
+  },
+  "defaults.subtitleRemembered": {
+    "sourceHash": "112ae4523b3d504f7e11dd1d5246bb38e0f6c4e75ab360199a52ce15716b91aa"
+  },
+  "defaults.subtitleSeries": {
+    "sourceHash": "6e590d0e26e71deb696662268b0d30d4fa5ad4ffa5871c6aef8c19060e827106"
+  },
+  "defaults.subtitleLibraryLanguage": {
+    "sourceHash": "c6e67f007b5f6d228629740bc7665c9bfab7290b9b62ba8f061fffb113134526"
+  },
+  "defaults.subtitleForced": {
+    "sourceHash": "eb70419b139d3bdefd010d5e32749a9f8bfb6c88c6638fb0f4e96618dd6535de"
+  },
+  "defaults.subtitleSameLanguageOff": {
+    "sourceHash": "7d118966c8456f846a5a74f342cf107a56cb61de40115ad543debe8425ae07b8"
+  },
+  "defaults.subtitleNoLanguageMatch": {
+    "sourceHash": "275020ba6eeeea6f34f6ab36bfdb8ec8176c844ebd6e078e20616915f1add9f5"
+  },
+  "defaults.subtitleExternal": {
+    "sourceHash": "5275104fe6afae990d9104dca05cb0e6af471776e4652c220b35b342e72992a2"
+  },
+  "defaults.subtitleDefaultFlag": {
+    "sourceHash": "d86c00f2c00df938c351ce84d39b448e8cc9eea879317d18db627187d5e585bd"
+  },
+  "defaults.subtitleForcedOnly": {
+    "sourceHash": "ba3329e2536f5059f9f601a5a187ed09bdeb09d54d516cdf134d30e1a915162a"
+  },
+  "defaults.subtitleNone": {
+    "sourceHash": "c7e0c467d9ddbae0e30e9397e9103eee536cbbeffe25296aa16a3142c6808cc8"
+  },
+  "defaults.subtitleOffRemembered": {
+    "sourceHash": "5dc38597a76356242e29d3d08e11f6db17547aa1fa16d33a2cbc0111db146541"
+  },
+  "defaults.subtitleOffSeries": {
+    "sourceHash": "ee3b3f53b9530f72f697c9b84e9028a7b8897d0306c6bf39604ff831c479ec33"
   }
 }

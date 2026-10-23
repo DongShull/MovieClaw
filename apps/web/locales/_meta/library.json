@@ -2242,5 +2242,572 @@
   },
   "gallery.viewPhotoTitle": {
     "sourceHash": "6dc9d2f8166e214557e2886627fca3b01f8987d2bb4d35ed7cdf878cd9b288ca"
+  },
+  "item.markFailed": {
+    "sourceHash": "04c6e85e45f603bee86a6654b548a45e686c0575a5666f9744ff30d29f57df97"
+  },
+  "item.restoreFailed": {
+    "sourceHash": "f2f6454a73f4aa6ef3ccc64c3e5a272392c42650688f90c01a3f06d66da318cb"
+  },
+  "item.purgeOriginalHint": {
+    "sourceHash": "838476288c60705126e1533378b2658005ca5d0e5acf779ce03263a8cc162d23"
+  },
+  "item.purgeTrashHint": {
+    "sourceHash": "67a7ba9a19b23a9273d8aac3d04354bb86e4dedc3722d979bdccd15585a12df8"
+  },
+  "item.purgeNow": {
+    "sourceHash": "e66632c79890f5a084b3a6b5ec277a965ff28dc4f55f1f2a14e4383ded36eae0"
+  },
+  "item.notNow": {
+    "sourceHash": "a4d2f6abc99e4fbbcd6cf6cd4edf31b5a0c9dca1e59a7fdd4a8f071901b45734"
+  },
+  "item.purgeFailed": {
+    "sourceHash": "479b22684b7a41a63f94afb0a6a36e483385a6e408530f53e46154762c71f307"
+  },
+  "item.discoveryDetails": {
+    "sourceHash": "2a0a916fe55d221a3758b1ee3661e57417f6e65b8daed77a8e2e414830ec9b52"
+  },
+  "item.inventory": {
+    "sourceHash": "780c5fd5b10533dc553830d88d33b17ef95698d05bad978ccc582467adb19b4c"
+  },
+  "item.loadFailed": {
+    "sourceHash": "bb349c808518c2315a408998071eb095ff2d14f01109cd07b241c9338826514e"
+  },
+  "item.unavailableHint": {
+    "sourceHash": "6732dabe4e21ea5c8286dca7a01bc399fc7616ae4672429a4a585364186d339c"
+  },
+  "item.loading": {
+    "sourceHash": "2bd6c57ce0d39dfce249cb11d5eba0b4d756eae37a6d1e989fbbb07fae2cbff2"
+  },
+  "item.director": {
+    "sourceHash": "06f611b51ca697e79dd18c6d5ebd79acedb2fb1b633e2f71cad369cbc5fa6e19"
+  },
+  "item.thisItem": {
+    "sourceHash": "9c994112d85e0a0155f290f917d49e44d4fca707f977c013c1e48c279386f8e4"
+  },
+  "item.refreshFailed": {
+    "sourceHash": "d5cb2bb6bf79a7cc764124a69950250960f8fb0e23ab066483aacd252bb2eaa1"
+  },
+  "item.clearHistoryHint": {
+    "sourceHash": "1c6db5400a150c1f9e03fadbb5ee00ab6349eb7dd597b4e5c5297f78b72a250d"
+  },
+  "item.clear": {
+    "sourceHash": "bce2377283c2455ab8b1deb7711af90638f10ef82e345eb354e9296ff9397a56"
+  },
+  "item.chaptersStarted": {
+    "sourceHash": "5e64aa2c96566a71f0a74fbf740687fa315de91fef4ac52988b73e3ff25c461b"
+  },
+  "item.thisMovie": {
+    "sourceHash": "1201da9ee94a515556f23b8802a721e598d78f09afb517ae697a691c02bd457b"
+  },
+  "item.thisSeries": {
+    "sourceHash": "3a816e24b988c3c512c131b5c3b8487d6ea0d007faa4dd91438c1eab82eca823"
+  },
+  "item.refreshing": {
+    "sourceHash": "6a81a00c53ef66be5195dcbdfcab8edef32c83451c5f1a161ac462622a1d1347"
+  },
+  "item.refreshingHint": {
+    "sourceHash": "2509132953f42b50a31a2d61459f255b71bc7f93ef8782d353529d7306e7b5ba"
+  },
+  "item.files": {
+    "sourceHash": "39932f24fe11a6baf55145a8ea05e1abd8f773d4a98a0785ca27183f2ececedb"
+  },
+  "item.externalEntry": {
+    "sourceHash": "6f40db4e18f80650552aa6cb39c512c9226452bd265e83d39f9c7c7cda012ad0"
+  },
+  "item.relatedLinks": {
+    "sourceHash": "11bd1ff53ceab6fccdf6ce9dbca4b4949fdd54b2c264f89c95cca1d27edc9c14"
+  },
+  "item.douban": {
+    "sourceHash": "d442cd087c0f307ca189c278ca5468caf4caf1f86f80c2c203d512596f4b84d6"
+  },
+  "item.resume": {
+    "sourceHash": "cbda4a4970214312cb80ec6de666166492925fb4dc0df64479e75239fc427a18"
+  },
+  "item.replay": {
+    "sourceHash": "dc4db96376ef9185596ea8cd0ff8596ac5e3c3a6b336f26a0549c36df9112abd"
+  },
+  "item.nearlyFinished": {
+    "sourceHash": "d4bb5bfd3c5eabdf6aeb5e0cf2ffea23a94bf2f21bb63f4f5788485e97a15332"
+  },
+  "item.favorited": {
+    "sourceHash": "471dd4d7f86954d0a5140fc814781a4f40b3e5cd7da842c9715a59582e647125"
+  },
+  "item.markUnwatched": {
+    "sourceHash": "d14d315295075a2e1e4d44da63b867c409bd2f8ad16dc35088a63363c1f252bb"
+  },
+  "item.markWatched": {
+    "sourceHash": "da45b6dd94c09a67f8f428c517aa77035afe887344a53dbf6e04cc206d420ee5"
+  },
+  "item.watched": {
+    "sourceHash": "4715b1c2316b458de284168fd1099a47f06c4a5def2a2cfe113ce2d0252671ce"
+  },
+  "item.setWatched": {
+    "sourceHash": "fef2c795293244679f7750c88265180fc3d8820e06bf4ab7a8b949c3b45482bc"
+  },
+  "item.watchProgress": {
+    "sourceHash": "8f2748fa578f86722994b8ae321a247ef78eb4cdd085881f0b0c94f9f5ce52e9"
+  },
+  "item.searchReleases": {
+    "sourceHash": "303c30f30151425021b0001acc0094f5fafb6055015fd173d2bc2c4299e02ccd"
+  },
+  "item.addToCollection": {
+    "sourceHash": "a643f7a977906f9e5e8169739f7d991010aecf1ea6e2f71ac29fe8fbe1bf36d7"
+  },
+  "item.upgrade": {
+    "sourceHash": "fcad48d3fff22db10087fc45038a41fd54a8fcecdca44000d9f26f6118015aac"
+  },
+  "item.reidentify": {
+    "sourceHash": "3799ac5c37f493630c852b8cf6158b4dfdc36d94ca3f72360ec656474e4a956e"
+  },
+  "item.refreshingMenu": {
+    "sourceHash": "28099d85fbf98ae8f6e8543f3f35c52e79e704e420ec84140bcf6df521fcc62d"
+  },
+  "item.refreshMetadata": {
+    "sourceHash": "722c76c85c480661ff752bd781bd10c165110aeaa56d810cd8e4fe28da68730c"
+  },
+  "item.readingNfo": {
+    "sourceHash": "1cbd9a631f2a2912d73f79ae6a2e30bec2fe697097566fd4c6eccd2e6602f99a"
+  },
+  "item.generatingCover": {
+    "sourceHash": "8d2f7f8595b587792ac3bb2763a2dc232db9cf65f6c349801ee70f62a5740292"
+  },
+  "item.rereadNfo": {
+    "sourceHash": "80e00f1bbe0c1434f60f3ea418d28e9ce3474f86d80a0210ed3af55615a22d0b"
+  },
+  "item.regenerateCover": {
+    "sourceHash": "c566d633f2f35b672451e63e653c50a55f401cef143adaced5cba3fe55b13f52"
+  },
+  "item.generatingChapters": {
+    "sourceHash": "2d80168f889efdd46d8ab81acaa31689e64a8ca0fb44f7decd3bda4a35ee3a81"
+  },
+  "item.regenerateChapters": {
+    "sourceHash": "fa40938e1e8d39a3e0ca946b86538b7e5ed3c888b58eef8b21e25fe08ea223c1"
+  },
+  "item.changeArtwork": {
+    "sourceHash": "be3af4b3f4b296fe290e175e2bf9f2f2805f071db56b320bf63dd0b5d3d90855"
+  },
+  "item.transferMenu": {
+    "sourceHash": "acdd0dd04066998a314946fa0c37d450a34f3a545d3a43134864b88d1a359887"
+  },
+  "item.deleteMovie": {
+    "sourceHash": "495fb60ee0f2eda57aadf9d1c71ebcb9e87da0e6037e736171eb2e563d8bc400"
+  },
+  "item.clearHistory": {
+    "sourceHash": "a909a1a732594c205bf361d12aa92ee4d1b4e158b31fb1694beaf683a1440619"
+  },
+  "item.collapse": {
+    "sourceHash": "afd4b783536b8297bb2506836727af1ccae7626a7d04e89de7ad402360e0a970"
+  },
+  "item.expandPlot": {
+    "sourceHash": "fb654bf587e71527a896fdb214c7a0d20cb58f2259ce4dbdb3b2b9f75b72d313"
+  },
+  "item.specials": {
+    "sourceHash": "2ad1a072b5342586db1254a30abd3b918c4fd5087a599072f4ee57e3ae144117"
+  },
+  "item.episodes": {
+    "sourceHash": "dea789c82d1d71bb48b59f9935e8f28d857b7717b06a44db65a4f90541e4a7eb"
+  },
+  "item.episodesFailed": {
+    "sourceHash": "772d2a887752cd543018da683fff6573ae1d85bcbaf1fbc8b81017c64051854b"
+  },
+  "item.loadingEpisodes": {
+    "sourceHash": "27ac0d55c7b093715bb7ca336e8232d6bb90238d251ce28983d29c3aee5c675f"
+  },
+  "item.resumeRange": {
+    "sourceHash": "0d621b14c70a333c7419eac2592144bdb891bf7506002d405d37b64d703dd568"
+  },
+  "item.previousRange": {
+    "sourceHash": "75a58097de63e16d8c002a8c3e86c686fc816d1a49528e3ae203faaa744902f7"
+  },
+  "item.nextRange": {
+    "sourceHash": "fcec7fafdaf61e41a44e856ab327a68dbb4e711e17f3f9fe0aa18095acf6ef77"
+  },
+  "item.allEpisodes": {
+    "sourceHash": "b62552b12462fc1d18ac23375f3345c265983f845f3db709599bbb280431e215"
+  },
+  "item.continue": {
+    "sourceHash": "5033b449a6130d1b53612a430d6016c722e8cb222fa7a555eaf175ec06c7c25e"
+  },
+  "item.missingBadge": {
+    "sourceHash": "d08d064a3ca8bfed4eded9d17b472c8a7bfd4301d5120e9b99189f99aacd2803"
+  },
+  "item.manageDuplicates": {
+    "sourceHash": "fa8ad56d41d02183a4a82fe87ad81298fa435bde4fb8382db29ab21e340a05b4"
+  },
+  "item.local": {
+    "sourceHash": "bf4ad761840fcd0af8f7f4df6e2084f907e3b23d35220a1c63b3ad9136a9b777"
+  },
+  "item.noAutoPurge": {
+    "sourceHash": "d4b5dc18a52f86bda6044f69a55bf3e852fc31400cd35f6c242975c7874593fd"
+  },
+  "item.purgeSoon": {
+    "sourceHash": "d3120ff286c59d43ec0da01ca169b95bdee7a634dcdab7d35f966793c8e5696b"
+  },
+  "item.purgeWithinHour": {
+    "sourceHash": "075923149399f95f2ffb65aba59a2b3d3b6a99d7f28b2449309964c13386bd1b"
+  },
+  "item.notProbed": {
+    "sourceHash": "9a96f1a5f636fefd1e4a940e16d5b33413aadf6e5e81f0396f74feb40f475e92"
+  },
+  "item.fileMissing": {
+    "sourceHash": "0f9bf71dc0739e79a62ac6a7718739666869e41b3e74243f662300a9eadcc0dc"
+  },
+  "item.awaitingRecycle": {
+    "sourceHash": "4bba57fa989c5a4bb6690b0d2c6d183950e99dfb43fd13d0292712f00f467093"
+  },
+  "item.restore": {
+    "sourceHash": "e0534b8a4e46a0cb5601d4da01910450a4ef2ffd6eacdc29c7312dcf7cfe0930"
+  },
+  "item.deleteFileLabel": {
+    "sourceHash": "116085a90c3bd27a472a66794ab25d15da2be5fd580e342a51a2aa1532c626e4"
+  },
+  "item.saveDirectory": {
+    "sourceHash": "18e7649764bb12ec05ce72e57398e102df4b0c98a3efd4e9884abbd897b4b8fc"
+  },
+  "item.addedAt": {
+    "sourceHash": "fd184c2ce0464e08e8afc2899499b09bb4a082fbfb9c4ee69d3d04a68c9d50f3"
+  },
+  "item.source": {
+    "sourceHash": "a488e93d69cc12961ea26e97b7d246d03a9af7334d2d84881dd7f702e801bf74"
+  },
+  "item.versions": {
+    "sourceHash": "098514f111f87e2cb7833185e16c908803a5f091a271f6f6774304cac1bce0ac"
+  },
+  "item.keptByYou": {
+    "sourceHash": "2f0027c23a70030110b3d57e5cbc9fd96e5169e0e19442c98c28421be1e97768"
+  },
+  "item.notDuplicate": {
+    "sourceHash": "d832fc83d03e43d86c16fc506dbc840ff21748268a33204118b137839535a937"
+  },
+  "item.fileSize": {
+    "sourceHash": "d809f2dbd336fa8dc51a8b0ce45b417c9456809fce646508f9dfcab957f32978"
+  },
+  "item.releaseSource": {
+    "sourceHash": "bf54866b0ddc5c6d1fcfc386c3ee1c52b4f6fd92edf60eb6eb9c87dabef5075a"
+  },
+  "item.unidentified": {
+    "sourceHash": "52e83fa75e7ea06ba5901579a8ca48c243e4f6fbb2cd0ec753a1ebb461c4b160"
+  },
+  "item.userAnnotated": {
+    "sourceHash": "19f8e23150630c66423ea24e7b89ededc8b68ef4c10dfb3c680be8919dbf47d4"
+  },
+  "item.videoSpec": {
+    "sourceHash": "a4dfb67e02461da15f749a43c9f4b94605f47bb9a461f5099bd887cd5e2ede14"
+  },
+  "item.probeUnavailable": {
+    "sourceHash": "c10e593f64b3b5670b1261af750e67eccab0d6ebb757d052bd8bb8e5e2dff210"
+  },
+  "item.videoCodec": {
+    "sourceHash": "780da4f960961e1490dc0222f0ce9fd5d32d705f39a9b6ff026c4fa3629fadc0"
+  },
+  "item.bitDepth": {
+    "sourceHash": "757ee1588c6ae90c3b353b2468da11aa6b92783dbae1306347873b6eee436a4e"
+  },
+  "item.frameRate": {
+    "sourceHash": "f9404bf335bc14cf0826bbfaaab1d557f24eb37928bdf495d1c6b897899cbe3f"
+  },
+  "item.colorSpace": {
+    "sourceHash": "3c663ac9fe3f1e17a689be235c121a2695d8a8271872b4db9f08f81de7c2d636"
+  },
+  "item.videoBitrate": {
+    "sourceHash": "01045c06d7182db3ad6f407446262bb15edbc4c95fb1d0ed335b820bf682bf85"
+  },
+  "transfer.librariesFailed": {
+    "sourceHash": "8080efeea6a1463dcb86da52dbb752b790eddbeabe852d0694686ea7cb28f00c"
+  },
+  "transfer.previewFailed": {
+    "sourceHash": "9094e63b8f4516ac27e1d15f792e6078fcd078391d6f51479ff54bcb3f603ae5"
+  },
+  "transfer.failed": {
+    "sourceHash": "ca6d8bd4ef9a1fcdde4b048052900b0e51d6c6e61c885d754acb7b7c730f9c36"
+  },
+  "transfer.title": {
+    "sourceHash": "6a7734106df3ef6771c3b09780ef4ae879edbd85e78c1191c6fcaa5435d21885"
+  },
+  "transfer.target": {
+    "sourceHash": "a24d864fcfe4f2d018dcfea0497a2a103717f8a8cfc5e093723eadb37ddcbbcb"
+  },
+  "transfer.loadingLibraries": {
+    "sourceHash": "6f0ba6dab9cd9bf094aa47a1e0ac9c05c6b4e05d6b0d5eb23d2fbf718294e862"
+  },
+  "transfer.defaultLibrary": {
+    "sourceHash": "1796340673c6733ac484dbb096db7056d9abeb6eab4f02e50ec025f4c10dcf86"
+  },
+  "transfer.noRoot": {
+    "sourceHash": "7f4106a015d47d32edcec724bb1ca738ea2c0dc795f05666bb92b6d619aecb67"
+  },
+  "transfer.calculating": {
+    "sourceHash": "0bdbabfabb0c16dbef0a95d67e745deb2ac45c874f94789c71c49bbe39baf8a0"
+  },
+  "transfer.moving": {
+    "sourceHash": "4a3a4bf274cfcc2fe52793879fc17d18c7130051dc1a29dc10c68de2168cdbf1"
+  },
+  "transfer.crossDiskProgress": {
+    "sourceHash": "448afac68d7d900d573a06dcc6cfa248227b68303b837aae924dbf19caf183df"
+  },
+  "transfer.stay": {
+    "sourceHash": "97c3e4f7a49f111e42e7c1aa921afd0815075448d3a62d80c2758cdef5a1678d"
+  },
+  "transfer.openTarget": {
+    "sourceHash": "e52c735965f5a7cb96cad571061ccb7bc7d4904e212548ed84ec340e9ace3fe9"
+  },
+  "transfer.confirm": {
+    "sourceHash": "c33460f414395ca1733800fbcb96b4590cf7ddaf4f9e8a31456c74cce0214f50"
+  },
+  "transfer.partial": {
+    "sourceHash": "a13be80e792c85299e71ac459c3d4e627224ea5baa83d2f5214559b78d35ce9c"
+  },
+  "transfer.noPathsMoved": {
+    "sourceHash": "03129373ba2eece2a89d79ceb03f3fcfdf7771be55213445fae8253de39aa76d"
+  },
+  "item.deleteFailedRetry": {
+    "sourceHash": "1726694dfa6fa2c2dd220691e8688c4c081d0c59350dbd7a9a31cce0d21cea24"
+  },
+  "item.deletePartial": {
+    "sourceHash": "f6bfab58c4b7c8b0a0f71f9992c376077137d24d415f7fe2a9c4a158f7db6e4f"
+  },
+  "item.deletedPermanently": {
+    "sourceHash": "f8c6cf95ec15bf268e8166a7442e69377f9e1719961a2926a97d717e9cb2add4"
+  },
+  "item.noPathsDeleted": {
+    "sourceHash": "fd12d7655145d2f670ef72d10f1f7ffd3a8a20161d58265a72d3bdcd7eaba187"
+  },
+  "item.backToInventory": {
+    "sourceHash": "00554af9eaf947b990d1a8a8d08c5dde9a36261a9ba4887d2d80cff166d6cb8e"
+  },
+  "item.deletePermanently": {
+    "sourceHash": "7aa6d0ef5feb745c45d2f52f85673904c311a37d9c1e47a94d102d97baf74b06"
+  },
+  "item.deleteAcknowledge": {
+    "sourceHash": "119e536613ffd6c4145604dd0f52d282413eba3e728b007ba9bedca453cdbc5f"
+  },
+  "item.deleting": {
+    "sourceHash": "4fd4f40094d40891ebffd33201c474a72cd8b520460096aad0787615d431dfe8"
+  },
+  "item.deleteFile": {
+    "sourceHash": "88f47860e77d1b7a730046a04aa45452a9dd6bd375df7b721ded51c632d657ca"
+  },
+  "item.deleteFailed": {
+    "sourceHash": "c228558cf257fc4909ced5ffe9a4c147abde9460215da80bd39fde4159151ccb"
+  },
+  "item.deleted": {
+    "sourceHash": "58fe7086849b289de4fb5975a6b7384baa29021df38e6c82fca039a7c2233ad5"
+  },
+  "item.deleteMissingHint": {
+    "sourceHash": "4bf615e87f788ecda5a85ea35c1d2354534c1dc3916c4e86d337c75de6bf332e"
+  },
+  "item.redownloadHint": {
+    "sourceHash": "14c64c10eedb60af4174a9a2a18c7d8b74b8c9c758808db46cd9ba566d032720"
+  },
+  "item.similar": {
+    "sourceHash": "94c7034f8020f2f555862d6c6a22123327adfdaa40a056613cee8727bf23065e"
+  },
+  "item.currentTitle": {
+    "sourceHash": "67fe597ff475f56ae155142109122c843146cc5d1db4de69d5e5cc00b3e5371f"
+  },
+  "item.chapters": {
+    "sourceHash": "f12d1c90df4de3785de395c58fcba97219ee2ed32e985e86c3821b6874146d1f"
+  },
+  "item.chaptersGenerating": {
+    "sourceHash": "d631d46752118e7067a38688e97746ab926370b9cbe92b4ad0277d850260534a"
+  },
+  "item.playHere": {
+    "sourceHash": "d4f02dfa56fbd53c1b5903915306ee1f23480256477da8bdcf5a5678bb2c822d"
+  },
+  "item.resumeChapter": {
+    "sourceHash": "190224f004ed4a358d24a422621edf8a2ec57ee24d2e2f38cb6afa0c2d187e17"
+  },
+  "item.restored": {
+    "sourceHash": "0e8ccc6e7ad568b6fdc4788b36b361a3edd619988f9f8eeee5df51a0092ac796"
+  },
+  "item.purgeTitle": {
+    "sourceHash": "39cd6f6d2232291193d6e7e04e3614798d5bacae6f5c29279a3919d86b5e6bac"
+  },
+  "item.purged": {
+    "sourceHash": "d053de6edb1311978ed5a1bd68b25e72a4a684047d4ed3a46162a0c7d5ace868"
+  },
+  "item.duplicates": {
+    "sourceHash": "c3c8a9618308889e770c07439c02fca535a2992b30a513717de58d73a343e956"
+  },
+  "item.versionCount": {
+    "sourceHash": "e51a935a4172fcaa75b813a1982ebd07150bf2273dbade0f6f935af8e7bb36f3"
+  },
+  "item.clearHistoryTitle": {
+    "sourceHash": "829949bb7aa13e8036811d70ab448bcae7c7cd9a33c12197392058bf39b38a2e"
+  },
+  "item.selectedEpisode": {
+    "sourceHash": "7aff8e1245896e6a8b1c3add085c9a6f14723388bea7555120936eb391a94c73"
+  },
+  "item.ownedSummary": {
+    "sourceHash": "5eff692be2fd9775018792525736d3b762acbe52bec793c336313abc1f97a60b"
+  },
+  "item.position": {
+    "sourceHash": "cfcb0a2ea317e79710969dfc1d69f65f1ac0c2643b7ac204a57d026e79e041e2"
+  },
+  "item.remaining": {
+    "sourceHash": "6c983a068926a94b83b8076e5825828eb7e9506df2ca6c8fc677ec1a8d1e3da3"
+  },
+  "item.unfavoriteTitle": {
+    "sourceHash": "2da125e5b902e153fd042abfdd98eb95eb5c1a94ff216cd3b18bd0aff4f9feb5"
+  },
+  "item.favoriteTitle": {
+    "sourceHash": "a6b443f98e7856e6aab267505722fbb41d1fa0a7b687814f2c335a2b64cced64"
+  },
+  "item.season": {
+    "sourceHash": "adc168a2165d204da0a9b716058e76b40b636bfb0a168ec164394fdab9f231b2"
+  },
+  "item.seasonNotOwned": {
+    "sourceHash": "10f1495bdf619e2ec3b4284b63859d6612e7b5053bae454413257ed9fa9cb725"
+  },
+  "item.episode": {
+    "sourceHash": "be49dc6f013a691057b5f47c83542dd2ce904634597091f09b368d0513423076"
+  },
+  "item.episodeStill": {
+    "sourceHash": "57d437009fc388d99dc757fa25a8047a6126d32153d4228069d4dfb01b7312c9"
+  },
+  "item.episodeStatus": {
+    "sourceHash": "3dc075a0dc083e482e20670e596d1c6739ccb231117202c05831a53fadfbcd52"
+  },
+  "item.uploading": {
+    "sourceHash": "4ad0f43a38e055871991d2b031d73a2a933e861672959c68b651904262ec5ca9"
+  },
+  "item.uploadFailed": {
+    "sourceHash": "cbb727ea879b471a62ab9bbca18a73a40ee2f09e00d2bb34c95c2fb3fa3fbf45"
+  },
+  "item.cloudMissing": {
+    "sourceHash": "6f512ef0ed531ba394f9fda7d02f1c11052e9a60ec141678692558927a342dca"
+  },
+  "item.localAndCloud": {
+    "sourceHash": "4609a44afc074d9b4bf3ec5a5c5033da2e4f298bb3e4d03f27f2bd4f6fef3648"
+  },
+  "item.purgeInDays": {
+    "sourceHash": "ba21f73cb5cf931dfd73103b5e71618cf927bedea152abc7343391afc272d05f"
+  },
+  "item.purgeInHours": {
+    "sourceHash": "4f7d3d2e544e4119b6982b6c2782477b4f6f95feb62862b0790da8747d061e19"
+  },
+  "transfer.done": {
+    "sourceHash": "0b9305b3d0e5be4072b353d9fee7b9be620b9993ed3b711ecb2d5a1874d5294e"
+  },
+  "item.chapterLabel": {
+    "sourceHash": "f8de70e352805f2dcb72b0cd7b05021812fa46becd3660721749d61736d6b403"
+  },
+  "item.viewChapter": {
+    "sourceHash": "60ce9251b58c2b2df4e2fa0958c9b1e60ef4204d4d8d03c5a0810b37c2848515"
+  },
+  "item.viewChapterAt": {
+    "sourceHash": "bc17390a24eb8f9c69ea47b5578d72eebd41f4cd31b2dc15eafdd62275d9ca9d"
+  },
+  "item.playAt": {
+    "sourceHash": "d628a495592be1e7ab964b667e72614f9c3a8afda0b588a6336cdfec6882bc39"
+  },
+  "item.chapterImage": {
+    "sourceHash": "50db38d61ff81ab317f22278c3171f784bd6014dd544a4baa6b1288c4e30d238"
+  },
+  "item.backTarget": {
+    "sourceHash": "9e15487784343c19eeff09e8465e196f05fb97a0597179011220679f80edaeb7"
+  },
+  "item.moreCollections": {
+    "sourceHash": "2daa999a66b037393a2721db22ffc777751d2335ffe150cdad575f46833bb3c5"
+  },
+  "item.playCount": {
+    "sourceHash": "0aeb9c669a05f86a230141a40775d9d55c9a07fa4dc8e7bc30998b01692139fd"
+  },
+  "item.allEpisodeCount": {
+    "sourceHash": "893a0176458b289e2c8bf84218c23f7b5eaa24ebe5701ab17ea44dfbc21808a8"
+  },
+  "item.ownedEpisodeCount": {
+    "sourceHash": "11f288a669377a408407df500f12c313ebe01b71119bdd781124b0c200d81a69"
+  },
+  "item.ownedEpisodeFraction": {
+    "sourceHash": "d475229e1fdb40af1e7f8cc86950fbf3d0b644fcee1d877f417ad8cb7296cf25"
+  },
+  "item.seriesOwnedFraction": {
+    "sourceHash": "646d19b56dd001f225ba192dedeeba4e571e214ff31a4f0938e8969d99058001"
+  },
+  "item.chapterCount": {
+    "sourceHash": "c85242ae529ef72acf120e21bafc74c2d4594302e59dec8ac7084ddec1e1c9da"
+  },
+  "transfer.heading": {
+    "sourceHash": "1e8cf344f5cfdd2688fcc1585febcd9e8ff66786d523468aae0f1ee37e8c30fa"
+  },
+  "transfer.fileHint": {
+    "sourceHash": "1d03eb61450e2227bca945f02381eef2175c3e3478c6348d05ac99310faee29b"
+  },
+  "transfer.directoryHint": {
+    "sourceHash": "33f3c4f4539433b0bd9c66d6be6b911d919a5b89e1aa3d24a84d6eb28d67df83"
+  },
+  "transfer.noTarget": {
+    "sourceHash": "4720a60f7938e50b8fedaef4e147aa4ab3a39592009ba40945fb38df5a6f6f2b"
+  },
+  "transfer.crossDiskHint": {
+    "sourceHash": "ff8b2e0c173c11ce2bebbf4e247c62fdeb51197e32675269bdeac37a179e00d6"
+  },
+  "transfer.previewSummary": {
+    "sourceHash": "9077b6963c89d8b4e050d17340592b0045c15cd4f2bc26fd31b809e7e64be3a0"
+  },
+  "transfer.resultSummary": {
+    "sourceHash": "9e43f6fa0b033b337e9c192942fe929edaf72eb1a9a3be82ed709f025c2c9e7c"
+  },
+  "item.deleteHeading": {
+    "sourceHash": "fbfc01c496d1a7703c4e72501c5b5ef78d414c818dd74a2c3641c719980b7246"
+  },
+  "item.deleteResult": {
+    "sourceHash": "6c3af6086d77c1fb0762581c7630c331bb91a98901d4cd1521f6f1080626473e"
+  },
+  "item.deleteWarning": {
+    "sourceHash": "3ae9a980919418b40a37325c1028175932bbb4ea7c63b5176640c56bd5f7ad9a"
+  },
+  "item.deleteFileWarning": {
+    "sourceHash": "d67d0f89c72606df3d6cae0444f301e0453e2310fa8123eb78f4751ec0162265"
+  },
+  "item.deleteLastWarning": {
+    "sourceHash": "17a28d8bac6f7ad93b16950fc6579450ac2fb79bbbdc874d276c767301dd7a1d"
+  },
+  "item.deleteFileAcknowledge": {
+    "sourceHash": "8bb8ba9175c27657ce8d19a9cdf3c7d445215d2212e91d4e0ab453aee7b01af4"
+  },
+  "item.deleteNoPaths": {
+    "sourceHash": "e25d5557e6d9650cd8f693c02f55fb05ee64a4f3ee0fcb51565e8427a82e4ecc"
+  },
+  "deletion.loadFailed": {
+    "sourceHash": "d1d044826a45ef6533a4744d171d4a8808dec292f57ade9f3878f1f8f7eed278"
+  },
+  "deletion.optionsFailed": {
+    "sourceHash": "3c8447112d60cfafff292a7c5403f7b835853dd3118b924a9a7481b50c29a682"
+  },
+  "deletion.checking": {
+    "sourceHash": "79411ec723d586af9d45fa702b49a737b4ebb5d9047a1300554241f0d6651eb9"
+  },
+  "deletion.cloudWarning": {
+    "sourceHash": "7b4a8601e1e38ef91b369804182ec51d200c5d557e15eebec999ba8a81577569"
+  },
+  "deletion.hardlinks": {
+    "sourceHash": "9b4acaed069ca6a8821f55c3badacd10d3fc7c6b06c3f7c10e738bf3b586d433"
+  },
+  "deletion.unavailable": {
+    "sourceHash": "460b3574e4bdb8ca1d4605109904168e010d6a9b81d9bb6960b28fc14b046c83"
+  },
+  "deletion.disabledReason": {
+    "sourceHash": "9d52e9434e1766b74da78dd914a6fc13534b9a2babbff4e3c989003aeb66c58c"
+  },
+  "deletion.completed": {
+    "sourceHash": "f28461bb49c8564716309d575f90f72cf15b5c4667e40c2d037434bedb54a01a"
+  },
+  "deletion.failed": {
+    "sourceHash": "fe754f58923dfd2d7ed1795ba15898a49dc307371898d14eb6ea51e9a0965c77"
+  },
+  "deletion.unknownReason": {
+    "sourceHash": "a1a9da9ee6ed040160b2b2f44e64c9c097cb7c728b575c49fbfee17b256b67f1"
+  },
+  "deletion.cancelled": {
+    "sourceHash": "a37778f17c5f3ee5e7c3561c4a7e82f3e8936aca7161071add9c2adac6123564"
+  },
+  "deletion.processing": {
+    "sourceHash": "574ec7517de1474c6d0d3f4003c90bceb6a2740af7e03141b52838256fe51aa0"
+  },
+  "deletion.retryTasks": {
+    "sourceHash": "b8e26ab3ab348289e481e15dc1ce4a8f14a624838c1b36fef595f550595893cf"
   }
 }

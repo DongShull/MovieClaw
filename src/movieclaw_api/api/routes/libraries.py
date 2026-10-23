@@ -29,7 +29,7 @@ from movieclaw_api.api.routes.images import WIDTH_QUERY, requested_width, sized_
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
 from movieclaw_api.i18n import t
 from movieclaw_api.i18n.media_labels import routing_options_labels
-from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n.stored import localize_fields, reference
 from movieclaw_api.schemas.library import (
     ActorView,
     ArtworkCandidatesView,
@@ -3698,7 +3698,7 @@ async def delete_library_item(
     background_tasks.add_task(purge_staged_deletions, result.pending_purge)
 
     view = _delete_view(result)
-    view.follow_ups = [DeleteFollowUpView(**f) for f in follow_ups]
+    view.follow_ups = [DeleteFollowUpView(**localize_fields(f)) for f in follow_ups]
     if result.errors:
         message = t(
             "library.operations.itemDeleteFailed",
@@ -3771,7 +3771,7 @@ async def delete_library_file(
     background_tasks.add_task(purge_staged_deletions, result.pending_purge)
 
     view = _delete_view(result)
-    view.follow_ups = [DeleteFollowUpView(**f) for f in follow_ups]
+    view.follow_ups = [DeleteFollowUpView(**localize_fields(f)) for f in follow_ups]
     if result.errors:
         message = t(
             "library.operations.fileDeleteFailed",

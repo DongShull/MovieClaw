@@ -1,4 +1,5 @@
 import { appTranslator } from "./i18n/translate.ts";
+import type { AppLocale } from "./i18n/negotiate.ts";
 import { formatList } from "./i18n/format.ts";
 import type { ConfirmCheckbox, ConfirmOptions } from "@/components/feedback";
 
@@ -47,8 +48,8 @@ export function refreshLibraryConfirm(name: string): ConfirmOptions {
   };
 }
 
-export function refreshItemConfirm(title: string): ConfirmOptions {
-  const t = appTranslator();
+export function refreshItemConfirm(title: string, locale?: AppLocale): ConfirmOptions {
+  const t = appTranslator(locale);
   return {
     title: t("library.confirm.refreshItemTitle", { title }),
     description: t("library.confirm.refreshItemIntro"),
@@ -79,8 +80,8 @@ export function rereadLibraryNfoConfirm(name: string): ConfirmOptions {
   };
 }
 
-export function rereadItemNfoConfirm(title: string): ConfirmOptions {
-  const t = appTranslator();
+export function rereadItemNfoConfirm(title: string, locale?: AppLocale): ConfirmOptions {
+  const t = appTranslator(locale);
   return {
     title: t("library.confirm.readItemTitle", { title }),
     description: t("library.confirm.readItemIntro"),

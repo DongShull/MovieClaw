@@ -219,5 +219,53 @@
     "viewIndex": "查看第 {index} 张图片",
     "zoomFit": "当前 {percent}%，点击适应屏幕",
     "viewTitle": "查看 {title}"
+  },
+  "tracks": {
+    "unknownLanguage": "未标语言",
+    "mono": "单声道",
+    "unknownFormat": "未知格式",
+    "subtitle": "字幕",
+    "aiExternal": "AI 外挂",
+    "pgsConverted": "PGS 转换",
+    "external": "外挂",
+    "externalSubtitle": "外挂字幕",
+    "audio": "音轨",
+    "default": "默认",
+    "embedded": "内封",
+    "forced": "强制",
+    "deleteTitle": "删除这个字幕文件？",
+    "deleteWarning": "将从磁盘直接删除下面的文件，删除后无法恢复：",
+    "deleteAction": "删除字幕",
+    "deleteFailed": "字幕删除失败，请稍后重试",
+    "selectFile": "选择视频文件",
+    "notProbed": "尚未探测",
+    "noAudio": "文件内没有音轨",
+    "previewDeleteHint": "点任意一条打开字幕预览；外挂字幕可就地删除",
+    "previewHint": "点任意一条打开字幕预览",
+    "noSubtitles": "无内封或外挂字幕",
+    "defaultPrefix": "默认播放：",
+    "deleteTooltip": "删除这个字幕文件",
+    "channels": "{count} 声道",
+    "number": "轨 {index}",
+    "embeddedNumber": "内封轨 {index}",
+    "audioDefaultNote": "标「默认」的这条会自动播放：{reason}",
+    "subtitleDefaultNote": "标「默认」的这条会自动打开：{reason}",
+    "deleted": "已删除字幕：{file}",
+    "moreLanguages": "+{count} 种",
+    "listTitle": "{kind}列表",
+    "countTitle": "{kind} · 共 {count} 条",
+    "sources": "内封 {embedded} · 外挂 {external}",
+    "preview": "预览字幕：{language} · {format} · {primary} · {secondary}",
+    "deleteFile": "删除字幕文件：{file}"
+  },
+  "subtitles": {
+    "generateBadge": "AI 生成字幕",
+    "checkingBadge": "正在检查",
+    "unfinishedBadge": "AI 未完成",
+    "generationFeature": "生成字幕能力"
+  },
+  "sources": {
+    "lowestManual": "最低档（人工标注）",
+    "disc": "原盘"
   }
 }

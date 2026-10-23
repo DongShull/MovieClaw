@@ -1,3 +1,6 @@
+import { appTranslator } from "./i18n/translate.ts";
+import { requestLocale, type AppLocale } from "./i18n/negotiate.ts";
+
 /**
  * 片源人工标注的纯逻辑（docs/design/media-source-annotation.md）。
  *
@@ -69,10 +72,11 @@ export const MEDIA_SOURCE_OPTIONS: MediaSourceOption[] = [
 ];
 
 /** 片源值 → 展示名：哨兵值与内部档位值不能直接亮给用户。 */
-export function mediaSourceDisplayLabel(value: string | null | undefined): string | null {
+export function mediaSourceDisplayLabel(value: string | null | undefined, locale: AppLocale = requestLocale() ?? "zh-Hans"): string | null {
+  const t = appTranslator(locale);
   if (!value) return null;
-  if (value === USER_LOWEST_SOURCE) return "最低档（人工标注）";
-  if (value === DISC_SOURCE) return "原盘";
+  if (value === USER_LOWEST_SOURCE) return t("media.sources.lowestManual");
+  if (value === DISC_SOURCE) return t("media.sources.disc");
   return value;
 }
 

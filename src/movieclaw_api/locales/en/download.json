@@ -10,5 +10,10 @@
     "alreadyAdded": "This torrent is already in the downloader; it was not added again",
     "submittedToLibrary": "Submitted to \"{downloader}\" for library \"{library}\"",
     "submitted": "Submitted to \"{name}\""
+  },
+  "removal": {
+    "optionLabel": "Also delete download tasks and source files",
+    "optionHelp": "Delete the matching downloader tasks and their data to free disk space. Source files cannot be recovered.",
+    "noTask": "No matching download task was found (the file was scanned or its source is unknown). Only library files will be deleted."
   }
 }

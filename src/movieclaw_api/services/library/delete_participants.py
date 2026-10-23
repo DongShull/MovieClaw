@@ -25,6 +25,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from movieclaw_api.i18n import t
 from movieclaw_kernel import Registry, RegistryKey, Stability
 
 logger = logging.getLogger("movieclaw_api.library.delete_participants")
@@ -82,6 +83,8 @@ class DeleteParticipant:
     """用户勾选后要建的后续任务类型（在 ``JOB_HANDLERS`` 里登记的处理器）。"""
     applies_to: frozenset[str] = frozenset({"item", "file"})
     """``item`` = 删除整部影片的弹窗；``file`` = 删除单个文件的弹窗。"""
+    label_key: str | None = None
+    help_key: str | None = None
 
 
 LIBRARY_DELETE_PARTICIPANTS: RegistryKey[DeleteParticipant] = RegistryKey(
@@ -162,7 +165,14 @@ async def preview_options(
             preview = task.result()
         else:
             preview = Preview(available=False, reason="暂时无法预览（超时），这次不能勾选")
-        results.append(OptionPreview(key, participant.label, participant.help, preview))
+        results.append(
+            OptionPreview(
+                key,
+                t(participant.label_key) if participant.label_key else participant.label,
+                t(participant.help_key) if participant.help_key else participant.help,
+                preview,
+            )
+        )
     return results
 
 
@@ -206,5 +216,12 @@ async def enqueue_follow_ups(
             commit=False,
         )
         assert created.job.id is not None
-        follow_ups.append({"option": key, "label": participant.label, "job_id": created.job.id})
+        follow_ups.append(
+            {
+                "option": key,
+                "label": participant.label,
+                "job_id": created.job.id,
+                **({"label_key": participant.label_key} if participant.label_key else {}),
+            }
+        )
     return follow_ups

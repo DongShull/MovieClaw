@@ -219,5 +219,53 @@
     "viewIndex": "View image {index}",
     "zoomFit": "Currently {percent}%, click to fit to screen",
     "viewTitle": "View {title}"
+  },
+  "tracks": {
+    "unknownLanguage": "Unspecified language",
+    "mono": "Mono",
+    "unknownFormat": "Unknown format",
+    "subtitle": "Subtitles",
+    "aiExternal": "External AI subtitle",
+    "pgsConverted": "Converted PGS",
+    "external": "External",
+    "externalSubtitle": "External subtitle",
+    "audio": "Audio",
+    "default": "Default",
+    "embedded": "Embedded",
+    "forced": "Forced",
+    "deleteTitle": "Delete this subtitle file?",
+    "deleteWarning": "The file below will be permanently deleted from disk:",
+    "deleteAction": "Delete subtitle",
+    "deleteFailed": "Could not delete the subtitle. Please try again.",
+    "selectFile": "Select video file",
+    "notProbed": "Not probed yet",
+    "noAudio": "This file has no audio tracks",
+    "previewDeleteHint": "Select a subtitle to preview it. External subtitle files can be deleted here.",
+    "previewHint": "Select a subtitle to preview it",
+    "noSubtitles": "No embedded or external subtitles",
+    "defaultPrefix": "Plays by default:",
+    "deleteTooltip": "Delete this subtitle file",
+    "channels": "{count, plural, one {# channel} other {# channels}}",
+    "number": "Track {index}",
+    "embeddedNumber": "Embedded track {index}",
+    "audioDefaultNote": "The track marked “Default” plays automatically: {reason}",
+    "subtitleDefaultNote": "The subtitle marked “Default” opens automatically: {reason}",
+    "deleted": "Deleted subtitle: {file}",
+    "moreLanguages": "+{count, plural, one {# language} other {# languages}}",
+    "listTitle": "{kind} list",
+    "countTitle": "{kind} · {count, plural, one {# track} other {# tracks}} total",
+    "sources": "{embedded, number} embedded · {external, number} external",
+    "preview": "Preview subtitle: {language} · {format} · {primary} · {secondary}",
+    "deleteFile": "Delete subtitle file: {file}"
+  },
+  "subtitles": {
+    "generateBadge": "Generate AI subtitles",
+    "checkingBadge": "Checking",
+    "unfinishedBadge": "AI subtitles incomplete",
+    "generationFeature": "subtitle generation"
+  },
+  "sources": {
+    "lowestManual": "Lowest tier (manually annotated)",
+    "disc": "Disc"
   }
 }
