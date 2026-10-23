@@ -214,7 +214,7 @@ struct TVPlayerPanel: View {
                     if let detail, !detail.isEmpty {
                         Text(detail)
                             .font(.system(size: 21))
-                            .lineLimit(id.hasPrefix("subtitle-") ? nil : (AppLanguage.identifier == "en" && id.hasPrefix("quality-") ? 2 : 1))
+                            .lineLimit(id.hasPrefix("subtitle-") || (AppLanguage.identifier == "en" && id.hasPrefix("quality-")) ? nil : 1)
                             .fixedSize(horizontal: false, vertical: true)
                             .opacity(0.6)
                     }

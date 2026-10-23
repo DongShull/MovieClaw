@@ -11,12 +11,12 @@ import { type Collection, listCollections } from "@/lib/api/collections";
 import { type MediaLibrary, listLibraries } from "@/lib/api/libraries";
 import {
   COLLECTION_SORTS,
-  FAVORITES_SORT_PRESETS,
+  favoritesSortPresets,
   type FavoritesSort,
   type HomeRow,
   type HomeRowSort,
   MEDIA_KIND_LABELS,
-  SORT_PRESETS,
+  homeSortPresets,
   buildHomeRows,
   mediaKindGroups,
   mediaKindRowName,
@@ -479,9 +479,9 @@ function sortOptions(
         ];
   switch (row.kind) {
     case "favorites":
-      return (Object.keys(FAVORITES_SORT_PRESETS) as FavoritesSort[]).flatMap(
+      return (Object.keys(favoritesSortPresets()) as FavoritesSort[]).flatMap(
         (key) => {
-          const preset = FAVORITES_SORT_PRESETS[key];
+          const preset = favoritesSortPresets()[key];
           return both(
             key,
             preset.name(false),
@@ -499,7 +499,7 @@ function sortOptions(
             ? sortPresetsFor(row.mediaKind)
             : COLLECTION_SORTS;
       return keys.flatMap((key) => {
-        const preset = SORT_PRESETS[key];
+        const preset = homeSortPresets()[key];
         return both(
           key,
           preset.short(false),
@@ -573,7 +573,7 @@ function RowItem({
     row.kind === "library"
       ? {
           value: row.name,
-          placeholder: SORT_PRESETS[row.sort].name(
+          placeholder: homeSortPresets()[row.sort].name(
             row.library.name,
             row.reversed,
           ),

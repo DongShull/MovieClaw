@@ -7,6 +7,7 @@
     "parenthesized": "（{year}）"
   },
   "duration": {
-    "days": "{count} 天"
+    "days": "{count} 天",
+    "minutes": "{count} 分钟"
   }
 }

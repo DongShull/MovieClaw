@@ -10,5 +10,8 @@
   },
   "duration.days": {
     "sourceHash": "1a009fb8a3326156397c522a14787371c0f69beec5cae72ce013860025070dff"
+  },
+  "duration.minutes": {
+    "sourceHash": "8d2f9af2212aaea98845f8b8e6474fc256d7ebcfb4448f1545070fdb8844a9e2"
   }
 }

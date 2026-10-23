@@ -145,3 +145,11 @@ def test_literal_call_parameters_are_checked(catalog, source):
     assert any(
         "call parameters differ: common.greeting" in error for error in check.check_catalogs()
     )
+
+
+def test_provider_extent_references_are_checked(catalog):
+    root, _ = catalog
+    provider = root / "src/movieclaw_media/example.py"
+    provider.parent.mkdir(parents=True)
+    provider.write_text('card.extent_key = "common.missing"')
+    assert any("unknown key common.missing" in error for error in check.check_catalogs())

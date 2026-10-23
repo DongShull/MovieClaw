@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -189,6 +191,7 @@ export function SearchCommand({
   triggerClassName = "glass-row !size-8 shrink-0 justify-center !p-0 max-md:!size-11",
   preferredMode,
 }: SearchCommandProps) {
+  const t = useTranslations();
   const searchAccess = useSearchAccess();
   const [open, setOpen] = useState(false);
   // 本次打开带的草稿（openSearchPalette 唤起时）；触发键 / ⌘K 打开时为 null
@@ -238,9 +241,9 @@ export function SearchCommand({
           setDraft(null);
           setOpen(true);
         }}
-        aria-label="搜索（⌘K 或 Ctrl+K）"
+        aria-label={t("search.command.open")}
         aria-haspopup="dialog"
-        title="搜索（⌘K 或 Ctrl+K）"
+        title={t("search.command.open")}
         className={triggerClassName}
       >
         <SearchIcon className="size-[18px] max-md:size-[22px]" />

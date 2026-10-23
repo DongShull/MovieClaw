@@ -128,7 +128,12 @@ def check_catalogs() -> list[str]:
                 errors.append(f"Server Chinese changed during migration: {key}")
     server_paths = [
         path
-        for package in ("movieclaw_api", "movieclaw_playback", "movieclaw_jellyfin")
+        for package in (
+            "movieclaw_api",
+            "movieclaw_playback",
+            "movieclaw_jellyfin",
+            "movieclaw_media",
+        )
         for path in (ROOT / "src" / package).rglob("*.py")
     ]
     for path in server_paths:
@@ -168,6 +173,15 @@ def check_catalogs() -> list[str]:
                         and isinstance(kw.value, ast.Constant)
                         and str(kw.value.value).startswith("notify.")
                     )
+            elif isinstance(node, ast.Assign) and any(
+                isinstance(target, ast.Attribute) and target.attr == "extent_key"
+                for target in node.targets
+            ):
+                keys.extend(
+                    value
+                    for value in ast.walk(node.value)
+                    if isinstance(value, ast.Constant) and isinstance(value.value, str)
+                )
             elif isinstance(node, ast.Dict):
                 keys.extend(
                     value
@@ -221,8 +235,11 @@ def unused_keys() -> list[str]:
             else list(base.rglob("*.py"))
         )
         if base.name == "movieclaw_api":
-            paths += [path for package in ("movieclaw_playback", "movieclaw_jellyfin")
-                      for path in (ROOT / "src" / package).rglob("*.py")]
+            paths += [
+                path
+                for package in ("movieclaw_playback", "movieclaw_jellyfin", "movieclaw_media")
+                for path in (ROOT / "src" / package).rglob("*.py")
+            ]
         source = "\n".join(path.read_text() for path in paths)
         for catalog in (base / resources).glob("*.json"):
             for key in flatten(json.loads(catalog.read_text())):

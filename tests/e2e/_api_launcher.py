@@ -20,6 +20,8 @@ from _fake_tmdb import serve  # noqa: E402  (同目录，以脚本方式运行)
 _server, _port = serve(Path(os.environ["E2E_TMDB_LOG"]))
 os.environ["TMDB_API_KEY"] = "e2e-fake-key"
 os.environ["TMDB_API_BASE_URL"] = f"http://127.0.0.1:{_port}/3"
+if os.environ.get("E2E_I18N_DISCOVERY") == "1":
+    os.environ["TMDB_IMAGE_BASE_URL"] = f"http://127.0.0.1:{_port}/t/p"
 
 import uvicorn  # noqa: E402
 

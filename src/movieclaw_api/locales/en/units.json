@@ -7,6 +7,7 @@
     "parenthesized": " ({year})"
   },
   "duration": {
-    "days": "{count, plural, one {# day} other {# days}}"
+    "days": "{count, plural, one {# day} other {# days}}",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}"
   }
 }
