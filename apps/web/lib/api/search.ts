@@ -1,3 +1,4 @@
+import { appTranslator } from "@/lib/i18n/translate";
 import { HttpError, redirectToLoginOn401, request, resolveRequestUrl } from "@/lib/http";
 import {
   toDiscoveredSearchItem,
@@ -107,6 +108,8 @@ export interface SiteSearchStatus {
   count: number;
   /** 失败原因（可读中文）；成功为 null */
   error: string | null;
+  error_key?: string | null;
+  error_params?: Record<string, string | number> | null;
   /** 该站从发起到返回/失败的耗时（毫秒）；老快照数据可能为 null */
   elapsed_ms: number | null;
   /** 该站明确告知后面还有没有页；null / 缺省 = 不确定（老服务器没有这个字段） */
@@ -194,7 +197,7 @@ export async function getTorrentSearchHistoryResults(
   const result = await unwrap(
     request<ApiEnvelope<SearchHistoryResults>>(`/search/history/${historyId}/results`, init),
   );
-  if (result.vertical !== "torrents") throw new Error("该历史记录不是 PT 种子搜索");
+  if (result.vertical !== "torrents") throw new Error(appTranslator()("search.results.wrongTorrentHistory"));
   return result;
 }
 
@@ -228,7 +231,7 @@ export async function getTitleSearchHistoryResults(
   const result = await unwrap(
     request<ApiEnvelope<SearchHistoryResults>>(`/search/history/${historyId}/results`, init),
   );
-  if (result.vertical !== "titles") throw new Error("该历史记录不是影视条目搜索");
+  if (result.vertical !== "titles") throw new Error(appTranslator()("search.results.wrongTitleHistory"));
   return { ...result, items: result.items.map(toSearchItem) };
 }
 
@@ -437,6 +440,8 @@ export interface SiteStreamError {
   site_id: string;
   site_name: string;
   error: string;
+  error_key?: string | null;
+  error_params?: Record<string, string | number> | null;
   elapsed_ms: number;
 }
 

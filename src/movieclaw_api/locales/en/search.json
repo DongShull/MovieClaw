@@ -15,5 +15,16 @@
     "game": "Games",
     "av": "Adult",
     "other": "Other"
+  },
+  "match": {
+    "text": "Name match",
+    "pinyin": "Pinyin match",
+    "initials": "Initials match",
+    "mixed": "Text and pinyin match",
+    "words": "Name phrase match",
+    "alias": "Alias match",
+    "aliasReason": "Alias · {reason}",
+    "personWorks": "Person’s titles",
+    "person": "{role, select, director {Director} other {Actor}}: {name}"
   }
 }

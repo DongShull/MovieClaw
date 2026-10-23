@@ -59,7 +59,9 @@ class SiteSearchStatus(BaseModel):
     site_id: str
     site_name: str
     count: int  # 该站命中条数
-    error: str | None = None  # 失败原因（可读中文）；成功为 None
+    error: str | None = None  # 失败原因；成功为 None
+    error_key: str | None = None
+    error_params: dict | None = None
     # 该站从发起到返回（或失败）的耗时。失败站的耗时尤其有诊断价值：
     # 十几秒后才失败的基本是超时，秒失败的多半是认证/解析问题。
     elapsed_ms: int | None = None
@@ -135,7 +137,9 @@ class SiteStreamError(BaseModel):
 
     site_id: str
     site_name: str
-    error: str  # 失败原因（可读中文）
+    error: str  # 失败原因
+    error_key: str | None = None
+    error_params: dict | None = None
     elapsed_ms: int
 
 

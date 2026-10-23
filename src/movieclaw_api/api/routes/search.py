@@ -149,6 +149,10 @@ async def search_torrents(
             update={
                 "label": stored_message(label or "", label_key) if label_key else label,
                 "label_key": label_key,
+                "sites": [
+                    SiteSearchStatus(**localize_fields(status.model_dump()))
+                    for status in result.sites
+                ],
             }
         )
     )
@@ -388,7 +392,7 @@ async def search_torrents_stream(
             batch, terminal = await registry.read(run, position, timeout_seconds=15)
             for event, data in batch:
                 position += 1
-                if event == "start":
+                if event in {"start", "site_error", "done"}:
                     data = json.dumps(localize_fields(json.loads(data)), ensure_ascii=False)
                 yield f"id: {position}\nevent: {event}\ndata: {data}\n\n"
             if terminal:
@@ -586,7 +590,7 @@ async def get_search_history_results(
                 total=data["total"],
                 elapsed_ms=data.get("elapsed_ms"),
                 items=data["items"],
-                sites=data["sites"],
+                sites=localize_fields(data["sites"]),
             )
         )
     if row.vertical == "media":

@@ -507,10 +507,10 @@ export function specSummary(
     chips.push(labels.join("/"));
   }
   if (spec.platforms?.length) {
-    chips.push(`平台: ${spec.platforms.map(platformLabel).join("/")}`);
+    chips.push(`平台: ${spec.platforms.map(value => platformLabel(value)).join("/")}`);
   }
   if (spec.platforms_block?.length) {
-    chips.push(`排除平台: ${spec.platforms_block.map(platformLabel).join("/")}`);
+    chips.push(`排除平台: ${spec.platforms_block.map(value => platformLabel(value)).join("/")}`);
   }
   const { levels: hdrLevels, block: hdrBlock } = hdrFromLegacy(spec);
   if (hdrLevels.length) chips.push(hdrChipText(hdrLevels));
@@ -693,8 +693,8 @@ export function RuleSetEditorDialog({
   const qualitySummary =
     [
       codecFamilies.size ? [...codecFamilies].join("/") : "",
-      platformsAllow.length ? platformsAllow.map(platformLabel).join("/") : "",
-      platformsBlock.length ? `排除 ${platformsBlock.map(platformLabel).join("/")}` : "",
+      platformsAllow.length ? platformsAllow.map(value => platformLabel(value)).join("/") : "",
+      platformsBlock.length ? `排除 ${platformsBlock.map(value => platformLabel(value)).join("/")}` : "",
       hdrLevels.length ? hdrChipText(hdrLevels) : "",
       hdrBlock.length ? `排除 ${hdrBlock.join("/")}` : "",
       groupsAllow.trim() ? `组 ${groupsAllow.trim()}` : "",
@@ -1064,7 +1064,7 @@ export function RuleSetEditorDialog({
             {(platformExtras.allow.length > 0 || platformExtras.block.length > 0) && (
               <p className="mt-1.5 text-caption text-[var(--text-faint)]">
                 另有自定义值：
-                {[...platformExtras.allow, ...platformExtras.block].map(platformLabel).join("、")}
+                {[...platformExtras.allow, ...platformExtras.block].map(value => platformLabel(value)).join("、")}
                 （保留）
               </p>
             )}

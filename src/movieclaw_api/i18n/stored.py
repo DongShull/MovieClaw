@@ -65,7 +65,7 @@ def localize_fields(value):
     if not isinstance(value, dict):
         return value
     result = {name: localize_fields(child) for name, child in value.items()}
-    for field in ("message", "label", "title", "reason", "source_desc"):
+    for field in ("message", "label", "title", "reason", "source_desc", "error"):
         text = value.get(field)
         key = value.get(f"{field}_key")
         if isinstance(text, str) and (field == "message" or key):
