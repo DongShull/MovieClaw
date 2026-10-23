@@ -523,5 +523,32 @@
   },
   "identification.rejectedAndUnconfirmed": {
     "sourceHash": "337a951e0932424f6b28ad8bf2c609e4ae3d5545842993017e1685e9a589a513"
+  },
+  "subtitlePreview.pending": {
+    "sourceHash": "3f5f41d9d20fc4c6edcfe57d893053585f4388dcb8ad9b4ad4cfe0319f75366e"
+  },
+  "subtitleCalibration.tooFew": {
+    "sourceHash": "423c721af0b40dd58aab1e7e5bac2600de9790fd5c269fc78696e287f275c569"
+  },
+  "subtitleCalibration.audioReference": {
+    "sourceHash": "10d1fae155e8a0f772b76919eb34fce2d9e4fdc743bafcbecb65bb7c7656995e"
+  },
+  "subtitleCalibration.reference": {
+    "sourceHash": "5725ac5adb3433564b5c027a8c1ed2afd1a2bc8c522e6654ea87031993602018"
+  },
+  "subtitleCalibration.noReference": {
+    "sourceHash": "c6eea51c1a5895481193a3c283c2bfdb81f3246009ae37990d6e1885eda6c085"
+  },
+  "subtitleCalibration.lowConfidence": {
+    "sourceHash": "e8ecaf82ed0dca27a7b21ccecfe239920dfed5cd9e683586fbf44ce75688f381"
+  },
+  "subtitleCalibration.alreadySynced": {
+    "sourceHash": "53aa747c2ee815f829c42698d0ecc890c67a3eea81a1395305c873718eba119d"
+  },
+  "subtitleCalibration.writeFailed": {
+    "sourceHash": "3b7925899dd8c74688aed47d276afecb229fd245ce503a93d643e9de95655ee9"
+  },
+  "subtitleCalibration.completed": {
+    "sourceHash": "db9c1147ebca5b93aa674e1ee650599d07958c4511c39ef3e14077904573e73d"
   }
 }

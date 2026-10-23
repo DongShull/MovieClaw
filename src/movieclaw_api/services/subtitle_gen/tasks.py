@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.exceptions import AppException, BadRequestException, NotFoundException
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.services import jobs, media_extract
 from movieclaw_api.services.library.subtitles import discover_external_subtitles
@@ -760,9 +761,19 @@ async def _pick_loadable(
     return None, []
 
 
+def _cand_message(c: source.SourceCandidate) -> dict:
+    return stored_fields(
+        "library.subtitleCalibration.reference",
+        kind=c.kind,
+        identity=c.key,
+        known="yes" if c.language else "no",
+        language=c.language or "",
+        format=c.format,
+    )
+
+
 def _cand_desc(c: source.SourceCandidate) -> str:
-    kind = "内封轨" if c.kind == "embedded" else "外挂"
-    return f"{kind} {c.key}（{c.language or '未知语言'}/{c.format}）"
+    return _cand_message(c)["message"]
 
 
 async def _prepare_generation(
@@ -1676,6 +1687,9 @@ class CalibrateResult:
     offset_ms: int | None = None
     score: float | None = None
 
+    message_key: str | None = None
+    message_params: dict = field(default_factory=dict)
+
 
 #: 校准结论可信度下限：相关峰太低说明参考与字幕根本对不上（如错片字幕）
 _CALIBRATE_MIN_SCORE = 0.15
@@ -1719,7 +1733,7 @@ async def _audio_reference_intervals(
 
 async def _subtitle_reference_intervals(
     row: LibraryFile, exclude_filename: str
-) -> tuple[list[tuple[int, int]] | None, str | None]:
+) -> tuple[list[tuple[int, int]] | None, dict | None]:
     """字幕对字幕兜底（L2'）：本文件另一条字幕的时间结构做参考。
 
     参考优先内封轨（配套概率最高）,其次其他外挂;返回 (区间表, 参考描述)。
@@ -1735,7 +1749,7 @@ async def _subtitle_reference_intervals(
         except extract.SourceLoadError:
             continue
         if len(events) >= 50:
-            return [(s, e) for s, e, _ in events], _cand_desc(cand.candidate)
+            return [(s, e) for s, e, _ in events], _cand_message(cand.candidate)
     return None, None
 
 
@@ -1775,30 +1789,29 @@ async def calibrate_external_subtitle(
     )
     events = await extract.load_candidate_events(row, cand)
     if len(events) < 20:
-        return CalibrateResult(ok=False, message="字幕事件太少，无法可靠校准")
+        return CalibrateResult(ok=False, **stored_fields("library.subtitleCalibration.tooFew"))
 
     reference = await _audio_reference_intervals(row, events)
-    ref_desc = "影片音轨"
+    ref_desc = stored_fields("library.subtitleCalibration.audioReference")
     if not reference:
         reference, ref_desc = await _subtitle_reference_intervals(row, filename)
         if not reference:
             return CalibrateResult(
                 ok=False,
-                message="没有可用的校准参考：本机无 ffmpeg 或无音轨（strm 云端文件），"
-                "且该文件没有其他字幕轨可做时间结构对齐",
+                **stored_fields("library.subtitleCalibration.noReference"),
             )
 
     calibration = sync.estimate_calibration(reference, [(s, e) for s, e, _ in events])
     if calibration is None or calibration.score < _CALIBRATE_MIN_SCORE:
         return CalibrateResult(
             ok=False,
-            message=f"校准置信度不足（参考：{ref_desc}）——字幕可能与该影片不匹配",
+            **stored_fields("library.subtitleCalibration.lowConfidence", reference=ref_desc),
             score=calibration.score if calibration else None,
         )
     if calibration.scale == 1.0 and abs(calibration.offset_ms) <= _NOOP_OFFSET_MS:
         return CalibrateResult(
             ok=True,
-            message=f"字幕本就同步（参考：{ref_desc}），未做修改",
+            **stored_fields("library.subtitleCalibration.alreadySynced", reference=ref_desc),
             scale=1.0,
             offset_ms=calibration.offset_ms,
             score=calibration.score,
@@ -1814,7 +1827,9 @@ async def calibrate_external_subtitle(
             # 非 srt（ass/ssa/vtt）：pysubs2 原格式平移缩放后写回,样式保留
             await asyncio.to_thread(_shift_subtitle_file, path, calibration)
     except OSError as exc:
-        return CalibrateResult(ok=False, message=f"校准结果写入失败（库目录是否只读？）：{exc}")
+        return CalibrateResult(
+            ok=False, **stored_fields("library.subtitleCalibration.writeFailed", detail=exc)
+        )
 
     async with get_database().session() as refresh_session:
         fresh = await _load_row(refresh_session, file_id)
@@ -1830,13 +1845,15 @@ async def calibrate_external_subtitle(
         calibration.scale,
         calibration.offset_ms,
         calibration.score,
-        ref_desc,
+        ref_desc["message"],
     )
     return CalibrateResult(
         ok=True,
-        message=(
-            f"校准完成（参考：{ref_desc}）：缩放 {calibration.scale:.4f}、"
-            f"平移 {calibration.offset_ms / 1000:+.2f} 秒，已覆盖写回"
+        **stored_fields(
+            "library.subtitleCalibration.completed",
+            reference=ref_desc,
+            scale=calibration.scale,
+            offset=calibration.offset_ms / 1000,
         ),
         scale=calibration.scale,
         offset_ms=calibration.offset_ms,

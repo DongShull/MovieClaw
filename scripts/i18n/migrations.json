@@ -2244,5 +2244,20 @@
   "library.artwork.moreFanartForKind": "＋ 从 Fanart.tv 找更多{kind, select, backdrop {背景图} poster {海报} other {徽标}}",
   "library.artwork.manualSelection": "当前{kind, select, backdrop {背景} poster {海报} other {徽标}}由你手动选定，刷新元数据不会覆盖",
   "library.share.pageTitle": "分享的影片",
-  "library.share.linkExpiry": "链接 <expiry></expiry>"
+  "library.share.linkExpiry": "链接 <expiry></expiry>",
+  "library.subtitlePreview.loadFailed": "字幕预览加载失败，请稍后重试",
+  "library.subtitlePreview.calibrateFailed": "校准失败，请稍后再试",
+  "library.subtitlePreview.title": "字幕预览",
+  "library.subtitlePreview.close": "关闭字幕预览",
+  "library.subtitlePreview.reading": "正在读取字幕…",
+  "library.subtitlePreview.extracting": "正在抽取内封字幕…",
+  "library.subtitlePreview.firstReadHint": "首次读取内封字幕需要通读整个视频文件，读好后会自动显示。",
+  "library.subtitlePreview.unavailable": "无法预览这条字幕",
+  "library.subtitlePreview.reload": "重新加载",
+  "library.subtitlePreview.empty": "字幕已成功解析，但没有可显示的对白",
+  "library.subtitlePreview.calibrateHint": "以影片音轨校准时间轴，成功后覆盖当前这一个字幕文件，不会产生副本",
+  "library.subtitlePreview.calibrating": "正在校准…",
+  "library.subtitlePreview.calibrate": "校准时间轴",
+  "library.subtitlePreview.dialogTitle": "字幕预览：{label}",
+  "library.subtitlePreview.cues": "共 {count} 条对白"
 }

@@ -1174,5 +1174,22 @@
     "failedRetry": "候选图加载失败（TMDB 可能不可达），<retry>重试</retry>",
     "moreFanartForKind": "＋ 从 Fanart.tv 找更多{kind, select, backdrop {背景图} poster {海报} other {徽标}}",
     "manualSelection": "当前{kind, select, backdrop {背景} poster {海报} other {徽标}}由你手动选定，刷新元数据不会覆盖"
+  },
+  "subtitlePreview": {
+    "loadFailed": "字幕预览加载失败，请稍后重试",
+    "calibrateFailed": "校准失败，请稍后再试",
+    "title": "字幕预览",
+    "close": "关闭字幕预览",
+    "reading": "正在读取字幕…",
+    "extracting": "正在抽取内封字幕…",
+    "firstReadHint": "首次读取内封字幕需要通读整个视频文件，读好后会自动显示。",
+    "unavailable": "无法预览这条字幕",
+    "reload": "重新加载",
+    "empty": "字幕已成功解析，但没有可显示的对白",
+    "calibrateHint": "以影片音轨校准时间轴，成功后覆盖当前这一个字幕文件，不会产生副本",
+    "calibrating": "正在校准…",
+    "calibrate": "校准时间轴",
+    "dialogTitle": "字幕预览：{label}",
+    "cues": "共 {count} 条对白"
   }
 }

@@ -2104,5 +2104,23 @@
   },
   "playback.remoteSeekStart": {
     "sourceHash": "68cd9a9f387c66334d914cf16cd6d63ae3a08679dac70f3d4f90313c18cca510"
+  },
+  "subtitles.previewEmbeddedMissing": {
+    "sourceHash": "eeac887730f4051fdd44690389a4c7680a995b0558c820e14edf7d35a1f75fdd"
+  },
+  "subtitles.previewExternalMissing": {
+    "sourceHash": "8be2ac2f1f7ee5ea6893f644e2e605b5c8dff384beafef88d76fffd3bdfd23e1"
+  },
+  "subtitles.previewInvalidTrack": {
+    "sourceHash": "a7ce3dffbadc06768d331299d071357ffd72edcc9e64cccf7e89d45b87af51ff"
+  },
+  "subtitles.previewGraphic": {
+    "sourceHash": "29c254f78c2c8104e7b95b53e17a8fcea90f9f5b221ce769d328bd451a729e16"
+  },
+  "subtitles.previewUnknownFormat": {
+    "sourceHash": "c65b3b97b4112fb1f9dd696c2aff8c080ce0b8a6f060db0f95ca54580a23aed6"
+  },
+  "subtitles.previewUnreadable": {
+    "sourceHash": "55bc46d87f1874f2feeaf1fce9da5139b0438595ba9aa2b184fad6a8181dcca2"
   }
 }

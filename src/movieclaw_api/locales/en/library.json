@@ -201,5 +201,18 @@
     "rejectedId": "{source} tmdbid={id} points to {detail}, which does not match the local file",
     "pinnedTitle": "“{title}” ({dated, select, yes {{year}} other {year unknown}}{runtime, select, yes {, runtime {minutes, plural, one {# minute} other {# minutes}} vs approximately {localMinutes, plural, one {# local minute} other {# local minutes}}} other {}})",
     "rejectedAndUnconfirmed": "{pin}; {reason}"
+  },
+  "subtitlePreview": {
+    "pending": "Reading embedded subtitles. Large files may take a minute or two."
+  },
+  "subtitleCalibration": {
+    "tooFew": "There are too few subtitle cues for reliable calibration",
+    "audioReference": "Video audio",
+    "reference": "{kind, select, embedded {Embedded track} other {External subtitle}} {identity} ({known, select, yes {{language}} other {unknown language}}/{format})",
+    "noReference": "No calibration reference is available: ffmpeg or audio is unavailable (for example, a cloud STRM file), and there is no other subtitle track to align against.",
+    "lowConfidence": "Calibration confidence is too low (reference: {reference}). The subtitle may belong to a different video.",
+    "alreadySynced": "The subtitle is already synchronized (reference: {reference}). No changes were made.",
+    "writeFailed": "Could not save the calibration result (is the library directory read-only?): {detail}",
+    "completed": "Calibration complete (reference: {reference}): scale {scale, number, 0.0000}, offset {offset, number, +0.00;-0.00} seconds. The subtitle file has been updated."
   }
 }

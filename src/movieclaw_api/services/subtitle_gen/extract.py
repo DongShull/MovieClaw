@@ -14,6 +14,7 @@ import shutil
 from pathlib import Path
 
 from movieclaw_api.core.config import get_settings
+from movieclaw_api.i18n import t
 from movieclaw_api.services import media_extract
 from movieclaw_api.services.subtitle_gen.source import SourceCandidate
 from movieclaw_db.models import LibraryFile
@@ -217,7 +218,7 @@ async def load_candidate_events(
         )
         if pending:
             raise SourceExtractionPending(
-                "正在读取内封字幕，大文件可能需要一两分钟",
+                t("library.subtitlePreview.pending"),
                 candidate_key=f"{candidate.kind}:{candidate.key}",
             )
     if track is None:
@@ -232,9 +233,7 @@ async def load_candidate_events(
             )
         raise SourceLoadError(_failed_message(file, index))
     if track.format not in media_extract.TEXT_FORMATS:
-        raise SourceLoadError(
-            f"内封轨 {index} 是图形字幕（{track.format}），不能直接当作参考文本"
-        )
+        raise SourceLoadError(f"内封轨 {index} 是图形字幕（{track.format}），不能直接当作参考文本")
 
     raw = await asyncio.to_thread(track.path.read_bytes)
     return parse_events(

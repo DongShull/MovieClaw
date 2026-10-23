@@ -1174,5 +1174,22 @@
     "failedRetry": "Could not load artwork (TMDB may be unreachable). <retry>Retry</retry>",
     "moreFanartForKind": "＋ Find more {kind, select, backdrop {backdrops} poster {posters} other {logos}} on Fanart.tv",
     "manualSelection": "Your {kind, select, backdrop {backdrop} poster {poster} other {logo}} is selected manually. Metadata refreshes will keep it."
+  },
+  "subtitlePreview": {
+    "loadFailed": "Could not load the subtitle preview. Try again later.",
+    "calibrateFailed": "Calibration failed. Try again later.",
+    "title": "Subtitle preview",
+    "close": "Close subtitle preview",
+    "reading": "Reading subtitles…",
+    "extracting": "Extracting embedded subtitles…",
+    "firstReadHint": "Reading embedded subtitles for the first time requires scanning the whole video. They will appear when ready.",
+    "unavailable": "This subtitle cannot be previewed",
+    "reload": "Reload",
+    "empty": "The subtitle was parsed successfully, but contains no dialogue to display",
+    "calibrateHint": "Align timing with the video’s audio. On success, this subtitle file is updated without creating a copy.",
+    "calibrating": "Calibrating…",
+    "calibrate": "Calibrate timing",
+    "dialogTitle": "Subtitle preview: {label}",
+    "cues": "{count, plural, one {# line of dialogue} other {# lines of dialogue}}"
   }
 }

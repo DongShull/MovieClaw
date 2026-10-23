@@ -523,7 +523,13 @@
     "externalMissing": "没有找到这条外挂字幕文件：{name}",
     "deleteNotAttached": "「{subtitle}」不是「{video}」的外挂字幕，拒绝删除",
     "fileOffDisk": "这个字幕文件已经不在磁盘上：{path}",
-    "deleteFailed": "字幕文件删除失败（库目录是否只读？）：{path}（{error}）"
+    "deleteFailed": "字幕文件删除失败（库目录是否只读？）：{path}（{error}）",
+    "previewEmbeddedMissing": "这条内封字幕已不存在，请重新扫描媒体库",
+    "previewExternalMissing": "这条外挂字幕已不存在，请重新扫描媒体库",
+    "previewInvalidTrack": "字幕轨标识无效",
+    "previewGraphic": "{format} 是图形字幕，无法直接显示为文本；请先通过 OCR 转换为 SRT",
+    "previewUnknownFormat": "未知格式",
+    "previewUnreadable": "字幕文件无法读取或解析，请确认文件仍然存在且内容完整"
   },
   "push": {
     "permissionInvalid": "permission 只能是 {values}",

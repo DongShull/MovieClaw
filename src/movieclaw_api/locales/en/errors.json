@@ -523,7 +523,13 @@
     "externalMissing": "External subtitle file not found: {name}",
     "deleteNotAttached": "\"{subtitle}\" is not an external subtitle for \"{video}\"; deletion refused",
     "fileOffDisk": "This subtitle file is no longer on disk: {path}",
-    "deleteFailed": "Could not delete subtitle {path} ({error}). Is the library directory read-only?"
+    "deleteFailed": "Could not delete subtitle {path} ({error}). Is the library directory read-only?",
+    "previewEmbeddedMissing": "This embedded subtitle no longer exists. Scan the library again.",
+    "previewExternalMissing": "This external subtitle no longer exists. Scan the library again.",
+    "previewInvalidTrack": "Invalid subtitle track reference",
+    "previewGraphic": "{format} is an image subtitle and cannot be shown as text. Convert it to SRT with OCR first.",
+    "previewUnknownFormat": "Unknown format",
+    "previewUnreadable": "The subtitle file cannot be read or parsed. Check that it still exists and is complete."
   },
   "push": {
     "permissionInvalid": "permission must be one of {values}",

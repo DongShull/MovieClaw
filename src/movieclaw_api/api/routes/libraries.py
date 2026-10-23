@@ -222,11 +222,7 @@ from movieclaw_api.services.library.series import (
 )
 from movieclaw_api.services.library.showcase import MAX_SHOWCASE_IDS, load_showcase
 from movieclaw_api.services.library.similar import build_similar_wall
-from movieclaw_api.services.library.subtitle_preview import (
-    SubtitlePreviewError,
-    SubtitleTrackNotFound,
-    load_subtitle_preview,
-)
+from movieclaw_api.services.library.subtitle_preview import load_subtitle_preview
 from movieclaw_api.services.library.subtitles import (
     delete_external_subtitle,
     match_subtitle_filename,
@@ -3421,12 +3417,7 @@ async def preview_file_subtitle(
     if row is None:
         raise NotFoundException(message_key="errors.library.fileMissing")
     await assert_library_visible(session, principal, row.library_id)
-    try:
-        preview = await load_subtitle_preview(row, track)
-    except SubtitleTrackNotFound as exc:
-        raise NotFoundException(str(exc)) from exc
-    except SubtitlePreviewError as exc:
-        raise BadRequestException(str(exc)) from exc
+    preview = await load_subtitle_preview(row, track)
 
     cues = [
         SubtitleCueView(start_ms=start, end_ms=end, text=text)

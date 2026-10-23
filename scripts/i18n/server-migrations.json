@@ -1517,5 +1517,20 @@
   "library.identification.sourcePath": "目录名 tmdbid 标记",
   "library.identification.rejectedId": "{source} tmdbid={id} 指向{detail}，与本地文件不符",
   "library.identification.pinnedTitle": "《{title}》({dated, select, yes {{year}} other {年份未知}}{runtime, select, yes {，片长 {minutes} 分钟 vs 本地实测约 {localMinutes} 分钟} other {}})",
-  "library.identification.rejectedAndUnconfirmed": "{pin}；{reason}"
+  "library.identification.rejectedAndUnconfirmed": "{pin}；{reason}",
+  "errors.subtitles.previewEmbeddedMissing": "这条内封字幕已不存在，请重新扫描媒体库",
+  "errors.subtitles.previewExternalMissing": "这条外挂字幕已不存在，请重新扫描媒体库",
+  "errors.subtitles.previewInvalidTrack": "字幕轨标识无效",
+  "errors.subtitles.previewGraphic": "{format} 是图形字幕，无法直接显示为文本；请先通过 OCR 转换为 SRT",
+  "errors.subtitles.previewUnknownFormat": "未知格式",
+  "errors.subtitles.previewUnreadable": "字幕文件无法读取或解析，请确认文件仍然存在且内容完整",
+  "library.subtitlePreview.pending": "正在读取内封字幕，大文件可能需要一两分钟",
+  "library.subtitleCalibration.tooFew": "字幕事件太少，无法可靠校准",
+  "library.subtitleCalibration.audioReference": "影片音轨",
+  "library.subtitleCalibration.reference": "{kind, select, embedded {内封轨} other {外挂}} {identity}（{known, select, yes {{language}} other {未知语言}}/{format}）",
+  "library.subtitleCalibration.noReference": "没有可用的校准参考：本机无 ffmpeg 或无音轨（strm 云端文件），且该文件没有其他字幕轨可做时间结构对齐",
+  "library.subtitleCalibration.lowConfidence": "校准置信度不足（参考：{reference}）——字幕可能与该影片不匹配",
+  "library.subtitleCalibration.alreadySynced": "字幕本就同步（参考：{reference}），未做修改",
+  "library.subtitleCalibration.writeFailed": "校准结果写入失败（库目录是否只读？）：{detail}",
+  "library.subtitleCalibration.completed": "校准完成（参考：{reference}）：缩放 {scale, number, 0.0000}、平移 {offset, number, +0.00;-0.00} 秒，已覆盖写回"
 }

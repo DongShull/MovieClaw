@@ -3331,5 +3331,50 @@
   },
   "share.linkExpiry": {
     "sourceHash": "7eba2e1583764eb1312cd500e0684680cbd291cf7728cffa374b7287c3dbecc0"
+  },
+  "subtitlePreview.loadFailed": {
+    "sourceHash": "eb85f869f4f4282a69d27b263b9513a933bfac0857175291e359179682028775"
+  },
+  "subtitlePreview.calibrateFailed": {
+    "sourceHash": "b6847b53a29ac191c0d150b31af3cc03418631b4cec0ed18a44bff5ac1060f6e"
+  },
+  "subtitlePreview.title": {
+    "sourceHash": "4a998fe1d965e4e8e5fecd1b67d85dee3557f11369516bf32f49687679180fd2"
+  },
+  "subtitlePreview.close": {
+    "sourceHash": "f5a828b674d929687b3272174e6496dc414ac4a9526eee088188d43bf4ee27b1"
+  },
+  "subtitlePreview.reading": {
+    "sourceHash": "c720398e875a3ce9e66f316c76394635b907289a7e818fb0baea1b261c1a51c2"
+  },
+  "subtitlePreview.extracting": {
+    "sourceHash": "ea1e2f4f8a2a4de1e1f9224c3766fb029fe73b8a56c1bf399bb37fe804d387c3"
+  },
+  "subtitlePreview.firstReadHint": {
+    "sourceHash": "b0f3e4b9849ae7a967c61329d0a5c9b53171e9407aa0c3dec320f6d0547ff059"
+  },
+  "subtitlePreview.unavailable": {
+    "sourceHash": "afead5fab417a382e24d91a5262f41b8c2f8ed233cabc1ba2f985aed8e21ca56"
+  },
+  "subtitlePreview.reload": {
+    "sourceHash": "7bdd5ce1e298a972b0c84183c360e85ab9b80ff47231b31bf56886a6902d5f88"
+  },
+  "subtitlePreview.empty": {
+    "sourceHash": "b5aee43d4c862a519b304aff4f9a34f75bd3857cbecc5db83540f8bb6d5dea7e"
+  },
+  "subtitlePreview.calibrateHint": {
+    "sourceHash": "be4bcab4accb3cdef4a086ca88ef6a31f77a6cced262c530b32d4e380da74bcd"
+  },
+  "subtitlePreview.calibrating": {
+    "sourceHash": "a6251cc2f41eeaee333756db2f4cd27708b173a55fed584f82c6d38e74439fda"
+  },
+  "subtitlePreview.calibrate": {
+    "sourceHash": "e671d55d76920257bb5f91f95d1af14e417c9424ad0f384e0e11a2fec2de4c07"
+  },
+  "subtitlePreview.dialogTitle": {
+    "sourceHash": "130099412ff333e092b1af219630d55dbd0b767793e3be2edd0b77d8356e4d56"
+  },
+  "subtitlePreview.cues": {
+    "sourceHash": "cd6e2a64d3aacbe2a7bc0facbd6671b04e3374a17c78a66d04b5a0a89afc3df9"
   }
 }

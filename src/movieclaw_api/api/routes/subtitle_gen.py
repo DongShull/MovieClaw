@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.api.routes.jobs import job_view
+from movieclaw_api.i18n.stored import stored_message
 from movieclaw_api.schemas.jobs import JobView
 from movieclaw_api.schemas.response import ApiResponse
 from movieclaw_api.schemas.subtitle_gen import (
@@ -187,13 +188,16 @@ async def subtitle_calibrate(
     """独立于 AI 翻译的零成本工具（subtitle-ai-translate.md §5.4）：用户
     手工下载的不同步字幕就地修正，校准后覆盖写回并即时刷新台账。"""
     result = await gen_tasks.calibrate_external_subtitle(session, file_id, payload.filename)
+    message = stored_message(result.message, result.message_key, result.message_params)
     return ApiResponse(
         data=CalibrateResultView(
             ok=result.ok,
-            message=result.message,
+            message=message,
             scale=result.scale,
             offset_ms=result.offset_ms,
             score=result.score,
+            message_key=result.message_key,
+            params=result.message_params,
         ),
-        message=result.message,
+        message=message,
     )
