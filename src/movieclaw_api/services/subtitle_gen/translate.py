@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.services.subtitle_gen.extract import SubEvent, cache_dir
 from movieclaw_api.services.subtitle_gen.validate import looks_translated, reading_speed_limit
 
@@ -114,7 +115,11 @@ class TranslationProgress:
 
 
 class TranslationAborted(Exception):
-    """失败块超熔断阈值 / 用户取消（中文信息面向任务日志）。"""
+    """失败块超熔断阈值 / 用户取消，保留中文日志及消息引用。"""
+
+    def __init__(self, message: str | dict):
+        self.reference = message if isinstance(message, dict) else None
+        super().__init__(message["message"] if self.reference else message)
 
 
 class ChatRateLimited(Exception):
@@ -577,7 +582,7 @@ async def translate_events(
     file_id: int,
     secondary_language: str | None = None,
     progress: Callable[[TranslationProgress], None] | None = None,
-    phase: Callable[[str, str], None] | None = None,
+    phase: Callable[[str, dict], None] | None = None,
     cancelled: Callable[[], bool] | None = None,
 ) -> tuple[list[SubEvent], TranslationStats]:
     """整片翻译：术语表 → 分块翻译（带断点/重试/熔断）→ 保时间轴回填。"""
@@ -660,7 +665,7 @@ async def translate_events(
         glossary = checkpoint.glossary
     else:
         if phase is not None:
-            phase("glossary", "正在统一人名和专有名词")
+            phase("glossary", stored_fields("library.subtitleJob.glossary"))
         glossary_task = asyncio.create_task(
             build_glossary(chat, events, ctx, target_language, secondary_language),
             name="subtitle-build-glossary",
@@ -674,10 +679,13 @@ async def translate_events(
                 if done:
                     break
                 if cancelled is not None and cancelled():
-                    raise TranslationAborted("任务被用户取消（已完成块已暂存，可续传）")
+                    raise TranslationAborted(stored_fields("library.subtitleJob.cancelledSaved"))
                 if phase is not None:
                     elapsed = max(1, int(time.monotonic() - glossary_started))
-                    phase("glossary", f"正在分析人名和术语，模型已处理 {elapsed} 秒")
+                    phase(
+                        "glossary",
+                        stored_fields("library.subtitleJob.glossaryElapsed", seconds=elapsed),
+                    )
             glossary = await glossary_task
         finally:
             if not glossary_task.done():
@@ -688,7 +696,9 @@ async def translate_events(
     stats.glossary = glossary
     system = system_prompt(ctx, glossary, target_language, secondary_language)
     if phase is not None:
-        phase("translating", f"正在使用 {target_concurrency} 路并行翻译对白")
+        phase(
+            "translating", stored_fields("library.subtitleJob.parallel", count=target_concurrency)
+        )
 
     remaining = deque(bi for bi in range(stats.total_blocks) if bi not in translated)
     running: dict[asyncio.Task[tuple[int, list[str], bool, int]], int] = {}
@@ -735,13 +745,15 @@ async def translate_events(
     try:
         while running or remaining:
             if cancelled is not None and cancelled():
-                raise TranslationAborted("任务被用户取消（已完成块已暂存，可续传）")
+                raise TranslationAborted(stored_fields("library.subtitleJob.cancelledSaved"))
 
             if not running:
                 # 限流后没有在途调用时，小步等待以便及时响应用户停止。
                 while time.monotonic() < cooldown_until:
                     if cancelled is not None and cancelled():
-                        raise TranslationAborted("任务被用户取消（已完成块已暂存，可续传）")
+                        raise TranslationAborted(
+                            stored_fields("library.subtitleJob.cancelledSaved")
+                        )
                     delay = max(0.0, cooldown_until - time.monotonic())
                     if delay <= 0:
                         break
@@ -839,7 +851,11 @@ async def translate_events(
                 if phase is not None:
                     phase(
                         "translating",
-                        f"模型请求较忙，已降至 {target_concurrency} 路，{wait_seconds} 秒后继续",
+                        stored_fields(
+                            "library.subtitleJob.rateLimited",
+                            count=target_concurrency,
+                            seconds=wait_seconds,
+                        ),
                     )
             else:
                 stable_successes += len(results)
@@ -854,12 +870,14 @@ async def translate_events(
                     if phase is not None:
                         phase(
                             "translating",
-                            f"模型响应已恢复，正在使用 {target_concurrency} 路并行翻译",
+                            stored_fields(
+                                "library.subtitleJob.recovered", count=target_concurrency
+                            ),
                         )
                 elif phase is not None and results and time.monotonic() >= cooldown_until:
                     phase(
                         "translating",
-                        f"正在使用 {target_concurrency} 路并行翻译对白",
+                        stored_fields("library.subtitleJob.parallel", count=target_concurrency),
                     )
             notify(tuple(sorted(index + 1 for index in running.values())))
             if first_error is not None:
@@ -869,9 +887,11 @@ async def translate_events(
                 and stats.failed_blocks / stats.total_blocks > FAILED_BLOCK_ABORT_RATE
             ):
                 raise TranslationAborted(
-                    f"本次已有 {stats.failed_blocks}/{stats.total_blocks} 块翻译失败，"
-                    "超过熔断阈值，任务中止（成功块已暂存，"
-                    "换用输出预算更充裕的模型后重新发起可从断点续译失败块）"
+                    stored_fields(
+                        "library.subtitleJob.circuitBreaker",
+                        failed=stats.failed_blocks,
+                        total=stats.total_blocks,
+                    )
                 )
             schedule()
             notify(tuple(sorted(bi + 1 for bi in running.values())))

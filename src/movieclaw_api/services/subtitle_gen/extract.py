@@ -15,6 +15,7 @@ from pathlib import Path
 
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services import media_extract
 from movieclaw_api.services.subtitle_gen.source import SourceCandidate
 from movieclaw_db.models import LibraryFile
@@ -40,7 +41,13 @@ def ffmpeg_available() -> bool:
 
 
 class SourceLoadError(Exception):
-    """参考字幕无法加载（面向任务日志的中文信息）。"""
+    """参考字幕无法加载；保留中文日志与可按读者语言渲染的引用。"""
+
+    def __init__(
+        self, message: str = "", *, message_key: str | None = None, params: dict | None = None
+    ):
+        self.reference = stored_fields(message_key, **(params or {})) if message_key else None
+        super().__init__(self.reference["message"] if self.reference else message)
 
 
 class SourceExtractionPending(Exception):
@@ -142,7 +149,10 @@ def parse_events(
             else pysubs2.SSAFile.from_string(text)
         )
     except Exception as exc:  # noqa: BLE001 -- pysubs2 异常不穷举
-        raise SourceLoadError(f"参考字幕解析失败：{origin}（{exc}）") from exc
+        raise SourceLoadError(
+            message_key="library.subtitleSource.parseFailed",
+            params={"origin": origin, "detail": exc},
+        ) from exc
     events: list[SubEvent] = []
     for line in subs:
         plain = line.plaintext.strip()
@@ -165,12 +175,13 @@ def needs_extraction(file: LibraryFile, candidate: SourceCandidate) -> bool:
     return media_extract.needs_extraction(file, index)
 
 
-def _failed_message(file: LibraryFile, index: int) -> str:
-    reason = media_extract.failure_reason(file, index) or "具体原因见服务端日志"
-    return (
-        f"内封字幕读取失败：{Path(file.file_path).name} 字幕轨 {index + 1}（{reason}）。"
-        "视频文件没变就不会自动重读，以免反复白读整片；替换文件或重启 MovieClaw 后可以再试"
-    )
+def _failed_params(file: LibraryFile, index: int) -> dict:
+    return {
+        "filename": Path(file.file_path).name,
+        "index": index + 1,
+        "reason": media_extract.failure_reason(file, index)
+        or reference("library.subtitleSource.detailsInLog"),
+    }
 
 
 async def load_candidate_events(
@@ -193,7 +204,10 @@ async def load_candidate_events(
         try:
             raw = await asyncio.to_thread(path.read_bytes)
         except OSError as exc:
-            raise SourceLoadError(f"外挂字幕无法读取：{path}（{exc}）") from exc
+            raise SourceLoadError(
+                message_key="library.subtitleSource.externalUnreadable",
+                params={"path": path, "detail": exc},
+            ) from exc
         return parse_events(
             _decode_text(raw, str(path)),
             str(path),
@@ -203,14 +217,19 @@ async def load_candidate_events(
     try:
         index = int(candidate.key)
     except ValueError as exc:
-        raise SourceLoadError(f"内封字幕轨标识不合法：{candidate.key!r}") from exc
+        raise SourceLoadError(
+            message_key="library.subtitleSource.invalidTrack",
+            params={"identity": repr(candidate.key)},
+        ) from exc
 
     track = media_extract.cached_track(file, index)
     if track is None and not wait:
         # 轮询路径：上次已经失败过就直接报错。不拦的话，前端每隔两三秒就会
         # 催起一个新的 ffmpeg 去读同一条读不出来的轨。
         if media_extract.extraction_failed(file, index):
-            raise SourceLoadError(_failed_message(file, index))
+            raise SourceLoadError(
+                message_key="library.subtitleSource.readFailed", params=_failed_params(file, index)
+            )
         pending = (
             media_extract.schedule_extraction(file, index)
             if schedule
@@ -227,13 +246,15 @@ async def load_candidate_events(
         track = await media_extract.extract_track_async(file, index)
     if track is None:
         if not ffmpeg_available():
-            raise SourceLoadError(
-                "系统中未找到 ffmpeg，无法抽取内封字幕轨——请安装 ffmpeg，"
-                "或为该影片放置外挂字幕后重试（官方 Docker 镜像已内置 ffmpeg）"
-            )
-        raise SourceLoadError(_failed_message(file, index))
+            raise SourceLoadError(message_key="library.subtitleSource.ffmpegMissing")
+        raise SourceLoadError(
+            message_key="library.subtitleSource.readFailed", params=_failed_params(file, index)
+        )
     if track.format not in media_extract.TEXT_FORMATS:
-        raise SourceLoadError(f"内封轨 {index} 是图形字幕（{track.format}），不能直接当作参考文本")
+        raise SourceLoadError(
+            message_key="library.subtitleSource.graphicReference",
+            params={"index": index, "format": track.format},
+        )
 
     raw = await asyncio.to_thread(track.path.read_bytes)
     return parse_events(

@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.exceptions import AppException, BadRequestException, NotFoundException
-from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.services import jobs, media_extract
 from movieclaw_api.services.library.subtitles import discover_external_subtitles
@@ -142,7 +142,9 @@ class GenState:
 
     # 阶段值由前端映射成稳定的五步进度，message 则描述阶段内的即时动作。
     phase: str = "preparing"
-    message: str = "正在准备"
+    message: str = stored_fields("library.subtitleJob.preparing")["message"]
+    message_key: str | None = None
+    message_params: dict = field(default_factory=dict)
     done_blocks: int = 0
     total_blocks: int = 0
     done_events: int = 0
@@ -163,6 +165,12 @@ class GenState:
     extract_duration_seconds: int | None = None
     llm_usage: SubtitleLlmUsage = field(default_factory=SubtitleLlmUsage)
 
+    def set_message(self, key: str, **params) -> None:
+        message = stored_fields(key, **params)
+        self.message = message["message"]
+        self.message_key = message["message_key"]
+        self.message_params = message["message_params"]
+
 
 @dataclass
 class GenResult:
@@ -175,6 +183,9 @@ class GenResult:
     sync_score: float | None = None
     source_desc: str | None = None
     finished_at: object = None
+    message_key: str | None = None
+    message_params: dict = field(default_factory=dict)
+    source_message: dict | None = None
 
 
 async def _load_row(session: AsyncSession, file_id: int) -> LibraryFile:
@@ -315,6 +326,8 @@ class Preview:
     selected_source_key: str | None = None
     #: 非空 = 参考字幕还没读取过：event_count 为 0，estimated_tokens 按片长粗估
     reference_notice: str | None = None
+    reference_notice_message: dict | None = None
+    warning_messages: list[dict] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -325,6 +338,10 @@ class PreviewBlocker:
     title: str
     message: str
     suggestions: list[str]
+    title_key: str | None = None
+    message_key: str | None = None
+    message_params: dict = field(default_factory=dict)
+    suggestion_messages: list[dict] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -380,14 +397,20 @@ async def _verify_source_fingerprint(
     except AppException as exc:
         raise jobs.JobFailed(
             exc.message,
+            message_key=exc.message_key,
+            message_params=exc.params,
             code="SUBTITLE_SOURCE_UNAVAILABLE",
-            actions=[{"type": "handoff_agent", "label": "交给 Agent"}],
+            actions=[
+                {"type": "handoff_agent", "label": "交给 Agent", "label_key": "activity.jobs.agent"}
+            ],
         ) from exc
     if actual != expected:
         raise jobs.JobFailed(
-            "参考字幕或影片在排队期间发生了变化，请重新预检后再生成",
+            **stored_fields("library.subtitleJob.sourceChanged"),
             code="SUBTITLE_SOURCE_CHANGED",
-            actions=[{"type": "handoff_agent", "label": "交给 Agent"}],
+            actions=[
+                {"type": "handoff_agent", "label": "交给 Agent", "label_key": "activity.jobs.agent"}
+            ],
         )
 
 
@@ -402,7 +425,7 @@ def _select_reference(
         if not candidate_selectable(selected):
             raise BadRequestException(
                 message_key="errors.subtitles.referenceExcluded",
-                params={"reason": selected.excluded},
+                params={"reason": selected.excluded_message or selected.excluded},
             )
         return selected
 
@@ -446,14 +469,19 @@ async def _pgs_plan(
         )
         if requested_ocr_language is not None:
             selected = pgs.normalize_ocr_language(requested_ocr_language)
-            language = pgs.OcrLanguageDecision(
+            language = pgs.language_decision(
                 code=selected,
                 label=pgs.OCR_LANGUAGE_LABELS.get(selected) if selected else None,
                 confirmation_required=selected is None,
                 reason=(
-                    f"已确认使用 {pgs.OCR_LANGUAGE_LABELS[selected]} 识别 PGS"
+                    stored_fields(
+                        "library.subtitleOcr.confirmedLanguage",
+                        language=reference("library.subtitleLanguages." + selected),
+                    )
                     if selected
-                    else f"不支持的 OCR 语言：{requested_ocr_language}"
+                    else stored_fields(
+                        "library.subtitleOcr.invalidLanguage", language=requested_ocr_language
+                    )
                 ),
             )
 
@@ -468,13 +496,15 @@ async def _pgs_plan(
             if language.confirmation_required and not capability.cached:
                 options, representative = await asyncio.to_thread(pgs.available_ocr_languages)
                 if language.code not in {code for code, _label in options}:
-                    language = pgs.OcrLanguageDecision(
+                    language = pgs.language_decision(
                         code=None,
                         label=None,
                         confirmation_required=True,
                         reason=(
-                            f"{language.reason}；但当前设备没有对应语言包，"
-                            "请从实际可用语言中重新选择"
+                            stored_fields(
+                                "library.subtitleOcr.packageUnavailable",
+                                reason=language.reason_message or language.reason,
+                            )
                         ),
                     )
                     if representative is not None:
@@ -484,11 +514,11 @@ async def _pgs_plan(
             capability = representative or await asyncio.to_thread(pgs.detect_capability, None)
 
         if capability.cached and language.confirmation_required:
-            language = pgs.OcrLanguageDecision(
+            language = pgs.language_decision(
                 code=language.code,
                 label=language.label,
                 confirmation_required=False,
-                reason="已有可复用的 OCR 缓存，无需再次选择识别语言",
+                reason=stored_fields("library.subtitleOcr.cachedLanguage"),
             )
         plan = PgsConversionPlan(
             candidate=ranked_candidate,
@@ -503,105 +533,130 @@ async def _pgs_plan(
     return first_unavailable
 
 
+def _blocker(
+    code: str,
+    title_key: str,
+    message_key: str | None,
+    suggestions: list,
+    *,
+    detail: dict | str | None = None,
+    **params,
+) -> PreviewBlocker:
+    message = stored_fields(message_key, **params) if message_key else detail
+    if isinstance(message, str):
+        message = {"message": message}
+    return PreviewBlocker(
+        code=code,
+        title=stored_fields(title_key)["message"],
+        **message,
+        title_key=title_key,
+        suggestions=[item["message"] if isinstance(item, dict) else item for item in suggestions],
+        suggestion_messages=[
+            item if isinstance(item, dict) else {"message_key": None, "message": item}
+            for item in suggestions
+        ],
+    )
+
+
+def _output_message(target: str, secondary: str | None = None) -> dict:
+    primary = reference("library.subtitleLanguages." + target)
+    if secondary is None:
+        return primary
+    return reference(
+        "library.subtitlePreflight.bilingual",
+        primary=primary,
+        secondary=reference("library.subtitleLanguages." + secondary),
+    )
+
+
 def _preview_blocker(
     ranked: list[source.RankedCandidate],
     pgs_plan: PgsConversionPlan | None = None,
     target_language: str = "chs",
     secondary_language: str | None = None,
-    detail: str | None = None,
+    detail: dict | str | None = None,
 ) -> PreviewBlocker:
-    """把选源失败归纳为用户能理解、能继续处理的原因。
-
-    ``detail`` 是所选参考字幕加载失败的具体原因（读取超时、完整度不够等），
-    有就直接告诉用户，不再只给一句笼统的「不完整」。
-    """
-    output_label = subtitle_output_label(target_language, secondary_language)
-    add_sidecar = "添加与当前片源匹配的 SRT、ASS 或 VTT 外挂字幕"
-    rescan = "重新扫描媒体库后再试"
-
+    output = _output_message(target_language, secondary_language)
+    add_sidecar = stored_fields("library.subtitlePreflight.addSidecar")
+    rescan = stored_fields("library.subtitlePreflight.rescan")
     if not ranked:
-        return PreviewBlocker(
-            code="no_subtitle",
-            title="这份片源没有参考字幕",
-            message="当前功能只翻译现有文本字幕，不会从音轨听写对白。",
-            suggestions=[add_sidecar, rescan],
+        return _blocker(
+            "no_subtitle",
+            "library.subtitlePreflight.noSubtitleTitle",
+            "library.subtitlePreflight.noSubtitle",
+            [add_sidecar, rescan],
         )
-
     if pgs_plan is not None:
         capability = pgs_plan.capability
-        language = pgs_plan.language.label or "待确认语言"
+        language = (
+            reference("library.subtitleLanguages." + pgs_plan.language.code)
+            if pgs_plan.language.code
+            else reference("library.subtitlePreflight.waitingLanguage")
+        )
         if capability.available:
             if pgs_plan.language.confirmation_required:
-                return PreviewBlocker(
-                    code="pgs_conversion_required",
-                    title="请确认字幕语言",
-                    message=(
-                        "这份字幕是图片，需要先识别其中的文字。"
-                        f"请选择画面中实际显示的语言，再开始生成{output_label}字幕。"
-                    ),
-                    suggestions=[
-                        f"这里选择的是原字幕语言，不是最终生成的{output_label}字幕语言",
-                        "不确定时可以先播放影片查看字幕内容",
+                return _blocker(
+                    "pgs_conversion_required",
+                    "library.subtitlePreflight.confirmLanguage",
+                    "library.subtitlePreflight.imageNeedsLanguage",
+                    [
+                        stored_fields("library.subtitlePreflight.originalNotTarget", output=output),
+                        stored_fields("library.subtitlePreflight.watchToCheck"),
                     ],
+                    output=output,
                 )
-            return PreviewBlocker(
-                code="pgs_conversion_required",
-                title="先识别图片字幕",
-                message=(
-                    f"检测到{language}图片字幕。MovieClaw 会先识别文字，"
-                    f"确认内容完整后再生成{output_label}字幕。"
-                ),
-                suggestions=[
-                    "原影片和字幕不会被修改",
-                    "识别结果可能有少量错字，完成后建议抽查人名与特殊字体",
+            return _blocker(
+                "pgs_conversion_required",
+                "library.subtitlePreflight.recognizeFirst",
+                "library.subtitlePreflight.imageRecognize",
+                [
+                    stored_fields("library.subtitlePreflight.keepOriginals"),
+                    stored_fields("library.subtitlePreflight.checkOcr"),
                 ],
+                language=language,
+                output=output,
             )
-        return PreviewBlocker(
-            code="pgs_conversion_unavailable",
-            title="暂时无法识别这份字幕",
-            message=(
-                "当前设备还不能自动识别这份图片字幕。你可以按下面的建议处理，或交给 Agent 检查。"
-            ),
-            suggestions=list(capability.suggestions),
+        return _blocker(
+            "pgs_conversion_unavailable",
+            "library.subtitlePreflight.imageUnavailableTitle",
+            "library.subtitlePreflight.imageUnavailable",
+            list(capability.suggestion_refs or capability.suggestions),
         )
-
     if all(c.exclusion_code in {"graphic", "pgs"} for c in ranked):
-        return PreviewBlocker(
-            code="graphics_only",
-            title="暂时无法识别这份字幕",
-            message=(f"检测到 {len(ranked)} 条图片字幕，但当前设备无法自动识别其中的文字。"),
-            suggestions=[add_sidecar, rescan],
+        return _blocker(
+            "graphics_only",
+            "library.subtitlePreflight.imageUnavailableTitle",
+            "library.subtitlePreflight.graphicsOnly",
+            [add_sidecar, rescan],
+            count=len(ranked),
         )
-
     if all(c.exclusion_code == "target_language" for c in ranked):
-        return PreviewBlocker(
-            code="target_exists",
-            title="已有目标语言字幕",
-            message=f"检测到的字幕已经是{output_label}，无需再次生成。",
-            suggestions=["如需替换，请先添加其他语言的参考字幕"],
+        return _blocker(
+            "target_exists",
+            "library.subtitlePreflight.targetTitle",
+            "library.subtitlePreflight.targetExists",
+            [stored_fields("library.subtitlePreflight.addOtherLanguage")],
+            output=output,
         )
-
     if any(c.excluded is None for c in ranked):
-        return PreviewBlocker(
-            code="unusable_text",
-            title="参考字幕不能用于翻译" if detail else "参考字幕不完整",
-            message=detail or "文本字幕无法解析，或对白数量、时间覆盖不足。",
-            suggestions=[
-                "换用与当前片源匹配、内容完整的文本字幕",
-                rescan,
-            ],
+        return _blocker(
+            "unusable_text",
+            "library.subtitlePreflight.unusableTitle"
+            if detail
+            else "library.subtitlePreflight.incompleteTitle",
+            None if detail else "library.subtitlePreflight.unusable",
+            [stored_fields("library.subtitlePreflight.chooseComplete"), rescan],
+            detail=detail,
         )
-
     graphic_count = sum(c.exclusion_code == "graphic" for c in ranked)
-    return PreviewBlocker(
-        code="no_usable_reference",
-        title="现有字幕无法用于翻译",
-        message=(
-            f"检测到 {len(ranked)} 条字幕"
-            + (f"，其中 {graphic_count} 条是图形字幕" if graphic_count else "")
-            + "；其余为强制片段或目标语言字幕。"
-        ),
-        suggestions=[add_sidecar, rescan],
+    return _blocker(
+        "no_usable_reference",
+        "library.subtitlePreflight.noUsableTitle",
+        "library.subtitlePreflight.noUsable",
+        [add_sidecar, rescan],
+        count=len(ranked),
+        hasGraphic="yes" if graphic_count else "no",
+        graphic=graphic_count,
     )
 
 
@@ -633,6 +688,7 @@ async def preview(
     selected = _select_reference(ranked, source_candidate_key)
     selected_candidates = [selected] if selected is not None else []
     warnings: list[str] = []
+    warning_messages: list[dict] = []
     output_filename = _sidecar_path(row, target_language, secondary_language).name
     already_generated = bool(
         {
@@ -648,13 +704,17 @@ async def preview(
     selected_key = candidate_key(selected) if selected is not None else None
 
     reference_notice: str | None = None
+    notice_message = None
     try:
-        chosen, events = await _pick_loadable(row, selected_candidates, warnings, wait=False)
+        chosen, events = await _pick_loadable(
+            row, selected_candidates, warnings, wait=False, warning_messages=warning_messages
+        )
     except extract.SourceExtractionPending:
         # 还没读过不等于「做不了」：照常选中它，blocker 留空；读取与完整度检查
         # 都在任务里做，不合格会在调用模型之前停下。
         chosen, events = selected, []
-        reference_notice = await _reading_notice(row)
+        notice_message = await _reading_message(row)
+        reference_notice = notice_message["message"]
 
     pgs_conversion = (
         await _pgs_plan(
@@ -680,6 +740,8 @@ async def preview(
         estimated_tokens=est,
         already_generated=already_generated,
         warnings=warnings,
+        warning_messages=warning_messages,
+        reference_notice_message=notice_message,
         pgs_conversion=pgs_conversion,
         blocker=(
             _preview_blocker(
@@ -687,7 +749,7 @@ async def preview(
                 pgs_conversion,
                 target_language,
                 secondary_language,
-                detail=warnings[-1] if warnings else None,
+                detail=warning_messages[-1] if warning_messages else None,
             )
             if chosen is None
             else None
@@ -715,17 +777,20 @@ def _format_size(size: int) -> str:
     return f"{max(1, size // 1024)} KB"
 
 
-async def _reading_notice(row: LibraryFile) -> str:
-    """内封轨还没读取过时给用户的说明：会发生什么、为什么可能慢、花不花钱。"""
+async def _reading_message(row: LibraryFile) -> dict:
     try:
         size = (await asyncio.to_thread(Path(row.file_path).stat)).st_size
     except OSError:
         size = 0
-    whole = f"整个视频文件（{_format_size(size)}）" if size else "整个视频文件"
-    return (
-        f"这条内封字幕还没读取过：开始后会先通读{whole}把字幕读出来，大文件可能要几分钟，"
-        "这一步不调用 AI；读出后先检查完整度，不合格就停下，不产生模型费用。"
+    return stored_fields(
+        "library.subtitlePreflight.readNotice",
+        hasSize="yes" if size else "no",
+        size=_format_size(size) if size else "",
     )
+
+
+async def _reading_notice(row: LibraryFile) -> str:
+    return (await _reading_message(row))["message"]
 
 
 async def _pick_loadable(
@@ -734,6 +799,7 @@ async def _pick_loadable(
     warnings: list[str],
     *,
     wait: bool = True,
+    warning_messages: list[dict] | None = None,
 ) -> tuple[source.RankedCandidate | None, list[extract.SubEvent]]:
     """按排序逐个加载候选，返回第一个完整度合格的（§2：加载后评估）。
 
@@ -750,14 +816,26 @@ async def _pick_loadable(
             )
         except extract.SourceLoadError as exc:
             warnings.append(str(exc))
+            if warning_messages is not None:
+                warning_messages.append(exc.reference or {"message_key": None, "message": str(exc)})
             continue
         if cand.candidate.sdh:
             events = extract.strip_sdh_markers(events)
         assessment = source.assess_events(events, row.duration_seconds)
         cand.reasons.append(assessment.reason)
+        cand.reason_messages.append(
+            assessment.reason_message or {"message_key": None, "message": assessment.reason}
+        )
         if assessment.ok:
             return cand, events
-        warnings.append(f"候选「{_cand_desc(cand.candidate)}」完整度不合格：{assessment.reason}")
+        warning = stored_fields(
+            "library.subtitlePreflight.incompleteCandidate",
+            candidate=_cand_message(cand.candidate),
+            reason=assessment.reason_message or assessment.reason,
+        )
+        warnings.append(warning["message"])
+        if warning_messages is not None:
+            warning_messages.append(warning)
     return None, []
 
 
@@ -823,11 +901,16 @@ async def _prepare_generation(
             and language_ready
         )
         if not conversion_allowed:
-            message = pv.blocker.message if pv.blocker else "没有可用的参考字幕"
-            raise BadRequestException(message)
+            if pv.blocker:
+                raise BadRequestException(
+                    pv.blocker.message,
+                    message_key=pv.blocker.message_key,
+                    params=pv.blocker.message_params,
+                )
+            raise BadRequestException(message_key="errors.subtitles.referenceUnavailable")
         initial = GenState(
             phase="ocr",
-            message="正在排队识别图片字幕",
+            **stored_fields("library.subtitleJob.queuedOcr"),
             uses_ocr=True,
             target_language=target_language,
             secondary_language=secondary_language,
@@ -835,7 +918,11 @@ async def _prepare_generation(
         )
     else:
         initial = GenState(
-            message="等待开始，第一步先读取内封字幕" if pv.reference_notice else "正在准备",
+            **stored_fields(
+                "library.subtitleJob.waitRead"
+                if pv.reference_notice
+                else "library.subtitleJob.preparing"
+            ),
             target_language=target_language,
             secondary_language=secondary_language,
             source_candidate_key=pv.selected_source_key,
@@ -972,6 +1059,8 @@ def _job_progress(state: GenState) -> dict[str, object]:
         "mode": "determinate" if percent is not None else "indeterminate",
         "phase": state.phase,
         "message": state.message,
+        "message_key": state.message_key,
+        "message_params": state.message_params,
         "current": state.done_blocks if state.total_blocks else None,
         "total": state.total_blocks or None,
         "percent": percent,
@@ -1004,10 +1093,18 @@ def _result_payload(result: GenResult) -> dict[str, object]:
     return {
         "ok": result.ok,
         "message": result.message,
+        "message_key": result.message_key,
+        "message_params": result.message_params,
         "filename": result.filename,
         "report": asdict(result.report) if result.report is not None else None,
         "sync_score": result.sync_score,
         "source_desc": result.source_desc,
+        "source_desc_key": result.source_message.get("message_key")
+        if result.source_message
+        else None,
+        "source_desc_params": result.source_message.get("message_params")
+        if result.source_message
+        else None,
         "finished_at": utc_isoformat(finished_at)
         if isinstance(finished_at, datetime)
         else finished_at,
@@ -1055,7 +1152,11 @@ async def _run_generation_job(
         )
     state = GenState(
         phase="ocr" if convert_pgs else "preparing",
-        message="正在从已保存进度继续" if input_data.get("resume") else "正在准备",
+        **stored_fields(
+            "library.subtitleJob.resume"
+            if input_data.get("resume")
+            else "library.subtitleJob.preparing"
+        ),
         uses_ocr=convert_pgs,
         target_language=target_language,
         secondary_language=str(secondary_language) if secondary_language else None,
@@ -1109,63 +1210,115 @@ async def _run_generation_job(
         # 模型本身就是失败原因时，重试只会原样再失败一次。把固定的模型写进
         # 错误信息，并给出改默认模型的入口——改完重新发起生成即可换模型续译。
         raise jobs.JobFailed(
-            f"{exc}。当前任务固定使用模型 {model_ref or '默认模型'}；"
-            "换模型请改默认模型后重新发起生成，点「重试」仍会用原模型",
+            **stored_fields(
+                "library.subtitleJob.aborted",
+                reason=exc.reference or str(exc),
+                model=model_ref or reference("library.subtitleJob.defaultModel"),
+            ),
             code="SUBTITLE_TRANSLATION_ABORTED",
             actions=[
-                {"type": "open_settings", "label": "调整 AI 模型", "target": "llm"},
-                {"type": "retry_job", "label": "重试"},
-                {"type": "handoff_agent", "label": "交给 Agent"},
+                {
+                    "type": "open_settings",
+                    "label": "调整 AI 模型",
+                    "label_key": "library.subtitleJob.adjustModel",
+                    "target": "llm",
+                },
+                {"type": "retry_job", "label": "重试", "label_key": "activity.jobs.retry"},
+                {
+                    "type": "handoff_agent",
+                    "label": "交给 Agent",
+                    "label_key": "activity.jobs.agent",
+                },
             ],
         ) from exc
     except AppException as exc:
         if "配置" in exc.message or "模型" in exc.message:
             raise jobs.JobBlocked(
                 exc.message,
+                message_key=exc.message_key,
+                message_params=exc.params,
                 code="SUBTITLE_MODEL_UNAVAILABLE",
                 actions=[
-                    {"type": "open_settings", "label": "配置 AI 模型", "target": "llm"},
-                    {"type": "retry_job", "label": "配置后重试"},
-                    {"type": "handoff_agent", "label": "交给 Agent"},
+                    {
+                        "type": "open_settings",
+                        "label": "配置 AI 模型",
+                        "label_key": "library.subtitleJob.configureModel",
+                        "target": "llm",
+                    },
+                    {
+                        "type": "retry_job",
+                        "label": "配置后重试",
+                        "label_key": "library.subtitleJob.retryConfigured",
+                    },
+                    {
+                        "type": "handoff_agent",
+                        "label": "交给 Agent",
+                        "label_key": "activity.jobs.agent",
+                    },
                 ],
             ) from exc
         raise jobs.JobFailed(
             exc.message,
+            message_key=exc.message_key,
+            message_params=exc.params,
             code="SUBTITLE_GENERATION_FAILED",
-            actions=[{"type": "handoff_agent", "label": "交给 Agent"}],
+            actions=[
+                {"type": "handoff_agent", "label": "交给 Agent", "label_key": "activity.jobs.agent"}
+            ],
         ) from exc
     except (LlmConnectError, LlmServerError, LlmRateLimitError) as exc:
         # 连不上、供应商 5xx：多半过一会儿自己恢复。说清楚是模型服务的问题、已完成
         # 的块都在断点里，交给调度器稍后自动重试——此前这里落进「未知错误」，
         # 用户只看到一句「任务遇到临时异常」，重试用尽后是「发生未知错误」。
         raise jobs.JobRetry(
-            f"模型服务暂时不可用：{_brief(exc)}。已完成的字幕块已保存，稍后自动重试会从断点继续",
+            **stored_fields("library.subtitleJob.modelUnavailable", reason=_brief(exc)),
             delay_seconds=_MODEL_RETRY_DELAY_SECONDS,
             code="SUBTITLE_MODEL_TEMPORARILY_UNAVAILABLE",
             actions=[
-                {"type": "retry_job", "label": "重试"},
-                {"type": "handoff_agent", "label": "交给 Agent"},
+                {"type": "retry_job", "label": "重试", "label_key": "activity.jobs.retry"},
+                {
+                    "type": "handoff_agent",
+                    "label": "交给 Agent",
+                    "label_key": "activity.jobs.agent",
+                },
             ],
         ) from exc
     except LlmAuthError as exc:
         # API Key 失效重试多少次都一样：停在 blocked，引导去设置里修
         raise jobs.JobBlocked(
-            f"模型服务认证失败：{_brief(exc)}",
+            **stored_fields("library.subtitleJob.modelAuthFailed", reason=_brief(exc)),
             code="SUBTITLE_MODEL_AUTH_FAILED",
             actions=[
-                {"type": "open_settings", "label": "检查 AI 模型设置", "target": "llm"},
-                {"type": "retry_job", "label": "修改后重试"},
-                {"type": "handoff_agent", "label": "交给 Agent"},
+                {
+                    "type": "open_settings",
+                    "label": "检查 AI 模型设置",
+                    "label_key": "library.subtitleJob.checkModel",
+                    "target": "llm",
+                },
+                {
+                    "type": "retry_job",
+                    "label": "修改后重试",
+                    "label_key": "library.subtitleJob.retryModified",
+                },
+                {
+                    "type": "handoff_agent",
+                    "label": "交给 Agent",
+                    "label_key": "activity.jobs.agent",
+                },
             ],
         ) from exc
     except LlmError as exc:
         # 请求被拒（参数、上下文超长、内容审查）：原样说明原因，不做无意义的自动重试
         raise jobs.JobFailed(
-            f"模型服务拒绝了请求：{_brief(exc)}",
+            **stored_fields("library.subtitleJob.modelRejected", reason=_brief(exc)),
             code="SUBTITLE_MODEL_REQUEST_FAILED",
             actions=[
-                {"type": "retry_job", "label": "重试"},
-                {"type": "handoff_agent", "label": "交给 Agent"},
+                {"type": "retry_job", "label": "重试", "label_key": "activity.jobs.retry"},
+                {
+                    "type": "handoff_agent",
+                    "label": "交给 Agent",
+                    "label_key": "activity.jobs.agent",
+                },
             ],
         ) from exc
     finally:
@@ -1188,20 +1341,41 @@ async def _run_generation_job(
         if await context.cancel_requested():
             raise jobs.JobCancelled
         actions: list[dict[str, object]] = [
-            {"type": "retry_job", "label": "重试"},
-            {"type": "handoff_agent", "label": "交给 Agent"},
+            {"type": "retry_job", "label": "重试", "label_key": "activity.jobs.retry"},
+            {"type": "handoff_agent", "label": "交给 Agent", "label_key": "activity.jobs.agent"},
         ]
         if "配置" in result.message or "模型" in result.message:
             raise jobs.JobBlocked(
                 result.message,
+                message_key=result.message_key,
+                message_params=result.message_params,
                 code="SUBTITLE_MODEL_UNAVAILABLE",
                 actions=[
-                    {"type": "open_settings", "label": "配置 AI 模型", "target": "llm"},
-                    {"type": "retry_job", "label": "配置后重试"},
-                    {"type": "handoff_agent", "label": "交给 Agent"},
+                    {
+                        "type": "open_settings",
+                        "label": "配置 AI 模型",
+                        "label_key": "library.subtitleJob.configureModel",
+                        "target": "llm",
+                    },
+                    {
+                        "type": "retry_job",
+                        "label": "配置后重试",
+                        "label_key": "library.subtitleJob.retryConfigured",
+                    },
+                    {
+                        "type": "handoff_agent",
+                        "label": "交给 Agent",
+                        "label_key": "activity.jobs.agent",
+                    },
                 ],
             )
-        raise jobs.JobFailed(result.message, code="SUBTITLE_GENERATION_FAILED", actions=actions)
+        raise jobs.JobFailed(
+            result.message,
+            message_key=result.message_key,
+            message_params=result.message_params,
+            code="SUBTITLE_GENERATION_FAILED",
+            actions=actions,
+        )
     return _result_payload(result)
 
 
@@ -1222,7 +1396,7 @@ async def _reading(state: GenState, row: LibraryFile, work: Awaitable[_T]) -> _T
     时间只通读一个文件，排在别的文件后面时明说。取消任务时读取随之取消。
     """
     state.phase = "extracting"
-    state.message = "正在读取内封字幕"
+    state.set_message("library.subtitleJob.reading")
     state.extract_duration_seconds = row.duration_seconds
     follower = asyncio.create_task(
         _follow_read_progress(state, row), name="subtitle-read-progress"
@@ -1233,7 +1407,7 @@ async def _reading(state: GenState, row: LibraryFile, work: Awaitable[_T]) -> _T
         follower.cancel()
         state.extract_queued = False
         state.phase = "preparing"
-        state.message = "正在检查参考字幕"
+        state.set_message("library.subtitleJob.checkingSource")
 
 
 async def _follow_read_progress(state: GenState, row: LibraryFile) -> None:
@@ -1242,15 +1416,18 @@ async def _follow_read_progress(state: GenState, row: LibraryFile) -> None:
         progress = await asyncio.to_thread(media_extract.read_progress, row)
         if progress is not None and progress.queued:
             state.extract_queued = True
-            state.message = "排队等待读取：同一时间只通读一个视频文件，前面的读完就轮到这里"
+            state.set_message("library.subtitleJob.queuedRead")
         elif progress is not None:
             state.extract_queued = False
             state.extract_position_seconds = progress.position_seconds
-            state.message = (
-                f"正在读取内封字幕：已读到 {_clock(progress.position_seconds)} / {_clock(duration)}"
-                if progress.position_seconds is not None and duration
-                else "正在读取内封字幕"
-            )
+            if progress.position_seconds is not None and duration:
+                state.set_message(
+                    "library.subtitleJob.readPosition",
+                    position=_clock(progress.position_seconds),
+                    duration=_clock(duration),
+                )
+            else:
+                state.set_message("library.subtitleJob.reading")
         await asyncio.sleep(_READ_PROGRESS_INTERVAL)
 
 
@@ -1288,12 +1465,15 @@ async def _run(
     try:
         selected = _select_reference(ranked, source_candidate_key)
     except BadRequestException as exc:
-        return GenResult(ok=False, message=exc.message)
+        return GenResult(
+            ok=False, message=exc.message, message_key=exc.message_key, message_params=exc.params
+        )
     state.source_candidate_key = candidate_key(selected) if selected is not None else None
     selected_candidates = [selected] if selected is not None else []
     warnings: list[str] = []
+    warning_messages: list[dict] = []
     state.phase = "preparing"
-    state.message = "正在选择参考字幕"
+    state.set_message("library.subtitleJob.selecting")
     needs_reading = (
         selected is not None
         and not selected.excluded
@@ -1301,11 +1481,16 @@ async def _run(
     )
     if needs_reading:
         chosen, events = await _reading(
-            state, row, _pick_loadable(row, selected_candidates, warnings)
+            state,
+            row,
+            _pick_loadable(row, selected_candidates, warnings, warning_messages=warning_messages),
         )
     else:
-        chosen, events = await _pick_loadable(row, selected_candidates, warnings)
+        chosen, events = await _pick_loadable(
+            row, selected_candidates, warnings, warning_messages=warning_messages
+        )
     source_desc: str | None = None
+    source_message = None
     if chosen is None and convert_pgs:
         plan = await _pgs_plan(
             row,
@@ -1315,14 +1500,17 @@ async def _run(
             requested_ocr_language=pgs_ocr_language,
         )
         if plan is None:
-            return GenResult(ok=False, message="文件中的 PGS 字幕已变化，请重新预检后再试")
+            return GenResult(ok=False, **stored_fields("library.subtitleJob.pgsChanged"))
         if not plan.capability.available:
             return GenResult(
                 ok=False,
-                message=f"当前设备无法识别这份图片字幕：{plan.capability.message}",
+                **stored_fields(
+                    "library.subtitleJob.ocrUnavailable",
+                    reason=plan.capability.message_ref or plan.capability.message,
+                ),
             )
         if not plan.capability.cached and plan.language.code is None:
-            return GenResult(ok=False, message="原字幕语言尚未确认，请重新检查后再试")
+            return GenResult(ok=False, **stored_fields("library.subtitleJob.languageUnconfirmed"))
         pgs_candidate = plan.candidate.candidate
         try:
             if plan.capability.cached:
@@ -1332,7 +1520,7 @@ async def _run(
                 # 读取阶段同样有进度、可取消。
                 sup_path = await _reading(state, row, pgs.extract_sup(row, pgs_candidate))
                 state.phase = "ocr"
-                state.message = "正在识别图片字幕，可能需要一些时间"
+                state.set_message("library.subtitleJob.recognizing")
                 ocr_path = await pgs.ocr_to_srt(
                     row, pgs_candidate, plan.capability, plan.language.code, sup_path
                 )
@@ -1341,14 +1529,23 @@ async def _run(
                 extract.decode_subtitle_bytes(raw, str(ocr_path)), str(ocr_path)
             )
         except (OSError, extract.SourceLoadError, pgs.PgsConversionError) as exc:
-            return GenResult(ok=False, message=f"图片字幕识别未完成：{exc}")
+            return GenResult(
+                ok=False,
+                **stored_fields(
+                    "library.subtitleJob.ocrIncomplete",
+                    reason=getattr(exc, "reference", None) or str(exc),
+                ),
+            )
         if cancelled():
-            raise translate.TranslationAborted("图片字幕识别完成，已按你的请求停止后续 AI 翻译")
+            raise translate.TranslationAborted(stored_fields("library.subtitleJob.ocrStopped"))
         assessment = source.assess_events(events, row.duration_seconds)
         if not assessment.ok:
             return GenResult(
                 ok=False,
-                message=f"图片字幕已识别，但完整度检查未通过：{assessment.reason}",
+                **stored_fields(
+                    "library.subtitleJob.ocrAssessment",
+                    reason=assessment.reason_message or assessment.reason,
+                ),
             )
         # OCR 不是只能服务当前这次 AI 翻译的临时步骤。完整度达标后立即规范化
         # 为 UTF-8 SRT 外挂；即使后续模型失败，这份耗时得到的文本以后仍可预览、
@@ -1359,7 +1556,7 @@ async def _run(
         except OSError as exc:
             return GenResult(
                 ok=False,
-                message=f"图片字幕已识别，但无法保存外挂字幕：{ocr_sidecar}（{exc}）",
+                **stored_fields("library.subtitleJob.ocrWriteFailed", path=ocr_sidecar, detail=exc),
             )
         await _refresh_subtitle_inventory(db, file_id)
         chosen = plan.candidate
@@ -1368,19 +1565,29 @@ async def _run(
             f"经 {plan.capability.engine or 'OCR'} 转为 SRT"
         )
         chosen.reasons.append(assessment.reason)
-        source_desc = f"{_cand_desc(chosen.candidate)}（OCR 转换）"
+        source_message = stored_fields(
+            "library.subtitleJob.ocrSource", source=_cand_message(chosen.candidate)
+        )
+        source_desc = source_message["message"]
     if chosen is None:
-        detail = "；".join(warnings) or "当前没有可选择的文本字幕"
-        return GenResult(ok=False, message="所选参考字幕无法用于翻译：" + detail)
+        detail = (
+            {"message_list": warning_messages, "separator_key": "library.subtitleJob.separator"}
+            if warnings
+            else reference("library.subtitleJob.noText")
+        )
+        return GenResult(
+            ok=False, **stored_fields("library.subtitleJob.unusableReference", reason=detail)
+        )
     if source_desc is None:
-        source_desc = _cand_desc(chosen.candidate)
+        source_message = _cand_message(chosen.candidate)
+        source_desc = source_message["message"]
     logger.info(
         "字幕生成选源：%s ← %s（%s）", row.file_path, source_desc, "；".join(chosen.reasons)
     )
 
     # L1 同步质检（§5.2）：错位参考在烧 LLM 钱之前拦下；无法检测按未知放行
     state.phase = "syncing"
-    state.message = "正在检查字幕与影片是否同步"
+    state.set_message("library.subtitleJob.syncing")
     state.total_events = len(events)
     sync_score = await sync.sample_sync_score(
         Path(row.file_path), events, row.duration_seconds, sync.audio_index(row.audio_streams)
@@ -1390,16 +1597,20 @@ async def _run(
             ok=False,
             sync_score=sync_score,
             source_desc=source_desc,
-            message=(
-                f"参考字幕「{source_desc}」与影片疑似不同步"
-                f"（语音命中率 {sync_score:.0%}，阈值 {sync.SYNC_THRESHOLD:.0%}）——"
-                "请先用同步的字幕做参考，避免翻译成果整体错位"
+            source_message=source_message,
+            **stored_fields(
+                "library.subtitleJob.unsynced",
+                source=source_message,
+                score=sync_score,
+                threshold=sync.SYNC_THRESHOLD,
             ),
         )
 
-    def _phase(phase: str, message: str) -> None:
+    def _phase(phase: str, message: dict) -> None:
         state.phase = phase
-        state.message = message
+        state.message = message["message"]
+        state.message_key = message["message_key"]
+        state.message_params = message["message_params"]
         state.active_blocks = ()
         state.oldest_active_seconds = 0
 
@@ -1417,11 +1628,13 @@ async def _run(
         if state.phase == "translating" and progress.active_blocks:
             active_count = len(progress.active_blocks)
             if progress.done_blocks == 0:
-                state.message = f"首批 {active_count} 个字幕块正在等待模型返回"
+                state.set_message("library.subtitleJob.firstBlocks", count=active_count)
             else:
-                state.message = (
-                    f"已完成 {progress.done_blocks}/{progress.total_blocks} 块，"
-                    f"另有 {active_count} 块处理中"
+                state.set_message(
+                    "library.subtitleJob.activeBlocks",
+                    done=progress.done_blocks,
+                    total=progress.total_blocks,
+                    active=active_count,
                 )
 
     out_events, stats = await translate.translate_events(
@@ -1437,7 +1650,7 @@ async def _run(
     )
 
     state.phase = "validating"
-    state.message = "正在检查字幕质量"
+    state.set_message("library.subtitleJob.validating")
     state.active_blocks = ()
     final_events, report = validate.finalize_events(
         out_events,
@@ -1457,7 +1670,7 @@ async def _run(
     # 对双语只报告超读速，由首次翻译提示词负责浓缩。
     if overruns and secondary_language is None:
         state.phase = "compressing"
-        state.message = f"正在压缩 {len(overruns)} 条超读速译文"
+        state.set_message("library.subtitleJob.compressing", count=len(overruns))
         refined, compressed = await translate.compress_overruns(
             chat,
             final_events,
@@ -1477,14 +1690,14 @@ async def _run(
     report.compressed = compressed
 
     state.phase = "writing"
-    state.message = "正在保存字幕文件"
+    state.set_message("library.subtitleJob.writing")
     sidecar = _sidecar_path(row, target_language, secondary_language)
     try:
         await asyncio.to_thread(translate.write_srt, final_events, sidecar)
     except OSError as exc:
         return GenResult(
             ok=False,
-            message=f"字幕文件写入失败（库目录是否只读？）：{sidecar}（{exc}）",
+            **stored_fields("library.subtitleJob.writeFailed", path=sidecar, detail=exc),
         )
     if secondary_language is None:
         legacy_sidecar = _legacy_sidecar_path(row, target_language)
@@ -1504,25 +1717,27 @@ async def _run(
 
     # 台账即时刷新（不等 watchdog）：任务结束播放器立刻可选
     state.phase = "refreshing"
-    state.message = "正在更新媒体库字幕列表"
+    state.set_message("library.subtitleJob.refreshing")
     await _refresh_subtitle_inventory(db, file_id)
 
-    message = f"已生成 {sidecar.name}（参考：{source_desc}，{report.event_count} 条对白"
-    if stats.failed_blocks:
-        message += f"，{stats.failed_blocks} 块翻译失败保留原文"
-    if report.compressed:
-        message += f"，压缩改写 {report.compressed} 条超读速译文"
-    if report.cps_overrun:
-        message += f"，仍有 {report.cps_overrun} 条超读速"
-    message += "）"
-    logger.info("字幕生成完成：%s", message)
+    message = stored_fields(
+        "library.subtitleJob.completed",
+        filename=sidecar.name,
+        source=source_message,
+        count=report.event_count,
+        failed=stats.failed_blocks,
+        compressed=report.compressed,
+        overrun=report.cps_overrun,
+    )
+    logger.info("字幕生成完成：%s", message["message"])
     return GenResult(
         ok=True,
-        message=message,
+        **message,
         filename=sidecar.name,
         report=report,
         sync_score=sync_score,
         source_desc=source_desc,
+        source_message=source_message,
     )
 
 

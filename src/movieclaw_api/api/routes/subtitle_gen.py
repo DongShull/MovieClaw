@@ -12,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.api.routes.jobs import job_view
-from movieclaw_api.i18n.stored import stored_message
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value, stored_message
 from movieclaw_api.schemas.jobs import JobView
 from movieclaw_api.schemas.response import ApiResponse
 from movieclaw_api.schemas.subtitle_gen import (
@@ -41,8 +42,10 @@ def _preview_view(pv: gen_tasks.Preview) -> GenPreviewView:
                 language=c.candidate.language,
                 format=c.candidate.format,
                 provenance=c.candidate.provenance,
-                excluded=c.excluded,
-                reasons=c.reasons,
+                excluded=render_value(c.excluded_message) if c.excluded_message else c.excluded,
+                reasons=[render_value(item) for item in c.reason_messages]
+                if c.reason_messages
+                else c.reasons,
                 selectable=gen_tasks.candidate_selectable(c),
                 requires_ocr=c.exclusion_code == "pgs",
             )
@@ -53,7 +56,9 @@ def _preview_view(pv: gen_tasks.Preview) -> GenPreviewView:
         event_count=pv.event_count,
         estimated_tokens=pv.estimated_tokens,
         already_generated=pv.already_generated,
-        warnings=pv.warnings,
+        warnings=[render_value(item) for item in pv.warning_messages]
+        if pv.warning_messages
+        else pv.warnings,
         pgs_conversion=(
             PgsConversionView(
                 candidate_key=(
@@ -63,17 +68,32 @@ def _preview_view(pv: gen_tasks.Preview) -> GenPreviewView:
                 language=pv.pgs_conversion.candidate.candidate.language,
                 available=pv.pgs_conversion.capability.available,
                 engine=pv.pgs_conversion.capability.engine,
-                platform=pv.pgs_conversion.capability.platform,
-                architecture=pv.pgs_conversion.capability.architecture,
+                platform=stored_message(pv.pgs_conversion.capability.platform),
+                architecture=stored_message(pv.pgs_conversion.capability.architecture),
                 cached=pv.pgs_conversion.capability.cached,
-                message=pv.pgs_conversion.capability.message,
-                suggestions=list(pv.pgs_conversion.capability.suggestions),
+                message=render_value(pv.pgs_conversion.capability.message_ref)
+                if pv.pgs_conversion.capability.message_ref
+                else pv.pgs_conversion.capability.message,
+                suggestions=[
+                    render_value(item) for item in pv.pgs_conversion.capability.suggestion_refs
+                ]
+                if pv.pgs_conversion.capability.suggestion_refs
+                else list(pv.pgs_conversion.capability.suggestions),
                 ocr_language=pv.pgs_conversion.language.code,
-                ocr_language_label=pv.pgs_conversion.language.label,
+                ocr_language_label=stored_message(
+                    pv.pgs_conversion.language.label or "",
+                    "library.subtitleLanguages." + pv.pgs_conversion.language.code,
+                )
+                if pv.pgs_conversion.language.code
+                else pv.pgs_conversion.language.label,
                 language_confirmation_required=(pv.pgs_conversion.language.confirmation_required),
-                language_reason=pv.pgs_conversion.language.reason,
+                language_reason=render_value(pv.pgs_conversion.language.reason_message)
+                if pv.pgs_conversion.language.reason_message
+                else pv.pgs_conversion.language.reason,
                 language_options=[
-                    PgsOcrLanguageOptionView(code=code, label=label)
+                    PgsOcrLanguageOptionView(
+                        code=code, label=stored_message(label, "library.subtitleLanguages." + code)
+                    )
                     for code, label in pv.pgs_conversion.language_options
                 ],
             )
@@ -83,15 +103,21 @@ def _preview_view(pv: gen_tasks.Preview) -> GenPreviewView:
         blocker=(
             GenPreviewBlockerView(
                 code=pv.blocker.code,
-                title=pv.blocker.title,
-                message=pv.blocker.message,
-                suggestions=pv.blocker.suggestions,
+                title=stored_message(pv.blocker.title, pv.blocker.title_key),
+                message=stored_message(
+                    pv.blocker.message, pv.blocker.message_key, pv.blocker.message_params
+                ),
+                suggestions=[render_value(item) for item in pv.blocker.suggestion_messages]
+                if pv.blocker.suggestion_messages
+                else pv.blocker.suggestions,
             )
             if pv.blocker
             else None
         ),
         output_filename=pv.output_filename,
-        reference_notice=pv.reference_notice,
+        reference_notice=render_value(pv.reference_notice_message)
+        if pv.reference_notice_message
+        else pv.reference_notice,
     )
 
 
@@ -170,7 +196,7 @@ async def gen_start(
     response.headers["Location"] = f"/api/v1/jobs/{created.job.id}"
     return ApiResponse(
         data=await job_view(session, created.job),
-        message="任务已入队" if created.created else "相同任务已在进行中",
+        message=t("library.subtitleJob.enqueued" if created.created else "activity.jobs.conflict"),
     )
 
 

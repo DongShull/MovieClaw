@@ -3376,5 +3376,359 @@
   },
   "subtitlePreview.cues": {
     "sourceHash": "cd6e2a64d3aacbe2a7bc0facbd6671b04e3374a17c78a66d04b5a0a89afc3df9"
+  },
+  "subtitleGeneration.subtitle": {
+    "sourceHash": "60033a3bf561e656bd4d70070fba680e0fc1ecd08117e38656e14dad3a1b0a60"
+  },
+  "subtitleGeneration.requestFailed": {
+    "sourceHash": "d13475479f05e2325bd236a7a1d0d7c90c73e7733ad1ca9b44be1b3a51b02007"
+  },
+  "subtitleGeneration.unknownLanguage": {
+    "sourceHash": "623424b52ddf398150bf3895af185808977c0bff729375fce59a39ae5f5e31bd"
+  },
+  "subtitleGeneration.unknownFormat": {
+    "sourceHash": "c65b3b97b4112fb1f9dd696c2aff8c080ce0b8a6f060db0f95ca54580a23aed6"
+  },
+  "subtitleGeneration.bilingual": {
+    "sourceHash": "eaf45548fe6c82d791a25abe69ce84c901843fa60d3e97f659629ccbd4194322"
+  },
+  "subtitleGeneration.embedded": {
+    "sourceHash": "59485b0f83ad6fc169a880fca14f22f14f76cb6624f6c3d38ee927cfbc7d0bf5"
+  },
+  "subtitleGeneration.external": {
+    "sourceHash": "6b95fdc43c88f22c7c0bfbca218a01dc20984569e7feb3f6300d32c92e283f7e"
+  },
+  "subtitleGeneration.track": {
+    "sourceHash": "eda16c0fb9fd465713470e34276093878ad434bcc897399bd2e1e4bd9b6707ba"
+  },
+  "subtitleGeneration.ocrSuffix": {
+    "sourceHash": "3f746d9d561c9d0c0add1c623073c88f0eb87facc774441ef357125203250afb"
+  },
+  "subtitleGeneration.original": {
+    "sourceHash": "2897885b49f6923be5a409bc437b384da7df5d0fa232e7a06d2506c94f359ac6"
+  },
+  "subtitleGeneration.pgsOcr": {
+    "sourceHash": "ecb8774f8874d755db9a04962d7e51f636472d954bd59c99ac559aa938e399fa"
+  },
+  "subtitleGeneration.ai": {
+    "sourceHash": "7904558d4cf06a33e8e43514459cb680dddf275d335b80d42f30d93d817ebf6f"
+  },
+  "subtitleGeneration.aiBilingual": {
+    "sourceHash": "aabdab176dce5211048ad3d28f259e21d472ff8dccc3ef56c86e76d0f1487b06"
+  },
+  "subtitleGeneration.candidate": {
+    "sourceHash": "5a19b518108eabc76c91f5c5a9cf9c64bf821de906fa26e63165300bb6112676"
+  },
+  "subtitleGeneration.tokenEstimate": {
+    "sourceHash": "0ae710624ae7347cdb8379427e9d07e9a3c98e4fb86c29ba0c507955228e4de5"
+  },
+  "subtitleGeneration.tokenEstimateK": {
+    "sourceHash": "6064a15114b880712892e4a2b5434b727a36c095c8d23cbf445ff5bb4749f3ca"
+  },
+  "subtitleGeneration.prepareStage": {
+    "sourceHash": "765a8622f34235050d77cc7931b85dcd6fc988a2886d01d76c93e672dca70ace"
+  },
+  "subtitleGeneration.glossaryStage": {
+    "sourceHash": "8c8f450190d949087660398fec702eb2993e9ba4bf34d073ed2ed4b2eeb0b579"
+  },
+  "subtitleGeneration.translateStage": {
+    "sourceHash": "ca1b35b0ef6fca077880bc0cfbe5acba02a13f476de00832fc859fecc55a24fc"
+  },
+  "subtitleGeneration.qualityStage": {
+    "sourceHash": "75a9caa9695a202372626a44fc1f3671d6e42c8cab42d48ce70b016f055df0b7"
+  },
+  "subtitleGeneration.saveStage": {
+    "sourceHash": "34a2b60811971dbfa8ad8c3abbc4525b422b951b4e0c00f5d71c944d72af18d5"
+  },
+  "subtitleGeneration.elapsedSeconds": {
+    "sourceHash": "3ff9d9620a85bdd7d4a17c376d6ee9db966a193e71f0165ab1816b1e77cebeb6"
+  },
+  "subtitleGeneration.elapsedMinutes": {
+    "sourceHash": "9b0c78ad95ef6d3017e8ad5b80bcb3d44b13ca6464e3dcc1da6fcd8b79be4248"
+  },
+  "subtitleGeneration.elapsedHours": {
+    "sourceHash": "ded615157af1a1913e28501b5214b86d7c59d6e5785b29cc7c2689b7aa1f3dff"
+  },
+  "subtitleGeneration.sourceTrack": {
+    "sourceHash": "97928afef91b822d91d38c903bab55e2e0b33ebb1cd185437da9991f635ced8d"
+  },
+  "subtitleGeneration.sourceEmbedded": {
+    "sourceHash": "36967d8c47cd152e9b4abd6a11eb866ccd0f042cc20384b2f25bbf471adbc955"
+  },
+  "subtitleGeneration.preparing": {
+    "sourceHash": "b53be09930f4e02dd3fdfb3639cdc73f6306cc638590660229b5f010690bd749"
+  },
+  "subtitleGeneration.recognizing": {
+    "sourceHash": "4c8fc0d9d90d010fc218fe08719ef527d95a778adddfa505ad22969c8469b05d"
+  },
+  "subtitleGeneration.syncing": {
+    "sourceHash": "d8876950ea14bcfc64d06fd0adc9b9a2909f7762a60493c85d563e227887680b"
+  },
+  "subtitleGeneration.glossary": {
+    "sourceHash": "c3366b75627d5c515b710f095f211feb7d8d981b66b9b88a0837be8c6a31dab0"
+  },
+  "subtitleGeneration.validating": {
+    "sourceHash": "91aa2ff085d42515dee9f7686c9af4fc908fbf8080aa467dfe501b732b9c92c7"
+  },
+  "subtitleGeneration.compressing": {
+    "sourceHash": "b7bd176ec4fbd02215251a15887aee225f1bc06c32344eeb7c91d11e6acad8db"
+  },
+  "subtitleGeneration.writing": {
+    "sourceHash": "a1a1720d3eb58af5375c445376ca9be0d00b64876bc2297c1f92c16563a88569"
+  },
+  "subtitleGeneration.refreshing": {
+    "sourceHash": "aa06c367f0d85408e85702f722c39e719bf872bdc83dada6444eb5efb19514e9"
+  },
+  "subtitleGeneration.translating": {
+    "sourceHash": "aeda1aa7856377e94a927381ce468e625bce75c9a07c5652636fbb79f416b665"
+  },
+  "subtitleGeneration.queuedRead": {
+    "sourceHash": "43e6550908101edb27a54bbee0910698046ee20f81def5275d5ed7c5321c5f6f"
+  },
+  "subtitleGeneration.reading": {
+    "sourceHash": "60abace075588a32bdb9982a20211a27726ec572e6c10982941a23c1c81dc899"
+  },
+  "subtitleGeneration.readPercent": {
+    "sourceHash": "0279d10a5c581b56bdd56e70336ed4fd1444718c34449e2cbac9c41a2982edc0"
+  },
+  "subtitleGeneration.generating": {
+    "sourceHash": "969ef41f7e5bf3a8b5c80c2c3363b36c62fc6e261648cffa16336bae76f48592"
+  },
+  "subtitleGeneration.preparingTask": {
+    "sourceHash": "0eb0f2823afb1f409d55afde140091914d728832786620e009082694528aab7d"
+  },
+  "subtitleGeneration.blocks": {
+    "sourceHash": "2b2bf491ce6c8b8160f234fdf3eef2099d712ab3c61d6ccaa6a674cbe92f7d20"
+  },
+  "subtitleGeneration.events": {
+    "sourceHash": "972a2631f383d38ebd7c472b7523c5784273c3a7e514e972cc3d5dbd46e05f16"
+  },
+  "subtitleGeneration.reference": {
+    "sourceHash": "2d16cf1add56b6bf6aac837becdf91a9fba2d487e68af5bc9911766b5d9b4ae1"
+  },
+  "subtitleGeneration.calls": {
+    "sourceHash": "051e90207f7b5f37ecfd876f57f38fb2716cb2fe1af761e241950071422929c1"
+  },
+  "subtitleGeneration.elapsed": {
+    "sourceHash": "4f734bdee126936cd473ec5655208e61920f207d908692216dab6a7a77527b35"
+  },
+  "subtitleGeneration.activeBlocks": {
+    "sourceHash": "322bacedc42f53e43d00ae7f5e926c9b612f81074fd3031f8ad9dc15f29671a2"
+  },
+  "subtitleGeneration.rateLimits": {
+    "sourceHash": "d155770f0e1590652830cd2b0c9ff6242c2fbfc25f3bdd44afceeaa1044ee29e"
+  },
+  "subtitleGeneration.validationRetries": {
+    "sourceHash": "8ed2d0da890f928a12c2ea7aa1e6ddbe99b9788d489daa1d25846228dcbfb2b4"
+  },
+  "subtitleGeneration.stages": {
+    "sourceHash": "1076ddb76af43e0e80d7264f9b6f394c2012baa0b7fc0b0c62fc623e41e009c7"
+  },
+  "subtitleGeneration.ocrStage": {
+    "sourceHash": "d4fa9b78d8594dc105b9ccaa8e46454d1e8f18d697837fc865ee05004e501667"
+  },
+  "subtitleGeneration.inProgress": {
+    "sourceHash": "dc9591e56d502b436c29bdd2819998a8460b951a7baff457484a930492c1a9d7"
+  },
+  "subtitleGeneration.agentIntro": {
+    "sourceHash": "9ca6895dd39a6b880d9f8b4ebddbecb11a6c8791381f27d702ec0432ff0de1ae"
+  },
+  "subtitleGeneration.agentFile": {
+    "sourceHash": "e3d80a1821d93949618b7113e0ee9139aba8fe1d0046bc9e71e70d5fa8b96080"
+  },
+  "subtitleGeneration.agentId": {
+    "sourceHash": "09ed1dabc84b259436b1ab3a28d1b9fed991728d838a3a50f3c100795d5a3e51"
+  },
+  "subtitleGeneration.agentPath": {
+    "sourceHash": "8d57c13193ef4a5f009a414f6f1a4512d9fa1684b6e1248d1eb2541fddcc6395"
+  },
+  "subtitleGeneration.agentOutput": {
+    "sourceHash": "965022af970c8489fc487fbba93e302bd8fdc0d69256bef1d40462eb9d99b78d"
+  },
+  "subtitleGeneration.agentArguments": {
+    "sourceHash": "807ba6ad7f16a6b1fd5974e9261428656fb84c732d4994abb07416462cb86aa7"
+  },
+  "subtitleGeneration.agentIssue": {
+    "sourceHash": "5e9443805c9fedcf01a48e93e2b37b3d5a740e8ca7e55c829949d6a7a45e3c64"
+  },
+  "subtitleGeneration.agentEnvironment": {
+    "sourceHash": "4b287cd3cdbd018ae98937214634bc02582b291890ff9316eaff68b4ee3d570a"
+  },
+  "subtitleGeneration.noEngine": {
+    "sourceHash": "76b76e6209c2b9b36299f13c727bf21bcfbfca4acaa22536ed9d36e9ac009e55"
+  },
+  "subtitleGeneration.agentDiagnostic": {
+    "sourceHash": "ec92a233a8b876e6ca711b74a7ce77c1769e9037548fdd3c0ddea519492ee4e3"
+  },
+  "subtitleGeneration.agentSuggestion": {
+    "sourceHash": "b98e1694bd04d8d986e7f15d47d6191f21308b959b622342e3c32d7c8168ac44"
+  },
+  "subtitleGeneration.agentInstructions": {
+    "sourceHash": "5a984be24ba5e928a85ae16d50b15db2b43fe57c7ab158d1e176add206e129a8"
+  },
+  "subtitleGeneration.agentFailed": {
+    "sourceHash": "4cf5f31b2341756aa0dcfe001f49d2679782edc7ca21d019e7a6bcd961729adf"
+  },
+  "subtitleGeneration.ended": {
+    "sourceHash": "10daefd45f592be133440be6b86f6e3ced3c2721a1841f39b4567a5ccb536409"
+  },
+  "subtitleGeneration.running": {
+    "sourceHash": "9273b8cc8f40fabd295947b45e7a75872a42f595cef6ba2fc3ff141693648fb3"
+  },
+  "subtitleGeneration.badgeRunning": {
+    "sourceHash": "a34b602144443c1baec1834a6c23669b36da51c1d8acbbbad3c560ab2be80f68"
+  },
+  "subtitleGeneration.statusTitle": {
+    "sourceHash": "8b684f7125db5beba38dc996b3a640f0175ac9935c29b18595d45f463e74b8e2"
+  },
+  "subtitleGeneration.generateTitle": {
+    "sourceHash": "c3cc6b881a1d1e395603ba84a3bd6932fa5d617011b339af09501b22ca2aca76"
+  },
+  "subtitleGeneration.generatingOutput": {
+    "sourceHash": "276def6c0ef9093c24d399ce2f6e913af01c18ed1f03117b80b5958ec90aa54d"
+  },
+  "subtitleGeneration.taskTitle": {
+    "sourceHash": "368dcadc990a26f208916a060dbddacecc1bb4d6a7013f1220a4ea87bb1d87f2"
+  },
+  "subtitleGeneration.backgroundHint": {
+    "sourceHash": "c62705c826bd44e058593edc9a4fff4acf0f581b775ccccced67cc290587846c"
+  },
+  "subtitleGeneration.resultHint": {
+    "sourceHash": "001074267ec2200748a40d212624d6e8bf3b172f7d9098ba136506c5eae194ad"
+  },
+  "subtitleGeneration.confirmHint": {
+    "sourceHash": "605ba06c5d9d63ab34a40acd0f8174c100ae9ee8ecac9f9ed3f718aa3de642c7"
+  },
+  "subtitleGeneration.stopping": {
+    "sourceHash": "152256c5270ee520a898d6fff1c3c6b9a7bbbdf680f816b47a8aa5312ced4656"
+  },
+  "subtitleGeneration.stop": {
+    "sourceHash": "9ad0aac32ea304beabf5259cfb5b7bb26b43490b671d3f4ae7ee1a3157be8e0e"
+  },
+  "subtitleGeneration.completed": {
+    "sourceHash": "b8d14a4a6cab07620866cf11d5d87ad694b658814e034cc3a0125a730103f660"
+  },
+  "subtitleGeneration.incomplete": {
+    "sourceHash": "0d6fc5c4aff0e0c997803c506429edd07c45cd940314cdb3ccef976b8a700f77"
+  },
+  "subtitleGeneration.retryPreview": {
+    "sourceHash": "75e2fabcb4a0f8012600665b299ec35da61e0136e83893aeac8d4ccd394ae32d"
+  },
+  "subtitleGeneration.handingOff": {
+    "sourceHash": "36a91c0fbd0b5cacda62bcbcd69f5814de4345faa08b193a4f12fcf9916e9fa1"
+  },
+  "subtitleGeneration.handoff": {
+    "sourceHash": "20a4d6bf4322fcdbf289dc9c6bad8de8c4de1287b05386740f14c0349cc9bc73"
+  },
+  "subtitleGeneration.outputLanguage": {
+    "sourceHash": "0703309cb1bbe98947a04e928e5b18c6c898b11414f7d85dc6af74ce65d94020"
+  },
+  "subtitleGeneration.firstLanguage": {
+    "sourceHash": "8354ade594fb83f478fbcfe36058419150f728f3b4267ac6cb7ee28540e66a00"
+  },
+  "subtitleGeneration.targetLanguage": {
+    "sourceHash": "966a23e84aedeea59983ae573b54f258115054055cb9a79dbf9283b2f1847496"
+  },
+  "subtitleGeneration.secondLanguage": {
+    "sourceHash": "398441684cc1af70a6b1184b9fa9b5e8afff67dd32148c92c718dd709ae6cf1e"
+  },
+  "subtitleGeneration.generateBilingual": {
+    "sourceHash": "6418fc79ab16bd16ca6aba8f9415118f8ac68aea1ae3a64d4fb7018194c10973"
+  },
+  "subtitleGeneration.bilingualHint": {
+    "sourceHash": "2fe495d3fbf9b2a022c59eec921054d42d6468107de2c29680a33087e305ac5d"
+  },
+  "subtitleGeneration.checking": {
+    "sourceHash": "1b8d2872ed42b887dee6e0e19fec70668b24d2efe71451fb02fedd5f4ac2672a"
+  },
+  "subtitleGeneration.referenceLanguage": {
+    "sourceHash": "279d056c9c2bc82e6bbe7df42c70e971d42bc1b1969df40875436948545280cb"
+  },
+  "subtitleGeneration.noReference": {
+    "sourceHash": "73fab6073dc93fb4aecb3318def1bb85f62ef5698e017d63b4b0bcb57d312122"
+  },
+  "subtitleGeneration.unsupported": {
+    "sourceHash": "7c5378606570020b0f1ef4c1989fdaf31964d13286392931b7ff205f6fd00a38"
+  },
+  "subtitleGeneration.excluded": {
+    "sourceHash": "368f679900527dfd643fbfa3551f75f2ce64a80134d040c0f60258e5b218fb6a"
+  },
+  "subtitleGeneration.sourceHint": {
+    "sourceHash": "c4c93cbf1202c02a42157dad4d7d12fd732357edeaba6aaffe1a26bafd548042"
+  },
+  "subtitleGeneration.imageSelected": {
+    "sourceHash": "77f1002466b1cb394f1d660d10581e10dd064ee4cabe2fd0a3ae998d910f71d9"
+  },
+  "subtitleGeneration.chooseOriginal": {
+    "sourceHash": "f39126a6bcf93a54c7216b867e07e1c4575ea4f61ab102a0aec92d3996ec60bc"
+  },
+  "subtitleGeneration.recognizeFirst": {
+    "sourceHash": "167dae7e8cbf0130e2be43ca579c378f06d01669ecb8e6bc629721d81da4491a"
+  },
+  "subtitleGeneration.imageHint": {
+    "sourceHash": "0e4a6fd2b851958feec5f502f7ff29cb05a7b4fd944362d5e07df603a86b1e7f"
+  },
+  "subtitleGeneration.originalLanguage": {
+    "sourceHash": "2543517067f328974238c7044684702d71a033c5f67276520d936eb7cfe0dca8"
+  },
+  "subtitleGeneration.chooseLanguage": {
+    "sourceHash": "4462dc524013a86b375f7cd276af85cb48bbe2271d4136c743593572549e50de"
+  },
+  "subtitleGeneration.actualLanguageHint": {
+    "sourceHash": "b8ffdd9d9e1ca34457ed76fb9e2cce75a75e0f322f21410d23ef8fb99c031c2b"
+  },
+  "subtitleGeneration.detectedLanguage": {
+    "sourceHash": "52d4e386df3ae72cdba9e51c25dd14d54efa35a400350e4ed2a02d4b7f89fe62"
+  },
+  "subtitleGeneration.autoDetected": {
+    "sourceHash": "58c78f4ea22d64cc924cef76d530863437409f2f847414fd3b907d4c87331d11"
+  },
+  "subtitleGeneration.ocrHint": {
+    "sourceHash": "0ae76ce6f2bf691008441a8e3c742126e37c7cf4e41a6ada6b38c7516ef879a2"
+  },
+  "subtitleGeneration.suggestions": {
+    "sourceHash": "4c5742a5ea4ed8e4b5f98564fe12feb480cf316af63cc22db14f7a2dac9e92c6"
+  },
+  "subtitleGeneration.diagnostics": {
+    "sourceHash": "6b122b0aeccfa1e8b3993dd3d35907833eb1166deec0b64acae3f7f125387a78"
+  },
+  "subtitleGeneration.environment": {
+    "sourceHash": "c6e371477e201dd0846e309fe3108796d7b96ba2b6d7d998c7d963cc231f217f"
+  },
+  "subtitleGeneration.runtimeEstimate": {
+    "sourceHash": "974d408c5eb16e50802955648a6e64963a523b65fb0f720d04f3480f6e621f3d"
+  },
+  "subtitleGeneration.afterReadEstimate": {
+    "sourceHash": "a09d17c1ebca120fded2f7578a21565a53f4dca715c96acc64de7115651b783f"
+  },
+  "subtitleGeneration.dialogueEstimate": {
+    "sourceHash": "0f52ad50864b01ff8950b3b7b5c3060d39b44fb7f0a10ca27467a53985ff9d66"
+  },
+  "subtitleGeneration.outputHint": {
+    "sourceHash": "5830e6ae7a872ada3c30cf18dc054fd609c1b0fdffe57fa4d030af9577672a59"
+  },
+  "subtitleGeneration.defaultFilename": {
+    "sourceHash": "b44e4fb133635e8b605a4424e20e60d84b3c48c9a531a5e3c420dbc56009b1d6"
+  },
+  "subtitleGeneration.overwrite": {
+    "sourceHash": "b47b3b76f358ced06e124b926b1b711e5364744acfcf6f05abdc115f7dd76d63"
+  },
+  "subtitleGeneration.recheck": {
+    "sourceHash": "c25fb86b1e96e06384f32d74f009d1c327fc8eaf8b986a4dc212f4fc886a5776"
+  },
+  "subtitleGeneration.preflightFailed": {
+    "sourceHash": "d29ab7a2b3073c590e5403401bc920ec4573eda07fdd407e814f672a9a18bb74"
+  },
+  "subtitleGeneration.starting": {
+    "sourceHash": "43f3dc12a60778359f07949d92371d498b427991259c5165c8d5a3a3ae5044fc"
+  },
+  "subtitleGeneration.startOutput": {
+    "sourceHash": "35d587ca34a4aace094b8d09daa7e123952dd427e689718904686ccf90726dd6"
+  },
+  "subtitleGeneration.confirmOutput": {
+    "sourceHash": "2891973a7b61e2e009c6cd5c3c7a34dcca97dda368702a2fb3b726dcdf7c42f3"
+  },
+  "subtitleGeneration.modelTokens": {
+    "sourceHash": "64638af8fb4d29483af1e520439b577662d4bf5ce14fa5c1342094584c465039"
   }
 }

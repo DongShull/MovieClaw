@@ -30,6 +30,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services import media_extract
 from movieclaw_api.services.subtitle_gen import process
 
@@ -47,7 +48,7 @@ _OCR_PROBE_TIMEOUT = 20.0
 _EXTRACT_TIMEOUT = 180.0
 _OCR_TIMEOUT = 3600.0
 #: 环境只在启动时探测一次；缺组件的提示都要讲清楚装好之后怎么生效。
-_RESTART_HINT = "安装或修改后请重启 MovieClaw，才会重新检测"
+_RESTART_HINT = stored_fields("library.subtitleOcr.restart")
 
 _ARCH_ALIASES = {
     "amd64": "x64",
@@ -176,7 +177,11 @@ _TITLE_LANGUAGE_HINTS = (
 
 
 class PgsConversionError(Exception):
-    """PGS 转换失败；异常文本可直接展示给部署者。"""
+    """PGS 转换失败；保留诊断引用，避免历史文本固定在某个语言。"""
+
+    def __init__(self, message: str | dict):
+        self.reference = message if isinstance(message, dict) else None
+        super().__init__(message["message"] if self.reference else message)
 
 
 @dataclass(frozen=True)
@@ -192,6 +197,8 @@ class Capability:
     message: str
     suggestions: tuple[str, ...] = ()
     seconv_path: str | None = None
+    message_ref: dict | None = None
+    suggestion_refs: tuple[dict, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -202,6 +209,17 @@ class OcrLanguageDecision:
     label: str | None
     confirmation_required: bool
     reason: str
+    reason_message: dict | None = None
+
+
+def language_decision(code, label, confirmation_required, reason) -> OcrLanguageDecision:
+    return OcrLanguageDecision(
+        code,
+        label,
+        confirmation_required,
+        reason["message"] if isinstance(reason, dict) else reason,
+        reason if isinstance(reason, dict) else None,
+    )
 
 
 def is_pgs_codec(codec: str | None) -> bool:
@@ -243,84 +261,115 @@ def infer_ocr_language(
 
     if metadata_code and title_code:
         if raw_key in _AMBIGUOUS_CHINESE_CODES and title_code in {"chs", "cht"}:
-            return OcrLanguageDecision(
+            return language_decision(
                 title_code,
                 OCR_LANGUAGE_LABELS[title_code],
                 False,
-                f"根据轨道标题“{title}”识别为 {OCR_LANGUAGE_LABELS[title_code]}",
+                stored_fields(
+                    "library.subtitleOcr.titleLanguage",
+                    title=title,
+                    language=reference("library.subtitleLanguages." + title_code),
+                ),
             )
         if metadata_code != title_code:
-            return OcrLanguageDecision(
+            return language_decision(
                 title_code,
                 OCR_LANGUAGE_LABELS[title_code],
                 True,
                 (
-                    f"轨道语言标记“{raw_language}”与标题“{title}”不一致，"
-                    f"暂按标题推荐 {OCR_LANGUAGE_LABELS[title_code]}"
+                    stored_fields(
+                        "library.subtitleOcr.conflictingLanguage",
+                        raw=raw_language,
+                        title=title,
+                        language=reference("library.subtitleLanguages." + title_code),
+                    )
                 ),
             )
-        return OcrLanguageDecision(
+        return language_decision(
             metadata_code,
             OCR_LANGUAGE_LABELS[metadata_code],
             False,
-            f"根据轨道语言标记自动识别为 {OCR_LANGUAGE_LABELS[metadata_code]}",
+            stored_fields(
+                "library.subtitleOcr.metadataLanguage",
+                language=reference("library.subtitleLanguages." + metadata_code),
+            ),
         )
 
     if metadata_code:
         ambiguous = raw_key in _AMBIGUOUS_CHINESE_CODES
-        return OcrLanguageDecision(
+        return language_decision(
             metadata_code,
             OCR_LANGUAGE_LABELS[metadata_code],
             ambiguous,
             (
-                "轨道只标记为中文，无法区分简体或繁体，已暂时推荐简体中文"
+                stored_fields("library.subtitleOcr.ambiguousChinese")
                 if ambiguous
-                else f"根据轨道语言标记自动识别为 {OCR_LANGUAGE_LABELS[metadata_code]}"
+                else stored_fields(
+                    "library.subtitleOcr.metadataLanguage",
+                    language=reference("library.subtitleLanguages." + metadata_code),
+                )
             ),
         )
 
     if title_code:
-        return OcrLanguageDecision(
+        return language_decision(
             title_code,
             OCR_LANGUAGE_LABELS[title_code],
             False,
-            f"根据轨道标题“{title}”自动识别为 {OCR_LANGUAGE_LABELS[title_code]}",
+            stored_fields(
+                "library.subtitleOcr.titleAutoLanguage",
+                title=title,
+                language=reference("library.subtitleLanguages." + title_code),
+            ),
         )
 
     original_code = normalize_ocr_language(original_language)
     if original_code and raw_key in _UNKNOWN_LANGUAGE_CODES:
-        return OcrLanguageDecision(
+        return language_decision(
             original_code,
             OCR_LANGUAGE_LABELS[original_code],
             True,
             (
-                "轨道没有语言标记，"
-                f"根据影片原语言暂时推荐 {OCR_LANGUAGE_LABELS[original_code]}"
+                stored_fields(
+                    "library.subtitleOcr.originalLanguage",
+                    language=reference("library.subtitleLanguages." + original_code),
+                )
             ),
         )
 
     if raw_key not in _UNKNOWN_LANGUAGE_CODES:
-        reason = f"轨道语言标记“{raw_language}”不在当前 OCR 语言范围内"
+        reason = stored_fields("library.subtitleOcr.unsupportedLanguage", language=raw_language)
     else:
-        reason = "轨道和影片都没有可确认的语言信息"
-    return OcrLanguageDecision(None, None, True, reason)
+        reason = stored_fields("library.subtitleOcr.unknownLanguage")
+    return language_decision(None, None, True, reason)
 
 
-def _runtime() -> tuple[str, str, str | None]:
+def _runtime() -> tuple[str, str, dict | None]:
     """返回展示平台、规范架构与不兼容原因。"""
     platform_name = _PLATFORM_LABELS.get(sys.platform)
     raw_arch = platform.machine().strip().lower()
     architecture = _ARCH_ALIASES.get(raw_arch)
     if platform_name is None:
-        return sys.platform or "未知系统", raw_arch or "未知架构", (
-            "当前操作系统不在 seconv 官方支持范围内；仅支持 Windows、Linux 和 macOS"
+        return (
+            sys.platform or stored_fields("library.subtitleOcr.unknownSystem")["message"],
+            raw_arch or stored_fields("library.subtitleOcr.unknownArch")["message"],
+            (stored_fields("library.subtitleOcr.unsupportedSystem")),
         )
     if architecture is None:
-        return platform_name, raw_arch or "未知架构", (
-            f"当前 {platform_name} 架构 {raw_arch or '未知'} 不受支持；"
-            "仅支持 64 位 x64 与 ARM64，32 位 NAS 无法自动转换 PGS"
+        return (
+            platform_name,
+            raw_arch or stored_fields("library.subtitleOcr.unknownArch")["message"],
+            (
+                stored_fields(
+                    "library.subtitleOcr.unsupportedArch",
+                    platform=platform_name,
+                    architecture=raw_arch or reference("library.subtitleOcr.unknown"),
+                )
+            ),
         )
     return platform_name, architecture, None
+
+
 
 
 def _resolve_seconv() -> str | None:
@@ -376,11 +425,12 @@ def _base_capability(
     available: bool,
     platform_name: str,
     architecture: str,
-    message: str,
-    suggestions: tuple[str, ...] = (),
+    message: str | dict,
+    suggestions: tuple = (),
     engine: str | None = None,
     ocr_language: str | None = None,
     seconv_path: str | None = None,
+    cached: bool = False,
 ) -> Capability:
     return Capability(
         available=available,
@@ -388,9 +438,16 @@ def _base_capability(
         architecture=architecture,
         engine=engine,
         ocr_language=ocr_language,
-        cached=False,
-        message=message,
-        suggestions=suggestions,
+        cached=cached,
+        message=message["message"] if isinstance(message, dict) else message,
+        message_ref=message if isinstance(message, dict) else None,
+        suggestions=tuple(
+            item["message"] if isinstance(item, dict) else item for item in suggestions
+        ),
+        suggestion_refs=tuple(
+            item if isinstance(item, dict) else {"message_key": None, "message": item}
+            for item in suggestions
+        ),
         seconv_path=seconv_path,
     )
 
@@ -413,6 +470,7 @@ class _Environment:
     platform_name: str
     architecture: str
     runtime_error: str | None = None
+    runtime_message: dict | None = None
     ffmpeg: bool = False
     seconv_path: str | None = None
     seconv_healthy: bool = False
@@ -434,10 +492,11 @@ _ENVIRONMENT_LOCK = threading.Lock()
 
 def _probe_environment() -> _Environment:
     """（阻塞）真正起子进程探测本机环境：seconv、PaddleOCR、Tesseract 各至多一次。"""
-    platform_name, architecture, runtime_error = _runtime()
+    platform_name, architecture, runtime_message = _runtime()
+    runtime_error = runtime_message["message"] if runtime_message else None
     env = _Environment(platform_name=platform_name, architecture=architecture)
     if runtime_error:
-        return replace(env, runtime_error=runtime_error)
+        return replace(env, runtime_error=runtime_error, runtime_message=runtime_message)
     if shutil.which("ffmpeg") is None:
         return env
     env = replace(env, ffmpeg=True)
@@ -530,8 +589,8 @@ def _decide(env: _Environment, language: str | None) -> Capability:
             available=False,
             platform_name=platform_name,
             architecture=architecture,
-            message=env.runtime_error,
-            suggestions=("请改用 x64/ARM64 主机执行 OCR，或手动添加 SRT/ASS/VTT 字幕",),
+            message=env.runtime_message or env.runtime_error,
+            suggestions=(stored_fields("library.subtitleOcr.useSupportedHost"),),
         )
 
     if not env.ffmpeg:
@@ -539,9 +598,9 @@ def _decide(env: _Environment, language: str | None) -> Capability:
             available=False,
             platform_name=platform_name,
             architecture=architecture,
-            message="系统中未找到 ffmpeg，无法从媒体文件抽取 PGS 轨道",
+            message=stored_fields("library.subtitleOcr.ffmpegMissing"),
             suggestions=(
-                "安装 ffmpeg 并确保命令位于 PATH；官方 Docker 镜像已内置",
+                stored_fields("library.subtitleOcr.installFfmpeg"),
                 _RESTART_HINT,
             ),
         )
@@ -552,11 +611,15 @@ def _decide(env: _Environment, language: str | None) -> Capability:
             available=False,
             platform_name=platform_name,
             architecture=architecture,
-            message=f"当前 {platform_name} {architecture} 未找到 Subtitle Edit seconv",
+            message=stored_fields(
+                "library.subtitleOcr.seconvMissing",
+                platform=platform_name,
+                architecture=architecture,
+            ),
             suggestions=(
-                "安装与当前系统和架构匹配的 SeConv 5.1，并加入 PATH",
-                "也可通过 MOVIECLAW_SECONV_PATH 指向 seconv 可执行文件",
-                "官方 Docker 镜像会按 amd64/arm64 自动内置正确版本",
+                stored_fields("library.subtitleOcr.installSeconv"),
+                stored_fields("library.subtitleOcr.seconvPath"),
+                stored_fields("library.subtitleOcr.dockerSeconv"),
                 _RESTART_HINT,
             ),
         )
@@ -565,9 +628,12 @@ def _decide(env: _Environment, language: str | None) -> Capability:
             available=False,
             platform_name=platform_name,
             architecture=architecture,
-            message=f"seconv 无法在当前设备启动：{env.seconv_detail or '未返回版本信息'}",
+            message=stored_fields(
+                "library.subtitleOcr.seconvStartFailed",
+                detail=env.seconv_detail or reference("library.subtitleOcr.noVersion"),
+            ),
             suggestions=(
-                "确认下载的 seconv 架构正确，并检查其系统动态库依赖",
+                stored_fields("library.subtitleOcr.checkSeconv"),
                 _RESTART_HINT,
             ),
             seconv_path=seconv,
@@ -581,21 +647,21 @@ def _decide(env: _Environment, language: str | None) -> Capability:
             available=False,
             platform_name=platform_name,
             architecture=architecture,
-            message=(
-                "MOVIECLAW_PGS_OCR_ENGINE 配置无效："
-                f"{requested!r}（只允许 auto、paddle、tesseract）"
-            ),
+            message=(stored_fields("library.subtitleOcr.engineInvalid", engine=repr(requested))),
             suggestions=(_RESTART_HINT,),
             seconv_path=seconv,
         )
 
-    paddle_error: str | None = None
+    paddle_error: dict | None = None
     if requested in {"auto", "paddle"}:
         paddle_language = _PADDLE_LANGUAGES.get(lang)
         if not paddle_language:
-            paddle_error = f"PGS 语言 {lang or '未知'} 没有可确认的 PaddleOCR 语言映射"
+            paddle_error = stored_fields(
+                "library.subtitleOcr.paddleLanguage",
+                language=lang or reference("library.subtitleOcr.unknown"),
+            )
         elif env.paddle_path is None:
-            paddle_error = "未找到 paddleocr 命令"
+            paddle_error = stored_fields("library.subtitleOcr.paddleMissing")
         elif env.paddle_healthy:
             return _base_capability(
                 available=True,
@@ -604,13 +670,15 @@ def _decide(env: _Environment, language: str | None) -> Capability:
                 engine="paddle",
                 ocr_language=paddle_language,
                 message=(
-                    f"可使用 PaddleOCR（{paddle_language}）将 PGS 转为临时 SRT；"
-                    "转换完成并通过完整度检查后才会调用 AI 翻译"
+                    stored_fields("library.subtitleOcr.paddleReady", language=paddle_language)
                 ),
                 seconv_path=seconv,
             )
         else:
-            paddle_error = f"paddleocr 无法启动：{env.paddle_detail or '未知错误'}"
+            paddle_error = stored_fields(
+                "library.subtitleOcr.paddleFailed",
+                detail=env.paddle_detail or reference("library.subtitleOcr.unknownError"),
+            )
         if requested == "paddle":
             return _base_capability(
                 available=False,
@@ -618,7 +686,7 @@ def _decide(env: _Environment, language: str | None) -> Capability:
                 architecture=architecture,
                 message=paddle_error,
                 suggestions=(
-                    "安装可用的 PaddleOCR，或将 MOVIECLAW_PGS_OCR_ENGINE 改为 auto/tesseract",
+                    stored_fields("library.subtitleOcr.installPaddle"),
                     _RESTART_HINT,
                 ),
                 seconv_path=seconv,
@@ -626,13 +694,23 @@ def _decide(env: _Environment, language: str | None) -> Capability:
 
     tesseract_language = _TESSERACT_LANGUAGES.get(lang)
     if not tesseract_language:
-        message = f"PGS 语言 {lang or '未知'} 无法自动选择 OCR 语言包"
+        message = stored_fields(
+            "library.subtitleOcr.tesseractLanguage",
+            language=lang or reference("library.subtitleOcr.unknown"),
+        )
     elif env.tesseract_path is None:
-        message = "未找到 Tesseract OCR"
+        message = stored_fields("library.subtitleOcr.tesseractMissing")
     elif env.tesseract_error:
-        message = f"Tesseract 无法读取语言包列表：{env.tesseract_error}"
+        message = stored_fields(
+            "library.subtitleOcr.tesseractListFailed",
+            detail=reference("library.subtitleOcr.unknownError")
+            if env.tesseract_error == "未知错误"
+            else env.tesseract_error,
+        )
     elif tesseract_language not in env.tesseract_languages:
-        message = f"Tesseract 缺少 {tesseract_language} 语言包"
+        message = stored_fields(
+            "library.subtitleOcr.tesseractPackageMissing", language=tesseract_language
+        )
     else:
         return _base_capability(
             available=True,
@@ -641,23 +719,27 @@ def _decide(env: _Environment, language: str | None) -> Capability:
             engine="tesseract",
             ocr_language=tesseract_language,
             message=(
-                f"可使用 Tesseract（{tesseract_language}）将 PGS 转为临时 SRT；"
-                "转换完成并通过完整度检查后才会调用 AI 翻译"
+                stored_fields("library.subtitleOcr.tesseractReady", language=tesseract_language)
             ),
             seconv_path=seconv,
         )
 
     details = message
     if paddle_error and requested == "auto":
-        details = f"{message}；PaddleOCR 也不可用（{paddle_error}）"
+        details = stored_fields(
+            "library.subtitleOcr.bothFailed", message=message, paddle=paddle_error
+        )
     return _base_capability(
         available=False,
         platform_name=platform_name,
         architecture=architecture,
         message=details,
         suggestions=(
-            f"安装与字幕语言匹配的 OCR 语言包（当前轨道：{lang or '未知语言'}）",
-            "也可以为影片添加可直接翻译的 SRT、ASS 或 VTT 外挂字幕",
+            stored_fields(
+                "library.subtitleOcr.installLanguage",
+                language=lang or reference("library.subtitleSource.unknownLanguage"),
+            ),
+            stored_fields("library.subtitleOcr.addText"),
             _RESTART_HINT,
         ),
         seconv_path=seconv,
@@ -732,14 +814,14 @@ def conversion_capability(
     cached = cached_srt_path(file, candidate, source_language)
     if _is_fresh(cached, video):
         platform_name, architecture, _ = _runtime()
-        return Capability(
+        return _base_capability(
             available=True,
-            platform=platform_name,
+            platform_name=platform_name,
             architecture=architecture,
             engine="cache",
             ocr_language=None,
             cached=True,
-            message="已有与当前媒体文件匹配的 PGS OCR 缓存，将复用后直接开始翻译",
+            message=stored_fields("library.subtitleOcr.cacheReady"),
         )
     return detect_capability(source_language or candidate.language)
 
@@ -752,13 +834,20 @@ async def extract_sup(file: LibraryFile, candidate: SourceCandidate) -> Path:
     播放器抽过的片子要被整片再读一次，取消也停不下来。
     """
     if candidate.kind != "embedded" or not is_pgs_codec(candidate.format):
-        raise PgsConversionError("所选字幕不是可转换的内封 PGS 轨道")
+        raise PgsConversionError(stored_fields("library.subtitleOcr.invalidTrack"))
     index = int(candidate.key)
     track = await media_extract.extract_track_async(file, index)
     if track is None or track.format != "sup":
-        reason = media_extract.failure_reason(file, index) or "具体原因见服务端日志"
+        reason = media_extract.failure_reason(file, index) or reference(
+            "library.subtitleSource.detailsInLog"
+        )
         raise PgsConversionError(
-            f"PGS 轨道抽取失败：{Path(file.file_path).name} 字幕轨 {index + 1}（{reason}）"
+            stored_fields(
+                "library.subtitleOcr.extractFailed",
+                filename=Path(file.file_path).name,
+                index=index + 1,
+                reason=reason,
+            )
         )
     return track.path
 
@@ -780,14 +869,16 @@ async def ocr_to_srt(
     if await asyncio.to_thread(_is_fresh, out_path, video):
         return out_path
     if not capability.available or not capability.seconv_path:
-        raise PgsConversionError(capability.message)
+        raise PgsConversionError(capability.message_ref or capability.message)
     if not capability.engine or capability.engine == "cache" or not capability.ocr_language:
-        raise PgsConversionError("PGS OCR 能力检测结果不完整，请重新预检后再试")
+        raise PgsConversionError(stored_fields("library.subtitleOcr.capabilityIncomplete"))
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         temp_dir = Path(tempfile.mkdtemp(prefix="pgs-ocr-", dir=out_path.parent))
     except OSError as exc:
-        raise PgsConversionError(f"无法创建 PGS OCR 临时目录：{exc}") from exc
+        raise PgsConversionError(
+            stored_fields("library.subtitleOcr.tempFailed", detail=exc)
+        ) from exc
     try:
         argv = [
             capability.seconv_path,
@@ -802,10 +893,12 @@ async def ocr_to_srt(
             result = await process.run(argv, timeout=_OCR_TIMEOUT)
         except process.ProcessTimeout as exc:
             raise PgsConversionError(
-                f"PGS OCR 超过 {_OCR_TIMEOUT / 60:.0f} 分钟，已停止转换"
+                stored_fields("library.subtitleOcr.timeout", minutes=int(_OCR_TIMEOUT / 60))
             ) from exc
         except OSError as exc:
-            raise PgsConversionError(f"无法启动 seconv：{exc}") from exc
+            raise PgsConversionError(
+                stored_fields("library.subtitleOcr.startFailed", detail=exc)
+            ) from exc
         outputs = sorted(
             path
             for path in temp_dir.iterdir()
@@ -813,12 +906,19 @@ async def ocr_to_srt(
         )
         if result.returncode != 0 or not outputs or outputs[0].stat().st_size == 0:
             raw = result.stderr or result.stdout
-            detail = raw.decode(errors="replace").strip().replace("\n", " ") or "未知错误"
-            raise PgsConversionError(f"PGS OCR 转换失败：{detail[:400]}")
+            detail = raw.decode(errors="replace").strip().replace("\n", " ")
+            raise PgsConversionError(
+                stored_fields(
+                    "library.subtitleOcr.conversionFailed",
+                    detail=detail[:400] or reference("library.subtitleOcr.unknownError"),
+                )
+            )
         try:
             outputs[0].replace(out_path)
         except OSError as exc:
-            raise PgsConversionError(f"PGS OCR 结果写入缓存失败：{out_path}（{exc}）") from exc
+            raise PgsConversionError(
+                stored_fields("library.subtitleOcr.cacheWriteFailed", path=out_path, detail=exc)
+            ) from exc
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
     return out_path
