@@ -5,5 +5,15 @@
   },
   "history": {
     "cleared": "已清空 {count} 条搜索历史"
+  },
+  "categories": {
+    "movie": "电影",
+    "tv": "剧集",
+    "documentary": "纪录片",
+    "anime": "动漫",
+    "music": "音乐",
+    "game": "游戏",
+    "av": "成人",
+    "other": "其他"
   }
 }

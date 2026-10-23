@@ -1,5 +1,19 @@
 {
   "command": {
     "open": "Search (⌘K or Ctrl+K)"
+  },
+  "categories": {
+    "movie": "Movies",
+    "tv": "TV shows",
+    "documentary": "Documentaries",
+    "anime": "Anime",
+    "music": "Music",
+    "game": "Games",
+    "av": "Adult",
+    "other": "Other"
+  },
+  "scope": {
+    "anyCategory": "Any category",
+    "presetSummary": "{categories} · {allSites, select, yes {All sites} other {{count, plural, one {# site} other {# sites}}}}{poster, select, yes { · Posters} other {}}{private, select, yes { · Private} other {}}"
   }
 }

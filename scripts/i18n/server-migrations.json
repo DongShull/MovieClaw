@@ -1699,5 +1699,13 @@
   "library.subtitleJob.cancelledSaved": "任务被用户取消（已完成块已暂存，可续传）",
   "library.subtitleJob.ocrStopped": "图片字幕识别完成，已按你的请求停止后续 AI 翻译",
   "library.subtitleJob.circuitBreaker": "本次已有 {failed}/{total} 块翻译失败，超过熔断阈值，任务中止（成功块已暂存，换用输出预算更充裕的模型后重新发起可从断点续译失败块）",
-  "library.subtitleJob.enqueued": "任务已入队"
+  "library.subtitleJob.enqueued": "任务已入队",
+  "search.categories.movie": "电影",
+  "search.categories.tv": "剧集",
+  "search.categories.documentary": "纪录片",
+  "search.categories.anime": "动漫",
+  "search.categories.music": "音乐",
+  "search.categories.game": "游戏",
+  "search.categories.av": "成人",
+  "search.categories.other": "其他"
 }

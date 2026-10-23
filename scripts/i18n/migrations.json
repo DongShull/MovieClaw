@@ -2377,5 +2377,15 @@
   "library.subtitleGeneration.starting": "正在启动…",
   "library.subtitleGeneration.startOutput": "开始生成{output}",
   "library.subtitleGeneration.confirmOutput": "确认生成{output}",
-  "library.subtitleGeneration.modelTokens": " · {count, number} token"
+  "library.subtitleGeneration.modelTokens": " · {count, number} token",
+  "search.categories.movie": "电影",
+  "search.categories.tv": "剧集",
+  "search.categories.documentary": "纪录片",
+  "search.categories.anime": "动漫",
+  "search.categories.music": "音乐",
+  "search.categories.game": "游戏",
+  "search.categories.av": "成人",
+  "search.categories.other": "其他",
+  "search.scope.anyCategory": "不限分类",
+  "search.scope.presetSummary": "{categories} · {allSites, select, yes {全部站点} other {{count} 个站点}}{poster, select, yes { · 图览} other {}}{private, select, yes { · 无痕} other {}}"
 }

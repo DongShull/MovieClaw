@@ -50,6 +50,7 @@ class SearchRunKey:
     label: str | None
     page: int
     record_history: bool
+    label_key: str | None = None
 
 
 @dataclass(eq=False, slots=True)

@@ -5,5 +5,15 @@
   },
   "history": {
     "cleared": "Cleared {count, plural, one {# search history entry} other {# search history entries}}"
+  },
+  "categories": {
+    "movie": "Movies",
+    "tv": "TV shows",
+    "documentary": "Documentaries",
+    "anime": "Anime",
+    "music": "Music",
+    "game": "Games",
+    "av": "Adult",
+    "other": "Other"
   }
 }

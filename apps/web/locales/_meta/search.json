@@ -1,5 +1,35 @@
 {
   "command.open": {
     "sourceHash": "96a4f019a435e0f7b773d2ef77c148a08ce0f14fcd45f4617b5d9ebc7bb9d5c8"
+  },
+  "categories.movie": {
+    "sourceHash": "03a3a327af684099e7e863d8080bba7c2539050a5fc066a1932d90e3bdf61b15"
+  },
+  "categories.tv": {
+    "sourceHash": "cb9a20776230420ec27c8d82fbdfa14ac7a1142b3000d55a2203b4285a0bf4d8"
+  },
+  "categories.documentary": {
+    "sourceHash": "1688e428859df8b8b34840bead18c12b61a4a3be9fe9dd95d923001559edb54c"
+  },
+  "categories.anime": {
+    "sourceHash": "dbc31bd44b061d4b28225348659a63d69991298cdc53f3ef02921957545b6d32"
+  },
+  "categories.music": {
+    "sourceHash": "db95142124934467ce25ba303416ab0a336497c498e709e2f522d789b76fb030"
+  },
+  "categories.game": {
+    "sourceHash": "847c5f681ce955a05092c2364549f11402a4512ee6f77288035cdf7f60137eea"
+  },
+  "categories.av": {
+    "sourceHash": "dd8479a6f3f743e0544ad48660400f2b75d3c1a174dfb5c78e190de2e50c518b"
+  },
+  "categories.other": {
+    "sourceHash": "d2909f1647e7c891a8282759b2eaa961e84620ff04cda7b8b5478cb540d74fa4"
+  },
+  "scope.anyCategory": {
+    "sourceHash": "db6c384400a54ac3677cb3f4466f958a91eb4ddb615dd0fc2a10f63d37cf1027"
+  },
+  "scope.presetSummary": {
+    "sourceHash": "5e6562407bef68b63c8306f2f7453100aeef29650b33c8f0595c2fad676b2eb1"
   }
 }

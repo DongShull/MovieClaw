@@ -355,7 +355,7 @@
   "apps/web/lib/api/search.ts": 3,
   "apps/web/lib/backdrop.tsx": 7,
   "apps/web/lib/boost-cleanup.ts": 10,
-  "apps/web/lib/categories.ts": 13,
+  "apps/web/lib/categories.ts": 8,
   "apps/web/lib/cloud-push-display.ts": 56,
   "apps/web/lib/devices-display.ts": 53,
   "apps/web/lib/download-attention.ts": 2,

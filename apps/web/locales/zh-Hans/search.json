@@ -1,5 +1,19 @@
 {
   "command": {
     "open": "搜索（⌘K 或 Ctrl+K）"
+  },
+  "categories": {
+    "movie": "电影",
+    "tv": "剧集",
+    "documentary": "纪录片",
+    "anime": "动漫",
+    "music": "音乐",
+    "game": "游戏",
+    "av": "成人",
+    "other": "其他"
+  },
+  "scope": {
+    "anyCategory": "不限分类",
+    "presetSummary": "{categories} · {allSites, select, yes {全部站点} other {{count} 个站点}}{poster, select, yes { · 图览} other {}}{private, select, yes { · 无痕} other {}}"
   }
 }

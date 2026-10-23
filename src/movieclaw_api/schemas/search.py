@@ -17,10 +17,22 @@ from typing import Annotated, Literal
 
 from pydantic import Field, field_serializer, field_validator
 
+from movieclaw_api.i18n.stored import stored_message
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_db.models.search_history import SearchHistory
 from movieclaw_enrich import TorrentAttrs
 from movieclaw_tracker.models import TorrentCategory, TorrentListItem
+
+SearchCategoryLabelKey = Literal[
+    "search.categories.movie",
+    "search.categories.tv",
+    "search.categories.documentary",
+    "search.categories.anime",
+    "search.categories.music",
+    "search.categories.game",
+    "search.categories.av",
+    "search.categories.other",
+]
 
 
 class TorrentHit(TorrentListItem):
@@ -69,6 +81,7 @@ class SearchResponse(BaseModel):
     # 同搜词（清洗去重后）：与 keyword 一起搜、结果已合并；只搜主词时为 null。
     # 可空而非空列表：旧版服务端没有该字段，客户端按可选解码才能新旧兼容
     also_keywords: list[str] | None = None
+    label_key: SearchCategoryLabelKey | None = None
     label: str | None
     categories: list[str]
     total: int
@@ -100,6 +113,7 @@ class SearchStreamStart(BaseModel):
     keyword: str
     # 同搜词（清洗去重后，见 SearchResponse.also_keywords）；只搜主词时为 null
     also_keywords: list[str] | None = None
+    label_key: SearchCategoryLabelKey | None = None
     label: str | None
     categories: list[str]
     page: int
@@ -201,6 +215,7 @@ class SearchHistoryItem(BaseModel):
     # 同搜词快照：与 keyword 一起搜的英文名/原名；点历史重搜时原样带上，null=只搜主词
     also_keywords: list[str] | None = None
     vertical: Literal["titles", "torrents"]
+    label_key: SearchCategoryLabelKey | None = None
     label: str | None  # 展示名快照（分类中文名/预设名）；None=全部
     categories: list[str]  # 分类组合快照；空=不限分类
     site_ids: list[str]  # 站点组合快照；空=全部站点
@@ -226,7 +241,8 @@ class SearchHistoryItem(BaseModel):
             also_keywords=json.loads(row.also_keywords_json) if row.also_keywords_json else None,
             # 数据库存量值保持不变；公开契约使用可直接读懂的复数领域名。
             vertical="titles" if row.vertical == "media" else "torrents",
-            label=row.label,
+            label=stored_message(row.label or "", row.label_key) if row.label is not None else None,
+            label_key=row.label_key,
             categories=json.loads(row.categories_json) if row.categories_json else [],
             site_ids=json.loads(row.site_ids_json) if row.site_ids_json else [],
             poster_mode=row.poster_mode,
@@ -248,6 +264,7 @@ class TorrentSearchHistoryResultsView(BaseModel):
     history_id: int
     keyword: str
     also_keywords: list[str] | None = None  # 同搜词快照；null=只搜主词
+    label_key: SearchCategoryLabelKey | None = None
     label: str | None
     categories: list[str]  # 分类组合快照；空=不限分类
     site_ids: list[str]  # 站点组合快照；空=全部站点

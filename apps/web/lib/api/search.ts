@@ -8,7 +8,7 @@ import {
   type TitleSearchDto,
 } from "@/lib/api/discover";
 import type { LibraryItem } from "@/lib/api/libraries";
-import type { SearchScope, SearchTab, TorrentCategory } from "@/lib/categories";
+import type { SearchCategoryLabelKey, SearchScope, SearchTab, TorrentCategory } from "@/lib/categories";
 import type { MediaSource } from "@/lib/media-types";
 
 /** 后端统一响应信封（见 movieclaw_api.schemas.response.ApiResponse） */
@@ -120,6 +120,7 @@ export interface SearchResponse {
   also_keywords?: string[] | null;
   /** 请求方传入的展示名回显（分类中文名/预设名）；null=全部 */
   label: string | null;
+  label_key?: SearchCategoryLabelKey | null;
   /** 分类组合回显；空=不限分类 */
   categories: TorrentCategory[];
   total: number;
@@ -137,6 +138,7 @@ export interface SearchHistoryItem {
   vertical: "titles" | "torrents";
   /** 展示名快照（分类中文名/预设名）；null=全部 */
   label: string | null;
+  label_key?: SearchCategoryLabelKey | null;
   /** 分类组合快照（已排序去重）；空=不限分类 */
   categories: TorrentCategory[];
   /** 站点组合快照；空=全部站点 */
@@ -172,6 +174,7 @@ export interface TorrentSearchHistoryResults {
   /** 同搜词快照；null=只搜主词 */
   also_keywords?: string[] | null;
   label: string | null;
+  label_key?: SearchCategoryLabelKey | null;
   categories: TorrentCategory[];
   site_ids: string[];
   /** 快照生成时间（带时区的 ISO 串），提示条用 lib/time.ts 换算相对时间 */
@@ -389,6 +392,7 @@ function searchParamsOf({ keyword, also, scope, page, fresh }: SearchParams): UR
   for (const c of scope?.categories ?? []) params.append("categories", c);
   for (const s of scope?.siteIds ?? []) params.append("sites", s);
   if (scope?.label) params.set("label", scope.label);
+  if (scope?.labelKey) params.set("label_key", scope.labelKey);
   // 无痕搜索（自定义分类的隐私开关）：后端据此跳过搜索历史落库
   if (scope?.skipHistory) params.set("no_history", "true");
   // 图览模式偏好随历史留存：点历史重搜/看快照时后端回传，前端据此还原展示模式
@@ -412,6 +416,7 @@ export interface SearchStreamStart {
   /** 实际同搜的词（后端清洗去重后），结果页据此写「另含」；只搜主词时为 null */
   also_keywords?: string[] | null;
   label: string | null;
+  label_key?: SearchCategoryLabelKey | null;
   categories: TorrentCategory[];
   page: number;
   sites: SearchStreamSite[];

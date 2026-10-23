@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -63,6 +64,7 @@ def bg_stack(tmp_path_factory):
         env=env,
         stdout=api_log,
         stderr=subprocess.STDOUT,
+        start_new_session=True,
     )
     web = subprocess.Popen(  # noqa: S603
         ["pnpm", "exec", "next", "dev", "--port", str(web_port)],
@@ -74,6 +76,7 @@ def bg_stack(tmp_path_factory):
         },
         stdout=web_log,
         stderr=subprocess.STDOUT,
+        start_new_session=True,
     )
     try:
         _wait_http(f"http://127.0.0.1:{api_port}/api/v1/auth/bootstrap", 60)
@@ -85,12 +88,14 @@ def bg_stack(tmp_path_factory):
         }
     finally:
         for proc in (web, api):
-            proc.terminate()
+            if proc.poll() is None:
+                os.killpg(proc.pid, signal.SIGTERM)
         for proc in (web, api):
             try:
                 proc.wait(timeout=15)
             except subprocess.TimeoutExpired:
-                proc.kill()
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait(timeout=5)
         api_log.close()
         web_log.close()
 

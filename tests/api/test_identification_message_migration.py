@@ -23,7 +23,7 @@ def test_existing_failure_text_survives_upgrade_and_downgrade(tmp_path, monkeypa
         connection.execute("INSERT INTO library_file VALUES (1, ?)", (reason,))
     config = _build_config()
     try:
-        command.upgrade(config, "head")
+        command.upgrade(config, "c8e1a4b693d2")
         with sqlite3.connect(database) as connection:
             assert connection.execute(
                 "SELECT unidentified_reason, unidentified_message FROM library_file"

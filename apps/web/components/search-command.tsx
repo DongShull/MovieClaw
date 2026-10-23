@@ -489,6 +489,7 @@ function SearchPalette({
       item.keyword,
       {
         label: item.label,
+        labelKey: item.label_key,
         categories: item.categories,
         siteIds: item.site_ids,
         // 还原发起搜索时的图览模式；skipHistory 恒 false——能出现在历史里的
