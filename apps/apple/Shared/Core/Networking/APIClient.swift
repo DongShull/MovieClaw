@@ -211,6 +211,10 @@ nonisolated struct APIClient: Sendable {
     /// （`X-MovieClaw-Route`，服务端据此判断在家还是在外面，docs/design/server-addresses.md §5.2）
     func authorized(_ request: URLRequest) -> URLRequest {
         var request = request
+        if request.value(forHTTPHeaderField: "Accept-Language") == nil {
+            request.setValue(AppLanguage.identifier, forHTTPHeaderField: "Accept-Language")
+        }
+        request.setValue(TimeZone.current.identifier, forHTTPHeaderField: "X-MovieClaw-Timezone")
         if let route = ServerRoutes.shared.route(for: server) {
             request.setValue(route.rawValue, forHTTPHeaderField: "X-MovieClaw-Route")
         }

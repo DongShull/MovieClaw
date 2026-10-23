@@ -1,3 +1,4 @@
+import { formatDate } from "./i18n/format.ts";
 import type { DownloadTask } from "@/lib/api/downloaders";
 import type {
   Subscription,
@@ -304,11 +305,7 @@ function localDayKey(value: Date): string {
 }
 
 function formatClock(value: Date): string {
-  return new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(value);
+  return formatDate(value, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 /**

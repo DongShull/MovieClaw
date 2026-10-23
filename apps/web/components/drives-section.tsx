@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 /**
  * 「设置 → 网盘」分区（docs/design/cloud-storage.md §2、§11.7；样稿 mockups/cloud-storage-demo.html）。
  *
@@ -424,7 +426,7 @@ function AccountCard({
         <ReadSlots account={account} onSave={(n) => save({ read_slots: n }, "已保存")} />
         <div className="flex items-center gap-3 text-caption text-[var(--text-faint)]">
           <span className="tabular-nums">
-            今日调用 {account.used_today.toLocaleString()} / {account.daily_budget.toLocaleString()}
+            今日调用 {formatNumber(account.used_today)} / {formatNumber(account.daily_budget)}
           </span>
           <button
             type="button"

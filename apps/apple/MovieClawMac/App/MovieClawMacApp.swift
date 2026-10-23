@@ -37,11 +37,7 @@ struct MovieClawMacApp: App {
         .windowResizability(.contentMinSize)
         .commands { MacCommands(model: model) }
 
-        // 设置（⌘,）：目前只有「通用 › 软件更新」
-        Settings {
-            MacSettingsView()
-                .preferredColorScheme(.dark)
-        }
+        Settings { MacLanguageSettings() }
 
         // 关于：版本号与开源组件许可（LGPL 合规必需，不能省）
         Window("关于 MovieClaw", id: "about") {

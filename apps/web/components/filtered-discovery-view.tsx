@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DiscoveryFilterChips, useDiscoveryGenres } from "@/components/discovery-filter-dialog";
@@ -157,7 +159,7 @@ export function FilteredDiscoveryView({
             </h1>
             <p className="mt-2 text-body text-[var(--text-muted)]">
               {totalResults > 0
-                ? `找到 ${totalResults.toLocaleString("zh-CN")} 部，已加载 ${items.length} 部`
+                ? `找到 ${formatNumber(totalResults)} 部，已加载 ${items.length} 部`
                 : `已启用 ${activeCount} 项筛选`}
             </p>
             {cinema && (

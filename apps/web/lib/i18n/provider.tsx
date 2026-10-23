@@ -4,6 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { NextIntlClientProvider } from "next-intl";
 import { useRouter } from "next/navigation";
 
+import { APP_FORMATS } from "./translate";
+
 import { messagesFor } from "./messages";
 import { writeLanguageCookie, type AppLocale, type LanguagePreference } from "./negotiate";
 
@@ -18,7 +20,22 @@ export function LanguageProvider({ locale: initialLocale, browserLocale, childre
   children: React.ReactNode;
 }) {
   const [locale, setLocale] = useState(initialLocale);
+  const [timeZone, setTimeZone] = useState("UTC");
   const router = useRouter();
+  const [debugMessages, setDebugMessages] = useState<ReturnType<typeof messagesFor> | null>(null);
+  useEffect(() => {
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    if (process.env.NODE_ENV === "development") {
+      void import("./pseudo").then(({ pseudoEnabled, pseudoMessages }) => {
+        if (pseudoEnabled(process.env.NODE_ENV, window.location.search)) {
+          setDebugMessages(pseudoMessages(messagesFor("en")));
+        }
+      });
+    }
+  }, []);
+  const effectiveLocale = debugMessages ? "en" : locale;
+  useEffect(() => { document.documentElement.lang = effectiveLocale; }, [effectiveLocale]);
+  const messages = debugMessages ?? messagesFor(locale);
   useEffect(() => setLocale(initialLocale), [initialLocale]);
   const setLanguage = useCallback((language: LanguagePreference) => {
     const next = language === "auto" ? browserLocale : language;
@@ -30,7 +47,7 @@ export function LanguageProvider({ locale: initialLocale, browserLocale, childre
 
   return (
     <LanguageContext.Provider value={{ browserLocale, setLanguage }}>
-      <NextIntlClientProvider locale={locale} messages={messagesFor(locale)}>
+      <NextIntlClientProvider locale={effectiveLocale} messages={messages} formats={APP_FORMATS} timeZone={timeZone}>
         {children}
       </NextIntlClientProvider>
     </LanguageContext.Provider>

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 /**
  * 纳管报告：库挂的每个网盘目录最近一次纳管 / 复查的结果（docs/design/cloud-storage.md §4.1，
  * 样稿 mockups/cloud-storage-demo.html「纳管报告」）。从库行的「···」菜单打开。
@@ -33,12 +35,12 @@ function FolderReport({ folder, onClaim }: { folder: LibraryCloudFolder; onClaim
         {formatDateTime(report.finished_at)} {report.cancelled ? "中途停止" : "完成"}，用时 {seconds(report.seconds)} ·
         调用 {folder.backend_title} 接口 {report.calls} 次
       </p>
-      <p className="text-title font-bold tabular-nums text-white">{report.videos.toLocaleString()} 个视频文件</p>
+      <p className="text-title font-bold tabular-nums text-white">{formatNumber(report.videos)} 个视频文件</p>
       <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-white/[0.03]">
         <div className="flex items-center gap-3 px-4 py-2.5">
           <span className="text-ui text-[var(--text)]">已识别</span>
           <span className="ml-auto text-ui font-semibold tabular-nums text-white">
-            {report.identified.toLocaleString()}
+            {formatNumber(report.identified)}
           </span>
         </div>
         <div className="flex items-center gap-3 px-4 py-2.5">
@@ -53,7 +55,7 @@ function FolderReport({ folder, onClaim }: { folder: LibraryCloudFolder; onClaim
             </button>
           )}
           <span className="ml-auto text-ui font-semibold tabular-nums text-white">
-            {report.pending.toLocaleString()}
+            {formatNumber(report.pending)}
           </span>
         </div>
         <div className="px-4 py-2.5">

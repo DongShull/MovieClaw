@@ -23,5 +23,17 @@
   "setup.account.pending": "创建中…",
   "setup.account.pageTitle": "初始化",
   "auth.welcome.tagline": "智能影音服务器",
-  "common.close": "关闭"
+  "common.close": "关闭",
+  "common.networkInterrupted": "网络中断或请求被浏览器放弃，请检查连接后重试",
+  "common.networkTimeout": "服务器响应太慢，请求已取消——请稍后重试",
+  "common.never": "从未",
+  "common.earlierToday": "今天早些时候",
+  "common.yesterday": "昨天",
+  "home.metadata.description": "Movieclaw 控制台 —— 液态玻璃风格的影视追踪工作台。",
+  "home.metadata.manifestDescription": "液态玻璃风格的影视追踪工作台",
+  "units.duration.seconds": "{count} 秒",
+  "units.duration.minutes": "{count} 分钟",
+  "units.duration.hours": "{count} 小时",
+  "units.duration.fractionalHours": "{count, number, oneDecimal} 小时",
+  "units.duration.hoursMinutes": "{hours} 小时 {minutes} 分钟"
 }

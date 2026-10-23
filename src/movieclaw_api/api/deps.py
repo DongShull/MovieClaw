@@ -71,6 +71,9 @@ async def optional_login(
             raise UnauthorizedException("插件凭证只能经插件网关使用")
         principal = await auth_service.verify_bearer_token(bearer, ip=ip, user_agent=user_agent)
     if principal is not None:
+        from movieclaw_api.services.locale_preferences import record_request_language
+
+        await record_request_language(principal, connection.headers.get("x-movieclaw-timezone"))
         _attribute(principal)
         human = principal.plugin is None and principal.kind not in ("agent", "mcp")
         if principal.is_admin and human:

@@ -56,15 +56,16 @@ enum SubsFormat {
     private static let dateTimeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy/MM/dd HH:mm"
+        f.locale = AppLanguage.locale
+        if AppLanguage.identifier == "zh-Hans" { f.dateFormat = "yyyy/MM/dd HH:mm" }
+        else { f.setLocalizedDateFormatFromTemplate("yyyyMMMdHHmm") }
         return f
     }()
 
     private static let clockFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "HH:mm"
+        f.locale = AppLanguage.locale
+        f.setLocalizedDateFormatFromTemplate("HHmm")
         return f
     }()
 
@@ -86,6 +87,7 @@ enum SubsFormat {
     /// 秒数 → 「15 分钟」「1.5 小时」（Web formatDuration）
     static func duration(_ seconds: Int) -> String {
         guard seconds > 0 else { return "—" }
+        if AppLanguage.identifier == "en" { return AppFormatting.duration(seconds: seconds) }
         if seconds < 60 { return "\(seconds) 秒" }
         if seconds < 3600 { return "\(Int((Double(seconds) / 60).rounded())) 分钟" }
         let hours = Double(seconds) / 3600

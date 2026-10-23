@@ -19,7 +19,9 @@ def test_language_end_to_end(stack, browser):
     artifacts = theme.REPO / ".tmp-uidev/i18n"
     artifacts.mkdir(parents=True, exist_ok=True)
     base = stack
-    english = browser.new_context(locale="en-US", viewport={"width": 1280, "height": 900})
+    english = browser.new_context(
+        locale="en-US", timezone_id="America/New_York", viewport={"width": 1280, "height": 900}
+    )
     page = english.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -49,6 +51,7 @@ def test_language_end_to_end(stack, browser):
     assert body["message_key"] == "errors.auth.wrongPassword"
     assert body["message"] == "Incorrect username or password"
     assert response.value.request.headers["accept-language"] == "en"
+    assert response.value.request.headers["x-movieclaw-timezone"] == "America/New_York"
     expect(page.get_by_text("Incorrect username or password", exact=True)).to_be_visible()
     page.screenshot(path=str(artifacts / "login-en.png"), full_page=True)
 
@@ -85,7 +88,9 @@ def test_language_end_to_end(stack, browser):
     page.screenshot(path=str(artifacts / "appearance-en.png"), full_page=True)
 
     # New browser starts in Chinese, but this account's explicit language wins at login.
-    chinese = browser.new_context(locale="zh-CN", viewport={"width": 390, "height": 844})
+    chinese = browser.new_context(
+        locale="zh-CN", timezone_id="Asia/Shanghai", viewport={"width": 390, "height": 844}
+    )
     other = chinese.new_page()
     other.goto(f"{base}/login?next=/settings/appearance")
     expect(other.locator("html")).to_have_attribute("lang", "zh-Hans")
@@ -104,3 +109,31 @@ def test_language_end_to_end(stack, browser):
     assert not errors
     chinese.close()
     english.close()
+
+
+def test_development_pseudo_and_localized_manifest(stack, browser):
+    from playwright.sync_api import expect
+
+    context = browser.new_context(locale="en-US")
+    context.request.post(f"{stack}/api/v1/auth/bootstrap", data=ADMIN)
+    context.clear_cookies()
+    page = context.new_page()
+    page.goto(f"{stack}/login?add=1&locale=pseudo")
+    expect(page.locator("html")).to_have_attribute("lang", "en")
+    expect(page.locator("body")).to_contain_text("Šîğñ")
+    assert not any(cookie["value"] == "pseudo" for cookie in context.cookies())
+    response = context.request.get(f"{stack}/manifest.webmanifest")
+    assert {"accept-language", "cookie"} <= {
+        value.strip().lower() for value in response.headers["vary"].split(",")
+    }
+    manifest = response.json()
+    assert manifest["lang"] == "en"
+    assert manifest["description"] == "Your media tracking workspace"
+    page.goto(f"{stack}/login?add=1")
+    expect(page.get_by_placeholder("Username", exact=True)).to_be_visible()
+    page.get_by_role("combobox", name="Language", exact=True).select_option("zh-Hans")
+    expect(page.locator("html")).to_have_attribute("lang", "zh-Hans")
+    translated = context.request.get(f"{stack}/manifest.webmanifest").json()
+    assert translated["lang"] == "zh-Hans"
+    assert translated["description"] == "液态玻璃风格的影视追踪工作台"
+    context.close()

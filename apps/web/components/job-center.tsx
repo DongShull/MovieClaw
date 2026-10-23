@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 import { useState } from "react";
 
 import type { Route } from "next";
@@ -200,7 +202,7 @@ function subtitleUsageSummary(job: JobView): SubtitleUsageSummary | null {
 }
 
 function formatInteger(value: number): string {
-  return new Intl.NumberFormat("zh-CN").format(value);
+  return formatNumber(value);
 }
 
 function formatModelDuration(milliseconds: number): string {

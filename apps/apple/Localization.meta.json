@@ -1,0 +1,70 @@
+{
+  "Shared/Localizable.xcstrings": {
+    "settings.appearance.language": {
+      "sourceHash": "9f6fee1aba17a56586bf16a77b07b1a76d8c4e867430c6ee6abfa3128b55fa98"
+    },
+    "settings.appearance.general": {
+      "sourceHash": "835b700e028c9b20ed2af3f3dcaac3ec92697377c637f492707e6eb3077b105f"
+    },
+    "settings.appearance.systemHint": {
+      "sourceHash": "df1d0281437b2f1854a41504e8ccd2e6c698ba521f0976682205c17524fa9665"
+    },
+    "settings.appearance.macHint": {
+      "sourceHash": "b57b7521f390c4e58c6c0318b8ae6cb52971085230f96dd47f67c0f631818d76"
+    },
+    "units.duration.hoursMinutes": {
+      "sourceHash": "c5e1bfb05719b80e5a52c619abbe6dee843f79fd362da5477a8f52bea17983ea",
+      "parameters": [
+        "hours",
+        "minutes"
+      ]
+    },
+    "units.duration.minutesShort": {
+      "sourceHash": "135d12e557a20bf174329f689997f5ab4f6bab37117688bcf44b92b60cc066a2",
+      "parameters": [
+        "count"
+      ]
+    },
+    "units.duration.hoursShort": {
+      "sourceHash": "aca44377123116de7c9d11b1bb0c2defcee85281b5cc1873d1a60208623e287b",
+      "parameters": [
+        "count"
+      ]
+    }
+  },
+  "MovieClaw/InfoPlist.xcstrings": {
+    "NSLocalNetworkUsageDescription": {
+      "sourceHash": "56099b9a3e4f61bb939af0fcbd2c2279142a789cb2a87d0492354dd7770bb180"
+    },
+    "NSPhotoLibraryUsageDescription": {
+      "sourceHash": "6fb9b6d93073b2708319910a080189dcc6198d4b3356ea72479ccce7a8f58d53"
+    },
+    "NSCameraUsageDescription": {
+      "sourceHash": "93267b7e412b57c2ed4bee7c9e16d9b44f2fd62ad97861bc3f454f5782a86559"
+    }
+  },
+  "MovieClawMac/InfoPlist.xcstrings": {
+    "NSLocalNetworkUsageDescription": {
+      "sourceHash": "56099b9a3e4f61bb939af0fcbd2c2279142a789cb2a87d0492354dd7770bb180"
+    }
+  },
+  "MovieClawTV/InfoPlist.xcstrings": {
+    "NSLocalNetworkUsageDescription": {
+      "sourceHash": "56099b9a3e4f61bb939af0fcbd2c2279142a789cb2a87d0492354dd7770bb180"
+    }
+  },
+  "MovieClawNotificationService/InfoPlist.xcstrings": {
+    "NSLocalNetworkUsageDescription": {
+      "sourceHash": "33a82ee06c9d7ca8fe42bc21d3b875868e4dab5e45bd850675d3731feb9c18e1"
+    }
+  },
+  "MovieClawNotificationContent/InfoPlist.xcstrings": {
+    "NSLocalNetworkUsageDescription": {
+      "sourceHash": "33a82ee06c9d7ca8fe42bc21d3b875868e4dab5e45bd850675d3731feb9c18e1"
+    }
+  },
+  "AetherCore/Localizable.xcstrings": {},
+  "MovieClawNotificationService/Localizable.xcstrings": {},
+  "MovieClawNotificationContent/Localizable.xcstrings": {},
+  "MovieClawTVTopShelf/Localizable.xcstrings": {}
+}

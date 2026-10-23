@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -878,7 +880,7 @@ function SiteDetail({ site, stats, boost, downloaders }: SiteDetailProps) {
           <StatGrid>
             <DetailStat
               label="已缓存种子"
-              value={stats.torrent_count.toLocaleString("zh-CN")}
+              value={formatNumber(stats.torrent_count)}
             />
             <DetailStat label="上次同步" value={formatRelativeTime(stats.last_sync_at)} />
             <DetailStat label="下次同步" value={nextSyncLabel(stats.next_sync_at)} />

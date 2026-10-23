@@ -10,5 +10,17 @@
   },
   "networkTimeout": {
     "sourceHash": "03b19e68c100ec37d171eb90773b9567d0c82e9d967d7157870361d1ab0d5686"
+  },
+  "never": {
+    "sourceHash": "5594f4797ae55d1a203f79ecc95cfb9b4b378cfe1c81fff06373b0ced6f88471",
+    "comment": "An event has never happened; shown instead of a relative timestamp."
+  },
+  "earlierToday": {
+    "sourceHash": "4a2a51619165b181c6c8d03da0e6c7cb340e3dbc5fce993d87b983b5f5ac9b19",
+    "comment": "Timeline group heading for earlier events on the same local day."
+  },
+  "yesterday": {
+    "sourceHash": "0c184871f658375afc6e0d4f2c2616bce1395c280a5a1e75a17a7bdebcbff8c5",
+    "comment": "Timeline group heading for the previous local day."
   }
 }

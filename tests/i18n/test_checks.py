@@ -59,6 +59,15 @@ def test_rejects_unknown_server_key(catalog):
     assert any("unknown key common.missing" in error for error in check.check_catalogs())
 
 
+def test_unused_keys_are_review_hints_and_glossary_is_enforced(catalog):
+    root, write = catalog
+    assert any("common.greeting" in warning for warning in check.unused_keys())
+    (root / "src/movieclaw_api/example.py").write_text('t("common.greeting", count=1)')
+    assert not any("src/movieclaw_api" in warning for warning in check.unused_keys())
+    write(root / "scripts/i18n/terms.json", {"你好 {count}": ["greetings {count}"]})
+    assert "Glossary mismatch: common.greeting" in check.check_catalogs()
+
+
 def test_ratchet_excludes_logs_and_honors_swift_data_exemptions(catalog, monkeypatch):
     root, _ = catalog
     monkeypatch.setattr(check.subprocess, "check_output", lambda *args, **kwargs: b"{}")

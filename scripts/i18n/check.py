@@ -12,6 +12,10 @@ from pathlib import Path
 
 from pyicumessageformat import Parser
 
+# The checker is also imported directly by its tests.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apple_catalogs import check_apple  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
 HAN = re.compile(r"[\u3400-\u9fff]")
 
@@ -48,6 +52,10 @@ def check_catalogs() -> list[str]:
     all_english = {}
     web_source = {}
     server_source = {}
+    web_english = {}
+    web_parameters = {}
+    terms_path = ROOT / "scripts/i18n/terms.json"
+    terms = json.loads(terms_path.read_text()) if terms_path.exists() else {}
     for directory in (ROOT / "apps/web/locales", ROOT / "src/movieclaw_api/locales"):
         paths = list((directory / "zh-Hans").glob("*.json"))
         if {p.name for p in paths} != {p.name for p in (directory / "en").glob("*.json")}:
@@ -65,10 +73,17 @@ def check_catalogs() -> list[str]:
                 if meta.get(key, {}).get("sourceHash") != hashlib.sha256(text.encode()).hexdigest():
                     errors.append(f"Stale English: {name}")
                 translated = english.get(key, "")
+                if text in terms and translated.lower() not in terms[text]:
+                    errors.append(f"Glossary mismatch: {name}")
+                if directory.parts[-2] == "web":
+                    web_english[name] = translated
                 if HAN.search(translated) or re.search(r"[，。！？：；「」《》、]", translated):
                     errors.append(f"English contains Chinese text/punctuation: {name}")
                 try:
-                    if parameters(text) != parameters(translated):
+                    source_parameters = parameters(text)
+                    if directory.parts[-2] == "web":
+                        web_parameters[name] = source_parameters
+                    if source_parameters != parameters(translated):
                         errors.append(f"Parameter mismatch: {name}")
                 except (ValueError, SyntaxError) as exc:
                     errors.append(f"Invalid ICU: {name}: {exc}")
@@ -96,7 +111,57 @@ def check_catalogs() -> list[str]:
                 and key.value not in server_source
             ):
                 errors.append(f"{path.relative_to(ROOT)}: unknown key {key.value}")
+    errors.extend(check_apple(ROOT, web_english, web_parameters, terms))
     return errors
+
+
+def unused_keys() -> list[str]:
+    """Conservative hints only: dynamic keys and generated/system consumers need review."""
+    warnings = []
+    for base, resources, extension in (
+        (ROOT / "apps/web", "locales/zh-Hans", ".tsx"),
+        (ROOT / "src/movieclaw_api", "locales/zh-Hans", ".py"),
+    ):
+        directories = [base / part for part in ("app", "components", "lib", "themes", "theme-sdk")]
+        paths = (
+            [
+                p
+                for directory in directories
+                for p in directory.rglob("*")
+                if p.suffix in {".ts", extension}
+            ]
+            if extension == ".tsx"
+            else list(base.rglob("*.py"))
+        )
+        source = "\n".join(path.read_text() for path in paths)
+        for catalog in (base / resources).glob("*.json"):
+            for key in flatten(json.loads(catalog.read_text())):
+                name = f"{catalog.stem}.{key}"
+                # Translation functions can be scoped to any namespace depth.
+                suffixes = [
+                    ".".join(name.split(".")[index:]) for index in range(len(name.split(".")))
+                ]
+                if not any(
+                    re.search(r"[\"']" + re.escape(suffix) + r"[\"']", source)
+                    for suffix in suffixes
+                ):
+                    warnings.append(f"Possibly unused key: {base.relative_to(ROOT)}:{name}")
+    base = ROOT / "apps/apple"
+    source = "\n".join(
+        path.read_text()
+        for path in base.rglob("*.swift")
+        if not any(
+            part.endswith("Tests") or part in {".build", "DerivedData", "SourcePackages"}
+            for part in path.parts
+        )
+    )
+    for catalog in base.glob("*/Localizable.xcstrings"):
+        for key in json.loads(catalog.read_text())["strings"]:
+            pieces = key.split(".")
+            symbol = pieces[0] + "".join(piece[0].upper() + piece[1:] for piece in pieces[1:])
+            if f".{symbol}" not in source and f'"{key}"' not in source:
+                warnings.append(f"Possibly unused key: {catalog.relative_to(ROOT)}:{key}")
+    return warnings
 
 
 def baseline() -> dict[str, int]:
@@ -174,6 +239,8 @@ def main() -> int:
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1
+    for warning in unused_keys():
+        print(warning, file=sys.stderr)
     print("i18n catalogs, Chinese preservation and ratchet passed")
     return 0
 

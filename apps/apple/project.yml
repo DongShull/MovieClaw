@@ -7,8 +7,6 @@
 name: MovieClaw
 options:
   bundleIdPrefix: io.movieclaw
-  # 界面全是中文（源码里的文案就是中文）：系统在 App 里画的文字按 App 声明的本地化选语言，
-  # 只声明 en 时画中画占位「This video is playing in picture in picture.」、搜索框的取消键等一律是英文
   developmentLanguage: zh-Hans
   deploymentTarget:
     iOS: "26.0"
@@ -44,6 +42,10 @@ configFiles:
 settings:
   base:
     SWIFT_VERSION: "6.0"
+    INFOPLIST_KEY_CFBundleDevelopmentRegion: en
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
+    SWIFT_EMIT_LOC_STRINGS: NO
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
     # Swift 6.2 起的「易上手并发」：默认主线程隔离，UI 代码不必处处标 @MainActor
     SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
     SWIFT_APPROACHABLE_CONCURRENCY: YES
@@ -133,10 +135,13 @@ targets:
     info:
       path: MovieClaw/Info.plist
       properties:
+        CFBundleDevelopmentRegion: en
         CFBundleDisplayName: MovieClaw
-        # 系统界面（画中画、系统菜单、权限弹窗的按钮）跟着说中文，见 options.developmentLanguage
+        # 系统界面跟随 App 生效语言；繁体使用简体别名，不支持的语言回退英文。
         CFBundleLocalizations:
           - zh-Hans
+          - zh-Hant
+          - en
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
@@ -201,6 +206,7 @@ targets:
     info:
       path: MovieClawNotificationService/Info.plist
       properties:
+        CFBundleDevelopmentRegion: en
         CFBundleDisplayName: MovieClaw
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -243,6 +249,7 @@ targets:
     info:
       path: MovieClawNotificationContent/Info.plist
       properties:
+        CFBundleDevelopmentRegion: en
         CFBundleDisplayName: MovieClaw
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -309,16 +316,38 @@ targets:
     info:
       path: MovieClawMacDirect/Info.plist
       properties:
-        # 更新源：官网按各 macos-v Release 的 downloads.json 生成（只收签过 EdDSA 的更新包）
-        SUFeedURL: https://movieclaw.io/updates/mac/appcast.xml
-        SUPublicEDKey: WPNeoYOOiXw2Rx2c3mDi0p38JrF1LL6TZvx8KsFur8k=
-        # 沙盒 App 要经 Sparkle 的安装器 XPC 服务替换自己（打包脚本加对应的 mach-lookup 权限）
-        SUEnableInstallerLauncherService: true
-        # 默认自动检查、自动下载并在退出时安装，不问用户（设置里能关）；每天查一次；不上报系统信息
-        SUEnableAutomaticChecks: true
-        SUAutomaticallyUpdate: true
-        SUScheduledCheckInterval: 86400
-        SUEnableSystemProfiling: false
+        CFBundleDevelopmentRegion: en
+        CFBundleDisplayName: MovieClaw
+        CFBundleLocalizations:
+          - zh-Hans
+          - zh-Hant
+          - en
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.entertainment
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        ITSAppUsesNonExemptEncryption: false
+        # 自托管服务器多是局域网 http 直连，理由同 iPhone 版
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSLocalNetworkUsageDescription: MovieClaw 需要访问局域网，用于自动发现并连接你自己部署的 MovieClaw 服务器。
+    settings:
+      base:
+        # 沙盒 + 网络：自托管服务器的接口、图片与片源都是 App 主动连出去；局域网自动发现要向网段逐个发 UDP 询问、
+        # 在同一个端口上收应答（ServerDiscovery），所以进出两个方向都开。用构建设置而不是写死在权限文件里：
+        # Debug 构建关掉沙盒，开发期的调试驱动（MacDebugDriver）才能和外面的脚本交换命令与截图
+        # （其他进程读不了 App 的沙盒容器）；Release 构建照常在沙盒里
+        ENABLE_APP_SANDBOX: YES
+        ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
+        ENABLE_INCOMING_NETWORK_CONNECTIONS: YES
+        PRODUCT_NAME: MovieClaw
+        PRODUCT_BUNDLE_IDENTIFIER: $(MC_BUNDLE_ID_PREFIX).app
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: YES
+      configs:
+        Debug:
+          ENABLE_APP_SANDBOX: NO
   # Apple TV 版（docs/design/tvos-app.md）：界面层在 MovieClawTV/，接口层、登录与账号、播放逻辑与 iPhone 版
   # 共用 Shared/；播放引擎同一个 AetherCore。Bundle ID 与 iPhone 版相同（同一条 App Store 记录，一次购买两端通用）
   MovieClawTV:
@@ -344,9 +373,12 @@ targets:
     info:
       path: MovieClawTV/Info.plist
       properties:
+        CFBundleDevelopmentRegion: en
         CFBundleDisplayName: MovieClaw
         CFBundleLocalizations:
           - zh-Hans
+          - zh-Hant
+          - en
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
@@ -394,6 +426,7 @@ targets:
     info:
       path: MovieClawTVTopShelf/Info.plist
       properties:
+        CFBundleDevelopmentRegion: en
         CFBundleDisplayName: MovieClaw
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -508,3 +541,18 @@ schemes:
       targets:
         - MovieClawTests
         - MovieClawUITests
+  MovieClawEnglish:
+    build:
+      targets:
+        MovieClaw: all
+        MovieClawTests: [test]
+    test:
+      language: en
+      region: US
+      targets:
+        - name: MovieClawTests
+          selectedTests:
+            - LocalizationTests
+        - name: MovieClawUITests
+          selectedTests:
+            - LocalizationUITests

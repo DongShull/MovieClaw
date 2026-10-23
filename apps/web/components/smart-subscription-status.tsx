@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDate } from "@/lib/i18n/format";
+
 import { useEffect, useState } from "react";
 import { changeSmartWait, getSmartMemory, updateSmartMemory, type SubscriptionDetail, type WantedItem } from "@/lib/api/subscriptions";
 import { usePermissions } from "@/lib/permissions";
@@ -9,7 +11,7 @@ const RAW_REQUESTED = "movieclaw:smart-raw-requested";
 const AWAITING = ["awaiting_subtitles", "deadline_awaiting_subtitles"];
 
 function localTime(value: string) {
-  return new Date(/Z$|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  return formatDate(new Date(/Z$|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`), { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function seriesLabel(key: string) {

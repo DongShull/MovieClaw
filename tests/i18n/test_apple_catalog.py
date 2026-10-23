@@ -13,8 +13,15 @@ import pytest
 pytestmark = pytest.mark.skipif(shutil.which("xcrun") is None, reason="Requires Xcode")
 
 
-def test_generated_symbols_and_english_bundle_fallback(tmp_path):
-    catalog = Path(__file__).with_name("apple") / "Localizable.xcstrings"
+@pytest.mark.parametrize("traditional_alias", [False, True])
+def test_generated_symbols_and_english_bundle_fallback(tmp_path, traditional_alias):
+    fixture = Path(__file__).with_name("apple") / "Localizable.xcstrings"
+    catalog = tmp_path / "Localizable.xcstrings"
+    source = json.loads(fixture.read_text())
+    if traditional_alias:
+        for entry in source["strings"].values():
+            entry["localizations"]["zh-Hant"] = entry["localizations"]["zh-Hans"]
+    catalog.write_text(json.dumps(source, ensure_ascii=False))
     generated = tmp_path / "generated"
     generated.mkdir()
     resources = tmp_path / "Probe.app/Contents/Resources"
@@ -25,7 +32,7 @@ def test_generated_symbols_and_english_bundle_fallback(tmp_path):
         "CFBundleIdentifier": "io.movieclaw.i18n-probe",
         "CFBundleExecutable": "probe",
         "CFBundleDevelopmentRegion": "en",
-        "CFBundleLocalizations": ["zh-Hans", "en"],
+        "CFBundleLocalizations": ["zh-Hans", "en"] + (["zh-Hant"] if traditional_alias else []),
     }
     (resources.parent / "Info.plist").write_bytes(plistlib.dumps(info))
     subprocess.run(
@@ -79,4 +86,12 @@ print(String(data: try! JSONEncoder().encode(output), encoding: .utf8)!)
         ("zh-Hans", ["zh-Hans", "关闭", "已加载 3 项"]),
     ):
         result = subprocess.check_output([str(binary), "-AppleLanguages", f"({languages})"])
+        assert json.loads(result) == expected
+    for language in ("zh-Hant", "zh-TW", "zh-HK", "zh-MO"):
+        expected = (
+            ["zh-Hant", "关闭", "已加载 3 项"]
+            if traditional_alias
+            else ["en", "Close", "Loaded 3 items"]
+        )
+        result = subprocess.check_output([str(binary), "-AppleLanguages", f"({language})"])
         assert json.loads(result) == expected

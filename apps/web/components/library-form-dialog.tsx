@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 import { useEffect, useRef, useState } from "react";
 
 import type { Route } from "next";
@@ -282,7 +284,7 @@ function CloudRootRows({
           </span>
           {d.file_count != null && (
             <span className="shrink-0 text-caption tabular-nums text-[var(--text-faint)]">
-              {d.file_count.toLocaleString()} 个视频
+              {formatNumber(d.file_count)} 个视频
             </span>
           )}
           <span className="shrink-0 rounded-full bg-white/[0.08] px-2 py-0.5 text-micro font-medium text-[var(--text-muted)]">
@@ -1612,7 +1614,7 @@ function EditLibraryDialog({
             )}
             {removedCloudFiles > 0 && (
               <p className="mt-2 rounded-lg border border-[var(--warn)]/30 bg-[var(--warn)]/[0.07] px-3 py-2 text-caption leading-5 text-[var(--text-muted)]">
-                保存后，拿掉的网盘目录里的 {removedCloudFiles.toLocaleString()} 个视频会从库里移除（只删记录，网盘上的文件不动；重新挂上会重新识别）。
+                保存后，拿掉的网盘目录里的 {formatNumber(removedCloudFiles)} 个视频会从库里移除（只删记录，网盘上的文件不动；重新挂上会重新识别）。
               </p>
             )}
           </div>

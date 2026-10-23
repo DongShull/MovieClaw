@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 /**
  * 选网盘上的文件夹挂到媒体库（docs/design/cloud-storage.md §4.1，样稿 mockups/cloud-storage-demo.html）。
  *
@@ -193,7 +195,7 @@ export function DriveFolderPicker({
                 ) : (
                   dir.video_count != null && (
                     <span className="shrink-0 text-caption tabular-nums text-[var(--text-faint)]">
-                      {dir.video_count.toLocaleString()} 个视频
+                      {formatNumber(dir.video_count)} 个视频
                     </span>
                   )
                 )}

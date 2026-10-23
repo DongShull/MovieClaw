@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 import {
   useCallback,
   useDeferredValue,
@@ -281,7 +283,7 @@ export function CollectionGridView({
             <p className="mt-2 text-body text-[var(--text-muted)]">
               {items
                 ? provider === "tmdb"
-                  ? `已加载 ${items.length} / ${totalResults.toLocaleString("zh-CN")} 部影片`
+                  ? `已加载 ${items.length} / ${formatNumber(totalResults)} 部影片`
                   : `完整收录 ${items.length} 部影片`
                 : "正在读取完整榜单…"}
             </p>

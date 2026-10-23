@@ -1,0 +1,10 @@
+{
+  "metadata.description": {
+    "sourceHash": "4101c771346f2cf3c724c5935360ace0c500a6aa566a074150da9b564855eed8",
+    "comment": "Browser page description. MovieClaw is an untranslated product name."
+  },
+  "metadata.manifestDescription": {
+    "sourceHash": "14042cb49f810974f8023ed5346d447c623aab9df79379685617a487c70556e9",
+    "comment": "PWA application description."
+  }
+}

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber } from "@/lib/i18n/format";
+
 /**
  * 字幕规格行里的 AI 翻译入口。
  *
@@ -162,7 +164,7 @@ function candidateKey(candidate: SubtitleSourceCandidate): string {
 }
 
 function tokenEstimate(tokens: number): string {
-  if (tokens < 1000) return `约 ${tokens.toLocaleString()} token`;
+  if (tokens < 1000) return `约 ${formatNumber(tokens)} token`;
   return `约 ${(tokens / 1000).toFixed(tokens < 10_000 ? 1 : 0)}k token`;
 }
 
@@ -351,7 +353,7 @@ function ProgressDetails({
         {progress.model_requests > 0 && (
           <span className="tnum">
             模型调用 {progress.model_requests} 次
-            {progress.model_tokens > 0 ? ` · ${progress.model_tokens.toLocaleString()} token` : ""}
+            {progress.model_tokens > 0 ? ` · ${formatNumber(progress.model_tokens)} token` : ""}
           </span>
         )}
         <span className="tnum">已用时 {formatElapsed(progress.elapsed_seconds ?? 0)}</span>
@@ -1082,7 +1084,7 @@ export function SubtitleGenPanel({
                         ? preview.estimated_tokens > 0
                           ? `按片长粗估${tokenEstimate(preview.estimated_tokens)}`
                           : "读取字幕后按实际对白估算"
-                        : `${preview.event_count.toLocaleString()} 条对白 · ${tokenEstimate(preview.estimated_tokens)}`}
+                        : `${formatNumber(preview.event_count)} 条对白 · ${tokenEstimate(preview.estimated_tokens)}`}
                     </p>
                   </div>
 

@@ -2,5 +2,8 @@
   "close": "关闭",
   "networkRetry": "网络异常，请稍后重试",
   "networkInterrupted": "网络中断或请求被浏览器放弃，请检查连接后重试",
-  "networkTimeout": "服务器响应太慢，请求已取消——请稍后重试"
+  "networkTimeout": "服务器响应太慢，请求已取消——请稍后重试",
+  "never": "从未",
+  "earlierToday": "今天早些时候",
+  "yesterday": "昨天"
 }

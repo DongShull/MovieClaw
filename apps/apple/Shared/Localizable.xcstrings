@@ -1,0 +1,181 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "settings.appearance.language": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language"
+          }
+        }
+      },
+      "comment": "Button that opens the operating system language settings."
+    },
+    "settings.appearance.general": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        }
+      },
+      "comment": "Settings section heading."
+    },
+    "settings.appearance.systemHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在系统设置中为 MovieClaw 单独选择语言。若没有该选项，请先在「通用 → 语言与地区」添加语言。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在系统设置中为 MovieClaw 单独选择语言。若没有该选项，请先在「通用 → 语言与地区」添加语言。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a language for MovieClaw in Settings. If the option is missing, add a language under General > Language & Region first."
+          }
+        }
+      },
+      "comment": "iPhone/iPad help when the per-app language option is missing."
+    },
+    "settings.appearance.macHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在系统设置的「通用 → 语言与地区 → 应用程序」中选择 MovieClaw 的语言，重新打开后生效。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在系统设置的「通用 → 语言与地区 → 应用程序」中选择 MovieClaw 的语言，重新打开后生效。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a language for MovieClaw under General > Language & Region > Applications in System Settings, then reopen MovieClaw."
+          }
+        }
+      },
+      "comment": "macOS instructions; language changes apply after reopening the app."
+    },
+    "units.duration.hoursMinutes": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 小时 %lld 分"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 小时 %lld 分"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld hr %lld min"
+          }
+        }
+      },
+      "comment": "Movie runtime. Parameters: hours, minutes. Preserve the existing Chinese short minute unit."
+    },
+    "units.duration.minutesShort": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 分钟"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 分钟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
+          }
+        }
+      },
+      "comment": "Movie runtime in minutes; parameter: count."
+    },
+    "units.duration.hoursShort": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 小时"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 小时"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld hr"
+          }
+        }
+      },
+      "comment": "Movie runtime in whole hours; parameter: count."
+    }
+  },
+  "version": "1.0"
+}

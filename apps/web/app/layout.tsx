@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { LanguageProvider } from "@/lib/i18n/provider";
 import { negotiate } from "@/lib/i18n/negotiate";
 
@@ -31,12 +31,11 @@ const inter = localFont({
  * 数据驱动的子页（库名/片名/会话名/搜索词）由 lib/use-page-title.ts 在
  * 数据就绪后写 document.title，格式与 template 保持一致。
  */
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: {
     default: publicEnv.appName,
     template: `%s · ${publicEnv.appName}`,
   },
-  description: "Movieclaw 控制台 —— 液态玻璃风格的影视追踪工作台。",
   /**
    * iOS「添加到主屏幕」的 App 化配置（PWA 清单见 app/manifest.ts）：
    * - capable: 以独立 App 形态运行，去掉 Safari 地址栏与底部工具条；
@@ -70,6 +69,11 @@ export const metadata: Metadata = {
     "apple-mobile-web-app-capable": "yes",
   },
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("home.metadata");
+  return { ...metadata, description: t("description") };
+}
 
 /**
  * 视口规范（移动端适配的地基）：

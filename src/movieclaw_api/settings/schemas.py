@@ -90,6 +90,13 @@ class AdminAccountSetting(SettingSchema):
     created_at: str = Field(default="", description="账号创建时间（ISO8601 字符串）")
 
 
+@register_setting(namespace="auth.locale", title="Language history")
+class AdminLocaleSetting(SettingSchema):
+    """Separate history so request bookkeeping never rewrites account credentials."""
+
+    last_locale: Literal["zh-Hans", "en"] | None = None
+
+
 @register_setting(
     namespace="auth.session",
     title="登录会话签名密钥",

@@ -117,6 +117,8 @@ class DeviceRef:
     #: full=等同本人；transcode=只能转码（转码器凭证的形态上限）
     scope: str
     name: str
+    locale: str | None = None
+    timezone: str | None = None
 
     @property
     def interactive(self) -> bool:
@@ -596,7 +598,14 @@ async def _device_principal(resolved: login_devices.ResolvedDevice) -> Principal
     """登录设备 → 请求主体：与网页登录的主体同构，只多带一个 ``device``。"""
     device = resolved.device
     assert device.id is not None
-    ref = DeviceRef(id=device.id, kind=device.kind, scope=device.scope, name=device.name)
+    ref = DeviceRef(
+        id=device.id,
+        kind=device.kind,
+        scope=device.scope,
+        name=device.name,
+        locale=device.locale,
+        timezone=device.timezone,
+    )
     member = resolved.member
     if member is None:
         admin = await get_admin_account()

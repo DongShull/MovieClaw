@@ -59,7 +59,10 @@ const nextConfig: NextConfig = {
       // 属性也再授不回来，预告片与播放器会一起坏掉。
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
     ];
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/manifest.webmanifest", headers: [{ key: "Vary", value: "Accept-Language, Cookie" }] },
+    ];
   },
   async rewrites() {
     // API 走同源路径时，由 Next 服务器反代到后端。开发和生产（单容器部署，

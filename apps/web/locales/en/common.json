@@ -2,5 +2,8 @@
   "close": "Close",
   "networkRetry": "Network error. Please try again later.",
   "networkInterrupted": "The connection was interrupted or the browser cancelled the request. Check your connection and try again.",
-  "networkTimeout": "The server took too long to respond. Please try again later."
+  "networkTimeout": "The server took too long to respond. Please try again later.",
+  "never": "Never",
+  "earlierToday": "Earlier today",
+  "yesterday": "Yesterday"
 }

@@ -47,6 +47,9 @@ function buildHeaders(initHeaders?: HeadersInit, body?: BodyInit | null): Header
   headers.set("Accept", "application/json");
   const locale = requestLocale();
   if (locale && !headers.has("Accept-Language")) headers.set("Accept-Language", locale);
+  if (locale && !headers.has("X-MovieClaw-Timezone")) {
+    headers.set("X-MovieClaw-Timezone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }
 
   // FormData（文件上传）必须由浏览器自动带上含 boundary 的 multipart Content-Type，
   // 这里绝不能手动设 application/json，否则后端无法解析上传体。

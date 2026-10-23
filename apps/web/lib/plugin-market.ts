@@ -1,3 +1,4 @@
+import { formatNumber } from "./i18n/format.ts";
 /**
  * 插件市场的展示口径（设置 → 插件 → 插件市场）。纯逻辑，单独成文件好用测试锁住
  * （test/plugin-market.test.mjs）：分类与筛选、一张卡片该给什么按钮、版本的标记、权限翻成人话、
@@ -235,7 +236,7 @@ export function formatDownloadCount(count: number | null | undefined): string | 
   if (typeof count !== "number" || !Number.isFinite(count) || count < 0) return null;
   const rounded = Math.floor(count);
   const formatted =
-    rounded >= 10000 ? formatCompact(rounded) : new Intl.NumberFormat("zh-CN").format(rounded);
+    rounded >= 10000 ? formatCompact(rounded) : formatNumber(rounded);
   return `${formatted} 次下载`;
 }
 

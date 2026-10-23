@@ -53,6 +53,13 @@ struct SettingsIndexView: View {
                 introduction
                     .listRowInsets(EdgeInsets())
             }
+            Section {
+                AppLanguageSettings()
+            } header: {
+                Text(.settingsAppearanceGeneral)
+            } footer: {
+                Text(.settingsAppearanceSystemHint)
+            }
             ForEach(SettingsSection.groups, id: \.title) { group in
                 let items = group.items.filter { $0.availableInApp && (permissions.isAdmin || $0.memberVisible) }
                 if !items.isEmpty {

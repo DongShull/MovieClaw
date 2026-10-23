@@ -65,5 +65,6 @@
 已复制 Copied、更多 More、全选 Select all、全部 All、无 None、是 Yes、否 No、打开 Open、下载 Download、
 上传 Upload、移除 Remove、重置 Reset、继续 Continue、暂停 Pause、停止 Stop、失败 Failed、成功 Success、
 未知 Unknown、可选 Optional、必填 Required，以及全站共用的网络中断、网络超时、网络重试提示。
+全站时间展示共用：从未 Never、今天早些时候 Earlier today、昨天 Yesterday。
 
 短语只有在中英文含义都不受语境影响时才能加入白名单。扩充前先更新本表。

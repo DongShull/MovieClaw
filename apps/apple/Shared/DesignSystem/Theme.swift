@@ -79,9 +79,7 @@ enum Formatters {
     /// 分钟 → 「1 小时 52 分」
     static func duration(minutes: Int?) -> String {
         guard let minutes, minutes > 0 else { return "" }
-        let h = minutes / 60, m = minutes % 60
-        if h == 0 { return "\(m) 分钟" }
-        return m == 0 ? "\(h) 小时" : "\(h) 小时 \(m) 分"
+        return AppFormatting.runtime(minutes: minutes)
     }
 
     private static let isoWithFraction: ISO8601DateFormatter = {
@@ -124,7 +122,10 @@ enum Formatters {
     /// 过去加「前」，将来加「内」（zh-cn 的 future 是「%s内」）。
     /// 不用系统 RelativeDateTimeFormatter：它会出「1周前」「2周前」，与网页「11 天前」对不上。
     /// 设备/令牌「最近活跃」用的是 Web 另一套分钟粒度口径（SettingsTime.deviceRelative），不走这里。
-    static func fromNow(_ date: Date, now: Date = .now) -> String {
+    static func fromNow(_ date: Date, now: Date = .now, locale: Locale = AppLanguage.locale) -> String {
+        if AppLanguage.normalize(locale.identifier) == "en" {
+            return AppFormatting.relative(date, now: now, locale: locale)
+        }
         let delta = now.timeIntervalSince(date)
         let seconds = abs(delta)
         // JS Math.round：正数 .5 进位，与 Swift 的 toNearestOrAwayFromZero 一致
@@ -173,6 +174,6 @@ enum Formatters {
     /// 「2026-09-25 17:03」
     static func dateTime(_ raw: String?) -> String {
         guard let date = date(raw) else { return raw ?? "" }
-        return date.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits).hour().minute().locale(Locale(identifier: "zh_CN")))
+        return AppFormatting.dateTime(date)
     }
 }
