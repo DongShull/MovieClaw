@@ -28,6 +28,7 @@ from movieclaw_api.exceptions import (
     ConflictException,
     NotFoundException,
     ServiceUnavailableException,
+    exception_fields,
 )
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.schemas.library import LibraryGalleryGroupView, SeasonEpisodesView
@@ -1499,7 +1500,7 @@ async def start_playback_session(
         # 这两类的文案本来就是写给用户的，前端原样展示；NAS 日志也要留一份，
         # 用户反馈「点了播放没反应」时才对得上
         logger.warning("播放会话被拒：file_id=%s 档 %s：%s", file.id, view.tier, exc)
-        raise ServiceUnavailableException(str(exc)) from exc
+        raise ServiceUnavailableException(**exception_fields(exc)) from exc
     except SessionStartError as exc:
         logger.warning(
             "播放会话启动失败：file_id=%s 档 %s 执行=%s：%s",
@@ -1509,7 +1510,7 @@ async def start_playback_session(
             exc,
         )
         raise ServiceUnavailableException(
-            message_key="errors.playback.startFailed", params={"reason": str(exc)}
+            message_key="errors.playback.startFailed", params={"reason": exception_fields(exc)}
         ) from exc
     spawn_ms = int((time.perf_counter() - spawn_started_at) * 1000)
 

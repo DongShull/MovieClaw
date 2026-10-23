@@ -36,6 +36,8 @@ from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_api.services.library.quality import file_sort_key as _file_sort_key
 from movieclaw_api.services.library.quality import snapshot_from_file
 from movieclaw_db.engine import get_database
@@ -457,16 +459,11 @@ async def run_upgrade_round(
 
     await session.commit()
     await SubscriptionRepository(session).add_activity(
-        SubscriptionActivity(
-            subscription_id=subscription_id,
-            type=ActivityType.ADJUSTED,
-            message=f"用户触发一轮洗版（目标 {target_label}）：{summary}",
-            payload={
+        SubscriptionActivity(subscription_id=subscription_id, type=ActivityType.ADJUSTED, payload={
                 "reason": "upgrade_run",
                 "counts": counts,
                 "rule_set_id": subscription.rule_set_id,
-            },
-        )
+            }, **stored_fields('activity.subscription.upgradeRequested', target=target_label, summary=summary))
     )
     if counts["upgradable"] or counts["missing"]:
         from movieclaw_api.services.subscription.wanted_search import kick_search_soon
@@ -975,19 +972,10 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                 wanted.updated_at = now
                 await session.commit()
                 await repo.add_activity(
-                    SubscriptionActivity(
-                        subscription_id=wanted.subscription_id,
-                        wanted_item_id=wanted.id,
-                        type=ActivityType.UPGRADE_VERIFY_FAILED,
-                        message=(
-                            f"{_unit_text(wanted)}手选版本已入库，但实测未能证明更优："
-                            "新旧版本共存保留，未自动替换；不需要的版本可在库详情删除"
-                        ),
-                        payload={
+                    SubscriptionActivity(subscription_id=wanted.subscription_id, wanted_item_id=wanted.id, type=ActivityType.UPGRADE_VERIFY_FAILED, payload={
                             "reason": "manual_retained",
                             "units": [[wanted.season_number, wanted.episode_number]],
-                        },
-                    )
+                        }, **stored_fields('activity.subscription.manualVersionKept', units=units_reference([wanted])))
                 )
                 continue
             # 防御：旧版本文件必须还在位才移走证伪文件（宁可留下劣质版本，

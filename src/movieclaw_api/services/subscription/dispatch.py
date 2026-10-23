@@ -19,6 +19,8 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_api import hooks
 from movieclaw_api.core.config import get_settings
 from movieclaw_db.models import (
@@ -304,20 +306,11 @@ async def dispatch(
                     released = await settle_unsatisfiable(session, intent, all_targets, exc)
                     if released:
                         await repo.add_activity(
-                            SubscriptionActivity(
-                                subscription_id=subscription.id,
-                                wanted_item_id=released[0].id,
-                                type=ActivityType.DISPATCH_FAILED,
-                                message=(
-                                    f"{units_text(released)}无法从「{candidate.title}」获取：{exc}；"
-                                    "已改为寻找其他资源，不再用这份资源补这些集"
-                                ),
-                                payload={
+                            SubscriptionActivity(subscription_id=subscription.id, wanted_item_id=released[0].id, type=ActivityType.DISPATCH_FAILED, payload={
                                     "site_id": candidate.site_id,
                                     "torrent_id": candidate.torrent_id,
                                     "source": source,
-                                },
-                            )
+                                }, **stored_fields('activity.subscription.releaseMissingUnits', units=units_reference(released), title=candidate.title, reason=str(exc)))
                         )
                     await session.commit()
                     await recompute_subscription_status(session, subscription, item)
@@ -365,20 +358,11 @@ async def dispatch(
                 return False
             await _rollback_claim(session, claimed, retry_delay=DISPATCH_RETRY_DELAY)
             await repo.add_activity(
-                SubscriptionActivity(
-                    subscription_id=subscription.id,
-                    wanted_item_id=all_targets[0].id,
-                    type=ActivityType.DISPATCH_FAILED,
-                    message=(
-                        f"{units_label}投递失败：{reason}；已退回队列，"
-                        f"约 {int(DISPATCH_RETRY_DELAY.total_seconds() // 60)} 分钟后重试"
-                    ),
-                    payload={
+                SubscriptionActivity(subscription_id=subscription.id, wanted_item_id=all_targets[0].id, type=ActivityType.DISPATCH_FAILED, payload={
                         "site_id": candidate.site_id,
                         "torrent_id": candidate.torrent_id,
                         "source": source,
-                    },
-                )
+                    }, **stored_fields('activity.subscription.dispatchRetry', units=units_reference(all_targets), reason=reason, minutes=int(DISPATCH_RETRY_DELAY.total_seconds() // 60)))
             )
             logger.warning(
                 "投递失败（%s）：《%s》%s ← %s/%s：%s",

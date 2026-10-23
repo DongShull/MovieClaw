@@ -126,7 +126,12 @@ def check_catalogs() -> list[str]:
         for key, original in json.loads(server_originals.read_text()).items():
             if server_source.get(key) != original:
                 errors.append(f"Server Chinese changed during migration: {key}")
-    for path in (ROOT / "src/movieclaw_api").rglob("*.py"):
+    server_paths = [
+        path
+        for package in ("movieclaw_api", "movieclaw_playback", "movieclaw_jellyfin")
+        for path in (ROOT / "src" / package).rglob("*.py")
+    ]
+    for path in server_paths:
         for node in ast.walk(ast.parse(path.read_text())):
             keys = []
             fields = {"message_key", "title_key", "label_key", "separator_key"}
@@ -207,6 +212,9 @@ def unused_keys() -> list[str]:
             if extension == ".tsx"
             else list(base.rglob("*.py"))
         )
+        if base.name == "movieclaw_api":
+            paths += [path for package in ("movieclaw_playback", "movieclaw_jellyfin")
+                      for path in (ROOT / "src" / package).rglob("*.py")]
         source = "\n".join(path.read_text() for path in paths)
         for catalog in (base / resources).glob("*.json"):
             for key in flatten(json.loads(catalog.read_text())):

@@ -19,6 +19,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.schemas.search import TorrentHit
 from movieclaw_api.services.subscription.matching import (
     SEARCH_FAILURE_RETRY,
@@ -356,15 +357,7 @@ async def _search_one_media(media_id: int, budget: _SearchBudget) -> None:
                 session, media_id, delay=SEARCH_FAILURE_RETRY, count_attempt=False
             )
             await repo.add_activity(
-                SubscriptionActivity(
-                    subscription_id=subscription.id,
-                    type=ActivityType.SEARCHED,
-                    message=(
-                        f"搜索《{item.title}》未能执行：{reason}；"
-                        f"约 {int(SEARCH_FAILURE_RETRY.total_seconds() // 60)} 分钟后重试"
-                    ),
-                    payload={"keywords": keywords, "failed": True},
-                )
+                SubscriptionActivity(subscription_id=subscription.id, type=ActivityType.SEARCHED, payload={"keywords": keywords, "failed": True}, **stored_fields('activity.subscription.searchRetry', title=item.title, reason=reason, minutes=int(SEARCH_FAILURE_RETRY.total_seconds() // 60)))
             )
             return
 

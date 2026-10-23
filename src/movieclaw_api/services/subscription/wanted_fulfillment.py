@@ -25,6 +25,8 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_db.models import (
     ActivityType,
     MediaItem,
@@ -115,13 +117,7 @@ async def close_fulfilled_wanted(session: AsyncSession, media_item_id: int) -> i
             ],
         )
         await repo.add_activity(
-            SubscriptionActivity(
-                subscription_id=subscription_id,
-                wanted_item_id=wanted_rows[0].id,
-                type=ActivityType.IMPORTED,
-                message=f"{units_text(wanted_rows)}已入库（媒体库对账确认）",
-                payload={"units": [[w.season_number, w.episode_number] for w in wanted_rows]},
-            )
+            SubscriptionActivity(subscription_id=subscription_id, wanted_item_id=wanted_rows[0].id, type=ActivityType.IMPORTED, payload={"units": [[w.season_number, w.episode_number] for w in wanted_rows]}, **stored_fields('activity.subscription.reconciledImport', units=units_reference(wanted_rows)))
         )
         await recompute_subscription_status(session, subscription, item)
         # 内容已进库，该订阅在途种子的落点告警（若有）自动熄灭
@@ -222,15 +218,7 @@ async def reopen_unfulfilled_wanted(
         if subscription is None or item is None:
             continue
         await repo.add_activity(
-            SubscriptionActivity(
-                subscription_id=subscription_id,
-                wanted_item_id=wanted_rows[0].id,
-                type=ActivityType.REOPENED,
-                message=(
-                    f"{units_text(wanted_rows)}的文件已不属于本条目（身份被改正），重新开始寻找资源"
-                ),
-                payload={"units": [[w.season_number, w.episode_number] for w in wanted_rows]},
-            )
+            SubscriptionActivity(subscription_id=subscription_id, wanted_item_id=wanted_rows[0].id, type=ActivityType.REOPENED, payload={"units": [[w.season_number, w.episode_number] for w in wanted_rows]}, **stored_fields('activity.subscription.identityCorrected', units=units_reference(wanted_rows)))
         )
         await recompute_subscription_status(session, subscription, item)
     logger.info("库存对账：条目 #%s 退回了 %d 个工单", media_item_id, len(lost))

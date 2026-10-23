@@ -26,6 +26,7 @@ from dataclasses import replace
 
 from movieclaw_api.services.playback.ffmpeg_args import HEVC_BITRATE_LADDER, is_hevc_output
 from movieclaw_playback.decide import PlaybackDecision, PlaybackPlan
+from movieclaw_playback.text import Text, reference
 
 #: 线路余量：实测下行的八成给视频，剩下的留给音频、分片边界抖动与并发请求。
 DOWNLINK_SAFETY = 0.8
@@ -57,7 +58,7 @@ def quantize_cap(cap_bps: int) -> int:
 
 
 def adapt_to_downlink(
-    decision: PlaybackDecision, downlink_bps: int | None, *, label: str = "实测线路"
+    decision: PlaybackDecision, downlink_bps: int | None, *, label: Text | None = None
 ) -> PlaybackDecision:
     """给转码计划套上线路能装下的码率上限，必要时连高度一起降。
 
@@ -98,11 +99,17 @@ def adapt_to_downlink(
         return decision
 
     mbps = downlink_bps / 1_000_000
-    note = f"；{label}约 {mbps:.1f} Mbps，码率限到 {cap / 1_000_000:.2f} Mbps"
-    if height != target_height:
-        note += f"，画质降到 {height}p"
+    note = reference(
+        "player.decision.bandwidthLimit",
+        label=label if label is not None else reference("player.decision.measuredLink"),
+        measured=f"{mbps:.1f}",
+        cap=f"{cap / 1_000_000:.2f}",
+        quality=reference("player.decision.lowerHeight", height=height)
+        if height != target_height
+        else "",
+    )
     return replace(
         decision,
         video=replace(video, height=height, bitrate_cap_bps=cap),
-        reason=decision.reason + note,
+        reason=reference("player.decision.adapted", reason=decision.reason, note=note),
     )

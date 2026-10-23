@@ -71,7 +71,7 @@ def client(tmp_path, monkeypatch):
 
     from movieclaw_api.app import create_app
 
-    with TestClient(create_app()) as c:
+    with TestClient(create_app(), headers={"Accept-Language": "zh-Hans"}) as c:
         c.post(f"{_API}/auth/bootstrap", json=_ADMIN)
         yield c
         c.portal.call(exports.get_export_manager().shutdown)  # type: ignore[attr-defined]

@@ -35,5 +35,31 @@
     "organizeAction": "整理文件名",
     "transferAction": "转移条目",
     "metadataAction": "刷新元数据"
+  },
+  "subscription": {
+    "metadataNewEpisodes": "元数据刷新发现 {count} 个新集（{first} 起），已加入追踪",
+    "siteEpisodeEvidence": "站点出现了第 {season} 季第 {seen} 集的资源（{title}），但 TMDB 只录了 {known} 集；如果这部剧确实更长，可在订阅里调整集数继续追",
+    "doubanEpisodeEvidence": "豆瓣显示第 {season} 季共 {count} 集，TMDB 只录了 {known} 集；可在订阅里确认按豆瓣集数继续追",
+    "dispatchRetry": "{units}投递失败：{reason}；已退回队列，约 {minutes} 分钟后重试",
+    "releaseMissingUnits": "{units}无法从「{title}」获取：{reason}；已改为寻找其他资源，不再用这份资源补这些集",
+    "searchRetry": "搜索《{title}》未能执行：{reason}；约 {minutes} 分钟后重试",
+    "resumed": "已恢复追踪",
+    "episodeHintDismissed": "已忽略第 {season} 季的集数提示，继续以 TMDB 集数为准",
+    "missingFilesRequeued": "媒体库文件缺失，重新下载：{count} 个工单重新排队",
+    "paused": "已暂停：资源匹配与搜索将跳过该订阅，随时可恢复",
+    "ownerTransferred": "发起人退出，订阅转由最早的关注者接管",
+    "newFollower": "有成员关注了本订阅（共享同一份下载）",
+    "smartVersionChanged": "多个单集的实测品质不符，已根据成功入库记录更换跟随版本",
+    "upgradeRequested": "用户触发一轮洗版（目标 {target}）：{summary}",
+    "manualVersionKept": "{units}手选版本已入库，但实测未能证明更优：新旧版本共存保留，未自动替换；不需要的版本可在库详情删除",
+    "candidatesRejected": "{units}有候选被拒：{reason}",
+    "replacementConfirmed": "替代源已产生真实下载进度，已自动换种{units}：「{title}」",
+    "replacementRequested": "用户选择立即换种，正在跨站寻找同品质或更高品质的替代源",
+    "replacementNotFound": "跨站搜索返回 {count} 个资源，但没有不同且同品质的替代源；旧任务继续保留，约 {hours} 小时后再试",
+    "replacementVerifying": "已找到同品质替代源并开始验证{units}：来自 {site} 的「{title}」；新源产生真实下载进度后才会切换并清理旧源",
+    "replacementSearchUnavailable": "替代源搜索暂时无法执行，站点连接恢复后将自动重试",
+    "reconciledImport": "{units}已入库（媒体库对账确认）",
+    "identityCorrected": "{units}的文件已不属于本条目（身份被改正），重新开始寻找资源",
+    "multipleUnits": "{first} 等 {count} 集"
   }
 }

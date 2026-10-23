@@ -19,6 +19,7 @@ from movieclaw_api.exceptions import (
     BadRequestException,
     NotFoundException,
     ServiceUnavailableException,
+    exception_fields,
 )
 from movieclaw_api.schemas.offline import (
     OfflineExportRequest,
@@ -251,7 +252,7 @@ async def create_offline_export(
             claimant=_client(request, principal).device_id,
         )
     except exports.ExportUnavailable as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     return ok(_export_view(manager, state))
 
 

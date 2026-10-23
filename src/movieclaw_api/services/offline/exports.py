@@ -43,6 +43,7 @@ from starlette.types import Receive, Scope, Send
 
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.services.playback import plan as playback_plan
+from movieclaw_api.services.playback.errors import PlaybackError
 from movieclaw_api.services.playback.ffmpeg_args import (
     BITRATE_LADDER,
     HEVC_BITRATE_LADDER,
@@ -115,7 +116,7 @@ class ExportStreamAborted(RuntimeError):
     """边转边发中途作废（转码失败 / 重转换了代号）：抛出去让服务器掐断连接、不发结束块。"""
 
 
-class ExportUnavailable(Exception):
+class ExportUnavailable(PlaybackError):
     """这个文件出不了这一档（原盘、HDR 没有硬件、软件转码没开……），文案面向用户。"""
 
 

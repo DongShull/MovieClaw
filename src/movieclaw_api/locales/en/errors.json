@@ -107,7 +107,17 @@
     "clearLibraryRequired": "Provide library_id to clear a library’s history",
     "clientDisconnected": "The client disconnected",
     "startFailed": "Playback failed to start: {reason}",
-    "strmUnavailable": "STRM is unavailable: {reason}"
+    "strmUnavailable": "STRM is unavailable: {reason}",
+    "remoteAddress": "Cannot determine the remote transcoding address: the worker connection did not provide a valid Host. Set a dedicated address in App → Remote transcoding.",
+    "remoteUnavailable": "Remote transcoding is unavailable: {reason}",
+    "remoteEnded": "The remote transcoding session has ended",
+    "transcodeLimit": "All transcoding slots are in use ({used}/{limit}). Wait, or stop other transcoded playback.",
+    "remuxLimit": "The direct-stream limit has been reached ({used}/{limit}). Wait, or stop other playback.",
+    "lowDisk": "Not enough disk space ({free} GB free); new transcoding sessions are blocked. The transcoding cache and database share the data directory. A full disk makes the entire app unavailable. Free disk space and try again.",
+    "cacheQuota": "The transcoding cache has reached its quota ({quota} GB, set automatically from free disk space). Wait for active sessions to finish and be cleaned up. Freeing disk space also increases the quota automatically.",
+    "processStart": "The transcoding process failed to start: {reason}",
+    "remoteSeekUnavailable": "Remote seeking is unavailable: {reason}",
+    "remoteSeekStart": "Could not start remote seeking: {reason}"
   },
   "subscription": {
     "episodeMissing": "This episode was not found",

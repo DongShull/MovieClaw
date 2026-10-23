@@ -25,6 +25,8 @@ from sqlmodel import select
 # 注册种子索引检索文本（site_torrent.match_text）的写入维护：订阅链路的写入与
 # 发布预测的预筛都依赖它与源字段一致（见 services/torrent_match_text.py）
 import movieclaw_api.services.torrent_match_text  # noqa: F401
+from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api import hooks
 from movieclaw_api.services.subscription.identity_recheck import (
     fetch_external_ids,
@@ -1210,19 +1212,13 @@ async def _log_rejection(
     for w in covered:
         w.last_reject_reason = reason_note
     await repo.add_activity(
-        SubscriptionActivity(
-            subscription_id=subscription_id,
-            wanted_item_id=covered[0].id,
-            type=ActivityType.MATCH_REJECTED,
-            message=f"{units_label}有候选被拒：{reason_note}",
-            payload={
+        SubscriptionActivity(subscription_id=subscription_id, wanted_item_id=covered[0].id, type=ActivityType.MATCH_REJECTED, payload={
                 "site_id": candidate.site_id,
                 "torrent_id": candidate.torrent_id,
                 "reason_code": verdict.reason_code,
                 "source": source,
                 "units": [[w.season_number, w.episode_number] for w in covered],
-            },
-        )
+            }, **stored_fields('activity.subscription.candidatesRejected', units=units_reference(covered), reason=reason_note))
     )
 
 
@@ -1235,3 +1231,13 @@ def units_text(rows: list[WantedItem]) -> str:
     if len(rows) == 1:
         return label
     return f"{label} 等 {len(rows)} 集"
+
+
+def units_reference(rows: list[WantedItem]) -> dict | str:
+    first = rows[0]
+    if first.season_number == 0 and first.episode_number == 0:
+        return reference("media.kind.feature")
+    label = f"S{first.season_number:02d}E{first.episode_number:02d}"
+    if len(rows) == 1:
+        return label
+    return reference("activity.subscription.multipleUnits", first=label, count=len(rows))

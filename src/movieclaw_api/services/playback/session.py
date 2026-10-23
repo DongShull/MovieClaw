@@ -39,6 +39,7 @@ from typing import Any
 from urllib.parse import quote, urlsplit
 
 from movieclaw_api.core.config import get_settings
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services.playback.cache import (
     Manifest,
     cache_components,
@@ -46,6 +47,7 @@ from movieclaw_api.services.playback.cache import (
     new_manifest,
 )
 from movieclaw_api.services.playback.disc_source import CONCAT_LIST_NAME
+from movieclaw_api.services.playback.errors import PlaybackError
 from movieclaw_api.services.playback.ffmpeg_args import (
     LIVE_PLAYLIST_NAME,
     PLAYLIST_NAME,
@@ -187,11 +189,7 @@ def _remote_job_failure_message(job_state: dict[str, Any]) -> str:
         else "远程 Worker 未产出请求的分片"
     )
     exit_code = job_state.get("exit_code")
-    if (
-        isinstance(exit_code, int)
-        and not isinstance(exit_code, bool)
-        and "退出码" not in message
-    ):
+    if isinstance(exit_code, int) and not isinstance(exit_code, bool) and "退出码" not in message:
         message += f"；ffmpeg 退出码：{exit_code}"
     stderr_tail = job_state.get("stderr_tail")
     if isinstance(stderr_tail, str) and stderr_tail.strip():
@@ -256,15 +254,15 @@ def _job_payload(
     return payload
 
 
-class SessionLimitError(RuntimeError):
+class SessionLimitError(PlaybackError):
     """并发已满。message 面向用户，中文。"""
 
 
-class DiskQuotaError(RuntimeError):
+class DiskQuotaError(PlaybackError):
     """磁盘配额不足。message 面向用户，中文。"""
 
 
-class SessionStartError(RuntimeError):
+class SessionStartError(PlaybackError):
     """会话启动失败（ffmpeg 起不来或迟迟不产出 playlist）。"""
 
 
@@ -803,11 +801,7 @@ class TranscodeSessionManager:
                     "转码领先播放 %.0f 秒，暂停供片：session=%s（头=%d 播放头=%s）",
                     lead, session.id, session.head_segment, session.last_requested_segment,
                 )
-        elif (
-            lead <= LEAD_LOW_S
-            and session.lead_paused
-            and await self._resume(session, PAUSE_LEAD)
-        ):
+        elif lead <= LEAD_LOW_S and session.lead_paused and await self._resume(session, PAUSE_LEAD):
             logger.info("转码领先回落到 %.0f 秒，恢复供片：session=%s", lead, session.id)
 
     async def throttle(self) -> None:
@@ -1034,8 +1028,10 @@ class TranscodeSessionManager:
         # 目录与台账就绪（认领缓存要 stat 源文件，媒体在网络挂载上时这一步可能不便宜）
         session.mark("prep", hit=session.cache_hit)
         try:
-            if session.manifest is not None and session.cache_hit and self._segment_ready(
-                session, head_segment
+            if (
+                session.manifest is not None
+                and session.cache_hit
+                and self._segment_ready(session, head_segment)
             ):
                 # 起播分片已在缓存里：先不起写者，让播放器直接读文件；播到
                 # 没转过的分片时 ensure_segment 的「无写者」分支再把 ffmpeg
@@ -1203,10 +1199,7 @@ class TranscodeSessionManager:
         """
         base = (base_override or connection.observed_base_url).rstrip("/")
         if not base:
-            raise SessionStartError(
-                "无法确定远程转码地址：Worker 连接未携带可用的 Host，"
-                "请在「应用 → 远程转码」填写专用地址"
-            )
+            raise SessionStartError(reference("errors.playback.remoteAddress"))
         source_token = await issue_remote_grant(
             session_id=session.id, file_id=session.file_id, kind="source"
         )
@@ -1274,7 +1267,9 @@ class TranscodeSessionManager:
             )
         except RemoteWorkerUnavailable as exc:
             session.error = str(exc)
-            raise SessionStartError(f"远程转码不可用：{exc}") from exc
+            raise SessionStartError(
+                reference("errors.playback.remoteUnavailable", reason=str(exc))
+            ) from exc
         # 占位之后到 start_job 之前的任何失败都必须归还槽位，否则这台 Worker
         # 的并发位会被一个从未下发的任务永久占住。
         session.progressive = _wants_progressive(session, connection)
@@ -1329,7 +1324,9 @@ class TranscodeSessionManager:
             )
         except RemoteWorkerUnavailable as exc:
             session.error = str(exc)
-            raise SessionStartError(f"远程转码不可用：{exc}") from exc
+            raise SessionStartError(
+                reference("errors.playback.remoteUnavailable", reason=str(exc))
+            ) from exc
         finally:
             registry.remove_job_waiter(job_id)
 
@@ -1341,7 +1338,7 @@ class TranscodeSessionManager:
         registry = get_remote_worker_registry()
         while time.monotonic() < deadline:
             if session.state == "stopped":
-                raise SessionStartError("远程转码会话已结束")
+                raise SessionStartError(reference("errors.playback.remoteEnded"))
             if session.playlist_path.exists():
                 return
             state = registry.job_state(job_id)
@@ -1423,14 +1420,13 @@ class TranscodeSessionManager:
             used = sum(1 for s in active if s.is_transcoding)
             if used >= max_transcode:
                 raise SessionLimitError(
-                    f"当前转码会话已满（{used}/{max_transcode}），"
-                    "请稍候或停止其它正在转码的播放。"
+                    reference("errors.playback.transcodeLimit", used=used, limit=max_transcode)
                 )
         else:
             used = sum(1 for s in active if not s.is_transcoding)
             if used >= max_remux:
                 raise SessionLimitError(
-                    f"当前直通播放已达上限（{used}/{max_remux}），请稍候或停止其它播放。"
+                    reference("errors.playback.remuxLimit", used=used, limit=max_remux)
                 )
 
     def _check_disk(self, quota_bytes: int | None) -> None:
@@ -1443,11 +1439,7 @@ class TranscodeSessionManager:
         if free < MIN_FREE_BYTES and self.evict_cold(quota_bytes=0):
             free = shutil.disk_usage(self._root).free
         if free < MIN_FREE_BYTES:
-            raise DiskQuotaError(
-                f"磁盘剩余空间不足（{free / 1024**3:.1f} GB），已拒绝新的转码会话。"
-                "转码缓存与数据库同在 data 目录，写满会导致整个应用不可用。"
-                "请清理磁盘后重试。"
-            )
+            raise DiskQuotaError(reference("errors.playback.lowDisk", free=f"{free / 1024**3:.1f}"))
         if quota_bytes is None:
             return
         # 统计占用要把整个转码缓存 stat 一遍（NAS 上两千多个分片），开会话的必经路上只做一次，
@@ -1457,9 +1449,7 @@ class TranscodeSessionManager:
             usage = self.usage_bytes()
         if usage >= quota_bytes:
             raise DiskQuotaError(
-                f"转码缓存已达配额上限（{quota_bytes / 1024**3:.1f} GB，"
-                "按磁盘剩余空间自动设定）。请稍候——正在播放的会话结束后会"
-                "自动清理，清理磁盘腾出空间也会自动调高配额。"
+                reference("errors.playback.cacheQuota", quota=f"{quota_bytes / 1024**3:.1f}")
             )
 
     async def _enforce_disk_watermark(self) -> None:
@@ -1618,7 +1608,9 @@ class TranscodeSessionManager:
             if process is not None and process.returncode is not None:
                 tail = " / ".join(session.stderr_tail)
                 session.error = tail or f"ffmpeg 退出码 {process.returncode}"
-                raise SessionStartError(f"转码进程启动失败：{session.error}")
+                raise SessionStartError(
+                    reference("errors.playback.processStart", reason=session.error)
+                )
             await asyncio.sleep(0.05)
         if vod:
             return
@@ -2036,9 +2028,7 @@ class TranscodeSessionManager:
                     session.remote_job_id is None and not session.remote_restarting
                 ) or self._remote_job_finished(session)
             else:
-                writer_missing = (
-                    session.process is None or session.process.returncode is not None
-                )
+                writer_missing = session.process is None or session.process.returncode is not None
             # 进程还活着且全体等待者都在覆盖范围内：等它转过来即可
             if not (
                 retry_failed
@@ -2284,10 +2274,14 @@ class TranscodeSessionManager:
                 if not isinstance(exc, Exception):
                     raise
                 if isinstance(exc, RemoteWorkerUnavailable):
-                    raise SessionStartError(f"远程 seek 不可用：{exc}") from exc
+                    raise SessionStartError(
+                        reference("errors.playback.remoteSeekUnavailable", reason=str(exc))
+                    ) from exc
                 if isinstance(exc, SessionStartError):
                     raise
-                raise SessionStartError(f"远程 seek 启动失败：{exc}") from exc
+                raise SessionStartError(
+                    reference("errors.playback.remoteSeekStart", reason=str(exc))
+                ) from exc
             finally:
                 registry.remove_job_waiter(job_id)
         finally:

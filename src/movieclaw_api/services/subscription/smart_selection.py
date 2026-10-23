@@ -9,6 +9,7 @@ from sqlalchemy import update
 from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.services.subscription.smart_profiles import conflict
 from movieclaw_db.models import (
     SiteTorrent,
@@ -164,13 +165,7 @@ async def maybe_switch_series(session, subscription, follow, imported):
         "switched_at_episode": max(r.episode_number for r in rows),
     }
     session.add(
-        SubscriptionActivity(
-            subscription_id=subscription.id,
-            wanted_item_id=imported.id,
-            type=ActivityType.ADJUSTED,
-            message="多个单集的实测品质不符，已根据成功入库记录更换跟随版本",
-            payload=follow.evidence,
-        )
+        SubscriptionActivity(subscription_id=subscription.id, wanted_item_id=imported.id, type=ActivityType.ADJUSTED, payload=follow.evidence, **stored_fields('activity.subscription.smartVersionChanged'))
     )
 
 

@@ -1,0 +1,55 @@
+from copy import deepcopy
+
+from movieclaw_api.i18n import use_locale
+from movieclaw_api.services.playback.plan import to_view
+from movieclaw_playback.capability import AudioSupport, ClientCapability, VideoSupport
+from movieclaw_playback.decide import (
+    AudioTrack,
+    MediaProfile,
+    PlaybackPolicy,
+    decide_playback,
+)
+
+
+def test_same_playback_decision_can_render_in_multiple_languages_without_mutation():
+    decision = decide_playback(
+        MediaProfile(
+            file_id=1,
+            container="mp4",
+            video_codec="h264",
+            audio_tracks=(AudioTrack(ref="embedded:0", codec="aac", channels=2),),
+        ),
+        ClientCapability(
+            video=(VideoSupport("h264"),),
+            audio=(AudioSupport("aac"),),
+            containers=frozenset({"mp4"}),
+        ),
+        PlaybackPolicy(),
+        can_self_enable=True,
+    )
+    original = deepcopy(decision)
+    for locale, reason in [
+        ("en", "Video codec H264 can be copied; Audio codec AAC can be copied"),
+        ("zh-Hans", "视频编码 H264 可直通；音轨 AAC 可直通"),
+        ("en", "Video codec H264 can be copied; Audio codec AAC can be copied"),
+    ]:
+        with use_locale(locale):
+            assert to_view(decision).reason == reason
+        assert decision == original
+
+
+def test_playback_start_error_preserves_its_nested_reference():
+    from movieclaw_api.exceptions import ServiceUnavailableException, exception_fields
+    from movieclaw_api.i18n.stored import reference
+    from movieclaw_api.services.playback.session import SessionStartError
+
+    with use_locale("zh-Hans"):
+        error = SessionStartError(reference("errors.playback.processStart", reason="No such file"))
+        assert str(error) == "转码进程启动失败：No such file"
+    with use_locale("en"):
+        http_error = ServiceUnavailableException(
+            message_key="errors.playback.startFailed", params={"reason": exception_fields(error)}
+        )
+        assert http_error.message == (
+            "Playback failed to start: The transcoding process failed to start: No such file"
+        )

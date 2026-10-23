@@ -25,6 +25,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.services.subscription.events import publish_more_episodes
 from movieclaw_db.models import (
     ActivityType,
@@ -237,16 +238,7 @@ async def record_episode_overflow(
             hint_title=title,
         )
         await repo.add_activity(
-            SubscriptionActivity(
-                subscription_id=subscription.id,
-                type=ActivityType.EPISODE_HINT,
-                message=(
-                    f"站点出现了第 {latest} 季第 {seen} 集的资源（{title}），"
-                    f"但 TMDB 只录了 {known_max[latest]} 集；"
-                    "如果这部剧确实更长，可在订阅里调整集数继续追"
-                ),
-                payload={"season": latest, "site_episode": seen, "tmdb_count": known_max[latest]},
-            )
+            SubscriptionActivity(subscription_id=subscription.id, type=ActivityType.EPISODE_HINT, payload={"season": latest, "site_episode": seen, "tmdb_count": known_max[latest]}, **stored_fields('activity.subscription.siteEpisodeEvidence', season=latest, seen=seen, title=title, known=known_max[latest]))
         )
         logger.info(
             "《%s》站点出现 S%02dE%02d，超出 TMDB 的 %d 集，已记为集数证据",
@@ -324,16 +316,7 @@ async def refresh_douban_evidence(
             source="douban",
         )
         await SubscriptionRepository(session).add_activity(
-            SubscriptionActivity(
-                subscription_id=subscription.id,
-                type=ActivityType.EPISODE_HINT,
-                message=(
-                    f"豆瓣显示第 {season_number} 季共 {count} 集，"
-                    f"TMDB 只录了 {known_max.get(season_number, 0)} 集；"
-                    "可在订阅里确认按豆瓣集数继续追"
-                ),
-                payload={"season": season_number, "douban_count": count},
-            )
+            SubscriptionActivity(subscription_id=subscription.id, type=ActivityType.EPISODE_HINT, payload={"season": season_number, "douban_count": count}, **stored_fields('activity.subscription.doubanEpisodeEvidence', season=season_number, count=count, known=known_max.get(season_number, 0)))
         )
     return True
 

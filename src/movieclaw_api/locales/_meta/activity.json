@@ -91,5 +91,77 @@
   },
   "jobs.retryFinishedOnly": {
     "sourceHash": "a0662378f24b232f66cf088554b0213d7bd3e4ffcedebe2fcc85691cedcf3438"
+  },
+  "subscription.metadataNewEpisodes": {
+    "sourceHash": "3b7891b13c27f4f0277577fb3f9507b011c68d560c62b056811e7ea4488e5bea"
+  },
+  "subscription.siteEpisodeEvidence": {
+    "sourceHash": "f319374b7b767580e4bb5c987a34f04eb1680ec2e484fa14fc11ece9df283cb6"
+  },
+  "subscription.doubanEpisodeEvidence": {
+    "sourceHash": "e91047d1fe88344556f4ecceba98a3074db1248b6ab34a6a96f7ffee4aff08bf"
+  },
+  "subscription.dispatchRetry": {
+    "sourceHash": "4906ad9d77b19adc57e02684008cd08708ff18e3eeba092e1a4bd355057879e4"
+  },
+  "subscription.releaseMissingUnits": {
+    "sourceHash": "f0d2bbcb77725158f564b93581ec5602ec9ab346c35790271a57b02b62537704"
+  },
+  "subscription.searchRetry": {
+    "sourceHash": "a8a7e459c618bbf7adc509fa8ddf220e33c9f4608ed93c93c686d8a6b340e31c"
+  },
+  "subscription.resumed": {
+    "sourceHash": "fa9baa2afa54e5929f5b06e8d65de1de1ecff48b240cdc667afa5f05abfa9fe9"
+  },
+  "subscription.episodeHintDismissed": {
+    "sourceHash": "e55f12debc988083b36e496c1874ef21213becbc29a90532cd6a965341728389"
+  },
+  "subscription.missingFilesRequeued": {
+    "sourceHash": "6e411107a32f23c59e1244d4a98c2584ccb1d70f6addb112f52faf92fd1e2a82"
+  },
+  "subscription.paused": {
+    "sourceHash": "e224ad1f2453ebcaedc5d45b54af3052afbb5c433f53008ed4392949c6efa36f"
+  },
+  "subscription.ownerTransferred": {
+    "sourceHash": "571dff12f54a823e76f9b2e803bbf36098cdcc5d32da9a8c42d8deaf94a45c68"
+  },
+  "subscription.newFollower": {
+    "sourceHash": "a000943907b4ae9ba7921c256c18f1cf1adc3a533b8f9a34b554f725b42d3e7b"
+  },
+  "subscription.smartVersionChanged": {
+    "sourceHash": "1a7a4f63706bdd23ccbae6788d9a819330305f367749b0c1348f328439cea769"
+  },
+  "subscription.upgradeRequested": {
+    "sourceHash": "2c0d7638dccb1ee9bdee2eaa054a445726132a74e3205c40f734d928a9337f6d"
+  },
+  "subscription.manualVersionKept": {
+    "sourceHash": "7de6149bf19d2ab926ffc868f4bcc690e26a7e8cb5305a7fad1a66fc9f067810"
+  },
+  "subscription.candidatesRejected": {
+    "sourceHash": "2582aedfc7bd7eff688f9c6bd92aa201be9d0513bc576bcb3cc0341bea1e1ed0"
+  },
+  "subscription.replacementConfirmed": {
+    "sourceHash": "07513c0d6e414ede6694d09ebfa83a805ef5376988ae04da67ab0dc76cfabafb"
+  },
+  "subscription.replacementRequested": {
+    "sourceHash": "1a66abfa3fd3c4a9e1f1a0b69754519f55adf3ad0ee469d974f6a6459776ac40"
+  },
+  "subscription.replacementNotFound": {
+    "sourceHash": "2c117505b5cb526afc9b3353cf7d07361b9c548bfe7a500dbc220a2ae931121f"
+  },
+  "subscription.replacementVerifying": {
+    "sourceHash": "63c731d1a966e2f8c12ffc0d4a33a0f44ed6cebdba0524b06d252971771fe0a0"
+  },
+  "subscription.replacementSearchUnavailable": {
+    "sourceHash": "cf222e2e50025589a3bc7f5e10a02495a2f13a562b921a41c6ea0f3ad711d4a7"
+  },
+  "subscription.reconciledImport": {
+    "sourceHash": "372245bd13840beaa9a8ac2f87f053878df54bd1ddbe0a3d9d13feb9eedd5c3c"
+  },
+  "subscription.identityCorrected": {
+    "sourceHash": "f06ddcb20287d97dece69963a73e186a76cb6866cc220b7f3469039dc205c333"
+  },
+  "subscription.multipleUnits": {
+    "sourceHash": "6c5cb524c902e327ba631a35f362d4c42d85f16b8c2b1418c524fc96ff77c8ff"
   }
 }

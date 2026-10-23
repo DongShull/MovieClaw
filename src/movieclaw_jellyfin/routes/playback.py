@@ -35,6 +35,7 @@ from sqlalchemy import select
 
 from movieclaw_api.api.routes.playback import get_session_segment
 from movieclaw_api.exceptions import NotFoundException
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.services import network_side
 from movieclaw_api.services.library import skip_segments
 from movieclaw_api.services.library.access import member_content_limit, member_visible_ids
@@ -148,6 +149,7 @@ from movieclaw_playback.subtitles import (
     resolve_external_subtitle,
     serve_subtitle_async,
 )
+from movieclaw_playback.text import reference
 from movieclaw_playback.track_policy import (
     NO_CONTEXT,
     TrackContext,
@@ -475,14 +477,14 @@ def _apply_transcode_negotiation(
                 "播放器要求转码（码率上限 %s bps）但无法转码，按直连应答：%s（%s）",
                 negotiation.max_bitrate_bps,
                 f.file_path,
-                decision.reason,
+                render_value(decision.reason),
             )
         return
     source["SupportsTranscoding"] = True
     if direct_ok:
         return
     decision = adapt_to_downlink(
-        decision, negotiation.max_bitrate_bps, label="播放器要求的码率上限"
+        decision, negotiation.max_bitrate_bps, label=reference("player.decision.declaredLimit")
     )
     bitrate_exceeded = (
         negotiation.max_bitrate_bps is not None
@@ -519,7 +521,7 @@ def _apply_transcode_negotiation(
         negotiation.max_bitrate_bps,
         f.bit_rate,
         decision.video.height,
-        decision.reason,
+        render_value(decision.reason),
     )
 
 
@@ -1184,7 +1186,7 @@ async def video_hls_master(
         int(spec.plan.tier),
         spec.display_name,
         session.id,
-        spec.plan.reason,
+        render_value(spec.plan.reason),
     )
     return Response(
         content=build_master_playlist(
@@ -1310,13 +1312,19 @@ async def _capped_transcode_spec(f: LibraryFile, params: TranscodeParams) -> _Se
         max_audio_channels=params.max_audio_channels,
     )
     if isinstance(decision, PlaybackRejected):
-        logger.warning("Jellyfin 转码请求被拒绝：%s（%s）", f.file_path, decision.reason)
+        logger.warning(
+            "Jellyfin 转码请求被拒绝：%s（%s）", f.file_path, render_value(decision.reason)
+        )
         raise not_found()
     if params.video_bitrate_bps:
         decision = replace(
             decision,
             video=replace(decision.video, bitrate_cap_bps=params.video_bitrate_bps),
-            reason=f"{decision.reason}；码率限到 {params.video_bitrate_bps / 1_000_000:.2f} Mbps",
+            reason=reference(
+                "player.decision.jellyfinCap",
+                reason=decision.reason,
+                cap=f"{params.video_bitrate_bps / 1_000_000:.2f}",
+            ),
         )
     hw_backend: str | None = None
     use_remote = False
@@ -1348,7 +1356,7 @@ async def _capped_transcode_spec(f: LibraryFile, params: TranscodeParams) -> _Se
             decision = replace(
                 decision,
                 tier=PlaybackTier.SOFTWARE_TRANSCODE,
-                reason=f"{decision.reason}；硬件加速当前不可用，改为软件转码",
+                reason=reference("player.decision.hardwareFallback", reason=decision.reason),
             )
     segment_plan = (
         compute_uniform_plan(float(f.duration_seconds), target_s=SEGMENT_SECONDS)

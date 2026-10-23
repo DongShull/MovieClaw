@@ -35,5 +35,31 @@
     "organizeAction": "organizing file names",
     "transferAction": "transferring items",
     "metadataAction": "refreshing metadata"
+  },
+  "subscription": {
+    "metadataNewEpisodes": "Metadata refresh found {count, plural, one {# new episode} other {# new episodes}} starting at {first} and added them to tracking",
+    "siteEpisodeEvidence": "A release for season {season}, episode {seen} appeared on a site ({title}), but TMDB lists only {known} episodes. If the series is longer, adjust its episode count in the subscription to keep tracking.",
+    "doubanEpisodeEvidence": "Douban lists {count} episodes for season {season}, while TMDB lists {known}. Confirm the Douban count in the subscription to continue tracking.",
+    "dispatchRetry": "Could not submit {units}: {reason}. Returned to the queue; retrying in about {minutes, plural, one {# minute} other {# minutes}}.",
+    "releaseMissingUnits": "Could not obtain {units} from \"{title}\": {reason}. Searching for other releases; this release will no longer be used for these episodes.",
+    "searchRetry": "Could not search for \"{title}\": {reason}. Retrying in about {minutes, plural, one {# minute} other {# minutes}}.",
+    "resumed": "Tracking resumed",
+    "episodeHintDismissed": "Dismissed the episode count hint for season {season}; continuing to use TMDB’s count",
+    "missingFilesRequeued": "Library files are missing; requeued {count, plural, one {# item} other {# items}} for downloading",
+    "paused": "Paused: release matching and searches will skip this subscription. Resume at any time.",
+    "ownerTransferred": "The creator left; the earliest follower has taken over the subscription",
+    "newFollower": "A member followed this subscription and will share the same downloads",
+    "smartVersionChanged": "Several episodes did not match the claimed quality. The followed version was changed based on successful imports.",
+    "upgradeRequested": "A quality upgrade was requested (target {target}): {summary}",
+    "manualVersionKept": "{units} was imported, but measured quality did not prove it better. Both versions were kept without automatic replacement. Delete unwanted versions in the library details.",
+    "candidatesRejected": "Candidates for {units} were rejected: {reason}",
+    "replacementConfirmed": "The alternative source has made real download progress. Switched {units} automatically to \"{title}\".",
+    "replacementRequested": "An immediate source replacement was requested. Searching across sites for an alternative of equal or better quality.",
+    "replacementNotFound": "The cross-site search returned {count, plural, one {# release} other {# releases}}, with no distinct alternative of the same quality. Keeping the old task; retrying in about {hours, plural, one {# hour} other {# hours}}.",
+    "replacementVerifying": "Found an alternative of the same quality and started verifying {units}: \"{title}\" from {site}. The source will switch and the old source will be cleaned up only after real download progress.",
+    "replacementSearchUnavailable": "The alternative source search is temporarily unavailable and will retry when site connections recover",
+    "reconciledImport": "{units} imported (confirmed by library reconciliation)",
+    "identityCorrected": "The files for {units} no longer belong to this title because their identity was corrected. Searching for releases again.",
+    "multipleUnits": "{first} and others ({count, plural, one {# episode} other {# episodes}})"
   }
 }

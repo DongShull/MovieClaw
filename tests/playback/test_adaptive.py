@@ -9,6 +9,7 @@ from dataclasses import replace
 
 import pytest
 
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.services.playback.adaptive import (
     MIN_CAP_BPS,
     adapt_to_downlink,
@@ -77,7 +78,7 @@ def test_ladder_and_cap_follow_the_pipe(downlink_bps, height, cap):
     assert isinstance(adapted, PlaybackPlan)
     assert adapted.video.height == height
     assert adapted.video.bitrate_cap_bps == cap
-    assert "实测线路" in adapted.reason
+    assert "实测线路" in render_value(adapted.reason)
 
 
 def test_five_mbps_falls_back_to_720p():
@@ -119,8 +120,12 @@ def test_ffmpeg_maxrate_honours_the_cap():
     video = VideoPlan(action="transcode", codec="h264", height=720, bitrate_cap_bps=2_250_000)
     assert maxrate_for_video(video) == "2.25M"
     # 上限高于阶梯值时阶梯值说了算
-    assert maxrate_for_video(VideoPlan(action="transcode", codec="h264", height=720,
-                                       bitrate_cap_bps=9_000_000)) == "3M"
+    assert (
+        maxrate_for_video(
+            VideoPlan(action="transcode", codec="h264", height=720, bitrate_cap_bps=9_000_000)
+        )
+        == "3M"
+    )
 
 
 def test_ffmpeg_command_uses_capped_maxrate_and_bufsize(tmp_path):

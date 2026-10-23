@@ -2074,5 +2074,35 @@
   },
   "plugins.startupFailed": {
     "sourceHash": "0cf642cf998c86ac0c6f3bf188f9ddf1742ee03c675964dc3ee6ec5b940b3807"
+  },
+  "playback.remoteAddress": {
+    "sourceHash": "a38f82aab1f6a14fa085c862fdf3a80bc23582bc70fdd794640c8186a6e330aa"
+  },
+  "playback.remoteUnavailable": {
+    "sourceHash": "bac1d5d2127df9310375a7bee4ff91056968d150d71cd993dcd493c63791d9ce"
+  },
+  "playback.remoteEnded": {
+    "sourceHash": "a0aecc637147fef17a6a3f091e06081cb853b1988583cb794b0f4c315cb3d91c"
+  },
+  "playback.transcodeLimit": {
+    "sourceHash": "874020fcfed7251483e2d5dfb6a3b3779953a72eaff53d57aef58f64ae349529"
+  },
+  "playback.remuxLimit": {
+    "sourceHash": "ccc9c7952d3eb0c4a6bea5e151e109fc767c46a85ca7c113db8c5dea598463b7"
+  },
+  "playback.lowDisk": {
+    "sourceHash": "3b87f63c0169086ef2f41e02fea0674ee218b3e2fe0c9157f190f8f471f963db"
+  },
+  "playback.cacheQuota": {
+    "sourceHash": "d94e488c1794a51acfccccb0c4690cbe1051bb8b74f5fde08617964c13dcc7bf"
+  },
+  "playback.processStart": {
+    "sourceHash": "d014603cf9a58b714fa85054445f124d0ac2d04855a6b07341c939bbe464b595"
+  },
+  "playback.remoteSeekUnavailable": {
+    "sourceHash": "996a73647e89e79dde6f895be61c086c401266cff8070aa94e319bbb0ea6ee34"
+  },
+  "playback.remoteSeekStart": {
+    "sourceHash": "68cd9a9f387c66334d914cf16cd6d63ae3a08679dac70f3d4f90313c18cca510"
   }
 }

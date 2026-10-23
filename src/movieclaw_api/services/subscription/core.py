@@ -25,6 +25,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.exceptions import (
     BadRequestException,
     ForbiddenException,
@@ -510,9 +511,7 @@ class SubscriptionService:
                 and await self._repo.add_follower(existing.id, member_id)
             )
             if is_new_follower:
-                await self._log(
-                    existing, ActivityType.CREATED, "有成员关注了本订阅（共享同一份下载）"
-                )
+                await self._log(existing, ActivityType.CREATED, **stored_fields('activity.subscription.newFollower'))
             logger.info("条目《%s》已有订阅 #%s，幂等返回", item.title, existing.id)
             return existing
         assert item.id is not None
@@ -1087,12 +1086,7 @@ class SubscriptionService:
             self._session.add(row)
             requeued += 1
         if requeued:
-            await self._log(
-                subscription,
-                ActivityType.ADJUSTED,
-                f"媒体库文件缺失，重新下载：{requeued} 个工单重新排队",
-                payload={"requeued_units": sorted(units)},
-            )
+            await self._log(subscription, ActivityType.ADJUSTED, payload={"requeued_units": sorted(units)}, **stored_fields('activity.subscription.missingFilesRequeued', count=requeued))
             item_row = await self._media_repo_get(subscription.media_item_id)
             await self._recompute_status(subscription, item_row)
             self._kick_search()
@@ -1163,11 +1157,7 @@ class SubscriptionService:
                     reason="paused",
                 )
             await self._repo.save(subscription)
-            await self._log(
-                subscription,
-                ActivityType.PAUSED,
-                "已暂停：资源匹配与搜索将跳过该订阅，随时可恢复",
-            )
+            await self._log(subscription, ActivityType.PAUSED, **stored_fields('activity.subscription.paused'))
             return subscription
         subscription.status = SubscriptionStatus.ACTIVE
         if previous != subscription.status:
@@ -1178,7 +1168,7 @@ class SubscriptionService:
                 reason="resumed",
             )
         await self._repo.save(subscription)
-        await self._log(subscription, ActivityType.RESUMED, "已恢复追踪")
+        await self._log(subscription, ActivityType.RESUMED, **stored_fields('activity.subscription.resumed'))
         item = await self._media_repo_get(subscription.media_item_id)
         await self._recompute_status(subscription, item)
         self._refresh_forecasts_soon(subscription.media_item_id)
@@ -1235,9 +1225,7 @@ class SubscriptionService:
             subscription.created_by_member_id = heir
             await self._repo.save(subscription)
             await self._repo.remove_follower(subscription_id, heir)
-            await self._log(
-                subscription, ActivityType.CREATED, "发起人退出，订阅转由最早的关注者接管"
-            )
+            await self._log(subscription, ActivityType.CREATED, **stored_fields('activity.subscription.ownerTransferred'))
             logger.info(
                 "订阅 #%d 发起人 #%d 退出，转移给成员 #%d", subscription_id, member_id, heir
             )
@@ -1753,8 +1741,10 @@ class SubscriptionService:
         self,
         subscription: Subscription,
         activity_type: ActivityType,
-        message: str,
+        message: str = "",
         *,
+        message_key: str | None = None,
+        message_params: dict | None = None,
         wanted_item_id: int | None = None,
         payload: dict | None = None,
     ) -> None:
@@ -1765,6 +1755,8 @@ class SubscriptionService:
                 wanted_item_id=wanted_item_id,
                 type=activity_type,
                 message=message,
+                message_key=message_key,
+                message_params=message_params,
                 payload=payload or {},
             )
         )
@@ -1964,11 +1956,7 @@ class SubscriptionService:
         if not dismiss_hint(subscription, season_number, known_max):
             raise BadRequestException(message_key="errors.subscription.noEpisodeHint")
         await self._repo.save(subscription)
-        await self._log(
-            subscription,
-            ActivityType.ADJUSTED,
-            f"已忽略第 {season_number} 季的集数提示，继续以 TMDB 集数为准",
-        )
+        await self._log(subscription, ActivityType.ADJUSTED, **stored_fields('activity.subscription.episodeHintDismissed', season=season_number))
         await self._recompute_status(subscription, item)
         return subscription
 

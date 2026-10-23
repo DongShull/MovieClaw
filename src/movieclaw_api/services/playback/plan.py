@@ -384,6 +384,7 @@ def to_view(decision: PlaybackDecision) -> PlaybackDecisionView:
     翻译放在服务层而不是领域层：``movieclaw_playback`` 要保持协议无关，
     Jellyfin 兼容层与网页端各自翻各自的（与观看状态、字幕轨同一分层原则）。
     """
+    from movieclaw_api.i18n.stored import render_value
     from movieclaw_api.schemas.playback import (  # 局部导入避免 schemas ↔ services 循环
         AudioPlanView,
         AudioTrackView,
@@ -405,7 +406,7 @@ def to_view(decision: PlaybackDecision) -> PlaybackDecisionView:
             degraded_from=(
                 int(decision.degraded_from) if decision.degraded_from is not None else None
             ),
-            reason=decision.reason,
+            reason=render_value(decision.reason),
             disc=decision.disc,
             disc_playlist=decision.disc_playlist,
         )
@@ -413,14 +414,16 @@ def to_view(decision: PlaybackDecision) -> PlaybackDecisionView:
         return PlaybackDecisionView(
             outcome="consent",
             tier=int(decision.tier),
-            reason=decision.reason,
-            cost_hint=decision.cost_hint,
+            reason=render_value(decision.reason),
+            cost_hint=render_value(decision.cost_hint),
             can_self_enable=decision.can_self_enable,
             setting_namespace=decision.setting_namespace,
             setting_key=decision.setting_key,
         )
     return PlaybackDecisionView(
-        outcome="rejected", reason=decision.reason, suggestion=decision.suggestion
+        outcome="rejected",
+        reason=render_value(decision.reason),
+        suggestion=render_value(decision.suggestion),
     )
 
 

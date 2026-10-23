@@ -18,6 +18,8 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_api import hooks
 from movieclaw_api.services.download_health import landing_brake, record_stalled
 from movieclaw_api.services.subscription.events import publish_download_stuck
@@ -226,12 +228,7 @@ async def request_replacement(
         raise BadRequestException(message_key="errors.subscription.taskChanged")
     await session.refresh(attempt)
     await SubscriptionRepository(session).add_activity(
-        SubscriptionActivity(
-            subscription_id=attempt.subscription_id,
-            type=ActivityType.DOWNLOAD_STALLED,
-            message="用户选择立即换种，正在跨站寻找同品质或更高品质的替代源",
-            payload={"info_hash": normalized, "reason": "manual_replacement"},
-        )
+        SubscriptionActivity(subscription_id=attempt.subscription_id, type=ActivityType.DOWNLOAD_STALLED, payload={"info_hash": normalized, "reason": "manual_replacement"}, **stored_fields('activity.subscription.replacementRequested'))
     )
     return attempt.id
 
@@ -415,12 +412,7 @@ async def run_replacement_search(attempt_id: int, *, force: bool = False) -> boo
                 if not result.rowcount:
                     return False
                 await SubscriptionRepository(session).add_activity(
-                    SubscriptionActivity(
-                        subscription_id=attempt.subscription_id,
-                        type=ActivityType.REPLACEMENT_SEARCHED,
-                        message="替代源搜索暂时无法执行，站点连接恢复后将自动重试",
-                        payload={"failed": True, "errors": errors[:5]},
-                    )
+                    SubscriptionActivity(subscription_id=attempt.subscription_id, type=ActivityType.REPLACEMENT_SEARCHED, payload={"failed": True, "errors": errors[:5]}, **stored_fields('activity.subscription.replacementSearchUnavailable'))
                 )
                 return False
 
@@ -682,24 +674,14 @@ async def _try_candidates(
         session.add(attempt)
         await session.commit()
         await SubscriptionRepository(session).add_activity(
-            SubscriptionActivity(
-                subscription_id=attempt.subscription_id,
-                wanted_item_id=covered[0].id,
-                type=ActivityType.REPLACEMENT_TRIAL,
-                message=(
-                    f"已找到同品质替代源并开始验证{units_text(covered)}："
-                    f"来自 {candidate.site_id} 的「{candidate.title[:60]}」；"
-                    "新源产生真实下载进度后才会切换并清理旧源"
-                ),
-                payload={
+            SubscriptionActivity(subscription_id=attempt.subscription_id, wanted_item_id=covered[0].id, type=ActivityType.REPLACEMENT_TRIAL, payload={
                     "old_info_hash": attempt.info_hash,
                     "new_info_hash": normalized_hash,
                     "site_id": candidate.site_id,
                     "torrent_id": candidate.torrent_id,
                     "source": source,
                     "units": trial.units,
-                },
-            )
+                }, **stored_fields('activity.subscription.replacementVerifying', units=units_reference(covered), site=candidate.site_id, title=candidate.title[:60]))
         )
         return True
     return False
@@ -932,19 +914,11 @@ async def _postpone_after_empty_search(
             session, attempt, retry_hours=int(delay.total_seconds() // 3600)
         )
     await SubscriptionRepository(session).add_activity(
-        SubscriptionActivity(
-            subscription_id=attempt.subscription_id,
-            type=ActivityType.REPLACEMENT_SEARCHED,
-            message=(
-                f"跨站搜索返回 {result_count} 个资源，但没有不同且同品质的替代源；"
-                f"旧任务继续保留，约 {int(delay.total_seconds() // 3600)} 小时后再试"
-            ),
-            payload={
+        SubscriptionActivity(subscription_id=attempt.subscription_id, type=ActivityType.REPLACEMENT_SEARCHED, payload={
                 "results": result_count,
                 "search_attempts": attempt.search_attempts,
                 "next_search_at": attempt.next_search_at.isoformat(),
-            },
-        )
+            }, **stored_fields('activity.subscription.replacementNotFound', count=result_count, hours=int(delay.total_seconds() // 3600)))
     )
 
 
@@ -1088,20 +1062,11 @@ async def promote_trial(
     # 换源事实和工单指向/清理状态同事务落库；即使随后进程退出，时间线也不
     # 会缺失一次已经生效的自动切换。
     session.add(
-        SubscriptionActivity(
-            subscription_id=old.subscription_id,
-            wanted_item_id=switched[0].id,
-            type=ActivityType.REPLACEMENT_PROMOTED,
-            message=(
-                f"替代源已产生真实下载进度，已自动换种{units_text(switched)}："
-                f"「{trial.torrent_title[:60]}」"
-            ),
-            payload={
+        SubscriptionActivity(subscription_id=old.subscription_id, wanted_item_id=switched[0].id, type=ActivityType.REPLACEMENT_PROMOTED, payload={
                 "old_info_hash": old.info_hash,
                 "new_info_hash": trial.info_hash,
                 "units": trial.units,
-            },
-        )
+            }, **stored_fields('activity.subscription.replacementConfirmed', units=units_reference(switched), title=trial.torrent_title[:60]))
     )
     await session.commit()
     if remaining is None:

@@ -107,7 +107,17 @@
     "clearLibraryRequired": "按库清除需要 library_id",
     "clientDisconnected": "客户端已断开",
     "startFailed": "播放启动失败：{reason}",
-    "strmUnavailable": "strm 用不了：{reason}"
+    "strmUnavailable": "strm 用不了：{reason}",
+    "remoteAddress": "无法确定远程转码地址：Worker 连接未携带可用的 Host，请在「应用 → 远程转码」填写专用地址",
+    "remoteUnavailable": "远程转码不可用：{reason}",
+    "remoteEnded": "远程转码会话已结束",
+    "transcodeLimit": "当前转码会话已满（{used}/{limit}），请稍候或停止其它正在转码的播放。",
+    "remuxLimit": "当前直通播放已达上限（{used}/{limit}），请稍候或停止其它播放。",
+    "lowDisk": "磁盘剩余空间不足（{free} GB），已拒绝新的转码会话。转码缓存与数据库同在 data 目录，写满会导致整个应用不可用。请清理磁盘后重试。",
+    "cacheQuota": "转码缓存已达配额上限（{quota} GB，按磁盘剩余空间自动设定）。请稍候——正在播放的会话结束后会自动清理，清理磁盘腾出空间也会自动调高配额。",
+    "processStart": "转码进程启动失败：{reason}",
+    "remoteSeekUnavailable": "远程 seek 不可用：{reason}",
+    "remoteSeekStart": "远程 seek 启动失败：{reason}"
   },
   "subscription": {
     "episodeMissing": "没有找到该单集",
