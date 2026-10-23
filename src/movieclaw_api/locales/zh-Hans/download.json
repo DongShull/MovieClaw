@@ -1,0 +1,14 @@
+{
+  "operations": {
+    "targetPreviewed": "已识别资源并预演自动入库目录",
+    "replacementStarted": "已开始跨站寻找同品质替代源；旧任务会保留到新源产生真实进度",
+    "deletePreview": "演练：未删除任何东西（下载器「{name}」）",
+    "torrentAndFilesDeleted": "已删除种子任务和数据文件",
+    "torrentDeleted": "已删除种子任务，数据文件已保留",
+    "identityNeedsConfirmation": "未能自动确定是哪部作品，请从候选中确认后再选择自动入库目录",
+    "identityNotFound": "未能可靠识别该资源；请换个片名搜索，或手选保存目录",
+    "alreadyAdded": "该种子已在下载器中，未重复添加",
+    "submittedToLibrary": "已提交到「{downloader}」，入库到「{library}」",
+    "submitted": "已提交到「{name}」"
+  }
+}

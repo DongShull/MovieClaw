@@ -25,6 +25,7 @@ from movieclaw_api.exceptions import (
     NotFoundException,
     UpstreamServiceException,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.agent import (
     AttachmentUploadView,
     SessionCompactionEntryView,
@@ -304,7 +305,7 @@ async def _launch_user_message(
     await recorder.begin(run_id)
     return ok(
         SessionMessageAcceptedView(session_id=session_id, message_id=message_id),
-        message="用户消息已提交",
+        message=t("agent.operations.messageSubmitted"),
     )
 
 
@@ -365,7 +366,7 @@ async def upload_session_attachment(
             height=meta.height,
             bytes=meta.bytes,
         ),
-        message="图片已上传",
+        message=t("agent.operations.imageUploaded"),
     )
 
 
@@ -605,7 +606,7 @@ async def fork_session(
             session=SessionSummary.from_model(target),
             entries=[_entry_view(handoff)],
         ),
-        message="已创建续接会话",
+        message=t("agent.operations.continuationCreated"),
     )
 
 
@@ -624,7 +625,7 @@ async def rename_session(
     row = await AgentSessionRepository(session).rename(session_id, payload.title)
     if row is None:
         raise NotFoundException(message_key="errors.agent.sessionMissing")
-    return ok(SessionSummary.from_model(row), message="会话已重命名")
+    return ok(SessionSummary.from_model(row), message=t("agent.operations.renamed"))
 
 
 @router.post(
@@ -691,7 +692,7 @@ async def compact_session_context(
             tokens_after=result.tokens_after,
             compaction_id=entry.uuid,
         ),
-        message="会话上下文已压缩",
+        message=t("agent.operations.compacted"),
     )
 
 
@@ -810,7 +811,7 @@ async def delete_session(
     get_agent_session_store().delete(session_id)
     get_agent_attachment_store().delete_session_attachments(session_id)
     await repo.delete(session_id)
-    return ok({}, message="会话已删除")
+    return ok({}, message=t("agent.operations.deleted"))
 
 
 @router.get(
@@ -896,4 +897,4 @@ async def stop_session(
     if identity.kind == "agent" and identity.agent_session_id == session_id:
         raise BadRequestException(message_key="errors.agent.stopOwnSession")
     await get_agent_run_registry().cancel_session(session_id)
-    return ok({}, message="已请求停止会话")
+    return ok({}, message=t("agent.operations.stopRequested"))

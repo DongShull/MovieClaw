@@ -1,5 +1,14 @@
 {
   "channel": {
     "thinking": "思考中💭"
+  },
+  "operations": {
+    "messageSubmitted": "用户消息已提交",
+    "imageUploaded": "图片已上传",
+    "continuationCreated": "已创建续接会话",
+    "renamed": "会话已重命名",
+    "compacted": "会话上下文已压缩",
+    "deleted": "会话已删除",
+    "stopRequested": "已请求停止会话"
   }
 }

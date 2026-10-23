@@ -82,5 +82,27 @@
     "lowerHeight": "; quality reduced to {height}p",
     "jellyfinCap": "{reason}; bitrate capped at {cap} Mbps",
     "hardwareFallback": "{reason}; hardware acceleration is unavailable; using software transcoding"
+  },
+  "sessions": {
+    "ended": "Ended playback for \"{name}\""
+  },
+  "history": {
+    "itemCleared": "Watch history for this title cleared",
+    "libraryCleared": "Your watch history in this library cleared",
+    "periodCleared": "Your watch history for this period cleared",
+    "allCleared": "All your watch history cleared"
+  },
+  "delivery": {
+    "direct": "Direct play",
+    "remote": "Remote transcoding",
+    "hardware": "Hardware transcoding",
+    "software": "Software transcoding",
+    "workerNamed": "Remote worker \"{worker}\"",
+    "worker": "Remote worker",
+    "cpu": "NAS · Software encoding (CPU)",
+    "downmix": " · Downmixed to stereo",
+    "audioTarget": "Audio → {codec}{downmix}",
+    "audio": "Audio transcoding",
+    "remux": "Remux"
   }
 }

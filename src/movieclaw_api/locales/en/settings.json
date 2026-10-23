@@ -1,11 +1,117 @@
 {
   "llm": {
     "agentScope": "Agent",
-    "subtitleScope": "Subtitle processing"
+    "subtitleScope": "Subtitle processing",
+    "chatgptConnected": "ChatGPT connected; verifying models",
+    "connectionSaved": "Saved; testing the model connection",
+    "connectionRetested": "Connection test restarted",
+    "connectionDeleted": "Deleted",
+    "remoteRevocationPending": "Local connection deleted. Remote revocation is unconfirmed; disconnect this app in ChatGPT settings."
   },
   "updates": {
     "applicationScope": "application updates",
     "modelScope": "model updates",
     "clientScope": "client updates"
+  },
+  "scrape": {
+    "fanartSaved": "Fanart.tv API key verified and saved"
+  },
+  "members": {
+    "created": "Member created. Share the username and password with them.",
+    "saved": "Member settings saved",
+    "passwordReset": "Password reset. Copy it now and send it to the member. All previous sessions have been signed out.",
+    "deleted": "Member deleted and personal data removed. Shared resources are unchanged.",
+    "enabled": "Member enabled",
+    "disabled": "Member disabled; all their devices have been signed out",
+    "devicesSignedOut": "Signed {name} out on all devices ({count, plural, one {# device} other {# devices}})",
+    "noActiveDevices": "{name} has no signed-in devices"
+  },
+  "cloud": {
+    "disconnected": "Disconnected from MovieClaw Cloud"
+  },
+  "appearance": {
+    "preferencesSaved": "Interface settings saved"
+  },
+  "scheduledTasks": {
+    "saved": "Updated; the new schedule is now active"
+  },
+  "ai": {
+    "saved": "AI settings saved"
+  },
+  "imPush": {
+    "bindingStarted": "Binding started",
+    "pairingSubmitted": "Pairing code submitted; verifying",
+    "unbound": "Unbound",
+    "groupConnected": "Connected; a welcome message was sent to the group chat"
+  },
+  "importWatch": {
+    "updated": "Updated",
+    "deleted": "Deleted. The source folder and imported files are unchanged.",
+    "ignored": "Ignored. Restore it from the list at any time.",
+    "restored": "Restored; it will be processed at the next scheduled check",
+    "created": "Created an import watch rule: {path}",
+    "itemClaimed": "Identified; awaiting background organization into the library",
+    "itemImported": "Added to library"
+  },
+  "tips": {
+    "reset": "Usage tips reset"
+  },
+  "extension": {
+    "cookieReceived": "Cookie received; verifying",
+    "tokenRotated": "New token generated; the previous token is invalid immediately",
+    "disabled": "Extension sync disabled",
+    "driveCreated": "Added as a cloud drive account",
+    "driveUpdated": "Cloud drive account sign-in updated"
+  },
+  "sites": {
+    "created": "Saved; verifying",
+    "updated": "Updated; verifying",
+    "retested": "Verification restarted",
+    "deleted": "Deleted",
+    "noBoostCleanup": "No ratio boost torrents need cleanup",
+    "boostPaused": "Ratio boost paused; seeding speed is limited to free upload bandwidth",
+    "boostResumed": "Ratio boost resumed",
+    "boostDeleted": "Deleted {count, plural, one {# ratio boost torrent} other {# ratio boost torrents}}",
+    "boostDeferred": "{count, plural, one {# torrent is} other {# torrents are}} still within the retention period and will be deleted when it ends",
+    "boostCleanupRetry": "Could not delete {count, plural, one {# torrent} other {# torrents}} because the downloader is temporarily unreachable. Retrying automatically later."
+  },
+  "storage": {
+    "cleaned": "Cleanup complete"
+  },
+  "downloaders": {
+    "locationMemoryCleared": "Saved location for this category cleared",
+    "limitsSaved": "Downloader limits updated",
+    "created": "Saved; testing the connection",
+    "updated": "Updated; testing the connection",
+    "defaultSaved": "Default downloader set",
+    "retested": "Connection test restarted",
+    "deleted": "Deleted",
+    "deletedBoostDisabled": "Deleted; ratio boost was disabled for {sites} because they used this downloader"
+  },
+  "appPush": {
+    "saved": "Push settings saved",
+    "relayAdded": "Custom relay added",
+    "relayDeleted": "Custom relay deleted"
+  },
+  "webSearch": {
+    "saved": "Web search verified and saved",
+    "disabled": "Web search disabled"
+  },
+  "app": {
+    "updateStarted": "Update started. Track it using the progress endpoint.",
+    "warningAcknowledged": "Acknowledged; this warning will no longer appear",
+    "modelUpdateStarted": "Model update started. Track it using the progress endpoint.",
+    "restarting": "The app is restarting and will recover shortly",
+    "retentionSaved": "The {count, plural, one {# most recent version} other {# most recent versions}} will be kept locally",
+    "githubTokenSaved": "GitHub access token saved",
+    "githubTokenCleared": "GitHub access token cleared"
+  },
+  "drives": {
+    "saved": "Saved",
+    "removed": "Removed",
+    "scanPrompt": "Scan with your phone"
+  },
+  "network": {
+    "portSaved": "External port saved as {port}. The app is restarting to apply it."
   }
 }

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.import_watch_config import ImportWatchConfigService
@@ -174,7 +175,7 @@ async def create_rule(
         process_existing=payload.process_existing,
     )
     views = await _views(session, [row])
-    return ok(views[0], message=f"已创建监听导入规则：{row.source_path}")
+    return ok(views[0], message=t("settings.importWatch.created", path=row.source_path))
 
 
 @router.put(
@@ -199,7 +200,7 @@ async def update_rule(
         process_existing=payload.process_existing,
     )
     views = await _views(session, [row])
-    return ok(views[0], message="已更新")
+    return ok(views[0], message=t("settings.importWatch.updated"))
 
 
 @router.delete(
@@ -215,7 +216,7 @@ async def delete_rule(
 ) -> ApiResponse[dict]:
     service = ImportWatchConfigService(session)
     await service.delete(rule_id)
-    return ok({}, message="已删除（源目录与已导入的文件均未受影响）")
+    return ok({}, message=t("settings.importWatch.deleted"))
 
 
 # —— 台账清单与人工拍板（实现层：services.library.ingest）——————————
@@ -306,7 +307,7 @@ async def ignore_entry(
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[IngestEntryView]:
     row = await ingest.ignore_entry(session, entry_id)
-    return ok(IngestEntryView.from_model(row), message="已忽略（清单中可随时恢复）")
+    return ok(IngestEntryView.from_model(row), message=t("settings.importWatch.ignored"))
 
 
 @router.post(
@@ -320,7 +321,7 @@ async def restore_entry(
     session: AsyncSession = Depends(get_session),
 ) -> ApiResponse[IngestEntryView]:
     row = await ingest.restore_entry(session, entry_id)
-    return ok(IngestEntryView.from_model(row), message="已恢复，将在下轮巡检时重新处理")
+    return ok(IngestEntryView.from_model(row), message=t("settings.importWatch.restored"))
 
 
 @router.post(
@@ -337,6 +338,6 @@ async def claim_entry(
     row = await ingest.claim_entry(session, entry_id, payload.tmdb_id, file=payload.entry_file)
     view = IngestEntryView.from_model(row)
     if row.status == IngestStatus.IMPORTED:
-        return ok(view, message=row.message or "已入库")
+        return ok(view, message=row.message or t("settings.importWatch.itemImported"))
     # 认领只持久化身份并唤醒原 Job；入库进度与故障继续由任务中心呈现。
-    return ok(view, message=row.message or "已认领，等待后台整理入库")
+    return ok(view, message=row.message or t("settings.importWatch.itemClaimed"))

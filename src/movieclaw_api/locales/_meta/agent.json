@@ -1,5 +1,26 @@
 {
   "channel.thinking": {
     "sourceHash": "d3cb4805ff3742370f0bb8fbb49f57e4edcd7eb614c39e987cac551667da8a43"
+  },
+  "operations.messageSubmitted": {
+    "sourceHash": "4ac9d5a4fcfabdbbb762e0c3d38795f48f319d83880e5cf69dfaca7071471b10"
+  },
+  "operations.imageUploaded": {
+    "sourceHash": "17d9784b005ab8499900f271d888f2b252bbfbf471e6b6d7b2db876909d4585c"
+  },
+  "operations.continuationCreated": {
+    "sourceHash": "41b4bdaaf3c46dc902db586f0e25169d51c8a77eb0c4581331ec8b874a112cc3"
+  },
+  "operations.renamed": {
+    "sourceHash": "8006e87328bf26c643535bab81acc6d01d3aa2026430724937b2d972fb447c0a"
+  },
+  "operations.compacted": {
+    "sourceHash": "56fa863f785eabc00cd26be1178fd29888d2cae3febe279d51373b12721866c6"
+  },
+  "operations.deleted": {
+    "sourceHash": "495e7952925d7198ce0b06807ea7c7bed37af407407716500d8ee8fce9bc6780"
+  },
+  "operations.stopRequested": {
+    "sourceHash": "0eab9279ce66125b4b3e3b8a4d2f417321da227cf24925d546ca3af4fe735696"
   }
 }

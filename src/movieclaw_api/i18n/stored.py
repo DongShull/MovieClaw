@@ -14,8 +14,13 @@ def legacy_keys() -> dict[str, str]:
     for key, source in messages("zh-Hans").items():
         if all(isinstance(node, str) for node in parse_message(source)):
             candidates.setdefault("".join(parse_message(source)), []).append(key)
-    # Equal Chinese can mean different things; only infer an unambiguous key.
-    return {source: keys[0] for source, keys in candidates.items() if len(keys) == 1}
+    # Infer only when every candidate renders identically in all supported languages.
+    english = messages("en")
+    return {
+        source: keys[0]
+        for source, keys in candidates.items()
+        if len({english.get(key, source) for key in keys}) == 1
+    }
 
 
 def stored_message(text: str, key: str | None = None, params: dict | None = None) -> str:

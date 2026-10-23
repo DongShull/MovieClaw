@@ -21,6 +21,7 @@ from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.deps import require_login
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.auth import Principal
@@ -82,14 +83,14 @@ async def update_preferences(
                     payload.language = stored.language
             member.ui_prefs = payload.model_dump(mode="json")
             await repo.save(member)
-        return ok(payload, message="界面设置已保存")
+        return ok(payload, message=t("settings.appearance.preferencesSaved"))
     if keep_hidden or keep_language:
         stored = await get_ui_preferences()
         if keep_hidden:
             payload.nav.hidden = stored.nav.hidden
         if keep_language:
             payload.language = stored.language
-    return ok(await save_ui_preferences(payload), message="界面设置已保存")
+    return ok(await save_ui_preferences(payload), message=t("settings.appearance.preferencesSaved"))
 
 
 class AppEntry(BaseModel):

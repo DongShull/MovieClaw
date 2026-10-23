@@ -21,6 +21,9 @@ def test_tracking_activity_is_written_once_and_rendered_for_each_reader(client):
         headers={"Accept-Language": "en"},
     )
     assert paused.status_code == 200, paused.text
+    assert paused.json()["message"] == (
+        "Paused; release matching and searches will skip this subscription"
+    )
 
     def activity(locale):
         response = client.get(f"{path}/activities", headers={"Accept-Language": locale})

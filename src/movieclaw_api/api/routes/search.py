@@ -16,6 +16,7 @@ from movieclaw_api.api.deps import (
     require_subscribe_capability,
 )
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.search import (
     CategoryTabItem,
@@ -489,7 +490,7 @@ async def update_search_presets(
                 )
             )
     saved = await save_search_tabs(tabs)
-    return ok(_preset_list_view(saved), message="资源搜索预设已保存")
+    return ok(_preset_list_view(saved), message=t("search.presets.saved"))
 
 
 @router.get(
@@ -589,7 +590,7 @@ async def delete_search_history(
     )
     if not deleted:
         raise NotFoundException(message_key="errors.search.historyMissing")
-    return ok(None, message="已删除")
+    return ok(None, message=t("search.presets.deleted"))
 
 
 @router.delete(
@@ -610,4 +611,4 @@ async def clear_search_history(
         member_id=_history_owner(principal),
         vertical={"titles": "media", "torrents": "torrent"}.get(vertical),
     )
-    return ok(None, message=f"已清空 {count} 条搜索历史")
+    return ok(None, message=t("search.history.cleared", count=count))

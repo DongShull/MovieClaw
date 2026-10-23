@@ -20,6 +20,7 @@ from sqlmodel import select
 from movieclaw_api.api.deps import require_login
 from movieclaw_api.api.routes.images import WIDTH_QUERY, requested_width, sized_file
 from movieclaw_api.exceptions import BadRequestException, ForbiddenException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.library import (
     CollectionCover,
     CollectionItemsPayload,
@@ -591,7 +592,11 @@ async def add_collection_items(
         session, row, member_id=member_id, visible=visible, content_limit=content_limit
     )
     await session.commit()
-    message = f"已加入「{row.name}」" if added else f"这些作品已经在「{row.name}」里了"
+    message = (
+        t("library.collections.itemsAdded", name=row.name)
+        if added
+        else t("library.collections.itemsAlreadyPresent", name=row.name)
+    )
     return ok(view, message=message)
 
 
@@ -629,7 +634,7 @@ async def remove_collection_item(
         session, row, member_id=member_id, visible=visible, content_limit=content_limit
     )
     await session.commit()
-    return ok(view, message=f"已移出「{row.name}」")
+    return ok(view, message=t("library.collections.itemRemoved", name=row.name))
 
 
 @router.put(
@@ -679,7 +684,7 @@ async def reorder_collection_items(
         session, row, member_id=member_id, visible=visible, content_limit=content_limit
     )
     await session.commit()
-    return ok(view, message="顺序已保存")
+    return ok(view, message=t("library.collections.orderSaved"))
 
 
 @router.delete(
@@ -716,7 +721,7 @@ async def delete_collection(
         row.hidden = True
         await session.flush()
         await session.commit()
-        return ok(None, message=f"已隐藏「{row.name}」（在「显示已隐藏的合集」里可以放回来）")
+        return ok(None, message=t("library.collections.hidden", name=row.name))
     await session.delete(row)
     await session.commit()
     return ok(None)

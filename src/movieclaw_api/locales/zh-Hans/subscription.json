@@ -8,5 +8,22 @@
   "scope": {
     "noSeasons": "（未勾选任何季）",
     "seasons": "第 {numbers} 季"
+  },
+  "rules": {
+    "created": "规则组已创建",
+    "updated": "规则组已更新",
+    "deleted": "已删除",
+    "defaultSaved": "「{name}」已设为默认规则组"
+  },
+  "operations": {
+    "created": "已加入订阅，正在搜索缺失资源",
+    "updated": "订阅已调整",
+    "episodeHintDismissed": "已忽略集数提示",
+    "gapsRequeued": "{count} 个缺口已重新排队，正在搜索",
+    "dispatched": "已投递，覆盖 {count} 个追踪单元",
+    "paused": "已暂停，资源匹配与搜索将跳过该订阅",
+    "resumed": "已恢复追踪",
+    "autoRenewEnabled": "已开启自动续订",
+    "autoRenewDisabled": "已关闭自动续订"
   }
 }

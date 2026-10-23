@@ -104,3 +104,29 @@ async def test_context_reset_and_concurrent_requests():
         assert t("errors.auth.wrongPassword") == "Incorrect username or password"
         raise RuntimeError
     assert current_locale.get() == previous
+
+
+def test_legacy_fixed_messages_require_equal_english_translations(monkeypatch):
+    from movieclaw_api.i18n import stored
+
+    catalogs = {
+        "zh-Hans": {
+            "history.resume": "恢复",
+            "response.resume": "恢复",
+            "window.close": "关闭",
+            "subtitles.off": "关闭",
+        },
+        "en": {
+            "history.resume": "Resume",
+            "response.resume": "Resume",
+            "window.close": "Close",
+            "subtitles.off": "Off",
+        },
+    }
+    monkeypatch.setattr(stored, "messages", catalogs.__getitem__)
+    stored.legacy_keys.cache_clear()
+    try:
+        assert "恢复" in stored.legacy_keys()
+        assert "关闭" not in stored.legacy_keys()
+    finally:
+        stored.legacy_keys.cache_clear()

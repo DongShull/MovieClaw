@@ -30,6 +30,7 @@ from movieclaw_api.api.routes import libraries as libraries_routes
 from movieclaw_api.api.routes import playback as playback_routes
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import AppException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.library import (
     LibraryItemDetailView,
     LocalMetaView,
@@ -198,11 +199,11 @@ async def create_item_share(
     )
     view = await _share_view(session, row)
     if not created:
-        return ok(view, code="SHARE_EXISTS", message="这部影片已有一条有效分享")
+        return ok(view, code="SHARE_EXISTS", message=t("library.shares.movieAlreadyShared"))
     logger.info(
         "创建影片分享：%s（条目 %d，%d 天）", row.slug, media_item_id, payload.expires_in_days
     )
-    return ok(view, message="分享链接已生成")
+    return ok(view, message=t("library.shares.created"))
 
 
 @admin_router.delete(
@@ -227,7 +228,7 @@ async def revoke_item_share(
     if row is not None:
         await share_service.revoke(session, row)
         logger.info("取消影片分享：%s（条目 %d）", row.slug, media_item_id)
-    return ok({"revoked": row is not None}, message="分享已取消")
+    return ok({"revoked": row is not None}, message=t("library.shares.cancelled"))
 
 
 async def _collection_for_share(
@@ -290,11 +291,11 @@ async def create_collection_share(
     )
     view = await _share_view(session, row)
     if not created:
-        return ok(view, code="SHARE_EXISTS", message="这个合集已有一条有效分享")
+        return ok(view, code="SHARE_EXISTS", message=t("library.shares.collectionAlreadyShared"))
     logger.info(
         "创建合集分享：%s（合集 %d，%d 天）", row.slug, collection_id, payload.expires_in_days
     )
-    return ok(view, message="分享链接已生成")
+    return ok(view, message=t("library.shares.created"))
 
 
 @admin_router.delete(
@@ -314,7 +315,7 @@ async def revoke_collection_share(
     if row is not None:
         await share_service.revoke(session, row)
         logger.info("取消合集分享：%s（合集 %d）", row.slug, collection_id)
-    return ok({"revoked": row is not None}, message="分享已取消")
+    return ok({"revoked": row is not None}, message=t("library.shares.cancelled"))
 
 
 @admin_router.get(
@@ -361,7 +362,7 @@ async def revoke_share(
         raise NotFoundException(message_key="errors.share.missing")
     await share_service.revoke(session, row)
     logger.info("取消影片分享：%s（条目 %d）", row.slug, row.media_item_id)
-    return ok({"revoked": True}, message="分享已取消")
+    return ok({"revoked": True}, message=t("library.shares.cancelled"))
 
 
 # ---------------------------------------------------------------------------
@@ -473,7 +474,7 @@ async def unlock_share(
             media_item_id=row.media_item_id,
             collection_id=row.collection_id,
         ),
-        message="已解锁",
+        message=t("library.shares.unlocked"),
     )
 
 

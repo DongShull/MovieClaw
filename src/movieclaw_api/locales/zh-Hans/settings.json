@@ -1,11 +1,117 @@
 {
   "llm": {
     "agentScope": "智能体",
-    "subtitleScope": "字幕处理"
+    "subtitleScope": "字幕处理",
+    "chatgptConnected": "ChatGPT 已连接，正在验证模型",
+    "connectionSaved": "已保存，正在测试模型连接",
+    "connectionRetested": "已重新发起连接测试",
+    "connectionDeleted": "已删除",
+    "remoteRevocationPending": "本地接入已删除；远端撤销未确认，请在 ChatGPT 设置中断开此 App"
   },
   "updates": {
     "applicationScope": "应用更新",
     "modelScope": "模型更新",
     "clientScope": "客户端更新"
+  },
+  "scrape": {
+    "fanartSaved": "Fanart.tv API Key 已验证并保存"
+  },
+  "members": {
+    "created": "成员已创建，请把账号密码发给对方",
+    "saved": "成员设置已保存",
+    "passwordReset": "密码已重置，请立即复制发给成员；旧会话已全部下线",
+    "deleted": "成员已删除；其个人数据已清理，公共资源不受影响",
+    "enabled": "成员已启用",
+    "disabled": "成员已停用，其所有设备已下线",
+    "devicesSignedOut": "已让 {name} 在全部设备上下线（{count} 台）",
+    "noActiveDevices": "{name} 目前没有登录着的设备"
+  },
+  "cloud": {
+    "disconnected": "已断开 MovieClaw Cloud"
+  },
+  "appearance": {
+    "preferencesSaved": "界面设置已保存"
+  },
+  "scheduledTasks": {
+    "saved": "已更新，按新周期生效"
+  },
+  "ai": {
+    "saved": "AI 设定已保存"
+  },
+  "imPush": {
+    "bindingStarted": "绑定已发起",
+    "pairingSubmitted": "配对码已提交，正在校验",
+    "unbound": "已解绑",
+    "groupConnected": "接入成功，欢迎消息已发送到群聊"
+  },
+  "importWatch": {
+    "updated": "已更新",
+    "deleted": "已删除（源目录与已导入的文件均未受影响）",
+    "ignored": "已忽略（清单中可随时恢复）",
+    "restored": "已恢复，将在下轮巡检时重新处理",
+    "created": "已创建监听导入规则：{path}",
+    "itemClaimed": "已认领，等待后台整理入库",
+    "itemImported": "已入库"
+  },
+  "tips": {
+    "reset": "使用提示已重置"
+  },
+  "extension": {
+    "cookieReceived": "已接收 Cookie，正在验证",
+    "tokenRotated": "已生成新令牌，旧令牌立即失效",
+    "disabled": "已关闭扩展同步",
+    "driveCreated": "已添加为网盘账号",
+    "driveUpdated": "已更新网盘账号的登录"
+  },
+  "sites": {
+    "created": "已保存，正在验证",
+    "updated": "已更新，正在验证",
+    "retested": "已重新发起验证",
+    "deleted": "已删除",
+    "noBoostCleanup": "没有需要清理的刷流种子",
+    "boostPaused": "已暂停刷流，做种已限速让出上行带宽",
+    "boostResumed": "已恢复刷流",
+    "boostDeleted": "已删除 {count} 个刷流种子",
+    "boostDeferred": "{count} 个还在保留期内，到期后自动删除",
+    "boostCleanupRetry": "{count} 个因下载器暂时不可达没删成，稍后自动重试"
+  },
+  "storage": {
+    "cleaned": "清理完成"
+  },
+  "downloaders": {
+    "locationMemoryCleared": "已清除该分类的保存位置记忆",
+    "limitsSaved": "下载器限制已更新",
+    "created": "已保存，正在测试连接",
+    "updated": "已更新，正在测试连接",
+    "defaultSaved": "已设为默认下载器",
+    "retested": "已重新发起连接测试",
+    "deleted": "已删除",
+    "deletedBoostDisabled": "已删除，并关闭了 {sites} 的刷流（它们用这台下载器刷流）"
+  },
+  "appPush": {
+    "saved": "推送设置已保存",
+    "relayAdded": "已添加自建中继",
+    "relayDeleted": "已删除自建中继"
+  },
+  "webSearch": {
+    "saved": "网页搜索已验证并保存",
+    "disabled": "已关闭网页搜索"
+  },
+  "app": {
+    "updateStarted": "更新已开始，可通过进度接口跟踪",
+    "warningAcknowledged": "已确认，该告警不再展示",
+    "modelUpdateStarted": "模型更新已开始，可通过进度接口跟踪",
+    "restarting": "应用正在重启，稍候将自动恢复",
+    "retentionSaved": "本地将保留最近 {count} 个版本",
+    "githubTokenSaved": "GitHub 访问令牌已保存",
+    "githubTokenCleared": "GitHub 访问令牌已清除"
+  },
+  "drives": {
+    "saved": "已保存",
+    "removed": "已移除",
+    "scanPrompt": "请用手机扫码"
+  },
+  "network": {
+    "portSaved": "对外端口已保存为 {port}，应用正在重启使其生效"
   }
 }

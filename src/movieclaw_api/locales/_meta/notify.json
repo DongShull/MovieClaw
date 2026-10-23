@@ -418,5 +418,11 @@
   },
   "cloudUnreachable.body": {
     "sourceHash": "6c013c416aa6b7cfb2f5ac800d873186841402a176698438e1f4f7c37d7b338d"
+  },
+  "notices.dismissed": {
+    "sourceHash": "7536e5b710421d9c89f6c3b5a7fabd2d61373ce4ad1bf52c06bd21836c5d812c"
+  },
+  "channels.testSent": {
+    "sourceHash": "5d163c9177ac9ecf39684e911b52aca1287c2cc4b7c887b25667292638ad981a"
   }
 }

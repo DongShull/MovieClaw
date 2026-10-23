@@ -20,6 +20,7 @@ from movieclaw_api.exceptions import (
     NotFoundException,
     UpstreamServiceException,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.subscription import (
     ActivityView,
@@ -831,7 +832,7 @@ async def create_subscription(
             ),
             download_routing=download_routing,
         ),
-        message="已加入订阅，正在搜索缺失资源",
+        message=t("subscription.operations.created"),
     )
 
 
@@ -1189,7 +1190,7 @@ async def update_subscription(
     resource_timings = await service.resource_timings(subscription_id)
     return ok(
         await _detail_view(session, sub, item, wanted, resource_timings),
-        message="订阅已调整",
+        message=t("subscription.operations.updated"),
     )
 
 
@@ -1241,7 +1242,10 @@ async def search_subscription_now(
         subscription_id, None if principal.is_admin else principal.member_id
     )
     reset = await service.search_now(subscription_id)
-    return ok(SearchNowView(reset_count=reset), message=f"{reset} 个缺口已重新排队，正在搜索")
+    return ok(
+        SearchNowView(reset_count=reset),
+        message=t("subscription.operations.gapsRequeued", count=reset),
+    )
 
 
 @router.post(
@@ -1298,7 +1302,10 @@ async def grab_subscription_torrent(
         DownloadUnitView(season_number=w.season_number, episode_number=w.episode_number)
         for w in covered
     ]
-    return ok(GrabResultView(units=units), message=f"已投递，覆盖 {len(units)} 个追踪单元")
+    return ok(
+        GrabResultView(units=units),
+        message=t("subscription.operations.dispatched", count=len(units)),
+    )
 
 
 async def _set_tracking_state(
@@ -1317,7 +1324,9 @@ async def _set_tracking_state(
     await service.set_paused(subscription_id, paused)
     sub, item, wanted = await service.detail(subscription_id)
     resource_timings = await service.resource_timings(subscription_id)
-    message = "已暂停，资源匹配与搜索将跳过该订阅" if paused else "已恢复追踪"
+    message = (
+        t("subscription.operations.paused") if paused else t("subscription.operations.resumed")
+    )
     return ok(
         await _detail_view(session, sub, item, wanted, resource_timings),
         message=message,
@@ -1366,7 +1375,7 @@ async def dismiss_subscription_episode_hint(
     resource_timings = await service.resource_timings(subscription_id)
     return ok(
         await _detail_view(session, sub, item, wanted, resource_timings),
-        message="已忽略集数提示",
+        message=t("subscription.operations.episodeHintDismissed"),
     )
 
 
@@ -1390,7 +1399,11 @@ async def set_subscription_follow_future(
     await service.set_follow_future(subscription_id, payload.enabled)
     sub, item, wanted = await service.detail(subscription_id)
     resource_timings = await service.resource_timings(subscription_id)
-    message = "已开启自动续订" if payload.enabled else "已关闭自动续订"
+    message = (
+        t("subscription.operations.autoRenewEnabled")
+        if payload.enabled
+        else t("subscription.operations.autoRenewDisabled")
+    )
     return ok(
         await _detail_view(session, sub, item, wanted, resource_timings),
         message=message,

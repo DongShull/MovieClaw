@@ -8,5 +8,22 @@
   "scope": {
     "noSeasons": "(no seasons selected)",
     "seasons": "Seasons {numbers}"
+  },
+  "rules": {
+    "created": "Rule set created",
+    "updated": "Rule set updated",
+    "deleted": "Deleted",
+    "defaultSaved": "\"{name}\" is now the default rule set"
+  },
+  "operations": {
+    "created": "Subscribed; searching for missing releases",
+    "updated": "Subscription updated",
+    "episodeHintDismissed": "Episode count hint dismissed",
+    "gapsRequeued": "Requeued {count, plural, one {# gap} other {# gaps}}; searching now",
+    "dispatched": "Submitted; covering {count, plural, one {# tracked unit} other {# tracked units}}",
+    "paused": "Paused; release matching and searches will skip this subscription",
+    "resumed": "Tracking resumed",
+    "autoRenewEnabled": "Automatic renewal enabled",
+    "autoRenewDisabled": "Automatic renewal disabled"
   }
 }

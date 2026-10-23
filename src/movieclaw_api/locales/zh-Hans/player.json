@@ -82,5 +82,27 @@
     "lowerHeight": "，画质降到 {height}p",
     "jellyfinCap": "{reason}；码率限到 {cap} Mbps",
     "hardwareFallback": "{reason}；硬件加速当前不可用，改为软件转码"
+  },
+  "sessions": {
+    "ended": "已结束「{name}」的播放"
+  },
+  "history": {
+    "itemCleared": "已清除这部作品的观看记录",
+    "libraryCleared": "已清除你在这个库里的观看记录",
+    "periodCleared": "已清除你这段时间的观看记录",
+    "allCleared": "已清除你的全部观看记录"
+  },
+  "delivery": {
+    "direct": "直连",
+    "remote": "远程转码",
+    "hardware": "硬件转码",
+    "software": "软件转码",
+    "workerNamed": "远程 Worker「{worker}」",
+    "worker": "远程 Worker",
+    "cpu": "NAS · 软件编码（CPU）",
+    "downmix": " · 降混立体声",
+    "audioTarget": "音频 → {codec}{downmix}",
+    "audio": "音频转码",
+    "remux": "重封装"
   }
 }

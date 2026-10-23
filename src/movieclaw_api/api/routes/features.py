@@ -11,6 +11,7 @@ from pydantic import Field
 
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.exceptions import AppException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.auth import Principal
@@ -80,4 +81,11 @@ async def set_feature(
     except FeatureSwitchError as exc:
         raise AppException(status_code=exc.status, code=exc.code, message=exc.message) from exc
     view = next(v for v in _views(request) if v.key == key)
-    return ok(view, message=f"「{view.title}」已{'开启' if view.enabled else '停用'}")
+    return ok(
+        view,
+        message=t(
+            "plugins.features.changed",
+            title=view.title,
+            state="enabled" if view.enabled else "disabled",
+        ),
+    )

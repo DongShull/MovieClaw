@@ -25,6 +25,7 @@ from movieclaw_api.exceptions import (
     ServiceUnavailableException,
     exception_fields,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.auth import Principal
@@ -340,7 +341,7 @@ async def exit_safe_mode(request: Request) -> ApiResponse[SafeModeExitView]:
 
     plugin_deps.resume(kernel, settings)
     safe_mode.schedule_settle(settings)
-    return ok(SafeModeExitView(mounted=mounted), message="已退出安全模式")
+    return ok(SafeModeExitView(mounted=mounted), message=t("plugins.operations.safeModeExited"))
 
 
 @router.post(
@@ -362,7 +363,7 @@ async def replay_dead_letter(letter_id: int, request: Request) -> ApiResponse[No
         raise ConflictException(
             message_key="errors.plugins.replayFailed", params={"error": exc}
         ) from exc
-    return ok(None, message="已重放")
+    return ok(None, message=t("plugins.operations.eventReplayed"))
 
 
 @router.post(
@@ -378,7 +379,7 @@ async def dismiss_dead_letter(letter_id: int, request: Request) -> ApiResponse[N
         await store.dismiss(letter_id)
     except LookupError as exc:
         raise NotFoundException(str(exc)) from exc
-    return ok(None, message="已忽略")
+    return ok(None, message=t("plugins.operations.eventIgnored"))
 
 
 # ---------------------------------------------------------------------- 插件包（第三阶段 C5）
@@ -659,7 +660,9 @@ async def upload_package(
         view = await _packages(request).upload(data)
     except PackageError as exc:
         raise BadRequestException(str(exc)) from exc
-    return ok(PackageRequestView.model_validate(view), message="已上传，等待批准")
+    return ok(
+        PackageRequestView.model_validate(view), message=t("plugins.operations.uploadPending")
+    )
 
 
 @router.post(
@@ -693,7 +696,11 @@ async def approve_package(
     except PackageError as exc:
         raise BadRequestException(str(exc)) from exc
     view = PackageResultView.model_validate(result)
-    message = "已安装并运行" if view.status == "active" else f"没能运行，已回滚：{view.error}"
+    message = (
+        t("plugins.operations.installed")
+        if view.status == "active"
+        else t("plugins.operations.installRollback", reason=view.error)
+    )
     return ok(view, message=message)
 
 
@@ -714,7 +721,9 @@ async def retry_package_dependencies(
         raise NotFoundException(str(exc)) from exc
     except PackageError as exc:
         raise BadRequestException(str(exc)) from exc
-    return ok(PackageResultView.model_validate(result), message="依赖已装好")
+    return ok(
+        PackageResultView.model_validate(result), message=t("plugins.operations.dependenciesReady")
+    )
 
 
 @router.delete(
@@ -729,7 +738,7 @@ async def discard_package(entry_id: str, request: Request) -> ApiResponse[None]:
         await _packages(request).discard(entry_id)
     except LookupError as exc:
         raise NotFoundException(str(exc)) from exc
-    return ok(None, message="已放弃")
+    return ok(None, message=t("plugins.operations.installAbandoned"))
 
 
 @router.post(
@@ -748,7 +757,7 @@ async def rollback_package(entry_id: str, request: Request) -> ApiResponse[Packa
         raise NotFoundException(str(exc)) from exc
     except PackageError as exc:
         raise ConflictException(str(exc)) from exc
-    return ok(PackageResultView.model_validate(result), message="已回到上一版")
+    return ok(PackageResultView.model_validate(result), message=t("plugins.operations.rolledBack"))
 
 
 @router.delete(
@@ -769,7 +778,9 @@ async def uninstall_package(
         result = await _packages(request).uninstall(entry_id, purge_data=purge_data)
     except LookupError as exc:
         raise NotFoundException(str(exc)) from exc
-    return ok(PackageUninstallView.model_validate(result), message="已卸载")
+    return ok(
+        PackageUninstallView.model_validate(result), message=t("plugins.operations.uninstalled")
+    )
 
 
 # ---------------------------------------------- 停用 / 卸载（plugin-strm-prefetch.md §1）
@@ -815,7 +826,9 @@ async def switch_plugin(
         raise _switch_error(exc) from exc
     fiber = kernel.fiber(entry_id)
     state = fiber.state.value if fiber is not None else "disposed"
-    message = "已启用" if payload.enabled else "已停用"
+    message = (
+        t("plugins.operations.enabled") if payload.enabled else t("plugins.operations.disabled")
+    )
     return ok(PluginSwitchView(id=entry_id, state=state), message=message)
 
 
@@ -843,7 +856,9 @@ async def uninstall_bundled(
         )
     except plugin_switches.PluginSwitchError as exc:
         raise _switch_error(exc) from exc
-    return ok(BundledUninstallView.model_validate(result), message="已卸载")
+    return ok(
+        BundledUninstallView.model_validate(result), message=t("plugins.operations.uninstalled")
+    )
 
 
 @router.post(
@@ -860,7 +875,7 @@ async def restore_bundled(entry_id: str, request: Request) -> ApiResponse[Plugin
         state = await plugin_switches.restore_bundled(_kernel(request), get_settings(), entry_id)
     except plugin_switches.PluginSwitchError as exc:
         raise _switch_error(exc) from exc
-    return ok(PluginSwitchView(id=entry_id, state=state), message="已恢复")
+    return ok(PluginSwitchView(id=entry_id, state=state), message=t("plugins.operations.restored"))
 
 
 # ---------------------------------------------------- 回调端点（plugin-callbacks.md §4.4）
@@ -927,7 +942,7 @@ async def rotate_callback(key_id: int) -> ApiResponse[CallbackIssuedView]:
         url=issued.url,
         absolute=issued.absolute,
     )
-    return ok(view, message="已换新地址，旧地址已失效")
+    return ok(view, message=t("plugins.operations.endpointRotated"))
 
 
 @router.delete(
@@ -942,7 +957,7 @@ async def revoke_callback(key_id: int) -> ApiResponse[None]:
         await _callbacks().revoke_id(key_id)
     except LookupError as exc:
         raise NotFoundException(str(exc)) from exc
-    return ok(None, message="已作废")
+    return ok(None, message=t("plugins.operations.endpointRevoked"))
 
 
 # ---------------------------------------------------- 插件详情（设置 → 插件 → 点一个插件）
@@ -1062,7 +1077,9 @@ async def update_web_consent(
     assert updated is not None
     return ok(
         WebPageView.model_validate({**plugin_web.app_view(updated), "approved": True}),
-        message="已同意" if found.consent is None else "已保存",
+        message=t("plugins.operations.consentGranted")
+        if found.consent is None
+        else t("plugins.operations.consentSaved"),
     )
 
 
@@ -1086,7 +1103,7 @@ async def revoke_web_consent(entry_id: str, request: Request) -> ApiResponse[Non
         await _packages(request).set_web(entry_id, None)
     else:
         plugin_web.write_local_consent(settings, entry_id, None)
-    return ok(None, message="已撤销")
+    return ok(None, message=t("plugins.operations.consentRevoked"))
 
 
 # ---------------------------------------------------------------------- 插件市场
@@ -1243,7 +1260,12 @@ async def refresh_market(request: Request) -> ApiResponse[MarketView]:
     view = MarketView.model_validate(plugin_market.market_view(catalog, _kernel(request)))
     if view.source.error:
         raise ServiceUnavailableException(view.source.error)
-    return ok(view, message="已是最新" if not view.updates else f"{view.updates} 个插件有更新")
+    return ok(
+        view,
+        message=t("plugins.operations.upToDate")
+        if not view.updates
+        else t("plugins.operations.updatesAvailable", count=view.updates),
+    )
 
 
 @router.get(
@@ -1336,7 +1358,9 @@ async def install_from_market(
         raise _market_error(exc) from exc
     except PackageError as exc:
         raise BadRequestException(str(exc)) from exc
-    return ok(PackageRequestView.model_validate(view), message="已下载，等待批准")
+    return ok(
+        PackageRequestView.model_validate(view), message=t("plugins.operations.downloadPending")
+    )
 
 
 @router.get(
@@ -1409,4 +1433,6 @@ async def update_plugin_settings(
     from movieclaw_api.services import plugin_settings
 
     data = await plugin_settings.update(_kernel(request), get_settings(), entry_id, payload.values)
-    return ok(PluginSettingsView.model_validate(data), message="设置已保存，插件已按新设置重启")
+    return ok(
+        PluginSettingsView.model_validate(data), message=t("plugins.operations.settingsSaved")
+    )

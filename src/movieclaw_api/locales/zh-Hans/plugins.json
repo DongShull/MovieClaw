@@ -1,0 +1,29 @@
+{
+  "operations": {
+    "safeModeExited": "已退出安全模式",
+    "eventReplayed": "已重放",
+    "eventIgnored": "已忽略",
+    "uploadPending": "已上传，等待批准",
+    "dependenciesReady": "依赖已装好",
+    "installAbandoned": "已放弃",
+    "rolledBack": "已回到上一版",
+    "uninstalled": "已卸载",
+    "restored": "已恢复",
+    "endpointRotated": "已换新地址，旧地址已失效",
+    "endpointRevoked": "已作废",
+    "consentRevoked": "已撤销",
+    "downloadPending": "已下载，等待批准",
+    "settingsSaved": "设置已保存，插件已按新设置重启",
+    "consentGranted": "已同意",
+    "consentSaved": "已保存",
+    "upToDate": "已是最新",
+    "updatesAvailable": "{count} 个插件有更新",
+    "installed": "已安装并运行",
+    "installRollback": "没能运行，已回滚：{reason}",
+    "enabled": "已启用",
+    "disabled": "已停用"
+  },
+  "features": {
+    "changed": "「{title}」已{state, select, enabled {开启} other {停用}}"
+  }
+}

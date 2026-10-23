@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.playback import (
     ActiveFileDownloadView,
     ActivePlaybackSessionView,
@@ -277,11 +279,11 @@ def _delivery_view(transcode, *, streaming: bool) -> PlaybackDeliveryView | None
     if not streaming:
         return None
     if transcode is None:
-        return PlaybackDeliveryView(mode="direct", label="直连")
+        return PlaybackDeliveryView(mode="direct", label=t("player.delivery.direct"))
     from movieclaw_api.services.playback.hwprobe import BACKEND_LABELS
 
     plan = transcode.plan
-    reason = plan.reason or None
+    reason = render_value(plan.reason) or None
     if plan.video.action == "transcode":
         parts = []
         if plan.video.height:
@@ -293,14 +295,18 @@ def _delivery_view(transcode, *, streaming: bool) -> PlaybackDeliveryView | None
             parts.append(f"{plan.video.bitrate_cap_bps / 1_000_000:.0f} Mbps")
         backend = BACKEND_LABELS.get(transcode.hw_backend or "", transcode.hw_backend)
         if transcode.remote:
-            label = "远程转码"
+            label = t("player.delivery.remote")
             worker = transcode.remote_worker_id
-            where = f"远程 Worker「{worker}」" if worker else "远程 Worker"
+            where = (
+                t("player.delivery.workerNamed", worker=worker)
+                if worker
+                else t("player.delivery.worker")
+            )
             executor = f"{where} · {backend}" if backend else where
         elif transcode.hw_backend:
-            label, executor = "硬件转码", f"NAS · {backend}"
+            label, executor = t("player.delivery.hardware"), f"NAS · {backend}"
         else:
-            label, executor = "软件转码", "NAS · 软件编码（CPU）"
+            label, executor = t("player.delivery.software"), t("player.delivery.cpu")
         return PlaybackDeliveryView(
             mode="transcode", label=label, target=" · ".join(parts) or None,
             executor=executor, reason=reason,
@@ -308,12 +314,20 @@ def _delivery_view(transcode, *, streaming: bool) -> PlaybackDeliveryView | None
     if plan.audio.action == "transcode":
         target = None
         if plan.audio.codec:
-            downmix = " · 降混立体声" if plan.audio.downmix else ""
-            target = f"音频 → {plan.audio.codec.upper()}{downmix}"
+            downmix = t("player.delivery.downmix") if plan.audio.downmix else ""
+            target = t(
+                "player.delivery.audioTarget", codec=plan.audio.codec.upper(), downmix=downmix
+            )
         return PlaybackDeliveryView(
-            mode="audio", label="音频转码", target=target, executor="NAS", reason=reason
+            mode="audio",
+            label=t("player.delivery.audio"),
+            target=target,
+            executor="NAS",
+            reason=reason,
         )
-    return PlaybackDeliveryView(mode="remux", label="重封装", executor="NAS", reason=reason)
+    return PlaybackDeliveryView(
+        mode="remux", label=t("player.delivery.remux"), executor="NAS", reason=reason
+    )
 
 
 def _transcodes_by_device() -> dict[str, list]:

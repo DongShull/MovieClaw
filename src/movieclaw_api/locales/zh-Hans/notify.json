@@ -212,5 +212,11 @@
   "cloudUnreachable": {
     "title": "连不上 MovieClaw Cloud",
     "body": "{reason}。{expired, select, yes {令牌已经过期，官方推送暂停；} other {令牌快要过期，过期后官方推送会暂停；}}请检查这台服务器能不能上网，或在「设置 → 网络」里让 MovieClaw Cloud 走代理。"
+  },
+  "notices": {
+    "dismissed": "已忽略该事项"
+  },
+  "channels": {
+    "testSent": "已推送到 {count} 个账号"
   }
 }

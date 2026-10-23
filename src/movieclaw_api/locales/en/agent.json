@@ -1,5 +1,14 @@
 {
   "channel": {
     "thinking": "Thinking💭"
+  },
+  "operations": {
+    "messageSubmitted": "User message submitted",
+    "imageUploaded": "Image uploaded",
+    "continuationCreated": "Continuation session created",
+    "renamed": "Session renamed",
+    "compacted": "Session context compacted",
+    "deleted": "Session deleted",
+    "stopRequested": "Session stop requested"
   }
 }

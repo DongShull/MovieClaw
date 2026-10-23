@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.routes.channels import _hub, _qrcode_data_url
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.channels import (
     FeishuBindPayload,
     ImAccountView,
@@ -129,7 +130,7 @@ async def start_weixin_binding(
             qrcode_image=_qrcode_data_url(binding.qr or ""),
             message=binding.message,
         ),
-        message="绑定已发起",
+        message=t("settings.imPush.bindingStarted"),
     )
 
 
@@ -172,7 +173,7 @@ async def submit_weixin_verify_code(
         await _hub().binding_input(challenge_id, payload.code.strip())
     except LookupError as exc:
         raise NotFoundException(message_key="errors.channels.pairingEnded") from exc
-    return ok({}, message="配对码已提交，正在校验")
+    return ok({}, message=t("settings.imPush.pairingSubmitted"))
 
 
 @router.delete(
@@ -185,7 +186,7 @@ async def submit_weixin_verify_code(
 async def unbind_weixin_account(account_id: str) -> ApiResponse[dict]:
     if not await _hub().unbind("weixin", account_id):
         raise NotFoundException(message_key="errors.channels.accountUnlinked")
-    return ok({}, message="已解绑")
+    return ok({}, message=t("settings.imPush.unbound"))
 
 
 # ---------------------------------------------------------------------- Telegram / Discord / 飞书
@@ -224,7 +225,7 @@ async def start_feishu_binding(payload: FeishuBindPayload) -> ApiResponse[ImAcco
     row = await _row("feishu", binding.account_id)
     if row is None:
         raise BadRequestException(message_key="errors.channels.feishuSaveFailed")
-    return ok(_im_account(row, hub), message="接入成功，欢迎消息已发送到群聊")
+    return ok(_im_account(row, hub), message=t("settings.imPush.groupConnected"))
 
 
 async def _im_binding_view(hub: ChannelHub, binding: Binding) -> ImBindingView:
@@ -260,7 +261,7 @@ async def start_im_binding(
     hub = _hub()
     await _require_llm(session)
     binding = await _begin(hub, channel_id, {"token": payload.token.strip()})
-    return ok(await _im_binding_view(hub, binding), message="绑定已发起")
+    return ok(await _im_binding_view(hub, binding), message=t("settings.imPush.bindingStarted"))
 
 
 @router.get(
@@ -290,4 +291,4 @@ async def unbind_im_account(channel: str, account_id: str) -> ApiResponse[dict]:
     channel_id = _require_im(channel)
     if not await _hub().unbind(channel_id, account_id):
         raise NotFoundException(message_key="errors.channels.accountUnlinked")
-    return ok({}, message="已解绑")
+    return ok({}, message=t("settings.imPush.unbound"))

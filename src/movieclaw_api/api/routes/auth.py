@@ -640,7 +640,7 @@ async def switch_account(
         raise NotFoundException(message_key="errors.auth.otherAccountExpired")
     view = await _activate(response, accounts, target)
     assert view is not None  # target 非空时 _activate 必有返回
-    return ok(view, message=f"已切换到 {view.nickname}")
+    return ok(view, message=t("auth.accounts.switched", name=view.nickname))
 
 
 @router.delete(
@@ -912,7 +912,9 @@ async def approve_device_request(
     转码器只能由超管批准。
     """
     challenge = await auth_service.approve_device_request(user_code, principal)
-    return ok(None, message=f"已批准「{challenge.client_name}」以 {principal.name} 的身份接入")
+    return ok(
+        None, message=t("auth.devices.approved", client=challenge.client_name, name=principal.name)
+    )
 
 
 @router.post(
@@ -926,7 +928,7 @@ async def approve_device_request(
 async def deny_device_request(user_code: str) -> ApiResponse[None]:
     """拒绝不生成任何令牌，也不在磁盘上留痕。"""
     challenge = auth_service.deny_device_request(user_code)
-    return ok(None, message=f"已拒绝「{challenge.client_name}」的接入请求")
+    return ok(None, message=t("auth.devices.rejected", client=challenge.client_name))
 
 
 # ---------------------------------------------------------------------------
@@ -1237,7 +1239,7 @@ async def revoke_current_device(
     await login_devices.revoke(session, device)
     # 设备自己退出登录：之后同一台登录回来，不给本人的其他设备推「新设备登录」
     await login_devices.remember_signed_out(member_id, kind, installation_id)
-    return ok(None, message=f"已注销「{name}」")
+    return ok(None, message=t("auth.sessions.revoked", name=name))
 
 
 @router.patch(

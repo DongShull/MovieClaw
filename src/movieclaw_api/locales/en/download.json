@@ -1,0 +1,14 @@
+{
+  "operations": {
+    "targetPreviewed": "Release identified and automatic library destination previewed",
+    "replacementStarted": "Searching across sites for an alternative of the same quality. The old task stays until the new source makes real progress.",
+    "deletePreview": "Preview: nothing was deleted (downloader \"{name}\")",
+    "torrentAndFilesDeleted": "Torrent task and data files deleted",
+    "torrentDeleted": "Torrent task deleted; data files kept",
+    "identityNeedsConfirmation": "Could not determine the title automatically. Confirm a candidate before choosing the automatic library destination.",
+    "identityNotFound": "Could not reliably identify this release. Search with another title or choose the save folder manually.",
+    "alreadyAdded": "This torrent is already in the downloader; it was not added again",
+    "submittedToLibrary": "Submitted to \"{downloader}\" for library \"{library}\"",
+    "submitted": "Submitted to \"{name}\""
+  }
+}

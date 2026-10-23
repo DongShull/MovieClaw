@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.deps import require_login
 from movieclaw_api.exceptions import NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.cloud import (
     MyPushView,
     OfficialChannelRequest,
@@ -95,7 +96,7 @@ async def probe_relay(payload: RelayProbeRequest) -> ApiResponse[RelayProbeView]
 )
 async def create_relay(payload: RelayCreateRequest) -> ApiResponse[PushChannelsView]:
     await admin.create_relay(name=payload.name, url=payload.url, token=payload.token)
-    return ok(await admin.build_channels_view(), message="已添加自建中继")
+    return ok(await admin.build_channels_view(), message=t("settings.appPush.relayAdded"))
 
 
 @admin_router.patch(
@@ -125,7 +126,7 @@ async def update_relay(relay_id: str, payload: RelayUpdateRequest) -> ApiRespons
 )
 async def delete_relay(relay_id: str) -> ApiResponse[PushChannelsView]:
     await admin.delete_relay(relay_id)
-    return ok(await admin.build_channels_view(), message="已删除自建中继")
+    return ok(await admin.build_channels_view(), message=t("settings.appPush.relayDeleted"))
 
 
 @admin_router.post(

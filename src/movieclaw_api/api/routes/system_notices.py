@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.exceptions import NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import stored_message
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
@@ -103,4 +104,4 @@ async def dismiss_notice(
         row.resolved_at = utcnow()
         row.updated_at = utcnow()
         await session.commit()
-    return ok(None, message="已忽略该事项")
+    return ok(None, message=t("notify.notices.dismissed"))

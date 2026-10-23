@@ -212,5 +212,11 @@
   "cloudUnreachable": {
     "title": "Cannot connect to MovieClaw Cloud",
     "body": "{reason}. {expired, select, yes {The token has expired and official push notifications are paused.} other {The token will expire soon, which will pause official push notifications.}} Check this server’s internet connection or configure a proxy for MovieClaw Cloud in Settings → Network."
+  },
+  "notices": {
+    "dismissed": "This issue was dismissed"
+  },
+  "channels": {
+    "testSent": "Sent to {count, plural, one {# account} other {# accounts}}"
   }
 }

@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_db.engine import get_session
@@ -133,4 +134,4 @@ async def update_scheduled_task(
     if scheduler is not None:
         await scheduler.reschedule(task_key)
         await session.refresh(row)
-    return ok(_view(row, defn), message="已更新，按新周期生效")
+    return ok(_view(row, defn), message=t("settings.scheduledTasks.saved"))

@@ -238,5 +238,53 @@
   },
   "decision.hardwareFallback": {
     "sourceHash": "590bbb32f36a1e7a10d77759de6330e9d6c7c470e87b9c8b4cee706456df8dba"
+  },
+  "sessions.ended": {
+    "sourceHash": "51dd37b36962081bcd43e59b95679f6758343432e7ef79f2661c849ee6252792"
+  },
+  "history.itemCleared": {
+    "sourceHash": "fd118dbd6ce65ca192bb3e39cc6a9b6a4f0ca6ae9f66b6833d9d9dc01766bad6"
+  },
+  "history.libraryCleared": {
+    "sourceHash": "03128f6f82bf0bd188a8900037d434debd241e8a8e7484a6f68b8624a3ffb05e"
+  },
+  "history.periodCleared": {
+    "sourceHash": "ac1879f8b81d840f17a4a249b795057666c0c6bd6bd2df86e42222826dd48666"
+  },
+  "history.allCleared": {
+    "sourceHash": "daa130124838c8e36e80827d6c38e2acdec9978fe660f84967b79ae6d7455b65"
+  },
+  "delivery.direct": {
+    "sourceHash": "b06325c5660f0c295b1fcdbf9e2dbe645d7fa65ab4ac0128c1f5e8afd106feed"
+  },
+  "delivery.remote": {
+    "sourceHash": "2e14513e7a456952f0cb57b8c8c900528cc0999cf20cc631f949541d447f0972"
+  },
+  "delivery.hardware": {
+    "sourceHash": "4d1dbf8c26285f1671d47467b02bbfe09c4d389afa870879881f16713219b1de"
+  },
+  "delivery.software": {
+    "sourceHash": "44afccb494a6f7c5c100f6c614f828740dae974b38bbc5f39b2e085e0e5d958f"
+  },
+  "delivery.workerNamed": {
+    "sourceHash": "1de4864a590dc8545646206eb76efe5d8db851ccd3fa2daaae5ab2b9ad682868"
+  },
+  "delivery.worker": {
+    "sourceHash": "7c210fc76aac3cacac3fd87a5dd52504d2429fdcbd92f523760ddc0dc48be662"
+  },
+  "delivery.cpu": {
+    "sourceHash": "304318f31e18bbf5431ca3b8f8e368efaf261d29d7a5168fa290792cd6701dc9"
+  },
+  "delivery.downmix": {
+    "sourceHash": "e249180b21dc8a5263b22a45349ce7e7abfe73d4a7ac261798c842e2557af724"
+  },
+  "delivery.audioTarget": {
+    "sourceHash": "83ceb8938ddb60ce97613e02b40b110c6421f77e2b19253c089b9d176a9980d8"
+  },
+  "delivery.audio": {
+    "sourceHash": "9de21d95d9b85c4fb49d0f9f4899d12168986b104ca5607d7d694db11d9032d8"
+  },
+  "delivery.remux": {
+    "sourceHash": "033bde86a4e44b1a8758b6bb66e5930f9115d9e5922bad75434d272bd168e8f5"
   }
 }

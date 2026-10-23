@@ -27,6 +27,7 @@ from sqlmodel import select
 
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.exceptions import BadRequestException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.library import (
     TrashedBatchFailureView,
     TrashedBatchResultView,
@@ -512,13 +513,14 @@ async def _run_batch(
     return done, failed, library_ids
 
 
-def _summary(verb: str, done: int, failed: int, remaining: int) -> str:
-    text = f"已{verb} {done} 个文件"
-    if failed:
-        text += f"，{failed} 个失败"
-    if remaining:
-        text += f"，还有 {remaining} 个未处理（再执行一次即可）"
-    return text
+def _summary(operation: str, done: int, failed: int, remaining: int) -> str:
+    return t(
+        "library.recycle.summary",
+        operation=operation,
+        done=done,
+        failed=failed,
+        remaining=remaining,
+    )
 
 
 @router.post(
@@ -560,7 +562,7 @@ async def purge_trashed_files(
         ids, remaining = all_ids[:BATCH_LIMIT], max(0, len(all_ids) - BATCH_LIMIT)
     done, failed, _libs = await _run_batch(session, ids, action="purge")
     result = TrashedBatchResultView(done=done, failed=failed, remaining=remaining)
-    return ok(result, message=_summary("清理", done, len(failed), remaining))
+    return ok(result, message=_summary("purge", done, len(failed), remaining))
 
 
 @router.post(
@@ -583,4 +585,4 @@ async def restore_trashed_files(
     if done:
         await LibraryRepository(session).refresh_stats(library_ids)
     result = TrashedBatchResultView(done=done, failed=failed)
-    return ok(result, message=_summary("恢复", done, len(failed), 0))
+    return ok(result, message=_summary("restore", done, len(failed), 0))

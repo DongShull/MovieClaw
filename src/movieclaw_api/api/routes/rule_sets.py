@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.subscription import RuleSetPayload, RuleSetView
 from movieclaw_api.services.rule_sets import RuleSetService
@@ -40,7 +41,7 @@ async def create_rule_set(
 ) -> ApiResponse[RuleSetView]:
     service = RuleSetService(session)
     row = await service.create(payload.name, payload.spec, payload.match_rules)
-    return ok(RuleSetView.from_model(row), message="规则组已创建")
+    return ok(RuleSetView.from_model(row), message=t("subscription.rules.created"))
 
 
 @router.put(
@@ -60,7 +61,8 @@ async def update_rule_set(
     )
     references = await service.count_references(rule_set_id)
     return ok(
-        RuleSetView.from_model(row, reference_count=references), message="规则组已更新"
+        RuleSetView.from_model(row, reference_count=references),
+        message=t("subscription.rules.updated"),
     )
 
 
@@ -80,7 +82,7 @@ async def set_default_rule_set(
     references = await service.count_references(rule_set_id)
     return ok(
         RuleSetView.from_model(row, reference_count=references),
-        message=f"「{row.name}」已设为默认规则组",
+        message=t("subscription.rules.defaultSaved", name=row.name),
     )
 
 
@@ -97,4 +99,4 @@ async def delete_rule_set(
 ) -> ApiResponse[dict]:
     service = RuleSetService(session)
     await service.delete(rule_set_id)
-    return ok({}, message="已删除")
+    return ok({}, message=t("subscription.rules.deleted"))

@@ -1,0 +1,9 @@
+{
+  "presets": {
+    "saved": "资源搜索预设已保存",
+    "deleted": "已删除"
+  },
+  "history": {
+    "cleared": "已清空 {count} 条搜索历史"
+  }
+}

@@ -13,6 +13,7 @@ from movieclaw_api.exceptions import (
     NotFoundException,
     ServiceUnavailableException,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.site import (
     BoostCleanupRequest,
@@ -159,12 +160,19 @@ async def cleanup_boost_pool(
     result = await SiteConfigService(session).cleanup_boost_pool(
         site_ids=payload.site_ids, disable_boost=payload.disable_boost, force=payload.force
     )
-    parts = [f"已删除 {result.deleted_count} 个刷流种子"] if result.deleted_count else []
+    parts = (
+        [t("settings.sites.boostDeleted", count=result.deleted_count)]
+        if result.deleted_count
+        else []
+    )
     if result.scheduled_count:
-        parts.append(f"{result.scheduled_count} 个还在保留期内，到期后自动删除")
+        parts.append(t("settings.sites.boostDeferred", count=result.scheduled_count))
     if result.failed_count:
-        parts.append(f"{result.failed_count} 个因下载器暂时不可达没删成，稍后自动重试")
-    return ok(result, message="；".join(parts) or "没有需要清理的刷流种子")
+        parts.append(t("settings.sites.boostCleanupRetry", count=result.failed_count))
+    return ok(
+        result,
+        message=t("common.list.issueSeparator").join(parts) or t("settings.sites.noBoostCleanup"),
+    )
 
 
 @router.get(
@@ -230,7 +238,7 @@ async def configure_site(
     # 同步占位为 VERIFYING（关闭并发窗口），再排队后台任务执行真实验证
     row = await service.start_verification(payload.site_id)
     background_tasks.add_task(verify_site, payload.site_id)
-    return ok(await _to_view(service, row), message="已保存，正在验证")
+    return ok(await _to_view(service, row), message=t("settings.sites.created"))
 
 
 @router.put(
@@ -257,7 +265,7 @@ async def update_site(
     )
     row = await service.start_verification(site_id)
     background_tasks.add_task(verify_site, site_id)
-    return ok(await _to_view(service, row), message="已更新，正在验证")
+    return ok(await _to_view(service, row), message=t("settings.sites.updated"))
 
 
 @router.patch(
@@ -336,7 +344,9 @@ async def set_site_boost_paused(
     row = await service.set_boost_paused(site_id, payload.paused)
     return ok(
         await _to_view(service, row),
-        message="已暂停刷流，做种已限速让出上行带宽" if payload.paused else "已恢复刷流",
+        message=t("settings.sites.boostPaused")
+        if payload.paused
+        else t("settings.sites.boostResumed"),
     )
 
 
@@ -358,7 +368,7 @@ async def reverify_site(
     service = SiteConfigService(session)
     row = await service.start_verification(site_id)  # 404/409/占位一步到位
     background_tasks.add_task(verify_site, site_id)
-    return ok(await _to_view(service, row), message="已重新发起验证")
+    return ok(await _to_view(service, row), message=t("settings.sites.retested"))
 
 
 @router.post(
@@ -469,4 +479,4 @@ async def delete_site(
 ) -> ApiResponse[dict]:
     service = SiteConfigService(session)
     await service.delete(site_id)
-    return ok({"site_id": site_id}, message="已删除")
+    return ok({"site_id": site_id}, message=t("settings.sites.deleted"))

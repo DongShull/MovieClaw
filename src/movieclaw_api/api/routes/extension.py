@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from movieclaw_api.api.deps import require_admin, require_sync_token
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.extension import (
     CookiePushRequest,
     CookieSyncResult,
@@ -176,7 +177,7 @@ async def push_cookies(
 
     return ok(
         CookieSyncResult.from_model(row, display_name=site.display_name, domain=payload.domain),
-        message="已接收 Cookie，正在验证",
+        message=t("settings.extension.cookieReceived"),
     )
 
 
@@ -213,7 +214,12 @@ async def _push_drive_cookie(
         status=ConfigStatus.ACTIVE,
         usable=True,
     )
-    return ok(result, message="已添加为网盘账号" if created else "已更新网盘账号的登录")
+    return ok(
+        result,
+        message=t("settings.extension.driveCreated")
+        if created
+        else t("settings.extension.driveUpdated"),
+    )
 
 
 # ===========================================================================
@@ -252,7 +258,7 @@ async def create_token() -> ApiResponse[SyncTokenView]:
     setting = await generate_sync_token()
     return ok(
         SyncTokenView(enabled=True, token=setting.token, created_at=setting.created_at),
-        message="已生成新令牌，旧令牌立即失效",
+        message=t("settings.extension.tokenRotated"),
     )
 
 
@@ -267,4 +273,4 @@ async def create_token() -> ApiResponse[SyncTokenView]:
 async def delete_token() -> ApiResponse[SyncTokenView]:
     """撤销令牌、关闭扩展同步。此后扩展侧接口一律 401。"""
     await revoke_sync_token()
-    return ok(SyncTokenView(enabled=False), message="已关闭扩展同步")
+    return ok(SyncTokenView(enabled=False), message=t("settings.extension.disabled"))

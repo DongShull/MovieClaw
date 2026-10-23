@@ -26,6 +26,7 @@ from movieclaw_api.exceptions import (
     NotFoundException,
     exception_fields,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.drives import (
     DriveAccountUpdatePayload,
     DriveAccountView,
@@ -196,7 +197,8 @@ async def update_settings_view(payload: DriveSettingsPayload) -> ApiResponse[Dri
         )
         await store.set(current)
     return ok(
-        DriveSettingsView(remove_download_tasks=current.remove_download_tasks), message="已保存"
+        DriveSettingsView(remove_download_tasks=current.remove_download_tasks),
+        message=t("settings.drives.saved"),
     )
 
 
@@ -234,7 +236,7 @@ async def update_account(
         raise NotFoundException(str(exc)) from exc
     except ValueError as exc:
         raise BadRequestException(str(exc)) from exc
-    return ok(account_view(row), message="已保存")
+    return ok(account_view(row), message=t("settings.drives.saved"))
 
 
 @router.get(
@@ -310,7 +312,7 @@ async def delete_account(account_id: int) -> ApiResponse[dict]:
         raise ConflictException(str(exc)) from exc
     if not removed:
         raise NotFoundException(message_key="errors.drives.accountMissing")
-    return ok({"removed": True}, message="已移除")
+    return ok({"removed": True}, message=t("settings.drives.removed"))
 
 
 @router.post(
@@ -422,7 +424,7 @@ async def start_login(payload: DriveLoginPayload) -> ApiResponse[DriveLoginView]
         raise BadRequestException(
             message_key="errors.drives.qrStartFailed", params={"error": exc.message}
         ) from exc
-    return ok(await _login_view(item.login_id), message="请用手机扫码")
+    return ok(await _login_view(item.login_id), message=t("settings.drives.scanPrompt"))
 
 
 @router.get(

@@ -14,6 +14,7 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Query
 
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.storage import CleanPayload, CleanResultView, StorageStateView
 from movieclaw_api.services.storage import service
@@ -42,4 +43,4 @@ async def get_storage_usage(
 )
 async def clean_storage(key: str, payload: CleanPayload) -> ApiResponse[CleanResultView]:
     result = await service.clean(key, payload.mode)
-    return ok(CleanResultView.model_validate(asdict(result)), message="清理完成")
+    return ok(CleanResultView.model_validate(asdict(result)), message=t("settings.storage.cleaned"))

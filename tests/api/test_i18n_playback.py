@@ -10,6 +10,36 @@ from movieclaw_playback.decide import (
     decide_playback,
 )
 
+from . import test_playback_stream as streaming
+
+stream_client = streaming.client
+
+
+def test_activity_renders_the_same_session_reason_for_each_reader(stream_client, tmp_path):
+    file_id = streaming.seed(stream_client, tmp_path, container="mkv")
+    streaming.start_session(stream_client, file_id, device_id="browser-i18n")
+    response = stream_client.post(
+        "/api/v1/playback/progress",
+        json={
+            "media_item_id": streaming._item_id_of(stream_client, file_id),
+            "event": "start",
+            "device_id": "browser-i18n",
+        },
+    )
+    assert response.status_code == 200, response.text
+    for locale, label, reason in [
+        ("en", "Remux", "Video codec H264 can be copied"),
+        ("zh-Hans", "重封装", "视频编码 H264 可直通"),
+    ]:
+        response = stream_client.get(
+            "/api/v1/playback/activity", headers={"Accept-Language": locale}
+        )
+        assert response.status_code == 200, response.text
+        delivery = response.json()["data"]["sessions"][0]["delivery"]
+        assert delivery["label"] == label
+        assert isinstance(delivery["reason"], str)
+        assert reason in delivery["reason"]
+
 
 def test_same_playback_decision_can_render_in_multiple_languages_without_mutation():
     decision = decide_playback(

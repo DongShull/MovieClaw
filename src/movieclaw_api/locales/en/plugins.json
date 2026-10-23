@@ -1,0 +1,29 @@
+{
+  "operations": {
+    "safeModeExited": "Safe mode disabled",
+    "eventReplayed": "Event replayed",
+    "eventIgnored": "Event ignored",
+    "uploadPending": "Uploaded; awaiting approval",
+    "dependenciesReady": "Dependencies installed",
+    "installAbandoned": "Installation abandoned",
+    "rolledBack": "Reverted to the previous version",
+    "uninstalled": "Uninstalled",
+    "restored": "Restored",
+    "endpointRotated": "A new address was generated; the old address is invalid",
+    "endpointRevoked": "Revoked",
+    "consentRevoked": "Consent revoked",
+    "downloadPending": "Downloaded; awaiting approval",
+    "settingsSaved": "Settings saved; the plugin restarted with the new settings",
+    "consentGranted": "Consent granted",
+    "consentSaved": "Saved",
+    "upToDate": "Already up to date",
+    "updatesAvailable": "{count, plural, one {# plugin has} other {# plugins have}} updates",
+    "installed": "Installed and running",
+    "installRollback": "Could not run the plugin; rolled back: {reason}",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "features": {
+    "changed": "\"{title}\" {state, select, enabled {enabled} other {disabled}}"
+  }
+}

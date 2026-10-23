@@ -1,0 +1,71 @@
+{
+  "operations.safeModeExited": {
+    "sourceHash": "df00c7ddb47b5df4c087f50cacee732f046a5eb83db0a3236342f3d7310ed2de"
+  },
+  "operations.eventReplayed": {
+    "sourceHash": "268b76b54a83136e9405da6987bc370ffd64283d941379f3f1f2f1497fb051ee"
+  },
+  "operations.eventIgnored": {
+    "sourceHash": "c9bb70bcaaa3bee1f1a6031886a12270c0cdabafbba9e845513a76e3959dac3f"
+  },
+  "operations.uploadPending": {
+    "sourceHash": "6d96b26b0ff7c3b4f8d75474a96b5fb51292ce6bf8be9a044345199cc1e54fb4"
+  },
+  "operations.dependenciesReady": {
+    "sourceHash": "4c38a55c981195235da218a939b2a1aa9f7dd5d747b2e80d4a727d513f6ae769"
+  },
+  "operations.installAbandoned": {
+    "sourceHash": "b6719689189554a458cc745ac0051ebeede07f521c877e117f54172e6475e21d"
+  },
+  "operations.rolledBack": {
+    "sourceHash": "31e54b98dda55c4775d1ad961a1df85918fd2e0e6b37ccfa20694045f2f2af3e"
+  },
+  "operations.uninstalled": {
+    "sourceHash": "8e7c41c9b6bdb31b77e4f94ff4193e71b50c016f4529fa16165f373da6711692"
+  },
+  "operations.restored": {
+    "sourceHash": "3617f737f437e9982c0e4c19742947fd1a004071503aea753612a4319a834314"
+  },
+  "operations.endpointRotated": {
+    "sourceHash": "f8eb9d9e47076e6fca615e9d5a217f74e61db320c06100f6a906b5fa1ab42c2d"
+  },
+  "operations.endpointRevoked": {
+    "sourceHash": "59d5d9ae744093aaf074c29ed4f2d1f282ee1f1ba4d5f4e307e12106ad7d6010"
+  },
+  "operations.consentRevoked": {
+    "sourceHash": "fef96e34f77b742b32120dac448c1d90f3a2ee2c9bb6942fec13b70d7816cd06"
+  },
+  "operations.downloadPending": {
+    "sourceHash": "239ea329e145bcbd03351648c319cbeaf569722be80d080c55d499c9739c841b"
+  },
+  "operations.settingsSaved": {
+    "sourceHash": "57b084c06d17dc7a9eba00dd2ad1bb8f85683c866acbc317c36dc391aa44d587"
+  },
+  "operations.consentGranted": {
+    "sourceHash": "5961a7938f9180c983166d6a7aea04ccb8f10cc2d5d11f509b542c393dbc1657"
+  },
+  "operations.consentSaved": {
+    "sourceHash": "1bd91a7d0c53c93693523300ece2f5ee35f4643df383495723e944d6f056a720"
+  },
+  "operations.upToDate": {
+    "sourceHash": "4219a7449e2607bf075ab4536cffa6fedec908f3347188a732259310110736f1"
+  },
+  "operations.updatesAvailable": {
+    "sourceHash": "8e25408d07ddba7179ca4276aaf101c97c61e055272bd1bb086fe1e2cec9c118"
+  },
+  "features.changed": {
+    "sourceHash": "d4d5bfba2884ec2348e7359383256d9adb068e8874c4044f4f5a8bf4766264d2"
+  },
+  "operations.installed": {
+    "sourceHash": "095a56d5c237b3d86b9b255c857ba6a183a3a4c3c851e71513a841829cb35fd5"
+  },
+  "operations.installRollback": {
+    "sourceHash": "949c8ecdae2f441bc14b5ef8713c3c465e3c72d007c735394faa87c13e1b180f"
+  },
+  "operations.enabled": {
+    "sourceHash": "dfb802238b38fbd49560b461d3ff1ee5cef3a72077c37a1325cb4892c10fd1c8"
+  },
+  "operations.disabled": {
+    "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+  }
+}

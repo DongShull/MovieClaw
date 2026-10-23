@@ -16,5 +16,44 @@
   },
   "scope.seasons": {
     "sourceHash": "79fb4110762b9fe202a366586f65eae78d03aa023f3cba8f7684514931a91903"
+  },
+  "rules.created": {
+    "sourceHash": "cd891f449c04226546785ae4eb36d27c12e16e37269ea8329464766fe4df1fd8"
+  },
+  "rules.updated": {
+    "sourceHash": "ec6ef61a92ac221b7c431e2c789fa90d800ee734029af3b0efb2025c726bffd0"
+  },
+  "rules.deleted": {
+    "sourceHash": "077a6d37719a0e21e68abe1bf3ec7b83cd05069cec86570c16de88640ffc519f"
+  },
+  "operations.created": {
+    "sourceHash": "f66bcffb4663f5c12d85ac3265e960d6e029b3862ee38b4bb1c0c8da06369c8f"
+  },
+  "operations.updated": {
+    "sourceHash": "ca6ba1a3a847e2801176fa695219a796b4ab89c8f146c080f978100458ae974c"
+  },
+  "operations.episodeHintDismissed": {
+    "sourceHash": "78fb897d8fbafe9adf8e82671af7d5fa6ccc24734713085473cafab43e259800"
+  },
+  "rules.defaultSaved": {
+    "sourceHash": "4d19b6ae85a86cfe8ee3138fa252569739efc056a7ecb9db67baff073cf0902b"
+  },
+  "operations.gapsRequeued": {
+    "sourceHash": "74f6b5df23dae7bdf9722bf1096ae45f57f7a98f5eb2c6ce7ab7d3870e0c6f1b"
+  },
+  "operations.dispatched": {
+    "sourceHash": "2973c769cddd6c053634bce22c575afa6d8b6ffa90e9afcaa70bf55c8d6d9c89"
+  },
+  "operations.paused": {
+    "sourceHash": "865094951f9c3e92357801fc12062318efe8b7cac841829c568319403ca26654"
+  },
+  "operations.resumed": {
+    "sourceHash": "fa9baa2afa54e5929f5b06e8d65de1de1ecff48b240cdc667afa5f05abfa9fe9"
+  },
+  "operations.autoRenewEnabled": {
+    "sourceHash": "474dc7e3c241bbe4d3e8b84c04a21d8e49aba1aed83926ab7bcd133ae017e2a5"
+  },
+  "operations.autoRenewDisabled": {
+    "sourceHash": "a2f9b1d1614ab5666ac063db3fcdeab19296c68096d2c7510bc430c058914a32"
   }
 }

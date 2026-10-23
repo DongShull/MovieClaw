@@ -28,6 +28,7 @@ from movieclaw_api.exceptions import (
     NotFoundException,
     ServiceUnavailableException,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.channels import (
     ChannelAccountView,
     ChannelBindingInputPayload,
@@ -185,7 +186,9 @@ async def start_binding(
         raise BadRequestException(
             message_key="errors.channels.pairingFailed", params={"error": exc}
         ) from exc
-    return ok(await _binding_view(hub, binding.binding_id), message="绑定已发起")
+    return ok(
+        await _binding_view(hub, binding.binding_id), message=t("settings.imPush.bindingStarted")
+    )
 
 
 @router.get(
@@ -226,7 +229,7 @@ async def submit_binding_input(
 async def unbind_account(channel_id: str, account_id: str) -> ApiResponse[dict]:
     if not await _hub().unbind(channel_id, account_id):
         raise NotFoundException(message_key="errors.channels.accountMissing")
-    return ok({}, message="已解绑")
+    return ok({}, message=t("settings.imPush.unbound"))
 
 
 # ---------------------------------------------------------------------- 推送（路径不变）
@@ -243,7 +246,7 @@ async def send_test_push(payload: PushTestPayload) -> ApiResponse[dict]:
     sent = await push_to_all_channels(text)
     if sent == 0:
         raise BadRequestException(message_key="errors.channels.noPushAccount")
-    return ok({"sent": sent}, message=f"已推送到 {sent} 个账号")
+    return ok({"sent": sent}, message=t("notify.channels.testSent", count=sent))
 
 
 # IM 推什么已并入「账号 → 通知」（cloud-push.md §5）：IM 账号都归管理员，这两个开关就是
@@ -290,4 +293,4 @@ async def update_push_config(
         {e: getattr(payload, k) for k, e in _LEGACY_EVENTS.items()},
         is_admin=True,
     )
-    return ok(await _legacy_push_config(session), message="推送设置已保存")
+    return ok(await _legacy_push_config(session), message=t("settings.appPush.saved"))

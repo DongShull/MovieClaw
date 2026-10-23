@@ -1,0 +1,9 @@
+{
+  "presets": {
+    "saved": "Release search presets saved",
+    "deleted": "Deleted"
+  },
+  "history": {
+    "cleared": "Cleared {count, plural, one {# search history entry} other {# search history entries}}"
+  }
+}

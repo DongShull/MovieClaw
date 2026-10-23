@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import BadRequestException, UpstreamUnreachableException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.media_discover import get_tmdb_client, reset_media_service
 from movieclaw_api.services.scrape_config import (
@@ -227,7 +228,7 @@ async def save_fanart_key(payload: FanartKeyPayload) -> ApiResponse[FanartStatus
         ) from exc
     except FanartError as exc:
         raise BadRequestException(str(exc)) from exc
-    return ok(FanartStatusView(**fanart_status()), message="Fanart.tv API Key 已验证并保存")
+    return ok(FanartStatusView(**fanart_status()), message=t("settings.scrape.fanartSaved"))
 
 
 # ---------------------------------------------------------------------------

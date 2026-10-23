@@ -30,6 +30,7 @@ from movieclaw_api.exceptions import (
     ServiceUnavailableException,
     exception_fields,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.schemas.library import LibraryGalleryGroupView, SeasonEpisodesView
 from movieclaw_api.schemas.playback import (
@@ -591,7 +592,7 @@ async def end_device_playback(
     if label is None:
         raise NotFoundException(message_key="errors.playback.notPlaying")
     await end_playback(device_id)
-    return ok(None, message=f"已结束「{label}」的播放")
+    return ok(None, message=t("player.sessions.ended", name=label))
 
 
 @router.get(
@@ -710,7 +711,7 @@ async def clear_playback_history(
         result = await playback_history.clear(
             session, member_id, media_item_id=media_item_id, since=since
         )
-        message = "已清除这部作品的观看记录"
+        message = t("player.history.itemCleared")
     elif scope == "library":
         if library_id is None:
             raise BadRequestException(message_key="errors.playback.clearLibraryRequired")
@@ -718,13 +719,13 @@ async def clear_playback_history(
         result = await playback_history.clear(
             session, member_id, library_id=library_id, since=since
         )
-        message = "已清除你在这个库里的观看记录"
+        message = t("player.history.libraryCleared")
     elif since is not None:
         result = await playback_history.clear(session, member_id, since=since)
-        message = "已清除你这段时间的观看记录"
+        message = t("player.history.periodCleared")
     else:
         result = await playback_history.clear(session, member_id)
-        message = "已清除你的全部观看记录"
+        message = t("player.history.allCleared")
     logger.info(
         "观看记录已清除：主体=%s 范围=%s 起点=%s 状态 %d 条 / 指标 %d 条",
         principal,
@@ -761,7 +762,7 @@ async def revoke_playback_device(
     label = await revoke_device(session, device_id)
     if label is None:
         raise NotFoundException(message_key="errors.playback.deviceMissing")
-    return ok(None, message=f"已注销「{label}」，该设备需重新登录")
+    return ok(None, message=t("auth.devices.revoked", name=label))
 
 
 @router.post(
