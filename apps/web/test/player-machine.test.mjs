@@ -166,7 +166,7 @@ test("兜底档也失败：进错误态并给出换播放器的建议", () => {
     { type: "failed", reason: "软转也放不出来" },
   ]);
   assert.equal(state.phase, "error");
-  assert.match(state.error.suggestion, /原生播放器/);
+  assert.equal(state.error.suggestionKey, "player.errors.nativePlayerHint");
 });
 
 test("兜底档失败进错误态时会话必须清空——错误页背后不能还挂着转码", () => {

@@ -14,5 +14,6 @@
   "save": "Save",
   "upload": "Upload",
   "loading": "Loading…",
-  "retry": "Retry"
+  "retry": "Retry",
+  "back": "Back"
 }

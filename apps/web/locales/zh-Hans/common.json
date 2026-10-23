@@ -14,5 +14,6 @@
   "save": "保存",
   "upload": "上传",
   "loading": "加载中…",
-  "retry": "重试"
+  "retry": "重试",
+  "back": "返回"
 }

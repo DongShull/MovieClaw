@@ -6,5 +6,25 @@
     "tv": "Series",
     "movie": "Movie",
     "video": "Video"
+  },
+  "languages": {
+    "simplifiedChinese": "Simplified Chinese",
+    "traditionalChinese": "Traditional Chinese",
+    "chinese": "Chinese",
+    "cantonese": "Cantonese",
+    "english": "English",
+    "japanese": "Japanese",
+    "korean": "Korean",
+    "french": "French",
+    "german": "German",
+    "spanish": "Spanish",
+    "russian": "Russian",
+    "italian": "Italian",
+    "portuguese": "Portuguese",
+    "thai": "Thai",
+    "hindi": "Hindi"
+  },
+  "episode": {
+    "number": "Episode {episode}"
   }
 }

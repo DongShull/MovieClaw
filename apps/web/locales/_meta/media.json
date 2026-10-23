@@ -10,5 +10,53 @@
   },
   "kind.video": {
     "sourceHash": "c20f7618d330a854e70c918789c8028a6ef3e642e7e6abac8e337aba741b3716"
+  },
+  "languages.simplifiedChinese": {
+    "sourceHash": "9937e365aaf3a0854053a3179584ad9cd82e1164ea8535b50c1e6ae7102b373c"
+  },
+  "languages.traditionalChinese": {
+    "sourceHash": "7bf7a60617de1a5da9d96c0b77ec574ddb527f199694571d4cb234af2c2625ed"
+  },
+  "languages.chinese": {
+    "sourceHash": "72726d8818f693066ceb69afa364218b692e62ea92b385782363780f47529c21"
+  },
+  "languages.cantonese": {
+    "sourceHash": "3b0aa680e2b63ff24180c25bd4714dd905f6b99696e74b939fa7b6e48f05ec29"
+  },
+  "languages.english": {
+    "sourceHash": "d1648bacbc1630a60ebc0091fa7a4cb7d831c4696a80f302dcacfc59838895a0"
+  },
+  "languages.japanese": {
+    "sourceHash": "3a944ddb3868f4b21ed515205ad6a7e0177451af2549a6f55f1996fc5a3d7045"
+  },
+  "languages.korean": {
+    "sourceHash": "259cdcf751996c6c1d43b2bdcf714f2f24783c08180979dfd842e9750757ab4b"
+  },
+  "languages.french": {
+    "sourceHash": "99cdf164a8140865a706489a5fe02f38319be7d8dd030963575f5b568a800bca"
+  },
+  "languages.german": {
+    "sourceHash": "7566092dce7261d0feb9f7987b8d9ac297b352b81f5f74c5de37e3370cf20b8f"
+  },
+  "languages.spanish": {
+    "sourceHash": "6c872d27f8359dc7a5aba0230d9dbbbe2b9288c019638711664f9674b2a87635"
+  },
+  "languages.russian": {
+    "sourceHash": "bdb6608a4dc8d212b92d2a651215ac3b9a6eb95e7b4f89d973c13680598f879c"
+  },
+  "languages.italian": {
+    "sourceHash": "5bdde8257c53cfbc321499906fefbee23ea59d9eabc92a4fa4e26c02302ae3a7"
+  },
+  "languages.portuguese": {
+    "sourceHash": "6ce072a79389aa68ce3e81d881ba94d3e05ba3634ebc3f6d12b9876a26642362"
+  },
+  "languages.thai": {
+    "sourceHash": "a15fb0d0595f0bf84942ffe6726ca7d3ac4eafeda3ea973b3e28db08d8c209b3"
+  },
+  "languages.hindi": {
+    "sourceHash": "99012cae1587f2edfcf21cdb5de94883ff0d2448223ce6ba8c8ab1b8e4de7eda"
+  },
+  "episode.number": {
+    "sourceHash": "be49dc6f013a691057b5f47c83542dd2ce904634597091f09b368d0513423076"
   }
 }

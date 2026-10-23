@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from . import test_theme_device_class_browser as theme
@@ -37,6 +39,14 @@ def test_language_end_to_end(stack, browser):
     page.get_by_placeholder("Confirm password", exact=True).fill(ADMIN["password"])
     page.get_by_role("button", name="Create account and continue").click()
     page.wait_for_url(f"{base}/")
+    expect(page.get_by_role("button", name="New session", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="My subscriptions", exact=True)).to_be_visible()
+    expect(page.get_by_text("Super administrator", exact=True)).to_be_visible()
+    page.wait_for_function(
+        """() => [...document.querySelectorAll('div[aria-hidden="true"][class*="z-[100]"]')]
+        .every(element => getComputedStyle(element).opacity === "0")"""
+    )
+    page.screenshot(path=str(artifacts / "home-en.png"), full_page=True)
     english.request.post(f"{base}/api/v1/auth/logout")
 
     page.goto(f"{base}/login?next=/settings/appearance")
@@ -60,6 +70,7 @@ def test_language_end_to_end(stack, browser):
     page.get_by_role("combobox", name="Language", exact=True).select_option("zh-Hans")
     expect(page.locator("html")).to_have_attribute("lang", "zh-Hans")
     expect(page.get_by_placeholder("用户名", exact=True)).to_have_value(ADMIN["username"])
+    expect(page.get_by_text("用户名或密码错误", exact=True)).to_be_visible()
     assert page.evaluate("window.__languageMarker") == 42
     page.get_by_placeholder("密码", exact=True).fill("wrong-password")
     page.get_by_role("button", name="登录", exact=True).last.click()
@@ -75,6 +86,9 @@ def test_language_end_to_end(stack, browser):
     expect(group.locator('input[value="en"]')).to_be_enabled()
     expect(page.locator("html")).to_have_attribute("lang", "en")
     expect(page.get_by_role("heading", name="Appearance and language", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Devices", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Updates and maintenance", exact=True)).to_be_visible()
+    expect(page).to_have_title("Appearance and language · Settings · MovieClaw")
     assert page.evaluate("window.__languageMarker") == 84
     saved = english.request.get(f"{base}/api/v1/ui/preferences").json()["data"]
     assert saved["language"] == "en"
@@ -85,7 +99,28 @@ def test_language_end_to_end(stack, browser):
         """() => [...document.querySelectorAll('div[aria-hidden="true"][class*="z-[100]"]')]
           .every(element => getComputedStyle(element).opacity === "0")"""
     )
+    expect(
+        page.get_by_text("Solid colors, brand red, top navigation and cinematic rows", exact=True)
+    ).to_be_visible()
     page.screenshot(path=str(artifacts / "appearance-en.png"), full_page=True)
+    # The bundled theme uses the same live locale context through its public SDK.
+    page.get_by_role("button", name=re.compile("^Netflix")).first.click()
+    expect(page.locator("html")).to_have_attribute("data-theme", "netflix")
+    expect(page.get_by_role("link", name="My subscriptions", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="New task", exact=True)).to_be_visible()
+    page.screenshot(path=str(artifacts / "netflix-appearance-en.png"), full_page=True)
+    page.get_by_role("link", name="My subscriptions", exact=True).click()
+    expect(page.get_by_role("heading", name="My subscriptions", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="All", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Series", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("heading", name="Start with something you want to watch", exact=True)
+    ).to_be_visible()
+    expect(page.get_by_role("link", name="Discover series", exact=True)).to_be_visible()
+    page.screenshot(path=str(artifacts / "netflix-subscriptions-en.png"), full_page=True)
+    page.goto(f"{base}/settings/appearance")
+    page.get_by_role("button", name=re.compile("^Silver Glass")).first.click()
+    expect(page.locator("html")).not_to_have_attribute("data-theme", "netflix")
 
     # New browser starts in Chinese, but this account's explicit language wins at login.
     chinese = browser.new_context(
@@ -102,6 +137,7 @@ def test_language_end_to_end(stack, browser):
     other.get_by_test_id("language-settings").locator('input[value="auto"]').check()
     expect(other.locator("html")).to_have_attribute("lang", "zh-Hans")
     expect(other.get_by_test_id("language-settings").locator('input[value="auto"]')).to_be_enabled()
+    expect(other.get_by_role("heading", name="外观与语言", exact=True).first).to_be_visible()
     assert not any(cookie["name"] == "mc_locale" for cookie in chinese.cookies())
     other.reload()
     expect(other.locator("html")).to_have_attribute("lang", "zh-Hans")

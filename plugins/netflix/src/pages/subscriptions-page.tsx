@@ -414,6 +414,7 @@ function ComingSoonSection({
       </HScroller>
       {/* 「下载中」状态的任务中心入口：触屏上整卡已指向订阅详情，任务细节
           在详情页可见；桌面给一行深链，与银玻璃版「下载中 → 任务中心」一致 */}
+      {/* i18n-ignore: ui.theme 1.x 的兼容状态标识；展示使用翻译键。 */}
       {canOpenTasks && groups.some((g) => g.presentation.statusLabel === "下载中") && (
         <Link
           href={"/activity?view=active" as Route}
@@ -458,6 +459,7 @@ function ComingSoonCard({
   const t = useAppTranslations();
   const dayLabel =
     t(group.daysAhead === 0 ? "subscription.arrivals.todayBadge" : group.daysAhead === 1 ? "subscription.arrivals.tomorrowBadge" : "subscription.arrivals.futureBadge", { count: group.daysAhead });
+  // i18n-ignore: ui.theme 1.x 的兼容状态标识；展示使用翻译键。
   const downloading = group.presentation.statusLabel === "下载中";
   const percent =
     downloading && progress != null ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : null;

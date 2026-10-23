@@ -89,7 +89,11 @@ export interface PlayerState {
    * 降档路径不受影响是因为它每次都改 failedTiers/failureCount，指纹天然不同。
    */
   attempt: number;
-  error: { message: string; suggestion: string | null } | null;
+  error: {
+    message: string;
+    suggestion: string | null;
+    suggestionKey?: "player.errors.nativePlayerHint";
+  } | null;
 }
 
 export const initialPlayerState: PlayerState = {
@@ -281,7 +285,8 @@ export function playerReducer(state: PlayerState, event: PlayerEvent): PlayerSta
           failureCount: state.failureCount + 1,
           error: {
             message: event.reason,
-            suggestion: "这个文件在浏览器里放不出来，建议用 Infuse、VidHub 等原生播放器打开。",
+            suggestion: null,
+            suggestionKey: "player.errors.nativePlayerHint",
           },
         };
       }

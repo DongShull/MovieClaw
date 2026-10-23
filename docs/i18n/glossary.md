@@ -59,6 +59,8 @@
 不译：MovieClaw、TMDB、IMDb、Douban、qBittorrent、Transmission、Jellyfin、BDMV、HDR、Dolby Vision。
 语言选项始终使用自称：`简体中文`、`English`，不使用国旗。
 
+「关闭」作关闭窗口的动作时使用 Close；字幕菜单中的关闭状态使用 Off（`player.subtitles.off`）。
+
 `common.*` 白名单：保存 Save、取消 Cancel、删除 Delete、确定 Confirm、重试 Retry、关闭 Close、
 编辑 Edit、完成 Done、加载中 Loading…、暂无内容 No content、添加 Add、返回 Back、下一步 Next、
 上一步 Previous、搜索 Search、清空 Clear、刷新 Refresh、启用 Enable、停用 Disable、复制 Copy、
