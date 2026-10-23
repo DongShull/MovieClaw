@@ -17,6 +17,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import BadRequestException
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services.subscription.smart_profiles import conflict
 from movieclaw_db.models import (
     ActivityType,
@@ -263,10 +264,6 @@ def _override_of(sub: Subscription) -> QualityOverride | None:
         return None
 
 
-def _wait_text(seconds: int) -> str:
-    return "不等待" if seconds == 0 else f"最多等 {seconds // 3600} 小时"
-
-
 async def resolve_subscription(
     session: AsyncSession, sub: Subscription, *, memory: SmartMemory | None = None
 ) -> tuple[Resolved, SmartPolicy] | None:
@@ -326,15 +323,22 @@ async def apply_to_subscriptions(
         if sub.status == SubscriptionStatus.COMPLETED:
             continue
         target = f"{policy.resolution} {policy.source}"
-        subtitles = "，只下看得懂的字幕版本" if policy.watchable_languages else ""
+        message = stored_fields(
+            "subscription.smart.policyAdjusted",
+            wait=reference("subscription.smart.noWait")
+            if policy.wait_seconds == 0
+            else reference("subscription.smart.waitHours", count=policy.wait_seconds // 3600),
+            target=target,
+            subtitles="yes" if policy.watchable_languages else "no",
+            upgrade="yes" if policy.allow_upgrade else "no",
+        )
         session.add(
             SubscriptionActivity(
                 subscription_id=sub.id,
                 type=ActivityType.ADJUSTED,
-                message=(
-                    f"已跟随当前智能设置与记忆：{_wait_text(policy.wait_seconds)}，目标 {target}"
-                    f"{subtitles}{'，达标后停止洗版' if policy.allow_upgrade else '，不洗版'}"
-                ),
+                message=message["message"],
+                message_key=message["message_key"],
+                message_params=message["message_params"],
                 payload={"smart_policy": payload},
             )
         )

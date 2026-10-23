@@ -133,6 +133,7 @@ def check_catalogs() -> list[str]:
             "movieclaw_playback",
             "movieclaw_jellyfin",
             "movieclaw_media",
+            "movieclaw_matcher",
         )
         for path in (ROOT / "src" / package).rglob("*.py")
     ]
@@ -237,7 +238,12 @@ def unused_keys() -> list[str]:
         if base.name == "movieclaw_api":
             paths += [
                 path
-                for package in ("movieclaw_playback", "movieclaw_jellyfin", "movieclaw_media")
+                for package in (
+                    "movieclaw_playback",
+                    "movieclaw_jellyfin",
+                    "movieclaw_media",
+                    "movieclaw_matcher",
+                )
                 for path in (ROOT / "src" / package).rglob("*.py")
             ]
         source = "\n".join(path.read_text() for path in paths)

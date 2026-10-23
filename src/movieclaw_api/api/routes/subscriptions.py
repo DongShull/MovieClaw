@@ -21,6 +21,8 @@ from movieclaw_api.exceptions import (
     UpstreamServiceException,
 )
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.labels import language_name
+from movieclaw_api.i18n.stored import reference, render_value
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.subscription import (
     ActivityView,
@@ -96,6 +98,7 @@ from movieclaw_api.services.subscription.episode_floor import (
     tracks_season,
 )
 from movieclaw_api.services.subscription.smart_memory import SmartChoice
+from movieclaw_api.services.subscription.smart_presentation import smart_presentation
 from movieclaw_api.services.subscription.smart_profiles import save_profile
 from movieclaw_api.services.title_discovery import (
     get_title_discovery_service,
@@ -147,19 +150,18 @@ async def put_smart_profile(
     return ok({"kind": kind, "revision": row.revision, "preferences": row.preferences})
 
 
-def _wait_label(seconds: int) -> str:
+def _wait_reference(seconds: int) -> dict:
     if seconds == 0:
-        return "尽快下载"
+        return reference("subscription.smart.asap")
     if seconds % 86400 == 0:
-        return f"最多等 {seconds // 86400} 天"
-    return f"最多等 {seconds // 3600} 小时"
+        return reference("subscription.smart.waitDays", count=seconds // 86400)
+    return reference("subscription.smart.waitHours", count=seconds // 3600)
 
 
 async def _smart_plan_view(
     session: AsyncSession, item: MediaItem, *, is_admin: bool
 ) -> SmartPlanView:
     from movieclaw_api.services.subscription.smart_memory import plan_for
-    from movieclaw_matcher.smart_memory import language_label
 
     plan = await plan_for(session, item)
     resolved, prefs = plan.resolved, plan.prefs
@@ -168,10 +170,13 @@ async def _smart_plan_view(
             configured=False, memory_revision=plan.memory.revision, can_edit=is_admin
         )
     language = resolved.subtitle_language
-    strict = (
-        f" · 只接受 {'4K' if resolved.resolution == '2160p' else '1080p'}"
-        if prefs.strict_resolution
-        else ""
+    rendered = smart_presentation(resolved)
+    wait = reference(
+        "subscription.smart.waitPlan",
+        wait=_wait_reference(prefs.wait_seconds),
+        upgrade="yes" if prefs.allow_upgrade else "no",
+        strict="yes" if prefs.strict_resolution else "no",
+        resolution="4K" if resolved.resolution == "2160p" else "1080p",
     )
     return SmartPlanView(
         configured=True,
@@ -179,19 +184,35 @@ async def _smart_plan_view(
         memory_revision=plan.memory.revision,
         resolution=resolved.resolution,
         source=resolved.source,
-        quality_label=resolved.quality_label,
-        quality_note=resolved.quality_note,
-        quality_shadow=resolved.quality_shadow,
-        wait_label=f"{_wait_label(prefs.wait_seconds)} · "
-        f"{'达标后停止洗版' if prefs.allow_upgrade else '入库后不洗版'}{strict}",
+        quality_label=rendered["quality_label"],
+        quality_note=rendered["quality_note"],
+        quality_shadow=rendered["quality_shadow"],
+        wait_label=render_value(wait),
         subtitle_language=language,
-        subtitle_language_label=language_label(language) if language else None,
+        subtitle_language_label=language_name(language) if language else None,
         subtitle_understood=None if language is None else not resolved.watchable_languages,
-        subtitle_line=resolved.subtitle_line,
-        question=SmartQuestionView(**resolved.question.model_dump())
+        subtitle_line=rendered["subtitle_line"],
+        question=SmartQuestionView(**rendered["question"])
         if resolved.question and is_admin
         else None,
-        scope_options=[SmartScopeOptionView(**o.model_dump()) for o in resolved.scope_options],
+        subtitle_edit_question=SmartQuestionView(
+            language=language,
+            prompt=t("subscription.smart.editLanguageQuestion", language=language_name(language)),
+            subtitles_label=t(
+                "subscription.smart.requireSubtitles",
+                acceptable=t("media.language.or").join(
+                    language_name(code) for code in resolved.watchable_languages
+                ),
+            )
+            if resolved.watchable_languages
+            else t("subscription.smart.genericRequireSubtitles"),
+            understood_label=t(
+                "subscription.smart.understoodAnswer", language=language_name(language)
+            ),
+        )
+        if language and is_admin
+        else None,
+        scope_options=[SmartScopeOptionView(**o) for o in rendered["scope_options"]],
         can_edit=is_admin,
     )
 
@@ -257,8 +278,7 @@ async def _memory_view(session: AsyncSession) -> SmartMemoryView:
     from movieclaw_matcher.smart_memory import (
         COMMON_LANGUAGES,
         DEFAULT_UNDERSTOOD,
-        language_label,
-        quality_label,
+        quality_reference,
     )
 
     memory = await load_memory(session)
@@ -267,12 +287,12 @@ async def _memory_view(session: AsyncSession) -> SmartMemoryView:
 
     def habit_quality(h) -> str:
         if h.resolution and h.source:
-            return quality_label(h.resolution, h.source)
+            return render_value(quality_reference(h.resolution, h.source))
         return {
             "2160p": "4K",
             "1080p": "1080p",
             "web-dl": "WEB-DL",
-            "blu-ray": "蓝光",
+            "blu-ray": t("subscription.smart.bluray"),
             "remux": "Remux",
         }[h.resolution or h.source]
 
@@ -280,24 +300,24 @@ async def _memory_view(session: AsyncSession) -> SmartMemoryView:
         revision=memory.revision,
         languages=[
             SmartLanguageView(
-                key=DEFAULT_UNDERSTOOD, label=language_label(DEFAULT_UNDERSTOOD), removable=False
+                key=DEFAULT_UNDERSTOOD, label=language_name(DEFAULT_UNDERSTOOD), removable=False
             ),
             *(
                 SmartLanguageView(
-                    key=a.key, label=language_label(a.key), source_title=a.source_title
+                    key=a.key, label=language_name(a.key), source_title=a.source_title
                 )
                 for a in sorted(understood, key=lambda a: a.at.timestamp() if a.at else 0.0)
             ),
         ],
         addable_languages=[
-            SmartLanguageOptionView(key=k, label=language_label(k))
+            SmartLanguageOptionView(key=k, label=language_name(k))
             for k in COMMON_LANGUAGES
             if k not in keys
         ],
         habits=[
             SmartHabitView(
                 key=h.key,
-                label=h.label,
+                label=render_value(h.label_message),
                 quality_label=habit_quality(h),
                 source_title=h.source_title,
             )
@@ -509,17 +529,17 @@ async def _detail_view(
             view.smart_policy = None
         else:
             from movieclaw_api.services.subscription.smart_memory import resolve_subscription
-            from movieclaw_matcher.smart_memory import language_label
 
             solved = await resolve_subscription(session, sub)
             if solved is not None:
                 resolved, _policy = solved
-                view.smart_quality_note = resolved.quality_note
+                rendered = smart_presentation(resolved)
+                view.smart_quality_note = rendered["quality_note"]
                 if resolved.subtitle_language and resolved.subtitle_line:
                     view.smart_subtitle = SmartSubtitleView(
                         language=resolved.subtitle_language,
-                        language_label=language_label(resolved.subtitle_language),
-                        line=resolved.subtitle_line,
+                        language_label=language_name(resolved.subtitle_language),
+                        line=rendered["subtitle_line"],
                         understood=not resolved.watchable_languages,
                     )
     return view

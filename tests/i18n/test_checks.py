@@ -153,3 +153,17 @@ def test_provider_extent_references_are_checked(catalog):
     provider.parent.mkdir(parents=True)
     provider.write_text('card.extent_key = "common.missing"')
     assert any("unknown key common.missing" in error for error in check.check_catalogs())
+
+
+@pytest.mark.parametrize(
+    "source", ['reference("common.missing")', 'reference("common.greeting", wrong=1)']
+)
+def test_matcher_presentation_references_are_checked(catalog, source):
+    root, _ = catalog
+    path = root / "src/movieclaw_matcher/example.py"
+    path.parent.mkdir(parents=True)
+    path.write_text(source)
+    assert any(
+        "unknown key" in error or "call parameters differ" in error
+        for error in check.check_catalogs()
+    )

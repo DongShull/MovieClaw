@@ -116,6 +116,7 @@ export interface SmartPlan {
   subtitle_line: string | null;
   /** 仅管理员、且这种语言还没回答过时给出 */
   question: SmartQuestion | null;
+  subtitle_edit_question?: SmartQuestion | null;
   scope_options: SmartScopeOption[];
   can_edit: boolean;
 }

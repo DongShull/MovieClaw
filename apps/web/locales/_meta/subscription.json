@@ -757,5 +757,206 @@
   },
   "rules.collapse": {
     "sourceHash": "afd4b783536b8297bb2506836727af1ccae7626a7d04e89de7ad402360e0a970"
+  },
+  "smart.title": {
+    "sourceHash": "564149c74897db9aeeb1494cd8df79d25f6888deed106f9beb4fbc830fee2de4"
+  },
+  "smart.loading": {
+    "sourceHash": "9ee6956371409c3b0d2b0622f21f7615b28f733318721e1ac6b66d596188d3eb"
+  },
+  "smart.editSettings": {
+    "sourceHash": "f797b44cfd5498d0204cf53ecc2a1d87f30cc656865cf091b37201d3fff2bac3"
+  },
+  "smart.adminRequired": {
+    "sourceHash": "175f703a78e15fd94210e0051ff85b9cde2aa486adb39539d63d4a373be37893"
+  },
+  "smart.collapse": {
+    "sourceHash": "afd4b783536b8297bb2506836727af1ccae7626a7d04e89de7ad402360e0a970"
+  },
+  "smart.editQuality": {
+    "sourceHash": "1a02b372fe27e1476dd163a5c79e41db8e5ba3575e5c3901f87083b0eac6e93c"
+  },
+  "smart.resolution": {
+    "sourceHash": "b92421822c213c2b02eb15434c2002336b66b63de6a418b98fbb7f4f6872218b"
+  },
+  "smart.source": {
+    "sourceHash": "bf54866b0ddc5c6d1fcfc386c3ee1c52b4f6fd92edf60eb6eb9c87dabef5075a"
+  },
+  "smart.bluray": {
+    "sourceHash": "0cde1d0445b15beeb659172f3b27d6c0da7706aaa2cd30a63bf5360b9f7588a3"
+  },
+  "smart.rememberScope": {
+    "sourceHash": "5904161cbf0b493227757cdbd5362cd3bfc8d2fcf4a6fabe77042bed1fd677bb"
+  },
+  "smart.editSubtitleLabel": {
+    "sourceHash": "5b8e29e596ede3aa91841dbbb7d555550ac8bc38be25b07c6dfbec3cd51ac341"
+  },
+  "smart.editSubtitle": {
+    "sourceHash": "3441804940632876afd2715548bb49376943a533d28fe33729cebc69873056a2"
+  },
+  "smart.asap": {
+    "sourceHash": "08c6cf56c420f57fc6c9fb128f9587db2e011160356c2bf79ff161710d359840"
+  },
+  "smart.waitNow": {
+    "sourceHash": "69e36615e3c463b2d95f591656c0680d80821e108155d9165d92b0dc752b13c9"
+  },
+  "smart.waitThreeHours": {
+    "sourceHash": "fe8155ce4f3977e57f5f1e9387a004b5c13294695247c82a652d9c0e5595f23c"
+  },
+  "smart.waitOneDay": {
+    "sourceHash": "a58c9c66b4e8d2ec429b6102682276834037cdaf5ac88957e113d5d0d6f8aa0a"
+  },
+  "smart.customWait": {
+    "sourceHash": "4eafa9e925b30bcdc99faefeb4a833b47194b0d4f6d7753cecfebea31a61d01a"
+  },
+  "smart.waitLimit": {
+    "sourceHash": "7a3c93ea895b980fa6b6f2eebb16d6b5c4e39accf6a580c4952e6766dfbe9f88"
+  },
+  "smart.daysUnit": {
+    "sourceHash": "49da61ceeea2f2714263cb2baf9985b856f7c9ce77a025c5815de59aa4aa6092"
+  },
+  "smart.preferredResolution": {
+    "sourceHash": "3c896f358d91e4a3ee52555b14f9b62b2d2a087e35053ed64030c0ecb8a7b15d"
+  },
+  "smart.preferredSource": {
+    "sourceHash": "0c0f11591d37073bb9c4ab5bf9cb42ccb3bc49163c7d418d71b1cc4ce9078b04"
+  },
+  "smart.movieWait": {
+    "sourceHash": "1ea62163341d1d8ca5a42b2392cc8184896eae40af15daaccd610076bd918f6a"
+  },
+  "smart.tvWait": {
+    "sourceHash": "66584048c52794045aa646f0f298836671b608055b512877fb198a1651f38889"
+  },
+  "smart.allowUpgrade": {
+    "sourceHash": "d12379778e30d767230d4b37c9f34ab2f336c96a5a48eb0d20f90a8df8f6feee"
+  },
+  "smart.minimumRequirements": {
+    "sourceHash": "d276f07275928ac6329c2512d5aadf7b984b59ca2deee532c63f23427b118dc7"
+  },
+  "smart.selectionHint": {
+    "sourceHash": "82358aa46d4679381797bcdafa9c63c85baa58790c519e10418db6ef71840a30"
+  },
+  "smart.waitHint": {
+    "sourceHash": "cf6ca41a7fdd51c8acfa28ab2116840829f4b9f68d67bd72dcdcc0401788f2d9"
+  },
+  "smart.saveFailed": {
+    "sourceHash": "f42a1238b44a48586672e0be5f46a46a7886d9b408b2626dc0a174810ac69368"
+  },
+  "smart.settingsLabel": {
+    "sourceHash": "fa01ea6556be94c545f85bf2c8890de877f236d32a023c4a47c53895916b65a4"
+  },
+  "smart.default": {
+    "sourceHash": "844b8cc8dff7c1d87b0f840c0a1271b227b332288a1a947f24fd376bfd12c1c9"
+  },
+  "smart.reload": {
+    "sourceHash": "30de7fb3575c54b405c2fa6e077173c45e80fade18e191109381dda0a38cfe2d"
+  },
+  "smart.updateHint": {
+    "sourceHash": "b68df1d786ac0d9893fdbee5fe5a861bdb26b8656042e1b879347c2280db6599"
+  },
+  "smart.setupHint": {
+    "sourceHash": "89776f903879592867647c8f449865da0553c78497af88e134b998cdf80fc307"
+  },
+  "smart.cancelChanges": {
+    "sourceHash": "fada4dfc38e3f489e26330cbdf2bb0bde648d3dc4d7ca19d5849529e2fd141dc"
+  },
+  "smart.saving": {
+    "sourceHash": "6bdb4435095e5d285aa21be60ab343f9e489a314c6e132874dc0fa5ce6b4f5bb"
+  },
+  "smart.save": {
+    "sourceHash": "c8550237ba701f64dbb384f5bfbda44b82f45b2eb72280e9de1432f6ea4ccb30"
+  },
+  "smart.memoryLabel": {
+    "sourceHash": "fc6010313b3baef3cdf12797fd790da9f0106ce48231b55ada17479f10af396a"
+  },
+  "smart.understoodLanguages": {
+    "sourceHash": "81cfbd98c3ee59d0d05d966dc24246ee7dd2fed774a9b3b90bdfdda231898d47"
+  },
+  "smart.understoodHint": {
+    "sourceHash": "a4aa7a7a7a92072cf71ef15f95f147f81feb0c7320b8464f4631aac68768dedf"
+  },
+  "smart.addedInSettings": {
+    "sourceHash": "bfc50c7b595c0b7a51a951c465eaed78fd82eb253ff3defcd9202da5969e0083"
+  },
+  "smart.remove": {
+    "sourceHash": "6135d4159e8925413f3341383615f2995299a536c2a7e15b74035d6d8593c03d"
+  },
+  "smart.addLanguageLabel": {
+    "sourceHash": "0c31c5b3b0d07e78f039415a74eced5d36aa44379d1d02e6934438d870e048cb"
+  },
+  "smart.addLanguagePlaceholder": {
+    "sourceHash": "9035a6f2ae7d018ce97e9b382d256c1a45bb4128fe3c4937d2157075205adcea"
+  },
+  "smart.addLanguage": {
+    "sourceHash": "7a8a11ead50742a2a0a7258309a42663a29f9354a6cc313c407fb0be8ee35001"
+  },
+  "smart.qualityHabits": {
+    "sourceHash": "d9f2508de81b61998d928a1cc2d78540d407df42b58f408f13e43e7a2cfcf73a"
+  },
+  "smart.habitsHint": {
+    "sourceHash": "cd9710e889a81fb80108d71ea5e5fdc8397b3569ac7eec7c22eef31a1ec06cba"
+  },
+  "smart.legacyTvSource": {
+    "sourceHash": "eb924b4bab512b29429aef1ea77c7b0b97b5cbb26fce35ceca21d4de3363be59"
+  },
+  "smart.settingsHint": {
+    "sourceHash": "5f5e502feb476f4219beb9ec416d07fd85907b937c4363a565ceb18715d6e6bb"
+  },
+  "smart.applyHint": {
+    "sourceHash": "016227967811941749ee7d31c5ac37f7296489e582c229dc631d9312879cb1bc"
+  },
+  "smart.prefer": {
+    "sourceHash": "5f06d038d3c40303f4556294fcacaa04cf6766d2e6d83be17b5678b0aa37bfe5"
+  },
+  "smart.waitDays": {
+    "sourceHash": "34cc8eb1ef4c162bd163ec0eb7914b76508ec4e894e9cbcbc7c1c074ce06ca69"
+  },
+  "smart.waitHours": {
+    "sourceHash": "6c41eab4e13351270ea57e8e9d665a0825b6057bdafac75f53b6aacf68533287"
+  },
+  "smart.onlyResolution": {
+    "sourceHash": "a2000fa8eb77a5888855b511421470b955f08561bcb784b25e86bc1230fe0e73"
+  },
+  "smart.understoodLine": {
+    "sourceHash": "2c53b7b8e3646cf07018502e5fb196bfbba240753c0bfa06c2da05a321ac4d11"
+  },
+  "smart.genericSubtitlesLine": {
+    "sourceHash": "c1b919114f11986f897da298e4c44591ad367f7903637cbe05d84a0d78c243d2"
+  },
+  "smart.genericRequireSubtitles": {
+    "sourceHash": "cadddaefa05fa2dfbbc934591be0f976c35eeff515b04dabc982d31c8ea9babe"
+  },
+  "smart.understoodAnswer": {
+    "sourceHash": "72f77359a20538a11fd0051ae66e1ee1b7e19cf56d895fc0d77775622da9c516"
+  },
+  "smart.editLanguageQuestion": {
+    "sourceHash": "869693f1eba5d7dcefff347e5b9c0218279d2212917fbb272b050d406b5edab8"
+  },
+  "smart.legacyWait": {
+    "sourceHash": "7a1b190dfbdaf0a88e6ffe864f96c29cecc6183efd49d90d55ba8c4e31cad618"
+  },
+  "smart.decreaseDays": {
+    "sourceHash": "c0073b8ea18b83b896b3e8b3490ea5926f7b0dcf225b0fb9b9c8667097bebb94"
+  },
+  "smart.increaseDays": {
+    "sourceHash": "72b00dfbd00bd4dbd2643e898f35772920d76b9f117a228cccc8f549316bdca7"
+  },
+  "smart.daysLabel": {
+    "sourceHash": "804858cbf202ca822e3e6fe8e439c5fb9094836cf178b229e70901eefce45a84"
+  },
+  "smart.strictResolution": {
+    "sourceHash": "bee71dfa571bc2d6da398a50d0787aa5e1005a79d8b72319747e01a122a73d67"
+  },
+  "smart.defaultsSummary": {
+    "sourceHash": "622e878112e593eabb7019a2af76c01126e4359c975fbfc1834b2976adfb494e"
+  },
+  "smart.languageAddedFrom": {
+    "sourceHash": "10a6ed19895d992437e1ffe14bd67a5948f9cb61b7913eef4b2e2cb4169221d1"
+  },
+  "smart.removeNamed": {
+    "sourceHash": "1e67b468be8ba2d221c3a96e2f133681332c4670de934cbd15a18ffac25494a5"
+  },
+  "smart.habitFrom": {
+    "sourceHash": "96e9d0a95ce50c7e9faabbd93f5a5e89c1237cb28e15cbe22b793fb7b73cefa4"
   }
 }

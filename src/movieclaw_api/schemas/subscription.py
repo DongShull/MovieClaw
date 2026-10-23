@@ -205,6 +205,7 @@ class SmartPlanView(BaseModel):
     question: SmartQuestionView | None = Field(
         default=None, description="仅管理员、且这种语言还没回答过时给出"
     )
+    subtitle_edit_question: SmartQuestionView | None = None
     scope_options: list[SmartScopeOptionView] = Field(default_factory=list)
     can_edit: bool = Field(default=False, description="管理员可改字幕、画质并写入记忆")
 
