@@ -1,0 +1,10 @@
+{
+  "artwork": {
+    "posterLabel": "Poster for {title}"
+  },
+  "kind": {
+    "tv": "Series",
+    "movie": "Movie",
+    "video": "Video"
+  }
+}

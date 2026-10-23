@@ -1,0 +1,12 @@
+{
+  "hero": {
+    "added": "Added {time}",
+    "featured": "Featured: {title}",
+    "play": "Play",
+    "moreInfo": "More info",
+    "askAi": "Ask AI"
+  },
+  "status": {
+    "inLibrary": "In library"
+  }
+}

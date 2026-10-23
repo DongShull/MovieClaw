@@ -1,0 +1,20 @@
+{
+  "hero.added": {
+    "sourceHash": "41852cbb35cbeaa9bf91cbe0286f6899226f48a76a9513a0366b5eec275bac8a"
+  },
+  "hero.featured": {
+    "sourceHash": "5f685896c65724f4773d0b5255f326c3f547495484bc5a470f9e6eab2a6e4366"
+  },
+  "hero.play": {
+    "sourceHash": "c3396195e91ccdd8468b38f08c58e5a7f13220f16ed29e668ffd4f58ef04f443"
+  },
+  "hero.moreInfo": {
+    "sourceHash": "940d8699b66b72b99d81dfcc9b6c484f2c289e6980f3742fdce359e0fd287c85"
+  },
+  "hero.askAi": {
+    "sourceHash": "2f7d082d5c9e001277fbeec2bbed07679b5b422976c2387e4600d2a6994900c3"
+  },
+  "status.inLibrary": {
+    "sourceHash": "77a5541fefbd3638d624e0d76a0d0a4fb54e8e8c2cb3107aa43f4353eb8f1c55"
+  }
+}

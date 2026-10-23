@@ -1,0 +1,12 @@
+{
+  "hero": {
+    "added": "{time}入库",
+    "featured": "正在展示《{title}》",
+    "play": "播放",
+    "moreInfo": "更多信息",
+    "askAi": "问 AI"
+  },
+  "status": {
+    "inLibrary": "在库"
+  }
+}

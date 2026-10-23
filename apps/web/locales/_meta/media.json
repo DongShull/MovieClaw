@@ -1,0 +1,14 @@
+{
+  "artwork.posterLabel": {
+    "sourceHash": "776e8b814ac6f6bb11a4a9a3c1bf472a6d9e134dd19f7201df37d35e4ae80798"
+  },
+  "kind.tv": {
+    "sourceHash": "cb9a20776230420ec27c8d82fbdfa14ac7a1142b3000d55a2203b4285a0bf4d8"
+  },
+  "kind.movie": {
+    "sourceHash": "03a3a327af684099e7e863d8080bba7c2539050a5fc066a1932d90e3bdf61b15"
+  },
+  "kind.video": {
+    "sourceHash": "c20f7618d330a854e70c918789c8028a6ef3e642e7e6abac8e337aba741b3716"
+  }
+}

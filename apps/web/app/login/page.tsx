@@ -1,5 +1,7 @@
 "use client";
 
+import { useMessageState } from "@/lib/i18n/use-message-state";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -132,11 +134,10 @@ function LoginCard({
   onClose: () => void;
 }) {
   const t = useTranslations("auth");
-  const common = useTranslations("common");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessageState();
   const [busy, setBusy] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
 
@@ -160,7 +161,11 @@ function LoginCard({
       // 壁纸与界面偏好首帧缓存，进工作台不闪默认图（lib/account-reload.ts）
       await reloadAfterAccountChange(resolveNext(session), true);
     } catch (err) {
-      setError(err instanceof HttpError ? err.message : common("networkRetry"));
+      if (err instanceof HttpError && (err.details as { message_key?: string } | null)?.message_key === "errors.auth.wrongPassword") {
+        setError({ key: "errors.auth.wrongPassword" });
+      } else {
+        setError(err instanceof HttpError ? err.message : { key: "common.networkRetry" });
+      }
       setBusy(false);
     }
   };

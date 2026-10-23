@@ -1,0 +1,52 @@
+{
+  "composer": {
+    "imageUnsupported": "Choose a JPG, PNG, WebP or GIF image",
+    "imageLimit": "You can send up to {count, plural, one {# image} other {# images}} per message",
+    "uploading": "Uploading…",
+    "busyPlaceholder": "Generating; you can write your next message…",
+    "placeholder": "Describe a new task…",
+    "generating": "Generating",
+    "send": "Send",
+    "stop": "Stop generating",
+    "removeImage": "Remove image {name}",
+    "addContent": "Add content",
+    "uploadImage": "Upload image",
+    "useSkill": "Use skill",
+    "loading": "Loading…",
+    "skillsFailed": "Could not load skills",
+    "noSkills": "No skills available",
+    "addImageOrSkill": "Add an image or skill",
+    "modelThinking": "Model and reasoning",
+    "model": "Model",
+    "thinkingUnsupported": "This model does not support adjustable reasoning effort",
+    "modelThinkingLabel": "Model and reasoning: {model}",
+    "reasoningEffort": "Reasoning effort",
+    "resetDefault": "Reset to default",
+    "modelDecides": "Let the model decide",
+    "faster": "Faster",
+    "smarter": "Smarter",
+    "reasoning": "Reasoning",
+    "reasoningToggle": "Toggle reasoning"
+  },
+  "modelGate": {
+    "defaultFeature": "AI conversations",
+    "description": "Connect an AI model to unlock {feature}.",
+    "connect": "Connect a model"
+  },
+  "thinking": {
+    "off": "Off",
+    "minimal": "Minimal",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "xhigh": "Extra high",
+    "max": "Maximum",
+    "enabled": "On (model default)",
+    "enabledDescription": "Use the model’s default behavior without sending a reasoning parameter",
+    "disabled": "Off",
+    "disabledDescription": "Turn off reasoning output for a faster response",
+    "default": "Default",
+    "defaultDescription": "Let the model choose its reasoning effort",
+    "levelDescription": "Use {level} reasoning effort"
+  }
+}

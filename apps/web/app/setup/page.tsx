@@ -1,5 +1,7 @@
 "use client";
 
+import { useMessageState } from "@/lib/i18n/use-message-state";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -64,11 +66,10 @@ export default function SetupPage() {
 function SetupCard({ autoFocus, onClose }: { autoFocus: boolean; onClose: () => void }) {
   const router = useRouter();
   const t = useTranslations("setup");
-  const common = useTranslations("common");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessageState();
   const [busy, setBusy] = useState(false);
   const usernameRef = useRef<HTMLInputElement>(null);
 
@@ -85,15 +86,15 @@ function SetupCard({ autoFocus, onClose }: { autoFocus: boolean; onClose: () => 
 
     const name = username.trim();
     if (name.length < 3) {
-      setError(t("account.shortUsername"));
+      setError({ key: "setup.account.shortUsername" });
       return;
     }
     if (password.length < 8) {
-      setError(t("account.shortPassword"));
+      setError({ key: "setup.account.shortPassword" });
       return;
     }
     if (password !== confirm) {
-      setError(t("account.passwordMismatch"));
+      setError({ key: "setup.account.passwordMismatch" });
       return;
     }
 
@@ -109,7 +110,7 @@ function SetupCard({ autoFocus, onClose }: { autoFocus: boolean; onClose: () => 
         router.replace("/login");
         return;
       }
-      setError(err instanceof HttpError ? err.message : common("networkRetry"));
+      setError(err instanceof HttpError ? err.message : { key: "common.networkRetry" });
       setBusy(false);
     }
   };

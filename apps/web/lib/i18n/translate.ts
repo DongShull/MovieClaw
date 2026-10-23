@@ -12,3 +12,5 @@ const translators = { "zh-Hans": translator("zh-Hans"), en: translator("en") };
 export function appTranslator(locale: AppLocale = requestLocale() ?? "zh-Hans") {
   return translators[locale];
 }
+
+export type AppMessageKey = Parameters<ReturnType<typeof appTranslator>>[0];

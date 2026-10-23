@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+
 import { formatNumber } from "@/lib/i18n/format";
 
 import { useState } from "react";
@@ -958,17 +960,19 @@ function UsageMetric({ label, value }: { label: string; value: string }) {
  * 计数走 useTaskActivity 这份共享口径，与活动页里的选项卡数字保证一致。
  */
 export function JobCenter({ collapsed, active = false }: { collapsed: boolean; active?: boolean }) {
+  const t = useTranslations();
+  const locale = useLocale();
   const router = useRouter();
   const { isAdmin } = usePermissions();
   const activity = useTaskActivity();
   if (!isAdmin) return null;
-  const { alert, count: badgeCount, href, hint } = taskActivityBadge(activity);
+  const { alert, count: badgeCount, href, hint } = taskActivityBadge(activity, locale);
   return (
     <button
       type="button"
       onClick={() => router.push(href as Route)}
       data-active={active}
-      title={collapsed ? `活动（${hint}）` : undefined}
+      title={collapsed ? t("nav.badges.activityHint", { hint }) : undefined}
       className={`glass-row nav-item py-2 max-md:py-2.5 ${collapsed ? "justify-center px-0" : "px-3"}`}
     >
       <span className="relative shrink-0">
@@ -983,7 +987,7 @@ export function JobCenter({ collapsed, active = false }: { collapsed: boolean; a
       </span>
       {!collapsed && (
         <>
-          <span className="flex-1 text-ui font-medium">活动</span>
+          <span className="flex-1 text-ui font-medium">{t("nav.main.activity")}</span>
           {badgeCount > 0 && (
             <span
               className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none ${

@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 /**
  * 设置页基础组件（Linear / Vercel 式规范的落地，见 docs/design/settings-ui.md）。
  *
@@ -344,6 +345,7 @@ export function SettingsDrawer({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const t = useTranslations();
   return (
     <Modal
       open={open}
@@ -363,7 +365,7 @@ export function SettingsDrawer({
         <button
           type="button"
           onClick={onClose}
-          aria-label="关闭"
+          aria-label={t("common.close")}
           className="flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] hover:bg-white/[0.08] hover:text-[var(--text)]"
         >
           <XIcon className="size-4" />
@@ -386,24 +388,25 @@ export function SettingsDrawer({
 export function SettingsSaveStatus({
   state,
   error,
-  savedLabel = "已保存",
+  savedLabel,
 }: {
   state: "idle" | "saving" | "saved" | "error";
   error?: string | null;
   savedLabel?: string;
 }) {
+  const t = useTranslations();
   if (state === "idle") return null;
   return (
     <span className="shrink-0 text-sub">
-      {state === "saving" && <span className="text-[var(--text-faint)]">保存中…</span>}
+      {state === "saving" && <span className="text-[var(--text-faint)]">{t("settings.status.saving")}</span>}
       {state === "saved" && (
         <span className="flex items-center gap-1 text-[var(--ok)]">
           <CheckIcon className="size-3.5" />
-          {savedLabel}
+          {savedLabel ?? t("settings.status.saved")}
         </span>
       )}
       {state === "error" && (
-        <span className="text-[var(--danger)]">保存失败{error ? `：${error}` : ""}</span>
+        <span className="text-[var(--danger)]">{t("settings.status.saveFailed", { reason: error ?? "", hasReason: error ? "yes" : "no" })}</span>
       )}
     </span>
   );

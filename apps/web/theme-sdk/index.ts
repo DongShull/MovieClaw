@@ -99,3 +99,5 @@ export { BrandLoader } from "@/components/brand-loader";
 export { ContentEmptyState } from "@/components/content-empty-state";
 export { HScroller } from "@/components/h-scroller";
 export { formatRelativeTime } from "@/lib/time";
+
+export { useLocale as useAppLocale, useTranslations as useAppTranslations } from "next-intl";

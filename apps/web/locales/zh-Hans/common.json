@@ -5,5 +5,14 @@
   "networkTimeout": "服务器响应太慢，请求已取消——请稍后重试",
   "never": "从未",
   "earlierToday": "今天早些时候",
-  "yesterday": "昨天"
+  "yesterday": "昨天",
+  "cancel": "取消",
+  "confirm": "确定",
+  "clear": "清空",
+  "delete": "删除",
+  "remove": "移出",
+  "save": "保存",
+  "upload": "上传",
+  "loading": "加载中…",
+  "retry": "重试"
 }

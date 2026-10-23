@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -53,7 +54,7 @@ import { usePermissions } from "@/lib/permissions";
 import type { MediaSource, MediaType } from "@/lib/media-types";
 import {
   subscriptionProgressNote,
-  subscriptionStatusMeta,
+  subscriptionStatusMetaFor,
 } from "@/lib/subscription-ui";
 
 /**
@@ -93,6 +94,8 @@ export function MediaDetailView({
   id: string;
   source?: MediaSource;
 }) {
+  const locale = useLocale();
+  const subscriptionStatusMeta = subscriptionStatusMetaFor(locale);
   const { canSearch } = usePermissions();
   const [detail, setDetail] = useState<MediaDetailData | null>(null);
   // 详情拉取失败状态：仅在无 seed（硬刷新/分享直达）时才需要整页兜底
@@ -586,7 +589,7 @@ export function MediaDetailView({
                     className="size-1.5 rounded-full"
                     style={{ backgroundColor: subscriptionStatusMeta[sub.status].color }}
                   />
-                  {subscriptionProgressNote(sub)}
+                  {subscriptionProgressNote(sub, locale)}
                 </span>
               )}
             </div>

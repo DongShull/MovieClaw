@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "next-intl";
+
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -43,6 +45,7 @@ import type { TaskActivityBadge } from "@/lib/task-activity";
  * Netflix 主题有自己的「我的」页（plugins/netflix/src/pages/my-page），会覆盖本页。
  */
 export function MorePage() {
+  const locale = useLocale();
   const router = useRouter();
   const { session } = useSession();
   const { isAdmin } = usePermissions();
@@ -99,7 +102,7 @@ export function MorePage() {
               {session.nickname}
             </span>
             <span className="mt-0.5 block truncate text-ui text-[var(--text-muted)]">
-              @{session.username} · {roleLabel(session)}
+              @{session.username} · {roleLabel(session, locale)}
             </span>
           </span>
           <ChevronRightIcon className="size-4 shrink-0 text-[var(--text-faint)]" />

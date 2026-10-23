@@ -4,6 +4,221 @@
     "description": "Language, home background and interface effects",
     "language": "Language",
     "browser": "Follow browser · {language}",
-    "saveFailed": "Could not save language. Please try again."
+    "saveFailed": "Could not save language. Please try again.",
+    "backdropTab": "Background",
+    "textureTab": "Interface effects",
+    "navTab": "Navigation order",
+    "homeBackground": "Home background",
+    "glassDisabled": "{label} only applies to Silver Glass. The {theme} theme uses solid colors without a background image or glass effects.",
+    "themeFailed": "Could not load theme \"{theme}\": {hasReason, select, yes {{reason}} other {Unknown reason}}",
+    "saveFailedGeneral": "Could not save. Try again shortly.",
+    "theme": "Theme",
+    "themeHint": "Themes are saved to your account and synced across devices. Changes take effect immediately. You are changing the {device, select, mobile {mobile} other {desktop}} theme; each can be set separately.",
+    "uploadFailed": "Upload failed. Try again.",
+    "switchFailed": "Could not switch backgrounds. Try again.",
+    "deleteBackdropTitle": "Delete this background image?",
+    "deleteBackdropHint": "This cannot be undone.",
+    "deleteFailed": "Could not delete. Try again.",
+    "changeBackdrop": "Click or drop an image to change the home background",
+    "currentPreview": "Current home background preview",
+    "customBackdrop": "Custom background",
+    "defaultBackdropTone": "Default background · Dark tones",
+    "dropHint": "Click or drop an image to change it",
+    "changeImage": "Change image",
+    "dropToApply": "Drop to set as the home background",
+    "applying": "Applying…",
+    "defaultBackdrop": "Default",
+    "customBackdropNumber": "Custom {number}",
+    "backdropHint": "Use a high-resolution landscape image, ideally 16:9. Uploaded images stay in the server gallery (up to 20). Select one to switch backgrounds, or hover over its thumbnail to delete it. Glass refraction updates with the active image, consistently across devices connected to this server.",
+    "sidebarTransparency": "Sidebar transparency",
+    "sidebarTransparencyHint": "Overall glass opacity: 0% uses standard glass; 100% removes the glass to reveal the page background",
+    "standard": "Standard",
+    "transparent": "Transparent",
+    "sidebarBrightness": "Sidebar brightness",
+    "sidebarBrightnessHint": "Glass background brightness: darker to the left, brighter to the right",
+    "dark": "Dark",
+    "bright": "Bright",
+    "sidebarDepth": "Sidebar depth",
+    "sidebarDepthHint": "Width of the curved glass edge: larger values look thicker and widen the refraction band",
+    "thin": "Thin",
+    "thick": "Thick",
+    "scrimBlur": "Background blur",
+    "scrimBlurHint": "Background blur across the app: 0 keeps it sharp; higher values add more blur",
+    "sharp": "Sharp",
+    "blurred": "Blurred",
+    "scrimDarkness": "Background dimming",
+    "scrimDarknessHint": "Background dimming: 0% leaves it unchanged; 100% makes it black",
+    "clear": "Clear",
+    "black": "Black",
+    "previewHint": "Previewing changes. Save to apply them across all devices.",
+    "savedHint": "Settings saved and synced across devices",
+    "navHint": "Reorder the main sidebar navigation by dragging items or using the up and down buttons. Plugin pages can be removed from the sidebar and reopened from plugin details. Attention and update entries appear only when needed and stay in fixed positions.",
+    "removed": "Removed",
+    "restoreNav": "Restore to sidebar",
+    "moveUp": "Move \"{item}\" up",
+    "moveDown": "Move \"{item}\" down",
+    "navPreviewHint": "Previewing the sidebar. Save to apply it across all devices.",
+    "restoreDefaults": "Restore defaults",
+    "saving": "Saving…",
+    "useBackdrop": "Use {label} background",
+    "backdropThumbnail": "{label} background thumbnail",
+    "deleteBackdrop": "Delete {label} background",
+    "silverName": "Silver Glass",
+    "silverDescription": "Liquid glass · Cool silver highlights for the dashboard (default)",
+    "loadFallback": "Could not load theme \"{theme}\". Using the default theme temporarily.",
+    "slotFallback": "Part of the \"{theme}\" theme failed. Using the default styling for it."
+  },
+  "metadata": {
+    "title": "Settings",
+    "sectionTitle": "{section} · Settings",
+    "sections": "Settings sections"
+  },
+  "overview": {
+    "title": "Overview",
+    "description": "Configuration status: what is missing, what needs attention and what to do next"
+  },
+  "profile": {
+    "title": "Profile",
+    "description": "Avatar, nickname and sign-in password",
+    "details": "Personal details",
+    "usernameHint": "Used to sign in; cannot be changed",
+    "role": "Role",
+    "security": "Security",
+    "danger": "Danger zone",
+    "avatarUpdated": "Avatar updated",
+    "uploadFailed": "Upload failed. Try again.",
+    "avatar": "Avatar",
+    "avatarHint": "Select your avatar to change the image",
+    "changeAvatar": "Change avatar",
+    "uploading": "Uploading",
+    "change": "Change",
+    "nicknameEmpty": "Nickname cannot be empty",
+    "nicknameUpdated": "Nickname updated",
+    "nickname": "Nickname",
+    "shortPassword": "The new password must be at least 8 characters",
+    "passwordMismatch": "The new passwords do not match",
+    "changePassword": "Change password",
+    "passwordHint": "Other devices signed in with your password (browsers, apps and players) will be signed out. This device will stay signed in.",
+    "submitting": "Submitting…",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "revokePaired": "Also sign out command line clients and transcoders ({count})",
+    "pairedHint": "Transcoders usually run unattended and do not need to stop when you change your password. Select this if you suspect your password was exposed.",
+    "clearHistoryTitle": "Clear all watch history?",
+    "clearHistoryDescription": "This permanently clears resume positions, watched markers and play counts for all titles, including Recently watched on the home page and Continue watching in the player. Only your own history is affected. Automatic backups from before app updates still contain the history.",
+    "clearHistory": "Clear all watch history",
+    "historyHint": "Permanently clear resume positions, watched markers and play counts. To clear one title or library, use the ⋯ menu on its page.",
+    "historyOwnOnly": "Only affects your own history",
+    "clearing": "Clearing…",
+    "clearHistoryAction": "Clear watch history"
+  },
+  "devices": {
+    "title": "Devices",
+    "description": "Browsers, apps, command line clients and transcoders signed in to your account"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Choose which notifications you receive in mobile apps and IM"
+  },
+  "members": {
+    "title": "Members",
+    "description": "Family accounts, permissions and visibility"
+  },
+  "subscription": {
+    "title": "Subscription rules",
+    "description": "Manage smart selection preferences and custom rules"
+  },
+  "sites": {
+    "title": "Trackers",
+    "description": "Tracker connections, authentication, search categories and browser extension cookie sync"
+  },
+  "downloaders": {
+    "title": "Downloaders",
+    "description": "Connect qBittorrent or Transmission"
+  },
+  "importWatch": {
+    "title": "Automatic import",
+    "description": "Watch download folders and organize completed downloads into your library"
+  },
+  "scrape": {
+    "title": "Metadata and organization",
+    "description": "Global defaults for posters, descriptions, naming and folder organization"
+  },
+  "playback": {
+    "title": "Playback",
+    "description": "Remote transcoding and playback experience",
+    "experience": "Playback experience",
+    "experienceHint": "Use server processing and storage for smoother playback. Changes take effect immediately."
+  },
+  "drives": {
+    "title": "Cloud drives",
+    "description": "Cloud drive accounts for storing your media library"
+  },
+  "appPush": {
+    "title": "App push",
+    "description": "Send notifications to MovieClaw on iPhone and iPad"
+  },
+  "imPush": {
+    "title": "IM push",
+    "description": "Notifications and AI conversations on WeChat, Telegram and other IM channels; add more with plugins"
+  },
+  "webhook": {
+    "title": "Webhook",
+    "description": "Send playback, favorite and other events to external services"
+  },
+  "llm": {
+    "title": "AI providers",
+    "description": "Connect OpenAI, Alibaba Cloud Model Studio and other providers; use multiple providers together"
+  },
+  "mcp": {
+    "title": "MCP service",
+    "description": "Make MovieClaw available to AI clients such as Claude Code and Cursor"
+  },
+  "ai": {
+    "title": "AI preferences",
+    "description": "Default models for agents and subtitle processing"
+  },
+  "cloud": {
+    "title": "MovieClaw Cloud",
+    "description": "Link this server to your MovieClaw account for official push notifications and other cloud services"
+  },
+  "app": {
+    "title": "Updates and maintenance",
+    "description": "Version updates and app restart",
+    "versionUpdates": "Version and updates",
+    "cache": "Cache management",
+    "tasks": "Scheduled tasks"
+  },
+  "plugins": {
+    "title": "Plugins",
+    "description": "Installation and runtime status of official and third-party plugins"
+  },
+  "network": {
+    "title": "Network",
+    "description": "Proxies, mirrors and external URLs for access to TMDB and other services"
+  },
+  "logs": {
+    "title": "System logs",
+    "description": "Server logs, archived daily"
+  },
+  "groups": {
+    "account": "Account",
+    "members": "Members",
+    "downloads": "Releases and downloads",
+    "library": "Library",
+    "integrations": "Notifications and integrations",
+    "system": "System"
+  },
+  "placeholder": {
+    "enableModule": "Enable this module",
+    "auditLog": "Record audit logs",
+    "preferences": "Preferences",
+    "description": "This is placeholder content for the \"{section}\" section. Configuration fields and backend integration will be added later."
+  },
+  "status": {
+    "saved": "Saved",
+    "saving": "Saving…",
+    "saveFailed": "Could not save{hasReason, select, yes {: {reason}} other {}}"
   }
 }

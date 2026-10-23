@@ -4,6 +4,221 @@
     "description": "语言、首页背景与界面质感",
     "language": "语言",
     "browser": "跟随浏览器 · {language}",
-    "saveFailed": "语言保存失败，请重试"
+    "saveFailed": "语言保存失败，请重试",
+    "backdropTab": "背景图",
+    "textureTab": "界面质感",
+    "navTab": "导航顺序",
+    "homeBackground": "首页背景",
+    "glassDisabled": "{label}仅「银玻璃」主题生效——{theme} 主题是纯色平铺设计，没有背景大图与玻璃质感。",
+    "themeFailed": "主题「{theme}」加载失败：{hasReason, select, yes {{reason}} other {未知原因}}",
+    "saveFailedGeneral": "保存失败，请稍后重试",
+    "theme": "主题",
+    "themeHint": "主题跟随账号保存，所有设备同步；切换立即生效。当前设置的是{device, select, mobile {移动端} other {桌面端}}的主题，两端可分别设置。",
+    "uploadFailed": "上传失败，请重试",
+    "switchFailed": "切换失败，请重试",
+    "deleteBackdropTitle": "删除这张背景图？",
+    "deleteBackdropHint": "删除后不可恢复。",
+    "deleteFailed": "删除失败，请重试",
+    "changeBackdrop": "点击或拖入图片更换首页背景",
+    "currentPreview": "当前首页背景预览",
+    "customBackdrop": "自定义背景",
+    "defaultBackdropTone": "默认背景 · 深色调",
+    "dropHint": "点击或拖入图片即可更换",
+    "changeImage": "更换图片",
+    "dropToApply": "松开，设为首页背景",
+    "applying": "正在应用…",
+    "defaultBackdrop": "默认",
+    "customBackdropNumber": "自定义 {number}",
+    "backdropHint": "建议使用 16:9、分辨率较高的横图。上传的图全部保留在服务端图库（最多 20 张），点选即切换、hover 缩略图可删除；玻璃面板的折射随生效图一并更新，跨设备访问同一实例保持一致。",
+    "sidebarTransparency": "侧栏透明度",
+    "sidebarTransparencyHint": "玻璃材质的整体浓度：0% 为标准玻璃卡片，100% 玻璃完全隐去、直接透出页面背景",
+    "standard": "标准",
+    "transparent": "全透",
+    "sidebarBrightness": "侧栏明暗",
+    "sidebarBrightnessHint": "玻璃底色的亮度：向左更暗、向右更亮",
+    "dark": "暗",
+    "bright": "亮",
+    "sidebarDepth": "侧栏厚度",
+    "sidebarDepthHint": "玻璃的边缘曲率带宽度：越大越像厚玻璃、边缘折射带越宽",
+    "thin": "薄",
+    "thick": "厚",
+    "scrimBlur": "蒙版模糊度",
+    "scrimBlurHint": "全站背景蒙版的模糊程度：0 背景清晰透出，越大背景越朦胧",
+    "sharp": "清晰",
+    "blurred": "朦胧",
+    "scrimDarkness": "蒙版暗度",
+    "scrimDarknessHint": "蒙版把背景压暗的程度：0% 完全不压暗，100% 全黑",
+    "clear": "透亮",
+    "black": "全黑",
+    "previewHint": "调节实时预览中，保存后对所有设备生效",
+    "savedHint": "设置已保存，跨设备一致",
+    "navHint": "调整左侧栏主导航的排列次序：拖动条目，或用右侧的上下按钮。插件页面可以移出侧边栏，移出后仍能从插件详情打开。待处理与更新入口有事才出现，位置固定，不参与排序。",
+    "removed": "已移出",
+    "restoreNav": "放回侧边栏",
+    "moveUp": "把「{item}」上移",
+    "moveDown": "把「{item}」下移",
+    "navPreviewHint": "左侧栏实时预览中，保存后对所有设备生效",
+    "restoreDefaults": "恢复默认",
+    "saving": "保存中…",
+    "useBackdrop": "使用{label}背景",
+    "backdropThumbnail": "{label}背景缩略图",
+    "deleteBackdrop": "删除{label}背景图",
+    "silverName": "银玻璃",
+    "silverDescription": "液态玻璃 · 冷银高光的控制台质感（默认）",
+    "loadFallback": "主题「{theme}」加载失败，已临时使用默认主题",
+    "slotFallback": "主题「{theme}」的部分界面出错，已改用默认样式"
+  },
+  "metadata": {
+    "title": "设置",
+    "sectionTitle": "{section} · 设置",
+    "sections": "设置分区"
+  },
+  "overview": {
+    "title": "概览",
+    "description": "配置状态一览：缺什么、有什么问题、下一步做什么"
+  },
+  "profile": {
+    "title": "个人信息",
+    "description": "头像、昵称与登录密码",
+    "details": "个人资料",
+    "usernameHint": "登录时使用，不可修改",
+    "role": "身份",
+    "security": "安全",
+    "danger": "危险操作",
+    "avatarUpdated": "头像已更新",
+    "uploadFailed": "上传失败，请重试",
+    "avatar": "头像",
+    "avatarHint": "点击头像更换图片",
+    "changeAvatar": "更换头像",
+    "uploading": "上传中",
+    "change": "更换",
+    "nicknameEmpty": "昵称不能为空",
+    "nicknameUpdated": "昵称已更新",
+    "nickname": "昵称",
+    "shortPassword": "新密码至少 8 位",
+    "passwordMismatch": "两次输入的新密码不一致",
+    "changePassword": "修改密码",
+    "passwordHint": "修改后，用密码登录的其他设备（网页、App、播放器）会全部下线，当前设备保持登录。",
+    "submitting": "提交中…",
+    "currentPassword": "当前密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认新密码",
+    "revokePaired": "同时注销命令行和转码器（{count} 台）",
+    "pairedHint": "转码器常年无人值守，改密一般不需要停掉它；怀疑密码泄露时请勾上。",
+    "clearHistoryTitle": "清空全部观看记录？",
+    "clearHistoryDescription": "所有作品的续播进度、已看标记和播放次数都会清除，首页「最近观看」与播放器的「继续观看」随即清空，无法恢复。只影响你自己的记录；应用更新前的自动备份仍包含历史记录。",
+    "clearHistory": "清空全部观看记录",
+    "historyHint": "续播进度、已看标记与播放次数一并清除，无法恢复。只想清单部作品或单个库，到对应页面的 ⋯ 菜单里操作。",
+    "historyOwnOnly": "只影响你自己的记录",
+    "clearing": "清空中…",
+    "clearHistoryAction": "清空观看记录"
+  },
+  "devices": {
+    "title": "设备",
+    "description": "登录着你的账号的浏览器、App、命令行与转码器"
+  },
+  "notifications": {
+    "title": "通知",
+    "description": "选你想收到的通知，手机 App 和 IM 都按这里推送"
+  },
+  "members": {
+    "title": "成员",
+    "description": "家庭成员账号、能力开关与可见范围"
+  },
+  "subscription": {
+    "title": "订阅规则",
+    "description": "管理智能选择偏好与自定义规则"
+  },
+  "sites": {
+    "title": "资源站点",
+    "description": "站点接入与鉴权、搜索分类、浏览器扩展 Cookie 同步"
+  },
+  "downloaders": {
+    "title": "下载器",
+    "description": "qBittorrent / Transmission 接入"
+  },
+  "importWatch": {
+    "title": "自动入库",
+    "description": "监听下载目录，下载完成后自动整理进媒体库"
+  },
+  "scrape": {
+    "title": "刮削与整理",
+    "description": "海报、简介、命名与目录整理的全局默认"
+  },
+  "playback": {
+    "title": "播放",
+    "description": "远程转码与播放体验",
+    "experience": "播放体验",
+    "experienceHint": "用服务器的算力与磁盘换更顺手的播放；开关改完即生效。"
+  },
+  "drives": {
+    "title": "网盘",
+    "description": "网盘账号：媒体库可以放在网盘上"
+  },
+  "appPush": {
+    "title": "App 推送",
+    "description": "给 iPhone、iPad 上的 MovieClaw App 发通知"
+  },
+  "imPush": {
+    "title": "IM 推送",
+    "description": "微信、Telegram 等 IM 通道的推送与 AI 对话，可装插件接入更多通道"
+  },
+  "webhook": {
+    "title": "Webhook",
+    "description": "向外部服务推送播放、收藏等事件"
+  },
+  "llm": {
+    "title": "模型接入",
+    "description": "接入 OpenAI、百炼等模型供应商，可同时接入多家"
+  },
+  "mcp": {
+    "title": "MCP 服务",
+    "description": "把 movieclaw 的能力开放给 Claude Code、Cursor 等 AI 客户端"
+  },
+  "ai": {
+    "title": "AI 设定",
+    "description": "智能体与字幕处理使用的默认模型"
+  },
+  "cloud": {
+    "title": "MovieClaw Cloud",
+    "description": "把这台服务器连到你的 MovieClaw 账号，使用官方推送等云端服务"
+  },
+  "app": {
+    "title": "更新与维护",
+    "description": "版本更新与应用重启",
+    "versionUpdates": "版本与更新",
+    "cache": "缓存管理",
+    "tasks": "定时任务"
+  },
+  "plugins": {
+    "title": "插件",
+    "description": "官方插件与第三方插件的安装和运行状态"
+  },
+  "network": {
+    "title": "网络",
+    "description": "代理、镜像与外部访问地址，解决 TMDB 等不可达"
+  },
+  "logs": {
+    "title": "系统日志",
+    "description": "后端运行日志，按天存档"
+  },
+  "groups": {
+    "account": "账号",
+    "members": "成员",
+    "downloads": "资源与下载",
+    "library": "媒体库",
+    "integrations": "通知与集成",
+    "system": "系统"
+  },
+  "placeholder": {
+    "enableModule": "启用此模块",
+    "auditLog": "记录审计日志",
+    "preferences": "偏好",
+    "description": "这是「{section}」分区的占位内容。后续会接入真实配置项与后端接口。"
+  },
+  "status": {
+    "saved": "已保存",
+    "saving": "保存中…",
+    "saveFailed": "保存失败{hasReason, select, yes {：{reason}} other {}}"
   }
 }

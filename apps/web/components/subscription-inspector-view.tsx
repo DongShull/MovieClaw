@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -74,8 +75,7 @@ import { imageUrl } from "@/lib/image-proxy";
 import { seasonsWithIndeterminate } from "@/lib/media-source-annotation";
 import { shouldShowResourceTiming } from "@/lib/resource-timing";
 import { buildSearchPath, titleSearchAlso } from "@/lib/search-url";
-import { rangeLabel } from "@/lib/subscription-episode-cap";
-import { subscriptionStatusMeta } from "@/lib/subscription-ui";
+import { subscriptionStatusMetaFor } from "@/lib/subscription-ui";
 import { formatDateTime, formatRelativeTime } from "@/lib/time";
 import { useVisiblePolling } from "@/lib/use-visible-polling";
 import { usePermissions } from "@/lib/permissions";
@@ -110,6 +110,8 @@ export function SubscriptionInspectorView({
   /** 进入即打开「洗一轮版」弹层（库详情洗版入口跳转并轨到既有订阅，§13.4） */
   autoOpenUpgradeRun?: boolean;
 }) {
+  const locale = useLocale();
+  const subscriptionStatusMeta = subscriptionStatusMetaFor(locale);
   const router = useRouter();
   const confirm = useConfirm();
   // 暂停/取消订阅会改变全站订阅状态（海报卡片的「已订阅」徽标），操作后同步刷新

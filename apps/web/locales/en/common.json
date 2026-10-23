@@ -5,5 +5,14 @@
   "networkTimeout": "The server took too long to respond. Please try again later.",
   "never": "Never",
   "earlierToday": "Earlier today",
-  "yesterday": "Yesterday"
+  "yesterday": "Yesterday",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "clear": "Clear",
+  "delete": "Delete",
+  "remove": "Remove",
+  "save": "Save",
+  "upload": "Upload",
+  "loading": "Loading…",
+  "retry": "Retry"
 }

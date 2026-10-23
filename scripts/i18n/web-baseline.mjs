@@ -30,4 +30,5 @@ function scan(directory) {
 for (const directory of ["app", "components", "lib", "themes", "theme-sdk"]) {
   scan(path.join(root, "apps/web", directory));
 }
+scan(path.join(root, "plugins/netflix/src"));
 process.stdout.write(JSON.stringify(result));

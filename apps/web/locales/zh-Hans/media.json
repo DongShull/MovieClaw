@@ -1,0 +1,10 @@
+{
+  "artwork": {
+    "posterLabel": "{title} 海报"
+  },
+  "kind": {
+    "tv": "剧集",
+    "movie": "电影",
+    "video": "视频"
+  }
+}

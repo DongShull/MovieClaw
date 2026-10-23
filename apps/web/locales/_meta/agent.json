@@ -1,0 +1,134 @@
+{
+  "composer.imageUnsupported": {
+    "sourceHash": "46cf4ae9c51c71a6c78f299702f3b082ae170b7f96d7387063a0d608a2cd26a2"
+  },
+  "composer.imageLimit": {
+    "sourceHash": "d67abe3e85fba006a3a53f349401148c88844a52b7dd1f14a12fc30cb0077b66"
+  },
+  "composer.uploading": {
+    "sourceHash": "ce1c9d61565f624b209c48f9dada4e83d51cb22a7864ebd779d3fe336c13f900"
+  },
+  "composer.busyPlaceholder": {
+    "sourceHash": "1da00d81ed586edb7bee6cdd4fcb5d18452bcd0b2077727aa6007c10f2c2aed7"
+  },
+  "composer.placeholder": {
+    "sourceHash": "a67e327034777519549ca845e147aa12bbffccb19755763535ec00d4ad089d70"
+  },
+  "composer.generating": {
+    "sourceHash": "969ef41f7e5bf3a8b5c80c2c3363b36c62fc6e261648cffa16336bae76f48592"
+  },
+  "composer.send": {
+    "sourceHash": "edecf0ae6e5144f9e297af730f9f6ce2ac17914f3368e72ead50c22aacd15db6"
+  },
+  "composer.stop": {
+    "sourceHash": "9ad0aac32ea304beabf5259cfb5b7bb26b43490b671d3f4ae7ee1a3157be8e0e"
+  },
+  "composer.removeImage": {
+    "sourceHash": "68b4b1c32835e241d38e8c39cfdd65fbdbcc08ec10cb63daaeab72165d86d473"
+  },
+  "composer.addContent": {
+    "sourceHash": "d07674d338b5588a68a231b5c8119e69785110193cf6b43295148de4357c2f21"
+  },
+  "composer.uploadImage": {
+    "sourceHash": "9fbb4750bb3911335eec540164ef57b697f03d491cc56a2e20cc2fb6f4821842"
+  },
+  "composer.useSkill": {
+    "sourceHash": "37a41b2e983b06ee9554ce6b39fa4f972eaf4fb1f1caa8a2819c0971ce16d23f"
+  },
+  "composer.loading": {
+    "sourceHash": "4927a53bcc886afb9211eb1143351cf8e32ec830c381832e6060223c8b84f3d6"
+  },
+  "composer.skillsFailed": {
+    "sourceHash": "ce20677f09565c98b23730047d8e70ff6717b2b3b2a98ebbc486979644dfd532"
+  },
+  "composer.noSkills": {
+    "sourceHash": "bfa06e4c4e90d8ee8932c4b370d1dd6b0ac7bf3b25aa3e4c6625f29eded0bdc3"
+  },
+  "composer.addImageOrSkill": {
+    "sourceHash": "0da2ee7e9ec2d87de532cf6fabefa7dbcd6adcc12b0b67565584159861923742"
+  },
+  "composer.modelThinking": {
+    "sourceHash": "b7810611d31386a30cb96468b6dc9cbdc4f5b24d96c006fa98b0e42d9366d4b7"
+  },
+  "composer.model": {
+    "sourceHash": "c98e118e0a43f078bac8043a1ac8ccac8a554f8e8bca6a7c57de386a7970c71f"
+  },
+  "composer.thinkingUnsupported": {
+    "sourceHash": "1f609d7238092bc3bae9c4dbe7bf8226b4d244a4b12ec931d131d256b3bba5c7"
+  },
+  "composer.modelThinkingLabel": {
+    "sourceHash": "b1713678bb016e3866241d4e76e863e626d633c45c3a2f82bf0c3a561d864d53"
+  },
+  "composer.reasoningEffort": {
+    "sourceHash": "8bdeb022614750b57f8d4dc6cf370fb4a6ea99e80e1f355fea18d8957bfad588"
+  },
+  "composer.resetDefault": {
+    "sourceHash": "ba2e93e73037c71e5522101bb084c5b5a52dcd9e615c9f955275f25611eccc37"
+  },
+  "composer.modelDecides": {
+    "sourceHash": "74d64b5501f73464e79fe562e869367c0aa156a05b1307d5ed4cc7452fcc80d4"
+  },
+  "composer.faster": {
+    "sourceHash": "550008868854b675694f6bd798a5c3cf73aa3e46aff8c409f7d59cc58017a50b"
+  },
+  "composer.smarter": {
+    "sourceHash": "dbb677817fbdeb0bf5abfcb547fb5f1b4f39a212cec32f5ce40e8114a5799577"
+  },
+  "composer.reasoning": {
+    "sourceHash": "56cd05fd1f34faa09290c7dd9e5002fe3b5e3a887dbbb94d73cad17fdabc43d2"
+  },
+  "composer.reasoningToggle": {
+    "sourceHash": "f47e259012d3bc86353b4aefe3943a61a63a095561571fa2dc7b38f929e7d785"
+  },
+  "modelGate.defaultFeature": {
+    "sourceHash": "eb026ba4ffcc1f8c53c00fa41c4f4fd3c22c92e96a905de2609be50698dea1fd"
+  },
+  "modelGate.description": {
+    "sourceHash": "fc79003094d5ba59f24c4c277a594b79e56b069ce2445500d7182ad8377609bf"
+  },
+  "modelGate.connect": {
+    "sourceHash": "5df42fc77469d4b8d0a53d59313beccf68cf10b58dd47ec4b029c8fa69454d95"
+  },
+  "thinking.off": {
+    "sourceHash": "5d0ae622f61f8ebf1e88af1f321cb116c594d1be3d0583a91ed4fb471e414ca5"
+  },
+  "thinking.minimal": {
+    "sourceHash": "477e3eac404332b3fbe0c0dd41b6d8ea0c4394414ad925e316bbf012da5cc6db"
+  },
+  "thinking.low": {
+    "sourceHash": "aa9e366f68d3d097d4890b65882090beea51c8bcec6eece03c78c007fd81c8d1"
+  },
+  "thinking.medium": {
+    "sourceHash": "a567bdaa11367f260f0708391f4d10766b5962f565d9e432f17981a3584fe1e2"
+  },
+  "thinking.high": {
+    "sourceHash": "b1c27820fec23edbd70cecde2f968ad3f392c5be332a7606c7ea8d9fa75c846f"
+  },
+  "thinking.xhigh": {
+    "sourceHash": "8696c49ac55b8c71559a13f0c0e052a582e3a4dcec40477818362f9c2724924b"
+  },
+  "thinking.max": {
+    "sourceHash": "8672864e9041713891eb1fdddfa13fc6450905ece015347bc68e45e2904634f0"
+  },
+  "thinking.enabled": {
+    "sourceHash": "a1f8f67d8f87d978d66a04099e7834b21e0149cfb2ca3437ff40acf7508d6d20"
+  },
+  "thinking.enabledDescription": {
+    "sourceHash": "233b7d8b84bd22698c59bf766b3d50fc759aafa7831274b312a1e6331e201707"
+  },
+  "thinking.disabled": {
+    "sourceHash": "3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7"
+  },
+  "thinking.disabledDescription": {
+    "sourceHash": "1beee7a252b872abe2a87f0cf9304877f3a66cc6ab681cdfc18dd86e4d2b20e0"
+  },
+  "thinking.default": {
+    "sourceHash": "844b8cc8dff7c1d87b0f840c0a1271b227b332288a1a947f24fd376bfd12c1c9"
+  },
+  "thinking.defaultDescription": {
+    "sourceHash": "e60887043988eed9f741a6c3a6d5cfbba41c580ac3defc4c82adab0f2595989f"
+  },
+  "thinking.levelDescription": {
+    "sourceHash": "730b363f3b540d94702dd547551597bba7c6e995c6ad77eca9be2729c51ecc5d"
+  }
+}
