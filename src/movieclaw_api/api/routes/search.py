@@ -147,7 +147,7 @@ async def search_torrents(
     return ok(
         result.model_copy(
             update={
-                "label": stored_message(label or "", label_key) if label is not None else None,
+                "label": stored_message(label or "", label_key) if label_key else label,
                 "label_key": label_key,
             }
         )
@@ -577,8 +577,8 @@ async def get_search_history_results(
                 keyword=row.keyword,
                 also_keywords=repo.parse_snapshot(row.also_keywords_json) or None,
                 label=stored_message(row.label or "", row.label_key)
-                if row.label is not None
-                else None,
+                if row.label_key
+                else row.label,
                 label_key=row.label_key,
                 categories=repo.parse_snapshot(row.categories_json),
                 site_ids=repo.parse_snapshot(row.site_ids_json),

@@ -31,5 +31,195 @@
   },
   "scope.presetSummary": {
     "sourceHash": "5e6562407bef68b63c8306f2f7453100aeef29650b33c8f0595c2fad676b2eb1"
+  },
+  "vertical.media": {
+    "sourceHash": "625b97d43bcec5b7926886b0e1a77eb65274e041a7e1c262705f04380a987bae"
+  },
+  "vertical.torrent": {
+    "sourceHash": "daa6d02a55bc3de909f27179de0248107b3722b78a5ce7b1d32427bd50662fb2"
+  },
+  "vertical.library": {
+    "sourceHash": "d771576fc05c241bada9731f5fa997d50f63c3433cbcdd2141bc07d4ca6c1949"
+  },
+  "palette.modeHintMedia": {
+    "sourceHash": "b39383a1292aafa1af60b26f8650668d12d8a2c53028f635ca817e81f53859e4"
+  },
+  "palette.modeHintTorrent": {
+    "sourceHash": "2674667df6f41b83bb7390cb52a930e486a5b5a1e91aac2b70cfd804cef153bd"
+  },
+  "palette.modeHintLibrary": {
+    "sourceHash": "fbe0251374a0acc56808784fb4f37c91f2de8a1df56dc4544970bb89ee868a6a"
+  },
+  "history.deleteFailed": {
+    "sourceHash": "4c3c3670f7d72b9c4273e9845d61e4c29d51c020218bfe1aa3b7bc1b178fc276"
+  },
+  "history.deleteGroup": {
+    "sourceHash": "50efaabe506fcea1c9c1ca6d91cf1ce6ee6e2b9a2fb51c1930c92630fe2a7951"
+  },
+  "history.partialDeleteFailed": {
+    "sourceHash": "8cae0cdc6534222a9460ac44bcfc56cb5783e6ed03fecc23c9625a2d6d05b23e"
+  },
+  "history.clearFailed": {
+    "sourceHash": "97215bf06a448a8878026125ca7b067152d42715d925756f8d892d46add0731e"
+  },
+  "palette.mediaPlaceholder": {
+    "sourceHash": "1107fc881f2e7da463ed62b9cb34a68540aefc5263baf6032a8237756d2131a0"
+  },
+  "palette.torrentPlaceholder": {
+    "sourceHash": "284c7facd3d912ffe11cc1394c9e69146e1dafd0e4bc09ea39170ecc103244cd"
+  },
+  "palette.libraryPlaceholder": {
+    "sourceHash": "1c2ca1a418fc452b6154b2c5374c13b2664ba0c91c500c820e4bf873295b404c"
+  },
+  "palette.mediaSearch": {
+    "sourceHash": "918d19e570a42bd5a636d75ea13a2dc98fe2331fce0dde760de56afafe499e52"
+  },
+  "palette.torrentSearch": {
+    "sourceHash": "eac216de9bde94831961b44426fb5c43724637b5b78d546117986100dda000ae"
+  },
+  "palette.librarySearch": {
+    "sourceHash": "b8dfc42a1404a04fda6041c7fd8d6bd71b182689e4d36fda81bc41c03db5eb09"
+  },
+  "history.recent": {
+    "sourceHash": "3b5ac9baaaae2f121863d739c9e4f4e45a30903b7907756cfc3057a6405fb629"
+  },
+  "history.clearMode": {
+    "sourceHash": "7ecb69f2b8fdaacc43c46f41bd28c4abcbb888fb75634941beb40e219a5036cc"
+  },
+  "palette.suggestions": {
+    "sourceHash": "915b1eaec388e51a3bda88b5a02410f0ccadf7cd2e1c59298672369d274e8442"
+  },
+  "palette.scopeReset": {
+    "sourceHash": "c83cd9db7d082e528526697f2a448816a375a37b53b4864a8088b7d51e79c772"
+  },
+  "palette.clearKeyword": {
+    "sourceHash": "05dfd4924158e9787d455871d968248025fad720e7636525069c61f15e8296be"
+  },
+  "palette.searchKeyword": {
+    "sourceHash": "e18012aea3677d0151b9b083906cf8617f0d57347a0dfa785673734f676b4073"
+  },
+  "palette.mediaSources": {
+    "sourceHash": "abbe48b6bd1415b49a3b4ffd0afeb2443fbd059fa899dc840ed99fe4cb37cf19"
+  },
+  "palette.inScope": {
+    "sourceHash": "3c4422b12f5749db5e190aeda7821138a7c69242502ee3dd82ff8922da79bee4"
+  },
+  "palette.allCategoriesHint": {
+    "sourceHash": "7eb1856c8bb4c773a1f05ab641fc13a979b60ebc98d261276491e708cea4f5a7"
+  },
+  "palette.libraryTitles": {
+    "sourceHash": "1fc79557b5c8682960ef40a6160ae50730f47ee831ed549087e1fa7c06036394"
+  },
+  "palette.browseLatest": {
+    "sourceHash": "155b8c34b752e29f6847ced93f3d0fd70e66d8f7099f8f4c9aa8c9014af42cc0"
+  },
+  "palette.allCategories": {
+    "sourceHash": "a1054434857f0a9851b1bf5df4400a05735dada92fecfdef492cccaf493f146e"
+  },
+  "palette.otherScopes": {
+    "sourceHash": "9d3ac776dac71a9215b1164601c0f9b95c455c9b3684cfc1da8922059d897ddd"
+  },
+  "palette.scopeHint": {
+    "sourceHash": "bbc0c819472fd9feb2ea0e455db5be4f94ae76b44527f6bfd2d0874a089dd5ac"
+  },
+  "history.empty": {
+    "sourceHash": "39843d041f0be6e26b78900a21b3a0e49775f72508265f76183ccfa9816f17e6"
+  },
+  "history.noMatch": {
+    "sourceHash": "a0bc88b73a199c4f052030b77e0066a8abccc461bab02e37b8f901fdaee80d14"
+  },
+  "palette.libraryEmpty": {
+    "sourceHash": "a3a2c83ae492f4a120d1f42c574ed942b57d424faabc479da25f481e70b98c83"
+  },
+  "palette.torrentFooter": {
+    "sourceHash": "d23ba8b9426e3ac78a6d64d0dd7bf384d3ce22f031e4556dbb5d55763fea04c6"
+  },
+  "palette.browse": {
+    "sourceHash": "a8c81f93f2e0e3b6aa64520bd90c504ef506987b7a411637782e562e755d3cba"
+  },
+  "palette.switchScope": {
+    "sourceHash": "92e310994a2c11a809c14a3638be4bad6dac00a7bf250ef46bcf6fc587281a9d"
+  },
+  "palette.suggestionKey": {
+    "sourceHash": "536bc8fc40cad38c22561e853239f0350e6defa6eec20ecc6e058f2abb9a4bb7"
+  },
+  "palette.historyKey": {
+    "sourceHash": "b0385cfe4b424d835963f2ce8a27a7fec98018affaf7c44645933266b8869727"
+  },
+  "palette.mediaDescription": {
+    "sourceHash": "e071cc98ff1c4a759a9c577e5f4a512317d7e1c5a62939995f0701c8c112bf35"
+  },
+  "palette.torrentDescription": {
+    "sourceHash": "f03ed8d3a46387b82245f78c4a141894cbeba55456080e063299a4ea6088aafd"
+  },
+  "palette.libraryDescription": {
+    "sourceHash": "c531815b97d9d5e8b853698833f38205cfdbdccb47ccdf2b20dac80ce196dac9"
+  },
+  "palette.scope": {
+    "sourceHash": "4e65d015121fbe4e092d12781e1a25b805c7e04b14d1c159e9b4de02f7e74848"
+  },
+  "history.scopeCount": {
+    "sourceHash": "c2109f691cd5f8316aaf5709c079e4614ad77dc3e6679a105f9d780534ed9577"
+  },
+  "history.titleCount": {
+    "sourceHash": "1833c0d49fa8c4c27317d395c6b1cbb8eaadeaad3e1ac7ec56ee75656c8e6578"
+  },
+  "history.resourceCount": {
+    "sourceHash": "3a9bf69820428ff859e3c58f7c15e8254bcdac841629080fbe5dcd3c7eda55a4"
+  },
+  "history.latestSnapshotHint": {
+    "sourceHash": "e55578c926f29bedd42d531d94008ed2723b8bb58c10ecb8b22219f138f82c77"
+  },
+  "history.snapshot": {
+    "sourceHash": "699ea2523018c8ac22d075038fa2575ca9a71b679ed9a82b2f20f72a7e2cefa7"
+  },
+  "history.collapseScopes": {
+    "sourceHash": "d7c9f385907e0ea5ff7fabcac50bfb8c9cc5374b76e8a379d558c2250f687a8b"
+  },
+  "history.expandScopes": {
+    "sourceHash": "01435ae30ad5b0bd07f059a8f9372cdc9430fb8b9fda583e46b5215afb4d286f"
+  },
+  "history.deleteGroupLabel": {
+    "sourceHash": "64817208c7f4e7bed7a1978e08f646499a305f1fa429d2cc6fa000ec881ed8e5"
+  },
+  "history.snapshotHint": {
+    "sourceHash": "f5c6c4a20aa41ff116e54ecd942a0e460607d50bb1e5584666375267d56fa838"
+  },
+  "history.deleteLabel": {
+    "sourceHash": "f40806078e77af657891cc971c3b395a2084c49dc212009ffd0b7923befa4ae0"
+  },
+  "history.variant": {
+    "sourceHash": "9a306a6724058b526fbbe64d703091955cfd9237b10d5eba5c3ced52311c279b"
+  },
+  "history.allResources": {
+    "sourceHash": "3bc51752b1548decdb0b8423b4ae146f550dfc9bc8ffcaeec445334bc57e97b3"
+  },
+  "history.deleteVariant": {
+    "sourceHash": "d67a72367705da830de64d714699d6df335c8369c91d3ff17d5c6114793cfa5b"
+  },
+  "history.also": {
+    "sourceHash": "cb7f89795937982fc3ede10740bc0a3cdbcb04237814e4fa0e68c439cbcbc33b"
+  },
+  "history.withScope": {
+    "sourceHash": "4872512b4e7ac4d5b4efe35b088c5fd0f1a3f26cd4fa8784749527ec79d0e54a"
+  },
+  "history.alsoSuffix": {
+    "sourceHash": "31e02b8b1b24311a68f7a182909090538dff73a8fd09869a8a21de6fe35b1d62"
+  },
+  "history.snapshotTime": {
+    "sourceHash": "3d17a63f965aa500a68eb17eef3a9f86845f56538cf76b835c6f29146bf8d3a2"
+  },
+  "palette.searchSuggestion": {
+    "sourceHash": "4579661e4bd56af505a5e0793db2b78e29f034f4a5775a918db60df9a7e86ced"
+  },
+  "palette.person": {
+    "sourceHash": "8d7aff5a595f8c792d2cbfe0adc5f91d5b382f9cbda52fcbb3b8de758358aff5"
+  },
+  "palette.title": {
+    "sourceHash": "c8f059689cd9651c09e515ecb493c96bf4da4180df12b5b7a2c8b08cd5373ccb"
+  },
+  "history.emptyModeHint": {
+    "sourceHash": "14ac7574e7f2eb1793d09e4ead7b3527133f7e53dc035128b4003190e9d5b687",
+    "description": "Empty search history with guidance for the active search mode."
   }
 }

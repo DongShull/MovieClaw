@@ -241,7 +241,7 @@ class SearchHistoryItem(BaseModel):
             also_keywords=json.loads(row.also_keywords_json) if row.also_keywords_json else None,
             # 数据库存量值保持不变；公开契约使用可直接读懂的复数领域名。
             vertical="titles" if row.vertical == "media" else "torrents",
-            label=stored_message(row.label or "", row.label_key) if row.label is not None else None,
+            label=stored_message(row.label or "", row.label_key) if row.label_key else row.label,
             label_key=row.label_key,
             categories=json.loads(row.categories_json) if row.categories_json else [],
             site_ids=json.loads(row.site_ids_json) if row.site_ids_json else [],

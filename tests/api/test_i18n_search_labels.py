@@ -69,3 +69,21 @@ def test_search_stream_replays_the_same_run_in_each_readers_language(client):
         assert rows["Shared run"]["label"] == label
     invalid = client.get("/api/v1/search/torrents", params={**params, "label_key": "common.delete"})
     assert invalid.status_code == 422
+
+
+def test_user_name_matching_an_unambiguous_legacy_message_is_not_translated(client):
+    for label in ("音乐", "其他", "关闭"):
+        response = client.get(
+            "/api/v1/search/torrents",
+            params={"keyword": "Custom " + label, "label": label, "categories": "movie"},
+            headers={"Accept-Language": "en"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["label"] == label
+        row = _rows(client, "en")["Custom " + label]
+        assert row["label"] == label and row["label_key"] is None
+        snapshot = client.get(
+            f"/api/v1/search/history/{row['id']}/results", headers={"Accept-Language": "en"}
+        )
+        assert snapshot.status_code == 200, snapshot.text
+        assert snapshot.json()["data"]["label"] == label

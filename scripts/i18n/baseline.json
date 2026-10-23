@@ -311,7 +311,6 @@
   "apps/web/components/scheduled-tasks-section.tsx": 27,
   "apps/web/components/schema-form.tsx": 4,
   "apps/web/components/scrape-settings-section.tsx": 2,
-  "apps/web/components/search-command.tsx": 102,
   "apps/web/components/search-results.tsx": 227,
   "apps/web/components/search-settings.tsx": 49,
   "apps/web/components/season-cleanup-dialog.tsx": 34,
