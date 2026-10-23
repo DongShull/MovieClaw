@@ -8,6 +8,13 @@ description: 发布 movieclaw 新版本。当用户要求发版、发布新版�
 服务器、模型和每个客户端都**各自单独发 GitHub Release**，互不搭车：发哪个由人决定，一个 tag 只发一个
 产品。机制背景见 `docs/design/in-app-update.md`、`docs/design/android-release.md`、`docs/design/ios-release.md`。
 
+## 界面与发布资料的语言
+
+按 `changelog-guide.md` 的「多语言维护」写英文与完整中文，使用资源文件中的实际控件名称。
+提交苹果商店资料时以 `apps/apple/Store/en-US.json` 为英文文案源，对照 `docs/privacy-policy.en.md`；
+英文截图来自英文测试计划，先核对功能、服务器前提与当前发布版本，再上传。服务器 / Web / 苹果的语言支持
+分别核实；不把未迁移的客户端或中文日志写成已支持英文。本文档的维护不代表执行发版或提审。
+
 ## 一、先判定要发什么
 
 ### 产品与 tag
