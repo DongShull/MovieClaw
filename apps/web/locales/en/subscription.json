@@ -340,5 +340,24 @@
     "editAction": "Edit",
     "saving": "Saving…",
     "collapse": "Collapse"
+  },
+  "cancel": {
+    "title": "Cancel subscription",
+    "tasks": "Also remove related download tasks",
+    "noTasks": "Also remove related download tasks (none to remove)",
+    "taskCount": "Also remove {count, plural, one {# related download task} other {# related download tasks}}",
+    "taskWarning": "Remove tasks from the downloader and permanently delete their downloaded files.",
+    "hitAndRun": "{count, plural, one {# torrent still has H&R requirements or an unknown status. Removing it may affect tracker compliance.} other {# torrents still have H&R requirements or an unknown status. Removing them may affect tracker compliance.}}",
+    "files": "Also remove library files",
+    "noFiles": "Also remove library files (this title is not in the library)",
+    "fileCount": "Also remove library files ({count, plural, one {# file} other {# files}} · {size})",
+    "retention": "Files move to the library recycle bin and can be restored for {count, plural, one {# day} other {# days}}.",
+    "label": "Cancel subscription to “{title}”",
+    "question": "Cancel subscription to “{title}”?",
+    "notNow": "Not now",
+    "subtitle": "Canceling the subscription to “{title}” stops tracking remaining content. By default, all downloaded and imported content is kept.",
+    "description": "Tracking of remaining content will stop. By default, all downloaded and imported content is kept.",
+    "background": "The subscription is canceled immediately. Cleanup runs in the background; view its progress and results in Task center.",
+    "processing": "Processing…"
   }
 }

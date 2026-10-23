@@ -2935,5 +2935,22 @@
   "subscription.smart.defaultsSummary": "电影{movie} · 剧集每集{tv} · {upgrade, select, yes {达标后停止洗版} other {入库后不洗版}}",
   "subscription.smart.languageAddedFrom": "订阅《{title}》时加入",
   "subscription.smart.removeNamed": "移除{name}",
-  "subscription.smart.habitFrom": "来自《{title}》"
+  "subscription.smart.habitFrom": "来自《{title}》",
+  "subscription.cancel.title": "取消订阅",
+  "subscription.cancel.tasks": "同时删除相关的下载任务",
+  "subscription.cancel.noTasks": "同时删除相关的下载任务（没有可删除的任务）",
+  "subscription.cancel.taskCount": "同时删除相关的下载任务（{count} 个）",
+  "subscription.cancel.taskWarning": "从下载器移除任务，并删除下载目录里的文件，不可恢复。",
+  "subscription.cancel.hitAndRun": "其中 {count} 个种子仍在 H&R 考核或考核状态未知，删除后可能影响站点考核。",
+  "subscription.cancel.files": "同时删除媒体库里的资源",
+  "subscription.cancel.noFiles": "同时删除媒体库里的资源（媒体库中没有该作品）",
+  "subscription.cancel.fileCount": "同时删除媒体库里的资源（{count} 个文件 · {size}）",
+  "subscription.cancel.retention": "文件会移入媒体库回收站，{count} 天内可以恢复。",
+  "subscription.cancel.label": "取消订阅《{title}》",
+  "subscription.cancel.question": "取消订阅《{title}》？",
+  "subscription.cancel.notNow": "先不",
+  "subscription.cancel.subtitle": "取消订阅《{title}》将停止追踪剩余内容。默认只取消订阅，已经下载或入库的内容都会保留。",
+  "subscription.cancel.description": "将停止追踪剩余内容。默认只取消订阅，已经下载或入库的内容都会保留。",
+  "subscription.cancel.background": "订阅会立刻取消，清理在后台进行——可以在「任务中心」查看进度和结果。",
+  "subscription.cancel.processing": "处理中…"
 }
