@@ -469,5 +469,42 @@
     "seasonProgress": "已播 {count}/{total} 集",
     "episodesAired": "已播 {count} 集",
     "episodesOwned": "库里已有 {count} 集"
+  },
+  "adjust": {
+    "loadFailed": "加载季集与媒体库信息失败，请稍后重试",
+    "saved": "订阅已调整",
+    "savedWithoutCleanup": "订阅已调整；这一季的内容未作清理",
+    "saveFailed": "调整失败，请稍后重试",
+    "cleanupStarted": "正在后台清理，可在「任务中心」查看进度",
+    "cleanupFailed": "清理失败，请稍后重试",
+    "title": "调整订阅",
+    "save": "保存调整",
+    "chooseSeasons": "选择要收录的季",
+    "chooseSeasonsHint": "勾选即要整季（含未播集）",
+    "loading": "正在加载季集信息…",
+    "defaultRouting": "（按默认库路由）",
+    "saving": "保存中…",
+    "watchPreview": "将投递到自动入库的监听目录 {path}，下载完成后自动整理入库",
+    "libraryPreview": "将直接下载到库内目录 {path}，完成后自动入账",
+    "description": "《{title}》——加季会恢复或补建追踪；减季会让整季退出追踪范围， 但不会删除下载器任务、已下载文件或入库内容。",
+    "droppedNote": "第 {seasons} 季已有下载进度：保存只让它退出追踪 （停止进度关联、缺失搜索与自动换源），不会动任何文件{canClean, select, yes {；保存后会问你要不要顺手清理这一季的内容} other {}}{count, select, other {}}"
+  },
+  "seasonCleanup": {
+    "seasons": "第 {numbers} 季{count, select, other {}}",
+    "label": "清理{seasons}的内容",
+    "removed": "{seasons}已移出订阅",
+    "description": "《{title}》的{count, plural, =1 {这一季} other {这几季}}不再追了。要不要把已经下载的内容也清理掉？不清理也没关系， 种子和文件都原样留着。",
+    "noTasks": "同时删除{seasons}的下载任务（没有可单独删除的任务）",
+    "tasks": "同时删除{seasons}的下载任务（{count} 个）",
+    "taskConsequence": "从下载器移除任务，并删除下载目录里的文件，不可恢复。以后重新勾选{count, plural, =1 {这一季} other {这几季}}需要重新下载。",
+    "hitAndRun": "其中 {count} 个种子仍在 H&R 考核或考核状态未知，删除后可能影响站点考核。",
+    "noFiles": "同时删除{seasons}在媒体库里的资源（媒体库中没有）",
+    "files": "同时删除{seasons}在媒体库里的资源（{count} 个文件 · {size}）",
+    "recycle": "文件会移入媒体库回收站，{days} 天内可以恢复。",
+    "retained": "另有 {count} 个跨季种子{hasExample, select, yes {（如 {example}合集）} other {}}仍被保留的季使用，不会删除。",
+    "background": "清理在后台进行——可以在「任务中心」查看进度和结果。",
+    "keep": "保留内容",
+    "busy": "处理中…",
+    "confirm": "清理{seasons}"
   }
 }

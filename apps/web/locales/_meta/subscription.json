@@ -1327,5 +1327,104 @@
   },
   "subscribe.episodesOwned": {
     "sourceHash": "e035cabf3341a12d7489e72450a8368439e44b0ac4f0357a25eeab1ff0e3b667"
+  },
+  "adjust.loadFailed": {
+    "sourceHash": "f884c2a2ef81e1c34db8c45787a4e94fc803c5af7eed751d3f1d09172d5d0ccf"
+  },
+  "adjust.saved": {
+    "sourceHash": "ca6ba1a3a847e2801176fa695219a796b4ab89c8f146c080f978100458ae974c"
+  },
+  "adjust.savedWithoutCleanup": {
+    "sourceHash": "0e6da40b12d387f33b749138c3076c01321d920ced4beb68229cdc95dc698b61"
+  },
+  "adjust.saveFailed": {
+    "sourceHash": "17cdf18f5f044519382e50045057d941cecbbcb56ce1703cf50b63510b6e88b3"
+  },
+  "adjust.cleanupStarted": {
+    "sourceHash": "34650ae4fc48676907c36f0a92701e13f08ba70b4a1e3f2696c2281743942880"
+  },
+  "adjust.cleanupFailed": {
+    "sourceHash": "479b22684b7a41a63f94afb0a6a36e483385a6e408530f53e46154762c71f307"
+  },
+  "adjust.title": {
+    "sourceHash": "c20b1536b0d8e1ef57e79921c8dca24f743fd8ee5fe290ef10dee7e7641c5205"
+  },
+  "adjust.save": {
+    "sourceHash": "8678c28e6dcaec8097ff57cba7a3e616999f1edd471530e61520f04fbdfe6449"
+  },
+  "adjust.chooseSeasons": {
+    "sourceHash": "ab6be54b3e43d06317ad5ff0d9761c998bec6748eb7d8b67b0a503a715b2eb1c"
+  },
+  "adjust.chooseSeasonsHint": {
+    "sourceHash": "63e4389ea0fa578239b07ba11421e79b2084fbf7bfa0828723db1cd4b3251827"
+  },
+  "adjust.loading": {
+    "sourceHash": "4f3bc7fdb0da84fabb3ab524ec5c1a8dfa0167faeb91c759efaf4308c17c58dd"
+  },
+  "adjust.defaultRouting": {
+    "sourceHash": "72f584d2adc0a26d2aaf76e1b7abc1c4984a60b32b050b7c4e27cad0b3306ee1"
+  },
+  "adjust.saving": {
+    "sourceHash": "ff509c9ba052a21c008c88b36ef5f13acc9cb693641689b35747be6daf11d9d6"
+  },
+  "adjust.watchPreview": {
+    "sourceHash": "da02da79312250c994bd28dbe5203e014348a99f7768a591325995cda424d552"
+  },
+  "adjust.libraryPreview": {
+    "sourceHash": "7a89ed1985cbe3348de2b6a4c8415a7719f93a60cbba0df470c3f99dddbabe8e"
+  },
+  "adjust.description": {
+    "sourceHash": "88b16b40c31f0a553c12004b3dcf7d45aae93ed6c32b365ebd8d3e0f9adbf976"
+  },
+  "adjust.droppedNote": {
+    "sourceHash": "49caec68f8fe755bf1bbaa665351d4f8ee59d4b09eaf02015315e3a026898b2d"
+  },
+  "seasonCleanup.seasons": {
+    "sourceHash": "8d27dbebc639d4249e03e5bbdb75518bdde103939af3baf0f474320ab7681db9"
+  },
+  "seasonCleanup.label": {
+    "sourceHash": "2adb5c8c317c3f9fc94a34684b58d6a32c0ff633697d4c86d5e3d03b99234266"
+  },
+  "seasonCleanup.removed": {
+    "sourceHash": "b16f6274c0000d86727f696e5c0de1d7ad1e11802d83fbc42ff0a854634ebb40"
+  },
+  "seasonCleanup.description": {
+    "sourceHash": "66a4f8432156bfb536f5cebcbf1efb3fe6c961cdec52ab03e1d3a5cfebeb1aa6"
+  },
+  "seasonCleanup.noTasks": {
+    "sourceHash": "79bd393ba1393442bcaa53b007661642906d1be14113fa456b2adb39a615508e"
+  },
+  "seasonCleanup.tasks": {
+    "sourceHash": "1b6466774c989ad5d961f9a8d478a37e73697b6990c511fa65478a6a6b38177e"
+  },
+  "seasonCleanup.taskConsequence": {
+    "sourceHash": "01fa71e8e06a3c6809fd93805d9e09278929957c32900efb61ceb86e5aa4028f"
+  },
+  "seasonCleanup.hitAndRun": {
+    "sourceHash": "432916eb1410c527a33407a76e033166357f9515d41e90dc77856d1cf656b1be"
+  },
+  "seasonCleanup.noFiles": {
+    "sourceHash": "5b6a322e7b5cdade60f7de74e297a4043a2c2f1ab1eda321cbb39764d50e464f"
+  },
+  "seasonCleanup.files": {
+    "sourceHash": "082968f69a62e28a4b9f5a859d404e947da0dfaf61b780f5789c23266d2187af"
+  },
+  "seasonCleanup.recycle": {
+    "sourceHash": "149e04c87cca8e23b48e8891aaed5cef24e0800627501e99c93253623e4b0314"
+  },
+  "seasonCleanup.retained": {
+    "sourceHash": "c245537cadec95feb1b39ef9dfb0f783fa34f2e36f2089a6801e6bc8ca947b5c"
+  },
+  "seasonCleanup.background": {
+    "sourceHash": "f17eb0b7f2584d3f91bd9cc812ed54ae04d6915a5a1d533a927ab7bf16f268c3"
+  },
+  "seasonCleanup.keep": {
+    "sourceHash": "bec56830f1a97520a24fcb51a47d7fb74f0a24f8a09e9631f08222923e50f06d"
+  },
+  "seasonCleanup.busy": {
+    "sourceHash": "d3d21191f32e79a50dd0d1e30c2053bc547cfebc45fbe23926674e29cb8cc8c6"
+  },
+  "seasonCleanup.confirm": {
+    "sourceHash": "de212de99fce6e58c67c4b2973f34033788fd857a0a2dd1e3a639a517faed30e"
   }
 }
