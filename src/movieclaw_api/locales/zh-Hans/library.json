@@ -173,5 +173,33 @@
     "crossDevice": "目标与源不在同一文件系统，无法改名归位：{source} → {target}",
     "renameFailed": "改名失败（{detail}）：{source} → {target}",
     "filesProgress": "已整理 {current} / {total} 个文件"
+  },
+  "identification": {
+    "noSearchResults": "TMDB 搜索没有任何结果",
+    "titleMismatch": "搜索结果里没有片名对得上的条目",
+    "localMismatch": "同名候选都与本地的年份/季数对不上",
+    "ambiguous": "有 {count} 个同样可信的候选，机器不敢替你选",
+    "yearOnly": "候选除年份外没有其它佐证，不敢自动采信",
+    "yearExact": "年份相同",
+    "yearNear": "年份±1",
+    "runtimeExact": "时长吻合",
+    "runtimeNear": "时长接近",
+    "seasonCoverage": "季数≥{count}",
+    "episodeCoverage": "集数覆盖",
+    "totalEpisodes": "全{count}集吻合",
+    "localEpisodes": "本地 {count} 集吻合",
+    "recognized": "已认出作品",
+    "unknownSeason": "认出是《{title}》（{known, select, yes {共 {count} 季} other {季数未知}}），但文件名和目录名里都没有季号，无法确定是第几季",
+    "unparsable": "无法从文件名/目录名解析出片名",
+    "queryFailed": "TMDB 查询失败（网络不通或接口异常）：{detail}",
+    "unconfirmed": "按「{title}」{dated, select, yes {（{year}）} other {}}在 TMDB 未能确认身份{detailed, select, yes {：{detail}} other {}}",
+    "nfoKindMismatch": "同目录的 {filename}.nfo 表明这是{actual, select, tv {剧集} other {电影}}，但所在媒体库的类型是「{library, select, tv {剧集} other {电影}}」",
+    "episodesInMovie": "文件带季集号（是剧集），但所在媒体库的类型是「电影」",
+    "conflictingIds": "路径上的 tmdbid 标记互相矛盾（{ids}），均不采信",
+    "idSeparator": "、",
+    "sourcePath": "目录名 tmdbid 标记",
+    "rejectedId": "{source} tmdbid={id} 指向{detail}，与本地文件不符",
+    "pinnedTitle": "《{title}》({dated, select, yes {{year}} other {年份未知}}{runtime, select, yes {，片长 {minutes} 分钟 vs 本地实测约 {localMinutes} 分钟} other {}})",
+    "rejectedAndUnconfirmed": "{pin}；{reason}"
   }
 }

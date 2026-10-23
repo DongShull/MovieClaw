@@ -445,5 +445,83 @@
   },
   "organize.filesProgress": {
     "sourceHash": "2243f0c713f64af0fb778efe661a4333c05ef4b55555fa46192c9d0581e926fa"
+  },
+  "identification.noSearchResults": {
+    "sourceHash": "fe581c8771419547ca949b6ac31c15afb878e5a74dc6e36529b66be55a84dba6"
+  },
+  "identification.titleMismatch": {
+    "sourceHash": "a0b1887be46255587fff01a9006a501d02c667d3b0e79d6797688c6bc11cb050"
+  },
+  "identification.localMismatch": {
+    "sourceHash": "1487d5c49aaacb61f30cf42ea2f78e991b2be597145ea84cea34b928a5aa67d1"
+  },
+  "identification.ambiguous": {
+    "sourceHash": "7b796e9fde6994085d5a1679f3c1791b76e774050f5965398a17f97d2b789913"
+  },
+  "identification.yearOnly": {
+    "sourceHash": "4e700422901371209cc5c0cc8fe5bd9e07109a7e4731a1dad4d904c7f932e6fb"
+  },
+  "identification.yearExact": {
+    "sourceHash": "da64619768a444d498587ccd5fbf1afb6c70b0226f024ab3d5685c199e3edf70"
+  },
+  "identification.yearNear": {
+    "sourceHash": "5310bd7b7833b7e643d8be5d0c2f539fb5afeb906be5027d042c4d16e03db744"
+  },
+  "identification.runtimeExact": {
+    "sourceHash": "34a5c5c7c654349aa640c573def6ee416d97c2e6c223c93cb330387e9ab45a0f"
+  },
+  "identification.runtimeNear": {
+    "sourceHash": "430103ce869d7e937d3255eee87abe72ac889fdad8569a9cfd60772e7dfaf972"
+  },
+  "identification.seasonCoverage": {
+    "sourceHash": "ac1a7f8bb0f0d183790829b9acae6ab49f6e97b86c395109420addc9ab13722f"
+  },
+  "identification.episodeCoverage": {
+    "sourceHash": "a21b2fcddff5e0df6aa3f33b0a7c9cbdee272ad36cb057f2586125f67b669e32"
+  },
+  "identification.totalEpisodes": {
+    "sourceHash": "e09268469429fbf18d1b9ab9e00092cef60441b0303754bbc1435e52f89b8a2b"
+  },
+  "identification.localEpisodes": {
+    "sourceHash": "f6057279b0fc338cd1c0109716d2ff33428109690210c14d7af3708ef4accaad"
+  },
+  "identification.recognized": {
+    "sourceHash": "e71e3d0cc89e9725e655235334ff6599f33c1838012a0d53f75924b763b8a2be"
+  },
+  "identification.unknownSeason": {
+    "sourceHash": "e552bd85393de25fbb5cfe75d6c9ad5ecf252eaf1de8610f2d29d19f6adb48c5"
+  },
+  "identification.unparsable": {
+    "sourceHash": "292474b73956a9bb562d8d0f97f247028518603e95de5e8e4b9c6812cb901c2f"
+  },
+  "identification.queryFailed": {
+    "sourceHash": "8c8e343c3e845e6a5c0722879b24b9cb5b017fd63a5fb2a94298be66f83203fc"
+  },
+  "identification.unconfirmed": {
+    "sourceHash": "eb915184880f9b460c8b3db7f4ed3c0f67b43a6ad75aec275ede88cb7e973d89"
+  },
+  "identification.nfoKindMismatch": {
+    "sourceHash": "6b770fb5db69a1c9aa871749ea53f52d435d9221ac90e4e3d1077804a5b61f37"
+  },
+  "identification.episodesInMovie": {
+    "sourceHash": "95e4293b318fbd2a5b16736789e6118d9a2388dd7212e1459868af99b3db0aef"
+  },
+  "identification.conflictingIds": {
+    "sourceHash": "6e66e1bac3c0486de638db8a9e5ce1bcc1eaeedad8f3925e432cb2d56624ec4b"
+  },
+  "identification.idSeparator": {
+    "sourceHash": "c4a40ea8fe35627476f7f8cb9e1fc7f8898f428c6d1ff18b0bc5479d5db39c5f"
+  },
+  "identification.sourcePath": {
+    "sourceHash": "db8d34091c1c69a24da0874b19311bb7b3959cd02ffcab56e4df0c3fb3cb5e32"
+  },
+  "identification.rejectedId": {
+    "sourceHash": "4ad6987ee461a5905e942086ba1b6e67352cd2f3e2fffa3adc6d360adda357aa"
+  },
+  "identification.pinnedTitle": {
+    "sourceHash": "bfe73c6133cc865b3c5c0a47b26f1b844da6db55753515de9e944830082d938b"
+  },
+  "identification.rejectedAndUnconfirmed": {
+    "sourceHash": "337a951e0932424f6b28ad8bf2c609e4ae3d5545842993017e1685e9a589a513"
   }
 }

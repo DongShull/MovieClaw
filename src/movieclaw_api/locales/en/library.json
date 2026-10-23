@@ -173,5 +173,33 @@
     "crossDevice": "Source and target are on different filesystems; cannot rename: {source} → {target}",
     "renameFailed": "Could not rename ({detail}): {source} → {target}",
     "filesProgress": "Organized {current, number} / {total, number} files"
+  },
+  "identification": {
+    "noSearchResults": "TMDB search returned no results",
+    "titleMismatch": "No search result matches the title",
+    "localMismatch": "Candidates with the same title do not match the local year or season count",
+    "ambiguous": "{count, plural, one {# candidate is} other {# candidates are}} equally plausible; choose a match manually",
+    "yearOnly": "Only the year matches; there is not enough evidence to identify this candidate automatically",
+    "yearExact": "Year matches",
+    "yearNear": "Year differs by 1",
+    "runtimeExact": "Runtime matches",
+    "runtimeNear": "Runtime is close",
+    "seasonCoverage": "At least {count, plural, one {# season} other {# seasons}}",
+    "episodeCoverage": "Episode count covers the local files",
+    "totalEpisodes": "Total of {count, plural, one {# episode} other {# episodes}} matches",
+    "localEpisodes": "{count, plural, one {# local episode matches} other {# local episodes match}}",
+    "recognized": "Title identified",
+    "unknownSeason": "Identified “{title}” ({known, select, yes {{count, plural, one {# season} other {# seasons}}} other {season count unknown}}), but neither the filename nor directory includes a season number",
+    "unparsable": "Could not parse a title from the filename or directory name",
+    "queryFailed": "TMDB query failed (network or service error): {detail}",
+    "unconfirmed": "Could not confirm “{title}”{dated, select, yes { ({year})} other {}} on TMDB{detailed, select, yes {: {detail}} other {}}",
+    "nfoKindMismatch": "The adjacent {filename}.nfo identifies {actual, select, tv {a TV series} other {a movie}}, but this is {library, select, tv {a TV library} other {a movie library}}",
+    "episodesInMovie": "The file has season and episode numbers (a TV series), but it is in a movie library",
+    "conflictingIds": "Conflicting tmdbid tags in the path ({ids}); none are trusted",
+    "idSeparator": ", ",
+    "sourcePath": "Directory tmdbid tag",
+    "rejectedId": "{source} tmdbid={id} points to {detail}, which does not match the local file",
+    "pinnedTitle": "“{title}” ({dated, select, yes {{year}} other {year unknown}}{runtime, select, yes {, runtime {minutes, plural, one {# minute} other {# minutes}} vs approximately {localMinutes, plural, one {# local minute} other {# local minutes}}} other {}})",
+    "rejectedAndUnconfirmed": "{pin}; {reason}"
   }
 }

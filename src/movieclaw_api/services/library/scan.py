@@ -63,7 +63,7 @@ from sqlalchemy import delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services import jobs
 from movieclaw_api.services.drives.registry import active as drives_active
 from movieclaw_api.services.foreground import yield_to_foreground
@@ -3139,6 +3139,7 @@ async def _merge_same_file_rows(
         survivor.resolved_version = duplicate.resolved_version
         survivor.review_suggestion = duplicate.review_suggestion
         survivor.unidentified_reason = None
+        survivor.unidentified_message = None
         survivor.unidentified_code = None
         survivor.unidentified_candidates = None
     if survivor.file_mtime_ns is None:
@@ -3186,6 +3187,8 @@ async def _merge_same_file_rows(
         ):
             if getattr(survivor, field_name) is None:
                 setattr(survivor, field_name, getattr(duplicate, field_name))
+                if field_name == "unidentified_reason":
+                    survivor.unidentified_message = duplicate.unidentified_message
     assert survivor.id is not None and duplicate.id is not None
     await _retarget_library_file_jobs(session, duplicate.id, survivor.id)
     # file_path 有唯一索引，必须先让重复行的 DELETE 落到数据库，才能把原行
@@ -3490,6 +3493,7 @@ async def _ingest_file(
         # 要重跑识别链、等 TMDB 认出来转正的
         item_id: int | None = existing.media_item_id
         unidentified_reason = None
+        unidentified_message = None
         unidentified_code: str | None = None
         candidates: list[dict] = []
         season, episode = existing.season_number, existing.episode_number
@@ -3512,6 +3516,7 @@ async def _ingest_file(
         )
         provisional = identified.provisional
         unidentified_reason, candidates = identified.reason, identified.candidates
+        unidentified_message = identified.reason_message
         unidentified_code = identified.code
         item_id = identified.item.id if identified.item is not None else None
         # 季集解析进线程池：要读分集 NFO（磁盘 IO），解析层兜底还会跑 NER
@@ -3600,6 +3605,7 @@ async def _ingest_file(
         origin=origin,
         # 临时本地身份的行同时带着"为什么没认出"：清单与角标据此表达
         unidentified_reason=(unidentified_reason if item_id is None or provisional else None),
+        unidentified_message=(unidentified_message if item_id is None or provisional else None),
         unidentified_code=unidentified_code if item_id is None or provisional else None,
         unidentified_candidates=((candidates or None) if item_id is None or provisional else None),
         identity_source=identity_source,
@@ -4007,6 +4013,13 @@ class _Identified:
     # 剧集认出作品后按该作品的季台账解出的 (季, 集)。None = 没算（电影、
     # 原盘、临时身份），由调用方走不带台账的 ``_unit_for``
     unit: tuple[int, int] | None = None
+    reason_message: dict | None = None
+
+    @classmethod
+    def from_message(
+        cls, message: dict, *, candidates: list[dict] | None = None, code: str | None = None
+    ) -> _Identified:
+        return cls(None, message["message"], candidates or [], code=code, reason_message=message)
 
 
 async def _identify_with_fallback(
@@ -4099,14 +4112,22 @@ async def _with_unit(
     if season is not None:
         return replace(identified, unit=(season, episode))
     regular = sum(1 for number in known if number > 0)
-    count = f"共 {regular} 季" if regular else "季数未知"
+    recognized = stored_fields("library.identification.recognized")
     candidate = ResolveCandidate(
-        tmdb_id=item.tmdb_id or 0, title=item.title, year=item.year, reasons=["已认出作品"]
+        tmdb_id=item.tmdb_id or 0,
+        title=item.title,
+        year=item.year,
+        reasons=[recognized["message"]],
+        reason_messages=[recognized],
     )
-    return _Identified(
-        None,
-        f"认出是《{item.title}》（{count}），但文件名和目录名里都没有季号，无法确定是第几季",
-        [asdict(candidate)],
+    return _Identified.from_message(
+        stored_fields(
+            "library.identification.unknownSeason",
+            title=item.title,
+            known="yes" if regular else "no",
+            count=regular,
+        ),
+        candidates=[asdict(candidate)],
         code=UnidentifiedCode.UNIT_UNRESOLVED,
     )
 
@@ -4225,7 +4246,7 @@ def _hint_for(file: Path, hints: dict[str, _SubtitleHint]) -> _SubtitleHint | No
 
 def _local_identity_evidence(
     kind: MediaKind, root: Path, file: Path, *, is_disc: bool
-) -> tuple[NfoIdentity | None, str | None, LocalEvidence | None]:
+) -> tuple[NfoIdentity | None, dict | None, LocalEvidence | None]:
     """（线程池内运行）识别链的本地证据：NFO → 类型冲突判定 → 名称证据。
 
     类型冲突时不再收集名称证据（与原串行逻辑一致：冲突即早退，证据用不上）。
@@ -4263,19 +4284,23 @@ async def _identify(
     )
     # ⓪ 类型冲突：文件实际是剧集/电影，与所在库的类型对不上（零网络成本）
     if conflict is not None:
-        return _Identified(None, conflict, code=UnidentifiedCode.KIND_MISMATCH)
+        return _Identified.from_message(conflict, code=UnidentifiedCode.KIND_MISMATCH)
 
     # ① 显式精确身份：路径 tmdbid 标记（就近优先）→ NFO
     # 各级路径上的标记互相矛盾时全部不采信（实测：目录标着正主、文件名
     # 标着同名短片，"就近优先"会静默选中错的那个）——自相矛盾的声明不如
     # 让名称解析用物理证据（年份/时长）裁决；解析也失败时原因里说清矛盾
-    rejected_pin: str | None = None
+    rejected_pin: dict | None = None
     path_ids = _path_tmdb_ids(root, file)
     if len(path_ids) > 1:
-        rejected_pin = (
-            f"路径上的 tmdbid 标记互相矛盾（{'、'.join(str(i) for i in path_ids)}），均不采信"
+        rejected_pin = stored_fields(
+            "library.identification.conflictingIds",
+            ids={
+                "message_list": [str(i) for i in path_ids],
+                "separator_key": "library.identification.idSeparator",
+            },
         )
-        logger.warning("%s：%s", rejected_pin, file)
+        logger.warning("%s：%s", rejected_pin["message"], file)
         tmdb_id, id_source = (
             (nfo.tmdb_id, IdentitySource.NFO)
             if nfo is not None and nfo.tmdb_id is not None
@@ -4321,10 +4346,15 @@ async def _identify(
                 return _Identified(item, source=id_source)
             # 声明与本地证据严重矛盾：不采信，降级走名称解析（它要过完整的
             # 证据验证，此刻可信度高于一个对不上号的数字）
-            rejected_pin = (
-                f"{_ID_SOURCE_NAMES[id_source]} tmdbid={tmdb_id} 指向{mismatch}，与本地文件不符"
+            rejected_pin = stored_fields(
+                "library.identification.rejectedId",
+                source=reference("library.identification.sourcePath")
+                if id_source is IdentitySource.PATH_TAG
+                else "NFO",
+                id=tmdb_id,
+                detail=mismatch,
             )
-            logger.warning("%s（%s），改按文件名识别", rejected_pin, file.name)
+            logger.warning("%s（%s），改按文件名识别", rejected_pin["message"], file.name)
 
     # ② 名称解析 → TMDB 证据验证收敛（年份/时长/季集数佐证见 library_resolve）
     result = await _resolve_by_name(
@@ -4343,7 +4373,12 @@ async def _identify(
     if rejected_pin is not None and result.item is None:
         # 声明被推翻、按名字也没认出来：原因以"声明有问题"开头——这才是
         # 用户唯一需要动手的地方（改标记/NFO 比每次都认领一遍一劳永逸）
-        return replace(result, reason=f"{rejected_pin}；{result.reason}")
+        message = stored_fields(
+            "library.identification.rejectedAndUnconfirmed",
+            pin=rejected_pin,
+            reason=result.reason_message or result.reason,
+        )
+        return replace(result, reason=message["message"], reason_message=message)
     return result
 
 
@@ -4375,7 +4410,9 @@ async def _resolve_by_name(
         if evidence is not None:
             evidence.total_episodes = hint.total_episodes
     if evidence is None:
-        return _Identified(None, "无法从文件名/目录名解析出片名", code=UnidentifiedCode.UNPARSABLE)
+        return _Identified.from_message(
+            stored_fields("library.identification.unparsable"), code=UnidentifiedCode.UNPARSABLE
+        )
     evidence.duration_seconds = duration_seconds
     # 本地实际集数（同一季目录只数一次）：同名双版本的分水岭证据
     if kind is MediaKind.TV:
@@ -4394,7 +4431,6 @@ async def _resolve_by_name(
     )
     if key in cache:
         return cache[key]
-    year_note = f"（{evidence.year}）" if evidence.year else ""
     try:
         outcome = await resolve_with_candidates(get_tmdb_client(), kind, evidence)
         item = (
@@ -4405,9 +4441,8 @@ async def _resolve_by_name(
     except Exception as exc:  # noqa: BLE001 -- TMDB 波动不该中断扫描
         logger.warning("TMDB 收敛失败（%s / %s）：%s", evidence.title, evidence.year, exc)
         # 网络类失败不写入缓存：同名文件下次扫描还有机会重试
-        return _Identified(
-            None,
-            f"TMDB 查询失败（网络不通或接口异常）：{exc}",
+        return _Identified.from_message(
+            stored_fields("library.identification.queryFailed", detail=str(exc)),
             code=UnidentifiedCode.TMDB_UNREACHABLE,
         )
     if item is not None:
@@ -4415,11 +4450,16 @@ async def _resolve_by_name(
     else:
         # 原因写清楚"卡在哪一步"：有候选说明机器是"不敢选"而非"找不到"。
         # 收尾不再写「请…」——该做什么由清单上的按钮表达，文案只说发生了什么
-        detail = f"：{outcome.reason}" if outcome.reason else ""
-        result = _Identified(
-            None,
-            f"按「{evidence.title}」{year_note}在 TMDB 未能确认身份{detail}",
-            [asdict(c) for c in outcome.candidates],
+        result = _Identified.from_message(
+            stored_fields(
+                "library.identification.unconfirmed",
+                title=evidence.title,
+                dated="yes" if evidence.year else "no",
+                year=evidence.year or 0,
+                detailed="yes" if outcome.reason else "no",
+                detail=outcome.reason_message or outcome.reason or "",
+            ),
+            candidates=[asdict(c) for c in outcome.candidates],
             code=(UnidentifiedCode.AMBIGUOUS if outcome.candidates else UnidentifiedCode.NO_MATCH),
         )
     cache[key] = result
@@ -4452,7 +4492,7 @@ def pinned_tmdb_id(
 
 def _kind_conflict(
     kind: MediaKind, file: Path, nfo: NfoIdentity | None, *, is_disc: bool = False
-) -> str | None:
+) -> dict | None:
     """文件的实际类型与所在库的类型是否冲突（冲突时返回中文原因）。
 
     为什么这一刀必须在识别链最前面：TMDB 的 movie 与 tv 是**两套独立的 id
@@ -4467,14 +4507,16 @@ def _kind_conflict(
       结构。反方向不检测——剧集库里没有季集号的文件（特典、纪录片）很正常。
     """
     if nfo is not None and nfo.kind is not kind:
-        return (
-            f"同目录的 {'tvshow' if nfo.kind is MediaKind.TV else 'movie'}.nfo 表明这是"
-            f"{_KIND_NAMES[nfo.kind]}，但所在媒体库的类型是「{_KIND_NAMES[kind]}」"
+        return stored_fields(
+            "library.identification.nfoKindMismatch",
+            filename="tvshow" if nfo.kind is MediaKind.TV else "movie",
+            actual=nfo.kind.value,
+            library=kind.value,
         )
     if kind is MediaKind.MOVIE:
         attrs = enrich(unit_name(file, is_disc))
         if season_from_dir(file.parent) is not None or (attrs.seasons and attrs.episodes):
-            return "文件带季集号（是剧集），但所在媒体库的类型是「电影」"
+            return stored_fields("library.identification.episodesInMovie")
     return None
 
 
@@ -4485,7 +4527,7 @@ def _pinned_mismatch(
     duration_seconds: int | None = None,
     runtime_minutes: int | None = None,
     last_air_year: int | None = None,
-) -> str | None:
+) -> dict | None:
     """钉死身份拉到的条目是否与本地证据**严重**矛盾（矛盾时返回条目描述）。
 
     显式声明是用户的强意图，判定必须克制——手写 ``[tmdbid=N]`` 的主要用途
@@ -4526,18 +4568,24 @@ def _pinned_mismatch(
             item.year - _PINNED_YEAR_TOLERANCE <= evidence.year <= latest + _PINNED_YEAR_TOLERANCE
         )
     )
-    runtime_note = ""
+    runtime_conflict = False
     if duration_seconds and runtime_minutes:
         shorter, longer = sorted((duration_seconds, runtime_minutes * 60))
         if longer >= shorter * _PINNED_RUNTIME_RATIO and (
             longer - shorter >= _PINNED_RUNTIME_GAP_SECONDS
         ):
-            runtime_note = (
-                f"，片长 {runtime_minutes} 分钟 vs 本地实测约 {round(duration_seconds / 60)} 分钟"
-            )
-    if not year_conflict and not runtime_note:
+            runtime_conflict = True
+    if not year_conflict and not runtime_conflict:
         return None
-    return f"《{item.title}》({item.year if item.year is not None else '年份未知'}{runtime_note})"
+    return stored_fields(
+        "library.identification.pinnedTitle",
+        title=item.title,
+        dated="yes" if item.year is not None else "no",
+        year=item.year or 0,
+        runtime="yes" if runtime_conflict else "no",
+        minutes=runtime_minutes or 0,
+        localMinutes=round((duration_seconds or 0) / 60),
+    )
 
 
 def _path_tmdb_id(root: Path, file: Path) -> int | None:
@@ -4817,6 +4865,8 @@ class ReidentifyOutcome:
     code: str | None = None  # 没命中时的失败分类
     candidates: list[dict] = field(default_factory=list)
 
+    reason_message: dict | None = None
+
 
 @dataclass
 class ReidentifyGroup:
@@ -4925,6 +4975,7 @@ async def preview_reidentify(
                     poster_path=item.poster_path if item is not None else None,
                     source=identified.source.value if identified.source is not None else None,
                     reason=identified.reason,
+                    reason_message=identified.reason_message,
                     code=identified.code,
                     candidates=identified.candidates or [],
                 ),
@@ -5099,6 +5150,7 @@ async def _reidentify(
                     moved_file_ids.append(row.id)
             row.media_item_id = item.id if item is not None else None
             row.unidentified_reason = reason if keep_failure else None
+            row.unidentified_message = identified.reason_message if keep_failure else None
             row.unidentified_code = identified.code if keep_failure else None
             row.unidentified_candidates = (identified.candidates or None) if keep_failure else None
             row.identity_source = identified.source if item is not None else None

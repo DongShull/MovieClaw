@@ -73,6 +73,7 @@ def localize_fields(value):
                 text, key, value.get("message_params", value.get("params"))
             )
     # Domain summaries retain a legacy string list beside their marked messages.
-    if value.get("error_messages"):
-        result["errors"] = [item["message"] for item in result["error_messages"]]
+    for field, references in (("errors", "error_messages"), ("reasons", "reason_messages")):
+        if value.get(references):
+            result[field] = [item["message"] for item in result[references]]
     return result

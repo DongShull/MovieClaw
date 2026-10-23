@@ -995,6 +995,14 @@ def _schedule_orphan_cleanup(item_ids: set[int]) -> None:
 _cleanup_tasks: set = set()
 
 
+def _identification_reason(reason: str | None, message: dict | None) -> str | None:
+    if reason is None:
+        return None
+    return stored_message(
+        reason, (message or {}).get("message_key"), (message or {}).get("message_params")
+    )
+
+
 async def _group_by_entry_dir(
     session: AsyncSession, rows: list[LibraryFile]
 ) -> list[UnidentifiedGroupView]:
@@ -1020,10 +1028,11 @@ async def _group_by_entry_dir(
             size_bytes=row.size_bytes,
             season_number=row.season_number,
             episode_number=row.episode_number,
-            reason=row.unidentified_reason,
+            reason=_identification_reason(row.unidentified_reason, row.unidentified_message),
             code=row.unidentified_code,
             candidates=[
-                UnidentifiedCandidateView(**c) for c in (row.unidentified_candidates or [])
+                UnidentifiedCandidateView(**localize_fields(c))
+                for c in (row.unidentified_candidates or [])
             ],
         )
         group = groups.get(key)
@@ -3915,9 +3924,14 @@ async def preview_reidentify_item(
                     poster_url=poster(group.outcome.poster_path),
                     source=group.outcome.source,
                     same_as_current=group.outcome.media_item_id == media_item_id,
-                    reason=group.outcome.reason,
+                    reason=_identification_reason(
+                        group.outcome.reason, group.outcome.reason_message
+                    ),
                     code=group.outcome.code,
-                    candidates=[UnidentifiedCandidateView(**c) for c in group.outcome.candidates],
+                    candidates=[
+                        UnidentifiedCandidateView(**localize_fields(c))
+                        for c in group.outcome.candidates
+                    ],
                 ),
                 file_ids=group.file_ids,
                 file_count=group.file_count,

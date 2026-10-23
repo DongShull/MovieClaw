@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import re
+import sqlite3
 
 import pytest
 
@@ -87,7 +89,27 @@ def test_identify_ignore_and_organize_real_files(stack, browser):
         expect(dialog.get_by_role("button", name="None match, search…", exact=True)).to_be_visible()
         return dialog
 
+    def recorded_reason(path):
+        database = stack["database_url"].removeprefix("sqlite+aiosqlite:///")
+        with sqlite3.connect(database) as connection:
+            return connection.execute(
+                "SELECT unidentified_reason, unidentified_message FROM library_file "
+                "WHERE file_path = ?",
+                (str(path),),
+            ).fetchone()
+
+    original_reason, original_message = recorded_reason(files["UnknownClipA"])
+    assert original_reason.startswith("按「UnknownClipA」")
+    assert json.loads(original_message)["message_key"] == "library.identification.unconfirmed"
     dialog = correction(ids["UnknownClipA"])
+    expect(
+        dialog.get_by_text(
+            "Could not identify (No TMDB match): Could not confirm “UnknownClipA” on TMDB: "
+            "TMDB search returned no results",
+            exact=True,
+        )
+    ).to_be_visible()
+    assert not re.search(r"[\u3400-\u9fff]", dialog.inner_text())
     expect(dialog.get_by_text("Current identification", exact=True)).to_be_visible()
     dialog.get_by_role("button", name="None match, search…", exact=True).click()
     dialog.get_by_placeholder("Title keywords or a TMDB ID", exact=True).fill("300")
@@ -113,6 +135,7 @@ def test_identify_ignore_and_organize_real_files(stack, browser):
         files["UnknownClipA"].exists() and subtitle.exists()
     )  # Claim changes identity, not filenames.
     assert any(row["title"] == "某电影" for row in items())
+    assert recorded_reason(files["UnknownClipA"]) == (None, None)
     dialog.get_by_role("button", name="Close", exact=True).last.click()
 
     dialog = correction(ids["UnknownClipB"])
@@ -122,6 +145,7 @@ def test_identify_ignore_and_organize_real_files(stack, browser):
     confirmation.get_by_role("button", name="Mark as extras", exact=True).click()
     expect(dialog.get_by_text(re.compile("Marked 1 file as extras"))).to_be_visible()
     assert files["UnknownClipB"].exists()
+    assert recorded_reason(files["UnknownClipB"]) == (None, None)
     assert not any(row["media_item_id"] == ids["UnknownClipB"] for row in items())
     dialog.get_by_role("button", name="Close", exact=True).last.click()
 
