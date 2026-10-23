@@ -121,7 +121,7 @@ struct PersonDetailView: View {
             } description: {
                 Text("请稍后重试；若持续失败，请查看系统日志。")
             } actions: {
-                Button("重试") { Task { await load() } }.buttonStyle(.glass)
+                Button(String(localized: .commonRetry)) { Task { await load() } }.buttonStyle(.glass)
             }
         }
     }

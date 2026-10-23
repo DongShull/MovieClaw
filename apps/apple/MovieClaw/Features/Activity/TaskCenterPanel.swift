@@ -405,7 +405,7 @@ struct TaskHistorySection: View {
                             Text(group.label).fontWeight(.semibold)
                             Text("\(group.jobs.count) 项").font(.caption).monospacedDigit().foregroundStyle(Theme.textFaint)
                             Spacer()
-                            Text(open ? "收起" : "展开").font(.caption).foregroundStyle(Theme.textFaint)
+                            Text(open ? String(localized: .commonCollapse) : String(localized: .commonExpand)).font(.caption).foregroundStyle(Theme.textFaint)
                             Image(systemName: "chevron.right").font(.caption).rotationEffect(.degrees(open ? 90 : 0))
                         }
                         .font(.subheadline)
@@ -612,7 +612,7 @@ struct DeleteDownloadTaskSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }.disabled(busy)
+                    Button(String(localized: .commonCancel)) { dismiss() }.disabled(busy)
                 }
             }
         }

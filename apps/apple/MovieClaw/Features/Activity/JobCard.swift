@@ -424,7 +424,7 @@ struct DismissJobSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }.disabled(busy)
+                    Button(String(localized: .commonCancel)) { dismiss() }.disabled(busy)
                 }
             }
         }

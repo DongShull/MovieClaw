@@ -145,7 +145,7 @@ struct ManageCreateLibraryForm: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     if step == 1 {
-                        Button("取消") { dismiss() }.accessibilityIdentifier("form-cancel")
+                        Button(String(localized: .commonCancel)) { dismiss() }.accessibilityIdentifier("form-cancel")
                     } else {
                         Button("上一步") { step = step == 3 ? 2 : 1 }.accessibilityIdentifier("form-back")
                     }
@@ -352,7 +352,7 @@ struct ManageEditLibraryForm: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if state.value == nil {
-                    ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button(String(localized: .commonCancel)) { dismiss() } }
                 }
             }
         }
@@ -520,10 +520,10 @@ private struct ManageEditLibraryBody: View {
         .navigationTitle("编辑「\(library.name)」")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }.accessibilityIdentifier("form-cancel")
+                Button(String(localized: .commonCancel)) { dismiss() }.accessibilityIdentifier("form-cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(busy ? "保存中…" : "保存") { Task { await submit() } }
+                Button(busy ? "保存中…" : String(localized: .commonSave)) { Task { await submit() } }
                     .disabled(!ready || busy)
                     .accessibilityIdentifier("form-save")
             }

@@ -33,7 +33,7 @@ struct DeviceCleanupPopover: View {
                         ProgressView("正在检查设备…")
                     case let .failed(message):
                         Text(message).font(.subheadline).foregroundStyle(.secondary)
-                        Button("重试") { Task { await load() } }
+                        Button(String(localized: .commonRetry)) { Task { await load() } }
                     case .loaded:
                         if items.isEmpty {
                             Label("没有需要清理的设备", systemImage: "checkmark.circle")
@@ -77,7 +77,7 @@ struct DeviceCleanupPopover: View {
             .buttonStyle(.borderedProminent).tint(Theme.danger).controlSize(.large)
             .disabled(items.isEmpty || busy)
             .accessibilityIdentifier("devices-cleanup-submit")
-            Button("取消") { dismiss() }
+            Button(String(localized: .commonCancel)) { dismiss() }
                 .disabled(busy).accessibilityIdentifier("sheet-cancel")
         }
         .padding(20)
@@ -86,7 +86,7 @@ struct DeviceCleanupPopover: View {
         .adaptiveDetents([.large])
         .interactiveDismissDisabled(busy)
         .alert("清理这 \(items.count) 台设备？", isPresented: $confirming) {
-            Button("取消", role: .cancel) { }
+            Button(String(localized: .commonCancel), role: .cancel) { }
             Button("清理 \(items.count) 台设备", role: .destructive) { Task { await submit() } }
         } message: {
             Text("仅影响\(group.title)中超过 \(days) 天未使用的设备，它们将立即失去访问权限。")

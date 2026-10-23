@@ -164,7 +164,7 @@ struct TVLibraryView: View {
             Button {
                 pick(nil)
             } label: {
-                if selected == nil { Label("全部", systemImage: "checkmark") } else { Text("全部") }
+                if selected == nil { Label(String(localized: .commonFiltersAll), systemImage: "checkmark") } else { Text(String(localized: .commonFiltersAll)) }
             }
             if let options {
                 ForEach(options, id: \.value) { option in
@@ -499,7 +499,7 @@ struct TVPosterWall<Accessory: View>: View {
         if pager.items == nil {
             ProgressView().frame(maxWidth: .infinity).padding(.top, 120)
         } else if let error = pager.failed {
-            TVStateView(symbol: "wifi.exclamationmark", title: "加载失败", message: error, actionTitle: "重试") {
+            TVStateView(symbol: "wifi.exclamationmark", title: "加载失败", message: error, actionTitle: String(localized: .commonRetry)) {
                 Task { await retry() }
             }
             .frame(height: 500)

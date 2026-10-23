@@ -206,7 +206,7 @@ private struct FilterConditionRow: View {
                 }
             }
             Button { filter = LibraryFilter() } label: {
-                Text("清空")
+                Text(String(localized: .commonClear))
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.5))
                     .padding(.horizontal, 8)
@@ -369,7 +369,7 @@ private struct FilterSheet: View {
         .scrollIndicators(.hidden)
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 8) {
-                Button("清空") { filter = LibraryFilter() }
+                Button(String(localized: .commonClear)) { filter = LibraryFilter() }
                     .buttonStyle(.glass)
                     .controlSize(.large)
                 // 不是「确定」：条件早就生效了，这颗只是把面板收起来看结果

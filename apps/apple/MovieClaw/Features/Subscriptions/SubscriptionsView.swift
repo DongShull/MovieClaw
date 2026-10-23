@@ -145,8 +145,8 @@ struct SubscriptionsView: View {
     private var errorState: some View {
         // 同 Web：只有一行「订阅列表加载失败」+ 重试（已有旧快照时不进错误态，保留旧内容）
         VStack(spacing: 12) {
-            Text("订阅列表加载失败").font(.subheadline).foregroundStyle(Theme.textMuted)
-            Button("重试") { Task { await reload() } }
+            Text(String(localized: .subscriptionOverviewFailed)).font(.subheadline).foregroundStyle(Theme.textMuted)
+            Button(String(localized: .commonRetry)) { Task { await reload() } }
                 .buttonStyle(.glass)
         }
         .frame(maxWidth: .infinity)

@@ -44,9 +44,9 @@ struct PlayerErrorView: View {
                 }
                 // 两颗按钮给同一个最小宽度：字数一样但字形宽窄不同，不等宽会让这一行显得歪
                 HStack(spacing: 12) {
-                    Button(action: exit) { Text("返回").frame(minWidth: 96) }
+                    Button(action: exit) { Text(String(localized: .commonBack)).frame(minWidth: 96) }
                         .buttonStyle(.glass)
-                    Button(action: retry) { Text("重试").frame(minWidth: 96) }
+                    Button(action: retry) { Text(String(localized: .commonRetry)).frame(minWidth: 96) }
                         .discoverProminentButton()
                         .accessibilityIdentifier("player-retry")
                 }
@@ -75,7 +75,7 @@ struct PlayerInfoErrorView: View {
                     .font(.subheadline)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
-                Button("返回", action: exit)
+                Button(String(localized: .commonBack), action: exit)
                     .buttonStyle(.glass)
                     .controlSize(.large)
                     .accessibilityIdentifier("player-info-error-back")
@@ -175,7 +175,7 @@ struct PlayerConsentView: View {
     private var buttons: some View {
         if decision.canSelfEnable == true {
             HStack(spacing: 10) {
-                Button(action: cancel) { Text("取消").frame(maxWidth: .infinity) }
+                Button(action: cancel) { Text(String(localized: .commonCancel)).frame(maxWidth: .infinity) }
                     .buttonStyle(.glass)
                 Button {
                     Task {

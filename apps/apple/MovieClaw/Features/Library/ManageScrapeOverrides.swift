@@ -260,7 +260,7 @@ struct ManageScrapeOverrides: View {
                     )) {
                         Text("跟随全局（\(globalOn ? "开" : "关")）").tag(0)
                         Text("开").tag(1)
-                        Text("关").tag(2)
+                        Text(String(localized: .agentThinkingOff)).tag(2)
                     }
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("form-scrape-\(field.key)")

@@ -536,7 +536,7 @@ struct SubscriptionManageSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭", systemImage: "xmark") { dismiss() }
+                    Button(String(localized: .commonClose), systemImage: "xmark") { dismiss() }
                 }
             }
         }

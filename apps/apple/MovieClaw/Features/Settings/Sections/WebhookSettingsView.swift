@@ -68,9 +68,9 @@ struct WebhookSettingsView: View {
                         .font(.footnote.monospaced())
                         .textSelection(.enabled)
                         .accessibilityIdentifier("webhook-secret")
-                    Button("复制", systemImage: "doc.on.doc") {
+                    Button(String(localized: .commonCopy), systemImage: "doc.on.doc") {
                         UIPasteboard.general.string = revealed.secret
-                        feedback.success("已复制")
+                        feedback.success(String(localized: .commonCopied))
                     }
                     Button("我已保存，关闭") { self.revealed = nil }
                         .accessibilityIdentifier("webhook-secret-dismiss")
@@ -158,7 +158,7 @@ struct WebhookSettingsView: View {
                     .accessibilityIdentifier("webhook-test-\(endpoint.name)")
                 Button(expanded == endpoint.id ? "收起记录" : "记录") { Task { await toggleRecords(endpoint.id) } }
                     .accessibilityIdentifier("webhook-records-\(endpoint.name)")
-                Button("编辑") { draft = SettingsBWebhookDraft(endpoint) }
+                Button(String(localized: .commonEdit)) { draft = SettingsBWebhookDraft(endpoint) }
                     .accessibilityIdentifier("webhook-edit-\(endpoint.name)")
             }
             .font(.footnote.weight(.medium))
@@ -496,7 +496,7 @@ private struct SettingsBWebhookEditor: View {
                         HStack {
                             Text(group.name)
                             Spacer()
-                            Button(allOn ? "全不选" : "全选") { toggleGroup(group.entries, !allOn) }
+                            Button(allOn ? "全不选" : String(localized: .commonSelectAll)) { toggleGroup(group.entries, !allOn) }
                                 .font(.footnote)
                                 .textCase(nil)
                                 .disabled(usable.isEmpty)
@@ -521,9 +521,9 @@ private struct SettingsBWebhookEditor: View {
                                 Text("新的签名密钥（仅显示这一次，请立即保存）")
                                     .font(.footnote.weight(.medium)).foregroundStyle(Theme.success)
                                 Text(rotatedSecret).font(.footnote.monospaced()).textSelection(.enabled)
-                                Button("复制", systemImage: "doc.on.doc") {
+                                Button(String(localized: .commonCopy), systemImage: "doc.on.doc") {
                                     UIPasteboard.general.string = rotatedSecret
-                                    feedback.success("已复制")
+                                    feedback.success(String(localized: .commonCopied))
                                 }
                                 .buttonStyle(.borderless)
                             }
@@ -537,7 +537,7 @@ private struct SettingsBWebhookEditor: View {
 
                 if !draft.isNew {
                     SettingsFormSection {
-                        Button("删除", role: .destructive) { Task { await delete() } }
+                        Button(String(localized: .commonDelete), role: .destructive) { Task { await delete() } }
                             .disabled(busy)
                             .accessibilityIdentifier("webhook-delete")
                     }
@@ -548,14 +548,14 @@ private struct SettingsBWebhookEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消", systemImage: "xmark") { dismiss() }
+                    Button(String(localized: .commonCancel), systemImage: "xmark") { dismiss() }
                         .accessibilityIdentifier("sheet-close")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         Task { await save() }
                     } label: {
-                        if busy { ProgressView() } else { Text("保存") }
+                        if busy { ProgressView() } else { Text(String(localized: .commonSave)) }
                     }
                     .disabled(busy)
                     .accessibilityIdentifier("webhook-save")
@@ -613,7 +613,7 @@ private struct SettingsBWebhookEditor: View {
 
     private func delete() async {
         let name = draft.name.isEmpty ? draft.url : draft.name
-        guard await feedback.confirm("删除「\(name)」？", message: "删除后该地址不再收到任何事件，签名密钥同时作废。", confirmTitle: "删除", destructive: true) else { return }
+        guard await feedback.confirm("删除「\(name)」？", message: "删除后该地址不再收到任何事件，签名密钥同时作废。", confirmTitle: String(localized: .commonDelete), destructive: true) else { return }
         busy = true
         defer { busy = false }
         if await onDelete(draft.id) { dismiss() } else { error = "删除失败，请稍后重试" }

@@ -155,7 +155,7 @@ struct SettingsBMCPCopyField: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button(label) {
                 UIPasteboard.general.string = value
-                feedback.success("已复制")
+                feedback.success(String(localized: .commonCopied))
             }
             .font(.caption.weight(.medium))
             .buttonStyle(.glass)
@@ -184,9 +184,9 @@ struct SettingsBMCPCodeBlock: View {
                     .tracking(1)
                     .foregroundStyle(Theme.textFaint)
                 Spacer()
-                Button("复制") {
+                Button(String(localized: .commonCopy)) {
                     UIPasteboard.general.string = code
-                    feedback.success("已复制")
+                    feedback.success(String(localized: .commonCopied))
                 }
                 .font(.caption.weight(.medium))
                 .buttonStyle(.glass)

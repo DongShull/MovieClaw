@@ -223,7 +223,7 @@ private struct SettingsBScrapeSourceOrderSheet: View {
     var body: some View {
         SubsSheetScaffold(title: "\(kind.title)来源", onClose: {
             if draft != original { discarding = true } else { dismiss() }
-        }, confirm: SubsSheetConfirm(title: "保存", busy: busy, identifier: "scrape-source-done") {
+        }, confirm: SubsSheetConfirm(title: String(localized: .commonSave), busy: busy, identifier: "scrape-source-done") {
             guard draft != original else { dismiss(); return }
             Task {
                 busy = true

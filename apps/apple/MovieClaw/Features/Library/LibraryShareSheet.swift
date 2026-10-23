@@ -226,7 +226,7 @@ struct LibraryShareSheet: View {
                     if copiedRow == label { copiedRow = nil }
                 }
             } label: {
-                Label(copiedRow == label ? "已复制" : "复制", systemImage: copiedRow == label ? "checkmark" : "doc.on.doc")
+                Label(copiedRow == label ? String(localized: .commonCopied) : String(localized: .commonCopy), systemImage: copiedRow == label ? "checkmark" : "doc.on.doc")
                     .font(.subheadline)
             }
             .buttonStyle(.borderless)
@@ -251,11 +251,11 @@ struct LibraryShareSheet: View {
     private var toolbar: some ToolbarContent {
         if share != nil || !resolved {
             ToolbarItem(placement: .cancellationAction) {
-                Button("关闭") { dismiss() }
+                Button(String(localized: .commonClose)) { dismiss() }
             }
         } else {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }.disabled(busy)
+                Button(String(localized: .commonCancel)) { dismiss() }.disabled(busy)
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(busy ? "正在生成…" : "生成链接") { Task { await create() } }

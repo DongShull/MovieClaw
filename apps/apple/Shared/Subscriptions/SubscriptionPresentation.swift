@@ -484,15 +484,15 @@ enum WantedLogic {
         // 2. 搜索
         if w.status != "wanted" {
             chain.append(Milestone(
-                label: "搜索", state: .done,
+                label: String(localized: .commonSearch), state: .done,
                 time: w.lastSearchAt != nil ? SubsFormat.relative(w.lastSearchAt) : "",
                 detail: w.searchAttempts > 0 ? "搜索 \(w.searchAttempts) 次后命中" : "被动匹配命中"
             ))
         } else if preAir {
-            chain.append(Milestone(label: "搜索", state: .todo, detail: "定档后进入搜索队列"))
+            chain.append(Milestone(label: String(localized: .commonSearch), state: .todo, detail: "定档后进入搜索队列"))
         } else {
             chain.append(Milestone(
-                label: "搜索", state: .now,
+                label: String(localized: .commonSearch), state: .now,
                 time: w.searchAttempts > 0 ? "已搜 \(w.searchAttempts) 次" : "",
                 detail: presentation(w, now: now).note,
                 why: w.selectionState?["reason"]?.stringValue == "identity_unconfirmed" ? nil : w.lastRejectReason.map { "最近一次被拒：\($0)" }

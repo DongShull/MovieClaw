@@ -77,7 +77,7 @@ struct MacPosterWall<Accessory: View>: View {
         if wall.items == nil {
             ProgressView().frame(maxWidth: .infinity).padding(.top, 120)
         } else if let error = wall.failed, wall.items?.isEmpty != false {
-            MacStateView(symbol: "wifi.exclamationmark", title: "加载失败", message: error, actionTitle: "重试") {
+            MacStateView(symbol: "wifi.exclamationmark", title: "加载失败", message: error, actionTitle: String(localized: .commonRetry)) {
                 Task { await retry() }
             }
             .frame(height: 420)

@@ -388,7 +388,7 @@ struct MacConsentDialog: View {
                 HStack(spacing: 12) {
                     Spacer()
                     if decision.canSelfEnable == true {
-                        Button("取消", action: cancel)
+                        Button(String(localized: .commonCancel), action: cancel)
                             .buttonStyle(MacPlayerDialogButtonStyle(prominent: false))
                             .keyboardShortcut(.cancelAction)
                         Button(saving ? "正在开启…" : "开启并播放") {

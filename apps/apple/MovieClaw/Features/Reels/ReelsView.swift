@@ -260,7 +260,7 @@ struct ReelsView: View {
                 serverOutdatedNotice
             } else if let message = store.errorMessage {
                 Text(message)
-                Button("重试") { Task { await store.retry() } }
+                Button(String(localized: .commonRetry)) { Task { await store.retry() } }
                     .buttonStyle(.glass)
             } else if let clips = store.clips, clips.state != "done", clips.ready < clips.total {
                 // 开了片段预切、这些条件下一部都还没切好
@@ -741,7 +741,7 @@ private struct ReelPage: View {
                     }
                     .overlay(alignment: .bottomTrailing) {
                         if truncated {
-                            Text("展开").fontWeight(.semibold)
+                            Text(String(localized: .commonExpand)).fontWeight(.semibold)
                         }
                     }
             }

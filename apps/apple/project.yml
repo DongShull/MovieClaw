@@ -519,6 +519,8 @@ schemes:
       targets:
         MovieClawMac: all
     test:
+      language: zh-Hans
+      region: CN
       targets:
         - MovieClawMacTests
   MovieClawMacDirect:
@@ -530,6 +532,8 @@ schemes:
       targets:
         MovieClawTV: all
     test:
+      language: zh-Hans
+      region: CN
       targets:
         - MovieClawTVUITests
   MovieClaw:
@@ -538,6 +542,8 @@ schemes:
         MovieClaw: all
         MovieClawTests: [test]
     test:
+      language: zh-Hans
+      region: CN
       targets:
         - MovieClawTests
         - MovieClawUITests
@@ -556,3 +562,14 @@ schemes:
         - name: MovieClawUITests
           selectedTests:
             - LocalizationUITests
+  MovieClawTVEnglish:
+    build:
+      targets:
+        MovieClawTV: all
+    test:
+      language: en
+      region: US
+      targets:
+        - name: MovieClawTVUITests
+          selectedTests:
+            - TVLocalizationUITests

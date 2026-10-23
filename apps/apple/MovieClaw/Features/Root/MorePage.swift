@@ -311,23 +311,23 @@ struct MorePage: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) { Task { await remove(item) } } label: { Image(systemName: "trash") }
                 .tint(.red)
-                .accessibilityLabel("删除会话")
+                .accessibilityLabel(String(localized: .navSessionsDelete))
             Button { Task { await rename(item) } } label: { Image(systemName: "pencil") }
                 .tint(.gray)
-                .accessibilityLabel("重命名")
+                .accessibilityLabel(String(localized: .navSessionsRename))
             Button { Task { await fork(item) } } label: { Image(systemName: "arrow.triangle.branch") }
                 .tint(.blue)
-                .accessibilityLabel("在新会话中继续")
+                .accessibilityLabel(String(localized: .navSessionsContinue))
         }
         .contextMenu { sessionActions(item) }
     }
 
     @ViewBuilder
     private func sessionActions(_ item: API.SessionSummary) -> some View {
-        Button("在新会话中继续", systemImage: "arrow.triangle.branch") { Task { await fork(item) } }
-        Button("重命名", systemImage: "pencil") { Task { await rename(item) } }
+        Button(String(localized: .navSessionsContinue), systemImage: "arrow.triangle.branch") { Task { await fork(item) } }
+        Button(String(localized: .navSessionsRename), systemImage: "pencil") { Task { await rename(item) } }
         Divider()
-        Button("删除会话", systemImage: "trash", role: .destructive) { Task { await remove(item) } }
+        Button(String(localized: .navSessionsDelete), systemImage: "trash", role: .destructive) { Task { await remove(item) } }
     }
 
     private func title(of item: API.SessionSummary) -> String {

@@ -382,13 +382,13 @@ struct AgentConversationView: View {
     private var sessionMenu: some View {
         Menu {
             Button("从此处创建新会话", systemImage: "arrow.triangle.branch") { Task { await fork() } }
-            Button("重命名", systemImage: "pencil") { Task { await rename() } }
+            Button(String(localized: .navSessionsRename), systemImage: "pencil") { Task { await rename() } }
             Divider()
-            Button("删除会话", systemImage: "trash", role: .destructive) { Task { await remove() } }
+            Button(String(localized: .navSessionsDelete), systemImage: "trash", role: .destructive) { Task { await remove() } }
         } label: {
             Image(systemName: "ellipsis")
         }
-        .accessibilityLabel("会话操作")
+        .accessibilityLabel(String(localized: .navSessionsActions))
         .accessibilityIdentifier("agent-session-menu")
     }
 
@@ -490,7 +490,7 @@ struct AgentLLMSetupNotice: View {
         HStack(spacing: 4) {
             Text("接入 AI 模型后即可解锁AI 对话能力。")
                 .foregroundStyle(Theme.textMuted)
-            Button("去接入") { router.push(.settingsSection(.llm)) }
+            Button(String(localized: .settingsLlmConnectModel)) { router.push(.settingsSection(.llm)) }
                 .foregroundStyle(Theme.accent)
                 .accessibilityIdentifier("agent-llm-setup")
         }

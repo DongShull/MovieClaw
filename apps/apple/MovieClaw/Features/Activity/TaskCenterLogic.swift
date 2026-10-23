@@ -422,7 +422,7 @@ extension TaskCenter {
     /// 历史标题：「《某剧》入库完成」「「电影」扫描已取消」；忽略的失败如实写「未完成」
     static func historicalJobTitle(_ job: API.JobView) -> String {
         let identity = jobFeedIdentity(job)
-        let result = job.status == "cancelled" ? "已取消" : job.status == "failed" ? "未完成" : "完成"
+        let result = job.status == "cancelled" ? "已取消" : job.status == "failed" ? "未完成" : String(localized: .commonDone)
         if let identity, let action = completedJobActions[job.jobType] { return "\(identity)\(action)\(result)" }
         return "\(identity ?? jobTypeLabel(job))\(result)"
     }
@@ -655,7 +655,7 @@ extension TaskCenter {
     /// 下载完成后还没发生的几步，按后端推导的落点如实展开
     static func plannedSteps(_ task: API.DownloadTaskView, downloaded: Bool, upgrade: Bool, keepOld: Bool) -> [LifecycleStep] {
         guard let plan = task.plan else {
-            return [LifecycleStep(label: downloaded ? "等待入库" : "等待下载完成", detail: "下一步", tone: .future)]
+            return [LifecycleStep(label: downloaded ? "等待入库" : "等待下载完成", detail: String(localized: .commonNext), tone: .future)]
         }
         if plan.mode == "downloader_default" {
             return [LifecycleStep(label: "不会自动入库", detail: "未配置媒体库或库缺少根路径，文件将留在下载器默认目录，需手动处理", tone: .attention)]
@@ -663,7 +663,7 @@ extension TaskCenter {
         let libraryText = plan.libraryName.map { "「\($0)」" } ?? "按收藏范围自动匹配的媒体库"
         var steps: [LifecycleStep] = []
         if plan.mode == "watch" {
-            let verb = plan.strategy == "hardlink" ? "硬链接" : plan.strategy == "copy" ? "复制" : "整理"
+            let verb = plan.strategy == "hardlink" ? "硬链接" : plan.strategy == "copy" ? String(localized: .commonCopy) : "整理"
             steps.append(LifecycleStep(label: "待\(verb)", detail: plan.destPath.map { "\(verb)到 \($0)" } ?? "\(verb)到目标目录", tone: .future))
         }
         if !plan.entersLibrary {
@@ -746,7 +746,7 @@ extension TaskCenter {
         } else if upgrade {
             ingestStep = LifecycleStep(
                 label: downloaded ? "等待替换" : "等待下载完成",
-                detail: downloaded ? "新版本入库后校验档位再替换" : "下一步",
+                detail: downloaded ? "新版本入库后校验档位再替换" : String(localized: .commonNext),
                 tone: .future
             )
         }

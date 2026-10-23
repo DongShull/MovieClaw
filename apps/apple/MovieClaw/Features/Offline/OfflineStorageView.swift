@@ -56,7 +56,7 @@ struct OfflineStorageSections: View {
                     }
                 } header: {
                     // 标识只挂在标题上：挂在 Section 上会盖掉每一行自己的标识
-                    Text("下载中").font(.headline).foregroundStyle(Theme.text)
+                    Text(String(localized: .downloadStatusDownloading)).font(.headline).foregroundStyle(Theme.text)
                         .accessibilityIdentifier("offline-storage-downloading")
                 }
             }
@@ -70,7 +70,7 @@ struct OfflineStorageSections: View {
                                 .font(.footnote).foregroundStyle(Theme.textMuted)
                         }
                         Spacer(minLength: 8)
-                        Button("删除") { confirm = .watched }
+                        Button(String(localized: .commonDelete)) { confirm = .watched }
                             .buttonStyle(.bordered).tint(.red).controlSize(.small)
                             .accessibilityIdentifier("offline-delete-watched")
                             .modifier(confirmation(.watched))
@@ -154,7 +154,7 @@ struct OfflineStorageSections: View {
 
     /// 左滑删除：不用 role: .destructive（那会让系统先把行做删除动画移走，这里还要等确认框），显式染成系统红
     private func deleteAction(_ action: @escaping () -> Void) -> some View {
-        Button("删除", systemImage: "trash", action: action).tint(.red)
+        Button(String(localized: .commonDelete), systemImage: "trash", action: action).tint(.red)
     }
 
     private func row(_ item: OfflineItemSummary) -> some View {

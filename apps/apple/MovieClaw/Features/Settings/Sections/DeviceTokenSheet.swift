@@ -56,7 +56,7 @@ struct DeviceTokenSheet: View {
             .toolbar {
                 if created == nil {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("取消") { dismiss() }
+                        Button(String(localized: .commonCancel)) { dismiss() }
                             .disabled(busy).accessibilityIdentifier("token-create-cancel")
                     }
                     ToolbarItem(placement: .confirmationAction) {
@@ -69,7 +69,7 @@ struct DeviceTokenSheet: View {
                     }
                 } else {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("完成") { confirmingClose = true }
+                        Button(String(localized: .commonDone)) { confirmingClose = true }
                             .accessibilityIdentifier("token-created-dismiss")
                     }
                 }
@@ -147,7 +147,7 @@ private struct DeviceCredentialCopyButton: View {
             UIPasteboard.general.string = text
             copied = true
         } label: {
-            Label(copied ? "已复制" : title, systemImage: copied ? "checkmark" : "doc.on.doc")
+            Label(copied ? String(localized: .commonCopied) : title, systemImage: copied ? "checkmark" : "doc.on.doc")
         }
     }
 }

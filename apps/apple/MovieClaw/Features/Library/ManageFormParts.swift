@@ -260,7 +260,7 @@ struct ManageScopeEditor: View {
                 ManageFlow(spacing: 6, lineSpacing: 6) {
                     Text("快捷组合").font(.caption).foregroundStyle(Theme.textFaint)
                     let allOn = allCountries.allSatisfy(regions.contains)
-                    ManageToggleChip(title: allOn ? "清空" : "全选", on: false, small: true) {
+                    ManageToggleChip(title: allOn ? String(localized: .commonClear) : String(localized: .commonSelectAll), on: false, small: true) {
                         regions = allOn ? [] : regions + allCountries.filter { !regions.contains($0) }
                     }
                     ForEach(options.regionPresets, id: \.key) { preset in
@@ -276,7 +276,7 @@ struct ManageScopeEditor: View {
                 Text("类型（勾选任一即匹配）").font(.subheadline.weight(.medium)).foregroundStyle(Theme.textMuted)
                 ManageFlow(spacing: 6, lineSpacing: 6) {
                     let allOn = genreOptions.allSatisfy { genres.contains($0.id) }
-                    ManageToggleChip(title: allOn ? "清空" : "全选", on: false, small: true) {
+                    ManageToggleChip(title: allOn ? String(localized: .commonClear) : String(localized: .commonSelectAll), on: false, small: true) {
                         genres = allOn ? [] : genres + genreOptions.map(\.id).filter { !genres.contains($0) }
                     }
                     ForEach(genreOptions, id: \.id) { genre in

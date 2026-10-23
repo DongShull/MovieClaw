@@ -634,7 +634,7 @@ struct AgentCodeBlock: View {
             }
             .buttonStyle(.plain)
             .padding(6)
-            .accessibilityLabel(copied ? "已复制" : "复制代码")
+            .accessibilityLabel(copied ? String(localized: .commonCopied) : "复制代码")
         }
     }
 }

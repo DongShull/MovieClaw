@@ -226,7 +226,7 @@ struct IssueClaimConfirmPanel: View {
             }
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
-                Button("取消", action: onCancel)
+                Button(String(localized: .commonCancel), action: onCancel)
                     .buttonStyle(.glass)
                 Button(fileCount > 1 ? "认领全部 \(fileCount) 个文件" : "认领", action: onConfirm)
                     .discoverProminentButton()
@@ -339,7 +339,7 @@ struct IssueClaimSearchPanel: View {
                     .discoverProminentButton()
                     .fontWeight(.semibold)
                 } else {
-                    Button(searching ? "搜索中…" : "搜索") { Task { await search() } }
+                    Button(searching ? "搜索中…" : String(localized: .commonSearch)) { Task { await search() } }
                         .buttonStyle(.glass)
                         .disabled(searching || trimmed.isEmpty)
                 }

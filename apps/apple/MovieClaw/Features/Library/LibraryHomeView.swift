@@ -118,7 +118,7 @@ struct LibraryHomeView: View {
         }
         .alert("正在使用移动网络", isPresented: $confirmingReelsOnCellular) {
             Button("进入") { router.push(.reels) }
-            Button("取消", role: .cancel) {}
+            Button(String(localized: .commonCancel), role: .cancel) {}
         } message: {
             Text("片段直接播放原片，可能很耗流量：4K 影片看完一段约 300MB。确定进入吗？")
         }
@@ -191,7 +191,7 @@ struct LibraryHomeView: View {
         } else if libraries == nil, failed {
             VStack(spacing: 12) {
                 Text("媒体库加载失败").font(.subheadline).foregroundStyle(Theme.textMuted)
-                Button("重试") { Task { await reload() } }.buttonStyle(.glass)
+                Button(String(localized: .commonRetry)) { Task { await reload() } }.buttonStyle(.glass)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 64)
@@ -752,13 +752,13 @@ private struct WatchHistoryMenu: View {
                 .frame(width: 30, height: 30)
                 .contentShape(.rect)
         }
-        .accessibilityLabel("清空观看记录")
+        .accessibilityLabel(String(localized: .settingsProfileClearHistoryAction))
         .accessibilityIdentifier("watch-history-menu")
     }
 
     private func clear(_ label: String, since: Date?, _ description: String) {
         Task {
-            guard await feedback.confirm("清空\(label)？", message: description, confirmTitle: "清空", destructive: true) else { return }
+            guard await feedback.confirm("清空\(label)？", message: description, confirmTitle: String(localized: .commonClear), destructive: true) else { return }
             do {
                 let (result, message) = try await api.libraryClearHistory(scope: "all", since: since)
                 if since != nil {
@@ -800,7 +800,7 @@ private struct ClearLibraryHistorySheet: View {
                         submit()
                     } label: {
                         let selected = libraries.first { $0.id == libraryId }
-                        Text(busy ? "清空中…" : selected.map { "清空「\($0.name)」" } ?? "清空")
+                        Text(busy ? "清空中…" : selected.map { "清空「\($0.name)」" } ?? String(localized: .commonClear))
                             .frame(maxWidth: .infinity)
                     }
                     .disabled(libraryId == nil || busy)
@@ -809,7 +809,7 @@ private struct ClearLibraryHistorySheet: View {
             .navigationTitle("清空某个媒体库的观看记录")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: .commonCancel)) { dismiss() } }
             }
         }
         .adaptiveDetents([.medium])

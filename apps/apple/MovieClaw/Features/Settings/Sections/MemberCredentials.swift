@@ -60,7 +60,7 @@ struct CreateMemberSheet: View {
             .toolbar {
                 if result == nil {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("取消") {
+                        Button(String(localized: .commonCancel)) {
                             if username.isEmpty && nickname.isEmpty { dismiss() } else { discarding = true }
                         }.disabled(busy).accessibilityIdentifier("sheet-cancel")
                     }
@@ -149,7 +149,7 @@ private struct MemberCredentialFields: View {
             Text(result.username).textSelection(.enabled)
             MemberCopyButton(value: result.username, title: "复制用户名").accessibilityIdentifier("credential-账号")
         }
-        SettingsFormSection("密码") {
+        SettingsFormSection(String(localized: .authLoginPassword)) {
             Text(result.password).font(.body.monospaced()).textSelection(.enabled)
             MemberCopyButton(value: result.password, title: "复制密码").accessibilityIdentifier("credential-密码")
         }
@@ -169,7 +169,7 @@ private struct MemberCopyButton: View {
             UIPasteboard.general.string = value
             copied = true
         } label: {
-            Label(copied ? "已复制" : title, systemImage: copied ? "checkmark" : "doc.on.doc")
+            Label(copied ? String(localized: .commonCopied) : title, systemImage: copied ? "checkmark" : "doc.on.doc")
         }
     }
 }

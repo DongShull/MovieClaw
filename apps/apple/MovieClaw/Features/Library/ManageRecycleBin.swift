@@ -227,7 +227,7 @@ struct ManageRecycleBinTab: View {
         } else if failed {
             VStack(spacing: 12) {
                 Text("回收站加载失败").font(.subheadline).foregroundStyle(Theme.textMuted)
-                Button("重试") { Task { await reload() } }
+                Button(String(localized: .commonRetry)) { Task { await reload() } }
                     .buttonStyle(.glass)
                     .accessibilityIdentifier("recycle-retry")
             }
@@ -389,7 +389,7 @@ struct ManageRecycleBinTab: View {
                     ManageBinButton(title: "清理", tone: .danger) { Task { await purgeSelected(items) } }
                         .disabled(busy)
                         .accessibilityIdentifier("recycle-purge")
-                    ManageBinButton(title: "取消", tone: .ghost) { selected = [] }
+                    ManageBinButton(title: String(localized: .commonCancel), tone: .ghost) { selected = [] }
                         .accessibilityIdentifier("recycle-selection-cancel")
                 }
             }
@@ -465,7 +465,7 @@ private struct ManageRecycleItemCard: View {
                         Text(ManageRecycleText.itemFilesSummary(item))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Theme.text)
-                        Text(expanded ? "收起" : "展开").font(.caption).foregroundStyle(Theme.textFaint)
+                        Text(expanded ? String(localized: .commonCollapse) : String(localized: .commonExpand)).font(.caption).foregroundStyle(Theme.textFaint)
                     }
                     .expandedHitArea(vertical: 12)
                 }

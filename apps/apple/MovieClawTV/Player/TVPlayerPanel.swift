@@ -162,7 +162,7 @@ struct TVPlayerPanel: View {
     private func subtitleRow(_ row: TVSubtitleSections.Row) -> some View {
         switch row {
         case .off:
-            option(id: "subtitle-off", title: "关闭", detail: nil, active: controller.selectedSubtitle == nil) {
+            option(id: "subtitle-off", title: String(localized: .commonOff), detail: nil, active: controller.selectedSubtitle == nil) {
                 controller.selectSubtitle(nil)
             }
         case let .option(item):

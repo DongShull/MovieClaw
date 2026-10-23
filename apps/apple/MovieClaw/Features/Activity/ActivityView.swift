@@ -254,7 +254,7 @@ struct ActivityView: View {
             }
             .swipeActions(allowsFullSwipe: false) {
                 if group.tasks.count == 1, let task = group.tasks.first, task.downloaderId != nil {
-                    Button("删除", systemImage: "trash") { taskActions.pendingDelete = task }.tint(.red)
+                    Button(String(localized: .commonDelete), systemImage: "trash") { taskActions.pendingDelete = task }.tint(.red)
                 }
             }
         case let .job(job):

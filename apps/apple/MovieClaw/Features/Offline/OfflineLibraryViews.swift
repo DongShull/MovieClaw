@@ -126,7 +126,7 @@ struct OfflineLibraryHomeView: View {
                 ForEach(groups(items), id: \.libraryId) { group in
                     VStack(alignment: .leading, spacing: 12) {
                         LibrarySectionHeader(title: group.name) {
-                            NavigationLink(value: AppRoute.library(id: group.libraryId)) { Text("全部") }
+                            NavigationLink(value: AppRoute.library(id: group.libraryId)) { Text(String(localized: .commonFiltersAll)) }
                         }
                         ScrollView(.horizontal, showsIndicators: false) {
                             LazyHStack(alignment: .top, spacing: 12) {
@@ -517,7 +517,7 @@ struct OfflineMinimalDetail: View {
                             Text(Formatters.bytes(Int(unit.receivedBytes))).font(.caption).foregroundStyle(Theme.textMuted)
                         }
                         .swipeActions {
-                            Button("删除", role: .destructive) { OfflineDownloader.shared.delete(fileId: unit.fileId) }
+                            Button(String(localized: .commonDelete), role: .destructive) { OfflineDownloader.shared.delete(fileId: unit.fileId) }
                         }
                     }
                 }

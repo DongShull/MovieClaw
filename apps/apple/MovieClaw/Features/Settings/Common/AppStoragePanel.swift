@@ -212,7 +212,7 @@ private struct StorageDirectorySheet: View {
     @Environment(Feedback.self) private var feedback
 
     var body: some View {
-        SubsSheetScaffold(title: dir.title, closeTitle: "完成") {
+        SubsSheetScaffold(title: dir.title, closeTitle: String(localized: .commonDone)) {
             SettingsFormSection {
                 LabeledContent("占用空间", value: dir.exists ? Formatters.bytes(dir.bytes) : "—")
                 Text(dir.description).font(.subheadline).foregroundStyle(.secondary)

@@ -43,7 +43,7 @@ struct LibraryOrganizeSheet: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("关闭") { dismiss() }
+                        Button(String(localized: .commonClose)) { dismiss() }
                             .accessibilityLabel("关闭对话框")
                     }
                 }
@@ -69,7 +69,7 @@ struct LibraryOrganizeSheet: View {
                     .font(.callout)
                     .foregroundStyle(Theme.danger)
                     .multilineTextAlignment(.center)
-                Button("关闭") { dismiss() }.buttonStyle(.glass)
+                Button(String(localized: .commonClose)) { dismiss() }.buttonStyle(.glass)
             }
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -321,7 +321,7 @@ struct LibraryOrganizeSheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Text("关闭").frame(maxWidth: .infinity)
+                    Text(String(localized: .commonClose)).frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glass)
                 .controlSize(.large)
@@ -382,7 +382,7 @@ struct LibraryOrganizeSheet: View {
                     .background(Theme.warning.opacity(0.08), in: .rect(cornerRadius: 12))
                     .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.warning.opacity(0.3)))
                 }
-                Button("完成") { dismiss() }
+                Button(String(localized: .commonDone)) { dismiss() }
                     .buttonStyle(.glassProminent)
                     .padding(.top, 8)
             }

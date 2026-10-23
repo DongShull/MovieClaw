@@ -54,7 +54,7 @@ struct IssueDrawerView: View {
             )
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") { dismiss() }
+                    Button(String(localized: .commonClose)) { dismiss() }
                 }
                 if let snapshot = state.value {
                     ToolbarItem(placement: .primaryAction) { batchButton(snapshot) }
@@ -105,7 +105,7 @@ struct IssueDrawerView: View {
     /// 页签：缺失 N / 待识别 N（文件数）/ 身份复核 N / 已忽略 N（文件数，没有内容就不占位）
     private func tabPicker(_ snapshot: IssueSnapshot, current: IssueTab) -> some View {
         let tabs = IssueTab.allCases.filter { $0 != .ignored || snapshot.ignoredFileTotal > 0 || current == .ignored }
-        return Picker("待处理", selection: Binding(mcGet: { current }, set: { tab = $0 })) {
+        return Picker(String(localized: .notifyCenterPending), selection: Binding(mcGet: { current }, set: { tab = $0 })) {
             ForEach(tabs, id: \.self) { item in
                 let count = snapshot.count(for: item)
                 Text(count > 0 ? "\(item.title) \(count)" : item.title).tag(item)
@@ -531,7 +531,7 @@ private struct IssueUnidentifiedGroupRow: View {
                         .buttonStyle(.glass)
                         .disabled(busy)
                 } else {
-                    Button("搜索") { panel = panel == .search ? nil : .search }
+                    Button(String(localized: .commonSearch)) { panel = panel == .search ? nil : .search }
                         .buttonStyle(.glass)
                         .tint(panel == .search ? Theme.accentStrong : nil)
                         .disabled(busy)
@@ -594,7 +594,7 @@ private struct IssueUnidentifiedGroupRow: View {
             if group.fileCount > 1 {
                 Button(expanded ? "收起文件" : "查看文件") { expanded.toggle() }
             }
-            Button("忽略") { Task { await ignoreGroup() } }
+            Button(String(localized: .libraryIssuesIgnore)) { Task { await ignoreGroup() } }
                 .disabled(busy)
         } label: {
             Image(systemName: "ellipsis")

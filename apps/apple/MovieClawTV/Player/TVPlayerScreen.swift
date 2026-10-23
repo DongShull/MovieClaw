@@ -359,10 +359,10 @@ private struct TVPlayerContent: View {
     private var dialogs: some View {
         if let infoError = controller.infoError {
             // 条目信息都拿不到（无权访问、已删除）：整页换成原因 +「返回」
-            TVPlayerDialog(title: infoError, message: nil, primary: ("返回", exit), secondary: nil)
+            TVPlayerDialog(title: infoError, message: nil, primary: (String(localized: .commonBack), exit), secondary: nil)
                 .focused($focus, equals: .dialog)
         } else if controller.phase == .error, let message = controller.errorMessage {
-            TVPlayerDialog(title: message, message: controller.errorSuggestion, primary: ("重试", controller.retry), secondary: ("返回", exit))
+            TVPlayerDialog(title: message, message: controller.errorSuggestion, primary: (String(localized: .commonRetry), controller.retry), secondary: (String(localized: .commonBack), exit))
                 .focused($focus, equals: .dialog)
         } else if controller.phase == .consent, let decision = controller.pendingDecision {
             TVConsentDialog(decision: decision, grant: controller.grantConsent, cancel: exit)

@@ -199,7 +199,7 @@ private struct ActivityBoostPage: View {
                     Task { await cleanup(force: true) }
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button(String(localized: .commonCancel), role: .cancel) {}
         } message: {
             Text(CleanupPlan(pool).message)
         }
@@ -385,7 +385,7 @@ private struct ActivityWatchPage: View {
             }
             Picker("成员", selection: Binding(mcGet: { memberId ?? -1 }, set: { memberId = $0 < 0 ? nil : $0 })) {
                 Text("全部成员").tag(-1)
-                Text("超级管理员").tag(Self.adminMember)
+                Text(String(localized: .authRoleSuperAdmin)).tag(Self.adminMember)
                 ForEach(members, id: \.id) { member in
                     Text(member.nickname.isEmpty ? member.username : member.nickname).tag(member.id)
                 }

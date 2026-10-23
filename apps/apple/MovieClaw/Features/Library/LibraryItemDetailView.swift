@@ -772,7 +772,7 @@ struct LibraryItemDetailView: View {
         let remaining: Int? = resumable && (duration ?? 0) > position ? Int((Double(duration! - position) / 60000).rounded()) : nil
         // 看过一段：按钮直接写从哪里起播（点它就从这里接着放），下方进度条只说还剩多少。
         // 剧集写明是哪一集（同 Apple TV 版「继续 第 1 季第 3 集 · 46:56」）：只写「继续 46:56」看不出续的是第几集
-        let verb = resumable ? "继续" : finished ? "重新播放" : "播放"
+        let verb = resumable ? String(localized: .commonContinue) : finished ? "重新播放" : "播放"
         let parts = [verb, unitLabel, resumable ? Formatters.clock(Double(position) / 1000) : nil].compactMap { $0 }
         let label = parts.count > 2 ? "\(parts[0]) \(parts[1]) · \(parts[2])" : parts.joined(separator: " ")
         let progressText: String? = resumable
@@ -1065,7 +1065,7 @@ struct LibraryItemDetailView: View {
                 Menu {
                     Section {
                         if identifiable { Button("修正识别", systemImage: "wand.and.stars") { sheet = .reidentify } }
-                        if scraped { Button("更换图片", systemImage: "photo") { sheet = .artwork } }
+                        if scraped { Button(String(localized: .settingsAppearanceChangeImage), systemImage: "photo") { sheet = .artwork } }
                         Button(scraping
                             ? (scraped ? "正在刷新元数据" : readsNfo ? "正在读取 NFO" : "正在生成封面")
                             : (scraped ? "刷新元数据" : readsNfo ? "重读 NFO 与封面" : "重新生成封面"),
@@ -1311,7 +1311,7 @@ struct LibraryItemDetailView: View {
                 "重新下载海报和背景图（你手动锁定的不动）",
                 "同步更新影片文件夹里的海报和 NFO 信息文件",
                 "不会改动你的视频文件",
-            ]), confirmTitle: "刷新")
+            ]), confirmTitle: String(localized: .commonRefresh))
         }
         guard ok else { return }
         kicking = true
@@ -1423,7 +1423,7 @@ struct ExpandablePlot: View {
                     withAnimation(.snappy) { expanded.toggle() }
                 } label: {
                     HStack(spacing: 4) {
-                        Text(expanded ? "收起" : "展开全文")
+                        Text(expanded ? String(localized: .commonCollapse) : "展开全文")
                         Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.caption2)
                     }
                     .font(.subheadline.weight(.medium))
@@ -1945,7 +1945,7 @@ private struct EpisodeGridSheet: View {
                 Text("在库 \(episodes.filter(\.owned).count) / \(episodes.count)")
                     .font(.footnote).monospacedDigit().foregroundStyle(Theme.textFaint)
                 Spacer(minLength: 0)
-                Button("完成") { dismiss() }
+                Button(String(localized: .commonDone)) { dismiss() }
                     .font(.subheadline.weight(.medium)).foregroundStyle(Theme.textMuted)
                     .accessibilityIdentifier("episode-grid-done")
             }

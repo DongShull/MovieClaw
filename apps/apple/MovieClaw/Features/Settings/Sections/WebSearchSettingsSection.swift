@@ -25,7 +25,7 @@ struct WebSearchSettingsSection: View {
             } else if let error {
                 SettingsFormSection {
                     SettingsNotice(text: error)
-                    Button("重试") { Task { await load() } }
+                    Button(String(localized: .commonRetry)) { Task { await load() } }
                         .accessibilityIdentifier("web-search-retry")
                 } header: {
                     Text("网页搜索")
@@ -115,7 +115,7 @@ struct WebSearchSettingsSection: View {
         guard await feedback.confirm(
             "关闭网页搜索？",
             message: "已保存的 API Key 会从这台服务器删除。智能体将不再上网搜索，直到你重新接入。",
-            confirmTitle: "关闭",
+            confirmTitle: String(localized: .commonTurnOff),
             destructive: true
         ) else { return }
         do {

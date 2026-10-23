@@ -105,7 +105,7 @@ struct MemberDetailView: View {
     }
 
     private var permissionSummary: String {
-        let enabled = [member.allowSubscribe ? "订阅" : nil, member.allowSearch ? "搜索" : nil,
+        let enabled = [member.allowSubscribe ? "订阅" : nil, member.allowSearch ? String(localized: .commonSearch) : nil,
                        member.allowDirectDownload ? "下载" : nil].compactMap { $0 }
         return enabled.isEmpty ? "仅浏览与播放" : enabled.joined(separator: "、")
     }

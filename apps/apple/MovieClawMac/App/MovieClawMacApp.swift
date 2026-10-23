@@ -40,7 +40,7 @@ struct MovieClawMacApp: App {
         Settings { MacLanguageSettings() }
 
         // 关于：版本号与开源组件许可（LGPL 合规必需，不能省）
-        Window("关于 MovieClaw", id: "about") {
+        Window(String(localized: .settingsAboutWindowTitle), id: "about") {
             MacAboutView()
                 .preferredColorScheme(.dark)
         }
@@ -49,7 +49,7 @@ struct MovieClawMacApp: App {
 
         // 添加账号：独立的小窗口（同 Apple Music 的登录窗口），不挂在主窗口上——登录成功那一刻主界面按新账号整棵重建，
         // 与它无关；只有红绿灯、系统半透明的窗口底
-        Window("添加账号", id: MacAddAccountView.windowID) {
+        Window(String(localized: .authLoginAddAccount), id: MacAddAccountView.windowID) {
             MacAddAccountView()
                 .environment(model)
                 .preferredColorScheme(.dark)

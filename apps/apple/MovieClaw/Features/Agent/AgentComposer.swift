@@ -250,7 +250,7 @@ struct AgentComposer: View {
                 if uploading > 0 {
                     HStack(spacing: 6) {
                         ProgressView().controlSize(.mini)
-                        Text("上传中…")
+                        Text(String(localized: .agentComposerUploading))
                     }
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textFaint)
@@ -390,7 +390,7 @@ struct AgentComposer: View {
         .buttonStyle(.plain)
         .foregroundStyle(Theme.text)
         .disabled(disabled)
-        .accessibilityLabel("添加图片或技能")
+        .accessibilityLabel(String(localized: .agentComposerAddImageOrSkill))
         .accessibilityIdentifier("agent-composer-plus")
         .popover(isPresented: $showsPlusMenu, arrowEdge: .bottom) {
             AgentPlusMenu(imageUpload: imageUpload) { source in
@@ -454,7 +454,7 @@ struct AgentComposer: View {
         return Group {
             if !matches.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("使用技能").font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.top, 6).padding(.bottom, 2)
+                    Text(String(localized: .agentComposerUseSkill)).font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.top, 6).padding(.bottom, 2)
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(matches.enumerated()), id: \.element.name) { index, skill in
@@ -719,7 +719,7 @@ struct AgentPlusMenu: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 if imageUpload {
-                    Text("上传图片").font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 2)
+                    Text(String(localized: .agentComposerUploadImage)).font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 2)
                     imageSourceRow("照片图库", systemImage: "photo.on.rectangle", source: .library, id: "agent-pick-image")
                     if AgentCameraPicker.isAvailable {
                         imageSourceRow("拍照", systemImage: "camera", source: .camera, id: "agent-pick-camera")
@@ -727,7 +727,7 @@ struct AgentPlusMenu: View {
                     imageSourceRow("选取文件", systemImage: "folder", source: .files, id: "agent-pick-file")
                     Divider().padding(.horizontal, 10).padding(.vertical, 4)
                 }
-                Text("使用技能").font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 2)
+                Text(String(localized: .agentComposerUseSkill)).font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 2)
                 if let skills {
                     if skills.isEmpty {
                         Text(failed ? "技能列表加载失败" : "暂无可用技能")
@@ -738,7 +738,7 @@ struct AgentPlusMenu: View {
                             .buttonStyle(.plain)
                     }
                 } else {
-                    Text("加载中…").font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.vertical, 6)
+                    Text(String(localized: .commonLoadingProgress)).font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.vertical, 6)
                 }
             }
             .padding(6)
@@ -784,7 +784,7 @@ struct AgentModelMenu: View {
         let current = AgentCatalog.resolve(options, ref: value)
         let stops = AgentThinking.stops(current?.thinkingLevels ?? [])
         VStack(alignment: .leading, spacing: 0) {
-            Text("模型").font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 2)
+            Text(String(localized: .agentComposerModel)).font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 2)
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 0) {
@@ -821,7 +821,7 @@ struct AgentModelMenu: View {
                 AgentThinkingToggle(stops: stops, value: thinkingValue, onChange: onThinkingChange)
             case .hidden:
                 // 不可控的模型：下半空着会让人以为控件丢了，留一行灰字交代
-                Text("该模型不支持调节思考强度").font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.bottom, 6)
+                Text(String(localized: .agentComposerThinkingUnsupported)).font(.system(size: 13)).foregroundStyle(Theme.textFaint).padding(.horizontal, 10).padding(.bottom, 6)
             }
         }
         .padding(6)
@@ -843,7 +843,7 @@ struct AgentThinkingSlider: View {
         let index = value.flatMap { stops.firstIndex(of: $0) } ?? -1
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("思维链强度").font(.system(size: 15)).foregroundStyle(Theme.textMuted)
+                Text(String(localized: .agentComposerReasoningEffort)).font(.system(size: 15)).foregroundStyle(Theme.textMuted)
                 Text(AgentThinking.label(value)).font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.text)
                 Spacer()
                 if value != nil {
@@ -855,13 +855,13 @@ struct AgentThinkingSlider: View {
                     }
                     .buttonStyle(.plain)
                 } else {
-                    Text("由模型自行决定").font(.system(size: 13)).foregroundStyle(Theme.textFaint)
+                    Text(String(localized: .agentComposerModelDecides)).font(.system(size: 13)).foregroundStyle(Theme.textFaint)
                 }
             }
             HStack {
-                Text("更快")
+                Text(String(localized: .agentComposerFaster))
                 Spacer()
-                Text("更聪明")
+                Text(String(localized: .agentComposerSmarter))
             }
             .font(.system(size: 13))
             .foregroundStyle(Theme.textFaint)
@@ -894,7 +894,7 @@ struct AgentThinkingSlider: View {
             }
             .frame(height: 32)
             .accessibilityElement()
-            .accessibilityLabel("思维链强度")
+            .accessibilityLabel(String(localized: .agentComposerReasoningEffort))
             .accessibilityValue(AgentThinking.label(value))
             .accessibilityAdjustableAction { direction in
                 let next: Int
@@ -921,7 +921,7 @@ struct AgentThinkingToggle: View {
         let items = AgentThinking.listItems(stops)
         let current = items.first(where: { $0.level == value }) ?? items[0]
         VStack(alignment: .leading, spacing: 6) {
-            Text("思维链").font(.system(size: 15)).foregroundStyle(Theme.textMuted)
+            Text(String(localized: .agentComposerReasoning)).font(.system(size: 15)).foregroundStyle(Theme.textMuted)
             HStack(spacing: 4) {
                 ForEach(items) { item in
                     let selected = item.level == value

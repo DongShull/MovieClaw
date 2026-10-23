@@ -309,7 +309,7 @@ struct MacPlayerTransport: View {
         .buttonStyle(MacPlayerButtonStyle())
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("更多")
+        .help(String(localized: .commonMore))
         .accessibilityLabel("更多：画质与倍速")
         .accessibilityIdentifier("mac-player-more")
     }

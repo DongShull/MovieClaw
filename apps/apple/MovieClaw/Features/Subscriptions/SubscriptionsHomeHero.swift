@@ -102,7 +102,7 @@ struct SubsHomeHeroSkeleton: View {
         DiscoverSkeletonBlock(cornerRadius: 0)
             .frame(height: SubsHomeHero.height)
             .stretchesOnPull()
-            .accessibilityLabel("订阅首页加载中")
+            .accessibilityLabel(String(localized: .subscriptionOverviewLoadingHome))
     }
 }
 

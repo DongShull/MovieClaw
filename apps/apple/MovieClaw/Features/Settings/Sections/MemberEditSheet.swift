@@ -84,14 +84,14 @@ struct MemberEditSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
+                    Button(String(localized: .commonCancel)) {
                         if draft != member { discarding = true } else { dismiss() }
                     }.disabled(busy).accessibilityIdentifier("sheet-cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if busy { ProgressView() }
                     else {
-                        Button("保存") { Task { await save() } }
+                        Button(String(localized: .commonSave)) { Task { await save() } }
                             .disabled(loading || loadError != nil || draft == member)
                             .accessibilityIdentifier("member-edit-save")
                     }
@@ -116,14 +116,14 @@ struct MemberEditSheet: View {
             else if let loadError {
                 SettingsFormSection {
                     Text(loadError).foregroundStyle(.secondary)
-                    Button("重试") { Task { await loadOptions() } }
+                    Button(String(localized: .commonRetry)) { Task { await loadOptions() } }
                 }
             } else {
                 switch section {
                 case .profile:
                     SettingsFormSection {
                         LabeledContent("用户名", value: member.username)
-                        TextField("昵称", text: $draft.nickname)
+                        TextField(String(localized: .settingsProfileNickname), text: $draft.nickname)
                             .accessibilityIdentifier("member-edit-nickname")
                     } footer: { Text("用户名用于登录，创建后不能修改。昵称是其他页面显示的名称。") }
                 case .permissions: permissionFields

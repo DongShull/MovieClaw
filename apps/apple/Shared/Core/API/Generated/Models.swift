@@ -117,6 +117,8 @@ nonisolated extension API {
         var id: Int
         var type: String
         var message: String
+        var messageKey: String?
+        var messageParams: [String: API.JSONValue]?
         var payload: [String: API.JSONValue]
         var createdAt: String
         var wantedItemId: Int?
@@ -125,6 +127,8 @@ nonisolated extension API {
             case id
             case type
             case message
+            case messageKey = "message_key"
+            case messageParams = "message_params"
             case payload
             case createdAt = "created_at"
             case wantedItemId = "wanted_item_id"
@@ -5190,6 +5194,8 @@ nonisolated extension API {
         var phase: String
         /// 面向用户的即时进展
         var message: String
+        var messageKey: String?
+        var messageParams: [String: API.JSONValue]?
         /// 当前完成量
         var current: Int?
         /// 总量；未知时为空
@@ -5207,6 +5213,8 @@ nonisolated extension API {
             case mode
             case phase
             case message
+            case messageKey = "message_key"
+            case messageParams = "message_params"
             case current
             case total
             case percent
@@ -7657,6 +7665,9 @@ nonisolated extension API {
         var source: String
         var title: String
         var message: String
+        var titleKey: String?
+        var messageKey: String?
+        var messageParams: [String: API.JSONValue]?
         var payload: [String: API.JSONValue]
         var createdAt: String
         var updatedAt: String
@@ -7667,6 +7678,9 @@ nonisolated extension API {
             case source
             case title
             case message
+            case titleKey = "title_key"
+            case messageKey = "message_key"
+            case messageParams = "message_params"
             case payload
             case createdAt = "created_at"
             case updatedAt = "updated_at"

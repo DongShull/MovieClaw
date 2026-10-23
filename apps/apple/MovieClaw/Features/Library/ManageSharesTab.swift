@@ -82,7 +82,7 @@ struct ManageSharesTab: View {
                         }
                         .buttonStyle(.plain)
                         if share.password != nil {
-                            Label("密码", systemImage: "lock.fill")
+                            Label(String(localized: .authLoginPassword), systemImage: "lock.fill")
                                 .labelStyle(.titleAndIcon)
                                 .font(.caption)
                                 .foregroundStyle(Theme.textFaint)
@@ -106,14 +106,14 @@ struct ManageSharesTab: View {
                 Button {
                     copy(share)
                 } label: {
-                    Label("复制", systemImage: "doc.on.doc").font(.footnote)
+                    Label(String(localized: .commonCopy), systemImage: "doc.on.doc").font(.footnote)
                 }
                 .buttonStyle(.glass)
                 .accessibilityIdentifier("share-copy-\(share.slug)")
                 Button {
                     revoking = share
                 } label: {
-                    Text("取消").font(.footnote).foregroundStyle(Color(red: 1, green: 0.62, blue: 0.62))
+                    Text(String(localized: .commonCancel)).font(.footnote).foregroundStyle(Color(red: 1, green: 0.62, blue: 0.62))
                 }
                 .buttonStyle(.glass)
                 .disabled(busyId == share.id)

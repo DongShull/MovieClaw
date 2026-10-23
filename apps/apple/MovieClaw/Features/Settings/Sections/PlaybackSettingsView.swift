@@ -33,7 +33,7 @@ struct PlaybackSettingsView: View {
             Button("关闭并删除 \(stats.count) 个片段（\(Formatters.bytes(stats.bytes))）", role: .destructive) {
                 Task { await savePolicy(clips: false, purgeClips: true) }
             }
-            Button("取消", role: .cancel) { }
+            Button(String(localized: .commonCancel), role: .cancel) { }
         } message: { _ in Text("关闭后预告和刷片改回直接播放原片，后台不再切新的片段。保留的片段在重新打开后可直接使用。") }
         .sheet(isPresented: $editing) {
             if let value = config.value {
@@ -44,7 +44,7 @@ struct PlaybackSettingsView: View {
             }
         }
         .sheet(isPresented: $showingPairing) {
-            SubsSheetScaffold(title: "连接转码器", closeTitle: "完成") {
+            SubsSheetScaffold(title: "连接转码器", closeTitle: String(localized: .commonDone)) {
                 SettingsFormSection {
                     Label("在 Mac 上打开 MovieClaw Transcoder，查找局域网服务器或输入服务器地址。", systemImage: "1.circle")
                     Label("选择「连接并配对」，获取配对码。", systemImage: "2.circle")
@@ -64,7 +64,7 @@ struct PlaybackSettingsView: View {
         if let policyError {
             SettingsFormSection {
                 SettingsNotice(text: policyError)
-                if policy == nil { Button("重试") { Task { await loadPolicy() } } }
+                if policy == nil { Button(String(localized: .commonRetry)) { Task { await loadPolicy() } } }
             }
         }
         if let policy {
@@ -101,7 +101,7 @@ struct PlaybackSettingsView: View {
         case let .failed(message):
             SettingsFormSection("远程转码") {
                 SettingsNotice(text: message)
-                Button("重试") { Task { await loadConfig() } }
+                Button(String(localized: .commonRetry)) { Task { await loadConfig() } }
             }
         case let .loaded(config):
             SettingsFormSection {
@@ -272,7 +272,7 @@ private struct RemoteTranscodeEditor: View {
     var body: some View {
         SubsSheetScaffold(title: "远程转码设置", onClose: {
             if dirty { discarding = true } else { dismiss() }
-        }, confirm: .init(title: "保存", enabled: dirty && draft.valid, busy: busy, identifier: "remote-transcode-save") {
+        }, confirm: .init(title: String(localized: .commonSave), enabled: dirty && draft.valid, busy: busy, identifier: "remote-transcode-save") {
             if config.enabled && !draft.enabled { confirmingDisable = true }
             else { Task { await save() } }
         }) {
@@ -298,7 +298,7 @@ private struct RemoteTranscodeEditor: View {
             Button("放弃修改", role: .destructive) { dismiss() }
         }
         .alert("关闭远程转码？", isPresented: $confirmingDisable) {
-            Button("取消", role: .cancel) { }
+            Button(String(localized: .commonCancel), role: .cancel) { }
             Button("关闭并保存", role: .destructive) { Task { await save() } }
         } message: { Text("已配对的转码器会断开连接，后续播放使用服务器本地转码。") }
     }

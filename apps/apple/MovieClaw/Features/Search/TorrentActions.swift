@@ -279,7 +279,7 @@ struct SiteStatusSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        SubsSheetScaffold(title: "站点搜索详情", closeTitle: "完成") {
+        SubsSheetScaffold(title: "站点搜索详情", closeTitle: String(localized: .commonDone)) {
             Section {
                 ForEach(model.sites) { site in
                     row(site)

@@ -101,7 +101,7 @@ struct TVItemDetailView: View {
                             previewKey: itemId)
             if failed {
                 TVStateView(symbol: "questionmark.folder", title: "未能加载该条目",
-                            message: "条目可能已被删除或重新识别为其他作品。", actionTitle: "返回") { router.pop() }
+                            message: "条目可能已被删除或重新识别为其他作品。", actionTitle: String(localized: .commonBack)) { router.pop() }
             } else if let detail {
                 content(detail)
             } else {
@@ -301,7 +301,7 @@ struct TVItemDetailView: View {
         let finished = watched?.played ?? false
         // 有续播点就接着播（与服务端起播同一口径）：看完后重看到一半的也算，已看标记保留
         let resumable = canPlay && position > 0
-        let verb = resumable ? "继续" : finished ? "重新播放" : "播放"
+        let verb = resumable ? String(localized: .commonContinue) : finished ? "重新播放" : "播放"
         // 剧集在按钮上写明是哪一集（同 Netflix、系统 Apple TV App 的「继续 第 1 季第 3 集」）：只写「继续 46:56」
         // 看不出续的是第几集（2026-10-04 用户要求）。时间点跟在后面
         let parts = [verb, unitLabel, resumable ? Formatters.clock(Double(position) / 1000) : nil].compactMap { $0 }

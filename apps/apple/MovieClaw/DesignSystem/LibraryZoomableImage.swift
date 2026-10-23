@@ -369,7 +369,7 @@ extension LibraryZoomableImage {
                             .frame(width: 44, height: 44)
                             .contentShape(.circle)
                     }
-                    .accessibilityLabel("关闭")
+                    .accessibilityLabel(String(localized: .commonClose))
                 }
                 .foregroundStyle(.white.opacity(0.85))
                 .buttonStyle(.plain)

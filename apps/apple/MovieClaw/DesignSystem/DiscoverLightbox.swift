@@ -53,7 +53,7 @@ struct DiscoverLightbox: View {
                     Image(systemName: "xmark").font(.body.weight(.semibold)).frame(width: 36, height: 36)
                 }
                 .buttonStyle(.glass)
-                .accessibilityLabel("关闭")
+                .accessibilityLabel(String(localized: .commonClose))
                 .accessibilityIdentifier("lightbox-close")
                 VStack(alignment: .leading, spacing: 2) {
                     Text(content.title).font(.subheadline.weight(.semibold)).lineLimit(1)

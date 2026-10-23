@@ -93,7 +93,7 @@ struct DeviceApprovalFlow: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭", systemImage: "xmark") { dismiss() }
+                    Button(String(localized: .commonClose), systemImage: "xmark") { dismiss() }
                         .disabled(busy)
                         .accessibilityIdentifier("device-approval-close")
                 }
@@ -136,7 +136,7 @@ struct DeviceApprovalFlow: View {
         }
         VStack(spacing: 10) {
             Button { Task { await lookUp() } } label: {
-                Text("继续").foregroundStyle(.black).frame(maxWidth: .infinity)
+                Text(String(localized: .commonContinue)).foregroundStyle(.black).frame(maxWidth: .infinity)
             }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
@@ -250,7 +250,7 @@ struct DeviceApprovalFlow: View {
         .padding(.top, 8)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("device-approval-result")
-        Button { dismiss() } label: { Text("完成").foregroundStyle(.black).frame(maxWidth: .infinity) }
+        Button { dismiss() } label: { Text(String(localized: .commonDone)).foregroundStyle(.black).frame(maxWidth: .infinity) }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .accessibilityIdentifier("device-approval-done")

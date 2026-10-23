@@ -103,7 +103,7 @@ struct LLMSettingsView: View {
     }
 
     private var introText: String {
-        guard let providers else { return "加载中…" }
+        guard let providers else { return String(localized: .commonLoadingProgress) }
         return providers.isEmpty
             ? "接入一个或多个大语言模型供应商，AI 能力（对话助手、字幕处理、智能识别等）将由它们驱动。"
             : "接入后该供应商目录里的全部模型都可在对话框里选用；各场景默认用哪个模型，在「AI 设定」里配置。"
@@ -179,7 +179,7 @@ struct LLMSettingsView: View {
         guard await feedback.confirm(
             "删除「\(provider.name)」？",
             message: "它目录里的模型将不可再选；AI 设定中指向它的默认模型会自动兜底到其它已接入的供应商。",
-            confirmTitle: "删除",
+            confirmTitle: String(localized: .commonDelete),
             destructive: true
         ) else { return }
         busy = true

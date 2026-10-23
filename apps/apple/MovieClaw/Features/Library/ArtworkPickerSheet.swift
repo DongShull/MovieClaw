@@ -52,7 +52,7 @@ struct ArtworkPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }.disabled(applying != nil)
+                    Button(String(localized: .commonDone)) { dismiss() }.disabled(applying != nil)
                 }
             }
         }
@@ -102,7 +102,7 @@ struct ArtworkPickerSheet: View {
             VStack(spacing: 10) {
                 Text("候选图加载失败（TMDB 可能不可达）")
                     .foregroundStyle(Theme.danger)
-                Button("重试") { Task { await load(reset: data == nil) } }
+                Button(String(localized: .commonRetry)) { Task { await load(reset: data == nil) } }
                     .buttonStyle(.glass)
             }
             .frame(maxWidth: .infinity)

@@ -59,7 +59,7 @@ struct PairingScannerScreen: View {
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
-                .accessibilityLabel("关闭")
+                .accessibilityLabel(String(localized: .commonClose))
                 .accessibilityIdentifier("scanner-close")
                 Spacer()
             }

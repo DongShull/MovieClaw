@@ -91,7 +91,7 @@ struct ReidentifySheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") { dismiss() }
+                    Button(String(localized: .commonClose)) { dismiss() }
                 }
             }
             .appBackground()

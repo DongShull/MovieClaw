@@ -73,7 +73,7 @@ struct MembersSettingsView: View {
     private func retry(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(message).font(.subheadline).foregroundStyle(.secondary)
-            Button("重试") { Task { await load() } }
+            Button(String(localized: .commonRetry)) { Task { await load() } }
         }
     }
 
@@ -137,7 +137,7 @@ struct SettingsSheetScaffold<Content: View>: View {
     var confirmTitle: String?
     var confirmDisabled = false
     var busy = false
-    var cancelTitle = "取消"
+    var cancelTitle = String(localized: .commonCancel)
     var confirmIdentifier = "sheet-confirm"
     var onConfirm: (() -> Void)?
     @ViewBuilder let content: () -> Content

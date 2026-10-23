@@ -37,7 +37,7 @@ struct ProfileSettingsView: View {
                     }
                     .accessibilityIdentifier("profile-nickname-edit")
                 }
-                SettingsFormSection("安全") {
+                SettingsFormSection(String(localized: .settingsProfileSecurity)) {
                     Button { editor = .password } label: { row("修改密码") }
                         .accessibilityIdentifier("profile-password-edit")
                 }
@@ -46,7 +46,7 @@ struct ProfileSettingsView: View {
                         .accessibilityIdentifier("profile-switch-account")
                 } footer: { Text("长按底部头像也能切换账号。") }
                 SettingsFormSection {
-                    Button("退出登录", role: .destructive) { Task { await logout(session) } }
+                    Button(String(localized: .authMenuSignOut), role: .destructive) { Task { await logout(session) } }
                         .frame(maxWidth: .infinity)
                         .accessibilityIdentifier("logout")
                 }
@@ -57,7 +57,7 @@ struct ProfileSettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     if clearing || loggingOut { ProgressView() } else {
                         Menu {
-                            Button("清空观看记录", systemImage: "clock.arrow.circlepath", role: .destructive) {
+                            Button(String(localized: .settingsProfileClearHistoryAction), systemImage: "clock.arrow.circlepath", role: .destructive) {
                                 Task { await clearHistory() }
                             }
                             .accessibilityIdentifier("profile-clear-history")
@@ -186,7 +186,7 @@ struct ProfileSettingsView: View {
         let ok = await feedback.confirm(
             "清空全部观看记录？",
             message: "所有作品的续播进度、已看标记和播放次数都会清除，首页「最近观看」与播放器的「继续观看」随即清空，无法恢复。只影响你自己的记录；应用更新前的自动备份仍包含历史记录。",
-            confirmTitle: "清空",
+            confirmTitle: String(localized: .commonClear),
             destructive: true
         )
         guard ok else { return }

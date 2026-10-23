@@ -91,7 +91,7 @@ struct SubscribeSheet: View {
                 SubsSheetScaffold(
                     title: "订阅《\(displayTitle)》",
                     closable: false,
-                    confirm: SubsSheetConfirm(title: "完成", identifier: "upgrade-report-done") { dismiss() },
+                    confirm: SubsSheetConfirm(title: String(localized: .commonDone), identifier: "upgrade-report-done") { dismiss() },
                     fullHeight: true
                 ) {
                     UpgradeRunReportView(title: displayTitle, isMovie: kind == "movie", report: upgradeReport)
@@ -125,7 +125,7 @@ struct SubscribeSheet: View {
                         .toolbar {
                             if pages.isEmpty {
                                 ToolbarItem(placement: .cancellationAction) {
-                                    Button("取消", systemImage: "xmark", role: .close) { dismiss() }
+                                    Button(String(localized: .commonCancel), systemImage: "xmark", role: .close) { dismiss() }
                                         .disabled(busy).accessibilityIdentifier("sheet-close")
                                 }
                                 if showsSubmit {
@@ -381,7 +381,7 @@ struct SubscribeSheet: View {
             }
         }
         Section {
-            Toggle("自动续订", isOn: $followFuture)
+            Toggle(String(localized: .subscriptionRibbonFollowFuture), isOn: $followFuture)
                 .toggleStyle(SystemSwitchStyle()).accessibilityIdentifier("subscribe-follow-future")
         } footer: { Text("自动追踪新集和新季") }
     }

@@ -46,10 +46,10 @@ struct ProfileNicknameSheet: View {
 
     var body: some View {
         SubsSheetScaffold(title: "修改昵称", onClose: cancel,
-            confirm: SubsSheetConfirm(title: "保存", enabled: changed && validation == nil,
+            confirm: SubsSheetConfirm(title: String(localized: .commonSave), enabled: changed && validation == nil,
                                       busy: busy, identifier: "profile-nickname-save", action: save)) {
             SettingsFormSection {
-                TextField("昵称", text: $draft)
+                TextField(String(localized: .settingsProfileNickname), text: $draft)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .submitLabel(.done).onSubmit(save)
                     .accessibilityIdentifier("profile-nickname-field")
@@ -95,20 +95,20 @@ struct ProfilePasswordSheet: View {
 
     var body: some View {
         SubsSheetScaffold(title: "修改密码", onClose: cancel,
-            confirm: SubsSheetConfirm(title: "保存", enabled: draft.valid, busy: busy,
+            confirm: SubsSheetConfirm(title: String(localized: .commonSave), enabled: draft.valid, busy: busy,
                                       identifier: "profile-change-password", action: save)) {
             SettingsFormSection {
-                LabeledContent("当前密码") {
+                LabeledContent(String(localized: .settingsProfileCurrentPassword)) {
                     SecureField("输入当前密码", text: $draft.current)
                         .textContentType(.password)
                         .accessibilityIdentifier("profile-old-password")
                 }
-                LabeledContent("新密码") {
+                LabeledContent(String(localized: .settingsProfileNewPassword)) {
                     SecureField("8–128 个字符", text: $draft.new)
                         .textContentType(.newPassword)
                         .accessibilityIdentifier("profile-new-password")
                 }
-                LabeledContent("确认密码") {
+                LabeledContent(String(localized: .setupAccountConfirmPassword)) {
                     SecureField("再次输入新密码", text: $draft.confirmation)
                         .textContentType(.newPassword)
                         .submitLabel(.done).onSubmit(save)

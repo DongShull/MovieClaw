@@ -85,7 +85,7 @@ struct AgentAIConsentSheet: View {
 
     private var cancelButton: some View {
         Button(role: .cancel) { dismiss() } label: {
-            Text("取消")
+            Text(String(localized: .commonCancel))
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity)
         }

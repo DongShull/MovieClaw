@@ -237,7 +237,7 @@ struct DownloadTargetSheet: View {
                         .accessibilityIdentifier("download-other-targets")
                     }
                     if showOther, downloaders.count >= 2 {
-                        Picker("下载器", selection: Binding(mcGet: { downloaderId ?? -1 }, set: { id in
+                        Picker(String(localized: .downloadTargetDownloader), selection: Binding(mcGet: { downloaderId ?? -1 }, set: { id in
                             downloaderId = id
                             reloadManualTarget(downloaderId: id, candidate: selectedCandidate, hint: hint)
                         })) {
@@ -284,7 +284,7 @@ struct DownloadTargetSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(String(localized: .commonCancel)) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(busy ? "提交中…" : confirmTitle) { submit() }
@@ -383,7 +383,7 @@ struct DownloadTargetSheet: View {
                     .submitLabel(.search)
                     .onSubmit(searchHint)
                     .accessibilityIdentifier("download-hint-field")
-                Button("搜索", action: searchHint)
+                Button(String(localized: .commonSearch), action: searchHint)
                     .buttonStyle(.glass)
                     .disabled(hintDraft.trimmingCharacters(in: .whitespaces).isEmpty || loadingTarget)
             }

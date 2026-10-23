@@ -445,7 +445,7 @@ struct SettingsBLLMProviderForm: View {
                     draft = SettingsBLLMModelDraft()
                     addingCustom = false
                 } label: {
-                    Text("取消").font(.subheadline.weight(.medium)).frame(maxWidth: .infinity)
+                    Text(String(localized: .commonCancel)).font(.subheadline.weight(.medium)).frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glass)
                 .accessibilityIdentifier("llm-custom-cancel")

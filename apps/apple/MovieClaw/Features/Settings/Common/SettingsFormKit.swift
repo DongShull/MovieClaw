@@ -106,7 +106,7 @@ enum SettingsClipboard {
 struct SettingsCopyButton: View {
     let text: String
     let title: String
-    var successMessage: String = "已复制"
+    var successMessage: String = String(localized: .commonCopied)
     @Environment(Feedback.self) private var feedback
     @State private var copied = false
 
@@ -119,7 +119,7 @@ struct SettingsCopyButton: View {
                 copied = false
             }
         } label: {
-            Label(copied ? "已复制" : title, systemImage: copied ? "checkmark" : "doc.on.doc")
+            Label(copied ? String(localized: .commonCopied) : title, systemImage: copied ? "checkmark" : "doc.on.doc")
         }
     }
 }
@@ -201,7 +201,7 @@ struct SettingsRowText: View {
 
 /// 列表里的「加载中…」一行（分区内某一块数据还没回来时）
 struct SettingsLoadingRow: View {
-    var text = "加载中…"
+    var text = String(localized: .commonLoadingProgress)
 
     var body: some View {
         HStack(spacing: 10) {

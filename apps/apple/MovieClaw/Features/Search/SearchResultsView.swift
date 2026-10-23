@@ -437,7 +437,7 @@ struct LibrarySearchResultsView: View {
                     }
                     .discoverContainer("library-items")
                     if model.nextCursor != nil {
-                        Button(model.loadingMore ? "正在加载…" : "更多结果") {
+                        Button(model.loadingMore ? String(localized: .commonLoadingActive) : "更多结果") {
                             Task { await model.loadMore(api: api) }
                         }
                         .disabled(model.loadingMore)

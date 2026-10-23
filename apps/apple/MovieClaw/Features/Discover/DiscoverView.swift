@@ -439,7 +439,7 @@ struct DiscoverHeroSlide: View {
             if item.libraryStatus != nil {
                 HStack(spacing: 4) {
                     Circle().fill(Theme.success).frame(width: 6, height: 6)
-                    Text("在库")
+                    Text(String(localized: .libraryStatusInLibrary))
                 }
                 .foregroundStyle(Color(red: 0.43, green: 0.91, blue: 0.72))
             }
@@ -525,7 +525,7 @@ struct DiscoverErrorView: View {
             retrying = true
             Task { await retry(); retrying = false }
         } label: {
-            if retrying { ProgressView() } else { Text("重试") }
+            if retrying { ProgressView() } else { Text(String(localized: .commonRetry)) }
         }
         .disabled(retrying)
     }

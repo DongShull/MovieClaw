@@ -389,10 +389,10 @@ private struct MacPlayerContent: View {
     private var dialogs: some View {
         if let infoError = controller.infoError {
             // 条目信息都拿不到（无权访问、已删除）：整页换成原因 +「返回」
-            MacPlayerDialog(title: infoError, message: nil, primary: ("返回", close), secondary: nil)
+            MacPlayerDialog(title: infoError, message: nil, primary: (String(localized: .commonBack), close), secondary: nil)
         } else if controller.phase == .error, let message = controller.errorMessage {
-            MacPlayerDialog(title: message, message: controller.errorSuggestion, primary: ("重试", controller.retry),
-                            secondary: ("关闭", close))
+            MacPlayerDialog(title: message, message: controller.errorSuggestion, primary: (String(localized: .commonRetry), controller.retry),
+                            secondary: (String(localized: .commonClose), close))
         } else if controller.phase == .consent, let decision = controller.pendingDecision {
             MacConsentDialog(decision: decision, grant: controller.grantConsent, cancel: close)
         }

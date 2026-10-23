@@ -140,7 +140,7 @@ struct DevicesSettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.subheadline).foregroundStyle(.secondary)
-            Button("重试") { Task { await load() } }
+            Button(String(localized: .commonRetry)) { Task { await load() } }
         }
     }
 
@@ -249,16 +249,16 @@ struct DevicesSettingsView: View {
                                       title: device.current ? "本机 · 正在使用" : DeviceText.isLive(device) ? "在线" : "离线")
                 }
                 if showAll { LabeledContent("所属成员", value: device.ownerNickname) }
-                if let platform = device.platform, !platform.isEmpty { LabeledContent("系统", value: platform) }
+                if let platform = device.platform, !platform.isEmpty { LabeledContent(String(localized: .settingsGroupsSystem), value: platform) }
                 if let version = device.clientVersion { LabeledContent("版本", value: version) }
             }
-            SettingsFormSection("活动") {
+            SettingsFormSection(String(localized: .navMainActivity)) {
                 LabeledContent("最近使用", value: DeviceText.activity(device))
                 if let ip = device.lastSeenIp { LabeledContent("来源地址", value: ip).textSelection(.enabled) }
                 LabeledContent("首次登录", value: SettingsTime.deviceRelative(device.createdAt))
             }
             if let push = device.push {
-                SettingsFormSection("通知") {
+                SettingsFormSection(String(localized: .settingsNotificationsTitle)) {
                     Label(push.statusText, systemImage: push.status == "ok" ? "bell" : "bell.slash")
                         .accessibilityIdentifier("device-push-\(device.name)")
                 }
@@ -296,7 +296,7 @@ struct DevicesSettingsView: View {
 
     private func rename(_ device: API.LoginDeviceView) async {
         guard let name = await feedback.prompt("给设备改名", message: "例如：客厅的 iPad。", initial: device.name,
-                                              confirmTitle: "保存", maxLength: 64)?
+                                              confirmTitle: String(localized: .commonSave), maxLength: 64)?
             .trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty, name != device.name else { return }
         busy = device.id
         defer { busy = nil }

@@ -21,11 +21,13 @@ from . import test_theme_device_class_browser as theme
 pytestmark = pytest.mark.integration
 
 
-def test_apple_language_flow(tmp_path):
-    original = os.environ.get("APPLE_I18N_XCTESTRUN")
-    simulator = os.environ.get("APPLE_I18N_SIMULATOR")
+@pytest.mark.parametrize("platform", ["ios", "tvos"])
+def test_apple_language_flow(tmp_path, platform):
+    prefix = "APPLE_I18N_TV" if platform == "tvos" else "APPLE_I18N"
+    original = os.environ.get(f"{prefix}_XCTESTRUN")
+    simulator = os.environ.get(f"{prefix}_SIMULATOR")
     if not original or not simulator:
-        pytest.skip("Requires a built MovieClawEnglish scheme and an iPhone simulator")
+        pytest.skip(f"Requires a built English scheme and an {platform} simulator")
     source = Path(original).resolve()
     config = plistlib.loads(source.read_bytes())
     port = theme._free_port()
@@ -46,6 +48,8 @@ def test_apple_language_flow(tmp_path):
     }
     run = source.with_name("i18n-fixture.xctestrun")
     artifacts = theme.REPO / ".tmp-uidev/i18n/apple"
+    if platform == "tvos":
+        artifacts = artifacts / "tvos"
     artifacts.mkdir(parents=True, exist_ok=True)
     with (artifacts / "api.log").open("w") as api_log:
         api = subprocess.Popen(
@@ -58,7 +62,11 @@ def test_apple_language_flow(tmp_path):
         try:
             theme._wait_http(f"{base}/api/v1/auth/bootstrap", 90)
             assert httpx.post(f"{base}/api/v1/auth/bootstrap", json=theme.ADMIN).is_success
-            for name in ("MovieClawTests", "MovieClawUITests"):
+            for name in (
+                ("MovieClawTVUITests",)
+                if platform == "tvos"
+                else ("MovieClawTests", "MovieClawUITests")
+            ):
                 config[name]["EnvironmentVariables"].update(
                     {
                         "MC_TEST_I18N": "1",
@@ -75,7 +83,8 @@ def test_apple_language_flow(tmp_path):
                         "-xctestrun",
                         str(run),
                         "-destination",
-                        f"platform=iOS Simulator,id={simulator}",
+                        f"platform={'tvOS' if platform == 'tvos' else 'iOS'} Simulator,"
+                        f"id={simulator}",
                         "-parallel-testing-enabled",
                         "NO",
                         "-collect-test-diagnostics",
@@ -86,10 +95,25 @@ def test_apple_language_flow(tmp_path):
                     stderr=subprocess.STDOUT,
                     timeout=600,
                 )
-            assert result.returncode == 0, (artifacts / "xcodebuild.log").read_text()[-12000:]
+            output = (artifacts / "xcodebuild.log").read_text()
+            assert result.returncode == 0, output[-12000:]
+            expected = (
+                [
+                    "testEnglishAccountAndAboutUseRealServer",
+                    "testTraditionalChineseUsesSimplifiedAlias",
+                ]
+                if platform == "tvos"
+                else [
+                    "testFreshSignInUsesEnglishAndChineseMessages",
+                    "testEnglishNetworkAndValidationErrors",
+                    "testEnglishPluralVariations",
+                ]
+            )
+            for test_name in expected:
+                assert f"{test_name}]' passed" in output, output[-12000:]
             with sqlite3.connect(database) as connection:
                 devices = connection.execute(
-                    "SELECT locale,timezone FROM login_device WHERE kind='ios'"
+                    "SELECT locale,timezone FROM login_device WHERE kind=?", (platform,)
                 ).fetchall()
             assert devices
             assert all(locale in {"en", "zh-Hans"} and timezone for locale, timezone in devices)

@@ -52,7 +52,7 @@ struct MacSearchView: View {
         .background(Color.macPage)
         .animation(.easeOut(duration: 0.2), value: model.searching)
         .animation(.easeOut(duration: 0.25), value: model.items.map(\.item.mediaItemId))
-        .navigationTitle("搜索")
+        .navigationTitle(String(localized: .commonSearch))
         .toolbar(removing: .title)
         .task(id: input) {
             await model.search(api: api, input: input)
@@ -71,7 +71,7 @@ struct MacSearchView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(trimmed.isEmpty ? "搜索" : "「\(trimmed)」")
+            Text(trimmed.isEmpty ? String(localized: .commonSearch) : "「\(trimmed)」")
                 .font(.system(size: 28, weight: .bold))
                 .lineLimit(1)
             if model.searching, !showsSkeleton {
@@ -171,7 +171,7 @@ struct MacSearchView: View {
     @ViewBuilder
     private var states: some View {
         if let failed = model.failed {
-            MacStateView(symbol: "wifi.exclamationmark", title: "搜索失败", message: failed, actionTitle: "重试") {
+            MacStateView(symbol: "wifi.exclamationmark", title: "搜索失败", message: failed, actionTitle: String(localized: .commonRetry)) {
                 Task { await model.search(api: api, input: input, immediately: true) }
             }
             .frame(height: 360)

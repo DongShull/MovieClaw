@@ -555,7 +555,7 @@ private struct BreakdownPanel<Footer: View>: View {
                 if fold == .expand, rows.count > limit {
                     Divider().overlay(Color.white.opacity(0.06))
                     Button { expanded.toggle() } label: {
-                        Text(expanded ? "收起" : "展开全部 \(rows.count) \(unit)")
+                        Text(expanded ? String(localized: .commonCollapse) : "展开全部 \(rows.count) \(unit)")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(Theme.info)
                             .frame(maxWidth: .infinity, alignment: .leading)

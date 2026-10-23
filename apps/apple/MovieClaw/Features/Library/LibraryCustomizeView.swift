@@ -96,7 +96,7 @@ struct LibraryCustomizeView: View {
                         .accessibilityIdentifier("add-row")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成", systemImage: "checkmark", role: .confirm) { dismiss() }
+                    Button(String(localized: .commonDone), systemImage: "checkmark", role: .confirm) { dismiss() }
                         .accessibilityIdentifier("customize-done")
                 }
             }
@@ -560,7 +560,7 @@ private struct AddRowSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭", systemImage: "xmark", role: .close) { dismiss() }
+                    Button(String(localized: .commonClose), systemImage: "xmark", role: .close) { dismiss() }
                 }
             }
         }

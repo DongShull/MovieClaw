@@ -227,11 +227,11 @@ struct TVPersonView: View {
                 title: "库内没有这位影人的作品",
                 message: "可能是这位影人参演的片都已从库里移除；也可能这个库是早前扫描的——影人档案随入库刮削一并建立，"
                     + "在手机或网页上对这个库执行一次「刷新元数据」即可补齐。",
-                actionTitle: "返回"
+                actionTitle: String(localized: .commonBack)
             ) { router.pop() }
         case .error:
             TVStateView(symbol: "exclamationmark.triangle", title: "未能加载影人档案",
-                        message: "请稍后重试；若持续失败，请查看系统日志。", actionTitle: "重试") {
+                        message: "请稍后重试；若持续失败，请查看系统日志。", actionTitle: String(localized: .commonRetry)) {
                 Task { await load() }
             }
         }

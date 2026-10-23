@@ -53,7 +53,7 @@ struct TVSearchView: View {
                             .focused($focusedItem, equals: item.mediaItemId)
                         }
                         if model.nextCursor != nil {
-                            Button(model.loadingMore ? "正在加载…" : "更多结果") {
+                            Button(model.loadingMore ? String(localized: .commonLoadingActive) : "更多结果") {
                                 Task { await model.loadMore(api: api) }
                             }
                             .disabled(model.loadingMore)
@@ -63,7 +63,7 @@ struct TVSearchView: View {
                 }
                 if let failed = model.failed {
                     TVStateView(symbol: "wifi.exclamationmark", title: "搜索失败", message: failed,
-                                actionTitle: "重试", action: { Task { await model.search(api: api, input: input, immediately: true) } })
+                                actionTitle: String(localized: .commonRetry), action: { Task { await model.search(api: api, input: input, immediately: true) } })
                         .frame(height: 420)
                 } else if model.items.isEmpty && !model.searching && !trimmed.isEmpty {
                     TVStateView(symbol: "magnifyingglass", title: "没有找到相关影片",

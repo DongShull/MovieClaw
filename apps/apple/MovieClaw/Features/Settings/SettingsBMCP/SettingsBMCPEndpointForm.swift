@@ -125,7 +125,7 @@ struct SettingsBMCPEndpointFields: View {
     private var modeSection: some View {
         SettingsFormSection {
             Picker("工具形态", selection: $draft.expandTools) {
-                Text("展开").tag(true)
+                Text(String(localized: .commonExpand)).tag(true)
                 Text("折叠").tag(false)
             }
             .pickerStyle(.menu)
@@ -150,7 +150,7 @@ struct SettingsBMCPEndpointFields: View {
                     .autocorrectionDisabled()
                     .accessibilityIdentifier("mcp-form-service-search")
                 if !draft.services.isEmpty {
-                    Button("清空") { draft.services = [] }
+                    Button(String(localized: .commonClear)) { draft.services = [] }
                         .font(.caption)
                         .buttonStyle(.glass)
                         .accessibilityIdentifier("mcp-form-service-clear")

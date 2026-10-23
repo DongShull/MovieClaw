@@ -206,7 +206,7 @@ struct TorrentResultsView: View {
                 Button {
                     model.filters = TorrentFilters()
                 } label: {
-                    conditionLabel(Label("清空", systemImage: "xmark").labelStyle(.titleAndIcon), active: false, chevron: false)
+                    conditionLabel(Label(String(localized: .commonClear), systemImage: "xmark").labelStyle(.titleAndIcon), active: false, chevron: false)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, cards.edge)
@@ -398,7 +398,7 @@ struct TorrentResultsView: View {
             Button {
                 model.loadMore(api: api)
             } label: {
-                Text(model.loadingMore ? "正在加载…" : "加载更多（第 \(model.page + 1) 页）")
+                Text(model.loadingMore ? String(localized: .commonLoadingActive) : "加载更多（第 \(model.page + 1) 页）")
                     .font(.subheadline.weight(.semibold))
                     .padding(.horizontal, 8)
             }

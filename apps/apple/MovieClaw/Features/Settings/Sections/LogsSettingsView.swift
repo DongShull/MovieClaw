@@ -63,7 +63,7 @@ struct SettingsLogEntry: Identifiable {
 @Observable
 final class SettingsLogModel {
     static let refreshKey = "movieclaw.log-refresh-interval"
-    static let refreshOptions: [(label: String, value: Int)] = [("关闭", 0), ("3s", 3000), ("10s", 10000), ("30s", 30000)]
+    static let refreshOptions: [(label: String, value: Int)] = [(String(localized: .commonOff), 0), ("3s", 3000), ("10s", 10000), ("30s", 30000)]
     static let levelFilters: [(id: SettingsLogEntry.Level?, label: String)] = [
         (nil, "全部"), (.error, "错误"), (.warning, "警告"), (.info, "信息"), (.debug, "调试"),
     ]
@@ -242,7 +242,7 @@ private struct LogToolbar: View {
                         .accessibilityIdentifier("logs-meta")
                 }
                 Spacer(minLength: 0)
-                Button(model.loading ? "加载中…" : "刷新") { Task { await model.refresh(prefer: model.activeDay) } }
+                Button(model.loading ? String(localized: .commonLoadingProgress) : String(localized: .commonRefresh)) { Task { await model.refresh(prefer: model.activeDay) } }
                     .buttonStyle(.glass)
                     .font(.subheadline)
                     .disabled(model.loading)
@@ -488,9 +488,9 @@ private struct LogFullscreen: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("系统日志").font(.headline)
+                Text(String(localized: .settingsLogsTitle)).font(.headline)
                 Spacer()
-                Button("完成") { fullscreen = false }.buttonStyle(.glass)
+                Button(String(localized: .commonDone)) { fullscreen = false }.buttonStyle(.glass)
                     .accessibilityIdentifier("logs-fullscreen-done")
             }
             LogToolbar(model: model)

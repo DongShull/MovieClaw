@@ -193,7 +193,7 @@ enum AgentThinking {
         if stops == ["off"] {
             return [
                 ListItem(level: nil, label: "开启（模型默认）", description: "不发送思考参数，沿用模型自身的默认行为"),
-                ListItem(level: "off", label: "关闭", description: "发送关闭指令，不再输出思考过程，响应更快"),
+                ListItem(level: "off", label: String(localized: .commonOff), description: "发送关闭指令，不再输出思考过程，响应更快"),
             ]
         }
         return [ListItem(level: nil, label: "默认", description: "不发送思考参数，由模型自行决定强度")]

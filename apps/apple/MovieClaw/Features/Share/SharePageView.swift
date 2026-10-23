@@ -99,7 +99,7 @@ private struct ShareGateView: View {
         ShareCardShell(title: "需要密码", subtitle: "这是一条受密码保护的分享，输入密码后即可观看。") {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("密码").font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.7))
+                    Text(String(localized: .authLoginPassword)).font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.7))
                     SecureField("", text: $password)
                         .submitLabel(.go)
                         .onSubmit { Task { await submit() } }

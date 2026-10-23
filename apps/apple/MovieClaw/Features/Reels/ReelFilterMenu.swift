@@ -53,7 +53,7 @@ struct ReelFilterMenu: View {
                 Menu {
                     let values = facetValues(dim.key)
                     if values.isEmpty {
-                        Button(store?.facets == nil ? "加载中…" : "片库里没有可选的") {}
+                        Button(store?.facets == nil ? String(localized: .commonLoadingProgress) : "片库里没有可选的") {}
                             .disabled(true)
                     }
                     ForEach(values, id: \.value) { value in

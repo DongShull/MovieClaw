@@ -73,8 +73,8 @@ struct MediaDetailView: View {
                 } description: {
                     Text("资源可能已下线，或网络暂时不可达。请返回后重试。\n\(message)")
                 } actions: {
-                    Button("重试") { Task { await load() } }.discoverProminentButton()
-                    Button("返回") { router.pop() }.buttonStyle(.glass)
+                    Button(String(localized: .commonRetry)) { Task { await load() } }.discoverProminentButton()
+                    Button(String(localized: .commonBack)) { router.pop() }.buttonStyle(.glass)
                 }
                 .accessibilityIdentifier("error-state")
             case let .loaded(detail):
@@ -328,7 +328,7 @@ struct MediaDetailView: View {
     /// 在库条：列出每个包含它的媒体库，点进库内条目详情
     private func libraryBar(_ links: [API.MediaLibraryLink]) -> some View {
         DiscoverFlowLayout(spacing: 10, lineSpacing: 8) {
-            Label("在库", systemImage: "folder")
+            Label(String(localized: .libraryStatusInLibrary), systemImage: "folder")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Color(red: 0.6, green: 0.95, blue: 0.8))
             ForEach(links, id: \.mediaItemId) { link in
@@ -375,7 +375,7 @@ struct MediaDetailView: View {
                     withAnimation { overviewExpanded.toggle() }
                 } label: {
                     HStack(spacing: 2) {
-                        Text(overviewExpanded ? "收起" : "展开全文")
+                        Text(overviewExpanded ? String(localized: .commonCollapse) : "展开全文")
                         Image(systemName: "chevron.right").rotationEffect(.degrees(overviewExpanded ? -90 : 90)).font(.caption)
                     }
                     .font(.subheadline.weight(.semibold))

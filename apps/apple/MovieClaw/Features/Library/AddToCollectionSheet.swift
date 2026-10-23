@@ -74,7 +74,7 @@ struct AddToCollectionSheet: View {
             .navigationTitle("加入合集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: .commonCancel)) { dismiss() } }
             }
         }
         .adaptiveDetents([.medium, .large])

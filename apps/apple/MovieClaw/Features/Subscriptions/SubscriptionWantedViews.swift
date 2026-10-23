@@ -306,7 +306,7 @@ struct MilestoneChainView: View {
                             .font(.subheadline).monospacedDigit()
                             .foregroundStyle(milestone.state == .done ? Theme.textFaint : milestone.state == .todo ? Color.white.opacity(0.25) : Color.white.opacity(0.8))
                             .fixedSize(horizontal: false, vertical: true)
-                        if milestone.label == "搜索", let smart { SmartWantedSelection(context: smart) }
+                        if milestone.label == String(localized: .commonSearch), let smart { SmartWantedSelection(context: smart) }
                         if let why = milestone.why {
                             Text(why).font(.caption).foregroundStyle(SubsColor.reason.opacity(0.9)).fixedSize(horizontal: false, vertical: true)
                         }

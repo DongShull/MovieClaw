@@ -217,7 +217,7 @@ struct LibraryDetailView: View {
         .alert("为「\(library?.name ?? "")」生成章节？", isPresented: $askingChapters) {
             Button("开始生成") { startChapters(force: false) }
             Button("已有的章节也重新生成") { startChapters(force: true) }
-            Button("取消", role: .cancel) {}
+            Button(String(localized: .commonCancel), role: .cancel) {}
         } message: {
             Text(Self.bullets("后台低优先级执行，可在任务中心观察或取消：", [
                 "只处理章节图还缺的文件（含上次没抓完、图丢了的），已经齐的不动",

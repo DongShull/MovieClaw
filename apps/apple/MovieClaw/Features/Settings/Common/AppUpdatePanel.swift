@@ -62,7 +62,7 @@ struct AppUpdatePanel<Header: View>: View {
                         HStack {
                             Text("版本信息加载失败").foregroundStyle(Theme.textMuted)
                             Spacer()
-                            Button("重试") { Task { await reloadStatus() } }.buttonStyle(.glass)
+                            Button(String(localized: .commonRetry)) { Task { await reloadStatus() } }.buttonStyle(.glass)
                         }
                     }
                 case let .loaded(status):
@@ -98,7 +98,7 @@ struct AppUpdatePanel<Header: View>: View {
             .sheetFeedback()
         }
         .sheet(isPresented: $changelogOpen) {
-            SubsSheetScaffold(title: "更新说明", closeTitle: "完成") {
+            SubsSheetScaffold(title: "更新说明", closeTitle: String(localized: .commonDone)) {
                 SettingsFormSection { SettingsMarkdownText(text: available?.changelog ?? "") }
             }
         }
@@ -542,7 +542,7 @@ private struct RollbackSheet: View {
     var body: some View {
         let targets = options?.targets ?? []
         let pick = selected.flatMap { index in targets.indices.contains(index) ? targets[index] : nil }
-        SubsSheetScaffold(title: "历史版本", closeTitle: "完成") {
+        SubsSheetScaffold(title: "历史版本", closeTitle: String(localized: .commonDone)) {
             if let error { SettingsFormSection { Text(error).foregroundStyle(Theme.danger) } }
             if let options {
                 SettingsFormSection {

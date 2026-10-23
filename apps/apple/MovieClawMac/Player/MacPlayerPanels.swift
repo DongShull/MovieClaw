@@ -64,7 +64,7 @@ struct MacTracksPanel: View {
 
     @ViewBuilder
     private var subtitleRows: some View {
-        MacPanelRow(id: "mac-panel-subtitle-off", title: "关闭", detail: nil, active: controller.selectedSubtitle == nil) {
+        MacPanelRow(id: "mac-panel-subtitle-off", title: String(localized: .commonOff), detail: nil, active: controller.selectedSubtitle == nil) {
             controller.selectSubtitle(nil)
             close()
         }

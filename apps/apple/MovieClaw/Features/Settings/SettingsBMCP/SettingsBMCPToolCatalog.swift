@@ -168,7 +168,7 @@ private struct SettingsBMCPToolDetail: View {
     private func copyButton(_ title: String, _ text: String, id: String) -> some View {
         Button(title) {
             UIPasteboard.general.string = text
-            feedback.success("已复制")
+            feedback.success(String(localized: .commonCopied))
         }
         .font(.caption.weight(.medium))
         .buttonStyle(.glass)

@@ -455,7 +455,7 @@ private struct MacCardLabel<Art: View>: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .glassEffect(.regular.interactive(), in: .circle)
-        .help("更多")
+        .help(String(localized: .commonMore))
     }
 }
 

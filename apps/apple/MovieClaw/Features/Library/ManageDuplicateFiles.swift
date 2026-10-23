@@ -287,7 +287,7 @@ struct ManageDuplicateFilesTab: View {
         } else if failed {
             VStack(spacing: 12) {
                 Text("重复文件加载失败").font(.subheadline).foregroundStyle(Theme.textMuted)
-                Button("重试") { Task { await reload() } }
+                Button(String(localized: .commonRetry)) { Task { await reload() } }
                     .buttonStyle(.glass)
                     .accessibilityIdentifier("dup-retry")
             }

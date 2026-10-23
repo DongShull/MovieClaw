@@ -206,7 +206,7 @@ struct SettingsBValueRow: View {
             if copyable {
                 Button {
                     UIPasteboard.general.string = value
-                    feedback.success("已复制")
+                    feedback.success(String(localized: .commonCopied))
                 } label: {
                     Image(systemName: "doc.on.doc")
                 }
@@ -412,7 +412,7 @@ struct SettingsBDirectoryPicker: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消", systemImage: "xmark") { dismiss() }
+                    Button(String(localized: .commonCancel), systemImage: "xmark") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("手动输入路径", systemImage: editing ? "list.bullet" : "pencil") {
@@ -520,7 +520,7 @@ struct SettingsBPathField: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .accessibilityIdentifier(identifier ?? label)
-                Button("浏览", systemImage: "folder") { picking = true }
+                Button(String(localized: .commonActionsBrowse), systemImage: "folder") { picking = true }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.borderless)
             }

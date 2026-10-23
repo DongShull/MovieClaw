@@ -53,7 +53,7 @@ struct SettingsBPushChannelsSections: View {
                         .foregroundStyle(Theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
-                    Button("去接入") { router.push(.settingsSection(.llm)) }
+                    Button(String(localized: .settingsLlmConnectModel)) { router.push(.settingsSection(.llm)) }
                         .font(.footnote.weight(.medium))
                         .buttonStyle(.borderless)
                         .accessibilityIdentifier("push-llm-setup")
@@ -87,7 +87,7 @@ struct SettingsBPushChannelsSections: View {
             }
         } header: {
             HStack {
-                Text(rows == nil ? "加载中…" : rows!.isEmpty ? "还没有接入任何通道。" : "已接入 \(rows!.count) 个账号。")
+                Text(rows == nil ? String(localized: .commonLoadingProgress) : rows!.isEmpty ? "还没有接入任何通道。" : "已接入 \(rows!.count) 个账号。")
                     .accessibilityIdentifier("push-channels-count")
                 Spacer()
                 if !addable.isEmpty {

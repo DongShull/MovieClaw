@@ -50,7 +50,7 @@ struct DeleteItemSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(result == nil ? "取消" : "关闭") { result == nil ? dismiss() : finish() }
+                    Button(result == nil ? String(localized: .commonCancel) : String(localized: .commonClose)) { result == nil ? dismiss() : finish() }
                         .disabled(busy)
                 }
             }
@@ -73,7 +73,7 @@ struct DeleteItemSheet: View {
         .font(.headline)
         .foregroundStyle(Theme.text)
 
-        Text("这不是「从列表移除」——将把下列目录从磁盘\(Text("彻底删除").bold().foregroundStyle(Theme.danger))，包括视频文件、NFO、海报、字幕等全部刮削产物，共 \(Text("\(detail.fileCount)").bold()) 个媒体文件、\(Text(Formatters.bytes(detail.totalSizeBytes)).bold())。此操作不可恢复。")
+        Text("这不是「从列表移除」——将把下列目录从磁盘\(Text(String(localized: .libraryDeletePermanently)).bold().foregroundStyle(Theme.danger))，包括视频文件、NFO、海报、字幕等全部刮削产物，共 \(Text("\(detail.fileCount)").bold()) 个媒体文件、\(Text(Formatters.bytes(detail.totalSizeBytes)).bold())。此操作不可恢复。")
             .font(.body)
             .foregroundStyle(.white.opacity(0.8))
             .monospacedDigit()
@@ -185,7 +185,7 @@ struct DeleteFileSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(result == nil ? "取消" : "关闭") {
+                    Button(result == nil ? String(localized: .commonCancel) : String(localized: .commonClose)) {
                         if result == nil { dismiss() } else { finish(isLast: detail.value?.files.count == 1) }
                     }
                     .disabled(busy)
@@ -217,7 +217,7 @@ struct DeleteFileSheet: View {
             if file.missing {
                 Text("该文件在磁盘上已缺失，删除只会清掉这条台账记录。")
             } else {
-                Text("将把下列文件从磁盘\(Text("彻底删除").bold().foregroundStyle(Theme.danger))，同名的 NFO/字幕/图片附属文件一并清除。此操作不可恢复。")
+                Text("将把下列文件从磁盘\(Text(String(localized: .libraryDeletePermanently)).bold().foregroundStyle(Theme.danger))，同名的 NFO/字幕/图片附属文件一并清除。此操作不可恢复。")
             }
         }
         .font(.body)
@@ -283,7 +283,7 @@ struct DeleteFileSheet: View {
         HStack {
             Spacer()
             if result != nil {
-                Button("完成") { finish(isLast: isLast) }.buttonStyle(.glassProminent)
+                Button(String(localized: .commonDone)) { finish(isLast: isLast) }.buttonStyle(.glassProminent)
             } else {
                 DangerButton(busy: busy, enabled: confirmed) {
                     Task { await run() }

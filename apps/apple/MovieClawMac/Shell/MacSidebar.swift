@@ -27,15 +27,15 @@ struct MacSidebar: View {
             // 顶上两项也放进一个（无标题）分组：列表里只有散行、没有任何分组时（新服务器还没建库），
             // 侧边栏的内容会顶到标题栏里、搜索框压住红绿灯（实测）；有分组就排得正常
             Section {
-                Label("首页", systemImage: "house")
+                Label(String(localized: .navNativeHome), systemImage: "house")
                     .tag(MainTab.home)
                     .accessibilityIdentifier("mac-sidebar-home")
-                Label("我的收藏", systemImage: "heart")
+                Label(String(localized: .navNativeFavorites), systemImage: "heart")
                     .tag(MainTab.favorites)
                     .accessibilityIdentifier("mac-sidebar-favorites")
             }
             if !directory.browsable.isEmpty {
-                Section("媒体库") {
+                Section(String(localized: .navNativeLibraries)) {
                     ForEach(directory.browsable, id: \.id) { library in
                         Label(library.name, systemImage: MacLibraryDirectory.symbol(for: library.kind))
                             .badge(library.stats.itemCount)
@@ -45,7 +45,7 @@ struct MacSidebar: View {
                 }
             }
             if !pinnedCollections.isEmpty {
-                Section("合集") {
+                Section(String(localized: .navNativeCollections)) {
                     ForEach(pinnedCollections, id: \.id) { collection in
                         Label(collection.name, systemImage: "rectangle.stack")
                             .badge(collection.itemCount)

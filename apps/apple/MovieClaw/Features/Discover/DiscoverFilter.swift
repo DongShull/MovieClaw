@@ -322,7 +322,7 @@ struct DiscoverFilteredGrid: View {
                 if let error {
                     VStack(spacing: 12) {
                         Text(error).foregroundStyle(Theme.textMuted).multilineTextAlignment(.center)
-                        Button("重试") { Task { await loadMore() } }
+                        Button(String(localized: .commonRetry)) { Task { await loadMore() } }
                             .discoverProminentButton()
                     }
                     .frame(maxWidth: .infinity)

@@ -59,7 +59,7 @@ struct AccountSwitcherSheet: View {
                     Button {
                         card = CardRequest(server: model.server, username: nil)
                     } label: {
-                        Label("添加账号", systemImage: "person.badge.plus")
+                        Label(String(localized: .authLoginAddAccount), systemImage: "person.badge.plus")
                     }
                     .accessibilityIdentifier("account-add")
                     Button(role: .destructive) {
@@ -75,7 +75,7 @@ struct AccountSwitcherSheet: View {
             .navigationTitle("切换账号")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("关闭") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: .commonClose)) { dismiss() } }
             }
             .fullScreenCover(item: $card) { request in
                 WelcomeView(mode: .addAccount(server: request.server, username: request.username), phase: model.phase) {

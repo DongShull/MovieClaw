@@ -206,13 +206,13 @@ struct SmartDefaultsEditor: View {
         .navigationBarBackButtonHidden()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消", systemImage: "xmark", role: .cancel) { dismiss() }
+                Button(String(localized: .commonCancel), systemImage: "xmark", role: .cancel) { dismiss() }
                     .disabled(busy).accessibilityIdentifier("smart-cancel-edit")
             }
             ToolbarItem(placement: .confirmationAction) {
                 if busy { ProgressView().accessibilityLabel("正在保存") }
                 else {
-                    Button("保存", systemImage: "checkmark", role: .confirm) { Task { await save() } }
+                    Button(String(localized: .commonSave), systemImage: "checkmark", role: .confirm) { Task { await save() } }
                         .discoverProminentButton().disabled(draft == nil).accessibilityIdentifier("smart-save")
                 }
             }

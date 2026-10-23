@@ -109,7 +109,7 @@ struct SearchHomeView: View {
     var body: some View {
         content
         .appBackground()
-        .navigationTitle("搜索")
+        .navigationTitle(String(localized: .commonSearch))
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $keyword, tokens: scopeTokens, isPresented: $searchPresented, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt) { token in
             Text(token.label)
@@ -390,7 +390,7 @@ struct SearchHomeView: View {
                     HStack(alignment: .firstTextBaseline) {
                         sectionTitle("最近搜索")
                         Spacer()
-                        Button("清空") {
+                        Button(String(localized: .commonClear)) {
                             guard let vertical = historyVertical else { return }
                             self.items = []
                             Task {
@@ -485,7 +485,7 @@ struct SearchHomeView: View {
     /// 画成白色玻璃圆钮，看不出是危险操作（真机反馈），显式染成系统红
     private func deleteAction(label: String, action: @escaping () -> Void) -> some View {
         Button(role: .destructive, action: action) {
-            Label("删除", systemImage: "trash")
+            Label(String(localized: .commonDelete), systemImage: "trash")
                 .labelStyle(.iconOnly)
         }
         .tint(.red)
@@ -523,7 +523,7 @@ struct SearchHomeView: View {
 
     private func removeGroup(_ group: HistoryGroup) async {
         if group.items.count > 1 {
-            let ok = await feedback.confirm("删除「\(group.keyword)」的 \(group.items.count) 条搜索记录？", confirmTitle: "删除", destructive: true)
+            let ok = await feedback.confirm("删除「\(group.keyword)」的 \(group.items.count) 条搜索记录？", confirmTitle: String(localized: .commonDelete), destructive: true)
             guard ok else { return }
         }
         let ids = Set(group.items.map(\.id))

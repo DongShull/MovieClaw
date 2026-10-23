@@ -68,7 +68,7 @@ struct AgentAnswerBubbleSlice<Content: View>: View {
 
     var body: some View {
         let shape = AgentBubbleStyle.shape(top: bubble.first, bottom: bubble.last)
-        let menu = Button("复制", systemImage: "doc.on.doc") { UIPasteboard.general.string = bubble.text }
+        let menu = Button(String(localized: .commonCopy), systemImage: "doc.on.doc") { UIPasteboard.general.string = bubble.text }
         Group {
             if bubble.first && bubble.last {
                 sliced.contentShape(.contextMenuPreview, shape).contextMenu { menu }
@@ -165,7 +165,7 @@ struct AgentUserBubble: View {
             bubble(parsed)
                 .contentShape(.contextMenuPreview, AgentBubbleStyle.shape())
                 .contextMenu {
-                    Button("复制", systemImage: "doc.on.doc") { UIPasteboard.general.string = text }
+                    Button(String(localized: .commonCopy), systemImage: "doc.on.doc") { UIPasteboard.general.string = text }
                     if let onEdit {
                         Button("改写这条提问", systemImage: "pencil", action: onEdit)
                     }

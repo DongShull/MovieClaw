@@ -798,7 +798,7 @@ private struct TrackListSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭", systemImage: "xmark", role: .close) { dismiss() }
+                    Button(String(localized: .commonClose), systemImage: "xmark", role: .close) { dismiss() }
                         .accessibilityIdentifier("sheet-close")
                 }
             }
@@ -818,7 +818,7 @@ private struct TrackListSheet: View {
                 isPresented: Binding(mcGet: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
                 presenting: pendingDelete
             ) { entry in
-                Button("取消", role: .cancel) { pendingDelete = nil }
+                Button(String(localized: .commonCancel), role: .cancel) { pendingDelete = nil }
                 Button("删除字幕", role: .destructive) {
                     pendingDelete = nil
                     // 删除不收起列表：删完还能接着清理同一组里的其他字幕
@@ -847,7 +847,7 @@ private struct TrackListSheet: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if canDelete, entry.deletable != nil {
                 // 不用 role: .destructive：那会让系统先把行删掉动画走，而这里还要等确认框
-                Button("删除", systemImage: "trash") { pendingDelete = entry }
+                Button(String(localized: .commonDelete), systemImage: "trash") { pendingDelete = entry }
                     .tint(.red)
                     .accessibilityLabel("删除字幕文件：\(entry.primary)")
             }

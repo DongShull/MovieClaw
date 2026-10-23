@@ -131,7 +131,7 @@ struct LibraryManageView: View {
         ), presenting: chaptersTarget) { library in
             Button("开始生成") { startChapters(library, force: false) }
             Button("已有的章节也重新生成") { startChapters(library, force: true) }
-            Button("取消", role: .cancel) {}
+            Button(String(localized: .commonCancel), role: .cancel) {}
         } message: { _ in
             Text(ManageConfirmText.chapters)
         }
@@ -294,7 +294,7 @@ struct LibraryManageView: View {
         } else if failed {
             VStack(spacing: 12) {
                 Text("媒体库加载失败").font(.subheadline).foregroundStyle(Theme.textMuted)
-                Button("重试") { Task { await reload() } }.buttonStyle(.glass)
+                Button(String(localized: .commonRetry)) { Task { await reload() } }.buttonStyle(.glass)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 60)
@@ -604,7 +604,7 @@ struct ManageReorderSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }.accessibilityIdentifier("reorder-cancel")
+                    Button(String(localized: .commonCancel)) { dismiss() }.accessibilityIdentifier("reorder-cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存顺序") {

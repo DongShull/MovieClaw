@@ -52,7 +52,7 @@ struct MacItemDetailView: View {
     var body: some View {
         Group {
             if let failed {
-                MacStateView(symbol: "questionmark.folder", title: "未能加载该条目", message: failed, actionTitle: "返回") { router.pop() }
+                MacStateView(symbol: "questionmark.folder", title: "未能加载该条目", message: failed, actionTitle: String(localized: .commonBack)) { router.pop() }
             } else if let detail {
                 content(detail)
             } else {
@@ -170,7 +170,7 @@ struct MacItemDetailView: View {
         let finished = watched?.played ?? false
         // 有续播点就接着播（与服务端起播同一口径）：看完后重看到一半的也算，已看标记保留
         let resumable = canPlay && position > 0
-        let verb = resumable ? "继续" : finished ? "重新播放" : "播放"
+        let verb = resumable ? String(localized: .commonContinue) : finished ? "重新播放" : "播放"
         let parts = [verb, unitLabel, resumable ? Formatters.clock(Double(position) / 1000) : nil].compactMap { $0 }
         let label = parts.count > 2 ? "\(parts[0]) \(parts[1]) · \(parts[2])" : parts.joined(separator: " ")
         return VStack(alignment: .leading, spacing: 10) {

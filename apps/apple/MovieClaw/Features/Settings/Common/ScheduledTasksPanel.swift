@@ -19,7 +19,7 @@ struct ScheduledTasksPanel: View {
             SettingsFormSection {
                 if let error {
                     SettingsNotice(text: error)
-                    Button("重试") { Task { await load() } }
+                    Button(String(localized: .commonRetry)) { Task { await load() } }
                 }
                 if let reconcile = tasks?.first(where: { $0.key == "library_reconcile" }),
                    SettingsSchedule.suggestReconcile(reconcile, anyNetwork: anyNetwork) {
@@ -34,7 +34,7 @@ struct ScheduledTasksPanel: View {
                     }
                 }
                 if tasks == nil, error == nil {
-                    SettingsLoadingRow(text: "正在加载…")
+                    SettingsLoadingRow(text: String(localized: .commonLoadingActive))
                 }
             }
             SettingsFormSection {
@@ -192,7 +192,7 @@ private struct TaskEditor: View {
     var body: some View {
         SubsSheetScaffold(title: task.title, onClose: {
             if draft.dirty { discarding = true } else { dismiss() }
-        }, confirm: SubsSheetConfirm(title: "保存", enabled: draft.dirty && (draft.mode != .cron || !draft.cron.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
+        }, confirm: SubsSheetConfirm(title: String(localized: .commonSave), enabled: draft.dirty && (draft.mode != .cron || !draft.cron.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
                                      busy: busy, identifier: "task-save-\(task.key)") {
             Task {
                 busy = true

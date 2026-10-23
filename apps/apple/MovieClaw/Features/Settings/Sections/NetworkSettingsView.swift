@@ -258,7 +258,7 @@ private struct NetworkConfigEditor: View {
     var body: some View {
         SubsSheetScaffold(title: kind.title, onClose: {
             if draft != initial { discarding = true } else { dismiss() }
-        }, confirm: .init(title: "保存", enabled: draft != initial && valid, busy: busy, identifier: "network-editor-save") {
+        }, confirm: .init(title: String(localized: .commonSave), enabled: draft != initial && valid, busy: busy, identifier: "network-editor-save") {
             Task {
                 busy = true
                 draft.proxyUrl = draft.proxyUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -326,7 +326,7 @@ private struct ExternalAccessSettingsView: View {
             case .loading: SettingsLoadingRow()
             case let .failed(error):
                 SettingsNotice(text: error)
-                Button("重试") { Task { await load() } }
+                Button(String(localized: .commonRetry)) { Task { await load() } }
             case let .loaded(value):
                 if let newPort {
                     SettingsFormSection {
@@ -421,7 +421,7 @@ private struct ExternalAccessEditor: View {
     var body: some View {
         SubsSheetScaffold(title: kind.title, onClose: {
             if dirty { discarding = true } else { dismiss() }
-        }, confirm: .init(title: kind == .url ? "保存" : "继续", enabled: dirty && valid, busy: busy,
+        }, confirm: .init(title: kind == .url ? String(localized: .commonSave) : String(localized: .commonContinue), enabled: dirty && valid, busy: busy,
                          identifier: kind == .url ? "network-external-save" : "network-port-review") {
             if kind == .url { Task { await saveURL() } }
             else { restoring = false; confirming = true }
@@ -454,7 +454,7 @@ private struct ExternalAccessEditor: View {
             Button("放弃修改", role: .destructive) { dismiss() }
         }
         .alert("确认修改端口并重启？", isPresented: $confirming) {
-            Button("取消", role: .cancel) { }.accessibilityIdentifier("network-port-cancel")
+            Button(String(localized: .commonCancel), role: .cancel) { }.accessibilityIdentifier("network-port-cancel")
             Button("修改并重启", role: .destructive) { Task { await savePort() } }
                 .accessibilityIdentifier("network-port-confirm")
         } message: { Text(confirmationMessage) }

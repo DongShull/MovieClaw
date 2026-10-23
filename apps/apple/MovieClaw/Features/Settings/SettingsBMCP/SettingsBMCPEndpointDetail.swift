@@ -354,7 +354,7 @@ private struct SettingsBMCPEditSheet: View {
     var body: some View {
         SubsSheetScaffold(title: "编辑端点", onClose: {
             if dirty { discarding = true } else { dismiss() }
-        }, confirm: SubsSheetConfirm(title: "保存", enabled: dirty && draft.valid,
+        }, confirm: SubsSheetConfirm(title: String(localized: .commonSave), enabled: dirty && draft.valid,
                                      busy: store.busy, identifier: "mcp-form-submit") {
             Task {
                 let body = API.EndpointUpdateRequest(name: draft.name.trimmingCharacters(in: .whitespaces),

@@ -59,7 +59,7 @@ struct TrackSubtitleGenButton: View {
                 Button {
                     router.open(.settingsSection(.llm))
                 } label: {
-                    Text("接入 AI 模型后即可解锁生成字幕能力。\(Text("去接入").foregroundStyle(Theme.accent))")
+                    Text("接入 AI 模型后即可解锁生成字幕能力。\(Text(String(localized: .settingsLlmConnectModel)).foregroundStyle(Theme.accent))")
                         .font(.caption)
                         .foregroundStyle(Theme.warning)
                         .padding(.horizontal, 8)
@@ -716,8 +716,8 @@ private struct TrackGenSheet: View {
     }
 
     private var closeTitle: String {
-        if model.mode == .status { return "关闭" }
-        return model.blockedWithoutPgs || model.requestError != nil ? "关闭" : "取消"
+        if model.mode == .status { return String(localized: .commonClose) }
+        return model.blockedWithoutPgs || model.requestError != nil ? String(localized: .commonClose) : String(localized: .commonCancel)
     }
 
     /// 右上 ✓：只在预检通过（或图片字幕可以先识别）时出现，读屏名说清楚要生成哪种语言

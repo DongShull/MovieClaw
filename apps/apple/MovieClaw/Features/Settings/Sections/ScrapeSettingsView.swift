@@ -183,7 +183,7 @@ private struct ScrapeSettingsEditor: View {
         Group {
             if isSheet {
                 SubsSheetScaffold(title: card.title, onClose: cancel,
-                                  confirm: SubsSheetConfirm(title: "保存", enabled: dirty && valid,
+                                  confirm: SubsSheetConfirm(title: String(localized: .commonSave), enabled: dirty && valid,
                                                             busy: busy, identifier: "scrape-save", action: save)) {
                     content
                 }
@@ -195,7 +195,7 @@ private struct ScrapeSettingsEditor: View {
                     .navigationBarBackButtonHidden()
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("取消", action: cancel).accessibilityIdentifier("scrape-cancel")
+                            Button(String(localized: .commonCancel), action: cancel).accessibilityIdentifier("scrape-cancel")
                         }
                         ToolbarItem(placement: .topBarTrailing) {
                             if card == .naming {
@@ -209,7 +209,7 @@ private struct ScrapeSettingsEditor: View {
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             if busy { ProgressView() } else {
-                                Button("保存", action: save)
+                                Button(String(localized: .commonSave), action: save)
                                     .disabled(!dirty || !valid)
                                     .accessibilityIdentifier("scrape-save")
                             }

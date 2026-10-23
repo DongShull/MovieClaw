@@ -170,7 +170,7 @@ private struct NotificationSettingsContent: View {
             case let .failed(message):
                 SettingsFormSection {
                     SettingsBNotice(text: message, tone: .danger)
-                    SettingsBAsyncButton("重试") { await model.load() }
+                    SettingsBAsyncButton(String(localized: .commonRetry)) { await model.load() }
                 }
             case let .loaded(settings):
                 readinessSections(settings)
@@ -437,7 +437,7 @@ private struct NotificationSettingsContent: View {
             HStack(spacing: 12) {
                 SettingsRowText(title: "发送测试通知", detail: Self.testTarget(devices: count, im: im))
                 Spacer(minLength: 8)
-                SettingsBAsyncButton("发送") { await sendTest() }
+                SettingsBAsyncButton(String(localized: .agentComposerSend)) { await sendTest() }
                     .font(.subheadline.weight(.medium))
                     .buttonStyle(.glass)
                     .disabled(count == 0 && im == 0)

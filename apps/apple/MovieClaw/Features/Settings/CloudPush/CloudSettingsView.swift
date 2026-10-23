@@ -28,7 +28,7 @@ private struct CloudSettingsContent: View {
             case let .failed(message):
                 SettingsFormSection {
                     SettingsBNotice(text: message, tone: .danger)
-                    SettingsBAsyncButton("重试") { await connection.load() }
+                    SettingsBAsyncButton(String(localized: .commonRetry)) { await connection.load() }
                 }
             case let .loaded(status):
                 if status.state == "connected" {
@@ -76,7 +76,7 @@ private struct CloudSettingsContent: View {
                 .sheetFeedback()
         }
         .sheet(isPresented: $showingDetails) {
-            SubsSheetScaffold(title: "连接详情", closeTitle: "关闭") {
+            SubsSheetScaffold(title: "连接详情", closeTitle: String(localized: .commonClose)) {
                 if let status = connection.value {
                     SettingsFormSection {
                         SettingsBValueRow(label: "服务器", value: status.connection?.instanceName ?? status.serverName)
@@ -375,7 +375,7 @@ private struct CloudConnectSheet: View {
     var body: some View {
         SubsSheetScaffold(title: "连接账号", onClose: {
             if name.isEmpty { dismiss() } else { discarding = true }
-        }, confirm: .init(title: "继续", busy: busy, identifier: "cloud-connect-continue") {
+        }, confirm: .init(title: String(localized: .commonContinue), busy: busy, identifier: "cloud-connect-continue") {
             Task {
                 busy = true
                 error = nil

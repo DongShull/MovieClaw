@@ -20,7 +20,7 @@ struct SettingsBPushBindSheet: View {
         SubsSheetScaffold(
             title: "接入 \(channel.title)",
             subtitle: channel.binding.hint.isEmpty ? channel.description : channel.binding.hint,
-            closeTitle: "关闭"
+            closeTitle: String(localized: .commonClose)
         ) {
             if channel.binding.kind == "flow" {
                 SettingsBPushFlowBody(channel: channel, onBound: onBound)
@@ -191,7 +191,7 @@ private struct SettingsBPushFlowBody: View {
                 // 发起失败（网关不可达等）：留一个手动重试入口
                 SettingsBPushStatusCard {
                     Text("没能发起绑定").font(.body.weight(.medium))
-                    Button("重试") { Task { await begin() } }
+                    Button(String(localized: .commonRetry)) { Task { await begin() } }
                         .font(.subheadline.weight(.semibold))
                         .discoverProminentButton()
                         .accessibilityIdentifier("push-flow-retry")

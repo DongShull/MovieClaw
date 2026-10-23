@@ -26,7 +26,7 @@ final class LocalizationUITests: XCTestCase {
         let row = app.buttons["app-language-settings"]
         XCTAssertTrue(row.waitForExistence(timeout: 30))
         XCTAssertTrue(row.label.contains("Language"))
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "settings-language-en"
         screenshot.lifetime = .keepAlways
         add(screenshot)
@@ -48,4 +48,42 @@ final class LocalizationUITests: XCTestCase {
         XCTAssertTrue(row.label.contains("语言"))
         XCTAssertTrue(row.label.contains("简体中文"))
     }
+
+    @MainActor func testFreshSignInUsesEnglishAndChineseMessages() {
+        let env = ProcessInfo.processInfo.environment
+        for (language, connect, wrongPassword) in [
+            ("en", "Connect to server", "Incorrect username or password"),
+            ("zh-Hans", "连接服务器", "用户名或密码错误"),
+        ] {
+            app.launchArguments = ["--reset-state", "--ui-testing", "-AppleLanguages", "(\(language))",
+                                   "-AppleLocale", "en_US"]
+            app.launch()
+            let start = app.buttons["welcome-start"]
+            XCTAssertTrue(start.waitForExistence(timeout: 20))
+            XCTAssertEqual(start.label, connect)
+            start.tap()
+            let address = app.textFields["server-address"]
+            XCTAssertTrue(address.waitForExistence(timeout: 10))
+            address.tap()
+            address.typeText(env["MC_TEST_SERVER"]!)
+            let username = app.textFields["login-username"]
+            username.tap()
+            username.typeText("admin")
+            let password = app.secureTextFields["login-password"]
+            password.tap()
+            password.typeText("wrong-password")
+            app.buttons["login-submit"].tap()
+            let error = app.staticTexts["login-error"]
+            XCTAssertTrue(error.waitForExistence(timeout: 15))
+            XCTAssertEqual(error.label, wrongPassword)
+            XCTAssertTrue(app.buttons["login-submit"].isEnabled)
+            XCTAssertEqual(address.value as? String, env["MC_TEST_SERVER"])
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "sign-in-error-\(language)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            app.terminate()
+        }
+    }
+
 }

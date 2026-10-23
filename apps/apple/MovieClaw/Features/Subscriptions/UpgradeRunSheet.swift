@@ -47,7 +47,7 @@ struct UpgradeRunSheet: View {
                 SubsSheetScaffold(
                     title: "洗版体检报告",
                     closable: false,
-                    confirm: SubsSheetConfirm(title: "完成", identifier: "upgrade-report-done", action: finish),
+                    confirm: SubsSheetConfirm(title: String(localized: .commonDone), identifier: "upgrade-report-done", action: finish),
                     fullHeight: true
                 ) {
                     UpgradeRunReportView(

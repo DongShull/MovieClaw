@@ -71,7 +71,7 @@ struct TransferItemSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(finished ? "关闭" : "取消") { dismiss() }.disabled(busy)
+                    Button(finished ? String(localized: .commonClose) : String(localized: .commonCancel)) { dismiss() }.disabled(busy)
                 }
             }
         }

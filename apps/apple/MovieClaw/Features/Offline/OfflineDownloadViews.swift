@@ -49,7 +49,7 @@ struct OfflineDownloadControl: View {
                 Button("继续下载", systemImage: "play") { downloader.resume(fileId: unit.fileId) }
             case .failed:
                 if !unit.waitingForTranscode {
-                    Button("重试", systemImage: "arrow.clockwise") { downloader.resume(fileId: unit.fileId) }
+                    Button(String(localized: .commonRetry), systemImage: "arrow.clockwise") { downloader.resume(fileId: unit.fileId) }
                 }
             }
             Button(unit.state == .done ? "删除下载" : "取消下载", systemImage: "trash", role: .destructive) { confirmDelete = true }
@@ -291,7 +291,7 @@ struct OfflineProfileSheet: View {
             .navigationTitle("下载到 \(ClientPlatform.deviceName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: .commonCancel)) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     if starting {
                         ProgressView()

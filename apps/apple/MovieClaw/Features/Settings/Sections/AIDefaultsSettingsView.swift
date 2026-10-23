@@ -48,7 +48,7 @@ struct AIDefaultsSettingsView: View {
                     SettingsFormSection {
                         Button { router.push(.settingsSection(.llm)) } label: {
                             HStack {
-                                Text("模型接入").foregroundStyle(Theme.text)
+                                Text(String(localized: .settingsLlmTitle)).foregroundStyle(Theme.text)
                                 Spacer()
                                 Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                             }
@@ -205,7 +205,7 @@ private struct AIModelSelectionSheet: View {
     var body: some View {
         SubsSheetScaffold(title: title, onClose: {
             if dirty { discarding = true } else { dismiss() }
-        }, confirm: SubsSheetConfirm(title: "保存", enabled: dirty && AIModelSelection.validReference(selected, in: options) != nil,
+        }, confirm: SubsSheetConfirm(title: String(localized: .commonSave), enabled: dirty && AIModelSelection.validReference(selected, in: options) != nil,
                                      busy: busy, identifier: "ai-model-save") {
             guard let selected else { return }
             Task {

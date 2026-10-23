@@ -109,7 +109,7 @@ final class MacDebugDriver {
             push(arg)
         case "pop":
             router?.pop()
-            log("返回")
+            log(String(localized: .commonBack))
         case "search":
             router?.searchText = arg
             log("搜索「\(arg)」")

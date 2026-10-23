@@ -195,7 +195,7 @@ struct SubtitleMenu: View {
     var body: some View {
         PlayerMenuPanel(title: "字幕") {
             // 选完即关：换轨是一次决定，不是连续调节；要调样式的重新打开菜单（同 Web）
-            PlayerMenuRow(title: "关闭", active: controller.selectedSubtitle == nil, identifier: "subtitle-off") {
+            PlayerMenuRow(title: String(localized: .commonOff), active: controller.selectedSubtitle == nil, identifier: "subtitle-off") {
                 controller.selectSubtitle(nil)
                 close()
             }

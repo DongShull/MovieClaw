@@ -21,7 +21,7 @@ struct DiscoveredPersonView: View {
                     Text(failure == .missing ? "这条影人记录可能已被 TMDB 合并或移除。" : "请稍后重试；若持续失败，请检查 TMDB 网络连接。")
                 } actions: {
                     if failure == .error {
-                        Button("重试") { Task { await load() } }.discoverProminentButton()
+                        Button(String(localized: .commonRetry)) { Task { await load() } }.discoverProminentButton()
                     }
                     Button("返回发现页") { router.open(.discover()) }.buttonStyle(.glass)
                 }

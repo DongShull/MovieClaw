@@ -237,7 +237,7 @@ struct DiscoverPosterCard: View {
             // 在库标识：非交互
             HStack(spacing: 6) {
                 Circle().fill(Theme.success).frame(width: 6, height: 6)
-                Text("在库")
+                Text(String(localized: .libraryStatusInLibrary))
             }
             .font(.caption.weight(.semibold))
             .foregroundStyle(.white.opacity(0.9))
@@ -264,7 +264,7 @@ struct DiscoverPosterCard: View {
                 }
             }
         } else if action == .owned {
-            Label("在库", systemImage: "checkmark.seal")
+            Label(String(localized: .libraryStatusInLibrary), systemImage: "checkmark.seal")
         }
         Button(action: open) {
             Label("查看详情", systemImage: "info.circle")
@@ -412,7 +412,7 @@ struct DiscoverPosterInfoPreview: View {
                     Text(item.overview).font(.caption).foregroundStyle(Theme.textMuted).lineLimit(6)
                 }
                 if item.libraryStatus != nil {
-                    Label("在库", systemImage: "circle.fill")
+                    Label(String(localized: .libraryStatusInLibrary), systemImage: "circle.fill")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.success)
                         .labelStyle(.titleAndIcon)

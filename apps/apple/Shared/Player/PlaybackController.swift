@@ -2521,7 +2521,7 @@ final class PlaybackController {
                 subtitle = subtitles.options.first { $0.ref == ref }
                     .map { RememberedChoices.shortLabel($0.label, among: subtitles.options.map(\.label)) }
             } else {
-                subtitle = "关闭"
+                subtitle = String(localized: .commonOff)
             }
         }
         return RememberedChoices.notice(quality: qualityLimit, network: network, audio: audio, subtitle: subtitle,

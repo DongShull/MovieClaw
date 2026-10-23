@@ -155,7 +155,7 @@ private struct SettingsBScrapeMoreSheet: View {
     }
 
     var body: some View {
-        SubsSheetScaffold(title: "添加\(moreLabel)", closeTitle: "取消") {
+        SubsSheetScaffold(title: "添加\(moreLabel)", closeTitle: String(localized: .commonCancel)) {
             SettingsFormSection {
                 TextField("搜索\(moreLabel)名称或代码", text: $query)
                     .textInputAutocapitalization(.never)

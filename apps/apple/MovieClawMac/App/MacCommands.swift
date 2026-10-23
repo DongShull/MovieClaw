@@ -45,12 +45,12 @@ struct MacCommands: Commands {
                     }
                 }
                 Divider()
-                Button("返回") { router.pop() }
+                Button(String(localized: .commonBack)) { router.pop() }
                     .keyboardShortcut("[")
                     .disabled(router.path.isEmpty || router.player != nil)
             }
             Divider()
-            Button("搜索") { focusSearch?() }
+            Button(String(localized: .commonSearch)) { focusSearch?() }
                 .keyboardShortcut("f")
                 .disabled(focusSearch == nil)
         }

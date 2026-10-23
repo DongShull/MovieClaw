@@ -355,7 +355,7 @@ struct TVConsentDialog: View {
                         }
                         .disabled(saving)
                         .accessibilityIdentifier("tv-consent-enable")
-                        Button("取消", action: cancel)
+                        Button(String(localized: .commonCancel), action: cancel)
                     } else {
                         Button("知道了", action: cancel)
                     }

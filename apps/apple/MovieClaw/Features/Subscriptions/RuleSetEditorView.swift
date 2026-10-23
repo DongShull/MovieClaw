@@ -175,7 +175,7 @@ struct RuleSetEditorSheet: View {
             title: ruleSet == nil ? "新建规则组" : "编辑规则组",
             subtitle: "所有条件都可以留空 = 不限该维度；条件之间是「且」的关系。",
             confirm: SubsSheetConfirm(
-                title: "保存",
+                title: String(localized: .commonSave),
                 enabled: !name.trimmingCharacters(in: .whitespaces).isEmpty,
                 busy: busy,
                 identifier: "ruleset-save"
@@ -347,7 +347,7 @@ struct RuleSetEditorSheet: View {
                     Text("快捷组合").font(.caption).foregroundStyle(Theme.textFaint)
                     let allCodes = Array(options.countryNames.keys)
                     let allOn = allCodes.allSatisfy(scope.regions.contains)
-                    SubsToggleChip(label: allOn ? "清空" : "全选", active: false) {
+                    SubsToggleChip(label: allOn ? String(localized: .commonClear) : String(localized: .commonSelectAll), active: false) {
                         scope.regions = allOn ? [] : Array(Set(scope.regions + allCodes)).sorted()
                     }
                     ForEach(options.regionPresets) { preset in
@@ -366,7 +366,7 @@ struct RuleSetEditorSheet: View {
                 let genres = options.genres(for: scope.kind)
                 let allOn = genres.allSatisfy { scope.genres.contains($0.id) }
                 chips {
-                    SubsToggleChip(label: allOn ? "清空" : "全选", active: false) {
+                    SubsToggleChip(label: allOn ? String(localized: .commonClear) : String(localized: .commonSelectAll), active: false) {
                         scope.genres = allOn ? [] : Array(Set(scope.genres + genres.map(\.id)))
                     }
                     ForEach(genres) { genre in
@@ -463,7 +463,7 @@ struct RuleSetEditorSheet: View {
                 HStack {
                     Text("再一级级洗到 \(Text(preview.target).bold().foregroundStyle(.white))").foregroundStyle(Theme.textMuted).font(.subheadline)
                     Spacer()
-                    Text(ladderPreviewOpen ? "收起" : "看会经过哪些档").font(.caption).foregroundStyle(Theme.textFaint)
+                    Text(ladderPreviewOpen ? String(localized: .commonCollapse) : "看会经过哪些档").font(.caption).foregroundStyle(Theme.textFaint)
                     Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.textFaint).rotationEffect(.degrees(ladderPreviewOpen ? 90 : 0))
                 }
                 .contentShape(.rect)

@@ -76,7 +76,7 @@ struct SubscriptionDetailView: View {
                 } description: {
                     Text(message)
                 } actions: {
-                    Button("重试") { Task { await reload() } }.discoverProminentButton()
+                    Button(String(localized: .commonRetry)) { Task { await reload() } }.discoverProminentButton()
                     Button("返回订阅列表", systemImage: "chevron.left") { router.pop() }.buttonStyle(.glass)
                 }
                 .accessibilityIdentifier("error-state")
@@ -283,7 +283,7 @@ struct SubscriptionDetailView: View {
                 if !isMovie { fact("自动续订", detail.followFuture ? "已开启" : "已关闭") }
                 if detail.isSmart, let preferences = detail.smartPreferences {
                     fact("智能目标", preferences.targetLabel)
-                    fact("后续洗版", preferences.allowUpgrade ? (isMovie ? "达标核验后停止" : "逐集达标核验后停止") : "关闭")
+                    fact("后续洗版", preferences.allowUpgrade ? (isMovie ? "达标核验后停止" : "逐集达标核验后停止") : String(localized: .commonOff))
                     if let subtitle = detail.smartSubtitle {
                         fact("字幕", subtitle.understood ? "不需要" : subtitle.line.components(separatedBy: " · ").last ?? subtitle.line)
                     }
@@ -353,7 +353,7 @@ struct SubscriptionDetailView: View {
             }
             if showMore {
                 Button { sheet = .manage } label: {
-                    actionLabel("更多", systemImage: "ellipsis")
+                    actionLabel(String(localized: .commonMore), systemImage: "ellipsis")
                 }
                 .buttonStyle(.glass)
                 .disabled(busy)
@@ -452,7 +452,7 @@ struct SubscriptionDetailView: View {
                 ? "恢复后会继续搜索缺失资源，并按当前规则自动投递符合条件的结果。"
                 : "暂停后不会继续搜索或投递资源；已经提交的下载不受影响，可随时恢复。",
             confirmTitle: resuming ? "恢复追踪" : "暂停追踪",
-            cancelTitle: "返回"
+            cancelTitle: String(localized: .commonBack)
         )
         guard ok else { return }
         busy = true
@@ -488,7 +488,7 @@ struct SubscriptionDetailView: View {
             "立即搜索《\(detail.media.title)》的缺失资源？",
             message: "将跳过当前搜索冷却，重新搜索已经可以搜索的缺口。命中当前规则组的资源可能会自动提交下载。",
             confirmTitle: "立即搜索",
-            cancelTitle: "返回"
+            cancelTitle: String(localized: .commonBack)
         )
         guard ok else { return }
         busy = true

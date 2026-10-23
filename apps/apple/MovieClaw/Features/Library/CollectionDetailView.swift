@@ -262,7 +262,7 @@ struct CollectionDetailView: View {
                     Button("保存条件") { Task { await saveRules() } }
                         .buttonStyle(.glassProminent)
                         .disabled(editing.isEmpty)
-                    Button("取消") { self.editing = nil }.buttonStyle(.glass)
+                    Button(String(localized: .commonCancel)) { self.editing = nil }.buttonStyle(.glass)
                     if editing.isEmpty {
                         Text("至少留一个条件，否则这个合集会收录整库").font(.footnote).foregroundStyle(Theme.textFaint)
                     }
@@ -495,7 +495,7 @@ struct CollectionDetailView: View {
             message: automatic
                 ? "自动生成的合集会一直重新出现，所以这里是把它藏起来：影片一部都不会少，想找回来在媒体库设置里打开「显示已隐藏的合集」。"
                 : "只删掉这层视图，里面的影片一部都不会少。",
-            confirmTitle: automatic ? "隐藏" : "删除",
+            confirmTitle: automatic ? "隐藏" : String(localized: .commonDelete),
             destructive: !automatic
         )
         guard ok else { return }
@@ -572,7 +572,7 @@ private struct CollectionRulesSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
+                    Button(String(localized: .commonDone)) { dismiss() }
                 }
             }
         }
@@ -673,7 +673,7 @@ private struct CollectionOrderSheet: View {
             .navigationTitle("整理顺序")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(String(localized: .commonCancel)) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存顺序") { Task { await save() } }.disabled(busy || items.isEmpty)
                 }

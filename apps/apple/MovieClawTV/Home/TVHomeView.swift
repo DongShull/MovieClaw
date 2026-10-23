@@ -75,7 +75,7 @@ struct TVHomeView: View {
             if store.libraries == nil {
                 if store.failed {
                     TVStateView(symbol: "wifi.exclamationmark", title: "连不上服务器", message: "首页加载失败，请检查网络后重试。",
-                                actionTitle: "重试") { Task { await reload() } }
+                                actionTitle: String(localized: .commonRetry)) { Task { await reload() } }
                 } else {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
