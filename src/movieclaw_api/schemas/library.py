@@ -2213,7 +2213,15 @@ class DuplicateFileView(BaseModel):
     id: int
     file_name: str
     file_path: str = Field(description="绝对路径（悬停显示；成员视图不返回本接口）")
-    quality_label: str = Field(description="版本签名的质量部分：「分辨率 片源[ HDR]」")
+    quality_key: str | None = Field(
+        default=None, description="Original quality label for comparisons"
+    )
+    origin_key: str | None = Field(
+        default=None, description="Original origin label for comparisons"
+    )
+    quality_label: str = Field(
+        description="Quality label in the reader language; compare quality_key"
+    )
     size_bytes: int
     bit_rate: int | None
     resolution: str | None
@@ -2243,6 +2251,12 @@ class DuplicateVersionView(BaseModel):
     """同构季的一个版本行：这版本覆盖哪些集、多大、从哪来。"""
 
     key: str
+    quality_key: str | None = Field(
+        default=None, description="Original quality label for comparisons"
+    )
+    origin_key: str | None = Field(
+        default=None, description="Original origin label for comparisons"
+    )
     quality_label: str
     origin_label: str
     episodes: list[int]

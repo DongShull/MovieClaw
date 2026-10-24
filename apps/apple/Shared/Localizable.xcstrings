@@ -16495,6 +16495,31 @@
           }
         }
       }
+    },
+    "library.recycle.unknownSpec": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知规格"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未知规格"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown specifications"
+          }
+        }
+      },
+      "comment": "Fallback for an original duplicate quality key; never used to compare files."
     }
   },
   "version": "1.0"

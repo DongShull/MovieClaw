@@ -24,6 +24,8 @@ from movieclaw_api.api.deps import require_admin
 from movieclaw_api.api.routes.library_recycle import PAGE_LIMIT_MAX, _audio_label, _summary
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.quality_labels import duplicate_quality_reference
+from movieclaw_api.i18n.stored import localize_fields, render_value, stored_message
 from movieclaw_api.schemas.library import (
     DuplicateFilesData,
     DuplicateFileView,
@@ -47,6 +49,8 @@ from movieclaw_api.services.library import duplicate_scan
 from movieclaw_api.services.library.duplicates import (
     DupFile,
     DupItem,
+    DupSeason,
+    DupVersion,
     ResolveOutcome,
     resolve_unit,
 )
@@ -67,7 +71,11 @@ def _file_view(f: DupFile) -> DuplicateFileView:
         id=row.id,  # type: ignore[arg-type]
         file_name=f.file_name,
         file_path=row.file_path,
-        quality_label=f.quality_label,
+        quality_label=render_value(
+            duplicate_quality_reference(row.resolution, row.media_source, row.hdr)
+        ),
+        quality_key=f.quality_label,
+        origin_key=str(f.origin.get("label") or ""),
         size_bytes=row.size_bytes,
         bit_rate=row.bit_rate,
         resolution=row.resolution,
@@ -75,11 +83,28 @@ def _file_view(f: DupFile) -> DuplicateFileView:
         hdr=row.hdr,
         video_codec=row.video_codec,
         audio_label=_audio_label(row.audio_streams),
-        origin=FileOriginView(**f.origin),
+        origin=FileOriginView(**localize_fields(f.origin)),
         version_key=f.version_key,
         suggested=f.suggested,
-        suggest_reason=f.suggest_reason,
+        suggest_reason=stored_message(f.suggest_reason) if f.suggest_reason else None,
         kept_at=row.kept_at,
+    )
+
+
+def _version_view(v: DupVersion, season: DupSeason) -> DuplicateVersionView:
+    sample = next(f for u in season.units for f in u.files if f.version_key == v.key)
+    row = sample.row
+    return DuplicateVersionView(
+        key=v.key,
+        quality_label=render_value(
+            duplicate_quality_reference(row.resolution, row.media_source, row.hdr)
+        ),
+        quality_key=v.quality_label,
+        origin_label=localize_fields(sample.origin)["label"],
+        origin_key=v.origin_label,
+        episodes=v.episodes,
+        bytes=v.bytes,
+        suggested=v.suggested,
     )
 
 
@@ -99,17 +124,7 @@ def _item_view(d: DupItem, poster_file: str | None = None) -> DuplicateItemView:
                 season_number=s.season_number,
                 bucket=s.bucket,
                 uniform=s.uniform,
-                versions=[
-                    DuplicateVersionView(
-                        key=v.key,
-                        quality_label=v.quality_label,
-                        origin_label=v.origin_label,
-                        episodes=v.episodes,
-                        bytes=v.bytes,
-                        suggested=v.suggested,
-                    )
-                    for v in s.versions
-                ],
+                versions=[_version_view(v, s) for v in s.versions],
                 units=[
                     DuplicateUnitView(
                         season_number=u.season_number,
@@ -126,8 +141,15 @@ def _item_view(d: DupItem, poster_file: str | None = None) -> DuplicateItemView:
 
 
 def _group_view(g: duplicate_scan.GroupStats) -> DuplicateGroupView:
+    scope = "tier" if g.key in duplicate_scan.TIER_LABELS else "review"
+    suffix = "sameTier" if g.key == "same_tier" else g.key
     return DuplicateGroupView(
-        key=g.key, label=g.label, hint=g.hint, units=g.units, files=g.files, bytes=g.bytes
+        key=g.key,
+        label=t(f"library.duplicates.{scope}Label.{suffix}"),
+        hint=t(f"library.duplicates.{scope}Hint.{suffix}"),
+        units=g.units,
+        files=g.files,
+        bytes=g.bytes,
     )
 
 
@@ -150,7 +172,18 @@ def _trigger(principal: Principal) -> dict:
 def _result(outcome: ResolveOutcome) -> TrashedBatchResultView:
     return TrashedBatchResultView(
         done=outcome.done,
-        failed=[TrashedBatchFailureView(id=i, file_name=n, error=e) for i, n, e in outcome.failed],
+        failed=[
+            TrashedBatchFailureView(
+                id=i,
+                file_name=n,
+                error=(
+                    render_value({**outcome.failure_refs[i], "message": e})
+                    if i in outcome.failure_refs
+                    else e
+                ),
+            )
+            for i, n, e in outcome.failed
+        ],
         remaining=outcome.remaining,
     )
 
@@ -208,9 +241,7 @@ async def list_duplicate_files(
             total_files=summary.total_files,
             total_bytes=summary.total_bytes,
             total_items=total_items,
-            items=[
-                _item_view(d, files.get(d.item.id or -1, (None, None, None))[0]) for d in items
-            ],
+            items=[_item_view(d, files.get(d.item.id or -1, (None, None, None))[0]) for d in items],
         )
     )
 
@@ -288,9 +319,9 @@ async def resolve_duplicates(
             trigger=_trigger(principal),
         )
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(stored_message(str(exc))) from exc
     except ValueError as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(stored_message(str(exc))) from exc
     # 做完决定的单元不再是"待处理"：删掉它的结论行，摘要数字立刻变小，
     # 不必为一个决定重扫整库（真正的修正等下一轮扫描）。
     # 一个文件都没清成（权限、文件被占用……）时不能删：那不是"做完了决定"，
@@ -308,9 +339,7 @@ async def resolve_duplicates(
             _result(outcome), message=t("library.duplicates.keepAllSaved", count=outcome.done)
         )
     await _after_cleanup(session, outcome)
-    return ok(
-        _result(outcome), message=_summary("trash", outcome.done, len(outcome.failed), 0)
-    )
+    return ok(_result(outcome), message=_summary("trash", outcome.done, len(outcome.failed), 0))
 
 
 @router.post(

@@ -144,4 +144,54 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(SettingsSchedule.describe(task(0, cron: "0 4 * * 1")), "cron: 0 4 * * 1")
     }
 
+    private func duplicateFile(id: Int = 1, qualityKey: String? = nil,
+                               originKey: String? = nil, label: String = "Same display label") throws -> API.DuplicateFileView {
+        var data: [String: Any] = [
+            "id": id, "file_name": "Fixture.mkv", "file_path": "/fixture/Fixture.mkv",
+            "quality_label": label, "size_bytes": 1024,
+            "audio_label": "AAC 2.0", "origin": ["kind": "author", "label": label],
+            "version_key": "raw-version-\(id)", "suggested": id == 1,
+        ]
+        if let qualityKey { data["quality_key"] = qualityKey }
+        if let originKey { data["origin_key"] = originKey }
+        return try JSONDecoder().decode(API.DuplicateFileView.self,
+                                        from: JSONSerialization.data(withJSONObject: data))
+    }
+
+    @MainActor func testDuplicateLegacyDecodeAndOriginalKeys() throws {
+        let old = try duplicateFile()
+        XCTAssertNil(old.qualityKey)
+        XCTAssertNil(old.originKey)
+        let file = try duplicateFile(qualityKey: "2160p WEB-DL", originKey: "author-source")
+        XCTAssertEqual(file.qualityKey, "2160p WEB-DL")
+        XCTAssertEqual(file.originKey, "author-source")
+        XCTAssertEqual(file.versionKey, "raw-version-1")
+        XCTAssertEqual(file.origin.label, "Same display label")
+    }
+
+    @MainActor func testDuplicateEqualLabelsKeepDifferentSourceFacts() throws {
+        let a = try duplicateFile(qualityKey: "2160p WEB-DL", originKey: "source-A")
+        let b = try duplicateFile(id: 2, qualityKey: "1080p WEB-DL", originKey: "source-B")
+        let shared = ManageDupText.sharedFacts([a, b])
+        XCTAssertNil(shared.quality)
+        XCTAssertNil(shared.origin)
+        func version(_ key: String) throws -> API.DuplicateVersionView {
+            let data: [String: Any] = ["key": key, "quality_label": "1080p WEB-DL",
+                                     "origin_label": "Same label", "origin_key": key,
+                                     "episodes": [1], "bytes": 1024, "suggested": true]
+            return try JSONDecoder().decode(API.DuplicateVersionView.self,
+                                            from: JSONSerialization.data(withJSONObject: data))
+        }
+        XCTAssertNil(ManageDupText.sharedVersionOrigin(try [version("A"), version("B")]))
+    }
+
+    @MainActor func testDuplicateUnknownSpecificationUsesOriginalDifferences() throws {
+        let unknown = try duplicateFile(qualityKey: "未知规格", label: "Unknown specifications")
+        let reference = try duplicateFile(id: 2, qualityKey: "1080p WEB-DL")
+        let segments = ManageDupText.specSegments(unknown, reference: reference)
+        XCTAssertEqual(segments[0].text, "Unknown specifications")
+        XCTAssertTrue(segments[0].diff)
+        XCTAssertFalse(segments[1].diff)
+    }
+
 }

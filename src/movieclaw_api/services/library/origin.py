@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from movieclaw_api.i18n.stored import reference
 from movieclaw_db.models import FileSource, LibraryFile
 from movieclaw_db.models.import_watch import ImportWatch
 
@@ -49,8 +50,35 @@ def _join(*parts: str | None) -> str | None:
     return text or None
 
 
-def _snapshot(kind: str, label: str, detail: str | None) -> dict[str, Any]:
-    return {"kind": kind, "label": label, "detail": detail}
+def _snapshot(
+    kind: str,
+    label: str,
+    detail: str | None,
+    *,
+    label_ref: dict | None = None,
+    detail_ref: dict | None = None,
+) -> dict[str, Any]:
+    result = {"kind": kind, "label": label, "detail": detail}
+    for name, ref in (("label", label_ref), ("detail", detail_ref)):
+        if ref is not None and (name != "detail" or detail is not None):
+            result[f"{name}_key"] = ref["message_key"]
+            result[f"{name}_params"] = ref["params"]
+    return result
+
+
+def _detail_reference(*parts: str | dict | None) -> dict:
+    parts = [p.strip() if isinstance(p, str) else p for p in parts if p]
+    return reference(
+        "library.origin.detail",
+        parts={
+            "message_list": [p for p in parts if p],
+            "separator_key": "library.origin.separator",
+        },
+    )
+
+
+def _strategy_reference(strategy: str | None) -> dict | None:
+    return reference(f"library.origin.{strategy}") if strategy in _STRATEGY_LABELS else None
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +93,17 @@ def watch_import_origin(rule: ImportWatch) -> dict[str, Any]:
         _STRATEGY_LABELS.get(rule.strategy or ""),
         "未匹配到任何下载任务",
     )
-    return _snapshot(KIND_WATCH_IMPORT, "监听目录自动识别入库", detail)
+    return _snapshot(
+        KIND_WATCH_IMPORT,
+        "监听目录自动识别入库",
+        detail,
+        label_ref=reference("library.origin.watchImport"),
+        detail_ref=_detail_reference(
+            rule.source_path,
+            _strategy_reference(rule.strategy),
+            reference("library.origin.unmatched"),
+        ),
+    )
 
 
 def scan_origin(trigger: str) -> dict[str, Any]:
@@ -74,7 +112,21 @@ def scan_origin(trigger: str) -> dict[str, Any]:
     ``trigger`` 取 ``SCAN_TRIGGER_LABELS`` 的键；未知值原样写进 detail。
     """
     how = SCAN_TRIGGER_LABELS.get(trigger, trigger)
-    return _snapshot(KIND_SCAN, "存量扫描发现（非本系统入库）", f"{how}发现")
+    trigger_keys = {"manual": "scanManual", "watch": "scanWatch", "scheduled": "scanScheduled"}
+    return _snapshot(
+        KIND_SCAN,
+        "存量扫描发现（非本系统入库）",
+        f"{how}发现",
+        label_ref=reference("library.origin.scan"),
+        detail_ref=reference(
+            "library.origin.scanFound",
+            trigger=(
+                reference(f"library.origin.{trigger_keys[trigger]}")
+                if trigger in trigger_keys
+                else trigger
+            ),
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -85,10 +137,26 @@ def scan_origin(trigger: str) -> dict[str, Any]:
 def _legacy_fallback(row: LibraryFile) -> dict[str, Any]:
     """旧行的粗文案（没有获取领域、或它也推导不出时）。站点名、种子标题由获取领域推导（describe_origins）。"""
     if row.source == FileSource.SCANNED:
-        return _snapshot(KIND_SCAN, "存量扫描发现（非本系统入库）", None)
+        return _snapshot(
+            KIND_SCAN,
+            "存量扫描发现（非本系统入库）",
+            None,
+            label_ref=reference("library.origin.scan"),
+        )
     if row.site_id or row.torrent_id:
-        return _snapshot(KIND_WATCH_IMPORT, "手动或监听导入", _join(row.site_id))
-    return _snapshot(KIND_WATCH_IMPORT, "监听目录导入", "来源种子未记录")
+        return _snapshot(
+            KIND_WATCH_IMPORT,
+            "手动或监听导入",
+            _join(row.site_id),
+            label_ref=reference("library.origin.manualOrWatch"),
+        )
+    return _snapshot(
+        KIND_WATCH_IMPORT,
+        "监听目录导入",
+        "来源种子未记录",
+        label_ref=reference("library.origin.legacyWatch"),
+        detail_ref=reference("library.origin.missingTorrent"),
+    )
 
 
 def origin_of(row: LibraryFile, derived: dict[int, dict[str, Any]]) -> dict[str, Any]:

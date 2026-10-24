@@ -1135,5 +1135,149 @@
   },
   "recycle.qualityLabel": {
     "sourceHash": "30b3055e2cddf84d9d477acd6e515af52b1ad7bd484b6061c4b5530f8216d6b4"
+  },
+  "duplicates.tierLabel.safe": {
+    "sourceHash": "9b9d2833447ca5339263956c645eba42814ef35d4d010687749398593b475296"
+  },
+  "duplicates.tierLabel.suggested": {
+    "sourceHash": "7db8d7e623e5c9de9ed3cc2468a2e7782071f720d24e058c1624e1126553020f"
+  },
+  "duplicates.tierLabel.review": {
+    "sourceHash": "0f5440a65fad288ddd52b661a7c41a486776d989a0902e84a6b8c6c5023aca99"
+  },
+  "duplicates.tierHint.safe": {
+    "sourceHash": "df7155928da3d3ef7500aa4d0c8c5a04beaf50e6b8afb1c4bc9d9249c687a0ed"
+  },
+  "duplicates.tierHint.suggested": {
+    "sourceHash": "adbad58c5306ebdff3a87299ea0107f04c89fd20e7fd77fe24414946c93a9ffd"
+  },
+  "duplicates.tierHint.review": {
+    "sourceHash": "f29876d2865c9ff37576a095e0892c9e95938d906da3bf0624e0eae245e5e16a"
+  },
+  "duplicates.reviewLabel.resolution": {
+    "sourceHash": "5d31f198e1e157fb83580523706abb0ed8f3e0c5788b98cdcdf5c91186a33c37"
+  },
+  "duplicates.reviewLabel.hdr": {
+    "sourceHash": "f1d80dd404ca3e528e3e8bc52dc0867ee67b6ec9be26f4be49c463e97097759a"
+  },
+  "duplicates.reviewLabel.unknown": {
+    "sourceHash": "a8991804636bb9e9e400f3444172670505a81e36be50ce7eec68bc71e9581234"
+  },
+  "duplicates.reviewHint.resolution": {
+    "sourceHash": "6c1e322854f3b929bef61f8a9a5db9249605027cbc0a2f263dd1415e877119db"
+  },
+  "duplicates.reviewHint.hdr": {
+    "sourceHash": "fcbde279c7cc50d1a208b759432cb2be28e39f36565dee680d39f24618a3929e"
+  },
+  "duplicates.reviewHint.unknown": {
+    "sourceHash": "afec3d5bfe3c6beec9ee1dd106e61ef20877b015f46403f2f1fe04096be557f3"
+  },
+  "duplicates.reason.ladder": {
+    "sourceHash": "cb0d4a63e39e80568d7e4937711a920327b6ac0ffff4437120224ae8c38a3f1b"
+  },
+  "duplicates.reasonPartial.ladder": {
+    "sourceHash": "0dbbc352213e45d7e61933a6d5ac93d8bde24d8e17a973104c222ff6097b365f"
+  },
+  "duplicates.reason.bitrate": {
+    "sourceHash": "0f601516126ccc46d820a580239a1dfc97f031dfbf3517625773372c50067b23"
+  },
+  "duplicates.reasonPartial.bitrate": {
+    "sourceHash": "88f2b5eba35edfe6a4ba94f062eba7e4fd9995fa25e8fa0d83b2027e2834df6b"
+  },
+  "duplicates.reason.origin": {
+    "sourceHash": "df2a6e0dce6fb121c4bd3f7dea0b2a5fc19cff5d13cf081b2d681a72b91bec5a"
+  },
+  "duplicates.reasonPartial.origin": {
+    "sourceHash": "670d11dbf3bcd7f5a0da5d91b2921e71f0294c78e6a5382670b5a0a18decebd5"
+  },
+  "duplicates.reason.naming": {
+    "sourceHash": "95215d547b7392605dcbcde3e7e190ed4af888eceda1f1d84f09c30104d046ba"
+  },
+  "duplicates.reasonPartial.naming": {
+    "sourceHash": "fd050e91f0fc9b1e4174f0cbc78a9f90a9ec4fa601d81fc73a1578dd6aa22f05"
+  },
+  "duplicates.reason.fallback": {
+    "sourceHash": "9a28380e60e543db584285c4a1a137703ee9f77a3f66763130b59e62b525588e"
+  },
+  "duplicates.reasonPartial.fallback": {
+    "sourceHash": "9321c21042a31615e72cd01b40b0968ab64cc03e78c1477faf349f239f3df25e"
+  },
+  "duplicates.recycleFailed": {
+    "sourceHash": "3870064f96d48d4bbbcf356cef51b61514e86f06102503722fca38dbcbfe0039"
+  },
+  "duplicates.unitChanged": {
+    "sourceHash": "2dea086fb49eaa08d58cb38281b36b5d7f0dce7488802d3d4330c6c2d4a385f3"
+  },
+  "duplicates.episodeRequired": {
+    "sourceHash": "e84e2ed7e2d58c1db43dcdcfc80ddb3dbf1a8857231ab9d11f75fbe7d4608b9f"
+  },
+  "duplicates.fileChanged": {
+    "sourceHash": "1520ad6254314b1cf7f7153778ea930318c119f17cfba56bb661e2555c8fb510"
+  },
+  "duplicates.versionChanged": {
+    "sourceHash": "b9490a75a146de0596790564fd4ab3d3d8e52542767c65da906d14d3a86e58e8"
+  },
+  "origin.subscription": {
+    "sourceHash": "387eb851d4ec8bc6a1bfc3a91959384676ee862755e74ac81ec8808c9060c952"
+  },
+  "origin.automatic": {
+    "sourceHash": "f632923cf8762514b7f0b18f834c0f3a254243133eeb798df3266c663d2f3918"
+  },
+  "origin.upgrade": {
+    "sourceHash": "1cf301cdb95001f420bfd1bc7fed2306a3778f8663a22faa5ba483c1417213dd"
+  },
+  "origin.manualSelection": {
+    "sourceHash": "95544a57efadb084d91d77683234cd14694d35249c2a27a11aa8733d892132a0"
+  },
+  "origin.manualDownload": {
+    "sourceHash": "f3e610af41d7362d7c0c64a1666b78c05d196312baea7f52c4e15da3d2c7f043"
+  },
+  "origin.watchImport": {
+    "sourceHash": "33088678a2d76e2bce4d2db8f0bd54b77e096b8806bbda11b01eb097e248d61c"
+  },
+  "origin.scan": {
+    "sourceHash": "390df1db2570ca7daab16c4311f178562c6540055a2e03fb5cfcbdcbe5c8522f"
+  },
+  "origin.manualOrWatch": {
+    "sourceHash": "7bf5ed18c61882524ad0eb287e7f2917e90f97653bb4092792a7afa3099b5de8"
+  },
+  "origin.legacyWatch": {
+    "sourceHash": "e534d5646dac2c3a056b19f542dab9cb485fd2f3a280b20228aee13975b4d770"
+  },
+  "origin.missingTorrent": {
+    "sourceHash": "92cb2a08522857fd01d688a4ed75d9af672b1b72a1da347c492eccf83c9695ba"
+  },
+  "origin.unmatched": {
+    "sourceHash": "10d3ac162450e20c5cc5596ee33603917eaa281e44a5927108a36a54118fb63e"
+  },
+  "origin.hardlink": {
+    "sourceHash": "bc4640916cdf76860833911106357733574899c292bc7b139e4b8a7e92443246"
+  },
+  "origin.copy": {
+    "sourceHash": "0ce9abf8f16c974f5014ff46012b0d861e861301f2173974dea0117814c4a92f"
+  },
+  "origin.scanManual": {
+    "sourceHash": "246a6d66a2fe1752c72d4008a68ef1bd9b177323ac31dfded3ec406ef5169577"
+  },
+  "origin.scanWatch": {
+    "sourceHash": "e75b2ffa09fe575126d9bbfec5cb4ed435bd8686ecf495ca3e299836b9863f21"
+  },
+  "origin.scanScheduled": {
+    "sourceHash": "3ce2801189febfeb1e331a8ae2caaff10f8e83d548a7ad70cb9f7c6d504f7ec5"
+  },
+  "origin.scanFound": {
+    "sourceHash": "09ea5cb4a30d39bf1ef9bbade221141e2a27be1d948f1a54ab566fa513b170c0"
+  },
+  "origin.detail": {
+    "sourceHash": "ef898fa98f0a08884df077f173f8fa85804d46ab52df3229a10b4e8056eff265"
+  },
+  "origin.separator": {
+    "sourceHash": "588da410532073f8daec0cc62c6904f9d8a150b41ae3b1565c10069742cb18fc"
+  },
+  "duplicates.reviewLabel.sameTier": {
+    "sourceHash": "eaa784f03273e0933da3ff352438b07a0de859309f0499547750b4bc119e3cfe"
+  },
+  "duplicates.reviewHint.sameTier": {
+    "sourceHash": "635d02791dfc28f87488a0abf2a6186d3dee53e009714f838b33729a3bb0720a"
   }
 }

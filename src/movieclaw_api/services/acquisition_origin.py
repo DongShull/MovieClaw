@@ -14,14 +14,17 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services.library.origin import (
     _STRATEGY_LABELS,
     KIND_MANUAL_DOWNLOAD,
     KIND_SCAN,
     KIND_SUBSCRIPTION,
     KIND_WATCH_IMPORT,
+    _detail_reference,
     _join,
     _snapshot,
+    _strategy_reference,
 )
 from movieclaw_db.models import FileSource, LibraryFile, MediaItem
 from movieclaw_db.models.downloader_client import DownloaderClient
@@ -61,7 +64,27 @@ def subscription_origin(
         downloader_name,
         _STRATEGY_LABELS.get(strategy or ""),
     )
-    return _snapshot(KIND_SUBSCRIPTION, label, detail)
+    return _snapshot(
+        KIND_SUBSCRIPTION,
+        label,
+        detail,
+        label_ref=reference(
+            "library.origin.subscription",
+            title=item_title,
+            delivery=reference(
+                "library.origin.upgrade"
+                if attempt.purpose == "upgrade"
+                else "library.origin.automatic"
+            ),
+            manual=reference("library.origin.manualSelection") if attempt.manual else "",
+        ),
+        detail_ref=_detail_reference(
+            site_display_name(attempt.site_id),
+            attempt.torrent_title or attempt.download_name,
+            downloader_name,
+            _strategy_reference(strategy),
+        ),
+    )
 
 
 def manual_download_origin(
@@ -78,7 +101,18 @@ def manual_download_origin(
         downloader_name,
         _STRATEGY_LABELS.get(strategy or ""),
     )
-    return _snapshot(KIND_MANUAL_DOWNLOAD, "手动下载", detail)
+    return _snapshot(
+        KIND_MANUAL_DOWNLOAD,
+        "手动下载",
+        detail,
+        label_ref=reference("library.origin.manualDownload"),
+        detail_ref=_detail_reference(
+            site_display_name(intent.site_id),
+            torrent_title or intent.download_name,
+            downloader_name,
+            _strategy_reference(strategy),
+        ),
+    )
 
 
 @dataclass
@@ -129,10 +163,26 @@ async def load_origin_context(
 
 def _legacy_fallback(row: LibraryFile) -> dict[str, Any]:
     if row.source == FileSource.SCANNED:
-        return _snapshot(KIND_SCAN, "存量扫描发现（非本系统入库）", None)
+        return _snapshot(
+            KIND_SCAN,
+            "存量扫描发现（非本系统入库）",
+            None,
+            label_ref=reference("library.origin.scan"),
+        )
     if row.site_id or row.torrent_id:
-        return _snapshot(KIND_WATCH_IMPORT, "手动或监听导入", _join(site_display_name(row.site_id)))
-    return _snapshot(KIND_WATCH_IMPORT, "监听目录导入", "来源种子未记录")
+        return _snapshot(
+            KIND_WATCH_IMPORT,
+            "手动或监听导入",
+            _join(site_display_name(row.site_id)),
+            label_ref=reference("library.origin.manualOrWatch"),
+        )
+    return _snapshot(
+        KIND_WATCH_IMPORT,
+        "监听目录导入",
+        "来源种子未记录",
+        label_ref=reference("library.origin.legacyWatch"),
+        detail_ref=reference("library.origin.missingTorrent"),
+    )
 
 
 async def derive_origins(
@@ -215,6 +265,7 @@ async def derive_origins(
                 KIND_WATCH_IMPORT,
                 "手动或监听导入",
                 _join(site_display_name(row.site_id), titles[key]),
+                label_ref=reference("library.origin.manualOrWatch"),
             )
         else:
             result[row.id] = _legacy_fallback(row)

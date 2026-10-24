@@ -3545,7 +3545,11 @@ nonisolated extension API {
         var fileName: String
         /// 绝对路径（悬停显示；成员视图不返回本接口）
         var filePath: String
-        /// 版本签名的质量部分：「分辨率 片源[ HDR]」
+        /// Original quality label for comparisons
+        var qualityKey: String?
+        /// Original origin label for comparisons
+        var originKey: String?
+        /// Quality label in the reader language; compare quality_key
         var qualityLabel: String
         var sizeBytes: Int
         var bitRate: Int?
@@ -3569,6 +3573,8 @@ nonisolated extension API {
             case id
             case fileName = "file_name"
             case filePath = "file_path"
+            case qualityKey = "quality_key"
+            case originKey = "origin_key"
             case qualityLabel = "quality_label"
             case sizeBytes = "size_bytes"
             case bitRate = "bit_rate"
@@ -3758,6 +3764,10 @@ nonisolated extension API {
     /// 同构季的一个版本行：这版本覆盖哪些集、多大、从哪来。
     struct DuplicateVersionView: Codable, Hashable, Sendable {
         var key: String
+        /// Original quality label for comparisons
+        var qualityKey: String?
+        /// Original origin label for comparisons
+        var originKey: String?
         var qualityLabel: String
         var originLabel: String
         var episodes: [Int]
@@ -3766,6 +3776,8 @@ nonisolated extension API {
 
         enum CodingKeys: String, CodingKey {
             case key
+            case qualityKey = "quality_key"
+            case originKey = "origin_key"
             case qualityLabel = "quality_label"
             case originLabel = "origin_label"
             case episodes

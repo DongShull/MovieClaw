@@ -41,6 +41,8 @@ API_PREFIX = "/api/v1"
 # 新增响应字段在旧服务器中不存在。保持可选，也保留既有 Swift 本地构造调用。
 BACKWARD_COMPATIBLE_RESPONSE_FIELDS = {
     "CalibrateResultView": {"params"},
+    "DuplicateFileView": {"quality_key", "origin_key"},
+    "DuplicateVersionView": {"quality_key", "origin_key"},
     "NoticeView": {"title_key", "message_key", "message_params"},
     "ActivityView": {"message_key", "message_params"},
     "JobProgressView": {"message_key", "message_params"},

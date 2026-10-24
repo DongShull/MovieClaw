@@ -101,7 +101,48 @@
     "keepAllSaved": "Marked Keep all: {count, plural, one {# file is} other {# files are}} no longer listed as duplicates",
     "tooManyFiles": "{count, plural, one {# item has} other {# items have}} more files awaiting cleanup than the per-batch limit ({limit}). Open these items and decide on them individually.",
     "scanStarted": "Started scanning duplicate files. Follow progress in the task center.",
-    "scanRunning": "A duplicate scan is already running"
+    "scanRunning": "A duplicate scan is already running",
+    "tierLabel": {
+      "safe": "Safe to clean",
+      "suggested": "Suggested cleanup",
+      "review": "Your decision"
+    },
+    "tierHint": {
+      "safe": "The files have no detected differences: they refer to the same file, or have identical sizes and durations. Cleaning up preserves the content.",
+      "suggested": "Each group has a clearly higher-quality file; the others are lower-tier versions. You can review the list before cleaning up.",
+      "review": "Each version has its strengths. Files with the same trade-off are grouped so you can decide on them together."
+    },
+    "reviewLabel": {
+      "resolution": "Different resolutions",
+      "hdr": "HDR and SDR",
+      "unknown": "Incomplete specifications",
+      "sameTier": "Versions at the same tier"
+    },
+    "reviewHint": {
+      "resolution": "One version has a higher resolution, while another has a better source. Choose the balance of picture quality and file size you prefer.",
+      "hdr": "HDR video can look washed out on unsupported devices. You may want to keep both versions.",
+      "unknown": "Resolution or source information is missing for some files, so quality tiers cannot be compared reliably. Recommendations use bitrate, origin and filenames. Rescan the library to probe missing resolutions; for subscribed shows, use the subscription page to label the source for a season.",
+      "sameTier": "The specifications are at the same tier; differences may include release groups, subtitles or encoding. Choose a familiar group, or keep them all."
+    },
+    "reason": {
+      "ladder": "Highest quality tier",
+      "bitrate": "Same tier: higher measured bitrate",
+      "origin": "Same tier: traceable origin",
+      "naming": "Same tier: uses the standard filename",
+      "fallback": "Same tier: most recently imported"
+    },
+    "reasonPartial": {
+      "ladder": "Incomplete specifications: highest among comparable dimensions",
+      "bitrate": "Incomplete specifications: higher measured bitrate",
+      "origin": "Incomplete specifications: traceable origin",
+      "naming": "Incomplete specifications: uses the standard filename",
+      "fallback": "Incomplete specifications: most recently imported"
+    },
+    "recycleFailed": "Could not move to the recycle bin: {detail}",
+    "unitChanged": "This unit no longer has duplicate files. A scan or upgrade may have changed it. Refresh the list.",
+    "episodeRequired": "Select an episode to keep a specific file.",
+    "fileChanged": "The file to keep is no longer in this unit. The file set changed; refresh the list.",
+    "versionChanged": "This version is no longer present in the season. The file set changed; refresh the list."
   },
   "shares": {
     "created": "Share link generated",
@@ -421,5 +462,26 @@
     "persist": "Recording results",
     "completed": "Duplicate scan complete: {units, plural, one {# unit has} other {# units have}} duplicates; suggested cleanup can remove {files, plural, one {# file} other {# files}}",
     "empty": "Duplicate scan complete: no duplicate files found"
+  },
+  "origin": {
+    "subscription": "Subscription “{title}”: {delivery}{manual}",
+    "automatic": "automatic delivery",
+    "upgrade": "upgrade delivery",
+    "manualSelection": " (manually selected)",
+    "manualDownload": "Manual download",
+    "watchImport": "Imported automatically from a watched folder",
+    "scan": "Found by a library scan (imported outside this system)",
+    "manualOrWatch": "Manual or watched-folder import",
+    "legacyWatch": "Watched-folder import",
+    "missingTorrent": "Source torrent was not recorded",
+    "unmatched": "No matching download task",
+    "hardlink": "Imported using a hard link",
+    "copy": "Imported using a copy",
+    "scanManual": "Manual scan",
+    "scanWatch": "Folder watcher",
+    "scanScheduled": "Scheduled reconciliation",
+    "scanFound": "Found by {trigger}",
+    "detail": "{parts}",
+    "separator": " · "
   }
 }

@@ -642,6 +642,7 @@ class ResolveOutcome:
     remaining: int = 0
     #: 单个单元的待清文件数就超过了整批上限——任何一批都装不下，只能逐单元决定
     oversized_units: int = 0
+    failure_refs: dict[int, dict] = field(default_factory=dict)
 
 
 async def _refresh_unit(session: AsyncSession, unit: DupUnit) -> None:
@@ -722,6 +723,9 @@ async def recycle_extras(
             file_id, file_name = marks[id(f)]
             logger.warning("重复清理移入回收站失败：%s", file_name, exc_info=True)
             outcome.failed.append((file_id, file_name, f"移入回收站失败：{exc}"))
+            outcome.failure_refs[file_id] = reference(
+                "library.duplicates.recycleFailed", detail=str(exc)
+            )
             await _refresh_unit(session, unit)
 
 

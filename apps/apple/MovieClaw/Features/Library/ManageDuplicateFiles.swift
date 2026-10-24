@@ -775,10 +775,10 @@ private struct ManageDupSeasonBlock: View {
 
     /// 版本行：规格（与建议保留版本不同的段加亮）+ 动作一行；覆盖（集数 · 大小）与来源排在下面
     private func versionRow(_ version: API.DuplicateVersionView, suggested: API.DuplicateVersionView?, hideOrigin: Bool) -> some View {
-        let refParts = suggested.map { $0.qualityLabel.split(separator: " ").map(String.init) }
-        let segments = version.qualityLabel.split(separator: " ").map(String.init).enumerated().map { i, text in
+        let refParts = suggested.map { ($0.qualityKey ?? $0.qualityLabel).split(separator: " ").map(String.init) }
+        let segments = (version.qualityKey ?? version.qualityLabel).split(separator: " ").map(String.init).enumerated().map { i, text in
             ManageDupSegment(
-                text: text,
+                text: ManageDupText.specPart(text),
                 diff: refParts != nil && !version.suggested && (i < refParts!.count ? refParts![i] : nil) != text
             )
         }
@@ -971,6 +971,11 @@ struct ManageDupKeepVersionFacts {
 }
 
 enum ManageDupText {
+    static func specPart(_ source: String) -> String {
+        // i18n-ignore: original protocol quality key; presentation only.
+        source == "未知规格" ? String(localized: .libraryRecycleUnknownSpec) : source
+    }
+
     static func pad(_ n: Int) -> String { String(format: "%02d", n) }
 
     /// 集号 `E03`；电影为空串
@@ -1069,10 +1074,10 @@ enum ManageDupText {
 
     /// 规格里认得出是什么的那几段：分辨率 / 片源 / HDR / 音轨（可以截断）
     static func specSegments(_ file: API.DuplicateFileView, reference: API.DuplicateFileView?) -> [ManageDupSegment] {
-        let own = file.qualityLabel.split(separator: " ").map(String.init)
-        let ref = reference.flatMap { $0.id == file.id ? nil : $0.qualityLabel.split(separator: " ").map(String.init) }
+        let own = (file.qualityKey ?? file.qualityLabel).split(separator: " ").map(String.init)
+        let ref = reference.flatMap { $0.id == file.id ? nil : ($0.qualityKey ?? $0.qualityLabel).split(separator: " ").map(String.init) }
         var segments = own.enumerated().map { i, text in
-            ManageDupSegment(text: text, diff: ref != nil && (i < ref!.count ? ref![i] : nil) != text)
+            ManageDupSegment(text: specPart(text), diff: ref != nil && (i < ref!.count ? ref![i] : nil) != text)
         }
         if let audio = file.audioLabel, !audio.isEmpty {
             segments.append(ManageDupSegment(text: audio, diff: ref != nil && reference?.audioLabel != file.audioLabel))
@@ -1099,8 +1104,12 @@ enum ManageDupText {
 
     static func sharedFacts(_ files: [API.DuplicateFileView]) -> ManageDupSharedFacts {
         guard files.count >= 2 else { return ManageDupSharedFacts() }
-        let specs = Set(files.map(specText))
-        let origins = Set(files.map(\.origin.label))
+        let specs = Set(files.map { file in
+            let parts = (file.qualityKey ?? file.qualityLabel).split(separator: " ").map(String.init)
+            let audio = file.audioLabel.flatMap { $0.isEmpty ? nil : [$0] } ?? []
+            return (parts + audio + volumeSegments(file).map(\.text)).joined(separator: " · ")
+        })
+        let origins = Set(files.map { $0.originKey ?? $0.origin.label })
         return ManageDupSharedFacts(
             quality: specs.count == 1 ? specText(files[0]) : nil,
             origin: origins.count == 1 ? files[0].origin.label : nil
@@ -1125,7 +1134,7 @@ enum ManageDupText {
     /// 同构季里几个版本行共有的来源；不同则为 nil
     static func sharedVersionOrigin(_ versions: [API.DuplicateVersionView]) -> String? {
         guard versions.count >= 2 else { return nil }
-        return Set(versions.map(\.originLabel)).count == 1 ? versions[0].originLabel : nil
+        return Set(versions.map { $0.originKey ?? $0.originLabel }).count == 1 ? versions[0].originLabel : nil
     }
 
     /// 单元里的建议保留者（没有时取第一个，后端保证一定有）
@@ -1162,7 +1171,10 @@ enum ManageDupText {
                 if extras.isEmpty { continue }
                 let head = item.mediaItem.kind == "tv" ? "\(item.mediaItem.title) S\(pad(season.seasonNumber))" : item.mediaItem.title
                 var seen: [String] = []
-                for label in extras.map(\.qualityLabel) where !seen.contains(label) { seen.append(label) }
+                var sourceKeys: Set<String> = []
+                for file in extras where sourceKeys.insert(file.qualityKey ?? file.qualityLabel).inserted {
+                    seen.append(file.qualityLabel)
+                }
                 let bytes = libraryBytes(extras.reduce(0) { $0 + $1.sizeBytes })
                 lines.append("\(head) · \(extras.count) 个文件 · \(bytes) · \(seen.joined(separator: " / "))")
             }

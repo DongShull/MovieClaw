@@ -2931,7 +2931,7 @@ def _file_view(
         state=row.state,
         purge_after=row.purge_after,
         trash_note=_trash_note(row),
-        origin=FileOriginView(**origin_of(row, origins or {})),
+        origin=FileOriginView(**localize_fields(origin_of(row, origins or {}))),
         kept_at=row.kept_at,
         audio_streams=(
             None

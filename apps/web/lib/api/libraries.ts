@@ -2262,6 +2262,8 @@ export interface DuplicateFile {
   file_path: string;
   /** 版本签名的质量部分：「分辨率 片源[ HDR]」 */
   quality_label: string;
+  quality_key?: string | null;
+  origin_key?: string | null;
   size_bytes: number;
   bit_rate: number | null;
   resolution: string | null;
@@ -2291,6 +2293,8 @@ export interface DuplicateUnit {
 export interface DuplicateVersion {
   key: string;
   quality_label: string;
+  quality_key?: string | null;
+  origin_key?: string | null;
   origin_label: string;
   episodes: number[];
   bytes: number;

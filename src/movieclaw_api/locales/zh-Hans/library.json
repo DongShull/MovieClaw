@@ -101,7 +101,48 @@
     "keepAllSaved": "已标记「都留着」：{count} 个文件不再列为重复",
     "tooManyFiles": "有 {count} 个条目的待清文件数超过单次上限（{limit} 个），批量清理装不下它们。请点进这些条目逐个决定",
     "scanStarted": "已开始扫描重复文件，可在任务中心继续观察",
-    "scanRunning": "重复扫描正在进行中"
+    "scanRunning": "重复扫描正在进行中",
+    "tierLabel": {
+      "safe": "可以放心清理",
+      "suggested": "建议清理",
+      "review": "需要你决定"
+    },
+    "tierHint": {
+      "safe": "机器确认过没有区别：同一个文件的多份记录，或尺寸与时长完全一致。清掉不丢任何东西。",
+      "suggested": "每组里有一个档位明显更高，其余是它的低配版。清理前可以逐条看一眼清单。",
+      "review": "各有各的好，机器不替你决定。同一种取舍的放在一组，一次回答一批。"
+    },
+    "reviewLabel": {
+      "resolution": "分辨率不同",
+      "hdr": "HDR 与 SDR 并存",
+      "unknown": "规格不全",
+      "sameTier": "同档不同版本"
+    },
+    "reviewHint": {
+      "resolution": "一个分辨率高、一个片源更好，阶梯上各占一头。要画质还是要体积，只有你知道。",
+      "hdr": "HDR 版本在不支持的设备上颜色会发灰，很多人两个都留着。",
+      "unknown": "分辨率或片源有一边没探到，机器比不出档位，「建议保留」只是按码率、来源、文件名挑的。分辨率缺的，重新扫描媒体库会补探；片源认文件名，有订阅的剧可以在订阅页整季「标注片源」。",
+      "sameTier": "规格完全同档，差的是发布组、字幕或压制。挑一个熟悉的组，或者都留着。"
+    },
+    "reason": {
+      "ladder": "档位最高",
+      "bitrate": "同档，实测码率更高",
+      "origin": "同档，来源可追溯",
+      "naming": "同档，占着标准文件名",
+      "fallback": "同档，最近入库"
+    },
+    "reasonPartial": {
+      "ladder": "规格没探全，在能比的位上最高",
+      "bitrate": "规格没探全，实测码率更高",
+      "origin": "规格没探全，来源可追溯",
+      "naming": "规格没探全，占着标准文件名",
+      "fallback": "规格没探全，最近入库"
+    },
+    "recycleFailed": "移入回收站失败：{detail}",
+    "unitChanged": "这个单元已经没有重复文件（可能刚被扫描或洗版改动过），请刷新列表",
+    "episodeRequired": "按文件「留这个」必须指定到集",
+    "fileChanged": "要保留的文件已不在这个单元里（文件集合已变化），请刷新列表",
+    "versionChanged": "这一季里已经没有这个版本（文件集合已变化），请刷新列表"
   },
   "shares": {
     "created": "分享链接已生成",
@@ -421,5 +462,26 @@
     "persist": "记录结论",
     "completed": "重复扫描完成：{units} 个单元有重复，按建议清理可腾出 {files} 个文件",
     "empty": "重复扫描完成：没有发现重复文件"
+  },
+  "origin": {
+    "subscription": "订阅《{title}》{delivery}{manual}",
+    "automatic": "自动投递",
+    "upgrade": "洗版投递",
+    "manualSelection": "（人工选种）",
+    "manualDownload": "手动下载",
+    "watchImport": "监听目录自动识别入库",
+    "scan": "存量扫描发现（非本系统入库）",
+    "manualOrWatch": "手动或监听导入",
+    "legacyWatch": "监听目录导入",
+    "missingTorrent": "来源种子未记录",
+    "unmatched": "未匹配到任何下载任务",
+    "hardlink": "硬链接入库",
+    "copy": "复制入库",
+    "scanManual": "手动扫描",
+    "scanWatch": "目录监听",
+    "scanScheduled": "定时对账",
+    "scanFound": "{trigger}发现",
+    "detail": "{parts}",
+    "separator": " · "
   }
 }
