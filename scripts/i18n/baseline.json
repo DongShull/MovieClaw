@@ -288,7 +288,6 @@
   "apps/web/components/scrape-settings-section.tsx": 2,
   "apps/web/components/search-settings.tsx": 49,
   "apps/web/components/site-config-section.tsx": 156,
-  "apps/web/components/system-logs-section.tsx": 35,
   "apps/web/components/tip-card.tsx": 1,
   "apps/web/components/transcode-cache-toggle-section.tsx": 4,
   "apps/web/components/trickplay-toggle-section.tsx": 4,

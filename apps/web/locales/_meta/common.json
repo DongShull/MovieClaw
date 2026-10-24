@@ -79,5 +79,8 @@
   },
   "clipboardDenied": {
     "sourceHash": "8dc87f6351b11799c71b11ecaf53f68e3971d1464e0f26d029c78f0ea1abd252"
+  },
+  "off": {
+    "sourceHash": "3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7"
   }
 }

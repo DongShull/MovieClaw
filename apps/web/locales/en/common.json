@@ -24,5 +24,6 @@
   "notSelected": "Not selected",
   "copy": "Copy",
   "copied": "Copied",
-  "clipboardDenied": "The browser denied clipboard access"
+  "clipboardDenied": "The browser denied clipboard access",
+  "off": "Off"
 }
