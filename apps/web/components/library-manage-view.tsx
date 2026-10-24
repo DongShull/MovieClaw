@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Route } from "next";
@@ -86,6 +86,7 @@ function dropPosition(e: React.DragEvent): "before" | "after" {
  */
 export function LibraryManageView() {
   const t = useTranslations();
+  const locale = useLocale();
   const { canManageLibraries } = usePermissions();
   const router = useRouter();
   const confirm = useConfirm();
@@ -237,7 +238,7 @@ export function LibraryManageView() {
     setRevealId(null);
   }, [revealId, libraries]);
 
-  const warnings = useMemo(() => routingOverlapWarnings(libraries ?? []), [libraries]);
+  const warnings = useMemo(() => routingOverlapWarnings(libraries ?? [], locale), [libraries, locale]);
   const visible = useMemo(() => filterLibraries(libraries ?? [], filter), [libraries, filter]);
   const summary = summarizeLibraries(libraries ?? []);
   /** 页头摘要胶囊即筛选：再点一次取消；在回收站标签上点则先切回库列表 */
@@ -613,10 +614,10 @@ export function LibraryManageView() {
           {/* 收藏范围重叠提示：只读不阻断，原在首页，现在只在这里出现 */}
           {warnings.map((w) => (
             <div
-              key={w}
+              key={w.id}
               className={`page-inset-mx mt-4 rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sub leading-relaxed text-amber-200`}
             >
-              {w}
+              {w.message}
             </div>
           ))}
 

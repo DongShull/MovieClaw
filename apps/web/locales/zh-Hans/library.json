@@ -1562,5 +1562,24 @@
     "current": "现为 {source}",
     "count": "共 {count} 个文件将被统一标注",
     "confirm": "确认标注"
-  }
+  },
+  "cloudReport": {
+    "seconds": "{count} 秒",
+    "minutes": "{count} 分钟",
+    "waiting": "还没纳管完，扫描结束后这里会有结果。",
+    "skipDisc": "原盘目录 {count} · 暂不支持",
+    "skipIso": "光盘镜像 {count} · 暂不支持",
+    "skipExtra": "样片、花絮 {count}",
+    "summary": "{date} {cancelled, select, yes {中途停止} other {完成}}，用时 {duration} · 调用 {backend} 接口 {calls} 次",
+    "videos": "{count, number} 个视频文件",
+    "identified": "已识别",
+    "pending": "待认领",
+    "claim": "去认领",
+    "skipped": "跳过",
+    "skippedTotal": "{count}",
+    "modalLabel": "纳管报告",
+    "title": "纳管报告 · {name}",
+    "hint": "规格（分辨率、HDR、音轨）在后台慢慢补齐，不影响现在播放；没补到的在起播时当场读取。之后在网盘里新增、移动、删除的片子会自动跟上，每周还会整体复查一次；想马上同步就点「扫描库」。"
+  },
+  "routingOverlap": "「{a}」与「{b}」的收藏范围可能同时命中同一部作品且条件数相同，届时优先进创建更早的「{first}」。{dimension, select, none {两库已声明相同的维度：错开重叠的取值即可消除歧义。} other {想让「{later}」优先收这类作品：编辑它，补上{dimension, select, genres {「类型」} origin_countries {「区域」} other {「类型」或「区域」}}条件（用「全选」也可以）——条件多的库优先命中；想维持现状则无需改动。}}"
 }

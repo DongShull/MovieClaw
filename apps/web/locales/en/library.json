@@ -1562,5 +1562,24 @@
     "current": "Currently {source}",
     "count": "{count, plural, one {# file will} other {# files will}} be updated together",
     "confirm": "Confirm source"
-  }
+  },
+  "cloudReport": {
+    "seconds": "{count, plural, one {# second} other {# seconds}}",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}",
+    "waiting": "Import is not finished yet. Results will appear after scanning.",
+    "skipDisc": "{count, plural, one {# disc folder} other {# disc folders}} · Not supported yet",
+    "skipIso": "{count, plural, one {# disc image} other {# disc images}} · Not supported yet",
+    "skipExtra": "{count, plural, one {# sample or extra} other {# samples and extras}}",
+    "summary": "{date} · {cancelled, select, yes {Stopped early} other {Completed}} in {duration} · {calls, plural, one {# call} other {# calls}} to {backend}",
+    "videos": "{count, plural, one {# video file} other {# video files}}",
+    "identified": "Identified",
+    "pending": "Unidentified",
+    "claim": "Identify files",
+    "skipped": "Skipped",
+    "skippedTotal": "{count, number}",
+    "modalLabel": "Cloud import report",
+    "title": "Cloud import report · {name}",
+    "hint": "Media specifications (resolution, HDR and audio tracks) are filled in gradually in the background. Playback works now; missing information is read when playback starts. Additions, moves and deletions on the cloud drive sync automatically, with a full check each week. Choose Scan library to sync immediately."
+  },
+  "routingOverlap": "“{a}” and “{b}” can match the same title with equally specific rules. The earlier library, “{first}”, takes priority. {dimension, select, none {Both libraries already use the same dimensions. Adjust their overlapping values to remove the ambiguity.} other {To give “{later}” priority, edit it and add a {dimension, select, genres {“Genre”} origin_countries {“Region”} other {“Genre” or “Region”}} condition (Select all works too). More conditions take priority; leave it unchanged to keep the current behavior.}}"
 }
