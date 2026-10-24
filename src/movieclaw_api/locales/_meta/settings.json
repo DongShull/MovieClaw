@@ -763,5 +763,173 @@
   },
   "scheduledTasks.catalog.backfillUpgradeSnapshotsDescription": {
     "sourceHash": "91987bb76728c04b761ef713b79623b9d33157ec9dee47c594279978451edd2a"
+  },
+  "webhook.events.accountDeviceSignedIn": {
+    "sourceHash": "f46ec78a44d75b633fe8a366cbe83264bf2cc2c874faa7afbeeb30042ad8aa96"
+  },
+  "webhook.events.agentRunFinished": {
+    "sourceHash": "c4c4bfd851050da863fa2512cfe7d816e55192047b70e655853bd3653646df27"
+  },
+  "webhook.events.downloadCompleted": {
+    "sourceHash": "62e71efb54cdb3611da750a683e01625212b4d822e5624f843b60060d261c70b"
+  },
+  "webhook.events.downloadImported": {
+    "sourceHash": "ae3ea92fed6913fbf1504d9988283502564fb2271ee5e575121cc6e9efed9237"
+  },
+  "webhook.events.libraryFilesAdded": {
+    "sourceHash": "75129fbfcfe995e0b4ab87ff31affdf3af1979a576d92c210bb33ac1a8099be5"
+  },
+  "webhook.events.libraryFileLocalReleased": {
+    "sourceHash": "ead67145c9f75e1a1ae2ef64cce3ddd277889749bde15cb3434f4c4735d4b165"
+  },
+  "webhook.events.libraryItemFavorited": {
+    "sourceHash": "60a53514eb9228a2cee1e6914eb36819fd13716e5df64eb5e9dd1868ebda5a0b"
+  },
+  "webhook.events.libraryItemUnfavorited": {
+    "sourceHash": "dca60869e7d26839d6bb6310e1fcf6ccbdb3dda40f284bba1cfaaf5ebcde5881"
+  },
+  "webhook.events.libraryItemViewed": {
+    "sourceHash": "4bc3fee4d904dec0685ac448c287d16bb026e44a6a72ea3294135cbe85e84066"
+  },
+  "webhook.events.libraryIngestCompleted": {
+    "sourceHash": "39c5453bcb1b59868be7909de54a4c46ea66e5574c643e4606867ffbc851a4ce"
+  },
+  "webhook.events.libraryItemsArrived": {
+    "sourceHash": "5e6b1af13a9e307591d7e06e51f16c7fa7c03968396fa64b1dea7596986df41a"
+  },
+  "webhook.events.libraryItemDeleted": {
+    "sourceHash": "bf59b92aaa72c127ef1db9e3c1eeccd99009b905ba9d383fc7deb4cb600c5d3f"
+  },
+  "webhook.events.libraryFileDeleted": {
+    "sourceHash": "4ece09ef886dae2635f34e89b7306f7801983c511a580c1f70eccf4ab9644fd9"
+  },
+  "webhook.events.libraryFileTrashed": {
+    "sourceHash": "e030610c83ce587eb76cc3f396d203cb08a545aaec064aa23c7524f5714f1b29"
+  },
+  "webhook.events.libraryFileRestored": {
+    "sourceHash": "9d620f27b1bf0506b839144f5610a366082d7b7752d85468ad65d4662dfa8af6"
+  },
+  "webhook.events.libraryFilePurged": {
+    "sourceHash": "c692bccda0f05d1961cedcd09cc17d34435ec48ee70b022f69c23bf4c7258ba0"
+  },
+  "webhook.events.libraryItemMoved": {
+    "sourceHash": "9c8f23f73f70a886db52f5f55e0d56c3b935de1643d2663e6b49adcb071bd6a2"
+  },
+  "webhook.events.playbackStarted": {
+    "sourceHash": "7b9a35b3df853c9b5b0d369d1037de84f4cdf4b288a80f18553e40132f46ee88"
+  },
+  "webhook.events.playbackStopped": {
+    "sourceHash": "d2514094a0f771a4e7f49db5f42237e3130c7a38c8860e1f65f2080c26ec4be8"
+  },
+  "webhook.events.playbackCompleted": {
+    "sourceHash": "e2f45f1a1b60c383d6cf73a19b6bae72faf96857e603ff37152cffc0c529396a"
+  },
+  "webhook.events.playbackProgress": {
+    "sourceHash": "fc16e2a0fca668842686ea2f1f864c67e3f09f7a803a7fd0642856cfc9662062"
+  },
+  "webhook.events.playbackMarkedPlayed": {
+    "sourceHash": "20671e47fedd931ffd55d56221954503bc272c3d181401b27f2284ab4cb1a7c6"
+  },
+  "webhook.events.playbackMarkedUnplayed": {
+    "sourceHash": "b34a1352ec9d56d84dba1b6537aa40389810118c47b32aa2e65d323b4c16a271"
+  },
+  "webhook.events.subscriptionCreated": {
+    "sourceHash": "7b1393bb1fb5ae6632d002ed42ef26cbf53c0a49f5a41858a571ec5e995214af"
+  },
+  "webhook.events.subscriptionDeleted": {
+    "sourceHash": "ced95d2456f38b8af2797dba28e41280b648f0979699e16f20f4e5ce09de9d55"
+  },
+  "webhook.events.subscriptionStatusChanged": {
+    "sourceHash": "2a44fa00d5c8f7ad930984dc5d6ee7a68740f354a1155132367bacddca2c2420"
+  },
+  "webhook.events.subscriptionDownloadStarted": {
+    "sourceHash": "31615cba602edcbe8ab77f49179d46b672b184cbe734701224e94edc34b0c497"
+  },
+  "webhook.events.subscriptionFulfilled": {
+    "sourceHash": "55b8e9f4e02e9d2fc4be2b0962775d67fe949686307536a3f4fb83175d0a9ecb"
+  },
+  "webhook.events.subscriptionUpgraded": {
+    "sourceHash": "e20e1af7fce8340704ef9eb0af1b9f1777ec92bc35222fbbc20407c8400d8127"
+  },
+  "webhook.events.subscriptionIdentitySkipped": {
+    "sourceHash": "58430002b900f25cfb24b7e293b38a64d5a46cba2f758a144ba1dc009adeb5bc"
+  },
+  "webhook.events.subscriptionAwaitingSubtitles": {
+    "sourceHash": "0377d1cc30a5d167f1f1c0f6493f587912845214e6b1239bebb456d638e6bbb4"
+  },
+  "webhook.events.subscriptionDownloadStuck": {
+    "sourceHash": "e5f7014205a24e0b57886045f15746c10940130193c6663146da1dcf586d58d5"
+  },
+  "webhook.events.subscriptionMoreEpisodes": {
+    "sourceHash": "0f84769115a31d4c48afb94abbd970a8dc66cd5c772b1b0f4a1991b33f53c351"
+  },
+  "webhook.events.systemAlertRaised": {
+    "sourceHash": "cd7883e255118dc0bb89ae3f60c2881dc63fa12644e03ed067a1f2e0d2d304c6"
+  },
+  "webhook.events.systemAlertResolved": {
+    "sourceHash": "9974abdad0f3af055134deeaa0e04440c341d3605f0eea4dcbeda2e720f330ab"
+  },
+  "webhook.events.systemUpdateAvailable": {
+    "sourceHash": "daedea385864a2909637eff2615d57bbb60f65ea27cbde5d8e6684927c811a24"
+  },
+  "webhook.events.systemTipSuggested": {
+    "sourceHash": "12c1f1d42bd8f4a1f99d1b302e78b27163144e86a8e1742f68a91e214241c87c"
+  },
+  "webhook.groups.account": {
+    "sourceHash": "311bb313fdeca6aa2ce7d9415821a0b0247e064340241f68bac3ca5b19ae6d76"
+  },
+  "webhook.groups.agent": {
+    "sourceHash": "1b0049fcfd4163fe2a902e3dd533e1a7352c30aa762eae22581cf7cd3f221ac9"
+  },
+  "webhook.groups.download": {
+    "sourceHash": "4673a2306165612576462979eee34149329ab42aad9b580e726a1fae1ce7ab64"
+  },
+  "webhook.groups.library": {
+    "sourceHash": "d771576fc05c241bada9731f5fa997d50f63c3433cbcdd2141bc07d4ca6c1949"
+  },
+  "webhook.groups.favorites": {
+    "sourceHash": "60a53514eb9228a2cee1e6914eb36819fd13716e5df64eb5e9dd1868ebda5a0b"
+  },
+  "webhook.groups.trash": {
+    "sourceHash": "ba35dc23b245e61ec1f398934861c13d8cd1d4959c1a96a50cac9de17817c7ae"
+  },
+  "webhook.groups.playback": {
+    "sourceHash": "c3396195e91ccdd8468b38f08c58e5a7f13220f16ed29e668ffd4f58ef04f443"
+  },
+  "webhook.groups.subscription": {
+    "sourceHash": "cf8efc450f718fbfd2ee60e9871ef625b47c2ef58d2e31635ed848de846a79f8"
+  },
+  "webhook.groups.system": {
+    "sourceHash": "5b50d7c4b5950dc523956237214f807de632f45334c3164d1e29956c7cfb03bd"
+  },
+  "webhook.errors.requestFailed": {
+    "sourceHash": "16f6c992340a1253b95a2b54bdfaeb9c670fffa399d66dd2d9b45c6e918b6238"
+  },
+  "webhook.errors.http": {
+    "sourceHash": "08b33e87bb6fe1dfc4426920cbdfdc3d33ecc1685f4cd668316eb63771b7d0a1"
+  },
+  "webhook.errors.templateMissing": {
+    "sourceHash": "09b1a85b487ebc83b692df0d466742863825dfd8cc6fdf7286474cf5ba3d7e53"
+  },
+  "webhook.errors.templateFailed": {
+    "sourceHash": "ab415cb1b8b145a7aef5594b2c23fa10514993e7f19c2d6b84db603bfb8dbe0a"
+  },
+  "webhook.template.unsupportedHelper": {
+    "sourceHash": "a990552e9dd9f474fde864df15d9f9739a23e7644bc0fccdcea80954aa72460c"
+  },
+  "webhook.template.unsupportedBlock": {
+    "sourceHash": "1763bdfc01a1346afae7c6dbe39387bf384fe3c6487a8c7ae63e48a5863fb542"
+  },
+  "webhook.template.closingMismatch": {
+    "sourceHash": "828e45d39ae71d3640bd618881be58609340e433849f3ad1de3cf991cdeca2ca"
+  },
+  "webhook.template.elseOutside": {
+    "sourceHash": "0210720ce8c24f0a3cc8581e02d2d679c0e3faee00504629951ca87df66dbe10"
+  },
+  "webhook.template.duplicateElse": {
+    "sourceHash": "8dc94e40f67bf659978f036ab8557fbb470ad1b6646dc287af64b5cf48ca2c75"
+  },
+  "webhook.template.unclosed": {
+    "sourceHash": "8e33f883c4f41430ac8369381b7948c2d89e369c4139e60fe569fe96d54cb6da"
   }
 }

@@ -23,8 +23,10 @@ from typing import Any
 
 import httpx
 
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services.webhook.catalog import event_types, normalize
 from movieclaw_api.services.webhook.deliveries import DeliveryRecord, record_delivery
+from movieclaw_api.services.webhook.handlebars import TemplateError
 from movieclaw_api.settings import WebhookEndpoint, WebhookSetting, get_setting_store
 from movieclaw_kernel import DeliveryInfo, current_delivery
 from movieclaw_net import EgressScope, egress_transport
@@ -91,8 +93,10 @@ def movieclaw_request(message: dict, secret: str, user_agent: str) -> tuple[byte
     return body, headers
 
 
-async def post(endpoint: WebhookEndpoint, body: bytes, headers: dict) -> tuple[int | None, str]:
-    """发一次；返回 (状态码, 错误)。"""
+async def post(
+    endpoint: WebhookEndpoint, body: bytes, headers: dict
+) -> tuple[int | None, str, str | None, dict | None]:
+    """Send once; retain the original error and its optional display reference."""
     if endpoint.headers:
         headers = {**headers, **endpoint.headers}
     scope = EgressScope.LAN if endpoint.egress_scope == "lan" else EgressScope.WAN
@@ -101,10 +105,20 @@ async def post(endpoint: WebhookEndpoint, body: bytes, headers: dict) -> tuple[i
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT, transport=transport) as client:
             response = await client.post(endpoint.url, content=body, headers=headers)
     except Exception as exc:  # noqa: BLE001 -- 网络错误统一进投递记录
-        return None, f"请求失败：{exc}"[:200]
+        return (
+            None,
+            f"请求失败：{exc}"[:200],
+            "settings.webhook.errors.requestFailed",
+            {"reason": str(exc)},
+        )
     if 200 <= response.status_code < 300:
-        return response.status_code, ""
-    return response.status_code, f"目标返回 HTTP {response.status_code}"
+        return response.status_code, "", None, None
+    return (
+        response.status_code,
+        f"目标返回 HTTP {response.status_code}",
+        "settings.webhook.errors.http",
+        {"status": response.status_code},
+    )
 
 
 async def deliver(endpoint: WebhookEndpoint, info: DeliveryInfo, payload: Any) -> DeliveryRecord:
@@ -120,6 +134,7 @@ async def deliver(endpoint: WebhookEndpoint, info: DeliveryInfo, payload: Any) -
         if endpoint.format == "jellyfin":
             if not endpoint.template.strip():
                 record.error = "jellyfin 格式的地址没有配置模板（请粘贴下游文档提供的模板）"
+                record.error_key = "settings.webhook.errors.templateMissing"
                 record_delivery(endpoint.id, record)
                 return record
             requests = await jellyfin_formatter.render(info, data, server, endpoint.template)
@@ -131,12 +146,22 @@ async def deliver(endpoint: WebhookEndpoint, info: DeliveryInfo, payload: Any) -
             requests = [movieclaw_request(message, endpoint.secret, agent)]
     except ValueError as exc:
         record.error = f"模板渲染失败：{exc}"
+        record.error_key = "settings.webhook.errors.templateFailed"
+        record.error_params = {
+            "reason": (
+                {**reference(exc.message_key, **exc.params), "message": str(exc)}
+                if isinstance(exc, TemplateError) and exc.message_key
+                else str(exc)
+            )
+        }
         record_delivery(endpoint.id, record)
         logger.warning("Webhook 模板渲染失败：%s → %s（%s）", info.name, endpoint.name, exc)
         return record
     # Jellyfin 格式的「整季标记已看」按集各发一条（同插件）；任何一条没收下就整体重试
     for body, headers in requests:
-        record.status_code, record.error = await post(endpoint, body, headers)
+        record.status_code, record.error, record.error_key, record.error_params = await post(
+            endpoint, body, headers
+        )
         if not record.ok:
             break
     record.failed = not record.ok

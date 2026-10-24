@@ -301,5 +301,71 @@
       "githubLabel": "GitHub updates",
       "githubHint": "Check and download app updates through api.github.com and github.com. A proxy is often needed within China; UPDATE_DOWNLOAD_MIRROR is another option"
     }
+  },
+  "webhook": {
+    "events": {
+      "accountDeviceSignedIn": "Device signed in",
+      "agentRunFinished": "AI reply finished",
+      "downloadCompleted": "Subscribed torrent download completed",
+      "downloadImported": "Manual download imported",
+      "libraryFilesAdded": "Files added to the library",
+      "libraryFileLocalReleased": "Local library copy released (available in cloud storage)",
+      "libraryItemFavorited": "Added to favorites",
+      "libraryItemUnfavorited": "Removed from favorites",
+      "libraryItemViewed": "Item details opened",
+      "libraryIngestCompleted": "Downloaded item imported",
+      "libraryItemsArrived": "New media in the library",
+      "libraryItemDeleted": "Library item deleted",
+      "libraryFileDeleted": "Library files deleted",
+      "libraryFileTrashed": "File moved to trash",
+      "libraryFileRestored": "File restored from trash",
+      "libraryFilePurged": "File permanently removed from trash",
+      "libraryItemMoved": "Item moved to another library",
+      "playbackStarted": "Playback started",
+      "playbackStopped": "Playback stopped",
+      "playbackCompleted": "Playback completed",
+      "playbackProgress": "Playback progress",
+      "playbackMarkedPlayed": "Marked as watched",
+      "playbackMarkedUnplayed": "Marked as unwatched",
+      "subscriptionCreated": "Subscription created",
+      "subscriptionDeleted": "Subscription deleted",
+      "subscriptionStatusChanged": "Subscription status changed",
+      "subscriptionDownloadStarted": "Subscription download started",
+      "subscriptionFulfilled": "Subscribed content imported",
+      "subscriptionUpgraded": "Upgrade completed",
+      "subscriptionIdentitySkipped": "Same-name resource skipped",
+      "subscriptionAwaitingSubtitles": "No subtitled version found",
+      "subscriptionDownloadStuck": "Subscription download stalled",
+      "subscriptionMoreEpisodes": "More episodes may be available",
+      "systemAlertRaised": "Issue needs attention",
+      "systemAlertResolved": "Issue resolved",
+      "systemUpdateAvailable": "Update available",
+      "systemTipSuggested": "Usage suggestion"
+    },
+    "groups": {
+      "account": "Account",
+      "agent": "AI assistant",
+      "download": "Downloads",
+      "library": "Library",
+      "favorites": "Favorites",
+      "trash": "Trash",
+      "playback": "Playback",
+      "subscription": "Subscriptions",
+      "system": "System"
+    },
+    "errors": {
+      "requestFailed": "Request failed: {reason}",
+      "http": "Destination returned HTTP {status}",
+      "templateMissing": "No template is configured for this Jellyfin endpoint. Paste the template supplied by the receiving service.",
+      "templateFailed": "Template rendering failed: {reason}"
+    },
+    "template": {
+      "unsupportedHelper": "Unsupported template helper: {name} (supported: if_equals / if_exist / link_to / url_encode / json_encode)",
+      "unsupportedBlock": "Unsupported block helper: {name}",
+      "closingMismatch": "Closing tag {tag} does not match the current open block",
+      "elseOutside": "Template tag {tag} is outside a block helper",
+      "duplicateElse": "Duplicate {tag} in the same block helper",
+      "unclosed": "Unclosed template block helper (missing {tag})"
+    }
   }
 }

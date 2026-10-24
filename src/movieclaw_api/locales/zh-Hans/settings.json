@@ -301,5 +301,71 @@
       "githubLabel": "GitHub 更新",
       "githubHint": "应用内更新的检查与产物下载（api.github.com / github.com），国内网络常需代理；也可配 UPDATE_DOWNLOAD_MIRROR 加速镜像替代"
     }
+  },
+  "webhook": {
+    "events": {
+      "accountDeviceSignedIn": "设备登录",
+      "agentRunFinished": "AI 回复完成",
+      "downloadCompleted": "订阅的种子下载完成",
+      "downloadImported": "手动下载已入库",
+      "libraryFilesAdded": "媒体库新入账了文件",
+      "libraryFileLocalReleased": "库文件的本地副本已腾空（已在网盘上）",
+      "libraryItemFavorited": "收藏",
+      "libraryItemUnfavorited": "取消收藏",
+      "libraryItemViewed": "打开条目详情",
+      "libraryIngestCompleted": "下载条目整理入库",
+      "libraryItemsArrived": "媒体库有新片",
+      "libraryItemDeleted": "删除了条目",
+      "libraryFileDeleted": "删除了部分文件",
+      "libraryFileTrashed": "文件进了回收站",
+      "libraryFileRestored": "文件从回收站恢复",
+      "libraryFilePurged": "回收站里的文件被彻底清除",
+      "libraryItemMoved": "条目转移到了另一个库",
+      "playbackStarted": "开始播放",
+      "playbackStopped": "停止播放",
+      "playbackCompleted": "看完",
+      "playbackProgress": "播放进度",
+      "playbackMarkedPlayed": "标记已看",
+      "playbackMarkedUnplayed": "取消已看",
+      "subscriptionCreated": "新建了订阅",
+      "subscriptionDeleted": "删除了订阅",
+      "subscriptionStatusChanged": "订阅状态变化",
+      "subscriptionDownloadStarted": "订阅开始下载",
+      "subscriptionFulfilled": "订阅内容已入库",
+      "subscriptionUpgraded": "洗版完成",
+      "subscriptionIdentitySkipped": "已跳过同名资源",
+      "subscriptionAwaitingSubtitles": "等不到字幕版",
+      "subscriptionDownloadStuck": "订阅的下载卡住了",
+      "subscriptionMoreEpisodes": "可能还有更多集",
+      "systemAlertRaised": "出现需要处理的问题",
+      "systemAlertResolved": "问题已消退",
+      "systemUpdateAvailable": "有新版本",
+      "systemTipSuggested": "使用建议"
+    },
+    "groups": {
+      "account": "账号",
+      "agent": "AI 助手",
+      "download": "下载",
+      "library": "媒体库",
+      "favorites": "收藏",
+      "trash": "回收站",
+      "playback": "播放",
+      "subscription": "订阅",
+      "system": "系统"
+    },
+    "errors": {
+      "requestFailed": "请求失败：{reason}",
+      "http": "目标返回 HTTP {status}",
+      "templateMissing": "jellyfin 格式的地址没有配置模板（请粘贴下游文档提供的模板）",
+      "templateFailed": "模板渲染失败：{reason}"
+    },
+    "template": {
+      "unsupportedHelper": "模板使用了不支持的助手：{name}（支持 if_equals / if_exist / link_to / url_encode / json_encode）",
+      "unsupportedBlock": "模板使用了不支持的块助手：{name}",
+      "closingMismatch": "模板的闭合标签 {tag} 与当前打开的块不匹配",
+      "elseOutside": "模板的 {tag} 不在任何块助手内",
+      "duplicateElse": "同一个块助手里出现了重复的 {tag}",
+      "unclosed": "模板存在未闭合的块助手（缺少 {tag}）"
+    }
   }
 }

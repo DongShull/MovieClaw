@@ -22,6 +22,7 @@ from movieclaw_api.services.webhook.catalog import (
     is_known_event,
     normalize,
 )
+from movieclaw_api.services.webhook.deliveries import error_text
 from movieclaw_api.settings import (
     WebhookEndpoint,
     WebhookSetting,
@@ -58,10 +59,7 @@ def _build_view(
     reveal = reveal or {}
     return WebhookConfigView(
         enabled=setting.enabled,
-        endpoints=[
-            _endpoint_view(ep, reveal_secret=reveal.get(ep.id))
-            for ep in setting.endpoints
-        ],
+        endpoints=[_endpoint_view(ep, reveal_secret=reveal.get(ep.id)) for ep in setting.endpoints],
         catalog=catalog_view(),
     )
 
@@ -166,7 +164,7 @@ async def send_test(endpoint_id: str) -> DeliveryView:
         status_code=record.status_code,
         duration_ms=record.duration_ms,
         attempts=record.attempts,
-        error=record.error,
+        error=error_text(record),
         at=record.at.isoformat(),
     )
 

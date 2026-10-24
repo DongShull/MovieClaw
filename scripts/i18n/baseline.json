@@ -288,7 +288,6 @@
   "apps/web/components/transcode-cache-toggle-section.tsx": 4,
   "apps/web/components/trickplay-toggle-section.tsx": 4,
   "apps/web/components/web-search-settings.tsx": 37,
-  "apps/web/components/webhook-section.tsx": 64,
   "apps/web/components/welcome-screen.tsx": 2,
   "apps/web/lib/agent-attachments.ts": 2,
   "apps/web/lib/agent-companion.ts": 6,

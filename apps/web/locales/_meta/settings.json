@@ -2757,5 +2757,161 @@
   },
   "scheduledTasks.schedule.unset": {
     "sourceHash": "2f5f1d6fbfb061ed02def5f4a3a151303da034681e38179744c7d1b1401f1caf"
+  },
+  "webhook.ui.deleteTitle": {
+    "sourceHash": "216b7814bf87db02aa843a9a9fe56f02c74c9a39c214c9b2816d027caaab7565"
+  },
+  "webhook.ui.deleteHint": {
+    "sourceHash": "b5e44d37db355865f91cd5e3b925fcd4ec28e9c3a8ead8821c3bfaa3dea1de5b"
+  },
+  "webhook.ui.urlRequired": {
+    "sourceHash": "96616e9032022f531ca88b4c4a84f283fd5dc6efcc8eeef34190d52d40d852f8"
+  },
+  "webhook.ui.rotateTitle": {
+    "sourceHash": "f692b30d834ccbef1168e94936137d53efd20f9c4223029dfd19379a3e7e0ce7"
+  },
+  "webhook.ui.rotateHint": {
+    "sourceHash": "f404b063f6696b469573c97e4dbb187bd24d0797fc0db167c0fa74d01e703578"
+  },
+  "webhook.ui.rotateConfirm": {
+    "sourceHash": "6f6110b40397d0ed4b7f70661d0e15ddb39af9bdca1bec0ab87f7805997de462"
+  },
+  "webhook.ui.testDelivered": {
+    "sourceHash": "59cce12482aaea386b61175625b5f5c32b3f28bc8c207386ef312766e34ba163"
+  },
+  "webhook.ui.testFailed": {
+    "sourceHash": "bfe48b024041a366f37ee27ecf27d275719517fca82ba5127c6c9374cc2f1d12"
+  },
+  "webhook.ui.intro": {
+    "sourceHash": "177e4ad8c9eacaa5800062b819effa6b33039d4f3367cdae08583c297c18b894"
+  },
+  "webhook.ui.revealedTitle": {
+    "sourceHash": "06fab3d86984233bc08af4b3e9daa2ee74df35a8875e071ce1db6917062f3cc1"
+  },
+  "webhook.ui.savedClose": {
+    "sourceHash": "d8c7d57e39650dffad622f128a77603ac465c0e9442510efd5984bc20bd554c5"
+  },
+  "webhook.ui.eventsTitle": {
+    "sourceHash": "a4dc65a74d4d35c3342768d3ffc044322346ac6af30a3be66f5d68fd3c178bfe"
+  },
+  "webhook.ui.enable": {
+    "sourceHash": "e153c8615ae8fb8eaae2ddd91a60ca1332517342dc61f8bb6fd6055bc5fe5556"
+  },
+  "webhook.ui.enableHint": {
+    "sourceHash": "08e5441fc9a73512ed216106a09cc0fd1da5bfb4b98a7e707fc0849c2525f38d"
+  },
+  "webhook.ui.endpoints": {
+    "sourceHash": "e7e64d3466d45eae56333868d6758491d06cb28332235dc36830716308a5a514"
+  },
+  "webhook.ui.endpointCount": {
+    "sourceHash": "af35fb3ca68d7e24c68c7ca0c884a962a1cc4bebb57f72de0aaeac9926abecf8"
+  },
+  "webhook.ui.add": {
+    "sourceHash": "61e9e30810b06829c5aeaa14af5a030efbfc7c786cde8d71650a2b16b8aa9e22"
+  },
+  "webhook.ui.empty": {
+    "sourceHash": "5148e9618372fc10de44b1db45125b8d2467b3bf62e0018ac0e6bf31cbad1ab6"
+  },
+  "webhook.ui.emptyHint": {
+    "sourceHash": "550f78b0821217839a0fcdb3d5c58418f4431cff1b7cfb3f1b80ed344db391d9"
+  },
+  "webhook.ui.disabled": {
+    "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+  },
+  "webhook.ui.neverDelivered": {
+    "sourceHash": "a551319a143aa61f78013edeeb80d380983125c9234db4db5be15a8b3705221a"
+  },
+  "webhook.ui.deliveredAt": {
+    "sourceHash": "18a6ca1bdeccedf53fa8761f0ecbc400edc0cdf42c97c4c7ebb2dd87ed27465f"
+  },
+  "webhook.ui.failedAt": {
+    "sourceHash": "d1bb58f346b34426816dd392545295f099645a95ac54eea71e6aa5a61a315d1e"
+  },
+  "webhook.ui.nativeFormat": {
+    "sourceHash": "cc81fb28ec6f41211fe1330fdd0531e8659366b26b89038c39cca9d55d420c44"
+  },
+  "webhook.ui.jellyfinFormat": {
+    "sourceHash": "dc57d3a9fdc4868128b4ee68cb65b05b92d96501bbab54cb2cab3813bc1f1091"
+  },
+  "webhook.ui.more": {
+    "sourceHash": "083833f1a1f22a1fc48758daa545094eb1eaa67bcd4f0c098ec721586e243d12"
+  },
+  "webhook.ui.sendTest": {
+    "sourceHash": "a49d32136de15e77a5ecbf7e4873cc57953088ba26b128a4b6de7267670e794d"
+  },
+  "webhook.ui.hideDeliveries": {
+    "sourceHash": "2eac1a18b481cf0646ad3dddf2792069aa128a3a3c5c570b0dddff21aae706f4"
+  },
+  "webhook.ui.deliveries": {
+    "sourceHash": "4ae869bd21739174589f7f5accd7094f823dd9aaef70a4f8588783d9367f891e"
+  },
+  "webhook.ui.enableEndpoint": {
+    "sourceHash": "6ef70ab095562e98045761e6e35f2db2f7fefdc892174c57d9ccc76f8d96ae3e"
+  },
+  "webhook.ui.noRecords": {
+    "sourceHash": "a295dc991f1f60d389ad03f10e74d32a92bbfabaa57d4b3cb1c2771f1086ba38"
+  },
+  "webhook.ui.notDelivered": {
+    "sourceHash": "0421e4dbe3acd2404934d1c3ed4b81b3df959084b931c9c67dc170ab1ba10dc1"
+  },
+  "webhook.ui.deliverySummary": {
+    "sourceHash": "b3d61e9d13d97a8baa04be1afed3a53566b5f4b0708be24823323436200ee937"
+  },
+  "webhook.ui.edit": {
+    "sourceHash": "ed5bb27f57c6bd73ce7502ef24b893b6dc36343fb65c1fd799dca43586bd753c"
+  },
+  "webhook.ui.name": {
+    "sourceHash": "4587cc06a981e3cd5eb8b805554176b49aa31af0d5f9fe76a727471a9e1215fa"
+  },
+  "webhook.ui.namePlaceholder": {
+    "sourceHash": "bc678318d2a7f02a798f8194f5ade1f02f3a0f1682109055400672e19036af3f"
+  },
+  "webhook.ui.url": {
+    "sourceHash": "fb60c9043c7ab1ccef549aa7c74954af61f1d1eb7787ca16af1c58436981a9f2"
+  },
+  "webhook.ui.format": {
+    "sourceHash": "5d272407307724da487c6263a77051df85d6e58b9b45a1f5d2daea36d71b4ecd"
+  },
+  "webhook.ui.nativeTab": {
+    "sourceHash": "8a2f2aec1e8f8be7d2387a818611e990d04da5027a296e390b44457c224b07bb"
+  },
+  "webhook.ui.jellyfinTab": {
+    "sourceHash": "ab8268de3cf625cc12068f729ce6c802c8663a5611be879a3cb338978d0eaacd"
+  },
+  "webhook.ui.jellyfinHint": {
+    "sourceHash": "46343c6b0b63e2b1c0b178c6df72c5a8c7167dad40cef17ef5cc1e3ec7abbcf5"
+  },
+  "webhook.ui.templateLabel": {
+    "sourceHash": "1d7231b43375419e229b0f48ecb58a310cea423b1142274099e2d2898b755dc3"
+  },
+  "webhook.ui.headersLabel": {
+    "sourceHash": "afae3eebf484378c8431cd1bbbd927f717450911eceff9e49f65abe4417255dc"
+  },
+  "webhook.ui.subscribedEvents": {
+    "sourceHash": "b319c36f3ddc1d383663da37eb06d044a042811bb88e4a7e6fdad95cc0831f55"
+  },
+  "webhook.ui.unsupported": {
+    "sourceHash": "75879a6933aba20afc00f89de65b4f153adec0fbdc83b0a332eab450b2728300"
+  },
+  "webhook.ui.egress": {
+    "sourceHash": "5c2e637cd4bc84c5b3ab1568376b6b6c9a384c010726bce0742a38da0f625f08"
+  },
+  "webhook.ui.lan": {
+    "sourceHash": "44f5bbdb1b5b05a51e538c39ac4bffc3321086c511b8b5297642010eb7f2ecd2"
+  },
+  "webhook.ui.wan": {
+    "sourceHash": "9ed57782c11e5600d4d6ac5e8aea36eaa10b1fa6fdd3d246a00ce6e880fd28e9"
+  },
+  "webhook.ui.secretHint": {
+    "sourceHash": "1858ab1aff9ee45c0aa93d35739d7d8b3aac2f57d32fe8c5a066ad8f71e7b724"
+  },
+  "webhook.ui.none": {
+    "sourceHash": "c7bcc6d27f3abaaa5410e40c17f0c5ca79781a74e176695193c22aa4a8064d62"
+  },
+  "webhook.ui.rotate": {
+    "sourceHash": "9b6963e8b30902e8c8bea31c6f09e1cbb29b0adc32188e985e189d2fa4dbbd6d"
+  },
+  "webhook.ui.editAction": {
+    "sourceHash": "051836569928a9f91145a70e00b212b62a06c21a97d2d828cb75acd3fbe851b9"
   }
 }
