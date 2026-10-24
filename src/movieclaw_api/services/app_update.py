@@ -50,8 +50,8 @@ import httpx
 
 from movieclaw_api import __version__
 from movieclaw_api.core.config import get_settings
-from movieclaw_api.exceptions import BadRequestException
-from movieclaw_api.i18n.stored import reference, render_value
+from movieclaw_api.exceptions import AppException, BadRequestException
+from movieclaw_api.i18n.stored import reference, render_value, stored_fields, stored_message
 from movieclaw_api.schemas.app_update import (
     GithubTokenView,
     LastAbnormalExitView,
@@ -150,22 +150,36 @@ def _is_newer(candidate: str, current: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+class _UpdateError(RuntimeError):
+    def __init__(self, key: str, **params) -> None:
+        self.message_ref = reference(key, **params)
+        super().__init__(stored_fields(key, **params)["message"])
+
+
+def _error_reference(error: Exception) -> str | dict:
+    if isinstance(error, _UpdateError):
+        return error.message_ref
+    if isinstance(error, AppException) and error.message_key:
+        return reference(error.message_key, **error.params)
+    return str(error)
+
+
 @dataclass
 class _Progress:
     phase: str = "idle"
-    detail: str = ""
+    detail: str | dict = ""
     percent: float | None = None
-    error: str | None = None
+    error: str | dict | None = None
     target_version: str | None = None
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     def set(
         self,
         phase: str,
-        detail: str = "",
+        detail: str | dict = "",
         *,
         percent: float | None = None,
-        error: str | None = None,
+        error: str | dict | None = None,
         target_version: str | None = ...,  # type: ignore[assignment]
     ) -> None:
         with self.lock:
@@ -180,9 +194,9 @@ class _Progress:
         with self.lock:
             return UpdateProgressView(
                 phase=self.phase,
-                detail=self.detail,
+                detail=render_value(self.detail),
                 percent=self.percent,
-                error=self.error,
+                error=render_value(self.error),
                 target_version=self.target_version,
             )
 
@@ -233,7 +247,7 @@ def _read_last_abnormal_exit() -> LastAbnormalExitView | None:
             at=ts,
             reason=str(data.get("reason", "")),
             exit_code=int(data.get("exit_code", 1)),
-            detail=str(data.get("detail", "")),
+            detail=stored_message(str(data.get("detail", ""))),
         )
     except Exception:
         return None
@@ -255,34 +269,34 @@ def dismiss_last_abnormal_exit() -> None:
         )
 
 
-def _overlay_state(vdir: Path) -> tuple[str, bool, str]:
+def _overlay_state(vdir: Path) -> tuple[str, bool, str | dict]:
     """判定一个 overlay 版本目录能否被 entrypoint 采用（与其校验口径一致）。
 
-    返回 (版本号, 是否可用, 不可用原因的中文说明)。status 的 has_previous、
+    返回 (版本号, 是否可用, 不可用原因引用；无原因时为空字符串)。status 的 has_previous、
     rollback 的目标校验、previous 指针的候选校验都用它——「能回退/会生效」
     的承诺必须以 entrypoint 真实会接受为准，否则用户会经历一次什么都没变的
     全量重启。
     """
     manifest_path = vdir / _MANIFEST_NAME
     if not vdir.is_dir() or not manifest_path.is_file():
-        return "", False, "缺少更新清单"
+        return "", False, reference("settings.update.manifestMissing")
     try:
         manifest = json.loads(manifest_path.read_bytes())
         version = str(manifest["version"])
         requires = int(manifest["requires_runtime"])
     except Exception:
-        return "", False, "更新清单损坏"
+        return "", False, reference("settings.update.manifestCorrupt")
     runtime = _runtime_version()
     if runtime is not None and requires != runtime:
         if requires > runtime:
-            reason = f"需要 runtime {requires}（当前镜像为 {runtime}），需升级镜像"
+            reason = reference("settings.update.runtimeNewer", required=requires, current=runtime)
         else:
             # requires < runtime 只可能是升级镜像前装的残留（安装时二者必相等，
             # 见 start_update 的前置校验），启动清场 prune_stale_overlays 会删掉它
-            reason = f"为旧镜像构建（runtime {requires}，当前镜像为 {runtime}），已停用"
+            reason = reference("settings.update.runtimeOlder", required=requires, current=runtime)
         return version, False, reason
     if _is_marked_bad(version):
-        return version, False, "曾连续启动失败，已被自动回落保护"
+        return version, False, reference("settings.update.markedBad")
     return version, True, ""
 
 
@@ -314,7 +328,9 @@ def build_status() -> UpdateStatusView:
         version, usable, reason = _overlay_state(Path(current))
         if version and version != running_overlay:
             inactive_version = version
-            inactive_reason = reason if not usable else "尚未生效（等待应用重启）"
+            inactive_reason = render_value(
+                reason if not usable else reference("settings.update.awaitingRestart")
+            )
 
     return UpdateStatusView(
         current_version=__version__,
@@ -756,16 +772,15 @@ def _atomic_symlink(target: Path, link: Path) -> None:
         # EXDEV(18)：ZFS 上 rename 符号链接的跨设备错误
         if exc.errno != errno.EXDEV:
             raise
-        logger.warning(
-            "检测到文件系统不支持原子替换符号链接（EXDEV），改用 mv 兜底：%s", link
-        )
-    result = subprocess.run(
-        ["mv", "-T", "--", str(tmp), str(link)], capture_output=True, text=True
-    )
+        logger.warning("检测到文件系统不支持原子替换符号链接（EXDEV），改用 mv 兜底：%s", link)
+    result = subprocess.run(["mv", "-T", "--", str(tmp), str(link)], capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(
-            f"符号链接替换失败：{tmp} -> {link}（mv rc={result.returncode}）："
-            f"{result.stderr.strip()}"
+        raise _UpdateError(
+            "settings.update.symlinkFailed",
+            source=str(tmp),
+            target=str(link),
+            code=result.returncode,
+            error=result.stderr.strip(),
         )
 
 
@@ -775,10 +790,7 @@ def _verify_sha256(path: Path, expected: str) -> None:
         for chunk in iter(lambda: fh.read(1024 * 1024), b""):
             digest.update(chunk)
     if digest.hexdigest() != expected:
-        raise RuntimeError(
-            f"{path.name} 的校验和不匹配（下载可能被篡改或不完整）。"
-            "若使用了加速镜像，请更换镜像或改为直连后重试"
-        )
+        raise _UpdateError("settings.update.checksumFailed", name=path.name)
 
 
 def _extract(tar_path: Path, dest: Path) -> None:
@@ -797,7 +809,7 @@ def _validate_layout(version_dir: Path) -> None:
         "web/apps/web/server.js",
     ):
         if not (version_dir / rel).is_file():
-            raise RuntimeError(f"更新产物解包后布局异常（缺少 {rel}），已放弃本次更新")
+            raise _UpdateError("settings.update.layoutInvalid", path=rel)
 
 
 def _declared_revisions(alembic_dir: Path) -> set[str]:
@@ -835,12 +847,7 @@ def _ensure_database_known(version_dir: Path, version: str) -> None:
     if rev is None:
         return
     if rev not in _declared_revisions(version_dir / "backend" / "alembic"):
-        raise RuntimeError(
-            f"数据库当前的迁移位置「{rev}」不在 v{version} 的迁移记录里，装上后新版本"
-            "不认识这个数据库、无法启动，已放弃本次更新。通常是数据库被自行修改过的"
-            "代码或非正式版本迁移过：请先把数据库恢复到正式版本的状态"
-            "（data/updates/backup 下有历史备份）再更新"
-        )
+        raise _UpdateError("settings.update.migrationUnknown", revision=rev, version=version)
 
 
 def _db_path() -> Path | None:
@@ -907,9 +914,7 @@ def _backup_database(updates: Path) -> None:
             src.close()
     except sqlite3.Error as exc:
         target.unlink(missing_ok=True)
-        raise RuntimeError(
-            f"更新前的数据库自动备份失败（{exc}），为保护数据已中止本次更新"
-        ) from exc
+        raise _UpdateError("settings.update.backupFailed", error=str(exc)) from exc
     sidecar = {
         "from_version": __version__,
         "alembic_rev": _read_alembic_rev(db_path),
@@ -994,11 +999,11 @@ def _apply_downloaded(
     final_dir = versions_dir / f"v{_sanitize(version)}"
     partial_dir = versions_dir / f"v{_sanitize(version)}.partial"
 
-    _progress.set("verifying", "正在校验下载文件的完整性……", target_version=version)
+    _progress.set("verifying", reference("settings.update.verifying"), target_version=version)
     for name in _ARTIFACT_NAMES:
         _verify_sha256(download_dir / name, manifest["files"][name]["sha256"])
 
-    _progress.set("applying", "正在解包并安装新版本……", target_version=version)
+    _progress.set("applying", reference("settings.update.applying"), target_version=version)
     shutil.rmtree(partial_dir, ignore_errors=True)
     try:
         _extract(download_dir / "app-backend.tar.gz", partial_dir / "backend")
@@ -1129,7 +1134,7 @@ def _download_and_apply(
             for name in _ARTIFACT_NAMES:
                 _progress.set(
                     "downloading",
-                    f"正在下载 {name}……",
+                    reference("settings.update.downloading", name=name),
                     percent=(done / total * 100) if total else None,
                     target_version=version,
                 )
@@ -1143,17 +1148,15 @@ def _download_and_apply(
                             if total:
                                 _progress.set(
                                     "downloading",
-                                    f"正在下载 {name}……",
+                                    reference("settings.update.downloading", name=name),
                                     percent=min(done / total * 100, 100.0),
                                     target_version=version,
                                 )
-        _apply_downloaded(
-            manifest, tmp_dir, keep_versions=keep_versions, release_info=release_info
-        )
+        _apply_downloaded(manifest, tmp_dir, keep_versions=keep_versions, release_info=release_info)
         shutil.rmtree(tmp_dir, ignore_errors=True)
         _progress.set(
             "restarting",
-            f"新版本 v{version} 安装完成，正在重启应用……",
+            reference("settings.update.installed", version=version),
             target_version=version,
         )
         schedule_restart(FULL_RESTART_EXIT_CODE)
@@ -1162,13 +1165,13 @@ def _download_and_apply(
         _progress.set(
             "failed",
             "",
-            error="下载更新产物失败，请检查网络（可配置加速镜像 UPDATE_DOWNLOAD_MIRROR）后重试",
+            error=reference("settings.update.downloadFailed"),
             target_version=version,
         )
         shutil.rmtree(tmp_dir, ignore_errors=True)
     except Exception as exc:
         logger.exception("应用内更新失败")
-        _progress.set("failed", "", error=str(exc), target_version=version)
+        _progress.set("failed", "", error=_error_reference(exc), target_version=version)
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
@@ -1178,7 +1181,7 @@ async def start_update() -> UpdateProgressView:
         raise BadRequestException(message_key="errors.appUpdate.deploymentUnsupported")
     if _progress.busy():
         raise BadRequestException(message_key="errors.appUpdate.alreadyRunning")
-    _progress.set("checking", "正在获取最新版本信息……", target_version=None)
+    _progress.set("checking", reference("settings.update.checking"), target_version=None)
     try:
         release, manifest = await _fetch_latest_release()
         if not _is_newer(manifest["version"], __version__):
@@ -1346,10 +1349,10 @@ def _download_and_apply_model(release: dict, manifest: dict) -> None:
             for name in _MODEL_FILES:
                 asset = assets.get(name)
                 if asset is None:
-                    raise RuntimeError(f"模型发布 {tag} 缺少文件 {name}，无法安装")
+                    raise _UpdateError("settings.update.modelFileMissing", tag=tag, name=name)
                 _progress.set(
                     "downloading",
-                    f"正在下载模型文件 {name}……",
+                    reference("settings.update.modelDownloading", name=name),
                     percent=(done / total * 100) if total else None,
                     target_version=tag,
                 )
@@ -1362,16 +1365,16 @@ def _download_and_apply_model(release: dict, manifest: dict) -> None:
                             if total:
                                 _progress.set(
                                     "downloading",
-                                    f"正在下载模型文件 {name}……",
+                                    reference("settings.update.modelDownloading", name=name),
                                     percent=min(done / total * 100, 100.0),
                                     target_version=tag,
                                 )
-        _progress.set("verifying", "正在校验模型文件的完整性……", target_version=tag)
+        _progress.set("verifying", reference("settings.update.modelVerifying"), target_version=tag)
         _install_model_files(tag, manifest, tmp_dir)
         shutil.rmtree(tmp_dir, ignore_errors=True)
         _progress.set(
             "restarting",
-            f"模型 {tag} 安装完成，正在重启应用生效……",
+            reference("settings.update.modelInstalled", tag=tag),
             target_version=tag,
         )
         # 必须走 43 全量重启：MOVIECLAW_NER_DIR 是 entrypoint 解析模型指针后
@@ -1383,13 +1386,13 @@ def _download_and_apply_model(release: dict, manifest: dict) -> None:
         _progress.set(
             "failed",
             "",
-            error="下载模型文件失败，请检查网络（可配置加速镜像 UPDATE_DOWNLOAD_MIRROR）后重试",
+            error=reference("settings.update.modelDownloadFailed"),
             target_version=tag,
         )
         shutil.rmtree(tmp_dir, ignore_errors=True)
     except Exception as exc:
         logger.exception("模型更新失败")
-        _progress.set("failed", "", error=str(exc), target_version=tag)
+        _progress.set("failed", "", error=_error_reference(exc), target_version=tag)
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
@@ -1399,7 +1402,7 @@ async def start_model_update() -> UpdateProgressView:
         raise BadRequestException(message_key="errors.appUpdate.modelDeploymentUnsupported")
     if _progress.busy():
         raise BadRequestException(message_key="errors.appUpdate.alreadyRunning")
-    _progress.set("checking", "正在获取最新模型信息……", target_version=None)
+    _progress.set("checking", reference("settings.update.modelChecking"), target_version=None)
     try:
         release = await _fetch_latest_model_release()
         tag = release["tag_name"]
@@ -1666,18 +1669,20 @@ def rollback() -> str:
         else:
             _atomic_symlink(prev_target, current)
             previous.unlink(missing_ok=True)
-        message = "已切换到上一版本，应用正在重启……如需撤销可再次回退切回"
+        message = reference("settings.update.previousSwitched")
     elif current.is_symlink() and os.environ.get("MOVIECLAW_OVERLAY_VERSION"):
         current.unlink()
-        message = "没有可用的更早版本，已回落到镜像内置版本，应用正在重启……"
+        message = reference("settings.update.baselineSwitched")
     else:
         raise BadRequestException(message_key="errors.appUpdate.noRollbackTarget")
-    logger.info("应用回退：%s", message)
+    logger.info(
+        "应用回退：%s", stored_fields(message["message_key"], **message["params"])["message"]
+    )
     # 占住 busy 态：重启前的窗口（响应缓冲 + 优雅停机最长约 11 秒）内
     # 拒绝并发的更新/再回退请求，与更新线程置 restarting 的做法对称
-    _progress.set("restarting", "正在回退并重启应用……", target_version=None)
+    _progress.set("restarting", reference("settings.update.rollingBack"), target_version=None)
     schedule_restart(FULL_RESTART_EXIT_CODE)
-    return message
+    return render_value(message)
 
 
 # ---------------------------------------------------------------------------
@@ -1919,13 +1924,25 @@ def rollback_to(target: str, restore_backup: bool) -> str:
 
     if backup is not None:
         _stage_restore(updates, backup, target_label)
-        message = f"正在回退到{target_label}并恢复对应时点的数据备份，应用即将重启……"
+        message = reference(
+            "settings.update.rollbackRestore",
+            target=reference("settings.update.builtinVersion")
+            if target == "baseline"
+            else target_label,
+        )
     else:
-        message = f"正在回退到{target_label}，应用即将重启……"
-    logger.info("应用回退：%s", message)
+        message = reference(
+            "settings.update.rollbackSwitch",
+            target=reference("settings.update.builtinVersion")
+            if target == "baseline"
+            else target_label,
+        )
+    logger.info(
+        "应用回退：%s", stored_fields(message["message_key"], **message["params"])["message"]
+    )
     _progress.set("restarting", message, target_version=None)
     schedule_restart(FULL_RESTART_EXIT_CODE)
-    return message
+    return render_value(message)
 
 
 def execute_pending_restore() -> None:

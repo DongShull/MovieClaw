@@ -931,5 +931,119 @@
   },
   "webhook.template.unclosed": {
     "sourceHash": "8e33f883c4f41430ac8369381b7948c2d89e369c4139e60fe569fe96d54cb6da"
+  },
+  "update.verifying": {
+    "sourceHash": "ccc9dfcf375d5eb5f55c64842c53cf1d31ec21e0bab0cd9d1ab1406ea92f7f8c"
+  },
+  "update.applying": {
+    "sourceHash": "9c98f9d5bcff601d4d36ae46e2dc7f31d8d224d034aebc687660364e50cfaa42"
+  },
+  "update.downloading": {
+    "sourceHash": "13904e460d5b969753bd3040d82aa48806bbacfaeb3b6716f42f99e133f5c75b"
+  },
+  "update.installed": {
+    "sourceHash": "dd136ab59a9d40ece856dbea1f0b5ee0d7b94df11a82461bd219e59a19cda94b"
+  },
+  "update.downloadFailed": {
+    "sourceHash": "528c443ad0473b39602eb5736fb04f8668c1423edc4eea856900d151e50c9879"
+  },
+  "update.checking": {
+    "sourceHash": "361a5f463aea12d26fd2158293af2ca29ecb9caad23175adb742cfb61aceeecb"
+  },
+  "update.modelDownloading": {
+    "sourceHash": "a357e087b48d5eb9206cf1c7f4a5acabc23d5c5c1d2658413a92dc32140f462a"
+  },
+  "update.modelVerifying": {
+    "sourceHash": "aef4343e2ff7acf46ff589cdd28f4a5381b12478f5c31155411de0595d6f4738"
+  },
+  "update.modelInstalled": {
+    "sourceHash": "a480a5cee0c2de807537dcc3679a82e2137c91262ddfa7882cf3916da5f69d84"
+  },
+  "update.modelDownloadFailed": {
+    "sourceHash": "30c62cad5144826f9e4b1ec197b2d9f9f8dad50162c3b9a35af4cc566edb242f"
+  },
+  "update.modelChecking": {
+    "sourceHash": "84a5cf7d13dac1819be7ad6c4873e3dc4f8d8403559939d2dfb674029ef84ff0"
+  },
+  "update.previousSwitched": {
+    "sourceHash": "d8e47ad6bbed858ba36ee3aef615a0a4bf7807f39db88aa1a713667b4393b161"
+  },
+  "update.baselineSwitched": {
+    "sourceHash": "fc446d86930fa37c1f628b2278125d483b7b954ff5ec6f7c3dec4eca12083d1e"
+  },
+  "update.rollingBack": {
+    "sourceHash": "6d9fc14902572a5cbccba8ce05a655dd4026821a5e3e9ba958c165d8c9f70569"
+  },
+  "update.builtinVersion": {
+    "sourceHash": "9d9ce1628c069f2b85725c91d232bb01af16e02050d48c8f2eeee5ee21115e90"
+  },
+  "update.rollbackRestore": {
+    "sourceHash": "fde97a4f872535d4b5e79bc7cbeff81d937c6ae222d81bea3a147e40910f77d5"
+  },
+  "update.rollbackSwitch": {
+    "sourceHash": "e4a2043a4382b183d0d4d5dd3e5ef468f6cf390743a7f3ea9705afa072062eaa"
+  },
+  "update.manifestMissing": {
+    "sourceHash": "2a2b4ed99c8ab6a33600cd6fb0ae0f26543b88ada354e2f0e68be55a2fec5f24"
+  },
+  "update.manifestCorrupt": {
+    "sourceHash": "6e2f43d4d6188dc9ef901e5dbe82254a96d1cd286bade32cf73412fe5132328b"
+  },
+  "update.runtimeNewer": {
+    "sourceHash": "10dbca4250f13928ebed777c9a77f5afeda9c91c63f161ffa267525077537fb2"
+  },
+  "update.runtimeOlder": {
+    "sourceHash": "e376c447b2d71e627308f56b359480419aedab07374c55e7185c5e905f134984"
+  },
+  "update.markedBad": {
+    "sourceHash": "051b858e30245d3c7ad6f2bd1edd8135b64c5945fcc8ff53b7b6706c8eaf4f89"
+  },
+  "update.awaitingRestart": {
+    "sourceHash": "96bd4562cc4b16ea7f12554e7d77ecefbaa612b87e5779de5484c301c891b74e"
+  },
+  "update.symlinkFailed": {
+    "sourceHash": "073c39780fd5454dde7d718d9973dc0d3c75511fcbd36de84407bad1ab6505f1"
+  },
+  "update.checksumFailed": {
+    "sourceHash": "e66dfee456b2cfe07a07c3d28f332da1553d18b47ca3cfbbf487f382a712801a"
+  },
+  "update.layoutInvalid": {
+    "sourceHash": "2fd170cfdba5ef72b3f8ee005711d91d40f57e8f0c57d3b39708c5008eea00cc"
+  },
+  "update.migrationUnknown": {
+    "sourceHash": "ef83f98f63d91e5f650da4f81d278f24839514ec9fdbc6303629ec8160f39d45"
+  },
+  "update.backupFailed": {
+    "sourceHash": "801f702e73f6228daffec41ad9887535fe50488d47f9dbd93457122f875ae6cc"
+  },
+  "update.modelFileMissing": {
+    "sourceHash": "461a862716b0b517ac3fbe036f345213d53010d4e6242c216212c445f8da88da"
+  },
+  "update.exitStartup": {
+    "sourceHash": "28fe3a7245793c2e624d324681233260234c2c1f649f5f906435ae610e72a56d"
+  },
+  "update.exitRestart": {
+    "sourceHash": "7b6ace7dd66986edcec2899ffeebfce9b78e31a6aa16b2058aab803778880d52"
+  },
+  "update.exitUpdate": {
+    "sourceHash": "d57d9e81c316db8c31105ed513bc93ea137b4e90f30983158daf18aeb137516f"
+  },
+  "update.exitApi": {
+    "sourceHash": "b386fa4a46b6f56c481104adb67ad795afd0922e644a02cdd1808bf8406adbbf"
+  },
+  "update.exitWeb": {
+    "sourceHash": "64e93c30a72b7d8c95bf60fd626d51b470dea8f94ec5efed840e2ba352e39df4"
+  },
+  "update.exitNginx": {
+    "sourceHash": "5ef8bb36f66c876ca7e2ff4ec80f5690725e718164a7c676dddbdf82919e5a2f"
+  },
+  "update.exitHealth": {
+    "sourceHash": "8a57fe14fc7b481d4437ee808396c087f1a0f5591db23c7278bf3e106db9bbc3"
+  },
+  "update.exitWatchdog": {
+    "sourceHash": "cc143fbcc4a3f3785092ac83610d7b5a00b9e6d4d15fef7040dfde010cd0faa3"
+  },
+  "update.exitUnknown": {
+    "sourceHash": "7bc31562b3de6ab5a6ab25b435c3ec065a349245c2db2ee1e407160955e65d56"
   }
 }
