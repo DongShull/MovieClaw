@@ -61,5 +61,12 @@
     "back": "返回上一页",
     "newTask": "新任务",
     "accountMenu": "账号菜单"
+  },
+  "more": {
+    "quickAccess": "常用",
+    "account": "账号",
+    "noSessions": "还没有会话，点上方的「新会话」开始。",
+    "loadingMore": "正在加载更多会话…",
+    "profileAria": "{name}，查看和修改个人信息"
   }
 }

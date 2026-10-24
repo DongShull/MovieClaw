@@ -61,5 +61,12 @@
     "back": "Go back",
     "newTask": "New task",
     "accountMenu": "Account menu"
+  },
+  "more": {
+    "quickAccess": "Quick access",
+    "account": "Account",
+    "noSessions": "No sessions yet. Select “New session” above to start.",
+    "loadingMore": "Loading more sessions…",
+    "profileAria": "{name}, view and edit profile"
   }
 }

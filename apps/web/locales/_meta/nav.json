@@ -151,5 +151,20 @@
   },
   "cinema.accountMenu": {
     "sourceHash": "61fda3606981006b5c9d43258b76cc9c4025b2feb6e63ab49947f30034831fb3"
+  },
+  "more.quickAccess": {
+    "sourceHash": "4563c57b5143deaa74ff41804744da8ce8af543939c516fd86c809b4334cddd7"
+  },
+  "more.account": {
+    "sourceHash": "311bb313fdeca6aa2ce7d9415821a0b0247e064340241f68bac3ca5b19ae6d76"
+  },
+  "more.noSessions": {
+    "sourceHash": "d25465ff48fa8c6d6d00985a877eb72a2d6fc234e5c659db6505fd1d55fee0b4"
+  },
+  "more.loadingMore": {
+    "sourceHash": "f1ccf01dde3d3bfa65757e284b8da5b5e3f450f10d5ab2d285e16b9be66c68c8"
+  },
+  "more.profileAria": {
+    "sourceHash": "b12e19e5454597b26f9e8c1df8f13092c606030d5dad6fa13be637a60ad00758"
   }
 }
