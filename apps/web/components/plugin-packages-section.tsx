@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -401,6 +401,7 @@ export function ReviewDrawer({
   ) => void;
   onDiscard: (item: PackageRequest) => void;
 }) {
+  const t = useTranslations();
   const locale = useLocale();
   const [allowInline, setAllowInline] = useState(false);
   const [allowMembers, setAllowMembers] = useState(false);
@@ -566,7 +567,7 @@ export function ReviewDrawer({
                   </li>
                 ))}
               </ul>
-              <p className="text-[var(--danger)]">{WEB_PAGE_RISK}</p>
+              <p className="text-[var(--danger)]">{t(WEB_PAGE_RISK)}</p>
               <label className="flex items-center gap-2 text-[var(--danger)]">
                 <input
                   type="checkbox"

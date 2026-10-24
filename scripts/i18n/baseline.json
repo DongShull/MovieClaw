@@ -259,8 +259,6 @@
   "apps/web/components/plugin-detail.tsx": 149,
   "apps/web/components/plugin-market.tsx": 63,
   "apps/web/components/plugin-packages-section.tsx": 102,
-  "apps/web/components/plugin-web-pages-section.tsx": 31,
-  "apps/web/components/plugins-section.tsx": 28,
   "apps/web/components/reel-clips-tip.tsx": 3,
   "apps/web/components/reel-clips-toggle-section.tsx": 20,
   "apps/web/components/remote-transcode-section.tsx": 53,
