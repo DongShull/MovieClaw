@@ -1537,5 +1537,30 @@
     "nameLabel": "「{title}」的名字",
     "unwatched": "只显示我没看过的",
     "remove": "删除这一行"
+  },
+  "sourceAnnotation": {
+    "remuxHint": "原盘无损重封装，可标注的最高档；达到任何洗版目标，停止洗版",
+    "blurayLabel": "蓝光重编码",
+    "blurayHint": "蓝光碟压制；高于 WEB-DL 目标，仅低于 Remux 目标",
+    "webDlHint": "流媒体原流；洗版目标为 WEB-DL 时即达标停洗",
+    "webRipHint": "流媒体二压；低于 WEB-DL 及以上目标，会自动洗版替换",
+    "hdtvLabel": "TV 录制",
+    "hdtvHint": "电视录制；低于洗版目标，会自动洗版替换",
+    "lowestLabel": "不确定（按最低档）",
+    "lowestHint": "按最差处理：整季会重新下载，替换为可证明达标的版本",
+    "loadFailed": "未能加载待标注文件列表，请稍后重试",
+    "applyFailed": "标注失败，请稍后重试",
+    "movie": "正片",
+    "specials": "特别篇",
+    "season": "第 {season} 季",
+    "applied": "已将 {scope}的 {count} 个文件片源标注为「{source}」",
+    "modalLabel": "标注片源",
+    "title": "标注{scope}的片源",
+    "hint": "这些文件的文件名里没有可识别的片源标记，系统无法确认它们是否低于洗版目标。 看一眼文件名，把你知道的来源告诉系统——标注一次，之后整季自动参与洗版判定。",
+    "loading": "正在加载文件列表…",
+    "empty": "{scope}没有片源未知的文件——已从文件名解析出片源的文件不会被批量覆盖。",
+    "current": "现为 {source}",
+    "count": "共 {count} 个文件将被统一标注",
+    "confirm": "确认标注"
   }
 }

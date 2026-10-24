@@ -4390,5 +4390,74 @@
   },
   "customize.remove": {
     "sourceHash": "5969c695dbc46f4977d1e930036699b1e724e81eb14c77e3421352bbcab9b4a4"
+  },
+  "sourceAnnotation.remuxHint": {
+    "sourceHash": "76e1e25375b4da5dd6b1d57e2662ee26c982f0569f53bfc4578e72de76ef08ab"
+  },
+  "sourceAnnotation.blurayLabel": {
+    "sourceHash": "c88b1d0bcdcad1f20255324af09c1788066d1d4e32114debbbb91c73a555dcfa"
+  },
+  "sourceAnnotation.blurayHint": {
+    "sourceHash": "24847d93d61f835ebe8b7fe8b9c1e4b32107d63f4c7080bcf13303957a6c08ca"
+  },
+  "sourceAnnotation.webDlHint": {
+    "sourceHash": "69dd9ca3f4aa7702f37518f432fc2ebb92ea8590751df5fd01b4d393ac2536d0"
+  },
+  "sourceAnnotation.webRipHint": {
+    "sourceHash": "1980f052fdf6efcecca1e2c794463b4ae435a03f8ed73e6cf0650d4b9270f20b"
+  },
+  "sourceAnnotation.hdtvLabel": {
+    "sourceHash": "dc35f15ea5e5d8ac833126e602e0b5873fd00c78c3849553d4083dd726b57f5e"
+  },
+  "sourceAnnotation.hdtvHint": {
+    "sourceHash": "784df561fd123603801a6b68468c6b687d7bcec8568f0e782a67e6d3240d7b53"
+  },
+  "sourceAnnotation.lowestLabel": {
+    "sourceHash": "d441b3df674f4e8f7f93cc6641bf00e5bbb5ca61a26d03ae4339e7d0e845a8c9"
+  },
+  "sourceAnnotation.lowestHint": {
+    "sourceHash": "2b1fd2f61f1c27bb9e59345c0916749db65d3294209411a3741c340e0359a6a6"
+  },
+  "sourceAnnotation.loadFailed": {
+    "sourceHash": "00575a9c20fbc1363cc5862aebe14c3c36534e85707bb9f3684af4028d85b0a8"
+  },
+  "sourceAnnotation.applyFailed": {
+    "sourceHash": "ddef3cb987a4b3327c28fc9518a758f51b36c4e0cb2b546c1ea1d28496b446bb"
+  },
+  "sourceAnnotation.movie": {
+    "sourceHash": "9abc744d488eb3a01c6de14e1733bf45f79a2476d810091e45c16ef226223c74"
+  },
+  "sourceAnnotation.specials": {
+    "sourceHash": "2ad1a072b5342586db1254a30abd3b918c4fd5087a599072f4ee57e3ae144117"
+  },
+  "sourceAnnotation.season": {
+    "sourceHash": "adc168a2165d204da0a9b716058e76b40b636bfb0a168ec164394fdab9f231b2"
+  },
+  "sourceAnnotation.applied": {
+    "sourceHash": "e22e155073994a363c6f765d81309a3f2dbc09765e08def39a86950142c4573f"
+  },
+  "sourceAnnotation.modalLabel": {
+    "sourceHash": "423d46b7a3eca6a64aff9be85644dfb571c55b0dafc2d65cbdd32fcd4e97a487"
+  },
+  "sourceAnnotation.title": {
+    "sourceHash": "ecc19e19ff53484df12f374b4ec7a5eab8c5ee0300fb0887cdd3a27be395109d"
+  },
+  "sourceAnnotation.hint": {
+    "sourceHash": "7b625b28ae09f72b334facb3b0682fd6bc40132d519cfb362d5a6f72eb796122"
+  },
+  "sourceAnnotation.loading": {
+    "sourceHash": "c44f8343c99e17c091d84ab157e5b7e731b58cc373456e4e002ec4a93a5d09b9"
+  },
+  "sourceAnnotation.empty": {
+    "sourceHash": "4161ed57d9ba563decdf63356a5b31f234b1f630e504eec0e52dfe93b389ab1a"
+  },
+  "sourceAnnotation.current": {
+    "sourceHash": "db4c6fe7c69e9f0dd67bd9d0303fedaf2f0659b507fe1b2ab3723379f39ac651"
+  },
+  "sourceAnnotation.count": {
+    "sourceHash": "a7bc9a01f86e8aab377a8bf4904da7c84811ec1efa55c224e8e3b66705bdb003"
+  },
+  "sourceAnnotation.confirm": {
+    "sourceHash": "71b39c8b2bf398046a91e7f5e9c36d60591363d974542869420e49ea692762f5"
   }
 }

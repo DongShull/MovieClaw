@@ -1537,5 +1537,30 @@
     "nameLabel": "Name for “{title}”",
     "unwatched": "Unwatched only",
     "remove": "Delete row"
+  },
+  "sourceAnnotation": {
+    "remuxHint": "Lossless disc remux, the highest assignable tier. Meets every upgrade target and stops upgrades.",
+    "blurayLabel": "Blu-ray re-encode",
+    "blurayHint": "Re-encoded from Blu-ray. Exceeds a WEB-DL target and falls below a Remux target.",
+    "webDlHint": "Original streaming-service file. Meets a WEB-DL target and stops upgrades.",
+    "webRipHint": "Re-encoded streaming media. Below WEB-DL or higher targets and will be replaced automatically.",
+    "hdtvLabel": "TV capture",
+    "hdtvHint": "TV capture. Below upgrade targets and will be replaced automatically.",
+    "lowestLabel": "Uncertain (use lowest tier)",
+    "lowestHint": "Treat as the lowest quality: the whole season will be downloaded again and replaced with a version proven to meet the target.",
+    "loadFailed": "Could not load the files to identify. Try again later.",
+    "applyFailed": "Could not update the source. Try again later.",
+    "movie": "the main feature",
+    "specials": "Specials",
+    "season": "Season {season}",
+    "applied": "Set the source of {count, plural, one {# file} other {# files}} in {scope} to “{source}”.",
+    "modalLabel": "Identify source",
+    "title": "Identify source for {scope}",
+    "hint": "These filenames do not identify their source, so the system cannot compare them with the upgrade target. Check the filenames and identify the source to include these files in automatic upgrade decisions.",
+    "loading": "Loading files…",
+    "empty": "No files with an unknown source in {scope}. Files with a source identified from their names are not overwritten in bulk.",
+    "current": "Currently {source}",
+    "count": "{count, plural, one {# file will} other {# files will}} be updated together",
+    "confirm": "Confirm source"
   }
 }
