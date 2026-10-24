@@ -1689,5 +1689,338 @@
   },
   "devices.approval.entry": {
     "sourceHash": "1899a855f03d0097489ad702806feb0716be53adaf995ce0e789a6a9ca5f1076"
+  },
+  "members.actions.resetHint": {
+    "sourceHash": "af2c32b93947d22dc1722c0823edb65070468f74892533145e42694a62e444a1"
+  },
+  "members.actions.reset": {
+    "sourceHash": "d70928debc2e80cdf099d55b89103a8549e714ba74cc5d72e7fc6ac5c32cff12"
+  },
+  "members.credentials.reset": {
+    "sourceHash": "95f9dfb3208b7701a1582b332531555280d5d4c1d8c3febe931e43fa513dbdb0"
+  },
+  "members.actions.signOutHint": {
+    "sourceHash": "f3c9f23ad42b12e55d0388da723f193e44f9da432ca5d98a0a36ccc3454ecb10"
+  },
+  "members.actions.signOut": {
+    "sourceHash": "5c535ffa78291dda5b7da62f548f6d14a47f04d5d9a656e5f441ed1dd8b7fec0"
+  },
+  "members.actions.disableHint": {
+    "sourceHash": "25d87a7f8d52ea3bbd8772e61ac77eeba9a4b0dcc6db963d89b8f9497a1f47b4"
+  },
+  "members.actions.disable": {
+    "sourceHash": "fe5263bfd4d8cb325ff94822856452212448b18b506b1cbe10d5ec7ef70cf067"
+  },
+  "members.actions.enabledToast": {
+    "sourceHash": "476d47e1ec5f31ba9c6555e39e526953548d48708cf52a63486b453a2ae155a6"
+  },
+  "members.actions.disabledToast": {
+    "sourceHash": "56b6812f5d58060e9278cafe2bd3fc28cad6cbd77f63760dd6d647312fe1e922"
+  },
+  "members.actions.deleteHint": {
+    "sourceHash": "fca8c22199328f21038aab96746e4145800eff972eb2e8f320fad8770a666492"
+  },
+  "members.actions.delete": {
+    "sourceHash": "fa5d8135ce42933a2ee8e97860fb35a872bef44ad24bccb9657ae2217942a2d2"
+  },
+  "members.actions.deletedToast": {
+    "sourceHash": "55ee6204c1198512c3afe841d1c985d21d3fd26a6bde822bc54c7c996074198f"
+  },
+  "members.ui.accounts": {
+    "sourceHash": "6dc33352b8cc028f5d7eaee583f81c5cfc9201c534630247d73b33ca56fa7841"
+  },
+  "members.ui.description": {
+    "sourceHash": "f8c3359bf5bbc5ad93e05dcbeec0be7fc999678e700e94b595b45585aeb1c23b"
+  },
+  "members.ui.add": {
+    "sourceHash": "ad9737dafdbfbc00ea89958ae22c4606cb20d4a28d28fc2a9b40203f1a7f0b8f"
+  },
+  "members.ui.emptyTitle": {
+    "sourceHash": "290c625ad76f62a5770ab24f5da7c821be528e4a3910a07e2ca0235f2ed2643a"
+  },
+  "members.ui.emptyHint": {
+    "sourceHash": "5d8e91ad7db6b7f96218562707569d30362d1cd85abab5c931c5d73cb6989da4"
+  },
+  "members.ui.member": {
+    "sourceHash": "6e6d6ddbb7c1a453d2c1ca55818aaf2fd0af0cddadf5fe1c11f7cab73149f55d"
+  },
+  "members.ui.permissions": {
+    "sourceHash": "df0752fa82921c4b470052a6817b1eee9b027bd8b303b641bb3451fc87826aca"
+  },
+  "members.ui.libraries": {
+    "sourceHash": "37ffac5bf20fcc5137e62ca206a6095abc7e90aee9f0ca089cb055c8ee4d5b6a"
+  },
+  "members.ui.recentActivity": {
+    "sourceHash": "41f5cada11edbc9a4faba948325ea87d335e3f37e438d74594332d88d0b21304"
+  },
+  "members.ui.actions": {
+    "sourceHash": "ed31fbb483ee1b0a40f8b15471b0b3c38191fda4034d5cfa18126b82da496c66"
+  },
+  "members.ui.loading": {
+    "sourceHash": "7a245091cf762982f7b50d4d19ae6d1c26d8870fcb7c0d5bda2c0a43bd197617"
+  },
+  "members.credentials.created": {
+    "sourceHash": "30ff883f31516bead89c90688211267b4faf93a9d07aaf5a19cef2dfe179e18b"
+  },
+  "members.ui.saved": {
+    "sourceHash": "0b56777347cc53d36d05414f74aea08d2b5c5bbb1b2a671412e27c5df8a6754e"
+  },
+  "members.ui.subscribe": {
+    "sourceHash": "cf8efc450f718fbfd2ee60e9871ef625b47c2ef58d2e31635ed848de846a79f8"
+  },
+  "members.ui.search": {
+    "sourceHash": "3868b2488531183ba1e36607b37932241d2661f415b8c522dda4228f62e074ee"
+  },
+  "members.ui.download": {
+    "sourceHash": "4673a2306165612576462979eee34149329ab42aad9b580e726a1fae1ce7ab64"
+  },
+  "members.ui.noOffline": {
+    "sourceHash": "9c1c788883221089a009e8b44986dac03ec1a534757efa228b8ae384c9c4b235"
+  },
+  "members.access.shared": {
+    "sourceHash": "4a64c9b90a843a66a8a131848729a97543c296aef8037aacd47c7e7b7ac57080"
+  },
+  "members.access.unassigned": {
+    "sourceHash": "aff0032ff07a9a7a367122f691a264a36ca3ff3b312b61247287a9e7064aa1e4"
+  },
+  "members.ui.enabled": {
+    "sourceHash": "dfb802238b38fbd49560b461d3ff1ee5cef3a72077c37a1325cb4892c10fd1c8"
+  },
+  "members.ui.disabled": {
+    "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+  },
+  "members.ui.browseOnly": {
+    "sourceHash": "ea1febb207d63480c3e409bc5d732f2eac5351b351b858af76429853a4515f08"
+  },
+  "members.ui.neverSignedIn": {
+    "sourceHash": "ece1a8c76de37ca814f7b425c09a64f0193d0b39333771333d55b35a80123e03"
+  },
+  "members.ui.noDevices": {
+    "sourceHash": "b3898f7aaf4272f80d916b547ab8ad91acf5b3bdc7c1dd478c0158b058dab54d"
+  },
+  "members.ui.edit": {
+    "sourceHash": "d63703b8e54d17cd408b24f323cf6fe59e62e8d1460bf2cf52e629f44ab75dd8"
+  },
+  "members.actions.enable": {
+    "sourceHash": "bdde0e4684274a5bb8ce57451ff15192fe3f7eb85756cf2b76f9e30c97585a25"
+  },
+  "members.ui.usernameShort": {
+    "sourceHash": "e0463233a81f40c6eef0c272946cb6d09674034e78f1706533dd36884bd0ebda"
+  },
+  "members.ui.passwordShort": {
+    "sourceHash": "8c1f117c7dffa08911a95a309bd36cdcc5fa5e39584ca6e26ace132d1f6d14cf"
+  },
+  "members.ui.defaults": {
+    "sourceHash": "9c3b8435cd0163b733e287a64dc016045bd44d1813e6e26437e8ac026491abc3"
+  },
+  "members.credentials.username": {
+    "sourceHash": "1a3f0617d6de8e52b118615b380a998dcf5b35642b485c26a44d2fc3e87a50ba"
+  },
+  "members.credentials.usernameHint": {
+    "sourceHash": "36dc710f39e647734c59db688da2d8474d67ec4161098de59db291d7f5ef9cc0"
+  },
+  "members.credentials.usernameExample": {
+    "sourceHash": "495e6787c5a3c6914fcec719b201b14bec09ee19dd2e8bf82402d8d7bad45311"
+  },
+  "members.ui.nickname": {
+    "sourceHash": "7a1e2b964b67224c75ff57ffd9fc81f91042cde766bcabfe83cfc5c42d2988eb"
+  },
+  "members.ui.nicknameHint": {
+    "sourceHash": "a03e179897780bdec843abb38a2d221a0777cb48cd5c5dcf090590898702c347"
+  },
+  "members.ui.nicknameExample": {
+    "sourceHash": "6cb43f0dd3efbc105a72b622988671ec46f301ccac15a449b1e41017cdae9eff"
+  },
+  "members.credentials.initialPassword": {
+    "sourceHash": "df387080f986297c9741f5aa0b209567dce5c49563737e85f932d804ebf9e2c1"
+  },
+  "members.credentials.initialHint": {
+    "sourceHash": "90bf63e90c9dd33c242aad83f7852470a14831093a605c5f628c48c51efec7d2"
+  },
+  "members.credentials.password": {
+    "sourceHash": "a621ab606db2a11f63edc576a729843b8269250dc324206871d90635ac5e531c"
+  },
+  "members.credentials.regenerate": {
+    "sourceHash": "2f283e643c1b1ad555f4455831f08cf93b77dda6ae6d89c1f645745eea04b273"
+  },
+  "members.credentials.regenerateHint": {
+    "sourceHash": "56c08de5d606e36f24b647b06fb4eb2e5c061280e046ee434952090b6bdf4a0f"
+  },
+  "members.ui.cancel": {
+    "sourceHash": "2cd0f3be8738a86cede1a1452f874f31d569864bbb00cacd4130990f4610cb5c"
+  },
+  "members.ui.creating": {
+    "sourceHash": "56b63def0e294882dd6b1b57dd3e269ca8bb8596400267e838fae74a33f2f059"
+  },
+  "members.ui.create": {
+    "sourceHash": "9da72c223808ebb9a10983106a17449367b6c0c42a8a8b00383e6aabb714fc10"
+  },
+  "members.ui.basic": {
+    "sourceHash": "e8df058725699a17c279f209cc6b37487f5e0a96e81b1ea3710e45cba354bf90"
+  },
+  "members.access.permissionHint": {
+    "sourceHash": "c2c0be007fb42903811cfb4fac43d4d1e84308fa829624a91a3117eceb58828f"
+  },
+  "members.access.subscribe": {
+    "sourceHash": "a6dd4137453149f80dc9d003f01d0846dcd00aed96879278866fb1412bd6ac71"
+  },
+  "members.access.subscribeHint": {
+    "sourceHash": "81d6ecb416382945fd5f5e5e3297e98a7cf039b027618d5d8c81459fbc9dbadc"
+  },
+  "members.access.searchHint": {
+    "sourceHash": "60a3b6fee1e095bd4fd18b7da11bfc7316347def7be74b930456c13a83e375ac"
+  },
+  "members.access.directDownload": {
+    "sourceHash": "489bfca57068c0f89555fbb20668cd02e38be7fa3d52a239c6dedc1a2934e7d0"
+  },
+  "members.access.directDownloadHint": {
+    "sourceHash": "c8063a720db9f73ae1ab27c6fd3075abdb25e35da4838e246cbbcd9a0f52b201"
+  },
+  "members.access.videoDownload": {
+    "sourceHash": "b7895a6e7f125cc22ad9a4bdcc149f459f8318c2182271f7c8da3a68920f8e3e"
+  },
+  "members.access.videoDownloadHint": {
+    "sourceHash": "12f04c83f68943e55a34cc4ec1a11334f601dd2403b403db1e5698193c5b0e41"
+  },
+  "members.access.contentRating": {
+    "sourceHash": "11674b63fd9a9276e096f0a333048fd640c0c2f91b1a427dbcd5ac1442ad35a6"
+  },
+  "members.access.ratingHint": {
+    "sourceHash": "d17928d47b526bb181100ad83f7ce067197e40739246c776011fa363a66efa4f"
+  },
+  "members.access.unrated": {
+    "sourceHash": "f83a89bbb41983fd741fa5a12a009dd86306923ae84b073418a43e07eede0f43"
+  },
+  "members.access.unratedHint": {
+    "sourceHash": "0ff20488202c14b84704c408091a65fbb52cad87c87361d3a82f5cf0bd48abae"
+  },
+  "members.access.libraryHint": {
+    "sourceHash": "7d81ed4e0d4c3472b811bed09b88ca1d59c774b58190d2c205186366cdcd6bff"
+  },
+  "members.access.allLibraries": {
+    "sourceHash": "2a0d1e3fb724a6a0f7ec5bcbdb174d8fb24e44df68589527847b3268014326d7"
+  },
+  "members.access.selectedLibraries": {
+    "sourceHash": "67599942be16d5c78f938edaedd60ce8b6d0c6f1353ccd969b0de39f6e59ffa7"
+  },
+  "members.access.privateLibraries": {
+    "sourceHash": "1146e69b2da872ef40ec28f80eef6152aea6d0a2aa26b977436ce278cc524352"
+  },
+  "members.access.searchableSites": {
+    "sourceHash": "5df95df9fbdf7e6b3348d9345543a22f5f29cd100275d9446860af3ae27f5876"
+  },
+  "members.access.allSites": {
+    "sourceHash": "79e4c47e561de17a2c199e66975667095aaedcf12fccfcadbbdb87348f5fa1ef"
+  },
+  "members.access.selectedSites": {
+    "sourceHash": "ed5a8ea0f10ffe52600315ca42e73ef855a3f434b410be25aaedfcd3094beb96"
+  },
+  "members.ui.saving": {
+    "sourceHash": "ff509c9ba052a21c008c88b36ef5f13acc9cb693641689b35747be6daf11d9d6"
+  },
+  "members.ui.save": {
+    "sourceHash": "c8550237ba701f64dbb384f5bfbda44b82f45b2eb72280e9de1432f6ea4ccb30"
+  },
+  "members.credentials.once": {
+    "sourceHash": "ff782e09eed04516bfed1a38d31cfab842fd1e69609fd83fec5cc59b8497acd7"
+  },
+  "members.credentials.account": {
+    "sourceHash": "311bb313fdeca6aa2ce7d9415821a0b0247e064340241f68bac3ca5b19ae6d76"
+  },
+  "members.credentials.copiedAll": {
+    "sourceHash": "61af503c35bebb70ec642007efaea51ee1e7dd087382b1ec1171368fbc1310fb"
+  },
+  "members.credentials.copyAll": {
+    "sourceHash": "2edb852c8e7744922721827c1f511069be6e9ff228f51f90d2756c3fcfac7536"
+  },
+  "members.ui.done": {
+    "sourceHash": "c0b3fbff51ccc40b8bf1a81666e7ecced016187cbe2ac6f1d627e0d7a287e04d"
+  },
+  "members.access.unlimited": {
+    "sourceHash": "f203d577d14268cd853ce37418cb14f8e268c2bce88220ae131c761e2255954a"
+  },
+  "members.access.none": {
+    "sourceHash": "90fd33a79383b01b0bddebc1bae81b82812180c1afd4d6ae7afccc7a7e88c39f"
+  },
+  "members.credentials.clickCopy": {
+    "sourceHash": "876a1818bf94ed550fc20f3b66183c532017e162c36021bb67fee689634adb3e"
+  },
+  "members.credentials.copyFailed": {
+    "sourceHash": "13b9ad173d62e95a9178f9cc8ae8b078e06a449eb6c6b47c09894e1e226ba425"
+  },
+  "members.access.separator": {
+    "sourceHash": "c4a40ea8fe35627476f7f8cb9e1fc7f8898f428c6d1ff18b0bc5479d5db39c5f"
+  },
+  "members.ui.loadFailed": {
+    "sourceHash": "40880e56197f25e06b09ebb5e62f23fd09bc3dd3e53114ff4a6301ff1bf1ea13"
+  },
+  "members.actions.resetTitle": {
+    "sourceHash": "e852423f6d20827acd27552bf18b6cab5195f4d6fcf5285b4d5e3f208eddc6d8"
+  },
+  "members.actions.resetFailed": {
+    "sourceHash": "e56df7d3ddf1a3f15b6249b608231e0e3a2c481798968e30d19492042d941e47"
+  },
+  "members.actions.signOutTitle": {
+    "sourceHash": "2ad71136f309a611b289e45c1dfbb679d842cddb7445ab5b735b02f56f2447ba"
+  },
+  "members.actions.failed": {
+    "sourceHash": "5c5055873c4204dfd53a0f047997da944dbdf600a38dc22301b9f11e8180384b"
+  },
+  "members.actions.disableTitle": {
+    "sourceHash": "eef99a7e082b15172c052487b637af9dc4f32430d826e15d7a1c837f76b064d6"
+  },
+  "members.actions.deleteTitle": {
+    "sourceHash": "f9b5336a48d6de6af01817407d74c22e363a206e15c74099fce35dcaaf43c13e"
+  },
+  "members.actions.deleteFailed": {
+    "sourceHash": "9b681cd027f3b0dad052e54d48818340aeef51fcb9785ded1e63cf17c0fba719"
+  },
+  "members.ui.count": {
+    "sourceHash": "c09e15083f7175fc14ca9745dbe9122f24289e5fe5cb664d941e3e4450095691"
+  },
+  "members.access.ageSummary": {
+    "sourceHash": "510365cfeac0b4cc6c3ec4c4f1416dd3e030f93766bed64204552a4217156bd1"
+  },
+  "members.access.sharedWithPrivate": {
+    "sourceHash": "de570371ce93a295e53c096800ecc354a691324caaf0f453deb0f9c57fec2c5a"
+  },
+  "members.ui.deviceCount": {
+    "sourceHash": "4a994043a5ca2ed2a1bc2325df3ef7e61349e847495cc3910ed2141c4720cbc3"
+  },
+  "members.ui.more": {
+    "sourceHash": "083833f1a1f22a1fc48758daa545094eb1eaa67bcd4f0c098ec721586e243d12"
+  },
+  "members.ui.createFailed": {
+    "sourceHash": "f1a68db601a9d525919d258a525681c75514a7a739374738315dc8c72c4768a1"
+  },
+  "members.ui.saveFailed": {
+    "sourceHash": "f2600f7c5d65cbc2f02a0fc2369fd693a6a341c503232de2520d9ace5051283e"
+  },
+  "members.ui.editAria": {
+    "sourceHash": "a05ce0cbeb015be76a49e8cd37daecbf020d4764a3e1c4da9e421e0fcba24d9c"
+  },
+  "members.access.privateLibrary": {
+    "sourceHash": "321602266282a58ef97199a0a72ea677f6c350f843c827be90ff6ab7adc9581b"
+  },
+  "members.credentials.allDetails": {
+    "sourceHash": "2fc9e418921f80bd4f0f142dbedfdfb62eee4ae04f32385f1499c97964d93eaa"
+  },
+  "members.access.underAge": {
+    "sourceHash": "d3c25867f41b4d0e93cfbd971f57287e10d1daef1dab8f8e9812cc6c776bed54"
+  },
+  "members.credentials.copiedAccount": {
+    "sourceHash": "d34c80f5239eaf82c3ce36659384c3ceda2df8463cbc2115a856a8db0187f4a9"
+  },
+  "members.credentials.copiedPassword": {
+    "sourceHash": "f52733a597ae9fad11ff26fb29844e1958da115e1e1320e7fa2a2bd20a79cc78"
+  },
+  "members.credentials.copyAccountAria": {
+    "sourceHash": "342def63592f2369992d075083ca4cc298a8be39be37aa3c49b7cd00a81ba8dd"
+  },
+  "members.credentials.copyPasswordAria": {
+    "sourceHash": "57d08f8b5cb6721fb3bed8d11c0900bcbe75a717ff8b910b6aded637bbdf9bde"
+  },
+  "members.credentials.copyAllAria": {
+    "sourceHash": "841bac95699504d297d6431bf1b5e5c2f5c93e25189696ef829e2a0b046570fb"
   }
 }

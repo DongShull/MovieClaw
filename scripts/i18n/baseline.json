@@ -275,7 +275,6 @@
   "apps/web/components/mcp/tool-catalog.tsx": 32,
   "apps/web/components/mcp/ui.tsx": 2,
   "apps/web/components/media-source-annotation-dialog.tsx": 20,
-  "apps/web/components/members-section.tsx": 131,
   "apps/web/components/network-config-section.tsx": 47,
   "apps/web/components/notifications-section.tsx": 22,
   "apps/web/components/player/subtitle-layer.tsx": 2,
