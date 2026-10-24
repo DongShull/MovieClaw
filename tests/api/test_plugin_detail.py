@@ -130,7 +130,7 @@ def start() -> TestClient:
     admin = Principal(kind="admin", name="tester")
     app.dependency_overrides[require_admin] = lambda: admin
     app.dependency_overrides[require_login] = lambda: admin
-    return TestClient(app)
+    return TestClient(app, headers={"Accept-Language": "zh-Hans"})
 
 
 def detail(client: TestClient, entry_id: str) -> dict:

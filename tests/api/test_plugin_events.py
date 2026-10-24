@@ -153,6 +153,7 @@ def test_remote_payload_follows_the_declared_schema() -> None:
 # ---------------------------------------------------------------------- 插件包全链路
 def test_package_events_and_notifications_from_install_to_uninstall(data_dir) -> None:  # noqa: F811
     app, client = start()
+    client.headers["Accept-Language"] = "zh-Hans"
     with client:
         assert upload(client, events_package()).status_code == 200
         pending = client.get("/api/v1/app/plugins/packages").json()["data"]["pending"][0]

@@ -18,16 +18,26 @@ search_provider = ai.search_provider
 stack = ai.stack
 
 SOURCE = """
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from movieclaw_sdk import plugin
 from movieclaw_sdk.callbacks import PLUGIN_CALLBACKS, CallbackResponse
+from movieclaw_sdk.events import PLUGIN_EVENTS, plugin_event
+
+class Updated(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    value: int = 1
+
+UPDATED = plugin_event("i18n-config.updated", Updated, title="Fixture update")
 
 class Config(BaseModel):
     interval: int = Field(30, ge=5, le=3600, title="Interval")
     token: SecretStr | None = Field(None, title="Access token")
 
-@plugin("i18n-config", title="Fixture config", config=Config, inject=(PLUGIN_CALLBACKS,))
+@plugin(
+    "i18n-config", title="Fixture config", config=Config, inject=(PLUGIN_CALLBACKS, PLUGIN_EVENTS)
+)
 async def apply(ctx):
+    await ctx.use(PLUGIN_EVENTS).register(ctx, UPDATED)
     callbacks = ctx.use(PLUGIN_CALLBACKS)
     async def notify(request):
         return CallbackResponse.text(f"fixture-{ctx.config.interval}")
@@ -44,7 +54,8 @@ def package():
             "movieclaw-plugin.toml",
             '[plugin]\nid="i18n-config"\ntitle="Fixture config"\nversion="1.0.0"\n'
             'description="Fixture config description"\nentry="config_fixture"\n'
-            'runtime="inline"\nsdk="^1.0"\n[permissions]\ncallbacks=["notify"]\n',
+            'runtime="inline"\nsdk="^1.0"\n[permissions]\ncallbacks=["notify"]\n'
+            '[[events]]\nname="i18n-config.updated"\ntitle="Fixture update"\n',
         )
         archive.writestr("config_fixture/__init__.py", SOURCE)
     return stream.getvalue()
@@ -93,6 +104,7 @@ def test_plugin_settings_callbacks_and_lifecycle(stack, browser, theme_id, width
     if theme_id == "netflix":
         expect(page.locator("html")).to_have_attribute("data-theme", "netflix")
     expect(page.get_by_label("Interval", exact=True)).to_be_visible()
+    expect(page.get_by_text("Publishes “Fixture update”", exact=True)).to_be_visible()
     shots = REPO / ".tmp-uidev/i18n/plugin-detail"
     shots.mkdir(parents=True, exist_ok=True)
 
