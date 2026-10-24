@@ -205,5 +205,383 @@
   },
   "detail.decisionHint": {
     "sourceHash": "e0e3cf80e21157d2fea811fa9f66d843b9d938359076eab0bd5befa145bb056a"
+  },
+  "builtins.coreDatabaseTitle": {
+    "sourceHash": "263200d7d529b522a90256e58f495caf7f1534daf51c7df437a9c2b4eac2619a"
+  },
+  "builtins.coreDatabaseDescription": {
+    "sourceHash": "fe87ea06e538fe8c13070934b54ac5a0206a357469299969b956d08c6793403b"
+  },
+  "builtins.coreRegistriesTitle": {
+    "sourceHash": "fb71b84148b1f57d71d6fb3e86cd278377e525c4d83f07825e259746baba4fb9"
+  },
+  "builtins.coreRegistriesDescription": {
+    "sourceHash": "488bf9816ad00d284d85980305b25e0124e2cc49d129634fd86521d3acb8221b"
+  },
+  "builtins.kernelDurableEventsTitle": {
+    "sourceHash": "af2a83d5d311d7675fb18401c19e40da72f7ec3f64f3ea946a72eec773c69ac2"
+  },
+  "builtins.kernelDurableEventsDescription": {
+    "sourceHash": "0e56659baaa009cea310748895ef7dce906467c945ae39efe00046a9393fbdfa"
+  },
+  "builtins.kernelPluginEventsTitle": {
+    "sourceHash": "8ac432688c8ca5f50e7741fa77f52a96591f442bfa243ffd9cb7506780a4645f"
+  },
+  "builtins.kernelPluginEventsDescription": {
+    "sourceHash": "3079ab6d47a78ebf3e5cbf5453d6f0023fd1fd81a878ee2c8baa6b53cffc61ab"
+  },
+  "builtins.kernelHostOpsTitle": {
+    "sourceHash": "1ca251221dd4fab3280d808b50cf07c79bffdf4858dc619cc017ca76c828d434"
+  },
+  "builtins.kernelHostOpsDescription": {
+    "sourceHash": "1ac698e18a1e653c1f7e3bd4da6bc2e0789b18715e8b0f6e4d8250f4a8bbc331"
+  },
+  "builtins.kernelPluginDataTitle": {
+    "sourceHash": "d3c79411f75aadb20d0737c38d26e4268d088b6cb46a96ebc5b0c998589523e3"
+  },
+  "builtins.kernelPluginDataDescription": {
+    "sourceHash": "ca7287b54ce5df0fcf03144fba4e2f2c2afdd9ef9b8c79c87a622404d5bb6837"
+  },
+  "builtins.kernelPluginJobsTitle": {
+    "sourceHash": "9ece30390a92c45629d74dafaacc5f9c95b2e5d72a2ed109d2aefabadf380a9a"
+  },
+  "builtins.kernelPluginJobsDescription": {
+    "sourceHash": "0db9c288b2d653e40c490517e53fa3d5ab1edd4889a5a42d60fa641ce2355fa4"
+  },
+  "builtins.kernelPluginHealthTitle": {
+    "sourceHash": "3868801ed718cc1638820cc2e369f6423b45efa6cf56fdd98fbddc5635d77753"
+  },
+  "builtins.kernelPluginHealthDescription": {
+    "sourceHash": "61e0c29887d0b8cc139d4754fe2f68e5eda77a8a60fa0105fe7ea0d4b90136c7"
+  },
+  "builtins.kernelPluginRoutesTitle": {
+    "sourceHash": "6ef843c83eefa93c33cbb913c7727e2dd5f1286a95845fc329ca1dc10cdcee6b"
+  },
+  "builtins.kernelPluginRoutesDescription": {
+    "sourceHash": "5c39fe24bdb3fb8cb067b56fa366eab14216b810c2f9004c924e242a2c4bf07f"
+  },
+  "builtins.kernelPluginCallbacksTitle": {
+    "sourceHash": "8f9bbd2c14b62a74a1ee1673159a612a8c0dd53cfc5ea9fc708a2e9cf89d3dd0"
+  },
+  "builtins.kernelPluginCallbacksDescription": {
+    "sourceHash": "32e0b22af3c37f582c46099afb92183bec3cabe508ec5228a392535e36a3ff2e"
+  },
+  "builtins.kernelPluginFilesTitle": {
+    "sourceHash": "6afe3afe7e0c15cc9cc6b4c0fa3588684bbeca94c25ce80f9c53eec0b200244b"
+  },
+  "builtins.kernelPluginFilesDescription": {
+    "sourceHash": "c67f50dd8ced232a7cbb1a55ac4b336a8e7619904cec15be3197d58dd9fda0c6"
+  },
+  "builtins.coreSecretsTitle": {
+    "sourceHash": "3044ef88d051848265680c9a0deaad933c6b9d24e08a9ad1c96e319029259fe2"
+  },
+  "builtins.coreSecretsDescription": {
+    "sourceHash": "b610cccf3b4047e9532e1b0775b86eddc7ef757168648f3d56ba339f0dd9be54"
+  },
+  "builtins.coreSettingsTitle": {
+    "sourceHash": "050b161dacfeca310f55bd3fbe8cb37450e0ee6db2b63c11f4946112b0860a35"
+  },
+  "builtins.coreSettingsDescription": {
+    "sourceHash": "74264063a594807d36d8352b745a0f4c49bf7ecc036e1d1e67372f0d09d5d18a"
+  },
+  "builtins.kernelNoticesTitle": {
+    "sourceHash": "8490089d1b40aa4ad6d4476c8554eb91cd8c67f82ea4a07e34408d74747e3f3d"
+  },
+  "builtins.kernelNoticesDescription": {
+    "sourceHash": "7c6f67bab1eb305dd0d3be6e1399a71752828c573823af7acafe630e958756c5"
+  },
+  "builtins.coreEgressTitle": {
+    "sourceHash": "5c2e637cd4bc84c5b3ab1568376b6b6c9a384c010726bce0742a38da0f625f08"
+  },
+  "builtins.coreEgressDescription": {
+    "sourceHash": "78e7a5f43513b643a22debe4c4234d695252d0a86266d0378563c9a1a5a7b1ff"
+  },
+  "builtins.coreScrapeRuntimeTitle": {
+    "sourceHash": "dfa3c93414bcf7595990eae2654476ef3e0878479f4f816ee046d56615af1e4d"
+  },
+  "builtins.coreScrapeRuntimeDescription": {
+    "sourceHash": "1791602cf55e858d1ef7763f174727dee2716c438eff231c11fa84d41a8b001c"
+  },
+  "builtins.playbackRemoteConfigTitle": {
+    "sourceHash": "ea671bf3509b2d3ec15a36ed29161b0fd5e4f0edfc2072d9303e117a69fd2f88"
+  },
+  "builtins.playbackRemoteConfigDescription": {
+    "sourceHash": "4f103803e181830e39ba7cc2cbb05f86c4bb8c3dd0d1c61688db7c30f1270f15"
+  },
+  "builtins.coreHttpClientsTitle": {
+    "sourceHash": "9cc3cce048c90d589ea314cb876e13410b7e795d001cab34ceadc5f220603b62"
+  },
+  "builtins.coreHttpClientsDescription": {
+    "sourceHash": "3f96d5b92908fb1dc6bb36781ba077d92b5a3f94940cbf315e2cd7dd14c75575"
+  },
+  "builtins.trackerSitesTitle": {
+    "sourceHash": "b399dfa103b2c285ba362bfaf271164b55d973ccc1cc48b6d96df7f876d9d0df"
+  },
+  "builtins.trackerSitesDescription": {
+    "sourceHash": "d443d8d1f76c06c9af0b26660cb02101b5051b845551f22b9fb257b4ebfff8ac"
+  },
+  "builtins.trackerSiteAccessTitle": {
+    "sourceHash": "5414d10d7b2624f4e91145e8c39992db14142aef7985c0b3992d46f4bb3e413f"
+  },
+  "builtins.trackerSiteAccessDescription": {
+    "sourceHash": "f43aa29102d4cec505ad5d77800aa5e44a552d2eacbe4dd62eee109200415cb8"
+  },
+  "builtins.selfhealCredentialsTitle": {
+    "sourceHash": "091b8864894440d9e39835a8ce69fa0febd4f852abe679f568375a17651aad43"
+  },
+  "builtins.selfhealCredentialsDescription": {
+    "sourceHash": "dd3caa6d05dd783f9b75be4e0105a7567b978ac34272f70279c386d02970952d"
+  },
+  "builtins.libraryBuiltinCollectionsTitle": {
+    "sourceHash": "1400adaf2af6724818372711fc26394e8149512b8bf4608037257da73fe50263"
+  },
+  "builtins.libraryBuiltinCollectionsDescription": {
+    "sourceHash": "3a2f092e80fe6c7e3683237af219f90c2d2b8681c6fdedf89b44881ee09b4c0b"
+  },
+  "builtins.agentRunsTitle": {
+    "sourceHash": "95b8f598b6624026dea53de4b3d882e6295b51f56807069b5e0332ed78344377"
+  },
+  "builtins.agentRunsDescription": {
+    "sourceHash": "fdf926b209b33999b78a825cb03930c8943ee64ff1c5f5ca89da53d85d2e9ac7"
+  },
+  "builtins.agentSessionIndexTitle": {
+    "sourceHash": "d8bd9cd0419f3ba0d9a6226868aec791d7ca982bf996488a3de828ea581c80d3"
+  },
+  "builtins.agentSessionIndexDescription": {
+    "sourceHash": "7a271c9ba7c5b90c4be64d46663f2a36d72e301de76864827603cf17d822e42b"
+  },
+  "builtins.agentAttachmentsTitle": {
+    "sourceHash": "5efe9df48ba8fe889825425b77851fc86874d37684b48fc27e6e5d155bf4b481"
+  },
+  "builtins.agentAttachmentsDescription": {
+    "sourceHash": "b4499dfddeb34de161e1b3c5dcdaeaa5e90e8d78f7c251930adf249657243dfd"
+  },
+  "builtins.agentInvokeTitle": {
+    "sourceHash": "7323733e9cf44b0b0fd11d463dead84fbd8a8848ac8772333e2c7bd70ca12e36"
+  },
+  "builtins.agentInvokeDescription": {
+    "sourceHash": "a9c04510b4550b8113d546af6cac6afefb9ad363fb1af99567d295fa3a439224"
+  },
+  "builtins.enrichBackfillTitle": {
+    "sourceHash": "6851e55d96f20f3e423c49a70e56dc4c234e9b431cb9fd7a7e0cc0cb73013cf1"
+  },
+  "builtins.enrichBackfillDescription": {
+    "sourceHash": "a31199b8ddf2784a9e7aca4abcf18775cbe31db15e5b8f6678a35e71a7afa2fa"
+  },
+  "builtins.libraryDiscImageDurationsTitle": {
+    "sourceHash": "bc01f6c2bc06e770c00f1b4e386d5d16b89049d6aa9b8c3129cbe2f771e0471f"
+  },
+  "builtins.libraryDiscImageDurationsDescription": {
+    "sourceHash": "9ac09c8f37c0ebe5d814322143324b5a9edc37f22ac6ae1164f062523b751f30"
+  },
+  "builtins.libraryDolbyVisionBackfillTitle": {
+    "sourceHash": "0f203e7d699302ea05af91fdd447a326e53ce85493fb5bc8a0397a4c1108ebc7"
+  },
+  "builtins.libraryDolbyVisionBackfillDescription": {
+    "sourceHash": "b628fd4ac0b9d5484dda31567a82502cea09dbfd262e08da48cd4166b81dc934"
+  },
+  "builtins.appUpdateTitle": {
+    "sourceHash": "64c230d2256744e6ea3900ca04be010df9b850077d0dd427c066b22386a86dcd"
+  },
+  "builtins.appUpdateDescription": {
+    "sourceHash": "326502742de3cca6c865078441ffd9a7f1f7ae9168ba0c49a6fb7be3bc451151"
+  },
+  "builtins.downloadsTitle": {
+    "sourceHash": "e46cc4d069d257c2d2ec8ed7ae30628713f849d4445c3c2d3967e68851a83d69"
+  },
+  "builtins.downloadsDescription": {
+    "sourceHash": "a42d4df212dfe4b6325eca8d46c2af5e7a66d4a74dbfb03beb8700c9e0cc061b"
+  },
+  "builtins.boostTitle": {
+    "sourceHash": "c45079dada9517b7f40bab6d40b56d4e4025cc563db7b9b085555003b5a3bd18"
+  },
+  "builtins.boostDescription": {
+    "sourceHash": "e30f86aaa34e18e98f50b205365275600913e9458f9e3417d2cc5be3b48bb9d4"
+  },
+  "builtins.subscriptionTitle": {
+    "sourceHash": "cf8efc450f718fbfd2ee60e9871ef625b47c2ef58d2e31635ed848de846a79f8"
+  },
+  "builtins.subscriptionDescription": {
+    "sourceHash": "7dfb2bb9509ad53ae0ddff536b09dbdde344fc2c4f365aebe32c686b7847c305"
+  },
+  "builtins.trackerSearchRunsTitle": {
+    "sourceHash": "5359056938fe82daf87b9b08dd54c43c612577a3c8a9673409a66bc17f041cc3"
+  },
+  "builtins.trackerSearchRunsDescription": {
+    "sourceHash": "0497bdbb027d45b7ec395f43edd14ba8092420813665923bc7f5130f0876aa47"
+  },
+  "builtins.libraryCoreTitle": {
+    "sourceHash": "d771576fc05c241bada9731f5fa997d50f63c3433cbcdd2141bc07d4ca6c1949"
+  },
+  "builtins.libraryCoreDescription": {
+    "sourceHash": "997cd43a758dff77261b79bd8890afa37de999c58b4c3d67263f2d7f3c58bb59"
+  },
+  "builtins.mediaScrapeTitle": {
+    "sourceHash": "25cfcb565f3ff886e8c28caa32221b5f11addcc5b8e59f8d3ccf1ff4ec5e8bae"
+  },
+  "builtins.mediaScrapeDescription": {
+    "sourceHash": "46de71ca9aa2bcf80ec7959a30160414742a2ff902f0dd6d8f09411d0a9aca68"
+  },
+  "builtins.subtitleGenTitle": {
+    "sourceHash": "f06c845ce0bf8cdd1b3101511c90c4c194d313fa2ea77de5f6aec8c45f3e343d"
+  },
+  "builtins.subtitleGenDescription": {
+    "sourceHash": "3d26a354891434650c1b5c22183f5d7d9ba9d32281da0190c3de7e4cfd85c266"
+  },
+  "builtins.schedulerTitle": {
+    "sourceHash": "c4e2125101898d213fc612bdd89e8fad262e1af42e8e22268b3d70cd7a7a674c"
+  },
+  "builtins.schedulerDescription": {
+    "sourceHash": "54e1793b501a24ec89652fcc82e47d246f2a42e11eed463282da42766885f2ae"
+  },
+  "builtins.boostSentinelTitle": {
+    "sourceHash": "1f2c2b570452a4f1cb226fcca1005b2f7136e2d3fa2680a80424fb58231ae079"
+  },
+  "builtins.boostSentinelDescription": {
+    "sourceHash": "51d2720f4e0260e16349f2d65981b888f404506a3d000b1f083b5651b1a1d053"
+  },
+  "builtins.libraryWatchTitle": {
+    "sourceHash": "07254f7f8100ca444bb5727d205de49208af4b823f7f980a583baa6f1f1a2a4b"
+  },
+  "builtins.libraryWatchDescription": {
+    "sourceHash": "396b79cff960a7bd6d5d705ef941ca6d29e40f62d0a8bd3c5ce84bce309336da"
+  },
+  "builtins.libraryIngestWatchTitle": {
+    "sourceHash": "163ab8eebe4baa99d7cbb03bf4fc1a07ef062e8e02e1062d605de42ea354eab3"
+  },
+  "builtins.libraryIngestWatchDescription": {
+    "sourceHash": "e23458ea5899724ca93e5e95ca37eb9eaf4c238845d0ba8cacf37517de9a1124"
+  },
+  "builtins.channelsHubTitle": {
+    "sourceHash": "6944ea04e273c2927db5877b7c5375223dfe88bac62fb242a66dc1b151fc5077"
+  },
+  "builtins.channelsHubDescription": {
+    "sourceHash": "54075ddadfef5a9ce5c7adc972b0e716d6224198cf90023e017c8f341c5903b1"
+  },
+  "builtins.cloudTitle": {
+    "sourceHash": "2f66bc3f5c2ee3e455538f364bdeb8666aec46e6b7cbca2e4a2b78e1af0f4243"
+  },
+  "builtins.cloudDescription": {
+    "sourceHash": "3d26c1105a90746144ff66a345217c946d1441faef67cb93f988214facda7bf3"
+  },
+  "builtins.pushHubTitle": {
+    "sourceHash": "189b7b628fecab0cd70dd6f4a43b9e389da2182afe777afee2eb5f0483f4d7b5"
+  },
+  "builtins.pushHubDescription": {
+    "sourceHash": "bb833035f702c9dae7e6e5476c89184cb17c63d2f80849fff8f30aa7d61b13b0"
+  },
+  "builtins.webhookDeliveryTitle": {
+    "sourceHash": "adc75971458b4edf63c486bfa179afe603a8787772c961f40c4f6ca2c104f5f5"
+  },
+  "builtins.webhookDeliveryDescription": {
+    "sourceHash": "04da98e8ad70a044a8da4f9c6af939db6142cdf19861378ff960e8ad0589c4a9"
+  },
+  "builtins.pushChannelsRefreshTitle": {
+    "sourceHash": "23e2149fd1b9ce1c8340be45246280e875d5fd62c4e7c249e4990c3ecbb33154"
+  },
+  "builtins.pushChannelsRefreshDescription": {
+    "sourceHash": "7fbee7cee54675184c7b5e87773be671a8982474bfc8ef4a1100beb3e0ea6e08"
+  },
+  "builtins.pushArrivalsTitle": {
+    "sourceHash": "5e6b1af13a9e307591d7e06e51f16c7fa7c03968396fa64b1dea7596986df41a"
+  },
+  "builtins.pushArrivalsDescription": {
+    "sourceHash": "db4bcae75e974e67a9df2c2ed7b94b563a01bcca06819d0480caad7dc8fb4467"
+  },
+  "builtins.jellyfinDiscoveryTitle": {
+    "sourceHash": "e25e85e8bdee72329954fc59a68a9818da35c349ffe7f47e83752dd44cbb8d64"
+  },
+  "builtins.jellyfinDiscoveryDescription": {
+    "sourceHash": "37d34cc85daacc2bdbc5dec3b57223748f4876782de6b770d87cb2675156145f"
+  },
+  "builtins.jobsTitle": {
+    "sourceHash": "48f547c872b791921b95af8ef4d28096c8edc4f47067cd641050689e64187857"
+  },
+  "builtins.jobsDescription": {
+    "sourceHash": "77f6a87560a7e6c2b9b962807b2989d1db5553fe3fa62d32159f897d3aec74c0"
+  },
+  "builtins.librarySearchIndexTitle": {
+    "sourceHash": "16cfac8d9c8a79c55b59b6a2ffd31d9c389ac9bcb9c824e51b910774c457c5f2"
+  },
+  "builtins.librarySearchIndexDescription": {
+    "sourceHash": "e507567d5b14186b39d6fd58ccc6cd0f32fb9d22b9c8bfa94c23ef3b205bbc82"
+  },
+  "builtins.libraryMediaServerRefreshTitle": {
+    "sourceHash": "56d1fb6e7223f4e9026fb4d749fd96a7868418f015553e63a05e91f4671d045f"
+  },
+  "builtins.libraryMediaServerRefreshDescription": {
+    "sourceHash": "79096483812e60edcd2bfce3721e193e70253cf74fc9a4e3d8425b3aa600ec3f"
+  },
+  "builtins.storageGuardTitle": {
+    "sourceHash": "0359390beaba6f4412898bf4f50b8ec615f92109d0a41ba5343628f89050c3e6"
+  },
+  "builtins.storageGuardDescription": {
+    "sourceHash": "c6387fe1b3eb4b753df32d25fc0648fff317c4fd14aa07ec2f7a0ab384370935"
+  },
+  "builtins.subtitlePgsWarmTitle": {
+    "sourceHash": "dd5f3eded5b47d5f45664d48c615b6dcb6b210465a2d46b12df4fae2c7632e24"
+  },
+  "builtins.subtitlePgsWarmDescription": {
+    "sourceHash": "abcbff9ac9b7a621fb3b9261d6c0083c0d17fdc528f6a3f1adf308752d0d77cb"
+  },
+  "builtins.librarySkipSegmentsTitle": {
+    "sourceHash": "87d00437cabea6d45438bca9a0564f458be8f25497ebaf2b4cd48a7f3d5fefdf"
+  },
+  "builtins.librarySkipSegmentsDescription": {
+    "sourceHash": "2cfbbff41dfeb84c88d0650c736e70115ece468d73923173f98f75da30b3088c"
+  },
+  "builtins.playbackRemoteWorkersTitle": {
+    "sourceHash": "d55ab8fdb844a9466d84ad3bdf048b9b7f83305c31fa03663530c07c38bfe5b8"
+  },
+  "builtins.playbackRemoteWorkersDescription": {
+    "sourceHash": "e493a553bbb2b1dcc56ce781d2e8f1fa04021ab79dbc7d5c84426dbbb186f377"
+  },
+  "builtins.drivesSourcesTitle": {
+    "sourceHash": "c7af5c8b2acdea36a1b7e8c8489b13fb7a3e5951f4f0d18c3c2aa6923a0ac74e"
+  },
+  "builtins.drivesSourcesDescription": {
+    "sourceHash": "697a780035411b5a4806830c1593c9061ce711a2c9797ab903649801a33e85a2"
+  },
+  "builtins.drivesUploadsTitle": {
+    "sourceHash": "0abe8012ff07e1ce8e7d1cde387be7266f810c1155298f9d89594cdad60bf6ec"
+  },
+  "builtins.drivesUploadsDescription": {
+    "sourceHash": "44e4fa7d33637507a1ea31839168842dde819e48e2493ee13811de0e633b0c63"
+  },
+  "builtins.playbackTranscodeTitle": {
+    "sourceHash": "21246531f8b253084db0d2cbd81e94a057be17ce523e23182adef9b36a218eda"
+  },
+  "builtins.playbackTranscodeDescription": {
+    "sourceHash": "56a2dfc2011a859c3462574571bdd03305fbef0b13eef4ca3927656dd1ef21af"
+  },
+  "groups.core": {
+    "sourceHash": "89e5e14c8db996da74f67767f2d7351513fd5a4f563f6a7ce1b3adc7820d6af3"
+  },
+  "groups.sitesDownloads": {
+    "sourceHash": "91e6d7469566da74afbd9d2407271c5e935fdfcc87c6cd4ddf9b37114101d1fc"
+  },
+  "groups.subscriptions": {
+    "sourceHash": "cf8efc450f718fbfd2ee60e9871ef625b47c2ef58d2e31635ed848de846a79f8"
+  },
+  "groups.libraries": {
+    "sourceHash": "d771576fc05c241bada9731f5fa997d50f63c3433cbcdd2141bc07d4ca6c1949"
+  },
+  "groups.playbackSubtitles": {
+    "sourceHash": "7918dc1906be3965c13581758c91b0bc1116d9c6de4879588cc5ecf8b43a773f"
+  },
+  "groups.notificationsPush": {
+    "sourceHash": "973e5f8a0d55710d93e858b198b9c799025feea52483d0c96320d2a4403b9021"
+  },
+  "groups.assistant": {
+    "sourceHash": "1b0049fcfd4163fe2a902e3dd533e1a7352c30aa762eae22581cf7cd3f221ac9"
+  },
+  "groups.pluginSystem": {
+    "sourceHash": "4aa7af5b95ec19a02bb26328ea3cbcfe1884fe45d0d9ab74e1d41b72ca6fea8b"
+  },
+  "builtins.appUpdateStartupCheckTitle": {
+    "sourceHash": "bad0674e4232e2a643b5af5ce3bc8cadad24be36aa8ecbb1cbc6f1dfd0fed154"
+  },
+  "builtins.appUpdateStartupCheckDescription": {
+    "sourceHash": "ff138914ab3f3011bb9e60a4bd50611fd12db8e5e0c5e363d7b7fd2052bd544a"
   }
 }

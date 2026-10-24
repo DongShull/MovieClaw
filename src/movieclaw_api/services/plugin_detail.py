@@ -513,6 +513,10 @@ async def plugin_detail(kernel: Kernel, settings: Any, entry_id: str, item: dict
     if not description:
         # 没有清单描述（系统模块、个别官方中枢、没写描述的本地插件）：用入口函数的说明文字
         description = _doc_summary(kernel, entry_id)
+        if source == "builtin":
+            from movieclaw_api.plugins.presentation import builtin_text
+
+            description = builtin_text(entry_id, "description", description)
 
     accounts: dict[str, int] = {}
     try:

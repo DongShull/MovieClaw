@@ -215,6 +215,7 @@ export function PluginsPage() {
         <SystemModules
           plugins={system}
           groups={overview?.groups ?? []}
+          labels={overview?.group_labels ?? {}}
           open={showSystem}
           onToggle={() => setShowSystem((v) => !v)}
         />
@@ -316,11 +317,13 @@ function OfficialSection({
 function SystemModules({
   plugins,
   groups,
+  labels = {},
   open,
   onToggle,
 }: {
   plugins: PluginInfo[];
   groups: string[];
+  labels?: Record<string, string>;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -354,7 +357,7 @@ function SystemModules({
               t("settings.plugins.slowest", { plugins: formatList(slow.map((p) => `${p.title} ${formatMs(p.apply_ms ?? 0, locale)}`), locale) })}
           </p>
           {groupBuiltins(plugins, groups, locale).map((group) => (
-            <SettingsSection key={group.label} title={group.label}>
+            <SettingsSection key={group.label} title={labels[group.label] ?? group.label}>
               <SettingsList>
                 {group.plugins.map((p) => (
                   <div key={p.id} data-plugin-ids={p.id} className={ROW_ANCHOR}>

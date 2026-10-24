@@ -175,6 +175,7 @@ export interface PluginsOverview {
   safe_mode?: PluginSafeMode;
   /** 内置插件分组的展示顺序；旧服务端没有这个字段 */
   groups?: string[];
+  group_labels?: Record<string, string>;
   /** 卸载了的官方插件；旧服务端没有这个字段 */
   removed?: RemovedPlugin[];
 }

@@ -150,6 +150,7 @@ def admin_lock(fiber: Any) -> str | None:
 
 def removed_views(settings: object) -> list[dict[str, Any]]:
     """已卸载的随带插件包（插件页「官方插件」里显示，带恢复入口）。"""
+    from movieclaw_api.i18n.metadata import localized_text
     from movieclaw_api.plugins.bundled import bundled
 
     packages = bundled()
@@ -161,8 +162,13 @@ def removed_views(settings: object) -> list[dict[str, Any]]:
         views.append(
             {
                 "id": entry_id,
-                "title": package.manifest.plugin.title,
-                "description": package.manifest.plugin.description,
+                "title": localized_text(
+                    package.manifest.plugin.title, package.manifest.plugin.title_localized
+                ),
+                "description": localized_text(
+                    package.manifest.plugin.description,
+                    package.manifest.plugin.description_localized,
+                ),
                 "removed_at": record.at,
                 "removed_by": record.by,
             }

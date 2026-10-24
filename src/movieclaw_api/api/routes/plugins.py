@@ -182,6 +182,9 @@ class SafeModeView(BaseModel):
 class PluginsView(BaseModel):
     plugins: list[PluginView]
     groups: list[str] = Field(default_factory=list, description="内置插件分组的展示顺序")
+    group_labels: dict[str, str] = Field(
+        default_factory=dict, description="Reader-specific titles keyed by the original group ID."
+    )
     contracts: ContractsView
     durable: DurableView | None = Field(
         default=None, description="可靠事件的消费进度与死信；投递插件未运行时为空"
@@ -262,6 +265,7 @@ async def list_plugins(request: Request) -> ApiResponse[PluginsView]:
     from movieclaw_api.i18n.metadata import localized_text
     from movieclaw_api.plugins import packages as pkg
     from movieclaw_api.plugins.bundled import bundled as bundled_packages
+    from movieclaw_api.plugins.presentation import builtin_text, group_labels
 
     manifests = {entry_id: item.manifest for entry_id, item in bundled_packages().items()}
     for record in pkg.installed(settings).values():
@@ -272,7 +276,11 @@ async def list_plugins(request: Request) -> ApiResponse[PluginsView]:
     def display(item: dict) -> dict:
         manifest = manifests.get(item["id"])
         if manifest is None:
-            return {}
+            return (
+                {"title": builtin_text(item["id"], "title", item["title"])}
+                if item["source"] == "builtin"
+                else {}
+            )
         return {"title": localized_text(manifest.plugin.title, manifest.plugin.title_localized)}
 
     plugins = [
@@ -302,6 +310,7 @@ async def list_plugins(request: Request) -> ApiResponse[PluginsView]:
                 "durable": durable,
                 "safe_mode": safe_mode.current().view(),
                 "groups": [label for label, _ in BUILTIN_GROUPS],
+                "group_labels": group_labels(),
                 "removed": plugin_switches.removed_views(settings),
             }
         )

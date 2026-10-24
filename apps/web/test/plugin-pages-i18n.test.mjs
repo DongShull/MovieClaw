@@ -82,3 +82,14 @@ test("plugin web consent menus are localized without changing grant state or plu
   assert.match(pending, /Approve/);
   assert.doesNotMatch(pending, /Revoke approval/);
 });
+
+test("localized group headings cannot merge distinct original group IDs", () => {
+  const plugins = [{ ...plugin, id: "first", state: "active", group: "基础" },
+    { ...plugin, id: "second", state: "active", group: "Other" }];
+  const code = load("plugins-section", "en");
+  const html = render(code.SystemModules, { plugins, groups: ["基础", "Other"], labels: { "基础": "Other" }, open: true });
+  assert.equal((html.match(/<h2>Other<\/h2>/g) ?? []).length, 2);
+  assert.match(html, /first/);
+  assert.match(html, /second/);
+  assert.deepEqual(display.groupBuiltins(plugins, ["基础", "Other"], "en").map((row) => row.label), ["基础", "Other"]);
+});

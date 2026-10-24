@@ -1,11 +1,13 @@
 [plugin]
 id = "watch-presence"
 title = "服务器观看动态"
+title_localized = { en = "Server viewing activity" }
 version = "1.0.0"
 entry = "watch_presence"
 runtime = "inline"
 sdk = "^1.0"
 description = "成员自愿共享指定媒体库的当前播放与最近观看；在现有服务端进程内运行。"
+description_localized = { en = "Members can opt in to sharing current playback and recent viewing in selected libraries. Runs within the existing server process." }
 
 [requires]
 "plugin-data" = "^1.0"
