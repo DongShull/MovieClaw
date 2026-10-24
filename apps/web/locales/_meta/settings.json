@@ -7215,5 +7215,8 @@
   },
   "playback.controls.advancedHint": {
     "sourceHash": "b64bdad9247ec96dd06bab5cae01785fd36e63945a57fa6db54d6f016b247869"
+  },
+  "metadata.pluginTitle": {
+    "sourceHash": "52240ccbc159344d2dcc0f016c8bedfbfaca2242f8dc47d1fed702b8ea93fb6d"
   }
 }

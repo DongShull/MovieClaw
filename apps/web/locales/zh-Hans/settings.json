@@ -71,7 +71,8 @@
   "metadata": {
     "title": "设置",
     "sectionTitle": "{section} · 设置",
-    "sections": "设置分区"
+    "sections": "设置分区",
+    "pluginTitle": "{name} · 插件 · 设置"
   },
   "overview": {
     "title": "概览",

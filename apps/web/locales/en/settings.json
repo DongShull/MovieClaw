@@ -71,7 +71,8 @@
   "metadata": {
     "title": "Settings",
     "sectionTitle": "{section} · Settings",
-    "sections": "Settings sections"
+    "sections": "Settings sections",
+    "pluginTitle": "{name} · Plugin · Settings"
   },
   "overview": {
     "title": "Overview",

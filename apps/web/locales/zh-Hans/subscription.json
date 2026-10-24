@@ -598,7 +598,8 @@
     "searchStats": "{results} 结果 · 命中 {hits} · 拒绝 {rejected} · 投递 {dispatched} 个单元{hasNext, select, yes { · 下轮 {next}} other {}}",
     "arranged": "{arranged}/{total} 已安排",
     "seasonUpgrading": "洗版 {count}",
-    "station": "第 {index}/{total} 站：{station}{complete, select, yes {（已收齐）} other {}}"
+    "station": "第 {index}/{total} 站：{station}{complete, select, yes {（已收齐）} other {}}",
+    "pageTitle": "订阅详情"
   },
   "wanted": {
     "importFailed": "入库失败",

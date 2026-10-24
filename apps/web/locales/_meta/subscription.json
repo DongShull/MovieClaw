@@ -2458,5 +2458,8 @@
   },
   "wall.tvPageTitle": {
     "sourceHash": "9d77fadab9c1bd4d1a65e57541fca59755e914acea032d2818654bb20ea225f3"
+  },
+  "inspector.pageTitle": {
+    "sourceHash": "97bb813ba557ad4a1341f74324e48ee95d25771c42e7c8b9594bb134510a6c96"
   }
 }

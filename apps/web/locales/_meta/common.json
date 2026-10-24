@@ -82,5 +82,11 @@
   },
   "off": {
     "sourceHash": "3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7"
+  },
+  "healthPageTitle": {
+    "sourceHash": "e8a4f7c09d1604eb4e6c4780ef635d78cd3f9291d0bc4f9859c6b587d06994e1"
+  },
+  "avatarLabel": {
+    "sourceHash": "ebd2a31c890ed6972a79b6aa79e185af061569abca7f572262f4ebf4b7d5f34a"
   }
 }

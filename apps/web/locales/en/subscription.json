@@ -598,7 +598,8 @@
     "searchStats": "{results, number} results · {hits, number} matches · {rejected, number} rejected · {dispatched, plural, one {# unit dispatched} other {# units dispatched}}{hasNext, select, yes { · Next round {next}} other {}}",
     "arranged": "{arranged, number}/{total, number} arranged",
     "seasonUpgrading": "Upgrading {count, number}",
-    "station": "Stage {index, number}/{total, number}: {station}{complete, select, yes { (collected)} other {}}"
+    "station": "Stage {index, number}/{total, number}: {station}{complete, select, yes { (collected)} other {}}",
+    "pageTitle": "Subscription details"
   },
   "wanted": {
     "importFailed": "Import failed",

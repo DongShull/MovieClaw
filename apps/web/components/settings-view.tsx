@@ -404,6 +404,7 @@ function AvatarRow() {
  * Esc 放弃修改。保存后同步会话上下文，侧栏立即更新。
  */
 function NicknameRow() {
+  const locale = useLocale();
   const t = useTranslations();
   const { session, setSession } = useSession();
   const toast = useToast();
@@ -445,7 +446,7 @@ function NicknameRow() {
   };
 
   return (
-    <SettingsRow label={t("settings.profile.nickname")} error={error}>
+    <SettingsRow label={t("settings.profile.nickname")} error={error} stackOnMobile={locale === "en"}>
       <input
         type="text"
         aria-label={t("settings.profile.nickname")}
@@ -466,7 +467,7 @@ function NicknameRow() {
         }}
         maxLength={32}
         disabled={busy}
-        className={`${SETTINGS_INPUT_CLASS} w-48`}
+        className={`${SETTINGS_INPUT_CLASS} w-48${locale === "en" ? " max-sm:w-full" : ""}`}
       />
     </SettingsRow>
   );

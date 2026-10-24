@@ -183,6 +183,7 @@ function WelcomeMasthead({ compact }: { compact: boolean }) {
  * 新句稍晚从下方浮上来，读起来是一句接一句。固定最小高度，一行与三行的字幕不会把按钮顶来顶去。
  */
 function FilmSubtitles() {
+  const t = useTranslations();
   const [scenes, setScenes] = useState<WelcomeScene[] | null>(null);
   const [index, setIndex] = useState(0);
   // 第几次换句：给进出两句各自一个新 key，让 CSS 动画每次都重新播放
@@ -215,7 +216,7 @@ function FilmSubtitles() {
       <button
         type="button"
         onClick={next}
-        aria-label={scene ? `${scene.line.replace(/\n/g, "")}——《${scene.film}》。轻点换一句台词` : "台词"}
+        aria-label={scene ? t("auth.welcome.quoteAria", { line: scene.line.replace(/\n/g, ""), film: scene.film }) : t("auth.welcome.quoteLabel")}
         className="relative grid min-h-[150px] w-full cursor-pointer items-end text-center"
       >
         {leaving && (

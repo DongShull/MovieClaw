@@ -25,5 +25,7 @@
   "copy": "Copy",
   "copied": "Copied",
   "clipboardDenied": "The browser denied clipboard access",
-  "off": "Off"
+  "off": "Off",
+  "healthPageTitle": "Service status",
+  "avatarLabel": "{name}’s avatar"
 }

@@ -25,5 +25,7 @@
   "copy": "复制",
   "copied": "已复制",
   "clipboardDenied": "浏览器拒绝访问剪贴板",
-  "off": "关闭"
+  "off": "关闭",
+  "healthPageTitle": "服务状态",
+  "avatarLabel": "{name} 的头像"
 }
