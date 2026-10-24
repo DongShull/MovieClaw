@@ -362,7 +362,7 @@ function AppShellBody({ children }: { children: React.ReactNode }) {
               />
             )}
             <main className="absolute inset-0">{mobileMainContent}</main>
-            <slots.mobileTabBar />
+            {!isImmersive && <slots.mobileTabBar />}
           </div>
         ) : (
           /* —— Netflix 桌面：顶栏 + 全宽内容 ——

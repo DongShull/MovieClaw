@@ -130,5 +130,188 @@
   },
   "thinking.levelDescription": {
     "sourceHash": "730b363f3b540d94702dd547551597bba7c6e995c6ad77eca9be2729c51ecc5d"
+  },
+  "conversation.forkHere": {
+    "sourceHash": "c941afc224b4b9d415fb9c08d9e184dbbb31644d56814760c38084c8ea78a97a"
+  },
+  "conversation.openFailed": {
+    "sourceHash": "d007faefb3a1c61a7ada1a4b003ecb0258501d9f4fce51ea021ae0974dff0e71"
+  },
+  "conversation.loading": {
+    "sourceHash": "ea9e465d5905de59ff3878396db99df0df7cc257f67cb0206984877e610760a0"
+  },
+  "conversation.rewriteTitle": {
+    "sourceHash": "fe45185460d467720c42855e73ad86612e77b9e248b1db2bfa2a611834fc4ac4"
+  },
+  "conversation.rewriteHint": {
+    "sourceHash": "c8fc0045b2633595b768953f539490274ea26e61a1ad90fecc29c28e1ffe7f22"
+  },
+  "conversation.rewriteConfirm": {
+    "sourceHash": "ce9cb18504a1f834934d46c3683a8f4772d16737bc5f48bc6b142120ad3e15ba"
+  },
+  "conversation.latest": {
+    "sourceHash": "690710fc2d0bc2795921a5309b540802d95946f7f0695b72629b7d7b91438b53"
+  },
+  "conversation.rewriting": {
+    "sourceHash": "0dc649243a6e1d0a647d2aec249595a5b40c2a48747d78ec8006a3dddfd3c257"
+  },
+  "conversation.cancelRewrite": {
+    "sourceHash": "230bf2260c3aa19285181d98bc929266f1720c5173056a62d641f490ae3321dc"
+  },
+  "conversation.configure": {
+    "sourceHash": "65fdb9654660a96305e0a86b4a9968334af91e918ab9ed7875905fa1f74693ca"
+  },
+  "conversation.rewritePlaceholder": {
+    "sourceHash": "fa0ba186c309d6196d9975c15e462af1df57f13ecf97ea307b2a3f875423efea"
+  },
+  "conversation.handoffHint": {
+    "sourceHash": "4f40e50e52a56e1234b5779b0770db31d65c4b326eae63523af0b5a2b6f93bc4"
+  },
+  "conversation.original": {
+    "sourceHash": "ea37bfb1b058b22ce9c3795aaa763babd4ee5d936f09e17f03b63373957c90e5"
+  },
+  "conversation.image": {
+    "sourceHash": "d24c10d37db0feea7bd73498118e280e6b33ca93f53f34d5e1cca1ba3e83730d"
+  },
+  "conversation.editQuestion": {
+    "sourceHash": "84a79e5f0b07bc55b5124531b2804b5c2cce2f1a06d8c46fc9d26605ab8aa48b"
+  },
+  "conversation.stopped": {
+    "sourceHash": "f006455e3baf2b0bbc0919fa635b04b9cfece6205210dac1fb6a445d3b1c2459"
+  },
+  "conversation.interruptedHint": {
+    "sourceHash": "5dfbcf10239e17342bad1676f12663b7d3e17246ffbbc9c0f93166abb11cf78e"
+  },
+  "conversation.interrupted": {
+    "sourceHash": "88cf2dc00c34d3d48c286f06f9b3751110187522f291bcad127740c184777fd3"
+  },
+  "conversation.copy": {
+    "sourceHash": "63d90d977348ab1f9aa34ebb42b103216ce161feb0a1c08e237607bf42c3cf79"
+  },
+  "conversation.thinking": {
+    "sourceHash": "64088d8cd78a0e8920a180deb3afbd9064cc946273950bf07164528d7206654f"
+  },
+  "conversation.executing": {
+    "sourceHash": "195f0f04971f01b6e933dbe0a48800562c2dea9e7860ca9229f1c5edd8788654"
+  },
+  "conversation.compacted": {
+    "sourceHash": "88e6e5293a1923337ff8a7f88280d9d844f6e499b79a7c0d15685d6f12da990e"
+  },
+  "conversation.compactionHint": {
+    "sourceHash": "78486a52c59d86304d2061ca4044975a4b8e541ed30bec1d524e7fc078d3b635"
+  },
+  "conversation.skillShortcuts": {
+    "sourceHash": "3255fbbfb07595d52df18b03c98ba7d2296d795a9fa5d0fb29162956280a9356"
+  },
+  "conversation.useSkill": {
+    "sourceHash": "37a41b2e983b06ee9554ce6b39fa4f972eaf4fb1f1caa8a2819c0971ce16d23f"
+  },
+  "conversation.input": {
+    "sourceHash": "1817f0f80020fceaa08ec310b6a3b567f0d8fadeb1cbc1f6f26e2a7929891525"
+  },
+  "conversation.forkHereTitle": {
+    "sourceHash": "e4ee8c9213afca089d5d24cfc1eb1239e3d4dead5a01b49e8dea277599695b0c"
+  },
+  "conversation.forkHint": {
+    "sourceHash": "a9f5e2e3227e85db369d1c19bce2941b27ac6fcf10fe140a8c526c48c2b3c729"
+  },
+  "conversation.forkConfirm": {
+    "sourceHash": "e054907454b86b803d4060a4e97c40ce62035e0c6379a5c0515615a196847102"
+  },
+  "conversation.renameTitle": {
+    "sourceHash": "5f64610f9fec945106deaa40bbab8297b5cdffbe3f0b49e6806498a30056c3f6"
+  },
+  "conversation.deleteHint": {
+    "sourceHash": "29cda0a2f2b0b7279693ba04928117f33e42a7b37034c35ed182fae9a41a4eb4"
+  },
+  "conversation.deleteConfirm": {
+    "sourceHash": "7aa6d0ef5feb745c45d2f52f85673904c311a37d9c1e47a94d102d97baf74b06"
+  },
+  "conversation.fork": {
+    "sourceHash": "ff63d45ac706d1735c56a319ea759935cfa3225d3a9fe4c6c9b3a336c9479cd6"
+  },
+  "conversation.actions": {
+    "sourceHash": "e6f6d875638eca0753721086684ea753bc1398979bb7b66cea0d129d5b157ba1"
+  },
+  "conversation.rename": {
+    "sourceHash": "0d0cbac2eee541136ec2dbba111676952076525a565f02bf688c31970ece1f1a"
+  },
+  "conversation.delete": {
+    "sourceHash": "d51250d14a5142e5ff2571d44de184d6b93abcb379a25be7e9e37009e6828f59"
+  },
+  "conversation.handoff": {
+    "sourceHash": "c9e92611d0d7e066ddcffb36d27f7b94dfdb84c1a5260299b514230af74dfdd3"
+  },
+  "conversation.sourceFallback": {
+    "sourceHash": "92a88e2db47d90c8ec5f5d302bebc23192dab7d21e42af0e2ee5e43ee1d4f2a6"
+  },
+  "conversation.previewImage": {
+    "sourceHash": "a866a7d97a13adf2883711e7f755a5741cb467db47044073dfec4903a5213d35"
+  },
+  "conversation.minuteDuration": {
+    "sourceHash": "9b0c78ad95ef6d3017e8ad5b80bcb3d44b13ca6464e3dcc1da6fcd8b79be4248"
+  },
+  "conversation.trace": {
+    "sourceHash": "60d250a368bb08bf04fbfa3be1d32a0eac8f923c83bccc68b097a9e2b7c72651"
+  },
+  "conversation.preparingTool": {
+    "sourceHash": "dc34758f7b0c89dc4a2d0f7dcfafe580ac7999421b070bf4468bc252450d2af9"
+  },
+  "conversation.runningTool": {
+    "sourceHash": "b7225eebc15e373374140312496a349c6af0928a30f8a749d199da067a716e7d"
+  },
+  "conversation.compactedTokens": {
+    "sourceHash": "2db01ff4a081392855257d6ab3b35a4a21c12f7ba7f58618cbd7b028c99bda3c"
+  },
+  "conversation.forkTitle": {
+    "sourceHash": "5bc80cb1f5ec7e42477f29f22f959d453f795a36c972493a752a86bc32785054"
+  },
+  "conversation.forkFailed": {
+    "sourceHash": "c635545ac2f505d3e84b1f31114b843ad2d8dd58de95e3dedb923d5be34df04d"
+  },
+  "conversation.renameFailed": {
+    "sourceHash": "c64c0cf19e1fdfed951814d0554e4a52fa1eff9c2223275d0d00a1a5a36156da"
+  },
+  "conversation.deleteTitle": {
+    "sourceHash": "1514c09c95423c64b06ec52641c4274daa54b09901276906296105dd5f840dbf"
+  },
+  "conversation.deleteFailed": {
+    "sourceHash": "9b681cd027f3b0dad052e54d48818340aeef51fcb9785ded1e63cf17c0fba719"
+  },
+  "conversation.runUnknown": {
+    "sourceHash": "b7d4458462cec0e94e0de48dbc41aa378141fafef527e9efaadc5df2e3aad3cf"
+  },
+  "conversation.runMissing": {
+    "sourceHash": "d33b29647f26b5e741885bb7d3af367f110ebae3631c31e4f49bf2febf16f485"
+  },
+  "conversation.questionMissing": {
+    "sourceHash": "4774681cc6e522973c78c89ec5ab6b6599b4257b31fbe4a1b0777ada25cd2fa9"
+  },
+  "conversation.pageTitle": {
+    "sourceHash": "5edbd9bc388e5a543476101a90d60af9ac5ae180bef7d0da8cbca1d51fe202f8"
+  },
+  "conversation.processSummary": {
+    "sourceHash": "304d883f3f403435192e41592ecb8f106f733e0f44d5b7aef76b8e10a3087066"
+  },
+  "companion.idle": {
+    "sourceHash": "5238e2cc698f00d3d4f9f22064095b7d404e51ad8884516264947833e5fd2347"
+  },
+  "companion.attentive": {
+    "sourceHash": "fe81cbc9d6098cc3633b10a6844eedb717745177e9eb619dc55c379a310caa87"
+  },
+  "companion.departing": {
+    "sourceHash": "35e39d5875ede56afce56060e3e57d45c7b214d3778e40d96bd9fe9c3d0c02ac"
+  },
+  "companion.working": {
+    "sourceHash": "0e81c9bb331f34bc2e684811f7f04cc039fed2f837667f12818dacb141b0c38c"
+  },
+  "companion.complete": {
+    "sourceHash": "4672694482cbec27b8869d3e8f8084071b1662004b7376898e32eeac56fd4384"
+  },
+  "companion.failed": {
+    "sourceHash": "13421355d86eed281465779a50522fbc811c3b158490738770387867ccde3b1c"
+  },
+  "companion.greet": {
+    "sourceHash": "4fbd58d410fe0863a9c05d76cba5c46f034eb18346f397b460e4c9d57a11876b"
   }
 }

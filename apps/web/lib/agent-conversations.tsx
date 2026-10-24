@@ -14,6 +14,9 @@
  * 中断由 SSE 客户端按事件序号续传，关闭页面也不会取消后端任务。
  */
 
+import { useTranslations } from "next-intl";
+import type { AppMessageKey } from "@/lib/i18n/translate";
+
 import {
   createContext,
   useCallback,
@@ -118,6 +121,7 @@ export interface AgentTurn {
   segments: AgentTurnSegment[];
   result?: AgentDone;
   error?: string;
+  errorKey?: AppMessageKey;
   /** 用户主动停止：status 为 done 但结果不完整 */
   stopped?: boolean;
   /** 回放派生的中断标记：本轮没有以「无工具调用的 assistant 正文」正常收
@@ -357,6 +361,7 @@ function conversationFromDetail(detail: SessionTranscript): AgentConversation {
         endedAt: undefined,
         result: undefined,
         error: undefined,
+        errorKey: undefined,
         stopped: undefined,
         interrupted: undefined,
       };
@@ -536,7 +541,7 @@ function applyAgentEvent(turn: AgentTurn, event: AgentEvent): AgentTurn {
     case "agent_done":
       return { ...turn, status: "done", result: event.result };
     case "agent_error":
-      return { ...turn, status: "error", error: event.error ?? "运行失败，原因未知" };
+      return { ...turn, status: "error", error: event.error, errorKey: event.error == null ? "agent.conversation.runUnknown" : undefined };
     case "agent_cancelled":
       return { ...turn, status: "done", stopped: true };
     default:
@@ -545,6 +550,7 @@ function applyAgentEvent(turn: AgentTurn, event: AgentEvent): AgentTurn {
 }
 
 export function AgentConversationsProvider({ children }: { children: React.ReactNode }) {
+  const t = useTranslations();
   const { isAdmin } = usePermissions();
   const [conversations, setConversations] = useState<AgentConversation[]>([]);
   // sessionId → 当前 SSE 读取器；仅用于页面卸载时关闭连接，不负责停止后台运行。
@@ -718,7 +724,7 @@ export function AgentConversationsProvider({ children }: { children: React.React
           if ((error as Error).name === "AbortError") return;
           const message =
             error instanceof HttpError && error.status === 404
-              ? "运行记录不存在或已过期，可能是服务已重启，请重新发起任务"
+              ? undefined
               : (error as Error).message;
           // 先冲刷缓冲中的事件再落错误态，保证时间线不乱序
           flushEvents();
@@ -726,6 +732,7 @@ export function AgentConversationsProvider({ children }: { children: React.React
             ...turn,
             status: "error",
             error: message,
+            errorKey: error instanceof HttpError && error.status === 404 ? "agent.conversation.runMissing" : undefined,
           }));
         })
         .finally(() => {
@@ -940,7 +947,7 @@ export function AgentConversationsProvider({ children }: { children: React.React
     ) => {
       const conversation = conversationsRef.current.find((item) => item.id === conversationId);
       const index = conversation?.turns.findIndex((turn) => turn.messageId === messageId) ?? -1;
-      if (!conversation || index < 0) throw new Error("这条提问已不在当前会话里");
+      if (!conversation || index < 0) throw new Error(t("agent.conversation.questionMissing"));
       const original = conversation.turns[index];
       const input = content ?? original.input;
       // 服务端 retry 不传 attachments 即沿用原消息的图；本地轮次同样保留
@@ -989,7 +996,7 @@ export function AgentConversationsProvider({ children }: { children: React.React
       );
       connectSession(conversationId, turnId);
     },
-    [connectSession],
+    [connectSession, t],
   );
 
   const remove = useCallback(async (conversationId: string) => {

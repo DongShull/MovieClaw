@@ -21,6 +21,7 @@ pytestmark = pytest.mark.integration
 def streaming_provider():
     class Handler(BaseHTTPRequestHandler):
         fail = True
+        use_tools = False
         calls = []
 
         def reply(self, body, status=200, content_type="application/json"):
@@ -88,6 +89,24 @@ def streaming_provider():
                         "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
                     },
                 ]
+                if self.use_tools and payload["messages"][-1]["role"] == "user":
+                    chunks[0]["choices"][0]["delta"] = {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "index": 0,
+                                "id": f"call_fixture_{len(self.calls)}",
+                                "type": "function",
+                                "function": {
+                                    "name": "bash",
+                                    "arguments": json.dumps(
+                                        {"command": "printf 'Tool fixture output'"}
+                                    ),
+                                },
+                            }
+                        ],
+                    }
+                    chunks[1]["choices"][0]["finish_reason"] = "tool_calls"
                 body = (
                     "".join("data: " + json.dumps(chunk) + "\n\n" for chunk in chunks)
                     + "data: [DONE]\n\n"
