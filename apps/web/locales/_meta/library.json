@@ -4303,5 +4303,92 @@
   },
   "duplicates.next": {
     "sourceHash": "8a8542f6964852dc4f7b840333d683776195ca83a2bf184f3b39b621e1b5d842"
+  },
+  "customize.saveFailed": {
+    "sourceHash": "8c5cb6fed2f78d5f7b0f8b13e5e36ddff27863a22361812723ff515a7f93485b"
+  },
+  "customize.resetConfirm": {
+    "sourceHash": "82becdb890660269316685eb0b442fc58ccece0a458ae1bb48a44b6f2a6b94f9"
+  },
+  "customize.title": {
+    "sourceHash": "128d239864c53a6ef927a9f3fb1fb7af7aa118f2b421426448773331349df75c"
+  },
+  "customize.library": {
+    "sourceHash": "d771576fc05c241bada9731f5fa997d50f63c3433cbcdd2141bc07d4ca6c1949"
+  },
+  "customize.loading": {
+    "sourceHash": "86b6d0d63062ba81715ba82376104aa54f47edb20d8b5e8ddf399e04a57a7468"
+  },
+  "customize.counts": {
+    "sourceHash": "747abf24ec82a76f02640c2bd4098e7d3a6091e974c85b38e0e1469ac9eaa399"
+  },
+  "customize.reset": {
+    "sourceHash": "ba2e93e73037c71e5522101bb084c5b5a52dcd9e615c9f955275f25611eccc37"
+  },
+  "customize.loadFailed": {
+    "sourceHash": "9e03c287cbc1a761ca9ce7ea211c15b284e5b53719b61df5ae2a556712767b94"
+  },
+  "customize.addSource": {
+    "sourceHash": "d460e3971ed97597f1d389dc4a037e0360bb611054d09c9a6cca6295f6802a0f"
+  },
+  "customize.allKind": {
+    "sourceHash": "e9886c9175bc77beec5a6de956e4c6db41e205ca37df5893c7bcf9f574644bb9"
+  },
+  "customize.libraryCount": {
+    "sourceHash": "1387e3767094cb6d87c25366e412db01a6862d4be782beb20b095060c4bef1fa"
+  },
+  "customize.libraryName": {
+    "sourceHash": "6886d02ff376e4c946e4a65c2a6f558bdf2af3eb81e95cd594b4556ab0d373e2"
+  },
+  "customize.alreadyAdded": {
+    "sourceHash": "40c172929cd7de6b5d00d8e18c3eac0d95c7b5da38c52c50b0b80c5c7414cb76"
+  },
+  "customize.itemCount": {
+    "sourceHash": "40a6a9251e78268086edb219f78f58e83d9ef3cfcc1ec28b674707d429ef5727"
+  },
+  "customize.hint": {
+    "sourceHash": "dc04efd809338d918e198876bde4dbfc171fe0e77ddcbd79be2752cfbf8599e2"
+  },
+  "customize.followSort": {
+    "sourceHash": "b2620f54683f7a1fc426a544cdf04748ae8b641708dec1ce7d1ad7dd37af152c"
+  },
+  "customize.followCollection": {
+    "sourceHash": "5b8efdaf85d099397fda98440dc9439eada60d0d53b15f46aecf7276ce75e8ad"
+  },
+  "customize.dragLabel": {
+    "sourceHash": "2d0c09609a13f8dcff748d09a691222e999e088b985b7c9293a646f80ebc452d"
+  },
+  "customize.dragTitle": {
+    "sourceHash": "0e4e4a908897d660178b6a6c464539cedc76d3dbd8653e4988bb7cea3a1802c6"
+  },
+  "customize.hidden": {
+    "sourceHash": "1f1bc0d5105cedff84b16d36d140c63b1ec2ba4af5051d010100d69568f74a13"
+  },
+  "customize.showNamed": {
+    "sourceHash": "4a8eacede03d34055ff943e5825a2bce83d0a6066d3d536ff5e3338d3fc134a2"
+  },
+  "customize.hideNamed": {
+    "sourceHash": "305cc365462d4a3862e58340beaf73fd6ca42d32cf1d4243323a9a76897f0a45"
+  },
+  "customize.showRow": {
+    "sourceHash": "8da915d40db3c036496eaafd92a8f1c4e372edc6acde03d0424e45a62204b656"
+  },
+  "customize.hideRow": {
+    "sourceHash": "7d22f541a19aab3b221016687acd0d2bcee76c8f700063b06cfb531e526f9a9c"
+  },
+  "customize.sort": {
+    "sourceHash": "a96c9a854190874dc5d97322bb9a1a2275997a594fca13b7f47ae6a90fdcfa7c"
+  },
+  "customize.name": {
+    "sourceHash": "6773310492a96fcf96035a33dc957b7f552d26dd6630bc2c14189d2e6aa723ee"
+  },
+  "customize.nameLabel": {
+    "sourceHash": "0b83a1a11edde91e8bff5617146032ed774e846de14646b635e05c7cbece214f"
+  },
+  "customize.unwatched": {
+    "sourceHash": "9178bfd19ad109e0a6203501e02189ebe56567e97fca73207489367c0b4b081c"
+  },
+  "customize.remove": {
+    "sourceHash": "5969c695dbc46f4977d1e930036699b1e724e81eb14c77e3421352bbcab9b4a4"
   }
 }

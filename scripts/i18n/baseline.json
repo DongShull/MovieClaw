@@ -236,7 +236,6 @@
   "apps/web/components/glass-panel.tsx": 1,
   "apps/web/components/handoff-button.tsx": 3,
   "apps/web/components/kind-wall-view.tsx": 14,
-  "apps/web/components/library-customize-view.tsx": 34,
   "apps/web/components/library-recycle-bin.tsx": 2,
   "apps/web/components/llm-gate.tsx": 1,
   "apps/web/components/mcp-section.tsx": 43,

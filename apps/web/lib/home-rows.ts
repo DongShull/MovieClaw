@@ -278,8 +278,9 @@ export function mediaKindRowName(
   kind: HomeMediaKind,
   sort: HomeRowSort,
   reversed: boolean,
+  locale?: AppLocale,
 ): string {
-  return appTranslator()("library.rows.kindName", { kind: homeMediaKindLabels()[kind], sort: homeSortPresets()[sort].short(reversed) });
+  return appTranslator(locale)("library.rows.kindName", { kind: homeMediaKindLabels(locale)[kind], sort: homeSortPresets(locale)[sort].short(reversed) });
 }
 
 /** 合集行的预设：与库行同一组六个，标签不带库名。 */
@@ -380,8 +381,8 @@ export function orderParamFor(
  * 首页上这一行叫什么是**呈现**的事，与合集自身的身份是两回事。同一个合集出现在
  * 首页可以叫「今晚看点轻松的」，合集页里它仍叫原名，两边互不影响。
  */
-export function rowTitle(row: HomeRow): string {
-  const t = appTranslator();
+export function rowTitle(row: HomeRow, locale?: AppLocale): string {
+  const t = appTranslator(locale);
   switch (row.kind) {
     case "up-next":
       return t("library.rows.upNext");
@@ -390,13 +391,13 @@ export function rowTitle(row: HomeRow): string {
     case "libraries":
       return t("library.rows.libraries");
     case "genres":
-      return t("library.rows.genreTitle", { kind: homeMediaKindLabels()[row.mediaKind] });
+      return t("library.rows.genreTitle", { kind: homeMediaKindLabels(locale)[row.mediaKind] });
     case "library":
       return (
-        row.name || homeSortPresets()[row.sort].name(row.library.name, row.reversed)
+        row.name || homeSortPresets(locale)[row.sort].name(row.library.name, row.reversed)
       );
     case "media-kind":
-      return row.name || mediaKindRowName(row.mediaKind, row.sort, row.reversed);
+      return row.name || mediaKindRowName(row.mediaKind, row.sort, row.reversed, locale);
     case "collection":
       return row.name || row.collection.name;
   }
