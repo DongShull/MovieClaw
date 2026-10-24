@@ -756,7 +756,24 @@
   },
   "ai": {
     "title": "AI preferences",
-    "description": "Default models for agents and subtitle processing"
+    "description": "Default models for agents and subtitle processing",
+    "ui": {
+      "agentLabel": "Default agent model",
+      "agentHint": "Used when a conversation has no selected model, for WeChat / Telegram / Discord conversations, and for CLI requests without --model",
+      "subtitleLabel": "Default subtitle model",
+      "subtitleHint": "Used for subtitle translation and generation. The model is fixed when a task starts; changes do not affect ongoing tasks.",
+      "saved": "AI preferences saved",
+      "empty": "No models available yet",
+      "emptyHint": "Connect at least one provider in AI providers first. Its first model is selected automatically for the agent and subtitle tasks; you can change these defaults at any time.",
+      "connect": "Connect an AI provider",
+      "defaults": "Default models",
+      "emptyValue": "(empty)",
+      "none": "None",
+      "chooseAgain": "Choose a model again…",
+      "thinkingSuffix": " (adjustable reasoning)",
+      "stale": "The previous selection \"{previous}\" is no longer available. Using {effective} automatically; choose a model again.",
+      "intro": "Choose a default model for each use. Available models come from all connected providers in <providers>AI providers</providers>. The first connected provider’s first model is selected automatically; you can change it at any time."
+    }
   },
   "cloud": {
     "title": "MovieClaw Cloud",
@@ -1156,6 +1173,44 @@
       "restoreHint": "The database structure is newer than this version due to an intervening upgrade. Rolling back restores the automatic backup from {at}; later data, including subscription activity and library records, will be lost. The current data is automatically backed up before rollback so it can be fully restored when switching back to the newer version.",
       "rollbackRestore": "Roll back to {version} and restore backup",
       "rollbackRestart": "Roll back to {version} and restart"
+    }
+  },
+  "webSearch": {
+    "ui": {
+      "disableTitle": "Disable web search?",
+      "disableHint": "The saved API key will be removed from this server. The agent will stop searching the web until you connect a provider again.",
+      "disableConfirm": "Disable",
+      "disabled": "Web search disabled",
+      "title": "Web search",
+      "intro": "Connect a search provider so the agent can look up current information online. Without one, conversations continue without the web search tool.",
+      "connected": "Connected",
+      "savedKey": "Key saved",
+      "more": "More web search actions",
+      "retest": "Retest connection",
+      "disable": "Disable web search",
+      "notConnected": "Not connected",
+      "supported": "Supports Tavily, Exa and Brave Search. An API key is required.",
+      "connect": "Connect",
+      "saved": "Web search connected",
+      "edit": "Edit web search",
+      "add": "Connect web search",
+      "drawerHint": "Choose a search provider and enter its API key.",
+      "verifyHint": "A search request tests the key before saving. It is saved only if verification succeeds.",
+      "verifying": "Verifying…",
+      "verifySave": "Verify and save",
+      "provider": "Search provider",
+      "keyPlaceholder": "Paste API key",
+      "hideKey": "Hide API key",
+      "showKey": "Show API key",
+      "hide": "Hide",
+      "show": "Show",
+      "changedProvider": "A different search provider needs its own key.",
+      "keyPrivacy": "The key is stored only on this server. Its full value is not shown after saving.",
+      "keyHint": "Key ending in {hint}",
+      "connectedProvider": "Web search connected to {provider}",
+      "replaceKey": "Enter a new key to replace it (current key ends in {hint})",
+      "signup": "Get a {provider} API key",
+      "editButton": "Edit"
     }
   }
 }

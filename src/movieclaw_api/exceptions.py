@@ -132,12 +132,22 @@ class UpstreamUnreachableException(AppException):
     （说明原因 + 跳转「设置 → 网络」），而不是一句裸的 502。
     """
 
-    def __init__(self, message: str, *, service: str, hint: str) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        service: str,
+        hint: str,
+        message_key: str | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__(
             status_code=502,
             code="UPSTREAM_UNREACHABLE",
             message=message,
             details=[{"service": service, "hint": hint}],
+            message_key=message_key,
+            params=params,
         )
 
 

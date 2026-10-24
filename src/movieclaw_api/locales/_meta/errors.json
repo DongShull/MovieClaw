@@ -2152,5 +2152,35 @@
   },
   "siteDiagnostic.unknown": {
     "sourceHash": "2248cf9062a8a78c0aed38c98b086c78a1084576b0e7ae3745340b2ef3bad489"
+  },
+  "webSearch.keyForProvider": {
+    "sourceHash": "6b6d356cc548fb20c26d2ce0f41730419313ee1b631718c00f9b9366c5aa9c48"
+  },
+  "webSearch.keyPaste": {
+    "sourceHash": "e83b7976450f74e210cb4ac3e34f40ed19a8adf1d1cc5e4c19a4acd085a2d69b"
+  },
+  "webSearch.authFailed": {
+    "sourceHash": "d0218c2ef77e9533e6d07ba5de71271c8eb85207ce977a3839ecea528d088cdb"
+  },
+  "webSearch.rateLimited": {
+    "sourceHash": "aa83c6768f69f1d6affde21c16d38efb0326edb138cc6375499ee19135149bc4"
+  },
+  "webSearch.timedOut": {
+    "sourceHash": "da4f44958c61c6331132d6967b3051b14514fff6ad6cdff28b3022ce17509c15"
+  },
+  "webSearch.connectFailed": {
+    "sourceHash": "228797dad862ca5a26fe4020a36e377ee85f32eb984fac2a3c1284adf7d9d8db"
+  },
+  "webSearch.paused": {
+    "sourceHash": "d46cedd815740212e025b9adac906dd8a58ca8603fbd13451eadd1c132a0d417"
+  },
+  "webSearch.invalidResponse": {
+    "sourceHash": "45e2ac6a7027aef95484b52b0b8e38ee6bbf08b0af7a1fb1a6f226592589eecb"
+  },
+  "webSearch.http": {
+    "sourceHash": "6b637d17645f202c3bfa46e1adabd570e436349ef88cc2ff6222bf48bb2fe19e"
+  },
+  "webSearch.httpDetail": {
+    "sourceHash": "c80becaed254d1a5020ca0a9d7d888609b06742dc41eacc6e9a970a710121abe"
   }
 }

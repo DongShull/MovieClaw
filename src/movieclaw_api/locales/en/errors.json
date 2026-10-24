@@ -347,7 +347,17 @@
   "webSearch": {
     "providerRequired": "Choose a search provider first",
     "providerUnsupported": "Unsupported search provider",
-    "invalidKey": "The API key is invalid or lacks permission. Check it and paste it again."
+    "invalidKey": "The API key is invalid or lacks permission. Check it and paste it again.",
+    "keyForProvider": "Enter an API key. Switching providers requires a new key.",
+    "keyPaste": "Paste an API key first",
+    "authFailed": "The search API key is invalid or lacks permission. Check it in Settings > AI preferences > Web search. Do not keep retrying the same key.",
+    "rateLimited": "The search service reached its rate or quota limit. Try again later without immediately repeating the same search.",
+    "timedOut": "The search service timed out after 12 seconds. Try again later. If the server is in mainland China, enable a proxy for Web search in Settings > Network.",
+    "connectFailed": "Could not connect to the search service. Check the network. If the server is in mainland China, enable a proxy for Web search in Settings > Network and retry.",
+    "paused": "Repeated connection failures have briefly paused search requests. They will resume automatically. If this continues, test Web search connectivity in Settings > Network.",
+    "invalidResponse": "The search service returned content that could not be parsed.",
+    "http": "The search service returned HTTP {status}.",
+    "httpDetail": "The search service returned HTTP {status}: {detail}"
   },
   "downloaders": {
     "testing": "Downloader \"{name}\" is testing its connection. Wait for it to finish.",

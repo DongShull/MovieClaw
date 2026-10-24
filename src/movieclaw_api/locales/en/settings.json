@@ -6,7 +6,8 @@
     "connectionSaved": "Saved; testing the model connection",
     "connectionRetested": "Connection test restarted",
     "connectionDeleted": "Deleted",
-    "remoteRevocationPending": "Local connection deleted. Remote revocation is unconfirmed; disconnect this app in ChatGPT settings."
+    "remoteRevocationPending": "Local connection deleted. Remote revocation is unconfirmed; disconnect this app in ChatGPT settings.",
+    "modelWithProvider": "{model} ({provider})"
   },
   "updates": {
     "applicationScope": "application updates",
@@ -231,7 +232,13 @@
   },
   "webSearch": {
     "saved": "Web search verified and saved",
-    "disabled": "Web search disabled"
+    "disabled": "Web search disabled",
+    "proxyHint": "Enable a proxy for Web search in Settings > Network and retry",
+    "connected": "Connected successfully",
+    "connectedSample": "Connected successfully. Sample result: {title}",
+    "noteTavily": "Search designed for AI agents, with summaries included in results",
+    "noteExa": "Semantic search for related articles and reference material",
+    "noteBrave": "General web search with an independent index"
   },
   "app": {
     "updateStarted": "Update started. Track it using the progress endpoint.",

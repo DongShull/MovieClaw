@@ -209,10 +209,10 @@ export function LlmConfigSection() {
                       ) {
                         return;
                       }
-                      const message = await deleteLlmProvider(config.id);
+                      const result = await deleteLlmProvider(config.id);
                       await afterChange();
-                      if (config.provider_type === "chatgpt" && message !== "已删除") {
-                        await confirm({ title: "ChatGPT 接入已移除", description: message, confirmLabel: "知道了" });
+                      if (config.provider_type === "chatgpt" && result.remoteRevoked !== true) {
+                        await confirm({ title: "ChatGPT 接入已移除", description: result.message, confirmLabel: "知道了" });
                       }
                     })
                   }

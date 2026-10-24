@@ -347,7 +347,17 @@
   "webSearch": {
     "providerRequired": "请先选择搜索供应商",
     "providerUnsupported": "不支持的搜索供应商",
-    "invalidKey": "API Key 无效或没有权限，请核对后重新粘贴。"
+    "invalidKey": "API Key 无效或没有权限，请核对后重新粘贴。",
+    "keyForProvider": "请填写 API Key；更换供应商时需要新的密钥",
+    "keyPaste": "请先粘贴 API Key",
+    "authFailed": "搜索 API Key 无效或没有权限。请到「设置 → AI 设定 → 网页搜索」核对密钥，不要用同一把 Key 反复重试。",
+    "rateLimited": "搜索服务触发了速率或配额限制。请稍后再试，不要立刻用相同条件重搜。",
+    "timedOut": "搜索服务超时（12 秒内没有响应）。请稍后再试；若服务器在国内，请到「设置 → 网络」为「网页搜索」打开代理。",
+    "connectFailed": "无法连接搜索服务。请检查网络；若服务器在国内，请到「设置 → 网络」为「网页搜索」打开代理后再试。",
+    "paused": "搜索服务近期连续连不上，已暂停请求一小会儿，稍后会自动恢复。若一直如此，请到「设置 → 网络」对「网页搜索」做连通性测试。",
+    "invalidResponse": "搜索服务返回了无法解析的内容。",
+    "http": "搜索服务返回 HTTP {status}。",
+    "httpDetail": "搜索服务返回 HTTP {status}。{detail}"
   },
   "downloaders": {
     "testing": "下载器「{name}」正在测试连接，请等待完成后再操作",

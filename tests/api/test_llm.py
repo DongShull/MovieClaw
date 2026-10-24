@@ -630,6 +630,7 @@ def test_delete_then_list_empty(client) -> None:
     created = c.post("/api/v1/llm/providers", json=_PAYLOAD).json()["data"]
     r = c.delete(f"/api/v1/llm/providers/{created['id']}")
     assert r.status_code == 200
+    assert r.json()["data"] == {"remote_revoked": True}
     assert _first(c) is None
     assert c.delete(f"/api/v1/llm/providers/{created['id']}").status_code == 404
 

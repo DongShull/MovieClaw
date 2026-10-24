@@ -3156,5 +3156,152 @@
   },
   "update.ui.rollbackRestart": {
     "sourceHash": "4223c9b048637871998727c504b2e33c84785108becce343f69af6f0eec1e228"
+  },
+  "ai.ui.agentLabel": {
+    "sourceHash": "d43bbd3cc8d127335168137f2dee36b4e696ce4dc25eaf3f0f6e055381b74bb2"
+  },
+  "ai.ui.agentHint": {
+    "sourceHash": "04ad8fa586ce808337edaa5acf0c2bccbbef265134d3d511d9698f9712708043"
+  },
+  "ai.ui.subtitleLabel": {
+    "sourceHash": "724cac844e51cd5adce858c39307121e5c93147863f5270c210cd52221ca1f53"
+  },
+  "ai.ui.subtitleHint": {
+    "sourceHash": "68a1fc5ab9e672e497e13ce57038ff48c724da08c4b569309df31df8fd57702d"
+  },
+  "ai.ui.saved": {
+    "sourceHash": "c5f4d3fc5fc250636e1d969d8d56efb855c92957abd6794bdd3c3659c7185610"
+  },
+  "ai.ui.empty": {
+    "sourceHash": "5366ef4873c43764a9936457dedfab6f36571034455f0f0cf14225c8b99a64d7"
+  },
+  "ai.ui.emptyHint": {
+    "sourceHash": "782122c5c243b147454512ba80ff81d11a8f1733320b26d110a1684c6797212b"
+  },
+  "ai.ui.connect": {
+    "sourceHash": "835a8d04af604a7c484feaf404413da67b045d615d3ea3cb55adb80e6e4791cb"
+  },
+  "ai.ui.defaults": {
+    "sourceHash": "1e2933c6b813322a9bee618bc0799720c34cb038052f78c122045a812fc26283"
+  },
+  "ai.ui.emptyValue": {
+    "sourceHash": "fa8bc5e925f9f76116d7792daddf8681c027c8b1987a9709ada7ec70d7fc689b"
+  },
+  "ai.ui.none": {
+    "sourceHash": "484d55613910eb8c0917fe308b499d474115ced993cd002a17d7cc75254330a4"
+  },
+  "ai.ui.chooseAgain": {
+    "sourceHash": "bb750334387ece8fa5e2755602b1d194536cd388d8b2187f461f9bd43edc284a"
+  },
+  "ai.ui.thinkingSuffix": {
+    "sourceHash": "fdc6c32b0309b85a01a7963be2c894607d045604b73e7a84067f95592b016f84"
+  },
+  "ai.ui.stale": {
+    "sourceHash": "6f76f48e335cbc1ac836921fcba038d29b308b692286e681fd8df6f82a1f3f49"
+  },
+  "ai.ui.intro": {
+    "sourceHash": "c10e5b331dd3429f17364b049959e70e43560d33af32442f1c13166ebd245c7a"
+  },
+  "webSearch.ui.disableTitle": {
+    "sourceHash": "c8510661f932112fa9f588dc9f5b4cfcabaac4f251b19315b0757bed00cceb47"
+  },
+  "webSearch.ui.disableHint": {
+    "sourceHash": "eca858be659b057e4c3c9c0cb0a642e93d61cb198c9475471cf4d313007085c7"
+  },
+  "webSearch.ui.disableConfirm": {
+    "sourceHash": "3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7"
+  },
+  "webSearch.ui.disabled": {
+    "sourceHash": "15673740e415da62fbdaa55e5be7fb08ed416c098aedbb9f3cff7e3dfecd94fc"
+  },
+  "webSearch.ui.title": {
+    "sourceHash": "e369180d1c13449e881371f1199045510115164c3a67cd185e812539816fd80b"
+  },
+  "webSearch.ui.intro": {
+    "sourceHash": "0d2a231fe9da24a6aff4197764fcc6676558e98e5d2130a056f6fda7eb12b251"
+  },
+  "webSearch.ui.connected": {
+    "sourceHash": "fa1876770899f29b15b7cf4083e604db799c18f160ce9908376600749ec48fcd"
+  },
+  "webSearch.ui.savedKey": {
+    "sourceHash": "ce995ed513feccf9c02b36632eada94048f736b944905175cf9e86ae5c8d982b"
+  },
+  "webSearch.ui.more": {
+    "sourceHash": "dc80cc0ee16f30ad22175a843aa2866febc9a0742094128813c0ad4507ec6092"
+  },
+  "webSearch.ui.retest": {
+    "sourceHash": "e9291da9e89a77071e92135cd7b012c304be142e52696050b7fdc91f28791e53"
+  },
+  "webSearch.ui.disable": {
+    "sourceHash": "9b041f4b68e8f3065afa6547422b485045cbbb3076c88a20fe05b6134db26171"
+  },
+  "webSearch.ui.notConnected": {
+    "sourceHash": "af33de3507b4c2391ba968a6d89bd7ad8ba399b97792bf1d044f684206265944"
+  },
+  "webSearch.ui.supported": {
+    "sourceHash": "58604b07c4b26ec5175aac76b02443fb57d30e3de1b30958c88b8600792e439a"
+  },
+  "webSearch.ui.connect": {
+    "sourceHash": "f3b39245976133a703797d8610431a26d146777ab2f16bdff27736ce1183b664"
+  },
+  "webSearch.ui.saved": {
+    "sourceHash": "1f6ec353ace6a53a3e408a79229cd659b5e8d5664a22b3b1c96813e327ea4b95"
+  },
+  "webSearch.ui.edit": {
+    "sourceHash": "99a6d449439a630736518138c2144afecfce9f2f054dd16c1a68a846dbe03ce9"
+  },
+  "webSearch.ui.add": {
+    "sourceHash": "413d640aafc546ea5eafad0af97a2323a4f656ddc5a61353dc89bcc55f8a268a"
+  },
+  "webSearch.ui.drawerHint": {
+    "sourceHash": "14431d54568f28f7240dd0fa6c4dee8b8635bb33dabd30f1b3376a7a6f676139"
+  },
+  "webSearch.ui.verifyHint": {
+    "sourceHash": "409ccfc7af34d44d1a5563fc8cf705d4c3859866101edc8066cca615957fcffc"
+  },
+  "webSearch.ui.verifying": {
+    "sourceHash": "7f2d0739a240dc5197db9746c6f500555d966a7f8703c2b0f8c585f08c5e6b5e"
+  },
+  "webSearch.ui.verifySave": {
+    "sourceHash": "474cbd48a871d6864f882a80f3fada23b2985c448d02161d914774a151eb0fe7"
+  },
+  "webSearch.ui.provider": {
+    "sourceHash": "9eb591385b2eb8b1fe1d9908a5c3482ec6def3c0a04e4dc6f00860d8365f6ad5"
+  },
+  "webSearch.ui.keyPlaceholder": {
+    "sourceHash": "ac33827a85efec03ad40cb479a7ef042de4cb828d2baaf7131d793935cc12734"
+  },
+  "webSearch.ui.hideKey": {
+    "sourceHash": "86b7355ec3bd55ef00274fafd243ba7e1b1f18aad6d55e07f33be98bfde1ea3b"
+  },
+  "webSearch.ui.showKey": {
+    "sourceHash": "f2bdc88464c51c2e5a76599b4cf84a33dc592b5f096685ccb6fe074a7d1738b8"
+  },
+  "webSearch.ui.hide": {
+    "sourceHash": "145219e726b87790e7b498ab08dc15f50d1261ce1be942999aa42a87b8bc79df"
+  },
+  "webSearch.ui.show": {
+    "sourceHash": "4e1449e7d5e505938ac1d0b7c392f67850ade1cd95cc7daa4e276889fa70a1f5"
+  },
+  "webSearch.ui.changedProvider": {
+    "sourceHash": "d6f80863b18f93eb2c6cc5cacb181bf079dd6f2f132e924d4045c0bc8a943b8c"
+  },
+  "webSearch.ui.keyPrivacy": {
+    "sourceHash": "116f767d2f7822f1aedc643ae7c62dc4e2a988e2c188c9e0c74d72d39537d529"
+  },
+  "webSearch.ui.keyHint": {
+    "sourceHash": "8c316da736c32a810169fff2e7a08dd4a778a8f7da7ec9d91a25d23376af8b78"
+  },
+  "webSearch.ui.connectedProvider": {
+    "sourceHash": "8ecd4bf17af688a57ea18a80af40329e28f16923a7db6ee2db89d6761673ce18"
+  },
+  "webSearch.ui.replaceKey": {
+    "sourceHash": "3f085d6c951065c7567e180eab9311b19d6a3ad2d5bd9bfde9a02130a8da26d4"
+  },
+  "webSearch.ui.signup": {
+    "sourceHash": "9df7703563f533e6517c49e651c6f7217b0009de80f37717aeaa189f24d2bf60"
+  },
+  "webSearch.ui.editButton": {
+    "sourceHash": "051836569928a9f91145a70e00b212b62a06c21a97d2d828cb75acd3fbe851b9"
   }
 }

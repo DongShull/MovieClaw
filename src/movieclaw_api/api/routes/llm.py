@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import Counter
+
 from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,7 +119,24 @@ async def list_llm_models(
     有时 ref 是裸 id；出现在多个实例里时 ref 为「实例名/模型id」、label 带括号
     标注实例名。把 ref 原样填进 session.start 的 model 或 AI 设定即可；
     is_default 标记智能体默认模型。"""
-    return ok(await LlmConfigService(session).list_model_options())
+    options = await LlmConfigService(session).list_model_options()
+    counts = Counter(option.model_id for option in options)
+    return ok(
+        [
+            option.model_copy(
+                update={
+                    "label": t(
+                        "settings.llm.modelWithProvider",
+                        model=option.model_id,
+                        provider=option.provider_name,
+                    )
+                }
+            )
+            if counts[option.model_id] > 1
+            else option
+            for option in options
+        ]
+    )
 
 
 @router.get(
@@ -273,7 +292,7 @@ async def delete_llm_provider(
     """AI 设定里指向它的默认模型会自动改指最早剩下的实例；全部删除时清空。"""
     revoked = await LlmConfigService(session).delete(provider_id)
     return ok(
-        {},
+        {"remote_revoked": revoked},
         message=t("settings.llm.connectionDeleted")
         if revoked
         else t("settings.llm.remoteRevocationPending"),

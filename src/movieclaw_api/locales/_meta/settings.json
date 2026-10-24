@@ -1045,5 +1045,26 @@
   },
   "update.exitUnknown": {
     "sourceHash": "7bc31562b3de6ab5a6ab25b435c3ec065a349245c2db2ee1e407160955e65d56"
+  },
+  "webSearch.proxyHint": {
+    "sourceHash": "e1f2c1dba3058787af168745532bb8e00eb116708fdb7f16e2abd45f8ad87ec1"
+  },
+  "webSearch.connected": {
+    "sourceHash": "4a19cb8a31d71f3388f0b3f3cc3a49ac1cb0aabf073d8eebb8809abcdb8f084b"
+  },
+  "webSearch.connectedSample": {
+    "sourceHash": "e8d4a6ae899d00fc094e43d3cf287fc9a230f399a4584e197df9190f78bffaad"
+  },
+  "webSearch.noteTavily": {
+    "sourceHash": "677aca1a87cfd3c526580a79fec9a762d764700fcc67e2325dbbaafcca4309ce"
+  },
+  "webSearch.noteExa": {
+    "sourceHash": "c6cb37d73e5d35c6921e11c0d8f7354ce7141de2d359577ada4f0c5c1ca6d4e6"
+  },
+  "webSearch.noteBrave": {
+    "sourceHash": "92a59c3c3261876c3925002c9c1488dab7ae635457772a8ebf057d9bbd344da8"
+  },
+  "llm.modelWithProvider": {
+    "sourceHash": "c91c788ede0bb925c37be7ce3048d2c1b6e3a4dfea29eb4de43d0aa2e14e69ef"
   }
 }

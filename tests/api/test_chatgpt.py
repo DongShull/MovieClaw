@@ -119,7 +119,13 @@ def test_authorization_code_exchange_and_account_catalog(client, monkeypatch):
     assert mismatch.status_code == 400
 
 
-def test_delete_clears_local_credentials_and_reports_unconfirmed_revocation(client, monkeypatch):
+@pytest.mark.parametrize(
+    "locale, warning",
+    [("zh-Hans", "远端撤销未确认"), ("en", "Remote revocation is unconfirmed")],
+)
+def test_delete_clears_local_credentials_and_reports_unconfirmed_revocation(
+    client, monkeypatch, locale, warning
+):
     from unittest.mock import AsyncMock
 
     from tests.llm.unit.test_chatgpt import credentials
@@ -141,8 +147,12 @@ def test_delete_clears_local_credentials_and_reports_unconfirmed_revocation(clie
         },
     )
     assert created.status_code == 200
-    deleted = c.delete(f"/api/v1/llm/providers/{created.json()['data']['id']}")
-    assert deleted.status_code == 200 and "远端撤销未确认" in deleted.json()["message"]
+    deleted = c.delete(
+        f"/api/v1/llm/providers/{created.json()['data']['id']}",
+        headers={"Accept-Language": locale},
+    )
+    assert deleted.status_code == 200 and warning in deleted.json()["message"]
+    assert deleted.json()["data"] == {"remote_revoked": False}
     assert c.get("/api/v1/llm/providers").json()["data"] == []
     assert revoke.await_count == 1
 

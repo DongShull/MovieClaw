@@ -6,7 +6,8 @@
     "connectionSaved": "已保存，正在测试模型连接",
     "connectionRetested": "已重新发起连接测试",
     "connectionDeleted": "已删除",
-    "remoteRevocationPending": "本地接入已删除；远端撤销未确认，请在 ChatGPT 设置中断开此 App"
+    "remoteRevocationPending": "本地接入已删除；远端撤销未确认，请在 ChatGPT 设置中断开此 App",
+    "modelWithProvider": "{model}（{provider}）"
   },
   "updates": {
     "applicationScope": "应用更新",
@@ -231,7 +232,13 @@
   },
   "webSearch": {
     "saved": "网页搜索已验证并保存",
-    "disabled": "已关闭网页搜索"
+    "disabled": "已关闭网页搜索",
+    "proxyHint": "到「设置 → 网络」为「网页搜索」打开代理后再试",
+    "connected": "连接成功",
+    "connectedSample": "连接成功，示例结果：{title}",
+    "noteTavily": "专为 AI 智能体设计的搜索，结果自带摘要",
+    "noteExa": "按语义检索，适合找相关文章和资料",
+    "noteBrave": "独立索引的通用网页搜索"
   },
   "app": {
     "updateStarted": "更新已开始，可通过进度接口跟踪",

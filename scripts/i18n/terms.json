@@ -52,5 +52,8 @@
   ],
   "刷流做种": [
     "ratio boosting"
+  ],
+  "settings.webSearch.ui.disableConfirm": [
+    "disable"
   ]
 }

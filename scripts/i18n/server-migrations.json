@@ -2129,5 +2129,22 @@
   "settings.update.exitNginx": "nginx 前门进程异常退出",
   "settings.update.exitHealth": "完整健康链路连续失败，容器主动退出等待自动拉起",
   "settings.update.exitWatchdog": "健康看门狗意外退出",
-  "settings.update.exitUnknown": "无法确定退出的子进程"
+  "settings.update.exitUnknown": "无法确定退出的子进程",
+  "errors.webSearch.keyForProvider": "请填写 API Key；更换供应商时需要新的密钥",
+  "errors.webSearch.keyPaste": "请先粘贴 API Key",
+  "errors.webSearch.authFailed": "搜索 API Key 无效或没有权限。请到「设置 → AI 设定 → 网页搜索」核对密钥，不要用同一把 Key 反复重试。",
+  "errors.webSearch.rateLimited": "搜索服务触发了速率或配额限制。请稍后再试，不要立刻用相同条件重搜。",
+  "errors.webSearch.timedOut": "搜索服务超时（12 秒内没有响应）。请稍后再试；若服务器在国内，请到「设置 → 网络」为「网页搜索」打开代理。",
+  "errors.webSearch.connectFailed": "无法连接搜索服务。请检查网络；若服务器在国内，请到「设置 → 网络」为「网页搜索」打开代理后再试。",
+  "errors.webSearch.paused": "搜索服务近期连续连不上，已暂停请求一小会儿，稍后会自动恢复。若一直如此，请到「设置 → 网络」对「网页搜索」做连通性测试。",
+  "errors.webSearch.invalidResponse": "搜索服务返回了无法解析的内容。",
+  "errors.webSearch.http": "搜索服务返回 HTTP {status}。",
+  "errors.webSearch.httpDetail": "搜索服务返回 HTTP {status}。{detail}",
+  "settings.webSearch.proxyHint": "到「设置 → 网络」为「网页搜索」打开代理后再试",
+  "settings.webSearch.connected": "连接成功",
+  "settings.webSearch.connectedSample": "连接成功，示例结果：{title}",
+  "settings.webSearch.noteTavily": "专为 AI 智能体设计的搜索，结果自带摘要",
+  "settings.webSearch.noteExa": "按语义检索，适合找相关文章和资料",
+  "settings.webSearch.noteBrave": "独立索引的通用网页搜索",
+  "settings.llm.modelWithProvider": "{model}（{provider}）"
 }
