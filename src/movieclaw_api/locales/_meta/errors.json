@@ -2326,5 +2326,65 @@
   },
   "agent.run.unknown": {
     "sourceHash": "b7d4458462cec0e94e0de48dbc41aa378141fafef527e9efaadc5df2e3aad3cf"
+  },
+  "downloader.connectDefault": {
+    "sourceHash": "b7eef121d798f3af76f0966be4af74d0f3f0d19756bc4e5539e0439f918d2d13"
+  },
+  "downloader.authDefault": {
+    "sourceHash": "8affbad9063e3c7e44921ffcf9dd6c70fcb3ec131a1d9b3a8f251299e28a5251"
+  },
+  "downloader.submitDefault": {
+    "sourceHash": "fc2c7ae8c4537722a8da1dc16ad7e7b0cf9b4003883c32716fd971acfc1e82a8"
+  },
+  "downloader.deleteDefault": {
+    "sourceHash": "d3656fcf0523c76c59bd95573263cfb870ac63daecb5ce62b9bac33f1b8e150e"
+  },
+  "downloader.parseTorrent": {
+    "sourceHash": "d5227ce335eb3e0b5a8261d3cab0ef3a63aa95684a2e4943efeb5e0ff483b211"
+  },
+  "downloader.unsupported": {
+    "sourceHash": "7a0367f3fbd51e348e6fc72455e3efa0f370e22fa4e040bb939b71832a5be7b2"
+  },
+  "downloader.qbLogin": {
+    "sourceHash": "aa701c1800163484abb53ea5bb90c8a7710d4c8aaa7ebb2e9bcd67fa79a2f5a7"
+  },
+  "downloader.qbAccessDenied": {
+    "sourceHash": "fe7a6a24f5f76e5b67e434a58fe546c47205be74f980708615bfe49bad337206"
+  },
+  "downloader.qbInvalidTorrent": {
+    "sourceHash": "445bb53e4819599992d378a7ab489045aa6a853b3a5d79a7cc95e3c93bd8e81a"
+  },
+  "downloader.qbConnect": {
+    "sourceHash": "2c5607d404c43b3d75b4ae215cf9384d675036dd6d85e0c625084a89ee952f0f"
+  },
+  "downloader.qbRejectedTorrent": {
+    "sourceHash": "c8a110633356bfaa3bb4eb05655a6af4c5eccd5d03d66eae4d900b1414e5a9a3"
+  },
+  "downloader.qbDelete": {
+    "sourceHash": "04e785dc71aa0bd2513a120de7c2e196b426fb2a6a4f86cb0b3c5b9d6c83dc5b"
+  },
+  "downloader.qbMove": {
+    "sourceHash": "6ce8cb01040d84493c9545b8acb0d6f559669f6973555fbc68ce55ecb38b8f31"
+  },
+  "downloader.trAuth": {
+    "sourceHash": "f9ae8a707ee4ebb62c1bb50091dc31d99fe3b81418e40acef3126cf86776ab9d"
+  },
+  "downloader.trConnect": {
+    "sourceHash": "4937864108e5d1240c487b97767f7fe80849bc7ca4c72d07c0f6f8fea8082b86"
+  },
+  "downloader.trDelete": {
+    "sourceHash": "e9a6e4e0045cd947fa0f397aed3034e0d0c111cf89ad1211668f160ce0307b7b"
+  },
+  "downloader.trRejected": {
+    "sourceHash": "afb44607228af10bdb3fac7a2b3d2f86ceccb43e2a12a94d25101bc1d2cf4ba3"
+  },
+  "downloader.trUrl": {
+    "sourceHash": "a1510f905d53ab756930ff98aeddea1ecb8c385b4b33f3ce6f65d6688f0569cd"
+  },
+  "downloader.verifyUnexpected": {
+    "sourceHash": "cc4a8b4573b706f91c54bb3657ae824a7b69104606c97c5644962ca135616b19"
+  },
+  "downloader.pluginNotRunning": {
+    "sourceHash": "1e46c40cca7aba4d3f23954863e35d6eb1515c948cfb33fb784e2cf66ce10c07"
   }
 }

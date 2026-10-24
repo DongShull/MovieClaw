@@ -464,19 +464,20 @@ class DownloaderTypeView(BaseModel):
     operation_id="dl.types.list",
 )
 async def list_downloader_types() -> ApiResponse[list[DownloaderTypeView]]:
+    from movieclaw_api.i18n.metadata import localized_schema
     from movieclaw_downloader.registry import adapters
     from movieclaw_sdk.config_schema import connection_schema
 
     views = []
     for a in adapters().values():
-        schema = connection_schema(a)
+        schema = localized_schema(connection_schema(a))
         url = schema["properties"]["url"]
         views.append(
             DownloaderTypeView(
                 type=a.type,
                 title=a.title,
                 connection=schema,
-                url_label=url.get("title") or "地址",
+                url_label=url.get("title") or t("settings.downloaders.urlLabel"),
                 url_placeholder=(url.get("examples") or [""])[0],
                 needs_username="username" in schema["properties"],
                 help=a.help or url.get("description") or "",

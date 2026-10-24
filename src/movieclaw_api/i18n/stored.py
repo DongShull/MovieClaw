@@ -66,7 +66,7 @@ def localize_fields(value):
         return value
     result = {name: localize_fields(child) for name, child in value.items()}
     for field in (
-        "message", "label", "title", "reason", "source_desc", "error",
+        "message", "label", "title", "reason", "source_desc", "error", "detail",
         "route_reason", "rule_set_reason", "warning",
     ):
         text = value.get(field)

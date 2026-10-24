@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import Field, field_serializer, field_validator, model_validator
 
+from movieclaw_api.i18n.stored import localize_fields, render_value
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_db.models.downloader_client import DownloaderClient
 from movieclaw_db.models.site_credential import ConfigStatus
@@ -94,9 +95,9 @@ class DownloaderView(BaseModel):
             status=row.status,
             usable=row.enabled and row.status == ConfigStatus.ACTIVE,
             version=row.version,
-            last_error=row.last_error,
+            last_error=render_value(row.last_error_ref) if row.last_error_ref else row.last_error,
             last_checked_at=row.last_checked_at,
-            path_health=row.path_health,  # type: ignore[arg-type]  # 落库形态即 PathProbe.as_dict
+            path_health=localize_fields(row.path_health),  # type: ignore[arg-type]  # 落库形态即 PathProbe.as_dict
             paths_healthy=all(p.get("state") == "ok" for p in (row.path_health or [])),
             created_at=row.created_at,
             updated_at=row.updated_at,

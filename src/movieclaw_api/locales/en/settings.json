@@ -232,7 +232,8 @@
     "defaultSaved": "Default downloader set",
     "retested": "Connection test restarted",
     "deleted": "Deleted",
-    "deletedBoostDisabled": "Deleted; ratio boost was disabled for {sites} because they used this downloader"
+    "deletedBoostDisabled": "Deleted; ratio boost was disabled for {sites} because they used this downloader",
+    "urlLabel": "URL"
   },
   "appPush": {
     "saved": "Push settings saved",

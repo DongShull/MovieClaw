@@ -1087,5 +1087,8 @@
   },
   "llm.preset.openaiCompat": {
     "sourceHash": "de9905489dfc1668f5eb44793114f4b56ee3c572cfdc9f5e99a33ebb141047f7"
+  },
+  "downloaders.urlLabel": {
+    "sourceHash": "37aac5b4e639b93b620a8366fb9d17875610a76ab8c8ab5f12d3ec6da37788dd"
   }
 }

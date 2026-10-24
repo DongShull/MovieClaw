@@ -1062,6 +1062,8 @@ class Runner:
             reply.update(ok=True, result=result)
         except dl.DownloaderException as exc:
             reply.update(ok=False, error=exc.message, error_kind=type(exc).__name__)
+            if getattr(exc, "message_ref", None):
+                reply["message_ref"] = exc.message_ref
         except Exception as exc:  # noqa: BLE001 -- 未知错误原样报给宿主
             reply.update(ok=False, error=f"{type(exc).__name__}: {exc}")
         return reply

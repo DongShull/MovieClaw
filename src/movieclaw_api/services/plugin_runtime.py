@@ -96,6 +96,7 @@ class RemoteCallError(RuntimeError):
         job: dict[str, Any] | None = None,
         kind: str | None = None,
         detail: str = "",
+        message_ref: dict | None = None,
     ) -> None:
         super().__init__(message)
         self.job = job
@@ -103,6 +104,7 @@ class RemoteCallError(RuntimeError):
         self.kind = kind
         #: 插件给出的原始错误信息（不带「插件 x 处理失败」前缀，可以直接给用户看）
         self.detail = detail or message
+        self.message_ref = message_ref
 
 
 def _child_env() -> dict[str, str]:
@@ -508,6 +510,7 @@ class Session:
                 job=reply.get("job"),
                 kind=reply.get("error_kind"),
                 detail=str(reply.get("error") or ""),
+                message_ref=reply.get("message_ref"),
             )
         return reply.get("result")
 

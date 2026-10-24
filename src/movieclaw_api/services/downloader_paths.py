@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from movieclaw_api.i18n import t
+from movieclaw_api.i18n import t, use_locale
 from movieclaw_api.i18n.stored import stored_message
 from movieclaw_api.services.torrent_submit import mapping_covers
 
@@ -88,12 +88,19 @@ class PathProbe:
 
     def as_dict(self) -> dict[str, str]:
         """落库与接口返回用的扁平形态。"""
-        return {
+        with use_locale("zh-Hans"):
+            detail = (
+                stored_message(self.detail, self.detail_key) if self.detail_key else self.detail
+            )
+        result = {
             "local": self.local,
             "remote": self.remote,
             "state": self.state.value,
-            "detail": stored_message(self.detail, self.detail_key),
+            "detail": detail,
         }
+        if self.detail_key:
+            result["detail_key"] = self.detail_key
+        return result
 
 
 def _classify(local: str) -> PathState:

@@ -890,5 +890,27 @@
     "unavailable": "The site server is temporarily unavailable (status {code}). This is usually a site issue. Wait for it to recover.",
     "http": "The site returned an unexpected status: {code}. Try again later or check credentials.",
     "unknown": "Unexpected verification error ({kind}): {error}"
+  },
+  "downloader": {
+    "connectDefault": "Unable to connect to the downloader. Check its URL and port.",
+    "authDefault": "Downloader authentication failed. Check the username and password.",
+    "submitDefault": "Failed to submit the download task",
+    "deleteDefault": "Failed to delete the download task",
+    "parseTorrent": "Unable to parse the torrent content",
+    "unsupported": "Downloader type '{type}' is not supported yet",
+    "qbLogin": "qBittorrent login failed: incorrect username or password",
+    "qbAccessDenied": "qBittorrent denied access. Check the credentials; repeated failures may have triggered an IP ban.",
+    "qbInvalidTorrent": "qBittorrent could not recognize the submitted torrent file. It may be damaged or not a .torrent file.",
+    "qbConnect": "Unable to connect to qBittorrent. Check the WebUI URL and port.",
+    "qbRejectedTorrent": "qBittorrent rejected the torrent. The file may be invalid or a downloader limit was reached.",
+    "qbDelete": "Failed to delete the qBittorrent task. Check the downloader status.",
+    "qbMove": "Failed to move the qBittorrent task directory. Check that the destination is writable.",
+    "trAuth": "Transmission authentication failed: incorrect username or password",
+    "trConnect": "Unable to connect to Transmission. Check the RPC URL and port.",
+    "trDelete": "Failed to delete the Transmission task. Check the downloader status.",
+    "trRejected": "Transmission rejected the request. The torrent may be invalid or the downloader returned an error.",
+    "trUrl": "Invalid Transmission URL. Use a URL such as http://host:9091.",
+    "verifyUnexpected": "An unexpected error occurred during the connection test ({kind}): {detail}",
+    "pluginNotRunning": "Downloader plugin {entry} is not running. It will retry automatically."
   }
 }

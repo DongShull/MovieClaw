@@ -13,6 +13,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services.download_health import adopt_landing_groups
 from movieclaw_api.services.downloader_paths import PathProbe, detail_key, probe_mappings, summarize
 from movieclaw_db.engine import get_database
@@ -249,14 +250,27 @@ async def verify_downloader(downloader_id: int) -> None:
         except DownloaderException as exc:
             # Downloader* 异常的 message 本身已是清晰中文，直接展示
             logger.info("下载器连接测试失败：%s（%s）", row.name, exc.message)
-            await repo.update_status(downloader_id, ConfigStatus.FAILED, last_error=exc.message)
-            await _notify_failed(session, downloader_id, row.name, exc.message)
+            await repo.update_status(
+                downloader_id,
+                ConfigStatus.FAILED,
+                last_error=exc.message,
+                last_error_ref=exc.message_ref,
+            )
+            await _notify_failed(session, downloader_id, row.name, exc.message_ref or exc.message)
             return
         except Exception as exc:  # noqa: BLE001 -- 背景任务兜底，绝不外抛
             logger.exception("下载器连接测试发生未知错误：%s", row.name)
             error = f"测试时发生未知错误（{type(exc).__name__}）：{exc}"
-            await repo.update_status(downloader_id, ConfigStatus.FAILED, last_error=error)
-            await _notify_failed(session, downloader_id, row.name, error)
+            error_ref = {
+                "message": error,
+                **reference(
+                    "errors.downloader.verifyUnexpected", kind=type(exc).__name__, detail=str(exc)
+                ),
+            }
+            await repo.update_status(
+                downloader_id, ConfigStatus.FAILED, last_error=error, last_error_ref=error_ref
+            )
+            await _notify_failed(session, downloader_id, row.name, error_ref)
             return
         finally:
             await downloader.close()
@@ -323,7 +337,9 @@ async def _notify_paths(
     await adopt_landing_groups(session, downloader_id)
 
 
-async def _notify_failed(session: AsyncSession, downloader_id: int, name: str, error: str) -> None:
+async def _notify_failed(
+    session: AsyncSession, downloader_id: int, name: str, error: str | dict
+) -> None:
     """下载器验证失败 → 全局红灯：下载器坏了，订阅投递与完成检测全部停摆。"""
     from movieclaw_api.services.system_notice import upsert_notice
     from movieclaw_db.models import NoticeSeverity

@@ -232,7 +232,8 @@
     "defaultSaved": "已设为默认下载器",
     "retested": "已重新发起连接测试",
     "deleted": "已删除",
-    "deletedBoostDisabled": "已删除，并关闭了 {sites} 的刷流（它们用这台下载器刷流）"
+    "deletedBoostDisabled": "已删除，并关闭了 {sites} 的刷流（它们用这台下载器刷流）",
+    "urlLabel": "地址"
   },
   "appPush": {
     "saved": "推送设置已保存",
