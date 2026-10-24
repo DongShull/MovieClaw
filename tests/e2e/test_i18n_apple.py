@@ -6,6 +6,7 @@ MovieClawEnglish_*.xctestrun and APPLE_I18N_SIMULATOR to an iPhone simulator UUI
 
 from __future__ import annotations
 
+import hashlib
 import os
 import plistlib
 import sqlite3
@@ -74,6 +75,10 @@ def test_apple_language_flow(tmp_path, platform):
             theme._wait_http(f"{base}/api/v1/auth/bootstrap", 90)
             with httpx.Client(base_url=base) as fixture:
                 assert fixture.post("/api/v1/auth/bootstrap", json=theme.ADMIN).is_success
+                if platform == "ios":
+                    cached = data / "cache/images/native-fixture/asset.bin"
+                    cached.parent.mkdir(parents=True)
+                    cached.write_bytes(b"native cache cleanup fixture")
                 player_item = None
                 media = tmp_path / "media"
                 media.mkdir()
@@ -90,6 +95,9 @@ def test_apple_language_flow(tmp_path, platform):
                     ],
                     check=True,
                 )  # fmt: skip
+                video_digest = hashlib.sha256(
+                    (media / "English playback.mp4").read_bytes()
+                ).digest()
                 (media / "English playback.en.srt").write_text(
                     "1\n00:00:00,000 --> 00:01:30,000\nEnglish subtitle probe\n",
                     encoding="utf8",
@@ -162,10 +170,18 @@ def test_apple_language_flow(tmp_path, platform):
                     "testEnglishNetworkAndValidationErrors",
                     "testEnglishPluralVariations",
                     "testPlaybackMenusUseTheEffectiveLanguage",
+                    "testStorageCleanupUsesTheReaderLanguage",
                 ]
             )
             for test_name in expected:
                 assert f"{test_name}]' passed" in output, output[-12000:]
+            if platform == "ios":
+                assert not cached.exists()
+                assert (
+                    hashlib.sha256((media / "English playback.mp4").read_bytes()).digest()
+                    == video_digest
+                )
+                assert (artifacts / "api.log").read_text().count("缓存清理完成：图片缓存") == 2
             with sqlite3.connect(database) as connection:
                 devices = connection.execute(
                     "SELECT locale,timezone FROM login_device WHERE kind=?", (platform,)

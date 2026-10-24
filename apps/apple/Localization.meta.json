@@ -2191,6 +2191,138 @@
     },
     "player.diagnostics.unknownTier": {
       "sourceHash": "43ca66b8464d7755e103c69c1bab183094d1d0f33253e9474b5f468b5f8eda55"
+    },
+    "settings.storage.ui.unregistered": {
+      "sourceHash": "89e0ff403f9fcb748050b3867838e2fe1194e7a094ae33a99bb388e1585ea6e0"
+    },
+    "settings.storage.ui.unregisteredHint": {
+      "sourceHash": "c6b61566ea1300a4f16bd452ae31e4e910690fea856b9ca86b47458e756e1200"
+    },
+    "settings.storage.ui.caches": {
+      "sourceHash": "3adaa1a6968bb2f82187474734ec497bd19f028501f838f82ba99ebbaa18e6b5"
+    },
+    "settings.storage.ui.data": {
+      "sourceHash": "f5d5dffd9dc235709bc20c5e62709a96a7ca49d7b74d8ae3656d3d505284e4eb"
+    },
+    "settings.storage.ui.firstComputing": {
+      "sourceHash": "2062b471f15f90c38c86f8ec5434c66aee8dc4f35aad0960578d1dd0b1c505b7"
+    },
+    "settings.storage.ui.notComputed": {
+      "sourceHash": "91960cc6f7ded3b8b9e1c08ffbc4eb1172720fcffaf3b787b86b29e317aa2827"
+    },
+    "settings.storage.ui.reclaimable": {
+      "sourceHash": "45294349dddd9a5e691cdf3882fdb2b4bab16ee66a3e3a6b7da1012a4a60d86f"
+    },
+    "settings.storage.ui.other": {
+      "sourceHash": "2aa462a5a7dbdab5768fd976093038fddf2c7bf1d6c9fb08e1173ec4df47f8e0"
+    },
+    "settings.storage.ui.free": {
+      "sourceHash": "d6822b04178d6929a0cc4d5cba6fbbeea5beb41278dd0a33b883c41e95fc0873"
+    },
+    "settings.storage.ui.disk": {
+      "sourceHash": "aa898ae1b3040590505ab6608f8d3e3f485f1326d248ea7af2c611767225c38e"
+    },
+    "settings.storage.ui.overview": {
+      "sourceHash": "56b38491ae4a0da586dde90800a45eead13771674a53062d5e6767f8b1f18fd2"
+    },
+    "settings.storage.ui.orphansHint": {
+      "sourceHash": "9366277ff6e703ee802f8ff29b77c0f366006200ef120c514c12afacebbc6773"
+    },
+    "settings.storage.ui.orphans": {
+      "sourceHash": "3905e6f112d270949400830c2e488470e66a50494035d56f1c55d1f05758f57f"
+    },
+    "settings.storage.ui.clear": {
+      "sourceHash": "b730d8da2058b35b3073b51b1a8c1eff6533a5089b962c9e1e5e3d16f71b2679"
+    },
+    "settings.storage.ui.total": {
+      "sourceHash": "3e4ce93de16c2dc044b699cfacab5f9d7a396d8cc8b7c557fc800407a79c4cc7",
+      "parameters": [
+        "bytes"
+      ]
+    },
+    "settings.storage.ui.dataTotal": {
+      "sourceHash": "43d163704849801b71bb6420e695731202bee9d57a1ed42395f6cc9dcae24563",
+      "parameters": [
+        "bytes"
+      ]
+    },
+    "settings.storage.ui.freeTotal": {
+      "sourceHash": "a77e4fec1ac7086eca10d9a85d5df4f74ad049842dd8a04ebdab532a9fb89633",
+      "parameters": [
+        "bytes"
+      ]
+    },
+    "settings.storage.ui.orphansTitle": {
+      "sourceHash": "1e53e7a8e6679b8e5d5332d9fa02c65174918d087c1c6a234d8e21ac696f778c",
+      "parameters": [
+        "title"
+      ]
+    },
+    "settings.storage.ui.clearTitle": {
+      "sourceHash": "7bf346dc35f7d47eb2551d75e2634f65151634a6d81ba0b6c43a36fc8dc9a0d5",
+      "parameters": [
+        "title"
+      ]
+    },
+    "settings.storage.ui.clearBytes": {
+      "sourceHash": "98cee5c29a8acef5cb79012f23046e3fab8364cd694bc98c5d2c2bc7468c04ff",
+      "parameters": [
+        "bytes"
+      ]
+    },
+    "settings.storage.refreshUsage": {
+      "sourceHash": "bc87a4121a0873b3d4960f0621ef4c53858ae08e1262a9020b751aea1855a00b"
+    },
+    "settings.storage.computedAt": {
+      "sourceHash": "604a942d385f6547abfe47499002344927eec86ba3e0b58a46cb6fdcd4894ace",
+      "parameters": [
+        "when"
+      ]
+    },
+    "settings.storage.computedUpdating": {
+      "sourceHash": "bc14a671ae79988b02bb306ef460eb55367fa80cf13296b7df9e1d6827a53573",
+      "parameters": [
+        "when"
+      ]
+    },
+    "settings.storage.cleaned": {
+      "sourceHash": "92253b99a966fade6eb052fd86b0848a7fdade8d25ab707dd4573ee07b11ddd2",
+      "parameters": [
+        "bytes",
+        "removed"
+      ]
+    },
+    "settings.storage.cleanedSkipped": {
+      "sourceHash": "c703562c1f20fae93b707881239420a5b7399471dd555de9eaac82eb2cb047b3",
+      "parameters": [
+        "bytes",
+        "removed",
+        "skipped"
+      ]
+    },
+    "settings.storage.spaceUsed": {
+      "sourceHash": "ae60ac1044031669ffa5d465a01b73a864ea5961be2407de9bfe543d4bcfaf8a"
+    },
+    "settings.storage.location": {
+      "sourceHash": "6d8627b2f68ea24c14f104ecafcd002d74954031f79682bf55279c60f77dec9a"
+    },
+    "settings.storage.cleanUnused": {
+      "sourceHash": "07c23bf4f1194fad3ead0b7afd92258dd89388e05d520b90a0966b4dd465af21"
+    },
+    "settings.storage.clearCache": {
+      "sourceHash": "e32c07f775f8e5ba9d4ddcdd7461dac933511bd77e4ee603ece6e81bbd1b8a31"
+    },
+    "settings.storage.rebuildHint": {
+      "sourceHash": "a8a7508f706a7db13309e9528a97231ddc6632415b65f9ab4407e5073734e1b9"
+    },
+    "settings.app.maintenanceTools": {
+      "sourceHash": "05109356fbef315a7cc641764dd4436337e1171387fadc0a9707c48141423bbd"
+    },
+    "settings.app.cache": {
+      "sourceHash": "618e688f6a1ce03e916849e1ccdaaad793a197d1ceaee6994945049569974d77"
+    },
+    "settings.app.tasks": {
+      "sourceHash": "3c39e9bde120ddb5f92906e988fee4dbb22a08a448641373b984d7636e377c29"
     }
   },
   "MovieClaw/InfoPlist.xcstrings": {

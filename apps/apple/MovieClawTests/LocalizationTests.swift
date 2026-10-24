@@ -116,4 +116,12 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(next.webPortResetTarget, 18880)
     }
 
+    func testEnglishStorageMessagesPreserveCountsAndOriginalNames() {
+        XCTAssertEqual(String(localized: .settingsStorageUiOrphansTitle("原始目录")), "Clean orphan entries in “原始目录”?")
+        XCTAssertEqual(String(localized: .settingsStorageUiClearBytes("2 KB")), "Clear and free 2 KB")
+        XCTAssertEqual(String(localized: .settingsStorageCleaned("2 KB", "1")), "Freed 2 KB; entries removed: 1")
+        XCTAssertEqual(String(localized: .settingsStorageCleanedSkipped("0 B", "0", "1")), "Freed 0 B; entries removed: 0; entries skipped while in use: 1")
+        XCTAssertEqual(String(localized: .settingsStorageComputedUpdating("a few seconds ago")), "Calculated a few seconds ago · Updating")
+    }
+
 }

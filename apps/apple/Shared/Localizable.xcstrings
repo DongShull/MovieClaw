@@ -14599,6 +14599,798 @@
           }
         }
       }
+    },
+    "settings.storage.ui.unregistered": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未登记目录"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未登记目录"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unregistered directories"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.unregisteredHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据目录下出现了程序未登记的条目，不会被统计或清理。请把路径反馈给开发者。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据目录下出现了程序未登记的条目，不会被统计或清理。请把路径反馈给开发者。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unregistered entries were found in the data directory. They will not be measured or cleaned. Please report their paths to the developers."
+          }
+        }
+      }
+    },
+    "settings.storage.ui.caches": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可清理的缓存"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可清理的缓存"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clearable caches"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.data": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用数据"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用数据"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application data"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.firstComputing": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次统计中，可能要几十秒…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "首次统计中，可能要几十秒…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculating for the first time. This may take tens of seconds…"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.notComputed": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未统计"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未统计"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not yet calculated"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.reclaimable": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可回收缓存"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可回收缓存"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reclaimable cache"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.other": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他占用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他占用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other usage"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.free": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.disk": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据目录所在磁盘"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据目录所在磁盘"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disk containing the data directory"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.overview": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "磁盘概览"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "磁盘概览"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disk overview"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.orphansHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只删除媒体库里已不存在的条目，正在使用的内容不受影响。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只删除媒体库里已不存在的条目，正在使用的内容不受影响。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only entries no longer in a library will be deleted. Content in use is unaffected."
+          }
+        }
+      }
+    },
+    "settings.storage.ui.orphans": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清理孤儿条目"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清理孤儿条目"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean orphan entries"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.clear": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部清空"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部清空"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear all"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.total": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合计 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合计 %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total %@"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.dataTotal": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合计 %@ · 只展示，不提供删除"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合计 %@ · 只展示，不提供删除"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total %@ · Read only; deletion unavailable"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.freeTotal": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余 · 共 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余 · 共 %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free · %@ total"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.orphansTitle": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清理「%@」的孤儿条目？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清理「%@」的孤儿条目？"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean orphan entries in “%@”?"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.clearTitle": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空「%@」？"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空「%@」？"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear “%@”?"
+          }
+        }
+      }
+    },
+    "settings.storage.ui.clearBytes": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空并释放 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空并释放 %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear and free %@"
+          }
+        }
+      }
+    },
+    "settings.storage.refreshUsage": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新统计"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新统计"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh usage"
+          }
+        }
+      }
+    },
+    "settings.storage.computedAt": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "统计于 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "统计于 %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculated %@"
+          }
+        }
+      }
+    },
+    "settings.storage.computedUpdating": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "统计于 %@ · 更新中"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "统计于 %@ · 更新中"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calculated %@ · Updating"
+          }
+        }
+      }
+    },
+    "settings.storage.cleaned": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已释放 %@，删除 %@ 项"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已释放 %@，删除 %@ 项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freed %@; entries removed: %@"
+          }
+        }
+      }
+    },
+    "settings.storage.cleanedSkipped": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已释放 %@，删除 %@ 项，跳过正在使用的 %@ 项"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已释放 %@，删除 %@ 项，跳过正在使用的 %@ 项"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freed %@; entries removed: %@; entries skipped while in use: %@"
+          }
+        }
+      }
+    },
+    "settings.storage.spaceUsed": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "占用空间"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "占用空间"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Space used"
+          }
+        }
+      }
+    },
+    "settings.storage.location": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "存储位置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "存储位置"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Storage location"
+          }
+        }
+      }
+    },
+    "settings.storage.cleanUnused": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清理未使用的条目"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清理未使用的条目"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clean unused entries"
+          }
+        }
+      }
+    },
+    "settings.storage.clearCache": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空缓存"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空缓存"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear cache"
+          }
+        }
+      }
+    },
+    "settings.storage.rebuildHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此缓存重建耗时较长，建议优先清理未使用的条目。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此缓存重建耗时较长，建议优先清理未使用的条目。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rebuilding this cache takes time. Prefer cleaning unused entries first."
+          }
+        }
+      }
+    },
+    "settings.app.maintenanceTools": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "维护工具"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "维护工具"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintenance tools"
+          }
+        }
+      }
+    },
+    "settings.app.cache": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存管理"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存管理"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache management"
+          }
+        }
+      }
+    },
+    "settings.app.tasks": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "定时任务"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "定时任务"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheduled tasks"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -129,4 +129,49 @@ final class LocalizationUITests: XCTestCase {
         }
     }
 
+    @MainActor func testStorageCleanupUsesTheReaderLanguage() {
+        let env = ProcessInfo.processInfo.environment
+        for (language, title, clear, cancel, result) in [
+            ("en", "Image cache", "Clear cache", "Cancel", "Freed "),
+            ("zh-Hans", "图片缓存", "清空缓存", "取消", "已释放 "),
+        ] {
+            app.launchArguments = ["--reset-state", "--ui-testing", "-mcServer", env["MC_TEST_SERVER"]!,
+                                   "-mcUser", "admin", "-mcPass", env["MC_TEST_PASSWORD"]!,
+                                   "-mcRoute", "/settings/app?tab=storage", "-AppleLanguages", "(\(language))",
+                                   "-AppleLocale", "en_US"]
+            app.launch()
+            let row = app.buttons["storage-dir-cache.images"]
+            XCTAssertTrue(row.waitForExistence(timeout: 30))
+            for _ in 0..<8 where !row.isHittable { app.swipeUp() }
+            XCTAssertTrue(row.isHittable)
+            XCTAssertTrue(row.label.contains(title))
+            row.tap()
+            let clean = app.buttons["storage-clean-all"]
+            XCTAssertTrue(clean.waitForExistence(timeout: 10))
+            XCTAssertEqual(clean.label, clear)
+            clean.tap()
+            let dialog = app.alerts.firstMatch
+            XCTAssertTrue(dialog.waitForExistence(timeout: 5))
+            XCTAssertTrue(dialog.staticTexts[language == "en" ? "Clear “Image cache”?" : "清空「图片缓存」？"].exists)
+            dialog.buttons[cancel].tap()
+            XCTAssertTrue(clean.exists)
+            clean.tap()
+            XCTAssertTrue(dialog.waitForExistence(timeout: 5))
+            let confirm = dialog.buttons.matching(NSPredicate(format: "label != %@", cancel)).firstMatch
+            XCTAssertTrue(confirm.exists)
+            confirm.tap()
+            let notice = app.staticTexts["storage-clean-notice"]
+            XCTAssertTrue(notice.waitForExistence(timeout: 15))
+            XCTAssertTrue(notice.label.hasPrefix(result))
+            if language == "en" {
+                XCTAssertNotNil(notice.label.range(of: "entries removed: [1-9][0-9,]*", options: .regularExpression))
+            }
+            let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            shot.name = "storage-cleanup-\(language)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            app.terminate()
+        }
+    }
+
 }
