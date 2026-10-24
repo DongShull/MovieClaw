@@ -341,3 +341,27 @@ test("设备说明：图标说得清的不再写类型名，系统信息拆成�
     ["Infuse", "版本 8.1"],
   );
 });
+
+test("英文权限说明区分成员、超管与仅转码，并保留明确的恢复路径", () => {
+  assert.match(grantSummary("cli", "admin", "en").body, /including deleting media files/);
+  assert.doesNotMatch(grantSummary("cli", "member", "en").body, /deleting media files/);
+  assert.match(grantSummary("worker", "admin", "en").body, /cannot view or change/);
+  assert.match(manualGrantSummary("transcode", "en").body, /does not expire automatically/);
+  assert.match(grantSummary("tvos", "member", "en").body, /TV in front of you/);
+  assert.match(revokeConsequence("cli", "paired", "en"), /mclaw login again/);
+  assert.match(revokeConsequence("manual", "paired", "en"), /cannot be restored/);
+  assert.equal(clientTypeLabel("toString", "en"), "Unknown type");
+});
+
+test("英文设备时间和分组在读取时生成，设备身份与分组顺序不变", () => {
+  const now = Date.parse("2026-10-24T12:00:00Z");
+  assert.equal(relativeTime("2026-10-24T11:59:00Z", now, "en"), "1 minute ago");
+  assert.equal(relativeTime("2026-10-24T10:00:00Z", now, "en"), "2 hours ago");
+  assert.equal(relativeTime(null, now, "en"), "Never used");
+  const devices = [{ kind: "web", name: "原始名字" }, { kind: "cli", name: "raw-agent" }];
+  const english = groupDevices(devices, "en"), chinese = groupDevices(devices, "zh-Hans");
+  assert.deepEqual(english.map(g => [g.key, g.devices]), chinese.map(g => [g.key, g.devices]));
+  assert.equal(english[0].label, "Browsers");
+  assert.equal(chinese[0].label, "浏览器");
+  assert.deepEqual(identityParts({ kind: "jellyfin", kind_label: "原始客户端", platform: null, client_version: "1.2" }, "en"), ["原始客户端", "Version 1.2"]);
+});

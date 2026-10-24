@@ -21,5 +21,8 @@
   "stop": "停止",
   "search": "搜索",
   "done": "完成",
-  "notSelected": "未选择"
+  "notSelected": "未选择",
+  "copy": "复制",
+  "copied": "已复制",
+  "clipboardDenied": "浏览器拒绝访问剪贴板"
 }

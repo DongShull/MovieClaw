@@ -13,6 +13,7 @@ from movieclaw_api.exceptions import (
     ForbiddenException,
     NotFoundException,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.cloud import (
     MyPushView,
     PushAttentionView,
@@ -44,22 +45,22 @@ def device_status(device: LoginDevice, channels: list[Channel]) -> tuple[str, st
         # 先于权限：安装包本身收不到，叫人去开系统通知也没用
         return (
             "unsupported_build",
-            "这个安装包收不到推送：侧载版没有推送权限，改用 TestFlight 或 App Store 版",
+            t("auth.devicePush.unsupportedBuild"),
             None,
         )
     if device.push_permission == "denied":
-        return "permission_denied", "系统通知已关闭，在这台设备的设置里打开", None
+        return "permission_denied", t("auth.devicePush.permissionDenied"), None
     if device.push_stream:
         # 实时通知不经任何通道，服务器自己送（cloud-push.md §4.1）
-        return "ok", "能收到", "实时连接"
+        return "ok", t("auth.devicePush.ready"), t("auth.devicePush.realtime")
     if not device.push_token or not device.push_topic:
-        return "not_registered", "还没有开启通知，打开最新版 App 后会自动开启", None
+        return "not_registered", t("auth.devicePush.notRegistered"), None
     if device.push_problem == "bad_token":
-        return "bad_token", "推送令牌无效，重新打开 App 后会自动更新", None
+        return "bad_token", t("auth.devicePush.badToken"), None
     candidates = channel_registry.route(channels, device.push_topic)
     if not candidates:
-        return "no_channel", "没有可用的推送通道", None
-    return "ok", "能收到", candidates[0].name
+        return "no_channel", t("auth.devicePush.noChannel"), None
+    return "ok", t("auth.devicePush.ready"), candidates[0].name
 
 
 async def build_view(session: AsyncSession, principal: Principal) -> MyPushView:

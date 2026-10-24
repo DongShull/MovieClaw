@@ -129,7 +129,11 @@ export function WelcomeScreen({
           ) : (
             <div
               className="welcome-card-rise mb-1"
-              onFocusCapture={() => setEditing(true)}
+              onFocusCapture={(event) => {
+                // Button focus must not move the card between pointer down and click.
+                const target = event.target;
+                if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable)) setEditing(true);
+              }}
               onBlurCapture={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setEditing(false);
               }}

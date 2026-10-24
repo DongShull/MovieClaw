@@ -1,3 +1,6 @@
+import { appTranslator, type AppMessageKey } from "./i18n/translate.ts";
+import { requestLocale, type AppLocale } from "./i18n/negotiate.ts";
+
 /**
  * 「MovieClaw Cloud」「App 推送」「通知」三个设置分区的展示口径
  * （docs/design/cloud-push.md §1、§7、§8）。
@@ -372,12 +375,12 @@ export function myDeviceTone(status: MyDeviceStatus | string): Tone {
   return "neutral";
 }
 
-const DEVICE_PUSH_FALLBACK: Record<string, string> = {
-  unsupported_build: "这个安装包收不到推送：侧载版没有推送权限，改用 TestFlight 或 App Store 版",
-  no_channel: "这个版本的 App 没有能用的推送通道",
-  permission_denied: "系统通知已关闭，在这台设备的设置里打开",
-  bad_token: "推送令牌失效了，打开一次 MovieClaw App 会重新登记",
-  not_registered: "还没有登记推送，用 MovieClaw App 登录后会自动登记",
+const DEVICE_PUSH_FALLBACK: Record<string, AppMessageKey> = {
+  unsupported_build: "settings.devices.push.unsupportedBuild",
+  no_channel: "settings.devices.push.noChannel",
+  permission_denied: "settings.devices.push.permissionDenied",
+  bad_token: "settings.devices.push.badToken",
+  not_registered: "settings.devices.push.notRegistered",
 };
 
 /**
@@ -386,15 +389,16 @@ const DEVICE_PUSH_FALLBACK: Record<string, string> = {
  */
 export function devicePushNote(
   push: DevicePushState | null | undefined,
+  locale: AppLocale = requestLocale() ?? "zh-Hans",
 ): { tone: Tone; text: string } | null {
   if (!push || push.status === "ok") return null;
-  const text = push.status_text?.trim() || DEVICE_PUSH_FALLBACK[push.status] || push.status;
+  const text = push.status_text?.trim() || (Object.hasOwn(DEVICE_PUSH_FALLBACK, push.status) ? appTranslator(locale)(DEVICE_PUSH_FALLBACK[push.status]) : null) || push.status;
   return { tone: myDeviceTone(push.status), text };
 }
 
 /** 「通知」页顶部提示里的一行：「iPad：系统通知已关闭，在这台设备的设置里打开」。 */
 export function attentionLine(item: Pick<MyPushAttention, "device_name" | "status" | "status_text">): string {
-  const reason = item.status_text?.trim() || DEVICE_PUSH_FALLBACK[item.status] || item.status;
+  const reason = item.status_text?.trim() || (Object.hasOwn(DEVICE_PUSH_FALLBACK, item.status) ? appTranslator()(DEVICE_PUSH_FALLBACK[item.status]) : null) || item.status;
   return `${item.device_name}：${reason}`;
 }
 

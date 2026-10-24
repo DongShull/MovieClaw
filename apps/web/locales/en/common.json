@@ -21,5 +21,8 @@
   "stop": "Stop",
   "search": "Search",
   "done": "Done",
-  "notSelected": "Not selected"
+  "notSelected": "Not selected",
+  "copy": "Copy",
+  "copied": "Copied",
+  "clipboardDenied": "The browser denied clipboard access"
 }

@@ -70,5 +70,14 @@
   },
   "notSelected": {
     "sourceHash": "1182c5454f113db566b4120738cfc51bdd839f3ee3649f6d37d93ee8b838f9db"
+  },
+  "copy": {
+    "sourceHash": "63d90d977348ab1f9aa34ebb42b103216ce161feb0a1c08e237607bf42c3cf79"
+  },
+  "copied": {
+    "sourceHash": "8f6f8d979c981ced1cf17ae96e27690b8a33b9dff1c98c8ce651764ffe9cf235"
+  },
+  "clipboardDenied": {
+    "sourceHash": "8dc87f6351b11799c71b11ecaf53f68e3971d1464e0f26d029c78f0ea1abd252"
   }
 }

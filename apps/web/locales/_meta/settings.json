@@ -1188,5 +1188,506 @@
   },
   "overview.updateHint": {
     "sourceHash": "3c3593e63d04e519725b18f80a5c53960e960630ea70569907bf7c2e3c50ac52"
+  },
+  "devices.ui.renameTitle": {
+    "sourceHash": "bb8ed22b009d4c5b4f5a1f6c874a4972fb62ecc630f9bcd7c79bdb90cd000534"
+  },
+  "devices.ui.renameHint": {
+    "sourceHash": "b3d51e68a1d4d64ac68e0a08a604f87e6cafbce02aae3569b55916d8ed732f63"
+  },
+  "devices.ui.save": {
+    "sourceHash": "a3030bf8f16dc63c6b277564c68f78a3be5abe5f2907c51826dee7184ff793fd"
+  },
+  "devices.ui.signOutHereTitle": {
+    "sourceHash": "dbf6b1b95e585206e1a4f4e3c16ca4af7ea9c7821998a5ff423ad4be4841d1bb"
+  },
+  "devices.ui.signOutHereHint": {
+    "sourceHash": "c0f1fb39b3e5a75586e84de909769da3338032441a5114d2a0ab7c729e24821a"
+  },
+  "devices.ui.signOutHere": {
+    "sourceHash": "8ffc3e5dfa5a2d5a767bb63c94cd6ad88c6ff1aadd9f2238fb1d2dd04fb1dcff"
+  },
+  "devices.ui.revoke": {
+    "sourceHash": "a48fa6108b579f91c71d47171a7a78f4c1e05027e8819d8d5636ed14bac8e455"
+  },
+  "devices.ui.approve": {
+    "sourceHash": "ef58a049250c5759b9a40c1ef802cd64ac4013d5e0864ef96eddeea5c0294cd9"
+  },
+  "devices.ui.approveHint": {
+    "sourceHash": "a9889728170b30f05f73be030233580c78094654c115746673d698650aeaa28d"
+  },
+  "devices.ui.mine": {
+    "sourceHash": "8308c84e9bcc1196380129113d4dde18427e0c376fc8fe276a645cf1b02bf25a"
+  },
+  "devices.ui.all": {
+    "sourceHash": "0f47166651beae76c1cfe7f2e6ac404feddc7c607ca2d838edd0a261598b576f"
+  },
+  "devices.ui.summaryHint": {
+    "sourceHash": "e052d17a05744ddc639c14342e75f316ff8f797d56d3e9eb52f6651ff719f524"
+  },
+  "devices.ui.summaryAria": {
+    "sourceHash": "86fe8c3f53a9ce181c9da42dab06b82c371111067c644bc937f7beb8f0a52cf8"
+  },
+  "devices.ui.none": {
+    "sourceHash": "b88cfaa18093e0ed5c0b1f087edcf6e24adad6f94435fb20974d8960d06e7071"
+  },
+  "devices.ui.viewAll": {
+    "sourceHash": "fa2ff3c379a7c988a3f553b4350556f1b94f28829f786ad5b646c6835e803d63"
+  },
+  "devices.ui.offlineHint": {
+    "sourceHash": "01eefc43d712eeebe6dcf14893fec56b0f80a213f958ad3b1e16510f0b6336bf"
+  },
+  "devices.ui.danger": {
+    "sourceHash": "cd84121acb17f42dedf0b058002e0438d531ec1adda9c63a7b166a16a5f2ac7f"
+  },
+  "devices.cleanup.titleAll": {
+    "sourceHash": "758c4725ab66cc6c864a0afcc28e51335f8511d7acbcee27f399fc9cd7674463"
+  },
+  "devices.cleanup.title": {
+    "sourceHash": "fa45e4004dd6d31d489f0646d217465c87afee60bafffad8d1f1bb420bcb425e"
+  },
+  "devices.cleanup.hint": {
+    "sourceHash": "0b3d53bda3c9a4fc0cc4064ec48567610f92458044dd3aefade128458c2c2887"
+  },
+  "devices.cleanup.open": {
+    "sourceHash": "8f5ec46feba3cb0d7b806f460df7c69c3203108be087f2b1d2dd6bb2b1c18b91"
+  },
+  "devices.ui.drawerAria": {
+    "sourceHash": "4ccfdf51111127f0e32eb35c8aa381a070995ac2fddd47008f53853b8d23d7a0"
+  },
+  "devices.ui.device": {
+    "sourceHash": "e1506406a5bd8f0225fbb27b4349faf7a8af6090960908c3b2b32b1275e38bc9"
+  },
+  "devices.ui.refresh": {
+    "sourceHash": "9758635d2f5ec8cd1b242b209788ce896d6217ab6d66ae55c689430c5884ef0c"
+  },
+  "devices.ui.done": {
+    "sourceHash": "c0b3fbff51ccc40b8bf1a81666e7ecced016187cbe2ac6f1d627e0d7a287e04d"
+  },
+  "devices.ui.types": {
+    "sourceHash": "64d9ad1a731d635d7a4a9b5725404d0c6922385c2a12d27e8492ddcf5c1d5ce5"
+  },
+  "devices.ui.cliTab": {
+    "sourceHash": "71c7332027d8abb2dee35a52cfce8ba7d1a3761b3f155ca9aa2a9f8f16f117ef"
+  },
+  "devices.ui.refreshing": {
+    "sourceHash": "71659de804df039d7d7c0f3a9fbc10c6e8b62c484c0714722556660ffc2ac81e"
+  },
+  "devices.ui.releaseRefresh": {
+    "sourceHash": "f0e274aa130e08a2a65af91e88956f15b901cd8c1a186ee54a263dc336212718"
+  },
+  "devices.ui.pullRefresh": {
+    "sourceHash": "eb4236fe6a926a5a6ed73fc2038e2f0883d16d3162b2703911a654346fc55b21"
+  },
+  "devices.ui.onlineNow": {
+    "sourceHash": "93fc63a36be08d932ca43c95d52ebecd9ab67499025c9a95c90b0d48846cf8ca"
+  },
+  "devices.ui.offlineRecent": {
+    "sourceHash": "06dfed6159141d488331751f04ed6cf44f2ea810f9ff7112356ceaa2a248300c"
+  },
+  "devices.ui.scrollMore": {
+    "sourceHash": "52853ffad14b72787fecd0f3f0240228fe35ff653da4618c03c05ea90b5c7ac0"
+  },
+  "devices.ui.allShown": {
+    "sourceHash": "5c97717546f2f46225b995e42816ca937faeb94673ab448371052cecb9725284"
+  },
+  "devices.ui.online": {
+    "sourceHash": "b9086662b1df1f201abb3c367862af46ffb4dd98d9d748e12e9649a3d58f9e0c"
+  },
+  "devices.ui.inUse": {
+    "sourceHash": "0545f5b1d42ce4c4013770401f114bb053939c39773a34fa0ed8c4aedbb187a1"
+  },
+  "devices.ui.current": {
+    "sourceHash": "c68978537cf3b65cfe6afb4c4ed0d0773a10fea9552fb0412f9af1b73a0c9be2"
+  },
+  "devices.ui.me": {
+    "sourceHash": "b70bb4acc0484cf040de4c07c60f9db722283da2c4a672c39291de621e92c33f"
+  },
+  "devices.ui.rename": {
+    "sourceHash": "5f6ecf18c2bd44163ab92a7a6e3e349a3ab4220d9be6b5c3ca48113500b710bf"
+  },
+  "devices.ui.signOutHereMenu": {
+    "sourceHash": "4156c977a7da73ff4299aa25caacecee41ebf2949b70f23d1d76833bee5e7c18"
+  },
+  "devices.ui.revokeMenu": {
+    "sourceHash": "58d5515ad40c6232fdc67fc132b64d406dfd4bc8750bd35b97662bb12a23e151"
+  },
+  "devices.cleanup.age": {
+    "sourceHash": "2b7f2283f511dc1f1c293282653cf2bd5eb78288a729d9f65b8cdf0d694627dd"
+  },
+  "devices.cleanup.finding": {
+    "sourceHash": "1986994f30573b23c82224fc3a7537ae33cb2d0421f288a024600e9f94b72a56"
+  },
+  "devices.ui.cancel": {
+    "sourceHash": "2cd0f3be8738a86cede1a1452f874f31d569864bbb00cacd4130990f4610cb5c"
+  },
+  "devices.cleanup.revoking": {
+    "sourceHash": "fe1dd090e47ed3fd495fbeef60bfc09123e0888895392eee1e45cc7673760e74"
+  },
+  "devices.manual.full": {
+    "sourceHash": "074a0eb777853b60b54d5f609329b57468c6c294669d4967d6aa73aaa6a07728"
+  },
+  "devices.manual.fullHint": {
+    "sourceHash": "afa75ee48d387df0a977914f9365cebdd0061ea3bc8dc9eccdf92ffd2df01d28"
+  },
+  "devices.manual.transcode": {
+    "sourceHash": "597dd11db9f755d2fe9752cbf2eadeff6fa8801b16762f7008bf7be38c726bb9"
+  },
+  "devices.manual.transcodeHint": {
+    "sourceHash": "a3fcd76a8d0da657e5bd6ef422686c10c699df9b5d47135dabc091d7588ffc1a"
+  },
+  "devices.manual.nameRequired": {
+    "sourceHash": "bf898128579043ae31568b356d4fdbcd66397a96c2d75be8c544553d1509375b"
+  },
+  "devices.manual.dismissTitle": {
+    "sourceHash": "6c260e8cbe3ef693651eebc06b9c254e94357310b4ba4366848570517f28b7b2"
+  },
+  "devices.manual.dismissHint": {
+    "sourceHash": "7ba036d248fcfa627061d3d3ce0be82441faf47f8096d0c81c5a3470a6dc3037"
+  },
+  "devices.manual.saved": {
+    "sourceHash": "0e1df87d773cceb4977c84ec20aac6b24f6f0b20f621de70505c59ccc2d1778f"
+  },
+  "devices.manual.title": {
+    "sourceHash": "c435cfe2c044b2c33708f83797d5ca342852aff698427da6ea837aa63f32f761"
+  },
+  "devices.manual.create": {
+    "sourceHash": "cb040282339cd0fa37ad80f6791fb87a8f6591f16ecb06b8f0d00dcbb3e2016f"
+  },
+  "devices.manual.new": {
+    "sourceHash": "506271b94efa412d09378fcb69c3b37d8df7fbe94bf0b03ef556e51807474ce0"
+  },
+  "devices.manual.creating": {
+    "sourceHash": "56b63def0e294882dd6b1b57dd3e269ca8bb8596400267e838fae74a33f2f059"
+  },
+  "devices.manual.name": {
+    "sourceHash": "6773310492a96fcf96035a33dc957b7f552d26dd6630bc2c14189d2e6aa723ee"
+  },
+  "devices.manual.workerNameHint": {
+    "sourceHash": "806eeb027fdbebca6a5f4d3b6ab5ce46701dd021e193416792db0d08b03a1bc1"
+  },
+  "devices.manual.nameHint": {
+    "sourceHash": "ce240ef0b6e501ff2caee9dec50d5bfe11a0d247e6517f99c495422ecf9098f2"
+  },
+  "devices.manual.permissions": {
+    "sourceHash": "978cbca6265d1af23a61e6390ca0d9af602bf54aebd4cbb782e6e782e06edc35"
+  },
+  "devices.manual.once": {
+    "sourceHash": "658ee3b22eacf69848dd04893c61e073727bc882ed1024e025b2f617f040cb72"
+  },
+  "devices.manual.headlessHeading": {
+    "sourceHash": "d4875bafbeedfa66faf85f529b486d3de9dc80731df09e539f5ab231d121911b"
+  },
+  "devices.manual.envHeading": {
+    "sourceHash": "e3819445ed3d4fb9ea3f2c7dc7b7c53f8124532ee2ce87d68ee2f26425b87780"
+  },
+  "devices.manual.copyLine": {
+    "sourceHash": "6c5b7ad8843d85167ad871b829b853ba1511f2a9d33e004e87b69f7cc0465061"
+  },
+  "devices.manual.copyLines": {
+    "sourceHash": "082e3b7ee23b4ae680e9c550646c0ebea2dda98db0dde3dde33fa0a5e2f28bf4"
+  },
+  "devices.manual.configuredAddress": {
+    "sourceHash": "94726b044c25239183399527413a99caafeff9f0e4699fac5bcf232bae0445a0"
+  },
+  "devices.manual.guessedAddress": {
+    "sourceHash": "5fed16c15d42a8b01c6b42dfc8ef64632a0ad8899579014716ca74ecf9f6d28e"
+  },
+  "devices.manual.copyToken": {
+    "sourceHash": "03151248eb97341b555d0acb30fd69ce8b9bf9c1ad5684624c056134ff3fcbd0"
+  },
+  "devices.manual.savedClose": {
+    "sourceHash": "d8c7d57e39650dffad622f128a77603ac465c0e9442510efd5984bc20bd554c5"
+  },
+  "devices.approval.invalidCode": {
+    "sourceHash": "b942956bdfb38e8742bc5366f66e3b3446e74823d94a57c9bf5b5c50268961d8"
+  },
+  "devices.approval.approved": {
+    "sourceHash": "b42cb548c1d411c94dfffab6568b24f2cf7c9ea7399d39ac0ab0f7423cee1d50"
+  },
+  "devices.approval.denied": {
+    "sourceHash": "f098218a3032a6257b5140d00034195bb813f7afed128ad5b3ec8d009e7e359a"
+  },
+  "devices.approval.deniedHint": {
+    "sourceHash": "ffd74bafbf1e9406e1e2d7e8dab10cff2836dc574f21605d2fb20675e90f7acb"
+  },
+  "devices.approval.enter": {
+    "sourceHash": "392cbd4b7c28755bc35f0df233cf71cb9053c94b26292c434062d8caedfb8126"
+  },
+  "devices.approval.another": {
+    "sourceHash": "d1a09253f784c5d4727420d7f08e7719b5124b31db9093d6c138ccb3bb02a6d6"
+  },
+  "devices.approval.confirmTitle": {
+    "sourceHash": "c055dacd994391450545595e938b37f6ab6a6affd47278c85ae13e6c85e5b8c8"
+  },
+  "devices.approval.checkCode": {
+    "sourceHash": "66362c3e55cb326ff36ce29a8080bcd5f58a95f918398565fc81bddf7ee2bc8a"
+  },
+  "devices.approval.approve": {
+    "sourceHash": "4cf066515d0574fe5d0f4ebc0cc9dcccdc5d6f1adc1ada9b7150bae6ea3f057e"
+  },
+  "devices.approval.deny": {
+    "sourceHash": "9ce5dd92a6d6dd6fae017d6f77f67023898a50395fac816da27f6bc4d544a68c"
+  },
+  "devices.approval.anotherCode": {
+    "sourceHash": "bde4801a042ebdb248e36476ea0e2fcbdc1b36662562d9762c5a4a8642c7e659"
+  },
+  "devices.approval.title": {
+    "sourceHash": "71e3c235180d4e85c6e9878f19e0ca89b016d26a0124ac14802035df77c093a9"
+  },
+  "devices.approval.hint": {
+    "sourceHash": "39b86d4e9df74237f08949ad39bc74046f797330330c8cad5fcd74c64e0ce837"
+  },
+  "devices.approval.code": {
+    "sourceHash": "5cfc08a6fc512d66e665496fca4ddb0a7290b6b0edf0f37e719fd81efcc3311d"
+  },
+  "devices.approval.looking": {
+    "sourceHash": "d302f90b0996f256bf30e00272a88d153877be8949f56015d037971fcd5e7731"
+  },
+  "devices.approval.continue": {
+    "sourceHash": "7c9691192f1b73408bbe4c0cb6d00db94375ca9d8fce0a0d5985e7a5178f083f"
+  },
+  "devices.approval.type": {
+    "sourceHash": "ba40014ff496f64e755492a5c6243cc0222a5d3e4b795ecfea7c9bed809adaab"
+  },
+  "devices.approval.platform": {
+    "sourceHash": "5b50d7c4b5950dc523956237214f807de632f45334c3164d1e29956c7cfb03bd"
+  },
+  "devices.approval.version": {
+    "sourceHash": "5f76b2bf82dd2c5d820c26010d44246643f3010308e8821e7054c6c44f6c9f95"
+  },
+  "devices.approval.source": {
+    "sourceHash": "a488e93d69cc12961ea26e97b7d246d03a9af7334d2d84881dd7f702e801bf74"
+  },
+  "devices.approval.unknownSource": {
+    "sourceHash": "7a6fbfa6a4e12301343782ef7fd8cd65031ecb229626cceb50feb08d9ecb6a6d"
+  },
+  "devices.approval.sourceHint": {
+    "sourceHash": "56d809ec4d1867cf2a6fddac0506e9389323b0ded0bea9ef125e828be5df0ff1"
+  },
+  "devices.approval.blocked": {
+    "sourceHash": "90ff7a277ec56b961747524a4bdd3aecb6c34ae4bbac68c84dad082c51696dcd"
+  },
+  "devices.ui.ownerWarning": {
+    "sourceHash": "4cd6815acc4a0696e52556e7330a570889ee612ce599d3e542b2db91c0f43678"
+  },
+  "devices.ui.revokeTitle": {
+    "sourceHash": "d162d5af987eda46e43a7699ec73c37d566d9d6e05dd2b7ffdab57bb4410f833"
+  },
+  "devices.ui.revokeHint": {
+    "sourceHash": "784b930c0d4a85a00f410638d4649eb21c9304e89c094d546564c29a8e0d12cd"
+  },
+  "devices.ui.summary": {
+    "sourceHash": "0cd89a957a76194d07800cbe868348ad98d594fff53e8e42122649828b4383c1"
+  },
+  "devices.ui.viewGroup": {
+    "sourceHash": "58ba10a89c3481b9383a81ed79d9e751fba00a51ded36be7694e63d5ff3c13bf"
+  },
+  "devices.ui.groupRecords": {
+    "sourceHash": "0d6537b6ee19afc021dc0cb9355d17287442ed991a3c522e80c99988683c2a40"
+  },
+  "devices.ui.shownCount": {
+    "sourceHash": "cd76f284e35baa0a87fb56a96d0b2d18ecec2e283452fdf0254389da3765dc88"
+  },
+  "devices.ui.from": {
+    "sourceHash": "5a93b2634887818249c0b4fac41ac7504a5338245bcb91b8e899c52edd76d87e"
+  },
+  "devices.ui.owner": {
+    "sourceHash": "4042a4d95b593579afeba6b4b6a057f8bcacd04bda1fcd750c96553ff69277bc"
+  },
+  "devices.ui.memberIdentity": {
+    "sourceHash": "b6dcc61298af0cf87c7f8ba0f7def15b82f55d3fadabaa054580f3a8a3d0ede9"
+  },
+  "devices.ui.stale": {
+    "sourceHash": "eaf2dcf9b2cf2fbbe3d83b0ba28d165c8e50619bc38a3c630d526565a38f9623"
+  },
+  "devices.ui.manage": {
+    "sourceHash": "1711c17688ae93b5fe6b4f8fb47292cfc08cbbeecb2d8e9afe85b4bb6f893bba"
+  },
+  "devices.cleanup.days": {
+    "sourceHash": "e5bc996342f9d6c7d6611ee2366890c5a1e1c75c1c6b0d9e9722a5bda84d8af9"
+  },
+  "devices.cleanup.none": {
+    "sourceHash": "9bdc6a461c12842211b5f1b64125536a3a58d9e42645d8fca9df29d1aba29f01"
+  },
+  "devices.cleanup.preview": {
+    "sourceHash": "e393dd661bfeec8f1607c31e08d9b206af096bde73587756d2107249c3977b24"
+  },
+  "devices.cleanup.submit": {
+    "sourceHash": "bce4834b20aa877aeefedafcdbc55ec6bf9f58be768a65022c131ee078ff4ffc"
+  },
+  "devices.manual.created": {
+    "sourceHash": "d1403c75a692ea3dc35a32fbbc7ac1f96ecb546215706a148d84e03d0d781119"
+  },
+  "devices.manual.hint": {
+    "sourceHash": "ca926c70b837bfd998ab7a6afdc9b7a72a6d3ba357a7fa69d615ac20561cf7e0"
+  },
+  "devices.manual.headlessUsage": {
+    "sourceHash": "e12aa4c77c4cb8526cc8ba1215fc101c1f33bc490dbf2a9df50880b431c1fa55"
+  },
+  "devices.approval.approvedHint": {
+    "sourceHash": "8381575a3146f055a095e4078267fde9f8801c71b385c4601581cb341b65a035"
+  },
+  "devices.approval.account": {
+    "sourceHash": "9ca3ebf781ea71e5756f88cabae28b1e7f7f2f2427825f1a69f5ed13e6ac191f"
+  },
+  "devices.labels.worker": {
+    "sourceHash": "f5d59f70983ce2e599282faf8a6755f2d9c2cf38e4f8aae5a546becc4646c5fc"
+  },
+  "devices.labels.cli": {
+    "sourceHash": "a78397064ad9b7e55261d63287818c75955908824db9f5fe0c06800aa96f8817"
+  },
+  "devices.labels.tvos": {
+    "sourceHash": "e8c062594a10ec80606f9a14653c617b0d8e6c8af039cb4a4206baa44fa8e3fb"
+  },
+  "devices.labels.macos": {
+    "sourceHash": "8b3795aa25390811064d8e7276e56384b720d78e3ab2780e415c7dc9d4e9522b"
+  },
+  "devices.labels.androidtv": {
+    "sourceHash": "f73ea1e2323972cbea144228e31e6ac931828b496cec54dfcf77f4f6b2da4257"
+  },
+  "devices.labels.manual": {
+    "sourceHash": "c76e80ccce3f1fc24f51d0a40cc6b53475b4bca783b641728688f4675d0a6e56"
+  },
+  "devices.labels.unknown": {
+    "sourceHash": "fb8761798475d1d85cbfc06cd406abda6772df6ad3b0a0d68537777d5b329697"
+  },
+  "devices.labels.transcodeTitle": {
+    "sourceHash": "efda6d1fc1ab6b5f574d3c947a072dcbbe6f7449f50f67d6b9f2cc62191aedb0"
+  },
+  "devices.labels.workerBody": {
+    "sourceHash": "5d9ccb0572f89a5bb1a071e6f8cee6996d52454964dbc487c7fcd247ee984eb7"
+  },
+  "devices.labels.androidtvMember": {
+    "sourceHash": "d499bcd30fa544a88393112f705f54ff98ff960e6969077bc81f5b2dffed5914"
+  },
+  "devices.labels.androidtvAdmin": {
+    "sourceHash": "0faa592d3ee1301fcd2ef3764dba487966bb9905511aac1b34f4bf0a993f7d88"
+  },
+  "devices.labels.tvosMember": {
+    "sourceHash": "10585f84119875ffeed3ce62524aba33b6dc4df9c4cf8b07e8a44117230bbcb8"
+  },
+  "devices.labels.tvosAdmin": {
+    "sourceHash": "52b02ceafe2b2b0ce73590b6b05c3cd8d0875ec46bf84844608f6fcef8ebebc3"
+  },
+  "devices.labels.tvBody": {
+    "sourceHash": "21e6c58c294eaab34d144ce5dbe1de84091829eea0352e4855589717f22be19a"
+  },
+  "devices.labels.macosMember": {
+    "sourceHash": "b42fd82984985e1380592ffd2ea9a0027200449e192b8a4c94598486fd3f02e4"
+  },
+  "devices.labels.macosAdmin": {
+    "sourceHash": "e2cc8683f46a69a84ef62326e8bffcb29aecb7694ea908925700080cdb97dd70"
+  },
+  "devices.labels.macBody": {
+    "sourceHash": "bcd81679a604d397abf654af14f439ee43978618f90f9ff250068ae26768f5b3"
+  },
+  "devices.labels.memberTitle": {
+    "sourceHash": "25ddea7e0ded0daa50254b94618dec0a3f6ef87a03363008d4fabb53fe09f4b0"
+  },
+  "devices.labels.memberBody": {
+    "sourceHash": "fd9365bcf295597e6505bea688724cac5210a9a2506d814f6fceb1a566d275b8"
+  },
+  "devices.labels.adminTitle": {
+    "sourceHash": "c6b8fb03af9fbc4e1cc8f4bb7dfd7bff212df5dfd213478df89203c5cbd969ab"
+  },
+  "devices.labels.adminBody": {
+    "sourceHash": "765ae7336f1142ffc85bbdbcf8f2098550186c993c9453fe16212efad62d577b"
+  },
+  "devices.labels.manualTranscodeBody": {
+    "sourceHash": "d7fb807bc9e0f75b010f336a2ee7a520795e8277f1b9df3acace7a0563aec2b5"
+  },
+  "devices.labels.manualFullBody": {
+    "sourceHash": "f2167d86d1c8f927f4ae25cf7c30d1888964868afc85162d6ef5c6bafda501c6"
+  },
+  "devices.labels.badgeTranscode": {
+    "sourceHash": "98ae9825aca73b2f3b6767595885ecf834c4c67ef1e51177cd75be1b06afc2fe"
+  },
+  "devices.labels.badgeFull": {
+    "sourceHash": "074a0eb777853b60b54d5f609329b57468c6c294669d4967d6aa73aaa6a07728"
+  },
+  "devices.labels.badgeMember": {
+    "sourceHash": "939bc919572996c8935003b1c28c99bde315fe1f0a6fe6dd9533fc578e37cbec"
+  },
+  "devices.labels.groupBrowser": {
+    "sourceHash": "e19c3b9e266c69c952f9f265334bb14bceeb2f6869305d1a44447c5e09e64105"
+  },
+  "devices.labels.groupApp": {
+    "sourceHash": "0d04bfeb7d64b71c74fc925cca93d683154e8cc7e6e5838faced498e34c9984d"
+  },
+  "devices.labels.groupPaired": {
+    "sourceHash": "fa9fe2111f8ad31cd9d57beb4cda490f0e99e2b8ee3668763da4c5e7384a47dd"
+  },
+  "devices.labels.groupPlayer": {
+    "sourceHash": "deed64d8463284a0eda6cd7369f4cf99c71b6ead2f896c43c313c54ab19feaf8"
+  },
+  "devices.labels.version": {
+    "sourceHash": "f9ac79a4a05fba842bbf6cc10fcb21b008dba8161a957aa849bb65a1a41bcdbe"
+  },
+  "devices.labels.issuedManual": {
+    "sourceHash": "dc4d662d071eea523cbb8e5050b4f02c2593a0829d89526c0005adfb1d22055a"
+  },
+  "devices.labels.issuedPaired": {
+    "sourceHash": "b23e05232e310650dd78b2af301bb404f2429084c6b6c54493732260284f9b32"
+  },
+  "devices.labels.issuedLogin": {
+    "sourceHash": "282fff7b2b47d643ae18a3c3874205ed1c8e275a59ac10695cf6aea671617138"
+  },
+  "devices.labels.revokeCli": {
+    "sourceHash": "de15d246555e2a74c5233c5f41213d17c13945ecbb7e0db0fe27bbfecbc6d55a"
+  },
+  "devices.labels.revokeWorker": {
+    "sourceHash": "f79ae31fb9a88c5804fa981106098b12ac30287b858b1232bbf38cc8fd442c5a"
+  },
+  "devices.labels.revokeManual": {
+    "sourceHash": "61566857bac70a0604a445259be8bcfd2607efb265918b9443fe48bfdcc41a21"
+  },
+  "devices.labels.revokeJellyfin": {
+    "sourceHash": "362c277389057cfd71c416ba277ce82a3523ca64eb05d8bff97f9c095a8c5b42"
+  },
+  "devices.labels.revokePaired": {
+    "sourceHash": "a904fbdc7c1c4fe478646a0054c7a4c4040727b861e48409a10acdac84376731"
+  },
+  "devices.labels.revokeLogin": {
+    "sourceHash": "5c21b1b24e8b11944572a0437aaffbe9fb046aef30a5d06bbbacad55f52c2d40"
+  },
+  "devices.labels.never": {
+    "sourceHash": "458529e0622823f96f62e6a0e92c24f7cce0a6013d200001c17b68add1eb12bf"
+  },
+  "devices.labels.unknownTime": {
+    "sourceHash": "4d8c1c5b42830791a4ce99f630fb9f02ba08c67c5299d46d6cf76661bfd03584"
+  },
+  "devices.labels.justNow": {
+    "sourceHash": "a994662e71e0f0468aa9e13cb78f269660740221836faaefd898bdf983ef28bc"
+  },
+  "devices.labels.minutes": {
+    "sourceHash": "d03d6de1f60faf3fe8c6daf64a9faf8960fef31c384c73ba6309db2b90c619b2"
+  },
+  "devices.labels.hours": {
+    "sourceHash": "8ac4aa74ae82123a987e9f06bc7438ec68d412af618351bfd6fb6bab87950632"
+  },
+  "devices.labels.days": {
+    "sourceHash": "a7e8e8ef31311ecc6a550910f5e5174d5b2bcfb0978b314897a6f56025197083"
+  },
+  "devices.labels.connected": {
+    "sourceHash": "5be0323e8adcaeae8a644b6e8e4ad05864ec03c7b841504f91c911ff06dabd6d"
+  },
+  "devices.push.unsupportedBuild": {
+    "sourceHash": "7836ed1b271631dd83ec675738f1e18417b42426a8ee4be6fb3856b8e81a8076"
+  },
+  "devices.push.noChannel": {
+    "sourceHash": "96e9efd50075900abf60352e41851116c16f1fa154499b6148359b861ab26e81"
+  },
+  "devices.push.permissionDenied": {
+    "sourceHash": "733fcc4fc54be0fb73b3ce3f0316c5f7c90c73a199f091774ef036f24b76e6a2"
+  },
+  "devices.push.badToken": {
+    "sourceHash": "f212791ce299e9b1ec2151c14f942115d72395e4f23189475bd8cab50d176c4a"
+  },
+  "devices.push.notRegistered": {
+    "sourceHash": "c46dc8a6a962fde25784879fc00e5f1b687f0d6a4a46679008ecc5cd6642e3e3"
+  },
+  "devices.approval.entry": {
+    "sourceHash": "1899a855f03d0097489ad702806feb0716be53adaf995ce0e789a6a9ca5f1076"
   }
 }
