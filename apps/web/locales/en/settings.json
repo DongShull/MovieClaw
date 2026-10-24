@@ -75,7 +75,10 @@
   },
   "overview": {
     "title": "Overview",
-    "description": "Configuration status: what is missing, what needs attention and what to do next"
+    "description": "Configuration status: what is missing, what needs attention and what to do next",
+    "appUpdate": "Version v{version} is available",
+    "modelUpdate": "Recognition model {tag} is available",
+    "updateHint": "Open Updates and maintenance to see what is new and upgrade"
   },
   "profile": {
     "title": "Profile",

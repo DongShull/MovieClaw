@@ -1179,5 +1179,14 @@
   },
   "subscription.tabsLabel": {
     "sourceHash": "65491f919e521517b01725ea4049780aa7c503bf3a080899a09cafc39d3e42ca"
+  },
+  "overview.appUpdate": {
+    "sourceHash": "fae9dcff11e4e23fe6c9abd9cc875d2b58139c86c70bf740d0d54e54f530f97c"
+  },
+  "overview.modelUpdate": {
+    "sourceHash": "276f0aa1d977a4a3a931dc18a9c238553b0c749c4f766fbf25e8987c0dc61bcb"
+  },
+  "overview.updateHint": {
+    "sourceHash": "3c3593e63d04e519725b18f80a5c53960e960630ea70569907bf7c2e3c50ac52"
   }
 }

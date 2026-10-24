@@ -202,5 +202,191 @@
   },
   "selection.choice": {
     "sourceHash": "5de96864eb89647185007bab391a1e47a555edfaecc7c0301306d3b597a172ac"
+  },
+  "health.goSites": {
+    "sourceHash": "556480825ada2ddac203306600fe12355b59a2b85fb0b18a556133844a97c9db"
+  },
+  "health.goDownloaders": {
+    "sourceHash": "b40b0a18b967860838ad794aefa98b5a7d32279ad90c43690e069220b861385d"
+  },
+  "health.goWatch": {
+    "sourceHash": "a35330fe5875e7af66834c62b59e851cbaa46cedd55fe029de7633b448813133"
+  },
+  "health.goLibraries": {
+    "sourceHash": "3231c934e1e31dbfb712dd5db64f0f39d07224dac37ae18c72a7ee7a4ca9488a"
+  },
+  "health.noSites": {
+    "sourceHash": "a13961704ea3d73e064db3083a566f858819a6e975ed4ae1cfe5f3c3625638e1"
+  },
+  "health.brokenSites": {
+    "sourceHash": "2280addc61094d074c50ae2c0ff88095b8e4ff2170d5256bf0cc4f7acf6d1214"
+  },
+  "health.rootIssue": {
+    "sourceHash": "e59f8bf6065ff16513235365c7c424ef7606021e4be67c6c28f20871c9ee4ba3"
+  },
+  "health.diskIssue": {
+    "sourceHash": "4059b3dc15423e1151ed74c99b83ef1654a89f1f9c2efc55d8278b4287432a11"
+  },
+  "health.diskPending": {
+    "sourceHash": "97745f13d013d24373fb3ca509a838662e6fa05a391c969fa1944f52d5798c3a"
+  },
+  "health.watchIssue": {
+    "sourceHash": "2c1de676da63172a71ed0cf531780e015d636e54b98077f3b64c40fd240cbb38"
+  },
+  "health.search": {
+    "sourceHash": "3868b2488531183ba1e36607b37932241d2661f415b8c522dda4228f62e074ee"
+  },
+  "health.activeSites": {
+    "sourceHash": "916969850a763c7898a18e41ddbb0b346bbdee8a1cfde5ff4064304b77f3f8c8"
+  },
+  "health.targetPath": {
+    "sourceHash": "f292baacf43e4b6f87f302449965be8f3ebd872b166c4929e7d63972b18f98e8"
+  },
+  "health.libraryRoot": {
+    "sourceHash": "f3d80911e5514a250a94319c5871e9e3d7ae47a5f390fe9c7881d71e61b5f7c5"
+  },
+  "health.watch": {
+    "sourceHash": "e75b2ffa09fe575126d9bbfec5cb4ed435bd8686ecf495ca3e299836b9863f21"
+  },
+  "health.watchActive": {
+    "sourceHash": "8857cbf03450de8e558334da27e8ba6dccf0a70750eb8fd6c19f070684d69416"
+  },
+  "health.watchInactive": {
+    "sourceHash": "93569fe2cd967090eef956263623b70c56cca95743f772686ab540802be7ed9a"
+  },
+  "health.sitesIssue": {
+    "sourceHash": "af2a83578a6c99063778a33ba21fef7c65e0bed4de893b360ba3c7faed363f9c"
+  },
+  "health.downloaderIssue": {
+    "sourceHash": "b94679a6ca928d74f323066d93c17fb9c82fa8f6a98cb6367fb32b222851f7af"
+  },
+  "health.downloaderDetail": {
+    "sourceHash": "55d3e16490bad94731900f6824ec6feac202d393ee7bb2f9a64802252f1ecdd4"
+  },
+  "health.mappingIssue": {
+    "sourceHash": "26f593bb690084728f9681bd0546c168df8a469f1891fff8d81c7eccf86c61c2"
+  },
+  "health.mappingDetail": {
+    "sourceHash": "ff14ceb7f616867d5bddba735ca39a192a2437a9821c0585a45897def2235fb7"
+  },
+  "health.watchStaging": {
+    "sourceHash": "252abee01f049e5b93f7c78f7038b0ceb09cd0643fee86a817d76f130a490c8b"
+  },
+  "health.watchImport": {
+    "sourceHash": "fe50096f8f0f1837f436a619da393df463a9bb656f10e5c3f380b528b22bcefd"
+  },
+  "health.downloader": {
+    "sourceHash": "19c3857aba1b0d88fbf50b66335a5ec0e2e958fababde6bb7faac04a0d7b3e85"
+  },
+  "health.noDownloader": {
+    "sourceHash": "aab681c9fb0d37b496a9aa29f5cc7bfbc81b760db86517df2580eee9256419d1"
+  },
+  "health.downloaderReady": {
+    "sourceHash": "a19b96f1a0c39596e751e58fc650f93fcec72b99ce3aeebcbc1da2253a558ee6"
+  },
+  "health.dispatch": {
+    "sourceHash": "1556b0567766c2079309f2af40df14a03df510774f231fd0ab097042a0edbfb2"
+  },
+  "health.noRoot": {
+    "sourceHash": "9f6a535a36edec1008b28ca484a434ad236cfd92b2d9b1438954d9782a533c8d"
+  },
+  "health.hardlinkDisk": {
+    "sourceHash": "c8cfbee34c68d21059fd3db3f5dcc2ffc02bbcfedf948c5620511240ef95f7ae"
+  },
+  "health.diskUnavailable": {
+    "sourceHash": "5b64246dcbfac3cc12a67b27b657853a31c77e1623799d2776e93b58b76de20f"
+  },
+  "health.sameDisk": {
+    "sourceHash": "870c42496a148ebe4bdc6c9d004199c3f354a9bbce3111f5f82ed41e2ed16dc1"
+  },
+  "health.differentDisk": {
+    "sourceHash": "9310ee0a4dac5b68a9e51a6ba045ebd33637dcc24130b3cc4cdef27d943ca62e"
+  },
+  "health.directImport": {
+    "sourceHash": "2caa5c9d1ec172f1f98664695def1d01f1351c6394db9162b34e1921c0d21d87"
+  },
+  "health.mapping": {
+    "sourceHash": "be5f460100b42d5b1a9ca6185c641e81bd9a4f6e615f144edea0da817dd81d95"
+  },
+  "health.mappingReady": {
+    "sourceHash": "b9024bd2b04d86cd14ab914bff93fb738a08cfe6501a9c3f1e2bbc36b0440caf"
+  },
+  "health.mappingMissing": {
+    "sourceHash": "36b5d955ca42b533759fbc2e6cf5bacaf158bb58a27571531dce37cb1c62ebde"
+  },
+  "health.sitesFix": {
+    "sourceHash": "7d5db7f9dbf44b2f80f73c73f1f8d2ea4efc9ee7be2d7fba650e10066a67a1a4"
+  },
+  "health.sitesWhy": {
+    "sourceHash": "74424135bc850e8cf1a8f526a46c3d1f8362e2e249dd1841023b14badd0776d2"
+  },
+  "health.sitesSteps": {
+    "sourceHash": "cfb6762c638faa21ce89aedf3a45bebb21a2f767421118744c246978cce238cf"
+  },
+  "health.downloaderFix": {
+    "sourceHash": "c85da06b0dac6cd3d9570cc706d3750b6d1640ef6fc84b760a77a1bf1a6d29ab"
+  },
+  "health.downloaderWhy": {
+    "sourceHash": "9e01593e4683be5c4dc4b00a639c45b1591a256888daf355ea2191e4610429b6"
+  },
+  "health.downloaderSteps": {
+    "sourceHash": "5f29a1ca0cbe58855a34525d3252d0e9c357322e95cf8cb2038d716d0aa04884"
+  },
+  "health.mappingFix": {
+    "sourceHash": "d296f5c9c08489f87b4ba4269d47e9e496083611f9c8beaaf207d2c9c17e954a"
+  },
+  "health.mappingWhy": {
+    "sourceHash": "3cf9cf9c4a43797d21632865d9bd8f85e6b5ea5e39e2945fe38767280b1d8df8"
+  },
+  "health.mappingSteps": {
+    "sourceHash": "d5c804661ae1d8763d75f16b78ef788b0a293a53f4a8b3b6b5bf89c4edba1c94"
+  },
+  "health.goMapping": {
+    "sourceHash": "41405021dde10eb6fb27be18f905869447414ed69d91e5016b502ed27ca5c2db"
+  },
+  "health.watchFix": {
+    "sourceHash": "33c6eda53e9a6feaf1e61eabf8e6105c338e1f568ef945c2717a7a6b6f015220"
+  },
+  "health.watchWhy": {
+    "sourceHash": "d2261c59860f587829cc64e2ef0a0c6bbc5cf3fb59b4fd6eddbc7c30b3d22e65"
+  },
+  "health.watchSteps": {
+    "sourceHash": "52eb0a61535ba988b742e1345554ca08266d06c4eedf76fd9b731f0233afb067"
+  },
+  "health.goRule": {
+    "sourceHash": "e5fd68d7ab01e61ae5571b443787fc5b60fedf49bfb961da056f758321b28f83"
+  },
+  "health.handleCheck": {
+    "sourceHash": "afdc0a3979e79c0dc23ebc53578b13be19a80979b6eee33966726ceb11f2b0bc"
+  },
+  "health.goFix": {
+    "sourceHash": "a7e9f67714eda05cc5ae32dd73a8f9b3a4d43ff4ea46760388c3242b0ed5a359"
+  },
+  "health.outputAnchor": {
+    "sourceHash": "4ab684a121b120e3ecee1df8e9dda85ebf011d37b6ce6e27222d4799ed962584"
+  },
+  "health.rootAnchor": {
+    "sourceHash": "575cc2dd328bb2e228d7df8c92efbb03d98f09a980333aa58b2bfc027c564f4f"
+  },
+  "health.movie": {
+    "sourceHash": "03a3a327af684099e7e863d8080bba7c2539050a5fc066a1932d90e3bdf61b15"
+  },
+  "health.tv": {
+    "sourceHash": "cb9a20776230420ec27c8d82fbdfa14ac7a1142b3000d55a2203b4285a0bf4d8"
+  },
+  "health.stagingNarrative": {
+    "sourceHash": "7878bf462c551c7113406b11a13d2dfcff59967f23b66eebffc029b809abc187"
+  },
+  "health.watchNoRootNarrative": {
+    "sourceHash": "f938c384e5e1c653dec7831043d212c72c2bd42b13503f48673efdcaa2819875"
+  },
+  "health.watchNarrative": {
+    "sourceHash": "8821642a3798433d318b1164f9cdb6dbcd2b960ba3383088edb18d8f894aa3be"
+  },
+  "health.directNarrative": {
+    "sourceHash": "0b5c329f609e451918f9cbb2fafe8b99bf9c60773280bc52d3e41386fe6edfdb"
+  },
+  "health.noRootNarrative": {
+    "sourceHash": "e95aba03edc3354360b3baf44de7c48d525497924c3be9b187817606c5287f8c"
   }
 }

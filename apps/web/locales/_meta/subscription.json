@@ -2278,5 +2278,179 @@
   },
   "feed.updatesToday": {
     "sourceHash": "60eb2dddc9d9ac6eb2b18f366aa054586f265589de993336c1d2d861703cad15"
+  },
+  "pipeline.ok": {
+    "sourceHash": "296de0e31f8c22d9343c1f07f7fcd2e88a425d769cb0c88d8b24cc865f2c0685"
+  },
+  "pipeline.warn": {
+    "sourceHash": "9f22b41cf5d7559ae3aa9e5bef64f5865a189e624355e87641ffc60ea7be254e"
+  },
+  "pipeline.error": {
+    "sourceHash": "ff520de6aef5555c324eaeab6f8ad346125f57f09ccd10d70f71cb06dba9963c"
+  },
+  "pipeline.goSites": {
+    "sourceHash": "556480825ada2ddac203306600fe12355b59a2b85fb0b18a556133844a97c9db"
+  },
+  "pipeline.goDownloaders": {
+    "sourceHash": "b40b0a18b967860838ad794aefa98b5a7d32279ad90c43690e069220b861385d"
+  },
+  "pipeline.goWatch": {
+    "sourceHash": "9333697d87e10b0426af509d081b1ee976717b5075401c31897e2cd92640de38"
+  },
+  "pipeline.goLibraries": {
+    "sourceHash": "3231c934e1e31dbfb712dd5db64f0f39d07224dac37ae18c72a7ee7a4ca9488a"
+  },
+  "pipeline.title": {
+    "sourceHash": "6fece33c20a3cb1be5d6cf3bbd16d72f1ee8ab7f4ca0b873eca265a10aaba873"
+  },
+  "pipeline.setupHint": {
+    "sourceHash": "ddc593202746fcf1adad0cb55020f204ff5048bb7dfaa201cfaf146838183c36"
+  },
+  "pipeline.description": {
+    "sourceHash": "20f978a12253c9044a7638ecfff693d3dcbb6f90736bed17330c594a694e78eb"
+  },
+  "pipeline.reload": {
+    "sourceHash": "bb1234eff4d1a015746a265ebb87fb484c6795823239347b30fa6fe9969b1939"
+  },
+  "pipeline.failed": {
+    "sourceHash": "4f6f5b07b9e13450ba53b43ba223d361c674f7d862d36f93d5855ea671c8e6c1"
+  },
+  "pipeline.loading": {
+    "sourceHash": "7e4412c494bfe976f12a1f56f9beecbc357c07c1d054c8d8c09afeee8adac87a"
+  },
+  "pipeline.connectSites": {
+    "sourceHash": "9f6178512f3058afb698cb5f0eb624396b8c55689b3e076e1feeedef45faced8"
+  },
+  "pipeline.sitesHint": {
+    "sourceHash": "56919c149f978adbd0df4a695d4594741fe9ecc6f7660681cbeff6eed7b8ca99"
+  },
+  "pipeline.connect": {
+    "sourceHash": "5df42fc77469d4b8d0a53d59313beccf68cf10b58dd47ec4b029c8fa69454d95"
+  },
+  "pipeline.connectDownloader": {
+    "sourceHash": "74c6d833bedc38c6b6f3156ed6ddff69a8c678c95de656032c9788cb87a9eb1f"
+  },
+  "pipeline.downloaderHint": {
+    "sourceHash": "3c9e3046ff2e59435792ae3ca41a4f82071a83580df4bff042da83e82227d3e4"
+  },
+  "pipeline.createLibrary": {
+    "sourceHash": "61f973914c0ecd7b06bfd31a4ed84001a7644d7f7bb0dfb850766056a4e912ec"
+  },
+  "pipeline.libraryHint": {
+    "sourceHash": "73ca0e38ccb85aa25acc5b1a1ed2558c677aa085362f11a6ebee319e4e858b78"
+  },
+  "pipeline.create": {
+    "sourceHash": "6e9be30dc66215c7c3c42e7af8730ce3ec6bb83209bf94c2e0044804c2536f77"
+  },
+  "pipeline.optionalWatch": {
+    "sourceHash": "cf92a8f34aa710f6257f81e6af04bbecf0a48d2ea97e08a3b43fc731cf435a3a"
+  },
+  "pipeline.search": {
+    "sourceHash": "3868b2488531183ba1e36607b37932241d2661f415b8c522dda4228f62e074ee"
+  },
+  "pipeline.downloader": {
+    "sourceHash": "19c3857aba1b0d88fbf50b66335a5ec0e2e958fababde6bb7faac04a0d7b3e85"
+  },
+  "pipeline.shared": {
+    "sourceHash": "431059c354845fe79e250ea53ab1a9c88e20e4fdc9a5e8d07bdded40c47a524c"
+  },
+  "pipeline.dispatchWatch": {
+    "sourceHash": "c8e39b62b0f1a520ae4fcea06129c81149a418ec1a7f3ef4d10643d4803092a5"
+  },
+  "pipeline.dispatch": {
+    "sourceHash": "3252c40c6368486e01effb9494dc2355ebce0f62e0178ab4acfd0b96fbe13fb4"
+  },
+  "pipeline.output": {
+    "sourceHash": "d12f9a10af9434d4464f03c3890ce1da9bf53e3a96460119c101660f6105f891"
+  },
+  "pipeline.transfer": {
+    "sourceHash": "37aa2d5cf9f7d114f191ee6a6dfdbc6cb18b29fba29deb8ae43a292782434615"
+  },
+  "pipeline.external": {
+    "sourceHash": "76ad501a2f957ac680f507adbbbb731e3eda4f517257cdcdad3c3548749c955b"
+  },
+  "pipeline.returnIngest": {
+    "sourceHash": "52a8c97874fc17b162a709743620a1df09c2dae4e4ec2224b4e6fe09421b1eed"
+  },
+  "pipeline.ingest": {
+    "sourceHash": "e3614c883636ffd8a68f43b5a1ec13736e89d2cb653ff36d468c57a80dd360ab"
+  },
+  "pipeline.defaultSuffix": {
+    "sourceHash": "5c4e00cd2f4caefd8f65e32bb5fb5aa13bc42ae425c3c79fcd49056b46740314"
+  },
+  "pipeline.searchFailed": {
+    "sourceHash": "d7b6b97f66b27734810e2c94c13d8ef0ea1b8bcb1adf6e5acc7b2aa497f226b3"
+  },
+  "pipeline.searchRetry": {
+    "sourceHash": "7ddb1a9084810b13bdfd6938ecdacc1ae3f7408279a262a7686450c41b2cf8fa"
+  },
+  "pipeline.previewFailed": {
+    "sourceHash": "001d355c6bc640511a95d8e5ae5a6bcc593f44e325ed4691139e4c75a5267e77"
+  },
+  "pipeline.previewTitle": {
+    "sourceHash": "be08310679d6ec1a252ebbfaec1f71c41e04e5ca64011dd6a443ccc8c5275520"
+  },
+  "pipeline.closePreview": {
+    "sourceHash": "1eb05d3115088bdfdab46f0f1a950554183556639bf06ef47c2fe3469c5fb1fd"
+  },
+  "pipeline.previewHint": {
+    "sourceHash": "4a9e62fe7adcda7aa52d8e8032e0b5c588ef9c9702753db2d01d4478c19162f7"
+  },
+  "pipeline.searchLabel": {
+    "sourceHash": "0ad2c7a5c186fb3b8e7a2e9e60b67eb1177c93e021c18cf83d78ed8b3003fb00"
+  },
+  "pipeline.searchPlaceholder": {
+    "sourceHash": "224b0bbafb1c04b84e6617aaae77d25de18fac5683b685c0298f4e44f3af4faf"
+  },
+  "pipeline.retryPreview": {
+    "sourceHash": "0b484155ac5ac8a5bd10ff031e1dfb291241143defcb7636c984173f67828d47"
+  },
+  "pipeline.searching": {
+    "sourceHash": "c37059a3d9dfd5b1137818b7e8118e4f476fafb33e23f2815f040ea8533aceb2"
+  },
+  "pipeline.noResults": {
+    "sourceHash": "5078ca46c62bcc9abb2f189eb8f96686f3a3323244c5ff03b5e318b656c6979d"
+  },
+  "pipeline.previewing": {
+    "sourceHash": "8dfb44ed3f5fdddb5ec8c1741cabe0fa19392f32dbdd4115af0f53fa74252585"
+  },
+  "pipeline.noLibraries": {
+    "sourceHash": "5af0daa70d090738a512c296a23df18781d1e7d8dce78a0a5d6b89ed9c0c07a6"
+  },
+  "pipeline.details": {
+    "sourceHash": "8205856199612215f84c1381b478cfae56e0e87bea4024f8a754f892003d6872"
+  },
+  "pipeline.defaultDownload": {
+    "sourceHash": "d9bf94fb3803440402659b98b9846faa0b6ecab1019b307bfcf99455fb183e07"
+  },
+  "pipeline.waitExternal": {
+    "sourceHash": "35afaa339bee66576a62329fa424faa865eaf2e47ed74e4e947919000652cf6e"
+  },
+  "pipeline.available": {
+    "sourceHash": "bcf5e74043465a21847b6f1f012bad825b207c773378b7ea60c1cdd6171b70bb"
+  },
+  "pipeline.issueCount": {
+    "sourceHash": "28cfd97254dc7fe35cdfca6ffdd5a7e03b3d514a10dd5e68456a4387d38031b1"
+  },
+  "pipeline.affectedLibraries": {
+    "sourceHash": "07d7c22679a45aab2b70b23bb7a49d3ea811286243453f05e73ea3959bc7b3b7"
+  },
+  "pipeline.previewPicked": {
+    "sourceHash": "54d7891ca354cbe3606b7243f4c6cbe236e45f5a4dbe4e466cc7006ebfa946d2"
+  },
+  "pipeline.libraryTarget": {
+    "sourceHash": "9eaee30f5ad5bcab9967cc91f8d508e88cc4212d2fbb7a85b2b75361c58881d4"
+  },
+  "pipeline.watchOutput": {
+    "sourceHash": "92924ea1b1c6b47bc97d48f9a5c5ae799aee6acde2b2f66bdc53ceaec9e653d3"
+  },
+  "pipeline.watchImport": {
+    "sourceHash": "ce1063984c3a68a57baf0a5bee635bae937baf3632c911f2730c14a86168dce1"
+  },
+  "pipeline.directImport": {
+    "sourceHash": "d51e37a92dbf33d198e26ec051ac5fbcf35646b6bf3e733fce911968673c7644"
+  },
+  "pipeline.collapse": {
+    "sourceHash": "afd4b783536b8297bb2506836727af1ccae7626a7d04e89de7ad402360e0a970"
   }
 }

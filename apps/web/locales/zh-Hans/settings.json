@@ -75,7 +75,10 @@
   },
   "overview": {
     "title": "概览",
-    "description": "配置状态一览：缺什么、有什么问题、下一步做什么"
+    "description": "配置状态一览：缺什么、有什么问题、下一步做什么",
+    "appUpdate": "新版本 v{version} 可用",
+    "modelUpdate": "新识别模型 {tag} 可用",
+    "updateHint": "去「更新与维护」查看更新内容并一键升级"
   },
   "profile": {
     "title": "个人信息",
