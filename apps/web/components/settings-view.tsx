@@ -69,6 +69,7 @@ import { changePassword, updateProfile, uploadAvatar } from "@/lib/api/auth";
 import { listLoginDevices } from "@/lib/api/devices";
 import { clearPlaybackHistory } from "@/lib/api/playback";
 import { DEFAULT_UI_PREFS } from "@/lib/api/ui";
+import type { ConfiguredSite } from "@/lib/api/extension";
 import { HttpError } from "@/lib/http";
 import { catalogTheme, subscribeThemeCatalog, themeCatalogVersion } from "@/lib/theme-catalog";
 import { refreshThemeCatalog } from "@/lib/theme-catalog-sync";
@@ -178,6 +179,7 @@ export interface SettingsPanelProps {
 
 export function SettingsPanel({ active, item }: SettingsPanelProps) {
   const locale = useLocale();
+  const [sites, setSites] = useState<ConfiguredSite[] | null>(null);
   // 成员直达管理分区地址（书签/手输 URL，含裸 /settings 服务端兜底到的概览）
   // 时回退到首个可见分区——界面兜底，真正的安全边界在后端 403
   const { session } = useSession();
@@ -237,7 +239,7 @@ export function SettingsPanel({ active, item }: SettingsPanelProps) {
             <p className="text-on-image mt-0.5 text-ui text-[var(--text-muted)]">
               {/* 资源站点分区的副标题是活的：有站点时显示健康统计，无站点回落介绍 */}
               {section.id === "sites" ? (
-                <SitesSectionSubtitle fallback={section.description} />
+                <SitesSectionSubtitle fallback={section.description} sites={sites} />
               ) : (
                 section.description
               )}
@@ -257,7 +259,7 @@ export function SettingsPanel({ active, item }: SettingsPanelProps) {
         ) : section.id === "subscription" ? (
           <SubscriptionSettingsSection />
         ) : section.id === "sites" ? (
-          <SiteConfigSection />
+          <SiteConfigSection onSitesChange={setSites} />
         ) : section.id === "downloaders" ? (
           <DownloaderConfigSection />
         ) : section.id === "import-watch" ? (

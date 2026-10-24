@@ -2386,5 +2386,47 @@
   },
   "downloader.pluginNotRunning": {
     "sourceHash": "1e46c40cca7aba4d3f23954863e35d6eb1515c948cfb33fb784e2cf66ce10c07"
+  },
+  "siteDiagnostic.authNotPassed": {
+    "sourceHash": "f8b75ab12eb1e20bf142fb06d7300535446997acb73915b97026f93dac384a21"
+  },
+  "siteDiagnostic.profileMissing": {
+    "sourceHash": "eb3343e1aa56ed22caa213bae60a471a20658d1f2281d11828864b62c2be8e57"
+  },
+  "siteDiagnostic.providerUnbound": {
+    "sourceHash": "e8d16d06291a4395fec597e6a8440cf714a23d8fd2bcb201b684fe9bfd8febd6"
+  },
+  "siteDiagnostic.crossOriginLogin": {
+    "sourceHash": "87198787f023c698facdbde8011debf6b2c27e3e6d1c2538da019a363bf7975d"
+  },
+  "siteDiagnostic.captchaSolverMissing": {
+    "sourceHash": "6b6107da04ca46374f3a3921b7d33288e39b7a75b36785adf0804c818ac8832e"
+  },
+  "siteDiagnostic.captchaFailed": {
+    "sourceHash": "e15d243e74fe70cce6859dc3f61ff983d5c0524c698a78dac9efaef6fac44a82"
+  },
+  "siteDiagnostic.loginFailed": {
+    "sourceHash": "2324865ea5a78a9a35813205d397c8cb8e294448c593f77836cbe307679de254"
+  },
+  "siteDiagnostic.badCredentials": {
+    "sourceHash": "a9a6a83a7d22e27e0614732809c57da37373b501c54a433c747ee8698af5f725"
+  },
+  "siteDiagnostic.loginRetries": {
+    "sourceHash": "a4e7755efd33e38bb9e6b2e735ddd98a33e9ae60c5be42ee2ad67c6849cb34a9"
+  },
+  "siteDiagnostic.upstreamAuth": {
+    "sourceHash": "ecaa5d3a6d0ed851cf628b80653e7cbdbb7e2e7e6c4d642c51bdbaa28f5a2b03"
+  },
+  "siteDiagnostic.retrySync": {
+    "sourceHash": "72eaea7643db8578e9f20a5d2b0e8775139cf25b250c4fdf5713ca4430c88e48"
+  },
+  "siteDiagnostic.authSyncStopped": {
+    "sourceHash": "cc174c009474ddeee387cc0d458f5544fcf55c09a097e8fe15515872d3c26467"
+  },
+  "siteDiagnostic.syncStopped": {
+    "sourceHash": "ec918b49ce9ab9b8bac7ea3a6daa9df3234f3323ea57aa42b3f61db379dc2bef"
+  },
+  "siteDiagnostic.authReverify": {
+    "sourceHash": "00a916ca4b916b4bb1c168daa7e24fe19f26f33b8bbcfbee28316229c78b4fe5"
   }
 }

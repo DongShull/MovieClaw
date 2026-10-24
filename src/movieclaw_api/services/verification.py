@@ -25,7 +25,7 @@ logger = logging.getLogger("movieclaw_api.verification")
 def friendly_error_message(exc: Exception) -> dict:
     """Keep a Chinese fallback and semantic reference for a site failure."""
     if isinstance(exc, TrackerAuthError):
-        return stored_fields("errors.siteDiagnostic.auth", error=exc.message)
+        return stored_fields("errors.siteDiagnostic.auth", error=exc.message_ref or exc.message)
     if isinstance(exc, (TrackerNetworkError, httpx.TimeoutException, httpx.ConnectError)):
         return stored_fields("errors.siteDiagnostic.network")
     if isinstance(exc, TrackerParseError):
@@ -103,6 +103,7 @@ async def verify_site(site_id: str) -> None:
     # 2. 执行真实认证 + 拉取资料
     status = ConfigStatus.FAILED
     error: str | None = None
+    error_ref: dict | None = None
     profile = None  # 验证成功时保留资料，稍后落库为站点资料快照
     site = None
     try:
@@ -115,6 +116,11 @@ async def verify_site(site_id: str) -> None:
         auth_result = await site.authenticate()
         if not auth_result.success:
             error = auth_result.message or "认证未通过"
+            reason = getattr(auth_result, "message_ref", None)
+            if reason:
+                error_ref = {"message": error, **reason}
+            elif not auth_result.message:
+                error_ref = stored_fields("errors.siteDiagnostic.authNotPassed")
         else:
             profile = await site.get_user_profile()
             if profile and profile.username:
@@ -122,8 +128,10 @@ async def verify_site(site_id: str) -> None:
                 logger.info("站点验证成功：site=%s 用户=%s", site_id, profile.username)
             else:
                 error = "认证成功但无法获取用户资料，请检查账号状态"
+                error_ref = stored_fields("errors.siteDiagnostic.profileMissing")
     except Exception as exc:  # noqa: BLE001 -- 背景任务需吞掉所有异常并记录原因
-        error = friendly_error(exc)
+        error_ref = friendly_error_message(exc)
+        error = error_ref["message"]
         # 日志里保留完整堆栈便于开发者排查，落库的 last_error 则是友好中文
         logger.warning("站点验证失败：site=%s，原因：%s", site_id, error, exc_info=True)
     finally:
@@ -137,7 +145,7 @@ async def verify_site(site_id: str) -> None:
     # 3. 写回最终结论（又一个独立短会话）
     async with db.session() as session:
         repo = CredentialRepository(session)
-        await repo.update_status(site_id, status, last_error=error)
+        await repo.update_status(site_id, status, last_error=error, last_error_ref=error_ref)
         # 全局红灯：凭据失效意味着该站点的搜索/投递静默缺席，必须被感受到；
         # 验证恢复则红灯熄灭
         from movieclaw_api.services.system_notice import resolve_notices, upsert_notice
@@ -161,7 +169,9 @@ async def verify_site(site_id: str) -> None:
                 message_key="notify.siteVerification.body",
                 message_params={
                     "site": site_id,
-                    "reason": error or {"message_key": "notify.siteVerification.unknown"},
+                    "reason": error_ref
+                    or error
+                    or {"message_key": "notify.siteVerification.unknown"},
                 },
                 payload={"site_id": site_id},
             )

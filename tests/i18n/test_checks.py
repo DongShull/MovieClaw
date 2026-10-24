@@ -176,3 +176,19 @@ def test_scheduler_description_references_are_checked(catalog):
     folder.mkdir(parents=True)
     (folder / "tasks.py").write_text('register_task("task", description_key="common.missing")')
     assert any("unknown key common.missing" in error for error in check.check_catalogs())
+
+
+@pytest.mark.parametrize("package", ["movieclaw_downloader", "movieclaw_tracker"])
+@pytest.mark.parametrize("source", [
+    'DomainError("raw", message_key="common.missing")',
+    'DomainError("raw", message_key="common.greeting", params={"wrong": 1})',
+])
+def test_domain_error_provenance_keys_and_parameters_are_checked(catalog, package, source):
+    root, _ = catalog
+    folder = root / "src" / package
+    folder.mkdir(parents=True)
+    (folder / "errors.py").write_text(source)
+    assert any(
+        "unknown key" in error or "call parameters differ" in error
+        for error in check.check_catalogs()
+    )

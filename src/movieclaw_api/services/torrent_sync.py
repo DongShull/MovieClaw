@@ -26,6 +26,7 @@ from datetime import UTC, datetime, timedelta
 
 # 同步写入的新种与刷新都要维护检索文本（见 services/torrent_match_text.py）
 import movieclaw_api.services.torrent_match_text  # noqa: F401
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.services.site_access import (
     get_site_access,
     invalidate_site_access,
@@ -34,7 +35,7 @@ from movieclaw_api.services.subscription import (
     effective_forecast_probe_at,
     forecast_probe_times_by_site,
 )
-from movieclaw_api.services.verification import friendly_error, is_transient_error
+from movieclaw_api.services.verification import friendly_error_message, is_transient_error
 from movieclaw_db.engine import get_database
 from movieclaw_db.models.base import utcnow
 from movieclaw_db.models.scheduled_task import TriggerType
@@ -364,6 +365,7 @@ async def _sync_one_site(cred: SiteCredential) -> None:
     updated_count = 0
     full_page = False
     error: str | None = None
+    error_ref: dict | None = None
     transient = False
     auth_failed = False
     newest_pt: datetime | None = None
@@ -391,7 +393,8 @@ async def _sync_one_site(cred: SiteCredential) -> None:
             "（首刷建立基线）" if is_first_sync else "",
         )
     except Exception as exc:  # noqa: BLE001 -- 背景任务吞掉异常并记录可读原因
-        error = friendly_error(exc)
+        error_ref = friendly_error_message(exc)
+        error = error_ref["message"]
         transient = is_transient_error(exc)
         auth_failed = isinstance(exc, TrackerAuthError)
         logger.warning("站点 %s 同步失败：%s", site_id, error, exc_info=True)
@@ -419,22 +422,22 @@ async def _sync_one_site(cred: SiteCredential) -> None:
         pinned=pinned,
     )
     if error is not None and transient:
-        # 瞬时故障对用户是「不用管」的：把重试计划写进原因里，安抚而非报警
-        error += (
-            f"；将于约 {max(1, next_interval // 60)} 分钟后自动重试（已连续失败 {failures} 次）"
+        error_ref = stored_fields(
+            "errors.siteDiagnostic.retrySync",
+            reason=error_ref,
+            minutes=max(1, next_interval // 60),
+            failures=failures,
         )
+        error = error_ref["message"]
     if tripped:
-        if auth_failed:
-            error += (
-                f"；已连续 {failures} 次认证失败，同步已暂停。"
-                "站点明确拒绝了当前凭据（账号可能被停用或凭据已失效），"
-                "请到「设置 → 站点」更新凭据并重新验证以恢复同步"
-            )
-        else:
-            error += (
-                f"；已连续失败 {failures} 次，同步已暂停。"
-                "站点可能已关站、改版或封禁了你的账号，确认站点可用后请重新验证以恢复同步"
-            )
+        error_ref = stored_fields(
+            "errors.siteDiagnostic.authSyncStopped"
+            if auth_failed
+            else "errors.siteDiagnostic.syncStopped",
+            reason=error_ref,
+            failures=failures,
+        )
+        error = error_ref["message"]
     async with db.session() as session:
         await TorrentRepository(session).update_cursor_after_sync(
             site_id,
@@ -443,6 +446,7 @@ async def _sync_one_site(cred: SiteCredential) -> None:
             new_count=new_count,
             full_page=full_page,
             error=error,
+            error_ref=error_ref,
             consecutive_failures=failures,
             next_interval_seconds=next_interval,
         )
@@ -450,7 +454,7 @@ async def _sync_one_site(cred: SiteCredential) -> None:
             # 熔断动作：凭据置 FAILED，站点从活跃列表消失、不再被同步。
             # 恢复路径复用既有机制：用户在站点页「重新验证」成功转 ACTIVE 即恢复
             await CredentialRepository(session).update_status(
-                site_id, ConfigStatus.FAILED, last_error=error
+                site_id, ConfigStatus.FAILED, last_error=error, last_error_ref=error_ref
             )
             # 与验证失败共用同一盏全局红灯（dedupe_key 一致）：熔断意味着该站点
             # 已静默退出搜索与投递，必须被用户感知；重新验证成功后红灯自动熄灭
@@ -466,7 +470,9 @@ async def _sync_one_site(cred: SiteCredential) -> None:
                 message_key="notify.siteSyncStopped.body",
                 message_params={
                     "site": site_id,
-                    "reason": error or {"message_key": "notify.siteVerification.unknown"},
+                    "reason": error_ref
+                    or error
+                    or {"message_key": "notify.siteVerification.unknown"},
                 },
                 payload={"site_id": site_id},
             )

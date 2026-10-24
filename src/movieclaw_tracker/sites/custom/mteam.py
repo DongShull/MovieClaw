@@ -169,7 +169,10 @@ class MTeamSite(BaseSite):
             # 提示用户处理；其余（参数错误、风控等）仍视为响应异常
             if any(kw in raw_message.lower() for kw in _AUTH_ERROR_KEYWORDS):
                 raise TrackerAuthError(
-                    f"M-Team 接口返回错误：{raw_message}", details=details
+                    f"M-Team 接口返回错误：{raw_message}",
+                    details=details,
+                    message_key="errors.siteDiagnostic.upstreamAuth",
+                    params={"site": "M-Team", "error": raw_message},
                 )
             raise TrackerParseError(
                 f"M-Team 接口返回错误：{raw_message}", details=details

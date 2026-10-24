@@ -36,6 +36,7 @@ class AuthResult(BaseModel):
     state: AuthState
     cookies: dict[str, str] | None = None
     message: str | None = None
+    message_ref: dict | None = None
     captcha_image_url: str | None = None
 
 

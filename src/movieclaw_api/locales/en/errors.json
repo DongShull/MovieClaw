@@ -889,7 +889,21 @@
     "rateLimited": "The site rate limited requests (status {code}). Requests will slow down automatically.",
     "unavailable": "The site server is temporarily unavailable (status {code}). This is usually a site issue. Wait for it to recover.",
     "http": "The site returned an unexpected status: {code}. Try again later or check credentials.",
-    "unknown": "Unexpected verification error ({kind}): {error}"
+    "unknown": "Unexpected verification error ({kind}): {error}",
+    "authNotPassed": "Authentication did not succeed",
+    "profileMissing": "Authentication succeeded, but the user profile could not be retrieved. Check the account status.",
+    "providerUnbound": "CredentialAuthProvider has no site binding. Create it through create_site or call bind().",
+    "crossOriginLogin": "The login form points to a different site. Credentials were not submitted.",
+    "captchaSolverMissing": "The sign-in page requires a CAPTCHA, but no CAPTCHA solver is configured",
+    "captchaFailed": "CAPTCHA recognition failed {count, plural, one {# time} other {# times}} in a row. Sign-in stopped.",
+    "loginFailed": "Sign-in failed: {error}",
+    "badCredentials": "Incorrect username or password",
+    "loginRetries": "Sign-in failed: retry limit reached",
+    "upstreamAuth": "{site} returned an error: {error}",
+    "retrySync": "{reason}; retrying automatically in about {minutes, plural, one {# minute} other {# minutes}} after {failures, plural, one {# consecutive failure} other {# consecutive failures}}",
+    "authSyncStopped": "{reason}; synchronization paused after {failures, plural, one {# consecutive authentication failure} other {# consecutive authentication failures}}. The site rejected the credentials; the account may be disabled or the credentials may have expired. Update them in Settings → Trackers and verify again to resume.",
+    "syncStopped": "{reason}; synchronization paused after {failures, plural, one {# consecutive failure} other {# consecutive failures}}. The site may be closed, changed or blocking your account. Check that the site is available, then verify again to resume.",
+    "authReverify": "Authentication did not succeed. Verify the site credentials again."
   },
   "downloader": {
     "connectDefault": "Unable to connect to the downloader. Check its URL and port.",

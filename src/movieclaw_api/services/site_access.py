@@ -113,7 +113,15 @@ class SiteAccessManager:
         result = await site.authenticate()
         if not result.success:
             await _safe_close(site)
-            raise TrackerAuthError(result.message or "认证未通过，请重新验证站点凭据")
+            reason = getattr(result, "message_ref", None) or {}
+            raise TrackerAuthError(
+                result.message or "认证未通过，请重新验证站点凭据",
+                message_key=(
+                    reason.get("message_key")
+                    if result.message else "errors.siteDiagnostic.authReverify"
+                ),
+                params=reason.get("params", reason.get("message_params")),
+            )
         return site
 
     # -- 对外接口 ----------------------------------------------------------

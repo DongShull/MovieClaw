@@ -64,3 +64,34 @@ async def set_revocation(confirmed: bool):
     global revocation_confirmed
     revocation_confirmed = confirmed
     return {"ok": True}
+
+
+@app.post("/api/v1/__lab/sites/upstream")
+async def site_http_fixture(payload: dict[str, str]):
+    """Route official site adapters to the isolated loopback HTTP fixture."""
+    from dataclasses import replace
+
+    from movieclaw_tracker.registry import get_site_config, register_site
+
+    for site_id in ("mteam", "ttg"):
+        url = payload[site_id]
+        assert urlsplit(url).hostname in {"127.0.0.1", "localhost"}
+        register_site(replace(
+            get_site_config(site_id), base_url=url, web_base_url=url,
+            min_request_interval=0, max_retries=1, timeout=3,
+        ))
+    return {"ok": True}
+
+
+@app.post("/api/v1/__lab/sites/sync/{site_id}")
+async def synchronize_site_fixture(site_id: str):
+    from movieclaw_api.services.torrent_sync import _sync_one_site
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.repositories.credential_repo import CredentialRepository
+
+    assert site_id in {"mteam", "ttg"}
+    async with get_database().session() as session:
+        row = await CredentialRepository(session).get_by_site(site_id)
+    assert row is not None
+    await _sync_one_site(row)
+    return {"ok": True}

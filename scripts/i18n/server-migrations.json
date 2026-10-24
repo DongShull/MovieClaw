@@ -2228,5 +2228,19 @@
   "errors.downloader.trRejected": "Transmission 拒绝了该请求（种子无效或下载器返回错误）",
   "errors.downloader.trUrl": "Transmission 地址格式错误，应形如 http://主机:9091",
   "errors.downloader.verifyUnexpected": "测试时发生未知错误（{kind}）：{detail}",
-  "errors.downloader.pluginNotRunning": "下载器插件 {entry} 没在运行，稍后会自动重试"
+  "errors.downloader.pluginNotRunning": "下载器插件 {entry} 没在运行，稍后会自动重试",
+  "errors.siteDiagnostic.authNotPassed": "认证未通过",
+  "errors.siteDiagnostic.profileMissing": "认证成功但无法获取用户资料，请检查账号状态",
+  "errors.siteDiagnostic.providerUnbound": "CredentialAuthProvider 尚未绑定站点，请通过 create_site 创建或手动调用 bind()",
+  "errors.siteDiagnostic.crossOriginLogin": "登录表单 action 指向跨站地址，已拒绝提交凭据",
+  "errors.siteDiagnostic.captchaSolverMissing": "登录页存在验证码，但未配置验证码识别器",
+  "errors.siteDiagnostic.captchaFailed": "验证码识别连续失败 {count} 次，登录中止",
+  "errors.siteDiagnostic.loginFailed": "登录失败：{error}",
+  "errors.siteDiagnostic.badCredentials": "用户名或密码错误",
+  "errors.siteDiagnostic.loginRetries": "登录失败：超出最大重试次数",
+  "errors.siteDiagnostic.upstreamAuth": "{site} 接口返回错误：{error}",
+  "errors.siteDiagnostic.retrySync": "{reason}；将于约 {minutes} 分钟后自动重试（已连续失败 {failures} 次）",
+  "errors.siteDiagnostic.authSyncStopped": "{reason}；已连续 {failures} 次认证失败，同步已暂停。站点明确拒绝了当前凭据（账号可能被停用或凭据已失效），请到「设置 → 站点」更新凭据并重新验证以恢复同步",
+  "errors.siteDiagnostic.syncStopped": "{reason}；已连续失败 {failures} 次，同步已暂停。站点可能已关站、改版或封禁了你的账号，确认站点可用后请重新验证以恢复同步",
+  "errors.siteDiagnostic.authReverify": "认证未通过，请重新验证站点凭据"
 }
