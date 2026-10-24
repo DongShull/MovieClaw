@@ -331,6 +331,9 @@ class WantedItem(TimestampMixin, table=True):
     selection_state: dict | None = Field(
         default=None, sa_column=Column(JSON(none_as_null=True), nullable=True)
     )
+    selection_messages: dict | None = Field(
+        default=None, sa_column=Column(JSON(none_as_null=True), nullable=True)
+    )
     selection_version: int = Field(default=0)
     next_selection_at: datetime | None = Field(default=None, index=True)
 

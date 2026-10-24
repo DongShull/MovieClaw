@@ -98,7 +98,10 @@ from movieclaw_api.services.subscription.episode_floor import (
     tracks_season,
 )
 from movieclaw_api.services.subscription.smart_memory import SmartChoice
-from movieclaw_api.services.subscription.smart_presentation import smart_presentation
+from movieclaw_api.services.subscription.smart_presentation import (
+    selection_presentation,
+    smart_presentation,
+)
 from movieclaw_api.services.subscription.smart_profiles import save_profile
 from movieclaw_api.services.title_discovery import (
     get_title_discovery_service,
@@ -422,6 +425,9 @@ async def update_smart_wait(
         from movieclaw_api.services.subscription.smart_scheduler import evaluate_requested
 
         background_tasks.add_task(evaluate_requested, subscription_id)
+    result["selection_state"] = selection_presentation(
+        result["selection_state"], row.selection_messages
+    )
     return ok(result)
 
 

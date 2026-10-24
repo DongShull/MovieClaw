@@ -165,7 +165,13 @@ async def maybe_switch_series(session, subscription, follow, imported):
         "switched_at_episode": max(r.episode_number for r in rows),
     }
     session.add(
-        SubscriptionActivity(subscription_id=subscription.id, wanted_item_id=imported.id, type=ActivityType.ADJUSTED, payload=follow.evidence, **stored_fields('activity.subscription.smartVersionChanged'))
+        SubscriptionActivity(
+            subscription_id=subscription.id,
+            wanted_item_id=imported.id,
+            type=ActivityType.ADJUSTED,
+            payload=follow.evidence,
+            **stored_fields("activity.subscription.smartVersionChanged"),
+        )
     )
 
 
@@ -389,6 +395,15 @@ async def plan_selection(session, ctx, entries, *, identity_rejections=None):
         )
         try:
             saved[unit] = SelectionState.model_validate(payload) if payload else None
+            if saved[unit] is not None:
+                saved[unit].messages = dict(
+                    (
+                        record.outcome.get("state_messages")
+                        if runtime.shadow_only and record
+                        else wanted.selection_messages
+                    )
+                    or {}
+                )
         except ValueError:
             continue  # 损坏状态不能重新计时，也不能回落到规则模式。
     # 先比较同品质版本在本季的覆盖，再比较单个资源；镜像不累加覆盖。
@@ -469,6 +484,7 @@ async def plan_selection(session, ctx, entries, *, identity_rejections=None):
         wanted = open_rows[unit]
         record = records.get(wanted.id)
         outcome = result.model_dump(mode="json")
+        outcome["state_messages"] = result.state.messages if result.state else {}
         if record is None or record.outcome != outcome:
             choices, arguments = inputs[unit]
             candidates = TypeAdapter(list[TorrentCandidate]).dump_python(choices, mode="json")
@@ -503,7 +519,11 @@ async def plan_selection(session, ctx, entries, *, identity_rejections=None):
         if runtime.shadow_only:
             continue
         payload = result.state.model_dump(mode="json") if result.state else None
-        if payload != wanted.selection_state or result.next_at != wanted.next_selection_at:
+        messages = result.state.messages if result.state else None
+        state_changed = (
+            payload != wanted.selection_state or result.next_at != wanted.next_selection_at
+        )
+        if state_changed or messages != wanted.selection_messages:
             changed = await session.execute(
                 update(WantedItem)
                 .where(
@@ -517,8 +537,11 @@ async def plan_selection(session, ctx, entries, *, identity_rejections=None):
                 )
                 .values(
                     selection_state=payload,
+                    selection_messages=messages,
                     next_selection_at=result.next_at,
-                    selection_version=WantedItem.selection_version + 1,
+                    selection_version=WantedItem.selection_version + 1
+                    if state_changed
+                    else WantedItem.selection_version,
                 )
             )
             if changed.rowcount != 1:
@@ -665,7 +688,11 @@ async def change_wait(
             subscription_id=sub.id,
             wanted_item_id=wanted_id,
             type=ActivityType.ADJUSTED,
-            message="已请求立即下载当前候选" if immediate_candidate else "用户延长了等待时间",
+            **stored_fields(
+                "activity.subscription.smartCandidateRequested"
+                if immediate_candidate
+                else "activity.subscription.smartWaitExtended"
+            ),
             payload={
                 "old_deadline": old_deadline.isoformat(),
                 "deadline": state.deadline.isoformat(),

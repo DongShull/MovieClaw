@@ -16,6 +16,16 @@ from movieclaw_api.app import create_app
 from movieclaw_api.services import media_discover
 from movieclaw_media.service import MediaDiscoverService
 
+# Isolated i18n wait scenarios use unambiguous ASCII original titles for TV releases.
+if os.environ.get("MC_LAB_SMART_SELECTION") == "1":
+    for identity, original in (
+        (801, "Selection Alpha"),
+        (802, "Selection Beta"),
+        (805, "Selection Gamma"),
+    ):
+        SHOWS[identity]["original_name"] = original
+
+
 media_discover.get_tmdb_client = lambda: _fake_tmdb(ROUTES)
 subscriptions.get_tmdb_client = media_discover.get_tmdb_client
 media_discover.get_media_service = lambda: MediaDiscoverService(

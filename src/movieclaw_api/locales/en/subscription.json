@@ -71,5 +71,16 @@
     "summarySeparator": "; ",
     "summary": "{parts}",
     "noUnits": "No units to process"
+  },
+  "selection": {
+    "manualWait": "The user’s manually extended wait has been preserved.",
+    "predictionBeyondBudget": "The historical arrival window exceeds the wait limit. Choose a currently eligible candidate without exhausting the budget; the quality target stays unchanged.",
+    "predictionElapsed": "The historical arrival window has ended. Recheck currently eligible candidates without restarting the timer.",
+    "predictionSupported": "Release delays for earlier independent episodes in this season support waiting. If the target release is still unavailable at the deadline, choose a currently eligible candidate.",
+    "publishedAnchor": "Timing starts from the earliest site publication time of a matching release. Mirrors, packs and new subscriptions do not restart the timer.",
+    "unknownPublication": "The publication time is unknown. Observe once within a fixed limit; the current discovery time is not treated as the publication time.",
+    "subtitlesExpired": "The wait has ended, but no release has subtitles or audio you understand. The original will not download automatically; a suitable release will be selected as soon as it appears.",
+    "subtitlesWaiting": "None of the releases found has subtitles or audio you understand. Waiting for a subtitled release.",
+    "choice": "Prioritize resolution and source. At equal quality, continue the followed release series, then compare series coverage, verification records, pack coverage and seeders; break remaining ties by stable identifier. This series covers {groupCount, plural, one {# episode} other {# episodes}} and this release would cover {resourceCount, plural, one {# episode} other {# episodes}}. {hasVerified, select, yes {{verified, plural, one {# episode has a successful verification record.} other {# episodes have successful verification records.}}} other {No successful verification records; no release group quality is inferred.}} Seeders: {hasSeeders, select, yes {{seeders, number}} other {unknown}}."
   }
 }

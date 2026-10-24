@@ -19,7 +19,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from movieclaw_matcher.smart import SmartPolicy, SmartPreferences
+from movieclaw_matcher.smart import SmartPolicy, SmartPreferences, reference
 
 Resolution = Literal["1080p", "2160p"]
 Source = Literal["web-dl", "blu-ray", "remux"]
@@ -77,12 +77,6 @@ _COUNTRY_NAMES: dict[str, str] = {
 
 _RESOLUTION_LABELS = {"2160p": "4K", "1080p": "1080p"}
 _SOURCE_LABELS = {"web-dl": "WEB-DL", "blu-ray": "蓝光", "remux": "Remux"}
-
-
-# Presentation references travel with pure results; the API renders them for each reader.
-# Canonical Chinese fields remain compatible with callers outside the API.
-def reference(key: str, **params) -> dict:
-    return {"message_key": key, "message_params": params}
 
 
 _LANGUAGE_MESSAGE_KEYS = {

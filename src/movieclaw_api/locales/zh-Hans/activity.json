@@ -78,6 +78,8 @@
     "searchSiteError": "{site}：{reason}",
     "searchKeyword": "「{word}」{count} 条",
     "searchKeywords": "关键词{entries}",
-    "searchCompleted": "搜索《{title}》（{keywords}）：{sites} 个站点返回 {results} 个结果，身份命中 {hits}，规则拒绝 {rejected}，投递覆盖 {dispatched} 个单元{hasRemaining, select, yes {；剩余 {remaining} 个缺口按退避曲线排期} other {；本组缺口已全部安排}}"
+    "searchCompleted": "搜索《{title}》（{keywords}）：{sites} 个站点返回 {results} 个结果，身份命中 {hits}，规则拒绝 {rejected}，投递覆盖 {dispatched} 个单元{hasRemaining, select, yes {；剩余 {remaining} 个缺口按退避曲线排期} other {；本组缺口已全部安排}}",
+    "smartCandidateRequested": "已请求立即下载当前候选",
+    "smartWaitExtended": "用户延长了等待时间"
   }
 }

@@ -940,6 +940,8 @@ class WantedView(BaseModel):
     def from_model(
         cls, w: WantedItem, resource_timing: dict[str, object] | None = None
     ) -> WantedView:
+        from movieclaw_api.services.subscription.smart_presentation import selection_presentation
+
         return cls(
             id=w.id,  # type: ignore[arg-type]
             season_number=w.season_number,
@@ -962,7 +964,7 @@ class WantedView(BaseModel):
             imported_at=w.imported_at,
             last_reject_reason=w.last_reject_reason,
             grab_title=w.grab_title,
-            selection_state=w.selection_state,
+            selection_state=selection_presentation(w.selection_state, w.selection_messages),
             selection_version=w.selection_version,
         )
 

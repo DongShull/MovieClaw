@@ -175,5 +175,32 @@
   },
   "upgrade.noUnits": {
     "sourceHash": "3bee6c010026b9a97c042927f4a99b5cddbf2fc48e982b7b338267d0d4436f88"
+  },
+  "selection.manualWait": {
+    "sourceHash": "7f560e87c78e07a81a34fc0238b577bf9f175d0d98e788a4287e703d9a99059e"
+  },
+  "selection.predictionBeyondBudget": {
+    "sourceHash": "d93846de90d347b2de2c172486068e622035854bc27c914c62d6af60f30ec328"
+  },
+  "selection.predictionElapsed": {
+    "sourceHash": "d243414449608ee9c37121ba8fe3c7b2eaa6f4dbb5143d49b2160a38ee700360"
+  },
+  "selection.predictionSupported": {
+    "sourceHash": "e81030d6f2ca602819d85b0d7477d8c4c135951a93a9d885f6b673b602f54a97"
+  },
+  "selection.publishedAnchor": {
+    "sourceHash": "3063a3163836eead4d67c3ba5f7f8fe74a1b462b000e1256258b639feb0b5327"
+  },
+  "selection.unknownPublication": {
+    "sourceHash": "1dfa3c597f179ddbf79ed0c2552007c73070a63e65edd08dec2c6e756afd3164"
+  },
+  "selection.subtitlesExpired": {
+    "sourceHash": "9c6e84793218d3e21166e0f1cd9dafb1614fff8b01d5275f8711b6ec6fc38a33"
+  },
+  "selection.subtitlesWaiting": {
+    "sourceHash": "d9cc18098ed54bbd0a1a5e4224b76d295e0b2cfa1af892691419e412992dbdcc"
+  },
+  "selection.choice": {
+    "sourceHash": "5de96864eb89647185007bab391a1e47a555edfaecc7c0301306d3b597a172ac"
   }
 }

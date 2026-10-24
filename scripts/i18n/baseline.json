@@ -633,7 +633,6 @@
   "src/movieclaw_api/services/subscription/replacement.py": 46,
   "src/movieclaw_api/services/subscription/smart_memory.py": 1,
   "src/movieclaw_api/services/subscription/smart_scheduler.py": 5,
-  "src/movieclaw_api/services/subscription/smart_selection.py": 2,
   "src/movieclaw_api/services/subscription/smart_submission.py": 5,
   "src/movieclaw_api/services/subscription/spec_audit.py": 12,
   "src/movieclaw_api/services/subscription/twins.py": 5,

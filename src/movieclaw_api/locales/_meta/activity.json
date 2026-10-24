@@ -217,5 +217,11 @@
   },
   "subscription.searchCompleted": {
     "sourceHash": "661374d2bebff0fa6708f9aab7f4e195e169a3bcdb768da8d34f87ae94d73653"
+  },
+  "subscription.smartCandidateRequested": {
+    "sourceHash": "7dbd8ac1816565c5538aa3ab51a67bd23d0a1e84cf28c2e79cdcec5a300edda2"
+  },
+  "subscription.smartWaitExtended": {
+    "sourceHash": "ce9b7a0e7ab2612b22dc4ddea459b7e1e2834d2966efa620eea5b8f2bfcf6173"
   }
 }
