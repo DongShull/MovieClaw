@@ -1,0 +1,31 @@
+{
+  "network": {
+    "timeout": "连接超时",
+    "connect": "连不上，检查地址、端口和网络",
+    "proxy": "代理连不上，检查「设置 → 网络」里的代理",
+    "unknown": "网络出错",
+    "failed": "MovieClaw Cloud{reason}",
+    "http": "MovieClaw Cloud 暂时不可用（HTTP {status}）",
+    "discovery": "MovieClaw Cloud 的发现文档不可用（HTTP {status}）"
+  },
+  "pairing": {
+    "connectFailed": "{reason}。请检查这台服务器能不能上网，或在「设置 → 网络」里让 MovieClaw Cloud 走代理",
+    "expired": "配对码已过期，请重新获取",
+    "retrying": "{reason}，正在重试…",
+    "denied": "这次连接在 movieclaw.io 上被拒绝了",
+    "failed": "配对失败，请重新获取配对码",
+    "error": "配对出错了，请重新获取配对码",
+    "credentials": "MovieClaw Cloud 返回的凭证不完整，请重新获取配对码"
+  },
+  "health": {
+    "reason": "（{reason}）",
+    "expired": "连不上 MovieClaw Cloud{reason}，令牌已经过期，官方推送暂停。云端恢复后会自动续上；也可以检查网络或代理设置后点「立即同步」。",
+    "unreachable": "最近一次同步失败：{reason}。推送不受影响，还能维持约 {hours} 小时，期间会自动重试。",
+    "cannotConnect": "连不上 MovieClaw Cloud",
+    "revoked": "这台服务器已经和 MovieClaw 账号断开",
+    "unsupported": "这个版本已不再受 MovieClaw 官方推送支持，请升级"
+  },
+  "disconnect": {
+    "unreachable": "{reason}。仍要断开的话，这台服务器在 movieclaw.io 上还会显示为已连接，请到官网把它也删掉"
+  }
+}

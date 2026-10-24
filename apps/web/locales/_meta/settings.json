@@ -5901,5 +5901,260 @@
   },
   "pluginDetail.save": {
     "sourceHash": "a3030bf8f16dc63c6b277564c68f78a3be5abe5f2907c51826dee7184ff793fd"
+  },
+  "cloudConnect.developerPrefix": {
+    "sourceHash": "6bf10a328220cbf01c8ef47068b0822cd060ef4ffb4ec4f4c3eef5bfc953c9ab"
+  },
+  "cloudConnect.developerEnv": {
+    "sourceHash": "7cd6dd11a0750bfed634e3478d65ff0101f947f08a88cf29436f497a0d0ecf64"
+  },
+  "cloudConnect.disconnectedTitle": {
+    "sourceHash": "f4b70c092e350ad4034eef600c82d679c0b8859d80a0a2e01c93ce56f73ff375"
+  },
+  "cloudConnect.disconnectedHint": {
+    "sourceHash": "6160e29b9b2f68a7137970eac0c6e22050c1bfadeb95fea5eb83d3a5ec6d2c07"
+  },
+  "cloudConnect.notConnected": {
+    "sourceHash": "76655967898fa01d58d28c45bb6ecddd14a2bfa0381af1a363a6c4595b69c078"
+  },
+  "cloudConnect.connectHint": {
+    "sourceHash": "cb0253f443d5e8ed0fbe16f2d99abad0ae243eb3fdffc899169d8af4102a9e7a"
+  },
+  "cloudConnect.reportsLink": {
+    "sourceHash": "b242079fd70d9842c743e5589a963e3939c461efca12ef710a50890fdbec5f60"
+  },
+  "cloudConnect.connect": {
+    "sourceHash": "9e6729c5bcdfc160ce7b3f20ade55f0964144df8a2e7fdb6be556765238da2c0"
+  },
+  "cloudConnect.imAlternative": {
+    "sourceHash": "0e343a07e694af6d3652f7cb1f4a9006135ac8586c1eee426df93843f5b9bc32"
+  },
+  "cloudConnect.imPush": {
+    "sourceHash": "a7f79578ee016ae2f2ebf00680928e57cbf0f88db6d9d9987491dfa518f5836e"
+  },
+  "cloudConnect.appAlternative": {
+    "sourceHash": "1fb478e9736fbe02fa78ea7fd1fe3b279031a2830473e9343b026fa6107b199a"
+  },
+  "cloudConnect.appPush": {
+    "sourceHash": "e411a1433585efb04b9fe092de01b327aabb0712c95dffe69d7206c8c280a984"
+  },
+  "cloudConnect.relayAlternative": {
+    "sourceHash": "01a8ac05d682e765beecce3177596b73e73d38c1e4ca44f1f00c85e567f480ab"
+  },
+  "cloudConnect.waitingWebsite": {
+    "sourceHash": "51416f322d75f7fd17e98b2fea4db96efde44e68a1646e85515ad28347733678"
+  },
+  "cloudConnect.incomplete": {
+    "sourceHash": "f5045a95ec065ca203af5a8a5ca3aea216ae7a0e9bb32059d13c378fe2d72825"
+  },
+  "cloudConnect.requestingCode": {
+    "sourceHash": "6ee97df379a79d8a4b0fc39b612a96011a25b96679c22e1dd6f92319b6d7ac3f"
+  },
+  "cloudConnect.pairingCode": {
+    "sourceHash": "5cfc08a6fc512d66e665496fca4ddb0a7290b6b0edf0f37e719fd81efcc3311d"
+  },
+  "cloudConnect.pairingAutoConnect": {
+    "sourceHash": "8d42bef9dc2dbf0b230a6f09e18750a3e7ccd7d35b9352c1019225a23ce5a12c"
+  },
+  "cloudConnect.waitingApproval": {
+    "sourceHash": "6b2efd535fb7c95bddde799641e56f5cbdc1c0c540010755aa30923b5ff62f71"
+  },
+  "cloudConnect.viewCode": {
+    "sourceHash": "6952ce90b2a3c67f5dddabbec327ae1b979633d41b04ee3aadd748e58318f38a"
+  },
+  "cloudConnect.reconnect": {
+    "sourceHash": "68891ab35cab9663e59db9570e78c7f546c02dc0611b29314abe0e0436c911d2"
+  },
+  "cloudConnect.synced": {
+    "sourceHash": "a97b743dc7c4f9f9f94bf5d31f60722387328fab4e3ba25d0b1e07b94b9a9fa7"
+  },
+  "cloudConnect.syncFailed": {
+    "sourceHash": "ab0c80d60841060aa81d134b8588740926aef2681e39d5c34e2dd4c86bd35118"
+  },
+  "cloudConnect.disconnectTitle": {
+    "sourceHash": "8a35c65add568a2316de55554ebf59c92d2f042dfe67e00f17e1b971302901b2"
+  },
+  "cloudConnect.disconnectHint": {
+    "sourceHash": "bb72b1057a9a826c7d0433fbbadfb506c9fd638f8d6b4c15286a06c7b987f7d4"
+  },
+  "cloudConnect.disconnect": {
+    "sourceHash": "f33ac04eece6a6a69194f9101a1cab2a2194ee8edc66275c99da6880845a3077"
+  },
+  "cloudConnect.disconnected": {
+    "sourceHash": "7727668c83e96ea6c10332c87c7b84c25fb23ee4088335a20315d5a713493104"
+  },
+  "cloudConnect.forceTitle": {
+    "sourceHash": "cacc859d2cf81bea6406b5672051b278ce8a85305194ace8fbed655998c00da4"
+  },
+  "cloudConnect.forceHint": {
+    "sourceHash": "1b4b5b38dac756022ac612e0c39d4f9475c0f2dd9bf600bed8371e53a394170b"
+  },
+  "cloudConnect.forceDisconnect": {
+    "sourceHash": "e95c4f7d81862c75b60490e80085283aa11225aaca496d59c43b2eb534b2dd47"
+  },
+  "cloudConnect.forceReceipt": {
+    "sourceHash": "4deeb1044bf34d55cbe9500a82721d72f8b230fdd0eda78c5f1d4cd22f011183"
+  },
+  "cloudConnect.openWebsite": {
+    "sourceHash": "2a387b9dca2585fc4c0800921c31b4fb552f7b43c0d8b707b6fe8bd633c10cb3"
+  },
+  "cloudConnect.syncing": {
+    "sourceHash": "4e2238b74ec75987558b8c92bef9216671291a435518601d441b82b55060fcc6"
+  },
+  "cloudConnect.syncNow": {
+    "sourceHash": "36e7a43a1c674e505add9add8581ddc4948de2616bba26dc870f4df69c99aad2"
+  },
+  "cloudConnect.noticeTitle": {
+    "sourceHash": "2df27bda038af67f30f34c7d6dd02685d18cd58fcd89796350852a0827088f1d"
+  },
+  "cloudConnect.dismissNotice": {
+    "sourceHash": "a0d845188a6a0d3d1f1ad25dbc2e4d7e80cd7b7acf3faa1f4085c7644e3fb1a0"
+  },
+  "cloudConnect.reporting": {
+    "sourceHash": "426431cc1ede40edd577f22d59aa9f79f64c6ee2f933fcacbe752e4d68dac9d0"
+  },
+  "cloudConnect.connectedReportsLink": {
+    "sourceHash": "d7bed507962ba7d9fc1688082ae22d19e0e85d76bfc69907cce21a5dec7e62bd"
+  },
+  "cloudConnect.reportStats": {
+    "sourceHash": "17e5cda2cdf7de778be13151a4e07374eef2b3b093a384481f8b29adc6bcfeeb"
+  },
+  "cloudConnect.reportStatsHint": {
+    "sourceHash": "6c310bb77786b0549a939e7e6ebbba7646d92cf03ae9fa946c6660c3a9ed35d0"
+  },
+  "cloudConnect.danger": {
+    "sourceHash": "cd84121acb17f42dedf0b058002e0438d531ec1adda9c63a7b166a16a5f2ac7f"
+  },
+  "cloudConnect.disconnectAction": {
+    "sourceHash": "a33f3804768e68eeb00fb5e9d5a17b810fce12463cdbb49c6448091695e49171"
+  },
+  "cloudConnect.disconnectShortHint": {
+    "sourceHash": "197f25363f9871edddb3adf35058144e381fa6e1ce754132e5dfa77691d18f18"
+  },
+  "cloudConnect.disconnecting": {
+    "sourceHash": "9730c3c6f8414107fe8ae7ed3200b2d33b7ff2966917d6ef04aad42c84dd0967"
+  },
+  "cloudConnect.connectedAt": {
+    "sourceHash": "383719b00e8e103745e396acc370aa2bdbcd7ae268e7004043d7e5dd79f46b4f"
+  },
+  "cloudConnect.account": {
+    "sourceHash": "311bb313fdeca6aa2ce7d9415821a0b0247e064340241f68bac3ca5b19ae6d76"
+  },
+  "cloudConnect.connected": {
+    "sourceHash": "5be0323e8adcaeae8a644b6e8e4ad05864ec03c7b841504f91c911ff06dabd6d"
+  },
+  "cloudConnect.manageWebsite": {
+    "sourceHash": "4ed2d52e969703a56f9b73b31560349bf87929d8f05908bebc2fe87155e9d46b"
+  },
+  "cloudConnect.capabilities": {
+    "sourceHash": "2888e7d430aec0762f354040892508a94d6ad21cf988eccb60d627f961191e0e"
+  },
+  "cloudConnect.pushHint": {
+    "sourceHash": "11b7d52a02b2023ad6d83170b6124ed83c6432a067179fead83b66a3d5f9e322"
+  },
+  "cloudConnect.dailyQuota": {
+    "sourceHash": "76f8bbd7ab3bdd8ba3e118658adc5f07b211ebdbbfacbbe1dd07a996fd214624"
+  },
+  "cloudConnect.pushDenied": {
+    "sourceHash": "80bf66a6d464949ba3bc2ae19286236b07de682cfae3777933e9baf76e84bde2"
+  },
+  "cloudConnect.grantedHint": {
+    "sourceHash": "f0a852313a84e8a3a596a1c0d49de6d8a4e50c20d4165f5c0d76b6aba9725e59"
+  },
+  "cloudConnect.upcomingHint": {
+    "sourceHash": "a26e73a6d3697f8ad562a1752dbc3fb50a60eaab667b74c6900e9bc63f6797e4"
+  },
+  "cloudConnect.granted": {
+    "sourceHash": "270b9b8e33f1cbc56eb6c9797c50c98b75acd0787a02b23396636f05d5de3bea"
+  },
+  "cloudConnect.notGranted": {
+    "sourceHash": "260122b52b191a403d3285b192990b0b34e30fcc55d95d26d79d9c1be93d5a41"
+  },
+  "cloudConnect.comingSoon": {
+    "sourceHash": "18722bdc7cc31407e0046d71d70c3bf0bc8f49f9c7d40e6294e18aa286eb9b99"
+  },
+  "cloudConnect.appPushSettings": {
+    "sourceHash": "89f77259d91b311493ae5ad77fa9b88e30d0d17426a037bbace3dae8dbb6d718"
+  },
+  "cloudConnect.pairingIntro": {
+    "sourceHash": "511af1e263afa9b9a263e122bc44466ea7121923b3069b78158cace8357c7b18"
+  },
+  "cloudConnect.serverName": {
+    "sourceHash": "ec79bfcf63ea434db0705c33e99fc9a3d49729b0270de99a423121afa7a137e7"
+  },
+  "cloudConnect.requestedScope": {
+    "sourceHash": "d0c043a9a566af61096ad6a8e4d64f0eafcfd9a7d3f11df76e4d84846016e665"
+  },
+  "cloudConnect.gettingCode": {
+    "sourceHash": "565e8bfe656da82a71197a5678c48019ae8617d3e8ff466d315f01859d84c1ce"
+  },
+  "cloudConnect.getCode": {
+    "sourceHash": "1f834a31683fe486fc579f86e159ff0de846eb7592a00f9fe6c2725d454b76cf"
+  },
+  "cloudConnect.approveWebsite": {
+    "sourceHash": "3a295b01d4bfc8859124babf57c940e72c266979d8b55773b2fa657ded96d4e2"
+  },
+  "cloudConnect.approveHint": {
+    "sourceHash": "3f50c5f6fbfd5ac1b3a04b3441309eba93cb739746dd5b0ce309f98979b7ba44"
+  },
+  "cloudConnect.approveQrAlt": {
+    "sourceHash": "d48bf0596325118a04006d3d9f4a86cd0a31c1a9d352e479b6b85b34423152b2"
+  },
+  "cloudConnect.approveLink": {
+    "sourceHash": "7b7c24a7ede0ca0bff79fe7fec10a81a663187fb00b2ec03570056ae5deac310"
+  },
+  "cloudConnect.manualPrefix": {
+    "sourceHash": "b5bf218b3b57ccd5344d290163b956455303a171526d81d7b8145dc244dcc415"
+  },
+  "cloudConnect.manualSuffix": {
+    "sourceHash": "ab18bf37271e039e8b4cee71250fbacb0bd9bd48d2c2d25d512d44564a891098"
+  },
+  "cloudConnect.waitingCountdown": {
+    "sourceHash": "3c1d4bc3f5b22409e55b474b7dd686d57e31aafd6d6d53fef658b4b76c4059a2"
+  },
+  "cloudConnect.closeKeepsPairing": {
+    "sourceHash": "e85e22f02ea67ee0e814d542e4149f5cf1957b4e8589335577cc039237b18350"
+  },
+  "cloudConnect.cancelling": {
+    "sourceHash": "0addd7784578abf47dfb20b8d10e5b53501ec1703426adc89d441d640c7eab17"
+  },
+  "cloudConnect.getting": {
+    "sourceHash": "85ab30269d8fc92409effd05a518b11657aa70a75a7807c0c0f1075f77abc445"
+  },
+  "cloudConnect.getNewCode": {
+    "sourceHash": "0865278b09c1c10bb34698c4205a8851f1878f09c77ed57c5d23247e789d52b7"
+  },
+  "cloudConnect.accountLine": {
+    "sourceHash": "24b483bde0c57db9c15c310b1501b5d3028a47b58a23921b0a4c89c285dcc48d"
+  },
+  "cloudConnect.ownAccountLine": {
+    "sourceHash": "e657c23a005b5aecebe13624a5e0a6e4159e1e5a79008b4ee42becb22b7b7f46"
+  },
+  "cloudConnect.failureDenied": {
+    "sourceHash": "3420bbdd0f93a36950c0bade1401d93a6b420a6c1b6b3476842555a3884d2f67"
+  },
+  "cloudConnect.failureExpired": {
+    "sourceHash": "6f62bbf23d647bc46dd6fd787d157c2c283ab408a02397c02377605fe6fbe6cd"
+  },
+  "cloudConnect.failureIncomplete": {
+    "sourceHash": "8d9746ed5d492dc9c311d5156dc8eeacce6241cce4ac24305fdb2e23a758bf52"
+  },
+  "cloudConnect.healthUnreachable": {
+    "sourceHash": "dad8a39e4bac649abf5c2072ae6733d0bb161291951b96bb0142113178d01119"
+  },
+  "cloudConnect.healthExpired": {
+    "sourceHash": "1e8acc61d0fcb87e4355c4a123202c9de75cb6b6a55a38e83956bb5309ffcbdc"
+  },
+  "cloudConnect.healthUnsupported": {
+    "sourceHash": "3e8600ca38efd1a4f43581efa39f45eb428240e6bf3e8bd3e96641a53f50673a"
+  },
+  "cloudConnect.capabilityPush": {
+    "sourceHash": "1c6d86598bd49e1b07c106cb140808b730d9859713bc06e9936032d1fb322341"
+  },
+  "cloudConnect.capabilityRemote": {
+    "sourceHash": "ce5a7298821d8644ea633a02961da39165174fb8b35ed1b85673b35811ec3e91"
+  },
+  "cloudConnect.capabilityControl": {
+    "sourceHash": "3ff77be070b2e2a97803f92de9bf1872a0bb376fcdedece6c81c1849256afde7"
   }
 }

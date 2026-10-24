@@ -1,0 +1,31 @@
+{
+  "network": {
+    "timeout": "Connection timed out",
+    "connect": "Cannot connect; check the address, port and network",
+    "proxy": "Cannot connect to the proxy; check Settings → Network",
+    "unknown": "Network error",
+    "failed": "MovieClaw Cloud: {reason}",
+    "http": "MovieClaw Cloud is temporarily unavailable (HTTP {status})",
+    "discovery": "MovieClaw Cloud discovery document is unavailable (HTTP {status})"
+  },
+  "pairing": {
+    "connectFailed": "{reason}. Check this server’s internet connection, or configure a proxy for MovieClaw Cloud in Settings → Network",
+    "expired": "The pairing code has expired. Get a new code",
+    "retrying": "{reason}; retrying…",
+    "denied": "This connection was denied on movieclaw.io",
+    "failed": "Pairing failed. Get a new pairing code",
+    "error": "Pairing encountered an error. Get a new pairing code",
+    "credentials": "MovieClaw Cloud returned incomplete credentials. Get a new pairing code"
+  },
+  "health": {
+    "reason": " ({reason})",
+    "expired": "Cannot connect to MovieClaw Cloud{reason}. The token has expired and official push is paused. It will resume when the cloud recovers. You can also check your network or proxy and select Sync now.",
+    "unreachable": "The last sync failed: {reason}. Push is still available for about {hours, plural, one {# hour} other {# hours}}. Sync will retry automatically.",
+    "cannotConnect": "Cannot connect to MovieClaw Cloud",
+    "revoked": "This server has been disconnected from the MovieClaw account",
+    "unsupported": "This version is no longer supported by MovieClaw official push. Please update"
+  },
+  "disconnect": {
+    "unreachable": "{reason}. If you disconnect anyway, this server will still appear connected on movieclaw.io. Remove it there as well"
+  }
+}

@@ -34,6 +34,8 @@ import qrcode.image.svg
 from movieclaw_api import __version__
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import AppException, BadRequestException, ConflictException
+from movieclaw_api.i18n import use_locale
+from movieclaw_api.i18n.stored import reference, render_value
 from movieclaw_api.services.cloud import client
 from movieclaw_api.services.cloud.client import CloudUnreachable
 from movieclaw_api.settings import get_setting_store
@@ -65,8 +67,16 @@ NOTICE_PREFIX = "cloud:"
 class CloudUnreachableError(AppException):
     """断开连接时云端连不上：前端据 ``code`` 问管理员要不要只断开本地。"""
 
-    def __init__(self, message: str) -> None:
-        super().__init__(status_code=409, code="CLOUD_UNREACHABLE", message=message)
+    def __init__(
+        self, message: str = "", *, message_key: str | None = None, params: dict | None = None
+    ) -> None:
+        super().__init__(
+            status_code=409,
+            code="CLOUD_UNREACHABLE",
+            message=message,
+            message_key=message_key,
+            params=params,
+        )
 
 
 @dataclass
@@ -84,6 +94,12 @@ class Pairing:
     instance_name: str
     status: str = "pending"  # pending / denied / expired / error
     message: str | None = None
+    message_ref: dict | None = None
+
+    def set_message(self, message: str | dict | None) -> None:
+        self.message_ref = message if isinstance(message, dict) else None
+        with use_locale("zh-Hans"):
+            self.message = render_value(message)
 
 
 def jitter(seconds: float) -> float:
@@ -132,6 +148,7 @@ class CloudService:
         #: 连续续签失败的次数与最近一次失败的说明（只在内存里，显示在 health 上）
         self._failures = 0
         self._last_error = ""
+        self._last_error_ref: dict | None = None
         #: 上一次因中继拒绝令牌而提前续签的时间（monotonic）
         self._forced_renew_at: float | None = None
 
@@ -221,21 +238,33 @@ class CloudService:
     def health(self, setting: CloudSetting) -> tuple[str, str | None]:
         """已连接时的健康状况：(ok / unreachable / expired / unsupported, 说明)。"""
         if setting.unsupported_message:
-            return "unsupported", setting.unsupported_message
+            return "unsupported", render_value(
+                setting.unsupported_message_ref or setting.unsupported_message
+            )
         if not self.token_valid(setting):
-            reason = f"（{self._last_error}）" if self._last_error else ""
+            reason = (
+                reference("cloud.health.reason", reason=self._last_error_ref or self._last_error)
+                if self._last_error
+                else ""
+            )
             return (
                 "expired",
-                f"连不上 MovieClaw Cloud{reason}，令牌已经过期，官方推送暂停。"
-                "云端恢复后会自动续上；也可以检查网络或代理设置后点「立即同步」。",
+                render_value(reference("cloud.health.expired", reason=reason)),
             )
         if self._failures:
             assert setting.token_expires_at is not None
             hours = max(0, int((setting.token_expires_at - utcnow()).total_seconds() // 3600))
             return (
                 "unreachable",
-                f"最近一次同步失败：{self._last_error or '连不上 MovieClaw Cloud'}。"
-                f"推送不受影响，还能维持约 {hours} 小时，期间会自动重试。",
+                render_value(
+                    reference(
+                        "cloud.health.unreachable",
+                        reason=self._last_error_ref
+                        or self._last_error
+                        or reference("cloud.health.cannotConnect"),
+                        hours=hours,
+                    )
+                ),
             )
         return "ok", None
 
@@ -269,8 +298,8 @@ class CloudService:
                 reply = await client.request_device_code(discovery.api, instance_name=name)
             except CloudUnreachable as exc:
                 raise CloudUnreachableError(
-                    f"{exc}。请检查这台服务器能不能上网，"
-                    "或在「设置 → 网络」里让 MovieClaw Cloud 走代理"
+                    message_key="cloud.pairing.connectFailed",
+                    params={"reason": exc.message_ref or str(exc)},
                 ) from exc
             if reply.status == 429:
                 raise BadRequestException(message_key="errors.cloud.pairingThrottled")
@@ -326,19 +355,22 @@ class CloudService:
             while True:
                 await asyncio.sleep(interval)
                 if utcnow() >= pairing.expires_at:
-                    pairing.status, pairing.message = "expired", "配对码已过期，请重新获取"
+                    pairing.status = "expired"
+                    pairing.set_message(reference("cloud.pairing.expired"))
                     return
                 try:
                     reply = await client.poll_token(pairing.api, device_code=pairing.device_code)
                 except CloudUnreachable as exc:
-                    pairing.message = f"{exc}，正在重试…"
+                    pairing.set_message(
+                        reference("cloud.pairing.retrying", reason=exc.message_ref or str(exc))
+                    )
                     continue
                 if reply.status == 200:
                     await self._complete_pairing(pairing, reply.body)
                     return
                 error = reply.code
                 if error == "authorization_pending":
-                    pairing.message = None
+                    pairing.set_message(None)
                     continue
                 if error == "slow_down":
                     # RFC 8628 §3.5：之后一直用加了 5 秒的间隔
@@ -346,20 +378,24 @@ class CloudService:
                     continue
                 if not error or reply.status == 429:
                     # 不是云端的答复（网关、CDN 返回的限流或拦截页）：当作暂时连不上，接着轮询
-                    pairing.message = (
-                        f"MovieClaw Cloud 暂时不可用（HTTP {reply.status}），正在重试…"
+                    pairing.set_message(
+                        reference(
+                            "cloud.pairing.retrying",
+                            reason=reference("cloud.network.http", status=reply.status),
+                        )
                     )
                     if reply.status == 429:
                         interval += 5
                     continue
                 if error == "access_denied":
                     pairing.status = "denied"
-                    pairing.message = "这次连接在 movieclaw.io 上被拒绝了"
+                    pairing.set_message(reference("cloud.pairing.denied"))
                 elif error == "expired_token":
-                    pairing.status, pairing.message = "expired", "配对码已过期，请重新获取"
+                    pairing.status = "expired"
+                    pairing.set_message(reference("cloud.pairing.expired"))
                 else:
                     pairing.status = "error"
-                    pairing.message = reply.message or "配对失败，请重新获取配对码"
+                    pairing.set_message(reply.message or reference("cloud.pairing.failed"))
                 logger.info(
                     "连接 MovieClaw Cloud 未完成：%s（%s）", pairing.status, error or reply.status
                 )
@@ -368,16 +404,15 @@ class CloudService:
             raise
         except Exception:  # noqa: BLE001 -- 轮询出错只结束这一次配对，不能拖垮应用
             logger.exception("连接 MovieClaw Cloud 时出错")
-            pairing.status, pairing.message = "error", "配对出错了，请重新获取配对码"
+            pairing.status = "error"
+            pairing.set_message(reference("cloud.pairing.error"))
 
     async def _complete_pairing(self, pairing: Pairing, data: dict) -> None:
         if not (
             data.get("instance_id") and data.get("instance_secret") and data.get("access_token")
         ):
-            pairing.status, pairing.message = (
-                "error",
-                "MovieClaw Cloud 返回的凭证不完整，请重新获取配对码",
-            )
+            pairing.status = "error"
+            pairing.set_message(reference("cloud.pairing.credentials"))
             return
         now = utcnow()
 
@@ -391,7 +426,9 @@ class CloudService:
             s.account_display = str(account.get("display") or "")
             s.notices, s.dismissed_notice_ids = [], []
             s.unsupported_message = ""
+            s.unsupported_message_ref = None
             s.last_disconnect_reason = s.last_disconnect_message = ""
+            s.last_disconnect_message_ref = None
             s.last_disconnect_at = None
             _apply_grant(s, data, now)
 
@@ -402,6 +439,7 @@ class CloudService:
             self._pairing = None
             self._pairing_task = None
             self._failures, self._last_error = 0, ""
+            self._last_error_ref = None
         _reset_official_channel()
         logger.info("已连接到 MovieClaw Cloud：实例 %s", data["instance_id"])
         await _resolve_cloud_notices()
@@ -468,7 +506,7 @@ class CloudService:
                     self.api_url(setting), instance_secret=setting.instance_secret, report=report
                 )
             except CloudUnreachable as exc:
-                return await self._renew_failed(setting, str(exc))
+                return await self._renew_failed(setting, str(exc), reason=exc.message_ref)
 
             if (
                 reply.status == 200
@@ -492,10 +530,12 @@ class CloudService:
                         if isinstance(n, dict) and n.get("id")
                     ]
                     s.unsupported_message = ""
+                    s.unsupported_message_ref = None
                     s.last_report, s.last_report_at = report, now
 
                 await self._update(apply)
                 self._failures, self._last_error = 0, ""
+                self._last_error_ref = None
                 logger.info("已续签 MovieClaw Cloud")
                 if limits_changed:
                     # 云端调了额度（比如管理员给这台服务器加了额度）：之前因额度用完的封锁
@@ -508,8 +548,9 @@ class CloudService:
 
             if reply.status == 401 and reply.code in ("UNAUTHORIZED", "INSTANCE_REVOKED"):
                 # 只认云端自己的答复：网关、代理返回的 401 不能让管理员重新配对
-                message = reply.message or "这台服务器已经和 MovieClaw 账号断开"
-                await self._drop_credentials(reason="revoked", message=message)
+                await self._drop_credentials(
+                    reason="revoked", message=reply.message or reference("cloud.health.revoked")
+                )
                 logger.warning(
                     "MovieClaw Cloud 说这台服务器已解绑（%s），已删除本地凭证", reply.code
                 )
@@ -525,15 +566,19 @@ class CloudService:
                 return "disconnected"
 
             if reply.status == 403 and reply.code == "VERSION_UNSUPPORTED":
-                message = reply.message or "这个版本已不再受 MovieClaw 官方推送支持，请升级"
+                message = reply.message or reference("cloud.health.unsupported")
+                with use_locale("zh-Hans"):
+                    raw_message = render_value(message)
 
                 def mark(s: CloudSetting) -> None:
-                    s.unsupported_message = message
+                    s.unsupported_message_ref = message if isinstance(message, dict) else None
+                    s.unsupported_message = raw_message
                     s.last_report, s.last_report_at = report, utcnow()
 
                 await self._update(mark)
                 self._failures, self._last_error = 0, ""
-                logger.warning("MovieClaw Cloud：%s", message)
+                self._last_error_ref = None
+                logger.warning("MovieClaw Cloud：%s", raw_message)
                 await _raise_notice(
                     "version",
                     severity="error",
@@ -558,6 +603,7 @@ class CloudService:
         """续签失败：记下原因；令牌快过期了就告诉管理员。调用方持有锁。"""
         self._failures += 1
         self._last_error = error
+        self._last_error_ref = reason
         logger.warning("续签 MovieClaw Cloud 失败（第 %d 次）：%s", self._failures, error)
         expires = setting.token_expires_at
         if expires is None or expires - utcnow() < _EXPIRY_WARNING:
@@ -618,8 +664,8 @@ class CloudService:
             except CloudUnreachable as exc:
                 if not force:
                     raise CloudUnreachableError(
-                        f"{exc}。仍要断开的话，这台服务器在 movieclaw.io 上还会显示为已连接，"
-                        "请到官网把它也删掉"
+                        message_key="cloud.disconnect.unreachable",
+                        params={"reason": exc.message_ref or str(exc)},
                     ) from exc
                 logger.warning("云端连不上，只删除了本地凭证：%s", exc)
             await self._drop_credentials(reason="", message="")
@@ -629,7 +675,7 @@ class CloudService:
         await _resolve_cloud_notices()
         logger.info("已断开 MovieClaw Cloud")
 
-    async def _drop_credentials(self, *, reason: str, message: str) -> None:
+    async def _drop_credentials(self, *, reason: str, message: str | dict) -> None:
         """删除本地凭证，回到未连接。保留统计开关和发现文档缓存。调用方持有锁。"""
         now = utcnow()
 
@@ -639,11 +685,14 @@ class CloudService:
             for name in CloudSetting.model_fields:
                 setattr(s, name, getattr(fresh, name))
             s.last_disconnect_reason = reason
-            s.last_disconnect_message = message
+            s.last_disconnect_message_ref = message if isinstance(message, dict) else None
+            with use_locale("zh-Hans"):
+                s.last_disconnect_message = render_value(message)
             s.last_disconnect_at = now if reason else None
 
         await self._update(apply)
         self._failures, self._last_error = 0, ""
+        self._last_error_ref = None
         _reset_official_channel()
 
     # ------------------------------------------------------------------

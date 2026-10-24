@@ -18,6 +18,8 @@ from urllib.parse import urlsplit
 import httpx
 
 from movieclaw_api import __version__
+from movieclaw_api.i18n import use_locale
+from movieclaw_api.i18n.stored import reference, render_value
 from movieclaw_api.settings.cloud import RelayInfo
 from movieclaw_db.models import utcnow
 from movieclaw_net.egress import EgressScope, egress_transport
@@ -98,13 +100,19 @@ def _client(url: str, *, lan_direct: bool, timeout: httpx.Timeout = _TIMEOUT) ->
 
 def describe_network_error(exc: httpx.HTTPError) -> str:
     """把网络异常说成人话（给设置页看，不露异常类名）。"""
+    with use_locale("zh-Hans"):
+        return render_value(network_error_ref(exc))
+
+
+def network_error_ref(exc: httpx.HTTPError) -> dict:
+    """Keep the network category available to each reader without translating exceptions."""
     if isinstance(exc, httpx.TimeoutException):
-        return "连接超时"
+        return reference("cloud.network.timeout")
     if isinstance(exc, httpx.ConnectError):
-        return "连不上，检查地址、端口和网络"
+        return reference("cloud.network.connect")
     if isinstance(exc, httpx.ProxyError):
-        return "代理连不上，检查「设置 → 网络」里的代理"
-    return "网络出错"
+        return reference("cloud.network.proxy")
+    return reference("cloud.network.unknown")
 
 
 def _error_message(response: httpx.Response) -> str:

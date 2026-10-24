@@ -63,8 +63,9 @@ export function cloudInstancesUrl(cloudUrl: string | null | undefined): string {
 }
 
 /** 官网隐私政策里「你的服务器会发给我们什么」那一节：连接后上报什么、为什么、能不能关。 */
-export function cloudReportsInfoUrl(cloudUrl: string | null | undefined): string {
-  return `${cloudSiteOrigin(cloudUrl)}/zh/privacy#server-reports`;
+export function cloudReportsInfoUrl(cloudUrl: string | null | undefined,
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): string {
+  return `${cloudSiteOrigin(cloudUrl)}/${locale === "zh-Hans" ? "zh" : "en"}/privacy#server-reports`;
 }
 
 /** 链接给人读的样子：去掉协议头和末尾斜杠，如 movieclaw.io/activate。 */
@@ -78,9 +79,11 @@ export function displayHost(uri: string): string {
 }
 
 /** 「已连接到 y•••@gmail.com 的 MovieClaw 账号」；云端给的是空串时不硬造一个账号名。 */
-export function connectedAccountLine(accountDisplay: string | null | undefined): string {
+export function connectedAccountLine(accountDisplay: string | null | undefined,
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): string {
   const display = accountDisplay?.trim();
-  return display ? `已连接到 ${display} 的 MovieClaw 账号` : "已连接到你的 MovieClaw 账号";
+  const t = appTranslator(locale);
+  return display ? t("settings.cloudConnect.accountLine", { account: display }) : t("settings.cloudConnect.ownAccountLine");
 }
 
 /** 距 expiresAt 还剩多少秒（向上取整，过期为 0）；解析不出来按已过期算。 */
@@ -100,11 +103,13 @@ export function formatCountdown(totalSeconds: number): string {
  * 配对没走完时的说明：优先用服务端的话，没有就按状态给一句。
  * 倒计时走完而服务端还没来得及改状态时，调用方按 expired、不带 message 传进来。
  */
-export function pairingFailureText(status: string, message: string | null | undefined): string {
+export function pairingFailureText(status: string, message: string | null | undefined,
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): string {
   if (message?.trim()) return message.trim();
-  if (status === "denied") return "这次连接在 MovieClaw 官网上被拒绝了。";
-  if (status === "expired") return "配对码已过期。";
-  return "配对没有完成，请重新获取配对码。";
+  const t = appTranslator(locale);
+  if (status === "denied") return t("settings.cloudConnect.failureDenied");
+  if (status === "expired") return t("settings.cloudConnect.failureExpired");
+  return t("settings.cloudConnect.failureIncomplete");
 }
 
 /**
@@ -116,19 +121,20 @@ export function healthTone(health: CloudHealth | null | undefined): Tone | null 
   return health === "unreachable" ? "warn" : "danger";
 }
 
-const HEALTH_FALLBACK: Record<Exclude<CloudHealth, "ok">, string> = {
-  unreachable: "暂时连不上 MovieClaw Cloud，正在自动重试，令牌过期前官方推送不受影响。",
-  expired: "和 MovieClaw Cloud 的连接已过期，官方推送已停用。检查网络或代理设置后立即同步一次。",
-  unsupported: "这个版本的 MovieClaw 已不再受官方推送支持，升级后会自动恢复。",
+const HEALTH_FALLBACK: Record<Exclude<CloudHealth, "ok">, AppMessageKey> = {
+  unreachable: "settings.cloudConnect.healthUnreachable",
+  expired: "settings.cloudConnect.healthExpired",
+  unsupported: "settings.cloudConnect.healthUnsupported",
 };
 
 export function healthMessage(
   health: CloudHealth | null | undefined,
   message: string | null | undefined,
+  locale: AppLocale = requestLocale() ?? "zh-Hans",
 ): string {
   if (message?.trim()) return message.trim();
   if (!health || health === "ok") return "";
-  return HEALTH_FALLBACK[health] ?? "";
+  return Object.hasOwn(HEALTH_FALLBACK, health) ? appTranslator(locale)(HEALTH_FALLBACK[health]) : "";
 }
 
 /** 云端服务通知只有 info / warning 两档。 */
@@ -136,14 +142,14 @@ export function noticeTone(level: string): Tone {
   return level === "warning" ? "warn" : "info";
 }
 
-const CAPABILITY_LABEL: Record<string, string> = {
-  push: "官方推送",
-  remote: "远程访问",
-  control: "远程控制",
+const CAPABILITY_LABEL: Record<string, AppMessageKey> = {
+  push: "settings.cloudConnect.capabilityPush",
+  remote: "settings.cloudConnect.capabilityRemote",
+  control: "settings.cloudConnect.capabilityControl",
 };
 
-export function capabilityLabel(id: string): string {
-  return CAPABILITY_LABEL[id] ?? id;
+export function capabilityLabel(id: string, locale: AppLocale = requestLocale() ?? "zh-Hans"): string {
+  return Object.hasOwn(CAPABILITY_LABEL, id) ? appTranslator(locale)(CAPABILITY_LABEL[id]) : id;
 }
 
 export interface CapabilityRow {
@@ -157,7 +163,8 @@ export interface CapabilityRow {
  * 写明），其余已授予的随后；云端提供了、这台服务器还没授予的排最后，标「即将推出」。
  * 云端没提供的能力一个字也不写——不替云端预告它还没有的东西。
  */
-export function capabilityRows(scopes: string[], capabilities: string[]): CapabilityRow[] {
+export function capabilityRows(scopes: string[], capabilities: string[],
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): CapabilityRow[] {
   const ordered = [
     "push",
     ...scopes.filter((id) => id !== "push"),
@@ -165,7 +172,7 @@ export function capabilityRows(scopes: string[], capabilities: string[]): Capabi
   ];
   return [...new Set(ordered)].map((id) => ({
     id,
-    label: capabilityLabel(id),
+    label: capabilityLabel(id, locale),
     granted: scopes.includes(id),
   }));
 }
