@@ -20,6 +20,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from movieclaw_api.i18n.metadata import localized_text
 from movieclaw_kernel import Event, Kernel, Mode
 from movieclaw_kernel.contracts import CATALOG
 
@@ -35,7 +36,10 @@ def _manifest_description(path: Path) -> str:
     if not manifest.is_file():
         return ""
     try:
-        return str(tomllib.loads(manifest.read_text("utf-8"))["plugin"].get("description") or "")
+        declared = tomllib.loads(manifest.read_text("utf-8"))["plugin"]
+        return localized_text(
+            str(declared.get("description") or ""), declared.get("description_localized")
+        )
     except (OSError, tomllib.TOMLDecodeError, KeyError):
         return ""
 
@@ -438,7 +442,9 @@ async def plugin_detail(kernel: Kernel, settings: Any, entry_id: str, item: dict
         except (OSError, ValueError, tomllib.TOMLDecodeError):
             network = None
     elif shipped is not None:
-        description = shipped.manifest.plugin.description
+        description = localized_text(
+            shipped.manifest.plugin.description, shipped.manifest.plugin.description_localized
+        )
         version = shipped.manifest.plugin.version
     if not description:
         # 没有清单描述（系统模块、个别官方中枢、没写描述的本地插件）：用入口函数的说明文字

@@ -256,7 +256,6 @@
   "apps/web/components/player/subtitle-layer.tsx": 2,
   "apps/web/components/player/video-player.tsx": 13,
   "apps/web/components/plugin-app-frame.tsx": 5,
-  "apps/web/components/plugin-detail.tsx": 149,
   "apps/web/components/reel-clips-tip.tsx": 3,
   "apps/web/components/reel-clips-toggle-section.tsx": 20,
   "apps/web/components/remote-transcode-section.tsx": 53,

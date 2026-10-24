@@ -12,7 +12,9 @@ data_dir = web.data_dir
 
 def test_installed_web_metadata_and_document_follow_each_request(data_dir):
     manifest = web.MANIFEST.format(version=1).replace(
-        'title = "看板插件"', 'title = "看板插件"\ntitle_localized = { en = "Board plugin" }'
+        'title = "看板插件"',
+        'title = "看板插件"\ntitle_localized = { en = "Board plugin" }\n'
+        'description = "看板说明"\ndescription_localized = { en = "Board description" }',
     )
     content = io.BytesIO()
     with zipfile.ZipFile(content, "w") as archive:
@@ -45,6 +47,14 @@ def test_installed_web_metadata_and_document_follow_each_request(data_dir):
         assert preview["web"]["name"] == "Weekly board"
         approved = web.approve(client, "1.0.0", allow_web=True)
         assert approved.status_code == 200, approved.text
+        from movieclaw_api.core.config import get_settings
+        from movieclaw_api.plugins.packages import MANIFEST, version_dir
+
+        source = version_dir(get_settings(), "acme-web", "1.0.0") / MANIFEST
+        original = source.read_bytes()
+        english_detail = client.get("/api/v1/app/plugins/acme-web").json()["data"]
+        assert english_detail["description"] == "Board description"
+        assert english_detail["plugin"]["title"] == "Board plugin"
         english = web.apps(client)["acme-web"]
         assert english["name"] == "Weekly board"
         assert [entry["label"] for entry in english["entries"]] == ["Board", "Downloads"]
@@ -53,6 +63,8 @@ def test_installed_web_metadata_and_document_follow_each_request(data_dir):
         assert 'lang="en"' in page.text
         assert client.get(url, headers={"If-None-Match": page.headers["etag"]}).status_code == 304
         client.headers["Accept-Language"] = "zh-Hans"
+        chinese_detail = client.get("/api/v1/app/plugins/acme-web").json()["data"]
+        assert chinese_detail["description"] == "看板说明"
         assert web.apps(client)["acme-web"]["name"] == "本周看板"
         chinese = client.get(url, headers={"If-None-Match": page.headers["etag"]})
         assert chinese.status_code == 200
@@ -62,6 +74,8 @@ def test_installed_web_metadata_and_document_follow_each_request(data_dir):
         installed = client.get("/api/v1/app/plugins/packages").json()["data"]["installed"]
         assert installed[0]["title"] == "看板插件"
         client.headers["Accept-Language"] = "en"
+        assert client.get("/api/v1/app/plugins/acme-web").json()["data"] == english_detail
+        assert source.read_bytes() == original
         installed = client.get("/api/v1/app/plugins/packages").json()["data"]["installed"]
         assert installed[0]["title"] == "Board plugin"
 
