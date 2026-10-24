@@ -677,5 +677,15 @@
   "settings.scheduledTasks.editor.nextRun": "下次运行",
   "settings.scheduledTasks.editor.discardTitle": "放弃未保存的修改？",
   "settings.scheduledTasks.editor.continueEditing": "继续编辑",
-  "settings.scheduledTasks.editor.discard": "放弃修改"
+  "settings.scheduledTasks.editor.discard": "放弃修改",
+  "nav.mac.go": "前往",
+  "player.window.alwaysOnTop": "播放时置顶",
+  "auth.menu.addAccountEllipsis": "添加账号…",
+  "auth.menu.signOutEllipsis": "退出登录…",
+  "auth.menu.savedAccount": "%@（%@）",
+  "auth.menu.currentAccount": "当前账号 %@，点按切换",
+  "auth.menu.switchTo": "切换到",
+  "auth.menu.switchToAccount": "切换到 %@，%@",
+  "auth.menu.expiredMacHint": "「%@」的登录已失效，请用「添加账号」重新登录",
+  "settings.about.versionBuild": "%@（%@）"
 }

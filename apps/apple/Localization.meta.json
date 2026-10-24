@@ -2441,6 +2441,54 @@
     },
     "settings.scheduledTasks.editor.discard": {
       "sourceHash": "9b7824cefa1e8b160881b03eeb1149918e2efa8ed27b4ad71e2671c7e1d7af00"
+    },
+    "nav.mac.go": {
+      "sourceHash": "fa96079c3b2f73415ff50926506e7b280233a068ef902aa1ae7009947cb3d723"
+    },
+    "player.window.alwaysOnTop": {
+      "sourceHash": "4298f9557372023aef2138b1175ea455b913cac77e17f97fe9906d6459b836e6"
+    },
+    "auth.menu.addAccountEllipsis": {
+      "sourceHash": "d43f0b946c63463180c74e8411c4b1e6670e6b1135660cd8083097f5a78384f8"
+    },
+    "auth.menu.signOutEllipsis": {
+      "sourceHash": "6ce0a5ab3b7681e168de668ec1ab11edee5a84da9f5bb491cbd6fba0dddf152e"
+    },
+    "auth.menu.savedAccount": {
+      "sourceHash": "a93959798fe4ec08d5da9b98015102cdbb8ad9a54106498361c1794885d08a25",
+      "parameters": [
+        "nickname",
+        "server"
+      ]
+    },
+    "auth.menu.currentAccount": {
+      "sourceHash": "2d6892665bf3f926e9ce0fc72906f1c43b70fc95d6e0abb3cc615871d648fe35",
+      "parameters": [
+        "nickname"
+      ]
+    },
+    "auth.menu.switchTo": {
+      "sourceHash": "69bbc493494b45bb0264ae20fc40f9358f802ff6fc56b7ffba14cd135ec19258"
+    },
+    "auth.menu.switchToAccount": {
+      "sourceHash": "fb8841cce5b6d9a8eec031766747b7d874d78ee9863a59459e1b931b07878fda",
+      "parameters": [
+        "nickname",
+        "server"
+      ]
+    },
+    "auth.menu.expiredMacHint": {
+      "sourceHash": "ef0d15e30b33d41258a5b246774f45630be565ee2db20ebf3cb895f3a650bc75",
+      "parameters": [
+        "nickname"
+      ]
+    },
+    "settings.about.versionBuild": {
+      "sourceHash": "a93959798fe4ec08d5da9b98015102cdbb8ad9a54106498361c1794885d08a25",
+      "parameters": [
+        "version",
+        "build"
+      ]
     }
   },
   "MovieClaw/InfoPlist.xcstrings": {

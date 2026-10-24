@@ -17,23 +17,14 @@ struct MacCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
-            Button("关于 MovieClaw") { openWindow(id: "about") }
-            switch updater.channel {
-            case .sparkle:
-                Button(updater.menuTitle) { updater.primaryAction() }
-            case .store:
-                Button("由 TestFlight 更新") {}
-                    .disabled(true)
-            case .none:
-                EmptyView()
-            }
+            Button(String(localized: .settingsAboutWindowTitle)) { openWindow(id: "about") }
         }
         // 只有一个主窗口：不要「新建窗口」，避免开出两份播放器、两套导航状态
         CommandGroup(replacing: .newItem) {}
-        CommandMenu("前往") {
-            Button("首页") { go(.home) }
+        CommandMenu(String(localized: .navMacGo)) {
+            Button(String(localized: .navNativeHome)) { go(.home) }
                 .keyboardShortcut("1")
-            Button("我的收藏") { go(.favorites) }
+            Button(String(localized: .navNativeFavorites)) { go(.favorites) }
                 .keyboardShortcut("2")
             if let router {
                 let libraries = LibraryHomeStore.shared.libraries?.filter { $0.viewerAccess && $0.kind != "photo" } ?? []
@@ -56,9 +47,9 @@ struct MacCommands: Commands {
         }
         CommandGroup(after: .windowSize) {
             Divider()
-            Toggle("播放时置顶", isOn: $floatsOnTop)
+            Toggle(String(localized: .playerWindowAlwaysOnTop), isOn: $floatsOnTop)
         }
-        CommandMenu("账号") {
+        CommandMenu(String(localized: .navNativeAccount)) {
             if case .ready = model.phase {
                 let current = MacAccounts.currentID(model)
                 ForEach(MacAccounts.all(model)) { saved in
@@ -67,16 +58,16 @@ struct MacCommands: Commands {
                         Task { try? await model.switchAccount(to: saved.account.username, on: saved.server) }
                     } label: {
                         if saved.id == current {
-                            Label("\(saved.account.nickname)（\(saved.server.hostLabel)）", systemImage: "checkmark")
+                            Label(String(localized: .authMenuSavedAccount(saved.account.nickname, saved.server.hostLabel)), systemImage: "checkmark")
                         } else {
-                            Text("\(saved.account.nickname)（\(saved.server.hostLabel)）")
+                            Text(String(localized: .authMenuSavedAccount(saved.account.nickname, saved.server.hostLabel)))
                         }
                     }
                 }
                 Divider()
-                Button("添加账号…") { openWindow(id: MacAddAccountView.windowID) }
+                Button(String(localized: .authMenuAddAccountEllipsis)) { openWindow(id: MacAddAccountView.windowID) }
                     .disabled(router == nil)
-                Button("退出登录…") { router?.confirmingLogout = true }
+                Button(String(localized: .authMenuSignOutEllipsis)) { router?.confirmingLogout = true }
                     .disabled(router == nil)
             }
         }

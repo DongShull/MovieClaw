@@ -161,8 +161,6 @@
   "apps/apple/MovieClaw/Features/Subscriptions/SubscriptionsHomeSections.swift": 19,
   "apps/apple/MovieClaw/Features/Subscriptions/SubscriptionsView.swift": 9,
   "apps/apple/MovieClaw/Features/Subscriptions/UpgradeRunSheet.swift": 44,
-  "apps/apple/MovieClawMac/Account/MacAccountViews.swift": 11,
-  "apps/apple/MovieClawMac/App/MacCommands.swift": 8,
   "apps/apple/MovieClawMac/App/MacDebugDriver.swift": 38,
   "apps/apple/MovieClawMac/DesignSystem/MacCards.swift": 19,
   "apps/apple/MovieClawMac/DesignSystem/MacStage.swift": 3,

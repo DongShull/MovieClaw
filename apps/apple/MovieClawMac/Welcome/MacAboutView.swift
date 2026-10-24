@@ -80,7 +80,7 @@ struct MacAboutView: View {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
-        return "\(version)（\(build)）"
+        return String(localized: .settingsAboutVersionBuild(version, build))
     }
 }
 
