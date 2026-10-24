@@ -1893,5 +1893,12 @@
   "activity.jobActions.dismissedMuted": "已忽略，并且不再自动重建同类任务",
   "activity.jobActions.dismissed": "已忽略，不再计入需要处理",
   "activity.jobActions.restored": "已撤销忽略",
-  "activity.jobActions.notDismissed": "任务并未被忽略"
+  "activity.jobActions.notDismissed": "任务并未被忽略",
+  "library.duplicateScan.queued": "等待扫描重复文件",
+  "library.duplicateScan.units": "圈出 {count} 个多文件单元",
+  "library.duplicateScan.fingerprint": "比对文件指纹",
+  "library.duplicateScan.suggest": "排出建议保留",
+  "library.duplicateScan.persist": "记录结论",
+  "library.duplicateScan.completed": "重复扫描完成：{units} 个单元有重复，按建议清理可腾出 {files} 个文件",
+  "library.duplicateScan.empty": "重复扫描完成：没有发现重复文件"
 }

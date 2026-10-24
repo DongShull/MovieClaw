@@ -64,6 +64,8 @@ export function jobFeedIdentity(job: JobView, locale: AppLocale = requestLocale(
   if (!title) return null;
   // i18n-ignore: legacy built-in subject; custom subjects and plugin names remain raw.
   if (job.job_type === "library.search-index.refresh" && title === "更新媒体库搜索索引") return t("activity.tasks.refreshSearchIndex");
+  // i18n-ignore: legacy built-in subject; custom subjects remain raw.
+  if (job.job_type === "library.duplicate-scan" && title === "重复文件") return t("library.manage.duplicates");
   if (/^[《「].+[》」]$/.test(title)) return title;
   if (job.job_type === "library.scan") return t("activity.tasks.libraryTitle", { title });
   if (job.job_type === "library.ingest" || job.job_type === "subtitle.generate" || job.job_type.includes("metadata.refresh")) return t("activity.tasks.mediaTitle", { title });

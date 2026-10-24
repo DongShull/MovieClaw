@@ -399,5 +399,14 @@
     "ocrStopped": "Image subtitle recognition finished. Further AI translation was stopped at your request.",
     "circuitBreaker": "{failed}/{total} blocks failed, exceeding the failure threshold. The task stopped and saved successful blocks. Start generation again with a model that has a larger output budget to resume failed blocks.",
     "enqueued": "Task queued"
+  },
+  "duplicateScan": {
+    "queued": "Waiting to scan duplicate files",
+    "units": "Found {count, plural, one {# unit with multiple files} other {# units with multiple files}}",
+    "fingerprint": "Comparing file fingerprints",
+    "suggest": "Ranking files to recommend keeping",
+    "persist": "Recording results",
+    "completed": "Duplicate scan complete: {units, plural, one {# unit has} other {# units have}} duplicates; suggested cleanup can remove {files, plural, one {# file} other {# files}}",
+    "empty": "Duplicate scan complete: no duplicate files found"
   }
 }

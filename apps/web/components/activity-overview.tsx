@@ -23,7 +23,7 @@ import {
 import { PAGE_NAV_BUTTON_CLASS } from "@/components/page-nav";
 import {
   PlaybackHistoryList,
-  STATS_PERIODS,
+  statsPeriods,
 } from "@/components/playback-stats-section";
 import { PosterImage } from "@/components/poster-image";
 import {
@@ -594,6 +594,7 @@ const SCOPE_LABELS: Record<MediaActivityScope, AppMessageKey> = {
  */
 function WatchPage({ page, media }: { page: "plays" | "stats"; media: MediaActivityState }) {
   const t = useTranslations();
+  const locale = useLocale();
 
   const { scope, setScope, enabled } = media;
   const [memberId, setMemberId] = useState<number | null>(null);
@@ -645,7 +646,7 @@ function WatchPage({ page, media }: { page: "plays" | "stats"; media: MediaActiv
               <FilterRadioGroup
                 label={t("activity.overview.period")}
                 value={String(days)}
-                options={STATS_PERIODS.map((p) => ({ value: String(p.value), label: p.label }))}
+                options={statsPeriods(locale).map((p) => ({ value: String(p.value), label: p.label }))}
                 onChange={(value) => setDays(Number(value))}
               />
             )}
@@ -665,7 +666,7 @@ function WatchPage({ page, media }: { page: "plays" | "stats"; media: MediaActiv
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
     ),
-    [days, filtered, memberId, memberOptions, page, scope, setScope, t],
+    [days, filtered, memberId, memberOptions, page, scope, setScope, t, locale],
   );
   useEffect(() => {
     if (!setTopBarActions) return;

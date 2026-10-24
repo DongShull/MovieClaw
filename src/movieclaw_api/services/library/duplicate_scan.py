@@ -36,6 +36,7 @@ from sqlalchemy import delete, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import localize_fields, stored_fields
 from movieclaw_api.services import jobs
 from movieclaw_api.services.foreground import yield_to_foreground
 from movieclaw_api.services.library import acquisition
@@ -181,7 +182,9 @@ async def scan_duplicates(
     """
     report = await detect_duplicates(session, report_progress=report_progress)
     if report_progress is not None:
-        await report_progress("persist", "记录结论", None, None)
+        await report_progress(
+            "persist", stored_fields("library.duplicateScan.persist"), None, None
+        )
     result = ScanResult(
         upgrading_units=report.upgrading_units, keep_old_items=report.keep_old_items
     )
@@ -655,11 +658,11 @@ async def scan_state(session: AsyncSession) -> ScanState:
             progress = job.progress or {}
             state.status = status
             state.job_id = job.id
-            state.message = progress.get("message")
+            state.message = localize_fields(progress).get("message")
             state.percent = progress.get("percent")
         elif status in ("failed", "cancelled") and failure is None and state.job_id is None:
             failure = status
-            state.message = (job.error or {}).get("message")
+            state.message = localize_fields(job.error or {}).get("message")
         if status == "succeeded" and state.scanned_at is None:
             result = job.result or {}
             state.scanned_at = job.finished_at
@@ -704,7 +707,7 @@ async def enqueue_duplicate_scan_job(
         actor_name=actor_name,
         actor_id=actor_id,
         origin=origin,
-        progress=jobs.default_progress("等待扫描重复文件"),
+        progress={**jobs.default_progress(), **stored_fields("library.duplicateScan.queued")},
     )
 
 
@@ -721,12 +724,17 @@ async def _run_duplicate_scan_job(
     删表重建的副作用早已落库。
     """
 
-    async def report(phase: str, message: str, current: int | None, total: int | None) -> None:
+    async def report(
+        phase: str, message: str | dict[str, Any], current: int | None, total: int | None
+    ) -> None:
+        fields = message if isinstance(message, dict) else {"message": message}
         determinate = current is not None and total
         await context.update_progress(
             mode="determinate" if determinate else "indeterminate",
             phase=phase,
-            message=message,
+            message=fields["message"],
+            message_key=fields.get("message_key"),
+            message_params=fields.get("message_params"),
             current=current,
             total=total,
             percent=round(current * 100 / total, 1) if determinate else None,  # type: ignore[operator]
@@ -743,12 +751,12 @@ async def _run_duplicate_scan_job(
     async with db.session() as session:
         result = await scan_duplicates(session, report_progress=report)
     message = (
-        f"重复扫描完成：{result.units} 个单元有重复，按建议清理可腾出 {result.files} 个文件"
+        stored_fields("library.duplicateScan.completed", units=result.units, files=result.files)
         if result.units
-        else "重复扫描完成：没有发现重复文件"
+        else stored_fields("library.duplicateScan.empty")
     )
     return {
-        "message": message,
+        **message,
         "units": result.units,
         "files": result.files,
         "bytes": result.bytes,

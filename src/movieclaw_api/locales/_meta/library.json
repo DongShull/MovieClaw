@@ -1075,5 +1075,26 @@
   },
   "routing.valueSeparator": {
     "sourceHash": "8a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0f1"
+  },
+  "duplicateScan.queued": {
+    "sourceHash": "5478ff79947b3d1dac7405b2ef31f894bf6569f3bbcea4c571bb969843a9cd78"
+  },
+  "duplicateScan.units": {
+    "sourceHash": "d2808643f4083f6c6605745b98377cc70088de0b80297e6da71097db75728a05"
+  },
+  "duplicateScan.fingerprint": {
+    "sourceHash": "cc4b99d40bd08b3de45b499bfdc98ea9c5f1da4a9346966bfa00dd18a441a604"
+  },
+  "duplicateScan.suggest": {
+    "sourceHash": "991314be5903bcb511f60336f01a88d1cdde93935141e1a350c07afff37fb3a8"
+  },
+  "duplicateScan.persist": {
+    "sourceHash": "cf54f25441302f9147f4b4f13a0ed081fdc410a13946911d5d89cde5c39ec66b"
+  },
+  "duplicateScan.completed": {
+    "sourceHash": "ae8cdbc4006d715496f152588585dd4acab42c571a4ce0e7c320c912d51bcb95"
+  },
+  "duplicateScan.empty": {
+    "sourceHash": "d5a52b657fc00522a633beb0985016c7ae8cf302e17ed349d45fb57576945fe7"
   }
 }

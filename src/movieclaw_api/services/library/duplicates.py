@@ -42,6 +42,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.services.library import acquisition
 from movieclaw_api.services.library.origin import origin_of
 from movieclaw_api.services.library.recycle import recycle_file
@@ -54,7 +55,7 @@ logger = logging.getLogger("movieclaw_api.library.duplicates")
 
 Bucket = Literal["identical", "versions"]
 #: 扫描任务的进度回调：(阶段, 给人看的话, 已完成, 总数)。检测本身不关心进度怎么显示
-ProgressReport = Callable[[str, str, int | None, int | None], Awaitable[None]]
+ProgressReport = Callable[[str, str | dict[str, Any], int | None, int | None], Awaitable[None]]
 
 REASON_DUPLICATE = "duplicate_cleanup"  # trash_context.reason 词表新词：重复清理
 
@@ -217,7 +218,11 @@ class DuplicateReport:
 
 
 async def _tick(
-    report: ProgressReport | None, phase: str, message: str, current: int | None, total: int | None
+    report: ProgressReport | None,
+    phase: str,
+    message: str | dict[str, Any],
+    current: int | None,
+    total: int | None,
 ) -> None:
     if report is not None:
         await report(phase, message, current, total)
@@ -505,7 +510,10 @@ async def detect_duplicates(
     if not unit_keys:
         return report
     item_ids = {k[0] for k in unit_keys}
-    await _tick(report_progress, "units", f"圈出 {len(unit_keys)} 个多文件单元", None, None)
+    await _tick(
+        report_progress, "units",
+        stored_fields("library.duplicateScan.units", count=len(unit_keys)), None, None,
+    )
 
     # 2. 这些单元的全部在位行（一次取，按单元分桶）
     rows_stmt = _candidate_rows_stmt().where(LibraryFile.media_item_id.in_(item_ids))  # type: ignore[union-attr]
@@ -542,7 +550,10 @@ async def detect_duplicates(
     stats: dict[str, tuple[int, int] | None] = {}
     for start in range(0, len(paths), _STAT_CHUNK):
         stats |= await asyncio.to_thread(_stat_many, paths[start : start + _STAT_CHUNK])
-        await _tick(report_progress, "fingerprint", "比对文件指纹", len(stats), len(paths))
+        await _tick(
+            report_progress, "fingerprint",
+            stored_fields("library.duplicateScan.fingerprint"), len(stats), len(paths),
+        )
     inode = {r.id or -1: stats.get(r.file_path) for r in flat}
     origins = await acquisition.current().describe_origins(session, flat)
     # 「建议保留」要给每个文件跑一遍发布名解析（ONNX NER）。它是纯 CPU 的活，
@@ -552,7 +563,10 @@ async def detect_duplicates(
     snapshots: dict[int, QualitySnapshot] = {}
     for start in range(0, len(flat), _SNAPSHOT_CHUNK):
         snapshots |= await asyncio.to_thread(_snapshots_many, flat[start : start + _SNAPSHOT_CHUNK])
-        await _tick(report_progress, "suggest", "排出建议保留", len(snapshots), len(flat))
+        await _tick(
+            report_progress, "suggest",
+            stored_fields("library.duplicateScan.suggest"), len(snapshots), len(flat),
+        )
     units_by_item: dict[int, list[DupUnit]] = defaultdict(list)
     for key, unit_rows in listed.items():
         files = [

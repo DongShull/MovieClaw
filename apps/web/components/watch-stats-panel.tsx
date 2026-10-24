@@ -1115,7 +1115,7 @@ export function WatchStatsPanel({
             ),
           }))}
           footer={
-            <HiddenCountRow count={stats.hidden_title_count} noun="部作品" onShowAll={onShowAll} />
+            <HiddenCountRow count={stats.hidden_title_count} kind="items" onShowAll={onShowAll} />
           }
           emptyText={stats.hidden_title_count > 0 ? null : "播放过的条目已被删除"}
         />

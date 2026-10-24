@@ -399,5 +399,14 @@
     "ocrStopped": "图片字幕识别完成，已按你的请求停止后续 AI 翻译",
     "circuitBreaker": "本次已有 {failed}/{total} 块翻译失败，超过熔断阈值，任务中止（成功块已暂存，换用输出预算更充裕的模型后重新发起可从断点续译失败块）",
     "enqueued": "任务已入队"
+  },
+  "duplicateScan": {
+    "queued": "等待扫描重复文件",
+    "units": "圈出 {count} 个多文件单元",
+    "fingerprint": "比对文件指纹",
+    "suggest": "排出建议保留",
+    "persist": "记录结论",
+    "completed": "重复扫描完成：{units} 个单元有重复，按建议清理可腾出 {files} 个文件",
+    "empty": "重复扫描完成：没有发现重复文件"
   }
 }

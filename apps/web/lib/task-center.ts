@@ -32,11 +32,14 @@ export const WATCH_VIEWS = ["playing", "plays", "stats"] as const;
 
 export type WatchViewName = (typeof WATCH_VIEWS)[number];
 
-export const WATCH_VIEW_LABELS: readonly { id: WatchViewName; label: string }[] = [
-  { id: "playing", label: "正在播放" },
-  { id: "plays", label: "最近播放" },
-  { id: "stats", label: "观看统计" },
-] as const;
+export function watchViewLabels(locale: AppLocale = requestLocale() ?? "zh-Hans") {
+  const t = appTranslator(locale);
+  return [
+    { id: "playing" as const, label: t("activity.watch.watchPlaying") },
+    { id: "plays" as const, label: t("activity.watch.watchPlays") },
+    { id: "stats" as const, label: t("activity.watch.watchStats") },
+  ];
+}
 
 /** 一级视角：观看（媒体库实时活动）/ 任务（按状态分组）。 */
 export type ActivityScope = "media" | "tasks";
