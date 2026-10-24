@@ -21,6 +21,7 @@ import secrets
 import time
 import uuid
 from collections.abc import Awaitable, Callable, Coroutine
+from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -158,6 +159,12 @@ class Binding:
     #: 靠平台回调收消息的通道：这个账号的回调地址（只在发出的这一刻有完整地址）与说明
     callback_url: str | None = None
     callback_note: str = ""
+    message_ref: dict | None = None
+    input_label_localized: dict | None = None
+
+    def set_message(self, message: str, message_ref: dict | None = None) -> None:
+        self.message = message
+        self.message_ref = deepcopy(message_ref)
 
     @property
     def terminal(self) -> bool:
@@ -501,7 +508,7 @@ class ChannelHub:
             and time.monotonic() > binding.expires_at
         ):
             binding.status = "expired"
-            binding.message = "配对码已过期，请重新发起绑定"
+            binding.set_message("配对码已过期，请重新发起绑定")
         return binding
 
     async def begin_binding(self, channel_id: str, fields: dict[str, str]) -> Binding:
@@ -603,7 +610,7 @@ class ChannelHub:
                 state = await self.driver(binding.channel_id).flow_state(binding.flow_id)
             except ChannelUnavailable:
                 binding.status = "failed"
-                binding.message = "通道插件已关闭"
+                binding.set_message("通道插件已关闭")
                 return
             except Exception as exc:  # noqa: BLE001
                 logger.warning("读取绑定状态失败：%s", exc)
@@ -615,22 +622,28 @@ class ChannelHub:
             return
         binding.qr = state.qr
         binding.input_label = state.input_label
+        binding.input_label_localized = deepcopy(state.input_label_localized)
         if state.status == "confirmed":
             if state.result is None:
                 binding.status = "failed"
-                binding.message = "绑定结果缺失，请重新发起"
+                binding.set_message("绑定结果缺失，请重新发起")
                 return
             try:
                 row = await self._commit(binding.channel_id, state.result)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("绑定落库失败 channel=%s", binding.channel_id)
                 binding.status = "failed"
-                binding.message = f"绑定失败：{exc}"
+                binding.set_message(f"绑定失败：{exc}")
                 return
             binding.account_id = row.account_id
             await self._attach_callback(binding)
         binding.status = state.status
-        binding.message = state.message
+        binding.set_message(
+            state.message,
+            {"message_text": state.message, "message_localized": state.message_localized}
+            if state.message_localized
+            else None,
+        )
 
     # ---- 配对码（表单 + 私聊 bot 发码）
     async def _begin_pairing(
@@ -661,7 +674,7 @@ class ChannelHub:
         await self._run_account(temp, pairing=binding)
         await self._attach_callback(binding)
         if binding.callback_url:
-            binding.message = (
+            binding.set_message(
                 f"先把回调地址填到{driver.title}后台，再在{driver.title}里给"
                 f"「{result.display_name}」发送配对码 {code}"
             )
@@ -680,13 +693,13 @@ class ChannelHub:
             return
         if time.monotonic() > binding.expires_at:
             binding.status = "expired"
-            binding.message = "配对码已过期，请重新发起绑定"
+            binding.set_message("配对码已过期，请重新发起绑定")
             return
         if msg.text.strip() != binding.pair_code:
             binding.attempts += 1
             if binding.attempts >= PAIR_MAX_ATTEMPTS:
                 binding.status = "failed"
-                binding.message = "配对码错误次数过多，绑定已作废，请重新发起"
+                binding.set_message("配对码错误次数过多，绑定已作废，请重新发起")
                 # 终态回执直接发（不走出站队列）：随后停账号会关发送泵，入队的回执会丢
                 await _send_receipt(
                     adapter, msg, "配对码错误次数过多，本次绑定已作废。请回设置页重新发起绑定。"
@@ -698,11 +711,11 @@ class ChannelHub:
         pending = binding.pending
         if pending is None:
             binding.status = "failed"
-            binding.message = "绑定状态已丢失，请重新发起"
+            binding.set_message("绑定状态已丢失，请重新发起")
             return
         binding.pending = None
         binding.status = "confirmed"
-        binding.message = "绑定完成，通道已启动"
+        binding.set_message("绑定完成，通道已启动")
         await _send_receipt(
             adapter, msg, "绑定成功！我是 MovieClaw 助手，现在可以直接发消息让我干活了。"
         )
@@ -718,13 +731,13 @@ class ChannelHub:
         except Exception as exc:  # noqa: BLE001
             logger.exception("配对转正失败 channel=%s", binding.channel_id)
             binding.status = "failed"
-            binding.message = f"绑定失败：{exc}"
+            binding.set_message(f"绑定失败：{exc}")
 
     async def _pairing_watchdog(self, binding: Binding, temp: HostAccount) -> None:
         await asyncio.sleep(max(0.0, binding.expires_at - time.monotonic()))
         if binding.status == "pending":
             binding.status = "expired"
-            binding.message = "配对码已过期，请重新发起绑定"
+            binding.set_message("配对码已过期，请重新发起绑定")
         await self._teardown_pairing(binding, temp)
 
     async def _teardown_pairing(self, binding: Binding, temp: HostAccount) -> None:

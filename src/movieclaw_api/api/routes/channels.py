@@ -29,6 +29,8 @@ from movieclaw_api.exceptions import (
     ServiceUnavailableException,
 )
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.metadata import localized_text
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.channels import (
     ChannelAccountView,
     ChannelBindingInputPayload,
@@ -98,8 +100,8 @@ async def list_channels(session: AsyncSession = Depends(get_session)) -> ApiResp
             channels.append(
                 ChannelView(
                     id=channel_id,
-                    title=driver.title or channel_id,
-                    description=driver.description,
+                    title=localized_text(driver.title or channel_id, driver.title_localized),
+                    description=localized_text(driver.description, driver.description_localized),
                     entry_id=hub.contributor(channel_id),
                     receive=driver.capabilities.receive,
                     webhook=driver.capabilities.webhook,
@@ -109,16 +111,16 @@ async def list_channels(session: AsyncSession = Depends(get_session)) -> ApiResp
                         fields=[
                             ChannelFieldView(
                                 key=f.key,
-                                label=f.label,
+                                label=localized_text(f.label, f.label_localized),
                                 secret=f.secret,
-                                placeholder=f.placeholder,
-                                help=f.help,
+                                placeholder=localized_text(f.placeholder, f.placeholder_localized),
+                                help=localized_text(f.help, f.help_localized),
                                 required=f.required,
                             )
                             for f in spec.fields
                         ],
                         pairing=spec.pairing,
-                        hint=spec.hint,
+                        hint=localized_text(spec.hint, spec.hint_localized),
                     ),
                 )
             )
@@ -145,11 +147,15 @@ async def _binding_view(hub: ChannelHub, binding_id: str) -> ChannelBindingView:
         channel_id=binding.channel_id,
         kind=binding.kind,
         status=binding.status,
-        message=binding.message,
+        message=render_value(binding.message_ref) if binding.message_ref else binding.message,
         pair_code=binding.pair_code,
         qr_image=_qrcode_data_url(binding.qr or ""),
         qr=binding.qr or "",
-        input_label=binding.input_label,
+        input_label=(
+            localized_text(binding.input_label, binding.input_label_localized)
+            if binding.input_label is not None
+            else None
+        ),
         account=account,
         callback_url=binding.callback_url,
         callback_note=binding.callback_note,

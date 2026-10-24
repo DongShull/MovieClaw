@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+from copy import deepcopy
 from typing import Any
 
 from movieclaw_sdk import channels as ch
@@ -25,6 +26,8 @@ class RemoteChannelDriver(ChannelDriver):
         self._cid = cid
         self.title = spec.get("title") or cid
         self.description = spec.get("description") or ""
+        self.title_localized = deepcopy(spec.get("title_localized"))
+        self.description_localized = deepcopy(spec.get("description_localized"))
         self.capabilities, self.binding = ch.spec_parts(spec)
         #: 账号 id → 中枢给的句柄（插件回调时交给它）
         self.accounts: dict[str, Account] = {}
