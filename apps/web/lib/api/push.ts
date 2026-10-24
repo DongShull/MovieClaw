@@ -1,5 +1,6 @@
 import type { CloudState } from "@/lib/api/cloud";
 import { request } from "@/lib/http";
+import type { AppLocale } from "@/lib/i18n/negotiate";
 
 /** 后端统一响应信封（见 movieclaw_api.schemas.response.ApiResponse） */
 interface ApiEnvelope<T> {
@@ -85,8 +86,10 @@ export interface RelayProbeView {
   warnings: string[];
 }
 
-export function getPushChannels(): Promise<PushChannelsView> {
-  return unwrap(request<ApiEnvelope<PushChannelsView>>("/push/channels"));
+export function getPushChannels(locale?: AppLocale): Promise<PushChannelsView> {
+  return unwrap(request<ApiEnvelope<PushChannelsView>>("/push/channels", locale ? {
+    headers: { "Accept-Language": locale },
+  } : undefined));
 }
 
 export function setOfficialChannelEnabled(enabled: boolean): Promise<PushChannelsView> {

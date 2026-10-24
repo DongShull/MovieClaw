@@ -236,7 +236,9 @@ async def _send_batch(channel: Channel, batch: list[Outgoing]) -> list[Outcome] 
                 break
     if response is None:
         assert error is not None
-        state.record_failure(error.message, unreachable=error.network)
+        state.record_failure(
+            error.message, unreachable=error.network, message_ref=error.message_ref
+        )
         if channel.kind == "official" and error.code in ("unauthorized", "forbidden"):
             # 官方中继每次都查实例状态：拒绝说明令牌失效或在官网解绑了。马上续签一次——
             # 解绑了尽快显示「已断开」，令牌失效就换新的，稍后的重试用新令牌
@@ -284,6 +286,9 @@ async def _handle_result(channel: Channel, item: Outgoing, result: dict) -> Outc
             # 整台服务器当天的额度用完：这个通道到点之前不再发
             state.blocked_until = until
             state.blocked_message = message or "今天的推送额度已经用完"
+            state.blocked_message_ref = (
+                None if message else {"message_key": "push.channels.quotaExhausted"}
+            )
         else:
             # 按设备（device_day）或别的维度的限制：只挡这台设备，家里别的设备照常收
             state.device_blocks[item.token] = (
@@ -293,7 +298,10 @@ async def _handle_result(channel: Channel, item: Outgoing, result: dict) -> Outc
     elif code == "apns_error" and result.get("retryable"):
         outcome.result = "retry"
     elif code == "topic_not_allowed":
-        state.record_failure(message or "中继不推这个 App")
+        state.record_failure(
+            message or "中继不推这个 App",
+            message_ref=None if message else {"message_key": "push.channels.topicNotAllowed"},
+        )
     else:
         logger.warning("推送 %s 被拒：%s %s", item.message["id"], code, message)
     return outcome

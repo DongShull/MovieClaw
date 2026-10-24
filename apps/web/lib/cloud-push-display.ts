@@ -186,11 +186,11 @@ export function channelTone(state: string): Tone {
   return "neutral";
 }
 
-const CHANNEL_STATE_FALLBACK: Record<string, string> = {
-  ok: "正常",
-  warning: "需要注意",
-  error: "出错了",
-  inactive: "未启用",
+const CHANNEL_STATE_FALLBACK: Record<string, AppMessageKey> = {
+  ok: "settings.pushChannels.stateOk",
+  warning: "settings.pushChannels.stateWarning",
+  error: "settings.pushChannels.stateError",
+  inactive: "settings.pushChannels.stateInactive",
 };
 
 /** 官方通道因为没连接 MovieClaw Cloud 而未激活：行内写「未激活」并引导去连接。 */
@@ -204,24 +204,27 @@ export function officialAwaitingCloud(
 export function channelPill(
   channel: Pick<PushChannelView, "kind" | "state" | "status_text">,
   cloudState: string,
+  locale: AppLocale = requestLocale() ?? "zh-Hans",
 ): { tone: Tone; label: string } {
-  if (officialAwaitingCloud(channel, cloudState)) return { tone: "neutral", label: "未激活" };
+  const t = appTranslator(locale);
+  if (officialAwaitingCloud(channel, cloudState)) return { tone: "neutral", label: t("settings.pushChannels.stateUnactivated") };
   return {
     tone: channelTone(channel.state),
-    label: channel.status_text?.trim() || CHANNEL_STATE_FALLBACK[channel.state] || channel.state,
+    label: channel.status_text?.trim() || (Object.hasOwn(CHANNEL_STATE_FALLBACK, channel.state) ? t(CHANNEL_STATE_FALLBACK[channel.state]) : channel.state),
   };
 }
 
-const AUTH_MODE_LABEL: Record<string, string> = {
-  issuer: "签发方令牌",
-  static: "令牌",
-  none: "无鉴权",
+const AUTH_MODE_LABEL: Record<string, AppMessageKey> = {
+  issuer: "settings.pushChannels.authIssuer",
+  static: "settings.pushChannels.token",
+  none: "settings.pushChannels.authNone",
 };
 
 /** 鉴权方式给人看的说法；null（还没拉到过 /v1/info）返回 null，调用方不写这一段。 */
-export function authModeLabel(mode: string | null | undefined): string | null {
+export function authModeLabel(mode: string | null | undefined,
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): string | null {
   if (!mode) return null;
-  return AUTH_MODE_LABEL[mode] ?? mode;
+  return Object.hasOwn(AUTH_MODE_LABEL, mode) ? appTranslator(locale)(AUTH_MODE_LABEL[mode]) : mode;
 }
 
 /**
@@ -231,9 +234,10 @@ export function authModeLabel(mode: string | null | undefined): string | null {
  */
 export function channelDetails(
   channel: Pick<PushChannelView, "kind" | "url" | "auth_mode" | "topics">,
+  locale: AppLocale = requestLocale() ?? "zh-Hans",
 ): string {
   if (channel.kind === "official") return "";
-  return [channel.url, authModeLabel(channel.auth_mode), channel.topics.join(", ")]
+  return [channel.url, authModeLabel(channel.auth_mode, locale), channel.topics.join(", ")]
     .filter((part) => part)
     .join("\u00a0· ");
 }
@@ -254,14 +258,16 @@ export function quotaPercent(quota: Pick<PushQuota, "limit" | "used">): number |
  * 额度读数：「今天已用 132 / 5000 条」，用完时直说用完了。官方通道还没推送过时
  * 只有云端给的上限（「每天最多 5000 条」）；两样都没有返回 null，整块不显示。
  */
-export function quotaLabel(quota: Pick<PushQuota, "limit" | "used">): string | null {
+export function quotaLabel(quota: Pick<PushQuota, "limit" | "used">,
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): string | null {
   const { limit, used } = quota;
+  const t = appTranslator(locale);
   if (limit != null && limit > 0) {
-    if (used == null) return `每天最多 ${limit} 条`;
-    if (used >= limit) return `今天的 ${limit} 条已用完`;
-    return `今天已用 ${used} / ${limit} 条`;
+    if (used == null) return t("settings.pushChannels.quotaLimit", { limit });
+    if (used >= limit) return t("settings.pushChannels.quotaExhausted", { limit });
+    return t("settings.pushChannels.quotaUsedLimit", { used, limit });
   }
-  return used != null ? `今天已用 ${used} 条` : null;
+  return used != null ? t("settings.pushChannels.quotaUsed", { used }) : null;
 }
 
 /** 剩不到 5% 时实例只发提醒类通知（§3），额度条转黄提示；之前不占状态色。 */
@@ -272,8 +278,8 @@ export function quotaTone(quota: Pick<PushQuota, "limit" | "used">): Tone | null
 }
 
 /** 通道行上的设备数：「3 台设备」；0 台不写（没有就不提）。 */
-export function channelDeviceCount(count: number): string | null {
-  return count > 0 ? `${count} 台设备` : null;
+export function channelDeviceCount(count: number, locale: AppLocale = requestLocale() ?? "zh-Hans"): string | null {
+  return count > 0 ? appTranslator(locale)("settings.pushChannels.deviceCount", { count }) : null;
 }
 
 /**
@@ -281,11 +287,12 @@ export function channelDeviceCount(count: number): string | null {
  * 「有 1 台设备用的是自己打包的 App（com.friend.mc），没有能推送它的通道」。
  * 没有缺口返回 null，页面什么都不提示。
  */
-export function uncoveredSummary(uncovered: PushUncoveredApp[]): string | null {
+export function uncoveredSummary(uncovered: PushUncoveredApp[],
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): string | null {
   if (uncovered.length === 0) return null;
   const devices = uncovered.reduce((sum, entry) => sum + entry.device_count, 0);
-  const topics = uncovered.map((entry) => entry.topic).join("、");
-  return `有 ${devices} 台设备用的是自己打包的 App（${topics}），没有能推送它的通道`;
+  const topics = uncovered.map((entry) => entry.topic).join(locale === "zh-Hans" ? "、" : ", ");
+  return appTranslator(locale)("settings.pushChannels.uncovered", { count: devices, topics });
 }
 
 /* —— 添加自建中继 —— */
@@ -311,14 +318,15 @@ export function relayAddBlocker(input: {
   url: string;
   token: string;
   name: string;
-}): string | null {
+}, locale: AppLocale = requestLocale() ?? "zh-Hans"): string | null {
   const { probe } = input;
-  if (!probe || input.probedUrl !== input.url.trim()) return "先检测中继地址";
-  if (!probe.reachable) return "中继连不上，检查地址后重新检测";
+  const t = appTranslator(locale);
+  if (!probe || input.probedUrl !== input.url.trim()) return t("settings.pushChannels.checkFirst");
+  if (!probe.reachable) return t("settings.pushChannels.checkUnreachable");
   if (probe.error?.trim()) return probe.error.trim();
-  if (probe.auth_mode === "issuer") return "这个中继需要签发方的令牌，暂不支持在这里添加";
-  if (relayNeedsToken(probe.auth_mode) && !input.token.trim()) return "填写中继的令牌";
-  if (!input.name.trim()) return "给中继起个名字";
+  if (probe.auth_mode === "issuer") return t("settings.pushChannels.issuerBlocker");
+  if (relayNeedsToken(probe.auth_mode) && !input.token.trim()) return t("settings.pushChannels.tokenRequired");
+  if (!input.name.trim()) return t("settings.pushChannels.nameRequired");
   return null;
 }
 

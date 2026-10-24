@@ -10,7 +10,7 @@
  */
 
 import type { ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { InfoIcon, XIcon } from "@/components/icons";
 import { LiquidGlassButton } from "@/components/liquid-glass";
@@ -70,6 +70,7 @@ export function Banner({
   dismissLabel?: string;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   return (
     <div
       role="status"
@@ -86,7 +87,7 @@ export function Banner({
           </div>
         )}
       </div>
-      {action && <div className="shrink-0 self-center max-sm:ml-7">{action}</div>}
+      {action && <div className={`shrink-0 self-center max-sm:ml-7${locale === "en" ? " max-sm:max-w-[calc(100%-1.75rem)]" : ""}`}>{action}</div>}
       {onDismiss && (
         <button
           type="button"

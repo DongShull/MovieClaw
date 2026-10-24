@@ -6156,5 +6156,203 @@
   },
   "cloudConnect.capabilityControl": {
     "sourceHash": "3ff77be070b2e2a97803f92de9bf1872a0bb376fcdedece6c81c1849256afde7"
+  },
+  "pushChannels.removeTitle": {
+    "sourceHash": "216b7814bf87db02aa843a9a9fe56f02c74c9a39c214c9b2816d027caaab7565"
+  },
+  "pushChannels.removeHint": {
+    "sourceHash": "477780ec8fd4c6bb25c771e806789866e7ea8a904dae4e213367143261a122dd"
+  },
+  "pushChannels.removed": {
+    "sourceHash": "e6d7b9ff838f4e6c86fd194fa5718b972357a87f78ffca19631261b509014832"
+  },
+  "pushChannels.addRelay": {
+    "sourceHash": "e0ad3e94f9bac851e107c6b1b0d6df24a055002a899dadf8155999d1152433f0"
+  },
+  "pushChannels.viewDevices": {
+    "sourceHash": "8686a751eccddec52be2f094528e40299697a08598031dfe7c8cea1c0cdb00d6"
+  },
+  "pushChannels.routingHint": {
+    "sourceHash": "38f9d71144544c6ce54ea2d8523b41d96944191be3ef0de8963b64ffdf4574df"
+  },
+  "pushChannels.channels": {
+    "sourceHash": "0862c62eaf46c8d0ce7b399436c40838491d378131c6027a4cfda796f8ca1674"
+  },
+  "pushChannels.relayHint": {
+    "sourceHash": "0fb94a25038d2d441ee2777b4a5468ca092fc3172b682d24cef014628f8f0164"
+  },
+  "pushChannels.deploy": {
+    "sourceHash": "2736f5b686d886174cf5beb33c407ef6f436fd5caef3106f87a79edf42637345"
+  },
+  "pushChannels.added": {
+    "sourceHash": "5471b1484a115fb5b685b931c56a86d3bbffa7250329b8bc275b9f2632d331df"
+  },
+  "pushChannels.saved": {
+    "sourceHash": "1bd91a7d0c53c93693523300ece2f5ee35f4643df383495723e944d6f056a720"
+  },
+  "pushChannels.more": {
+    "sourceHash": "083833f1a1f22a1fc48758daa545094eb1eaa67bcd4f0c098ec721586e243d12"
+  },
+  "pushChannels.edit": {
+    "sourceHash": "051836569928a9f91145a70e00b212b62a06c21a97d2d828cb75acd3fbe851b9"
+  },
+  "pushChannels.refresh": {
+    "sourceHash": "a13550662feade033aa4a2f162e28c573eccbc0915a5078fb87ee3e411147491"
+  },
+  "pushChannels.enable": {
+    "sourceHash": "4ee031f66df0728b8e081cf54c2b373352caaa2134098358e944aadf0b9eea9e"
+  },
+  "pushChannels.officialHint": {
+    "sourceHash": "70724d4f6ccf8e1097e37814ce4a97d1ce021a3599dbe00b2891efc1dd4e334c"
+  },
+  "pushChannels.connectHint": {
+    "sourceHash": "76ef0096b32f006379b833f6764077a282aa9951dc33e9f8a6c83476e576ff25"
+  },
+  "pushChannels.connect": {
+    "sourceHash": "43916191d9ffd2dc0e975d4aa6d4dd4517265e6d17a619cd82072329fde221b4"
+  },
+  "pushChannels.statusReceipt": {
+    "sourceHash": "5ab24b7f5cf04d3efac46b2b6825fe9b8788f18504626d81b2e1e96ed139f7d1"
+  },
+  "pushChannels.probeHint": {
+    "sourceHash": "e33cf1a3cf3db4eeb0765a26b2ff503a42225276003b93e1d1e1d972405d8a44"
+  },
+  "pushChannels.address": {
+    "sourceHash": "a15d88d5b564acd8b561f183dc4feeb6b54fa5bc390a16bd7d64f90457d102e7"
+  },
+  "pushChannels.probing": {
+    "sourceHash": "3a1abf3422d22d7dce9ef7f0239085c5cdd95387c3f81cf227c0c5de5bec3fc9"
+  },
+  "pushChannels.probe": {
+    "sourceHash": "071089398bfdb584d87f77385fef7c825fb33da575029a6dabffe51e2f975724"
+  },
+  "pushChannels.stale": {
+    "sourceHash": "2beb8891ce7f0c99107b632da977430420b22cb774fff694f6c94b0d2c18998e"
+  },
+  "pushChannels.issuerHint": {
+    "sourceHash": "8e06630672fef9606b5b1a81520b249789426bd830157b202837161c9ced595a"
+  },
+  "pushChannels.token": {
+    "sourceHash": "735da237b6da18549a2c55a0efef66bf7398a4e615fc67a63b2a6a0516e446d6"
+  },
+  "pushChannels.tokenHint": {
+    "sourceHash": "47ce118f27dc4cca246f5819645ac68bb9705f809e464ee6968f437fc738f892"
+  },
+  "pushChannels.name": {
+    "sourceHash": "d44e9b3d3b31d37b4f0cd94f7861383519f9ec0cf59b953596627a3e7706bfbc"
+  },
+  "pushChannels.namePlaceholder": {
+    "sourceHash": "2439cb5cc90136f2ccee901ddf6e3342d0df2805fa4027275171c6188ee072ef"
+  },
+  "pushChannels.ownAppHint": {
+    "sourceHash": "dfc617aaa01fdd3188dc887b6c404e497b6d018d6c226eb97027fdd4084fb973"
+  },
+  "pushChannels.unreachable": {
+    "sourceHash": "8b5b3597cac0483183ccc89b5ce146586ce103f0ae9fd0b1c894fc18221b130d"
+  },
+  "pushChannels.incompatible": {
+    "sourceHash": "3faf5345ba9c9cca0776e0063ea98b5493476e878e08e729075902587d3b289e"
+  },
+  "pushChannels.reachable": {
+    "sourceHash": "62c7e693176f850560ecc2f395409f3f67be672276e2e2e86e3ce74f859e1ad9"
+  },
+  "pushChannels.software": {
+    "sourceHash": "fa3d7d159a1383b2959b2f3600fd40aab98c5cc48028c1aff801ee75735ec44d"
+  },
+  "pushChannels.undeclared": {
+    "sourceHash": "524a0bd8be900fcf7e5f82768c26bf9dbd1fc1182ed53f7e8ee75b1f22ed79c4"
+  },
+  "pushChannels.protocol": {
+    "sourceHash": "e605c2f155ab78fda0c94192e67dd17cefe42f3b8e485e98e3b09d7ab101c1d1"
+  },
+  "pushChannels.auth": {
+    "sourceHash": "9f026bf13ad9c28d30256bb21d1a0fd6430a32ac55b5b2de7dac979025cffb9f"
+  },
+  "pushChannels.authWithMode": {
+    "sourceHash": "14377357c787da10c4c47de18e89899062f83d02e966a4d563c25b8fa3e01d29"
+  },
+  "pushChannels.apps": {
+    "sourceHash": "8af2a433c7b6a4446e7b22f3cfd86e0a900d65c9ecb54fd693fa29ad59e4ec8d"
+  },
+  "pushChannels.coveredDevices": {
+    "sourceHash": "6cea65665a3e43f7cd5d45c8941c562ffece19acbd9e7081a8362b7f35d459e6"
+  },
+  "pushChannels.coveredCount": {
+    "sourceHash": "fb89369adadf163b5a29579d65b18ca120ce775194b4cdb3d284223e0ff57f25"
+  },
+  "pushChannels.editTitle": {
+    "sourceHash": "91c96374750c7d6e10b6813ccd854f9b56134661b6d39987ddf82424747ad562"
+  },
+  "pushChannels.editRelay": {
+    "sourceHash": "573a55998846ceb99ea0d34a11ed2475020910ec7c9d95acabf733fffa37e06f"
+  },
+  "pushChannels.addressHint": {
+    "sourceHash": "ea8ef5d7db88b8476bc91fbdb8c0723912b11fe82656e4bbf8cb8e539896fbfb"
+  },
+  "pushChannels.noToken": {
+    "sourceHash": "354baa14871e5c40a3bc7476c52b5d1e8d098b74431a58aa1adeb7dbd0862a66"
+  },
+  "pushChannels.keepToken": {
+    "sourceHash": "35926b33210681bcfbb71db82fd1b61d8dc4f17e4c737f00bc7623d9ebc555aa"
+  },
+  "pushChannels.keepValue": {
+    "sourceHash": "3260348163d03b8e4661390954321da0efbf3ef08587167cb4afd0b2dd6b198b"
+  },
+  "pushChannels.stateOk": {
+    "sourceHash": "296de0e31f8c22d9343c1f07f7fcd2e88a425d769cb0c88d8b24cc865f2c0685"
+  },
+  "pushChannels.stateWarning": {
+    "sourceHash": "47a6e46e0880c99496d383d1f6b838ee83ef35d98866080258eadb704a1f9e0b"
+  },
+  "pushChannels.stateError": {
+    "sourceHash": "3f6c407778bda3a1e76428cbd652ef59bf9f05a16fd7952c8d196b73bd88caaf"
+  },
+  "pushChannels.stateInactive": {
+    "sourceHash": "f95ea7f4c063eea7e863c6e43d471dc0bac0d3870a2640bc3b0ee530531406e9"
+  },
+  "pushChannels.stateUnactivated": {
+    "sourceHash": "fdc1183b68106c4e022fe7cdfb2695af8ea488a11045b2225ca5cbc15752edad"
+  },
+  "pushChannels.authIssuer": {
+    "sourceHash": "a359c524512eca6194186c46be1f6278669b1b463d6bfdb0845f4f2befaa1df2"
+  },
+  "pushChannels.authNone": {
+    "sourceHash": "100916806f16d1f4391eda20d17cad5ce3a987c28eaef93edd660ae414778bf1"
+  },
+  "pushChannels.quotaLimit": {
+    "sourceHash": "dab48b15fc360cf9fc8e773028f6f7cb883ea90fdfaed0cb3b9e55563c2fe098"
+  },
+  "pushChannels.quotaExhausted": {
+    "sourceHash": "20743d302b5481d0aa891e2a40218b5c18652cee912fe0bc4c2a1c7994518219"
+  },
+  "pushChannels.quotaUsedLimit": {
+    "sourceHash": "9f0e73109872ed6c538cbd9c97b89b4abc9aed9a6085fdfed97d66a89d039958"
+  },
+  "pushChannels.quotaUsed": {
+    "sourceHash": "025c19b305c9f94f7046f6797c4dc81a5319374ec379904e4c957d6c0fb21eb2"
+  },
+  "pushChannels.deviceCount": {
+    "sourceHash": "b7dc5fcec72da6cd54e435a2c641e2d9b5dec261bed5d6396e7b6ad82df1564c"
+  },
+  "pushChannels.uncovered": {
+    "sourceHash": "2832b94d36c324553b2bcccad65be16f0692dca494abbdd33835c16f216b3d91"
+  },
+  "pushChannels.checkFirst": {
+    "sourceHash": "25d71117f7d71a6708ecee5535726105a24ca00f19948b1e1bca9bd8c406b54a"
+  },
+  "pushChannels.checkUnreachable": {
+    "sourceHash": "c4df736da000ca569ef0d1e2da16965e115dcb94866f4a4421d6fbaacaf6afe9"
+  },
+  "pushChannels.issuerBlocker": {
+    "sourceHash": "e4fb2ea48413b23db157defc59e836b210f9c62111e9d31b4f210c56b97662f8"
+  },
+  "pushChannels.tokenRequired": {
+    "sourceHash": "f202564bd78bcf80b97a05f82c2bcf41e0cdca78ead1f9ad27598da260bbe044"
+  },
+  "pushChannels.nameRequired": {
+    "sourceHash": "5f3865cd5aa09e3cafb409809200463d9e023b25b030db8d37a09f6d5292dc65"
+  },
+  "pushChannels.saving": {
+    "sourceHash": "ff509c9ba052a21c008c88b36ef5f13acc9cb693641689b35747be6daf11d9d6"
   }
 }

@@ -10,7 +10,7 @@ from movieclaw_api.i18n import use_locale
 from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services.cloud.client import CloudUnreachable
 from movieclaw_api.services.cloud.service import Pairing
-from movieclaw_api.services.push.relay import describe_network_error, network_error_ref
+from movieclaw_api.services.push.relay import network_error_ref
 from movieclaw_db.models import utcnow
 
 from . import test_cloud_push as cloud_fixture
@@ -120,7 +120,8 @@ def test_network_categories_and_pairing_raw_unknown_messages_remain_neutral():
         with use_locale("en"):
             assert not re.search(r"[\u3400-\u9fff]", render_value(network_error_ref(error)))
             assert "secret" not in render_value(network_error_ref(error))
-        assert re.search(r"[\u3400-\u9fff]", describe_network_error(error))
+        with use_locale("zh-Hans"):
+            assert re.search(r"[\u3400-\u9fff]", render_value(network_error_ref(error)))
     pairing = Pairing("api", "device", "user", "uri", "complete", "qr", utcnow(), 1, "name")
     pairing.set_message(reference("cloud.pairing.expired"))
     assert pairing.message_ref
