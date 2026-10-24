@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "next-intl";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Banner, ErrorBanner, StatusPill } from "@/components/cloud-push-ui";
@@ -57,6 +59,7 @@ export function PluginPackagesSection({
   locals: PluginInfo[];
   onChanged: () => void;
 }) {
+  const locale = useLocale();
   const [installed, setInstalled] = useState<InstalledPackage[] | null>(null);
   const [pending, setPending] = useState<PackageRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -235,8 +238,8 @@ export function PluginPackagesSection({
                   label={`${item.title} v${item.version}`}
                   description={
                     item.installed_version
-                      ? `升级（当前 v${item.installed_version}）· ${runtimeLabel(item.runtime)}`
-                      : `新安装 · ${runtimeLabel(item.runtime)}`
+                      ? `升级（当前 v${item.installed_version}）· ${runtimeLabel(item.runtime, locale)}`
+                      : `新安装 · ${runtimeLabel(item.runtime, locale)}`
                   }
                 >
                   <button
@@ -262,7 +265,7 @@ export function PluginPackagesSection({
                   <SettingsRow
                     key={item.id}
                     label={item.title}
-                    description={packageDetail(item)}
+                    description={packageDetail(item, locale)}
                     error={
                       progress?.phase === "failed"
                         ? `依赖安装失败：${progress.error ?? "未知原因"}`
@@ -280,7 +283,7 @@ export function PluginPackagesSection({
                     ) : (
                       <StatusPill
                         tone={item.state === "unloaded" ? "neutral" : pluginStateTone(item.state)}
-                        label={item.state === "unloaded" ? "未加载" : pluginStateLabel(item.state)}
+                        label={item.state === "unloaded" ? "未加载" : pluginStateLabel(item.state, locale)}
                       />
                     )}
                     <SettingsMoreMenu
@@ -323,11 +326,11 @@ export function PluginPackagesSection({
               <SettingsRow
                 key={p.id}
                 label={p.title}
-                description={`${p.id} · ${runtimeLabel(p.runtime)}`}
+                description={`${p.id} · ${runtimeLabel(p.runtime, locale)}`}
                 error={p.state === "failed" ? p.error : null}
                 href={pluginHref(p.id)}
               >
-                <StatusPill tone={pluginStateTone(p.state)} label={pluginStateLabel(p.state)} />
+                <StatusPill tone={pluginStateTone(p.state)} label={pluginStateLabel(p.state, locale)} />
               </SettingsRow>
             ))}
           </SettingsList>
@@ -398,6 +401,7 @@ export function ReviewDrawer({
   ) => void;
   onDiscard: (item: PackageRequest) => void;
 }) {
+  const locale = useLocale();
   const [allowInline, setAllowInline] = useState(false);
   const [allowMembers, setAllowMembers] = useState(false);
   // 带网页：须单独同意授信运行；加不加侧边栏、成员能不能看到由用户定（docs/design/plugin-web-pages.md §5）
@@ -620,7 +624,7 @@ export function ReviewDrawer({
               <ul className="space-y-1.5">
                 {item.paths.map((grant) => (
                   <li key={`${grant.path}:${grant.mode}`} className="text-[var(--text)]">
-                    {pathGrantLabel(grant)}
+                    {pathGrantLabel(grant, locale)}
                     {upgrade && isNewGrant(grant, item.new_paths) && newBadge}
                   </li>
                 ))}

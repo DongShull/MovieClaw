@@ -24,6 +24,20 @@
     "disabled": "Disabled"
   },
   "features": {
-    "changed": "\"{title}\" {state, select, enabled {enabled} other {disabled}}"
+    "changed": "\"{title}\" {state, select, enabled {enabled} other {disabled}}",
+    "subtitleGenTitle": "AI subtitle generation",
+    "subtitleGenDescription": "When Chinese subtitles are unavailable, use a model to translate subtitles from another language into Chinese external subtitle files",
+    "ingestWatchTitle": "Automatic import",
+    "ingestWatchDescription": "Watch download folders and automatically organize completed downloads into the library",
+    "libraryWatchTitle": "Real-time library monitoring",
+    "libraryWatchDescription": "Scan changes to library folders incrementally; turn this on or off in each library’s edit settings",
+    "boostTitle": "Automatic ratio boosting",
+    "boostDescription": "Download and seed according to site rules, yielding when upload bandwidth is constrained",
+    "arrivalsTitle": "New arrival notifications",
+    "arrivalsDescription": "Send notifications when new titles are added to a library",
+    "cloudTitle": "MovieClaw Cloud",
+    "cloudDescription": "Connect this server to your MovieClaw account for official push notifications and other cloud services",
+    "discoveryTitle": "Local network discovery",
+    "discoveryDescription": "Let MovieClaw apps, Infuse and other Jellyfin clients find this server automatically on the local network"
   }
 }

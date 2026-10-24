@@ -40,10 +40,23 @@ class FeatureSwitchPayload(BaseModel):
 
 def _views(request: Request) -> list[FeatureView]:
     from movieclaw_api.core.config import get_settings
+    from movieclaw_api.plugins.features import feature
     from movieclaw_api.services.plugin_features import feature_views
 
     kernel = getattr(request.app.state, "kernel", None)
-    return [FeatureView.model_validate(v) for v in feature_views(kernel, get_settings())]
+    result = []
+    for value in feature_views(kernel, get_settings()):
+        declared = feature(value["key"])
+        if declared is not None:
+            value = {
+                **value,
+                "title": t(declared.title_key) if declared.title_key else value["title"],
+                "description": t(declared.description_key)
+                if declared.description_key
+                else value["description"],
+            }
+        result.append(FeatureView.model_validate(value))
+    return result
 
 
 @router.get(

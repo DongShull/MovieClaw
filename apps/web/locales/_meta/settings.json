@@ -4710,5 +4710,176 @@
   },
   "importWatch.save": {
     "sourceHash": "a3030bf8f16dc63c6b277564c68f78a3be5abe5f2907c51826dee7184ff793fd"
+  },
+  "pluginDisplay.active": {
+    "sourceHash": "1f0eb99b7ed094bed9583489cc2d82772e8abc4b520bb49eeb62182357d1296e"
+  },
+  "pluginDisplay.failed": {
+    "sourceHash": "0cf642cf998c86ac0c6f3bf188f9ddf1742ee03c675964dc3ee6ec5b940b3807"
+  },
+  "pluginDisplay.pending": {
+    "sourceHash": "74dfc51e13be5ea42309f4ed0008ae75b436b6f4252b86c88ed819e846e1f6fe"
+  },
+  "pluginDisplay.disabled": {
+    "sourceHash": "6744b4c6a9aa00381ffea2b3d229778b0724b073bd46e13f4e73868667eeb44f"
+  },
+  "pluginDisplay.incompatible": {
+    "sourceHash": "25318608eff78e3a3f2eaae23a3db46da9e787d5e220c54a4a94fec4a637ed31"
+  },
+  "pluginDisplay.loading": {
+    "sourceHash": "33439d263173fae0bfc5d54c88d12e190fa9fda68a944e5de07fc4ed0fb9b5f8"
+  },
+  "pluginDisplay.unloading": {
+    "sourceHash": "72eea71385de7be63570f44fdbb492b9a0048df0c5f81481be9809017b932e69"
+  },
+  "pluginDisplay.disposed": {
+    "sourceHash": "f006455e3baf2b0bbc0919fa635b04b9cfece6205210dac1fb6a445d3b1c2459"
+  },
+  "pluginDisplay.switchedOff": {
+    "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+  },
+  "pluginDisplay.featureDisabled": {
+    "sourceHash": "89e0e2bc6140bdba09d08e6b029dc5cc9780f8164704f80ad986ca0c42450d81"
+  },
+  "pluginDisplay.patchDisabled": {
+    "sourceHash": "2a5a77ff94bbe72f6cbe7594f83de1adf9977167baeed34510fd17b2dfc97db5"
+  },
+  "pluginDisplay.envDisabled": {
+    "sourceHash": "25a545ce02db679d784e0d723f38742074460fa39d7cdf3b8d417035938f11c9"
+  },
+  "pluginDisplay.failedUnknown": {
+    "sourceHash": "7625c53bb560d5979f5213dc8d237abd6d965b7744211d06ef3bd9079b51d752"
+  },
+  "pluginDisplay.versionMismatch": {
+    "sourceHash": "4ce28e772eb28f4ac8d1575aeebe259b49fae97a1658e1093c8da656ca814548"
+  },
+  "pluginDisplay.dependencyDisabled": {
+    "sourceHash": "3b5565eb4a79a8abc6914fe32dcba4ee481e675167cde2d8d97267ad0fd8d873"
+  },
+  "pluginDisplay.waitingDependencies": {
+    "sourceHash": "988fbca95feb34ba60bec5a5d56125f74170b5bd1537b66f81e5729bad912bc1"
+  },
+  "pluginDisplay.missingDependency": {
+    "sourceHash": "4bc10b60597c53a09ff89b54049f6dff2d5950b337d8b5757f8773618f491f7f"
+  },
+  "pluginDisplay.reasonSeparator": {
+    "sourceHash": "b0d3c9cfa0e1ef6799ec266c5467a1dc04e54e2f22b853c2f35d1dec1bbd2e71"
+  },
+  "pluginDisplay.degraded": {
+    "sourceHash": "35230400c0ab9569025f30535fa753a2e1f46d567d50117dea9d695b4445cb19"
+  },
+  "pluginDisplay.startTime": {
+    "sourceHash": "07abf2442b7d98b12ce2261d74a5ecb7d5ff83695e6a8df49cb7026d1b37fdb2"
+  },
+  "pluginDisplay.backgroundTasks": {
+    "sourceHash": "ce14852ee7d99c3a19d05066d0d2e63ae3f502102301b76d3fd5ecc62829fb02"
+  },
+  "pluginDisplay.runtimeErrors": {
+    "sourceHash": "0335c62267f9146466cd923a575eb7629beb1968c7dc4e141abf50e4609ddffd"
+  },
+  "pluginDisplay.seconds": {
+    "sourceHash": "55c9cd213fa84dc512782ddd71944efd0d76b1edb64a184e2583bbeda9f3e65a"
+  },
+  "pluginDisplay.milliseconds": {
+    "sourceHash": "d951670fd7519b5e67c30f38cb39fbb34ea567573c8550d8bbba88c3362255c1"
+  },
+  "pluginDisplay.builtinSource": {
+    "sourceHash": "b271cd88bc7352942cc64b585b6e284307a73cc90237df6e747ecb18c7bfa0dd"
+  },
+  "pluginDisplay.replacedSource": {
+    "sourceHash": "be45e9a64a7253a00fe0f66de7e967c3e49883b19a4dbdd688fdf4261483a0b0"
+  },
+  "pluginDisplay.disabledBy": {
+    "sourceHash": "7bfde4c0bd6e729692cf7d5f8cc8b9cc3098d8a9e426f54763e1c57224f2bb58"
+  },
+  "pluginDisplay.systemProblems": {
+    "sourceHash": "68ff0ebcbc54ddeee74e21c59c0acaa289375041077e6d06b03bcb56a7c8e5a3"
+  },
+  "pluginDisplay.systemsHealthy": {
+    "sourceHash": "a23caad89d473591b8f9967671bf3fcb069a4f1e073024b87e6204d32757c935"
+  },
+  "pluginDisplay.other": {
+    "sourceHash": "d2909f1647e7c891a8282759b2eaa961e84620ff04cda7b8b5478cb540d74fa4"
+  },
+  "pluginDisplay.systemCount": {
+    "sourceHash": "d1c554f46acdf4aab29c2267d537d5aecbbbb5e6975d19e74af75927393a96ad"
+  },
+  "pluginDisplay.activeCount": {
+    "sourceHash": "6d46d0280457691e0e06289e6a2702203185622e02d44cc3386010b8cdb92b48"
+  },
+  "pluginDisplay.problemCount": {
+    "sourceHash": "1f76c0e4838912ff421819a53bba9c14d830760388a7003ca9d85a0c2484e66c"
+  },
+  "pluginDisplay.disabledCount": {
+    "sourceHash": "d11465b340e48d5cc52736d9808c88010aa80f5b951ad6faf408d40c6d71d5a6"
+  },
+  "pluginDisplay.readWrite": {
+    "sourceHash": "d5c3328266122e34ced4257ab8ad99f7b7e43f5b786cdb1db88e22a671aa9a76"
+  },
+  "pluginDisplay.readOnly": {
+    "sourceHash": "3b5ec3533b0e44856a0266eff1dcdc2886fa48be4a8c34aaf43c4bec211383e3"
+  },
+  "pluginDisplay.allLibraries": {
+    "sourceHash": "2a0d1e3fb724a6a0f7ec5bcbdb174d8fb24e44df68589527847b3268014326d7"
+  },
+  "pluginDisplay.libraryNumber": {
+    "sourceHash": "9a6d9eb56f28b96d849c5cab50d2567cc90bac7f62baea75dae5a0415a3096f6"
+  },
+  "pluginDisplay.stagingFolders": {
+    "sourceHash": "d4f6085047e6bb9b8cd2b19e81d33e169d6381077824c7d8802679db527aed8a"
+  },
+  "pluginDisplay.pluginFolder": {
+    "sourceHash": "1e3ebbc528897a620e30f35b98e8d96c5a0e434969648593c9dac88bf4c128e9"
+  },
+  "pluginDisplay.pathGrant": {
+    "sourceHash": "300c20e57bd9358b9ea9f5d07ba8bd774948b6fe4a9ed7160bf4d89bd78f281e"
+  },
+  "pluginDisplay.inlineRuntime": {
+    "sourceHash": "0b7243bdf52e76cdd67a53c71187996f3437542cd79c568b3fa999281f5a80cb"
+  },
+  "pluginDisplay.processRuntime": {
+    "sourceHash": "3182e891b31707374adbfe5f94884f8419c73f0caf1a0f1d529ba9a1ee7b169f"
+  },
+  "pluginDisplay.replacesBuiltin": {
+    "sourceHash": "4c63f85c27dfe3c1ab2bd60b71348673a8a8a69254f2ee4b2c41240e56abd979"
+  },
+  "pluginDisplay.operationCount": {
+    "sourceHash": "ef9d72b1efc40c73d2d14cea833429ef68794f7cf9eabea8a46add7cc1ee40e0"
+  },
+  "pluginDisplay.pathCount": {
+    "sourceHash": "5d2d1362467a6bf11f022b64991f8ad06a92e681ee21c3f17c9f5090f9a18ffd"
+  },
+  "pluginDisplay.installingDependencies": {
+    "sourceHash": "d70a4691c69e0d36a6f135cdb8a74ae816550f14e264b6eb9283408fb4343cfe"
+  },
+  "pluginDisplay.preparingDependencies": {
+    "sourceHash": "bff8321d3d61a81f2ada3d534d8c7c1781d371aa3eabc311449ae2587af03929"
+  },
+  "pluginDisplay.packageCount": {
+    "sourceHash": "3c3a5bb7bfaf683de50341f35067e02f43cef2a8b668f91356932bac613949e8"
+  },
+  "pluginDisplay.watching": {
+    "sourceHash": "a235c8e913332bd75b1def9d3f31bd0cae97cc3cb87e66de34f673c440772d16"
+  },
+  "pluginDisplay.badVersions": {
+    "sourceHash": "37ddf5aaae3ef085252a1aa42501e889695219a680ac836e1808477831eea860"
+  },
+  "featureOff.restored": {
+    "sourceHash": "0d9286b46d9313df52572951a8f0fc2f0ad2e3a0de0917b60f0a6086f5778230"
+  },
+  "featureOff.failed": {
+    "sourceHash": "1d4734432a113fb72f32fa12abaf96d298e62308649477f8720f0792f6465b08"
+  },
+  "featureOff.title": {
+    "sourceHash": "0d894364b2d32b61a9f8ef7b0ad1fd57c62dec1ee006e768522581bdfa3a86bb"
+  },
+  "featureOff.enabling": {
+    "sourceHash": "6dae991eea1501f16f51a2b0f088758c8be098a3bc319a0c80537bc631ce1262"
+  },
+  "featureOff.enable": {
+    "sourceHash": "157d24e1568aa10bf4114488c830cd491dead95c46b2b340616bb61426056957"
+  },
+  "featureOff.reason": {
+    "sourceHash": "941ed908c32b43f49b1f3a1c2914bdef2532bd258b6e2caba338c36b417de7c0"
   }
 }

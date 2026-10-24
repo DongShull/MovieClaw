@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "next-intl";
+
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -79,6 +81,7 @@ const KIND_LABEL: Record<PluginDetail["kind"], string> = {
 };
 
 export function PluginDetailView({ id }: { id: string }) {
+  const locale = useLocale();
   const router = useRouter();
   const toast = useToast();
   const confirm = useConfirm();
@@ -210,13 +213,13 @@ export function PluginDetailView({ id }: { id: string }) {
           <div className="flex flex-wrap items-center gap-3">
             {/* 内核给独立进程的条目标题加了「（独立进程）」后缀；运行方式已在下面的元信息里 */}
             <h2 className="text-title font-semibold text-[var(--text)]">{p.title.replace(/（独立进程）$/, "")}</h2>
-            <StatusPill tone={pluginStateTone(state)} label={pluginStateLabel(state)} />
+            <StatusPill tone={pluginStateTone(state)} label={pluginStateLabel(state, locale)} />
           </div>
           {detail.description && (
             <p className="text-body leading-relaxed text-[var(--text-muted)]">{detail.description}</p>
           )}
           {state !== "active" && !needsAttention(p) && (
-            <p className="text-sub text-[var(--text-muted)]">{pluginDetail(p)}</p>
+            <p className="text-sub text-[var(--text-muted)]">{pluginDetail(p, locale)}</p>
           )}
           <p className="text-caption text-[var(--text-faint)]">{meta.join(" · ")}</p>
         </div>
@@ -224,7 +227,7 @@ export function PluginDetailView({ id }: { id: string }) {
 
       {(needsAttention(p) || degraded.length > 0) && (
         <Banner tone="warn" title={state === "active" ? "运行异常" : "没有正常运行"}>
-          <p className="text-sub leading-5 text-[var(--text-muted)]">{pluginDetail(p)}</p>
+          <p className="text-sub leading-5 text-[var(--text-muted)]">{pluginDetail(p, locale)}</p>
           <p className="mt-2 text-sub">
             <Link href={pluginLogsHref(p) as Route} className={LINK_CLASS}>
               查看它的日志
@@ -480,6 +483,7 @@ export function PluginDetailView({ id }: { id: string }) {
  * 源码位置只在这里出现一次；值用等宽字，列表用小标签，空的写「—」。
  */
 function Diagnostics({ detail }: { detail: PluginDetail }) {
+  const locale = useLocale();
   const p = detail.plugin;
   const source = detail.source;
   return (
@@ -510,10 +514,10 @@ function Diagnostics({ detail }: { detail: PluginDetail }) {
             {p.id}
           </DiagRow>
           <DiagRow label="来源">{SOURCE_LABEL[p.source] ?? p.source}</DiagRow>
-          <DiagRow label="运行方式">{runtimeLabel(p.runtime)}</DiagRow>
-          <DiagRow label="启动耗时">{p.apply_ms != null ? formatMs(p.apply_ms) : "—"}</DiagRow>
+          <DiagRow label="运行方式">{runtimeLabel(p.runtime, locale)}</DiagRow>
+          <DiagRow label="启动耗时">{p.apply_ms != null ? formatMs(p.apply_ms, locale) : "—"}</DiagRow>
           <DiagRow label="处理">
-            平均 {formatMs(p.stats.handler_avg_ms)} · 失败 {p.stats.failures} 次 · 超时{" "}
+            平均 {formatMs(p.stats.handler_avg_ms, locale)} · 失败 {p.stats.failures} 次 · 超时{" "}
             {p.stats.timeouts} 次 · {BREAKER_LABEL[p.stats.breaker] ?? p.stats.breaker}
           </DiagRow>
         </DiagGroup>
@@ -620,6 +624,7 @@ function GoLink({ href }: { href: string }) {
  * 「无」；每项按风险分级（LEVELS）标色，高的排前面。官方与系统模块是随应用提供的受信代码。
  */
 function Permissions({ detail }: { detail: PluginDetail }) {
+  const locale = useLocale();
   const pkg = detail.package;
   if (!pkg) {
     if (detail.kind === "system") return null;
@@ -628,7 +633,7 @@ function Permissions({ detail }: { detail: PluginDetail }) {
         <p className="px-1 text-sub leading-relaxed text-[var(--text-muted)]">
           {detail.kind === "official"
             ? "随 MovieClaw 提供的受信代码，在主程序里运行。"
-            : `你在 data/plugins.yaml 里开启的本地插件（${runtimeLabel(detail.plugin.runtime)}），权限也在那里配置。`}
+            : `你在 data/plugins.yaml 里开启的本地插件（${runtimeLabel(detail.plugin.runtime, locale)}），权限也在那里配置。`}
         </p>
       </SettingsSection>
     );
@@ -641,7 +646,7 @@ function Permissions({ detail }: { detail: PluginDetail }) {
     grants.push({ level: op.dangerous ? "high" : "low", title: op.summary });
   }
   for (const grant of pkg.paths) {
-    grants.push({ level: grant.mode === "rw" ? "medium" : "low", title: `访问${pathGrantLabel(grant)}` });
+    grants.push({ level: grant.mode === "rw" ? "medium" : "low", title: `访问${pathGrantLabel(grant, locale)}` });
   }
   if (pkg.callbacks.length > 0) {
     grants.push({

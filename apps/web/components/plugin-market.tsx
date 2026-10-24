@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "next-intl";
+import type { AppLocale } from "@/lib/i18n/negotiate";
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
 
@@ -480,6 +483,7 @@ function PluginDrawer({
   onClose: () => void;
   onInstall: (version: string) => void;
 }) {
+  const locale = useLocale();
   const [tab, setTab] = useState<DetailTab>("about");
   const [detail, setDetail] = useState<MarketPluginDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -592,7 +596,7 @@ function PluginDrawer({
         )}
 
         {version && (
-          <p className="text-caption leading-5 text-[var(--text-faint)]">{technicalLine(plugin, version)}</p>
+          <p className="text-caption leading-5 text-[var(--text-faint)]">{technicalLine(plugin, version, locale)}</p>
         )}
 
         <SettingsTabs
@@ -616,13 +620,13 @@ function PluginDrawer({
   );
 }
 
-function technicalLine(plugin: MarketPlugin, version: MarketVersion): string {
-  const released = version.released_at ? formatDateTime(version.released_at) : "";
+function technicalLine(plugin: MarketPlugin, version: MarketVersion, locale: AppLocale): string {
+  const released = version.released_at ? formatDateTime(version.released_at, locale) : "";
   return [
     `v${version.version}`,
     released === "—" ? "" : released,
     version.size ? formatBytes(version.size) : "",
-    runtimeLabel(version.runtime),
+    runtimeLabel(version.runtime, locale),
     categoryLabel(plugin.category),
     plugin.license,
     plugin.id,

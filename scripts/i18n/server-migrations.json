@@ -2269,5 +2269,19 @@
   "settings.driveLogin.relogged": "已重新登录：{name}",
   "settings.driveLogin.webLogin": "网页端",
   "settings.importWatch.customTarget": "自定义目录（{kind} · {path}）",
-  "settings.importWatch.autoTarget": "自动路由（{kind}）"
+  "settings.importWatch.autoTarget": "自动路由（{kind}）",
+  "plugins.features.subtitleGenTitle": "AI 字幕生成",
+  "plugins.features.subtitleGenDescription": "没有中文字幕时，用模型把其他语言的字幕翻译成中文外挂字幕",
+  "plugins.features.ingestWatchTitle": "自动入库",
+  "plugins.features.ingestWatchDescription": "监听下载目录，下载完成后自动整理进媒体库",
+  "plugins.features.libraryWatchTitle": "媒体库实时监控",
+  "plugins.features.libraryWatchDescription": "媒体库目录有变化时自动增量扫描；在每个媒体库的编辑里开关",
+  "plugins.features.boostTitle": "自动刷分享率",
+  "plugins.features.boostDescription": "按站点规则自动下载与做种，并在上行吃紧时让路",
+  "plugins.features.arrivalsTitle": "新片到达通知",
+  "plugins.features.arrivalsDescription": "媒体库有新片入库时推送通知",
+  "plugins.features.cloudTitle": "MovieClaw Cloud",
+  "plugins.features.cloudDescription": "把这台服务器连到你的 MovieClaw 账号，使用官方推送等云端服务",
+  "plugins.features.discoveryTitle": "局域网发现",
+  "plugins.features.discoveryDescription": "让 MovieClaw 各端 App 和 Infuse 等 Jellyfin 客户端在局域网里自动找到这台服务器"
 }

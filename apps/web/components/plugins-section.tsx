@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "next-intl";
+
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -221,6 +223,7 @@ export function PluginsPage() {
 
 /** 页面顶部：没有正常运行的系统模块（平时看不到它们，出问题才浮出来） */
 function SystemProblems({ plugins }: { plugins: PluginInfo[] }) {
+  const locale = useLocale();
   return (
     <Banner tone="warn" title={`有 ${plugins.length} 个系统模块没有正常运行`}>
       <ul className="mt-1 space-y-1.5">
@@ -229,7 +232,7 @@ function SystemProblems({ plugins }: { plugins: PluginInfo[] }) {
             <Link href={pluginHref(p.id) as never} className={LINK_CLASS}>
               {p.title}
             </Link>
-            <span className="text-[var(--text-muted)]">：{pluginDetail(p)}</span>{" "}
+            <span className="text-[var(--text-muted)]">：{pluginDetail(p, locale)}</span>{" "}
             <Link href={pluginLogsHref(p) as never} className={`${LINK_CLASS} whitespace-nowrap`}>
               查看日志
             </Link>
@@ -256,6 +259,7 @@ function OfficialSection({
   removed: RemovedPlugin[];
   onChanged: () => void;
 }) {
+  const locale = useLocale();
   const toast = useToast();
   const [restoring, setRestoring] = useState<string | null>(null);
   if (plugins.length === 0 && removed.length === 0) return null;
@@ -279,10 +283,10 @@ function OfficialSection({
           <div key={p.id} data-plugin-ids={p.id} className={ROW_ANCHOR}>
             <SettingsRow
               label={p.title}
-              description={needsAttention(p) ? pluginDetail(p) : officialSourceText(p)}
+              description={needsAttention(p) ? pluginDetail(p, locale) : officialSourceText(p, locale)}
               href={pluginHref(p.id)}
             >
-              <StatusPill tone={pluginStateTone(displayState(p))} label={pluginStateLabel(displayState(p))} />
+              <StatusPill tone={pluginStateTone(displayState(p))} label={pluginStateLabel(displayState(p), locale)} />
             </SettingsRow>
           </div>
         ))}
@@ -318,7 +322,8 @@ function SystemModules({
   open: boolean;
   onToggle: () => void;
 }) {
-  const line = systemModulesLine(plugins);
+  const locale = useLocale();
+  const line = systemModulesLine(plugins, locale);
   const slow = slowestStarts(plugins);
   return (
     <section className="space-y-6 border-t border-[var(--line)] pt-6">
@@ -342,11 +347,11 @@ function SystemModules({
         <div className="space-y-10">
           <p className="px-1 text-caption leading-5 text-[var(--text-faint)]">
             应用运行所需的内部模块，无需操作。一个出问题只影响它自己，其余功能照常。
-            {` ${pluginsSummary(plugins)}`}
+            {` ${pluginsSummary(plugins, locale)}`}
             {slow.length > 0 &&
-              ` · 启动最慢：${slow.map((p) => `${p.title} ${formatMs(p.apply_ms ?? 0)}`).join("、")}`}
+              ` · 启动最慢：${slow.map((p) => `${p.title} ${formatMs(p.apply_ms ?? 0, locale)}`).join("、")}`}
           </p>
-          {groupBuiltins(plugins, groups).map((group) => (
+          {groupBuiltins(plugins, groups, locale).map((group) => (
             <SettingsSection key={group.label} title={group.label}>
               <SettingsList>
                 {group.plugins.map((p) => (
@@ -360,10 +365,10 @@ function SystemModules({
                           </span>
                         </span>
                       }
-                      description={pluginDetail(p)}
+                      description={pluginDetail(p, locale)}
                       href={pluginHref(p.id)}
                     >
-                      <StatusPill tone={pluginStateTone(displayState(p))} label={pluginStateLabel(displayState(p))} />
+                      <StatusPill tone={pluginStateTone(displayState(p))} label={pluginStateLabel(displayState(p), locale)} />
                     </SettingsRow>
                   </div>
                 ))}

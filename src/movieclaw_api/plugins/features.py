@@ -39,6 +39,8 @@ class Feature:
     settings_href: str | None = None
     #: 能不能停用（停用 = 组成插件全部不运行，运行中生效、重启保持）
     switchable: bool = False
+    title_key: str | None = None
+    description_key: str | None = None
 
 
 FEATURES: tuple[Feature, ...] = (
@@ -48,6 +50,8 @@ FEATURES: tuple[Feature, ...] = (
         "没有中文字幕时，用模型把其他语言的字幕翻译成中文外挂字幕",
         ("subtitle.gen", "subtitle.pgs-warm"),
         "/settings/ai",
+        title_key="plugins.features.subtitleGenTitle",
+        description_key="plugins.features.subtitleGenDescription",
     ),
     Feature(
         "ingest-watch",
@@ -56,6 +60,8 @@ FEATURES: tuple[Feature, ...] = (
         ("library.ingest-watch",),
         "/settings/import-watch",
         switchable=True,
+        title_key="plugins.features.ingestWatchTitle",
+        description_key="plugins.features.ingestWatchDescription",
     ),
     Feature(
         "library-watch",
@@ -64,6 +70,8 @@ FEATURES: tuple[Feature, ...] = (
         ("library.watch",),
         "/library/manage",
         switchable=True,
+        title_key="plugins.features.libraryWatchTitle",
+        description_key="plugins.features.libraryWatchDescription",
     ),
     Feature(
         "boost",
@@ -71,6 +79,8 @@ FEATURES: tuple[Feature, ...] = (
         "按站点规则自动下载与做种，并在上行吃紧时让路",
         ("boost", "boost.sentinel"),
         "/settings/sites",
+        title_key="plugins.features.boostTitle",
+        description_key="plugins.features.boostDescription",
     ),
     Feature(
         "arrivals",
@@ -79,6 +89,8 @@ FEATURES: tuple[Feature, ...] = (
         ("push.arrivals",),
         "/settings/notifications",
         switchable=True,
+        title_key="plugins.features.arrivalsTitle",
+        description_key="plugins.features.arrivalsDescription",
     ),
     Feature(
         "cloud",
@@ -86,6 +98,8 @@ FEATURES: tuple[Feature, ...] = (
         "把这台服务器连到你的 MovieClaw 账号，使用官方推送等云端服务",
         ("cloud", "push.channels-refresh"),
         "/settings/cloud",
+        title_key="plugins.features.cloudTitle",
+        description_key="plugins.features.cloudDescription",
     ),
     Feature(
         "jellyfin-discovery",
@@ -93,6 +107,8 @@ FEATURES: tuple[Feature, ...] = (
         "让 MovieClaw 各端 App 和 Infuse 等 Jellyfin 客户端在局域网里自动找到这台服务器",
         ("jellyfin.discovery",),
         switchable=True,
+        title_key="plugins.features.discoveryTitle",
+        description_key="plugins.features.discoveryDescription",
     ),
 )
 
