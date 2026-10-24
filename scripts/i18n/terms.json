@@ -46,5 +46,8 @@
   ],
   "settings.scrape.languageOptions": [
     "languages"
+  ],
+  "subscription.inspector.off": [
+    "off"
   ]
 }

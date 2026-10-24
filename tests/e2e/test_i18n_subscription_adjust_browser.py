@@ -136,12 +136,16 @@ def test_adjust_and_cleanup_real_files_in_both_themes(stack, browser, tmp_path):
         if theme_id == "netflix":
             expect(page.locator("html")).to_have_attribute("data-theme", "netflix")
             page.locator('[class*="nf:"]').first.wait_for(state="attached")
-        page.get_by_role("button", name="更多", exact=True).click()
-        item = page.get_by_role("menuitem", name="调整订阅…", exact=True)
+        page.get_by_role("button", name="More" if language == "en" else "更多", exact=True).click()
+        item = page.get_by_role(
+            "menuitem", name="Adjust subscription…" if language == "en" else "调整订阅…", exact=True
+        )
         if item.count():
             item.click()
         else:
-            page.get_by_role("button", name="调整订阅", exact=True).last.click()
+            page.get_by_role(
+                "button", name="Adjust subscription" if language == "en" else "调整订阅", exact=True
+            ).last.click()
         return page.get_by_role(
             "dialog", name="Adjust subscription" if language == "en" else "调整订阅", exact=True
         )

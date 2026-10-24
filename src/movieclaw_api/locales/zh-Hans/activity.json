@@ -73,6 +73,11 @@
     "createdNoEpisodes": "暂无待办集",
     "adjusted": "调整订阅：勾选{seasons}，自动续订{follow, select, yes {开} other {关}}{ruleChanged, select, yes {，规则组改为「{rule}」} other {}}{floorsChanged, select, yes {，集数{floors}} other {}}；新增 {added} 个单元，重新纳入 {reactivated} 个，退出范围 {deactivated} 个（下载器任务不会自动删除；退出范围后停止搜索与换源）",
     "episodeFloor": "第 {season} 季按 {count} 集",
-    "tmdbEpisodeCount": "改回以 TMDB 为准"
+    "tmdbEpisodeCount": "改回以 TMDB 为准",
+    "noVerifiedSites": "当前没有可用的已验证站点",
+    "searchSiteError": "{site}：{reason}",
+    "searchKeyword": "「{word}」{count} 条",
+    "searchKeywords": "关键词{entries}",
+    "searchCompleted": "搜索《{title}》（{keywords}）：{sites} 个站点返回 {results} 个结果，身份命中 {hits}，规则拒绝 {rejected}，投递覆盖 {dispatched} 个单元{hasRemaining, select, yes {；剩余 {remaining} 个缺口按退避曲线排期} other {；本组缺口已全部安排}}"
   }
 }

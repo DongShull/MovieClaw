@@ -73,6 +73,11 @@
     "createdNoEpisodes": "No pending episodes",
     "adjusted": "Adjusted subscription: selected {seasons}, following future releases {follow, select, yes {on} other {off}}{ruleChanged, select, yes {, rule set changed to “{rule}”} other {}}{floorsChanged, select, yes {, episode counts: {floors}} other {}}; added {added, plural, one {# unit} other {# units}}, restored {reactivated, number}, removed {deactivated, number} from scope (downloader tasks are kept; searches and source replacement stop for removed units)",
     "episodeFloor": "season {season, number}: {count, plural, one {# episode} other {# episodes}}",
-    "tmdbEpisodeCount": "use TMDB counts again"
+    "tmdbEpisodeCount": "use TMDB counts again",
+    "noVerifiedSites": "No verified sites are currently available",
+    "searchSiteError": "{site}: {reason}",
+    "searchKeyword": "“{word}”: {count, plural, one {# result} other {# results}}",
+    "searchKeywords": "Keywords {entries}",
+    "searchCompleted": "Searched for “{title}” ({keywords}): {sites, plural, one {# site returned} other {# sites returned}} {results, plural, one {# result} other {# results}}, {hits, number} identity matches, {rejected, number} rejected by rules, {dispatched, plural, one {# unit covered by dispatches} other {# units covered by dispatches}}{hasRemaining, select, yes {; {remaining, plural, one {# remaining unit scheduled with backoff} other {# remaining units scheduled with backoff}}} other {; all missing units in this group have been arranged}}"
   }
 }

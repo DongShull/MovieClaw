@@ -19,7 +19,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.schemas.search import TorrentHit
 from movieclaw_api.services.subscription.matching import (
     SEARCH_FAILURE_RETRY,
@@ -102,15 +102,6 @@ def recall_keywords(item: MediaItem) -> list[str]:
     # 全空时**返回空列表**而不是硬塞一个主标题：主标题本身就可能是空串，拿它
     # 去搜等于向站点发一次空关键词查询（多数站点会回整个索引）。调用方据此跳过
     return picked
-
-
-def _keyword_text(per_keyword: list[tuple[str, int]]) -> str:
-    """逐词结果数的活动文案："关键词「A」12 条 /「B」70 条"。
-
-    合并去重之后单看总数看不出是哪个词召回的。"为什么没搜到正片"这个问题
-    只有逐词结果数能回答，它是本模块最该留给用户的一条线索。
-    """
-    return "关键词" + " / ".join(f"「{word}」{count} 条" for word, count in per_keyword)
 
 
 # tick 互斥：除定时任务外，订阅域写操作产生"立刻可搜"的工单后也会立即踢一次
@@ -319,7 +310,7 @@ async def _search_one_media(media_id: int, budget: _SearchBudget) -> None:
 
     hits_by_key: dict[tuple[str, str], TorrentHit] = {}
     per_keyword: list[tuple[str, int]] = []
-    site_errors: list[str] = []
+    site_errors: dict[str, dict] = {}
     sites_ok = 0
     categories = _SEARCH_CATEGORIES.get(item.kind)
     for keyword in keywords:
@@ -332,7 +323,20 @@ async def _search_one_media(media_id: int, budget: _SearchBudget) -> None:
         # 前面几个词的有效结果一起判成"搜索本身失败"（与换源搜索同口径，
         # 见 replacement.py 的跨站搜索）
         sites_ok = max(sites_ok, sum(1 for s in response.sites if s.error is None))
-        site_errors.extend(f"{s.site_name}：{s.error}" for s in response.sites if s.error)
+        for site in response.sites:
+            if site.error:
+                site_errors.setdefault(
+                    f"{site.site_name}：{site.error}",
+                    reference(
+                        "activity.subscription.searchSiteError",
+                        site=site.site_name,
+                        reason=(
+                            reference(site.error_key, **(site.error_params or {}))
+                            if site.error_key
+                            else site.error
+                        ),
+                    ),
+                )
         # 按 (站点, 种子ID) 合并去重：同一个种子被多个召回词搜到只评估一次
         for hit in response.items:
             hits_by_key[(hit.site_id, hit.torrent_id)] = hit
@@ -348,8 +352,14 @@ async def _search_one_media(media_id: int, budget: _SearchBudget) -> None:
         if sites_ok == 0:
             # 搜索本身失败（无可用站点/全站报错）：短冷却重试，不计入退避档
             # site_errors 跨关键词会重复（同一个站点每个词都报一次），保序去重
-            deduped = list(dict.fromkeys(site_errors))
-            reason = "；".join(deduped) if deduped else "当前没有可用的已验证站点"
+            reason = (
+                {
+                    "message_list": list(site_errors.values()),
+                    "separator_key": "common.list.issueSeparator",
+                }
+                if site_errors
+                else reference("activity.subscription.noVerifiedSites")
+            )
             await _postpone_open_wanted(
                 session, media_id, delay=SEARCH_FAILURE_RETRY, count_attempt=False
             )
@@ -357,7 +367,17 @@ async def _search_one_media(media_id: int, budget: _SearchBudget) -> None:
                 session, media_id, delay=SEARCH_FAILURE_RETRY, count_attempt=False
             )
             await repo.add_activity(
-                SubscriptionActivity(subscription_id=subscription.id, type=ActivityType.SEARCHED, payload={"keywords": keywords, "failed": True}, **stored_fields('activity.subscription.searchRetry', title=item.title, reason=reason, minutes=int(SEARCH_FAILURE_RETRY.total_seconds() // 60)))
+                SubscriptionActivity(
+                    subscription_id=subscription.id,
+                    type=ActivityType.SEARCHED,
+                    payload={"keywords": keywords, "failed": True},
+                    **stored_fields(
+                        "activity.subscription.searchRetry",
+                        title=item.title,
+                        reason=reason,
+                        minutes=int(SEARCH_FAILURE_RETRY.total_seconds() // 60),
+                    ),
+                )
             )
             return
 
@@ -379,16 +399,28 @@ async def _search_one_media(media_id: int, budget: _SearchBudget) -> None:
             SubscriptionActivity(
                 subscription_id=subscription.id,
                 type=ActivityType.SEARCHED,
-                message=(
-                    f"搜索《{item.title}》（{_keyword_text(per_keyword)}）："
-                    f"{sites_ok} 个站点返回 {len(hits)} 个结果，"
-                    f"身份命中 {summary.identity_hits}，规则拒绝 {summary.rejected}，"
-                    f"投递覆盖 {summary.dispatched_units} 个单元"
-                    + (
-                        f"；剩余 {postponed} 个缺口按退避曲线排期"
-                        if postponed
-                        else "；本组缺口已全部安排"
-                    )
+                **stored_fields(
+                    "activity.subscription.searchCompleted",
+                    title=item.title,
+                    keywords=reference(
+                        "activity.subscription.searchKeywords",
+                        entries={
+                            "message_list": [
+                                reference(
+                                    "activity.subscription.searchKeyword", word=word, count=count
+                                )
+                                for word, count in per_keyword
+                            ],
+                            "separator_key": "common.list.slashSeparator",
+                        },
+                    ),
+                    sites=sites_ok,
+                    results=len(hits),
+                    hits=summary.identity_hits,
+                    rejected=summary.rejected,
+                    dispatched=summary.dispatched_units,
+                    hasRemaining="yes" if postponed else "no",
+                    remaining=postponed,
                 ),
                 payload={
                     "keywords": [

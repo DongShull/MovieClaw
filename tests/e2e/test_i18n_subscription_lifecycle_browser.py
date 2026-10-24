@@ -60,8 +60,8 @@ def test_lifecycle_history_changes_language_without_repeating_actions(stack, bro
     sub_id = sub["id"]
     path = f"/subscriptions/{sub_id}"
     page.goto(base + path)
-    page.get_by_role("button", name="更多", exact=True).click()
-    page.get_by_role("menuitem", name="调整订阅…", exact=True).click()
+    page.get_by_role("button", name="More", exact=True).click()
+    page.get_by_role("menuitem", name="Adjust subscription…", exact=True).click()
     dialog = page.get_by_role("dialog", name="Adjust subscription", exact=True)
     dialog.get_by_role("combobox", name="Import to", exact=True).select_option(str(target_library))
     dialog.get_by_role("button", name="Save changes", exact=True).click()
@@ -84,7 +84,14 @@ def test_lifecycle_history_changes_language_without_repeating_actions(stack, bro
     identity = {key: row["id"] for key, row in english.items()}
 
     def show_history():
-        button = page.get_by_role("button", name=re.compile("^排查记录"))
+        button = page.get_by_role(
+            "button",
+            name=re.compile(
+                "^Troubleshooting history"
+                if page.locator("html").get_attribute("lang") == "en"
+                else "^排查记录"
+            ),
+        )
         if button.get_attribute("aria-expanded") != "true":
             button.click()
         rows = list(histories().values())

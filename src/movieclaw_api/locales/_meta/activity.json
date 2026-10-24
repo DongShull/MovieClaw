@@ -202,5 +202,20 @@
   },
   "subscription.tmdbEpisodeCount": {
     "sourceHash": "11f00da2d98e84b1cccf55bad87b85f1e70d0a9fdbbbbd8b4ce9212251b67b09"
+  },
+  "subscription.noVerifiedSites": {
+    "sourceHash": "8575beb5fe46e9dd891603b35ac3d43bb3a12d1317e3d02343e1780cd6af5de4"
+  },
+  "subscription.searchSiteError": {
+    "sourceHash": "a4cb27d069180aeb88084c48d7462042c3e14db54b6056298f334189b584aae5"
+  },
+  "subscription.searchKeyword": {
+    "sourceHash": "ead70dca8b3023ac66476320eaa7616301ee1b1300858182f417792dfe33f39a"
+  },
+  "subscription.searchKeywords": {
+    "sourceHash": "9fe8fd96a6d11c1bfca7ad4c50053a76d6d9899a7aee9eee48a39f5204ee630c"
+  },
+  "subscription.searchCompleted": {
+    "sourceHash": "661374d2bebff0fa6708f9aab7f4e195e169a3bcdb768da8d34f87ae94d73653"
   }
 }
