@@ -1,4 +1,4 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 /**
  * 设置页基础组件（Linear / Vercel 式规范的落地，见 docs/design/settings-ui.md）。
  *
@@ -348,6 +348,7 @@ export function SettingsDrawer({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const locale = useLocale();
   const t = useTranslations();
   return (
     <Modal
@@ -378,9 +379,9 @@ export function SettingsDrawer({
         {children}
       </div>
       {(hint || actions) && (
-        <footer className="flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-t border-[var(--line)] bg-black/20 px-5 py-3">
-          <div className="min-w-0 text-caption leading-5 text-[var(--text-faint)]">{hint}</div>
-          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        <footer className={`flex min-h-[56px] shrink-0 items-center justify-between gap-3 border-t border-[var(--line)] bg-black/20 px-5 py-3${locale === "en" ? " flex-wrap" : ""}`}>
+          <div className={`min-w-0 text-caption leading-5 text-[var(--text-faint)]${locale === "en" && hint ? " basis-full" : ""}`}>{hint}</div>
+          {actions && <div className={locale === "en" ? "ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2" : "flex shrink-0 items-center gap-2"}>{actions}</div>}
         </footer>
       )}
     </Modal>

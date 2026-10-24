@@ -5337,5 +5337,239 @@
   },
   "pluginMarket.noReleaseNotes": {
     "sourceHash": "510e1b0c5f5c2daa73709c8c71161c3b289f76b56e77cc2d9850ab551652918f"
+  },
+  "pluginPackages.rollbackTitle": {
+    "sourceHash": "dc10f29c6975e218a5c2821efd5e9ccc940a6eeb39ba0a0df601b1d263a353a4"
+  },
+  "pluginPackages.rollbackHint": {
+    "sourceHash": "25d94d61376c05439787f45692ef628c73cc5c3777529af157f9154ff1ee9db6"
+  },
+  "pluginPackages.rollback": {
+    "sourceHash": "3dd68585eb4781dd28f8f834efb7d8157608b8a3207c146de8c22c4d1c491fbc"
+  },
+  "pluginPackages.rolledBack": {
+    "sourceHash": "6f1b0d2bd52529d2ea7a4d80c492d8219fe418bb982f879fe392d1c3c4651a18"
+  },
+  "pluginPackages.dependenciesReady": {
+    "sourceHash": "314b84d42f1d361cf399a6798483f38e263dfb53d5b50a7c69ad6ec1b67982ca"
+  },
+  "pluginPackages.dependenciesNotRunning": {
+    "sourceHash": "0cdca09084829f9f21f718f125d4ad53d686eca58389bd7bd810b26bca35079d"
+  },
+  "pluginPackages.uninstallTitle": {
+    "sourceHash": "557ae9190a20b54eefbd511d11accf35591163026b9ef0f73df403e987aa3e55"
+  },
+  "pluginPackages.uninstallProcess": {
+    "sourceHash": "6ec9bfefc7088c61e195a1fc85f87039a3cc83e357e18793b1954da7ab3627a2"
+  },
+  "pluginPackages.revokeGrants": {
+    "sourceHash": "4310eab960fe5ff17f30b4bb298de6118fcc7866a5325d5d4e1b4317ca1446aa"
+  },
+  "pluginPackages.deleteVersions": {
+    "sourceHash": "7f106233af314d4abc8650cf882b39eac238cd646635b198ea891477000ea418"
+  },
+  "pluginPackages.uninstall": {
+    "sourceHash": "06bc14b60f3598a3fde833340ee93e8c934fa6eff21bbd6a6df354528b53af01"
+  },
+  "pluginPackages.deleteData": {
+    "sourceHash": "33046812a532f55b58a1150df5f2cbeb454c57e6ec5f7225cec44e1c42af9eec"
+  },
+  "pluginPackages.deleteDataHint": {
+    "sourceHash": "2445fcdf65346d11a9e95bfb4f1dfca9b6a0d214ea39b82aa08048faf11f0df4"
+  },
+  "pluginPackages.purged": {
+    "sourceHash": "0b01dfb6983a0296c6c0d08389ff64b2761bc22b549975ce563f33d178b3c3ad"
+  },
+  "pluginPackages.intro": {
+    "sourceHash": "26600fe68a77407245424c1860cda545bfa7d0c114a944ba1b9859a0a7a8f278"
+  },
+  "pluginPackages.thirdParty": {
+    "sourceHash": "e8c2f716daaea1cad29ec141a4cc934deb1369ebab5a8872fb2b966ef96e3309"
+  },
+  "pluginPackages.installedCount": {
+    "sourceHash": "efc24aef052c166afc6301579e6eae56bdd1393ee59083b3992cd45bb735d2f8"
+  },
+  "pluginPackages.upload": {
+    "sourceHash": "bdba7b8019cb316aa99b6c1aaab25ae5053df201e7c04e8dabd9fd574a391909"
+  },
+  "pluginPackages.pendingCount": {
+    "sourceHash": "61aa2dfd2da89b63127ed91d89080f819bfbe75931b60e8c37b209aecaf331d4"
+  },
+  "pluginPackages.pendingHint": {
+    "sourceHash": "5f12193150aafa4497f8597957643fc4ee8521c0d48844733b1e8503e2aec8be"
+  },
+  "pluginPackages.upgradeSummary": {
+    "sourceHash": "e8948b81a4fbc7ad2364272c86b0d4c82b134f147bba73217185ba22ae986566"
+  },
+  "pluginPackages.installSummary": {
+    "sourceHash": "c2c72706c338c55b0f9ecbe06794dac22772088fab8d6678eda503817c77aef2"
+  },
+  "pluginPackages.review": {
+    "sourceHash": "82bd8a6a9984df0a6325351ad84199c6b62596725c7bec3c451ea1baf1dd953e"
+  },
+  "pluginPackages.empty": {
+    "sourceHash": "5d769526af3daef7bcc620d47069e93347a2d29355c634d51d104deafea6829e"
+  },
+  "pluginPackages.dependencyFailed": {
+    "sourceHash": "d8a5739aa6e51de97bd273323c01ff54a324989e48c5ecfcefda777efc1d2002"
+  },
+  "pluginPackages.dependencyFailure": {
+    "sourceHash": "9d4f8e6dccb4dfc8cd4366856dc176dce1700153a31a8438cd700804697a38f3"
+  },
+  "pluginPackages.installingDependencies": {
+    "sourceHash": "88b677f9f307077ede6df1619adcc749367e2b49e2a76e0a1f92134f9a61365a"
+  },
+  "pluginPackages.retryDependencies": {
+    "sourceHash": "004594b71a2d24696fcad73750375a014196d38ac2d0b776cffd7ca6e8c4854c"
+  },
+  "pluginPackages.previousVersion": {
+    "sourceHash": "404752e6a5e5801caf8b406e4d1a3d1b2b998c67af2e923e878284af76339b75"
+  },
+  "pluginPackages.localHint": {
+    "sourceHash": "744f421b7b7883d49ac80e288318bfca0eadd0350e38a8e39c44590ec76b49ce"
+  },
+  "pluginPackages.inlineCount": {
+    "sourceHash": "0b2ec9b84b17cc109b6862c8955ac53b89f8da9600f2dd7d9e37f85063c54e85"
+  },
+  "pluginPackages.processCount": {
+    "sourceHash": "cd7df5d76ecebdf554b2695e55e590ea35f0e08162babc6f9b0c7b5885ccb48a"
+  },
+  "pluginPackages.disableLocal": {
+    "sourceHash": "c49a7b577c7e34c507f95e599cad772cca6f048d5df6f4bf01494a3fe20df425"
+  },
+  "pluginPackages.themeRisk": {
+    "sourceHash": "8b0575fecaf9571433a5b87570ffd9508beaa3d15a575e9de92be5633ecef331"
+  },
+  "pluginPackages.added": {
+    "sourceHash": "0006d696d8e1ec28a134667ab0b633e632f11501e4938a9c617ba7212e2e1bf3"
+  },
+  "pluginPackages.upgradeTitle": {
+    "sourceHash": "0eae134cfdc23deb4e2fca88607a971bd38becbf4728f420879abf4c1ab6dad7"
+  },
+  "pluginPackages.installTitle": {
+    "sourceHash": "d371148af0cfa431f4b1d8d75bcde148f3ee0975bbb9f2b8a533012cdb879224"
+  },
+  "pluginPackages.currentFallback": {
+    "sourceHash": "d72a4c97f3934862ab5222b322449bf681cc836402c1dd4f58283c1ee44e3b31"
+  },
+  "pluginPackages.replacesBuiltin": {
+    "sourceHash": "050fe5cae40d5de7c203fd85672977c17342d2713ccb41533a6a0c3383317a8b"
+  },
+  "pluginPackages.discard": {
+    "sourceHash": "e7f51b070effdbe91ef57e73bf05796afd5d6ab5c2b9b5bd0a02d3523dd9982a"
+  },
+  "pluginPackages.cancel": {
+    "sourceHash": "2cd0f3be8738a86cede1a1452f874f31d569864bbb00cacd4130990f4610cb5c"
+  },
+  "pluginPackages.downloadingDependencies": {
+    "sourceHash": "0f353c62ac7537bf67cb87454a5c8f7421965127da98a4148df2eb7abd2d6177"
+  },
+  "pluginPackages.installing": {
+    "sourceHash": "fc08f57a54c06c1217170d817136c2c6b60793b842c8a370c22134012f47c465"
+  },
+  "pluginPackages.approveInstall": {
+    "sourceHash": "fda893a191bf903ddaf08be6431ce3799022f71321659f2a185ae5875d13d10a"
+  },
+  "pluginPackages.runtime": {
+    "sourceHash": "3e5c3ba2c6a7c4e266ddd09135591ccbb786128e156951a07c974cee6bb88d1f"
+  },
+  "pluginPackages.inlineRisk": {
+    "sourceHash": "7d393c541fc94c5e02ea34548605f2cd5b5b0ffa62d23a331a9ac2e5d6c72ca2"
+  },
+  "pluginPackages.noBackend": {
+    "sourceHash": "15e4a72a5c3335a6d45a5247124dbfb148b56d0c94dc6f6cbbf09c6220aab4ae"
+  },
+  "pluginPackages.processHint": {
+    "sourceHash": "29b2acaf2fabcc51002664ce454f7ea6daa6bbf4521c4b7dd19c614ebbcb1347"
+  },
+  "pluginPackages.trustInline": {
+    "sourceHash": "ce6c3d9b84e51957628a28d846b1ffff808e6f9a53734a8573554c5174c38e41"
+  },
+  "pluginPackages.theme": {
+    "sourceHash": "b45007c689e98bd86f2d6f3d5f163e773f9e6bf0354501e44dabcaae92b20a32"
+  },
+  "pluginPackages.heroLayout": {
+    "sourceHash": "97a83dfa43b9fbc60d6eec0e5a9c3459710d335df2d0103da5393af2d44af9d5"
+  },
+  "pluginPackages.sidebarLayout": {
+    "sourceHash": "3d7cc555656121cbad8a93f0d694535b4558c779dffcf8277603d5f5ffd1f4d8"
+  },
+  "pluginPackages.themeHint": {
+    "sourceHash": "9cb6eacd4d4472a50d66c49f9b95989badd4be9bc972589a6d5bc535e901af9d"
+  },
+  "pluginPackages.trustTheme": {
+    "sourceHash": "d50c8f4fcfd66307e4ef691bb8445ebaf47abf9c37e0bf5fb7656d0179178438"
+  },
+  "pluginPackages.web": {
+    "sourceHash": "ff072067195d5779acbda5ee9b36dff36f8d7dfe9433f9fbc53c03fe88cb1792"
+  },
+  "pluginPackages.trustWeb": {
+    "sourceHash": "234984c54683425299eb67f9e73472d977181f7c4db542e64486a3a0ebbecd02"
+  },
+  "pluginPackages.operations": {
+    "sourceHash": "1c94fefcf3e806b45409d678045800970c50a120b39b056528879932f6581c11"
+  },
+  "pluginPackages.noOperations": {
+    "sourceHash": "4d1c8188707189dd63501f8b42e797d109923021da3f72a8e3c58096921a13a9"
+  },
+  "pluginPackages.dangerous": {
+    "sourceHash": "3287f9909ee251302689af8ebf3e98d235cce26f7d9ce9d55095ae4318372ba2"
+  },
+  "pluginPackages.paths": {
+    "sourceHash": "9db92648eda748c291f667e6e22d27b185234ce2e94830fb5f78d2c00e1ee652"
+  },
+  "pluginPackages.ownFolder": {
+    "sourceHash": "ee45bccc937c8158a05cf85c203fbf13922ce81bb0ec5552d11d5c314a8a0bbe"
+  },
+  "pluginPackages.callbacks": {
+    "sourceHash": "897ef3814a11d915aa954b02a17f99b03950f1e934c013a673984fb987fb82e4"
+  },
+  "pluginPackages.callbacksHint": {
+    "sourceHash": "c04e5d70ce5678f8f58f082c7a2e17273ce494ddb66519b7193502ba3526e775"
+  },
+  "pluginPackages.notifications": {
+    "sourceHash": "a1fb50a255b09d6f95bc9df3c9ad54021aa159d5a609b031b7b123cece0e1009"
+  },
+  "pluginPackages.notificationsHint": {
+    "sourceHash": "cfe858a286fde99088f7b79060aad4cd838d2d61af138740963268a1083a4ed9"
+  },
+  "pluginPackages.audience": {
+    "sourceHash": "f110195d0129e79104ba07201a3e20998b536a1d3efedb40842e08d4de3dbd10"
+  },
+  "pluginPackages.allowMembers": {
+    "sourceHash": "b6938620464bc65c45d24728e61993e129033ee7c314f7bd71f03e79dddadc3e"
+  },
+  "pluginPackages.watching": {
+    "sourceHash": "7438914fc0b8ea712d29f09ce605471b57e5cd0e1683101109a8dfccc593cad2"
+  },
+  "pluginPackages.watchingHint": {
+    "sourceHash": "dc33d3ac8ed1eac960ff624685d50a151bebd7d79728c4b4ed99fffd70393f3b"
+  },
+  "pluginPackages.events": {
+    "sourceHash": "eccfcaa569ac6325dc1f7341d025466f5cae718161679a13857ee9b15a9e0ef9"
+  },
+  "pluginPackages.requires": {
+    "sourceHash": "e6740bb8663211eb299d95d4ef32c349a69448bf4430a168dbaca75bf35d044b"
+  },
+  "pluginPackages.sameDependencies": {
+    "sourceHash": "36c3196a6bc49fd9eea7a8519cd60f569c96b51fe8a3a1a5f32cf438e43b7ee6"
+  },
+  "pluginPackages.downloadDependencies": {
+    "sourceHash": "48c10b4b61eb870641234c83600a5924f7dd5d37be2aa974615406a748497e0e"
+  },
+  "pluginPackages.dependenciesHint": {
+    "sourceHash": "069fa58e7c00b6ac36f353112b1af087ee06eb0a108a450f7e01bb36bb84ac80"
+  },
+  "pluginPackages.nativeCode": {
+    "sourceHash": "e0c953b4ecf7e9162ad8facda64812d27d5a8e4f3c693bac83c004ae814aa238"
+  },
+  "pluginPackages.dependencyUnavailable": {
+    "sourceHash": "c6d72acfd5b4c503a7ead993c92dd5090cdd8f3177d41326dd4fa563f1ea2191"
+  },
+  "pluginPackages.previousDependency": {
+    "sourceHash": "e062e446a188741dc023f0b4c9501a192c4058ab97d61cadfa6f4fce0a4be36e"
+  },
+  "pluginPackages.removedDependencies": {
+    "sourceHash": "2141ac0f4d239aaf561431793dbe931e128af279f55e0ca5c7b5d9f9bc3dd8a0"
   }
 }
