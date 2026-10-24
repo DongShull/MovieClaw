@@ -2267,5 +2267,7 @@
   "errors.driveLogin.backendUnavailable": "没有安装能连接「{type}」网盘的存储插件",
   "settings.driveLogin.added": "已添加：{name}",
   "settings.driveLogin.relogged": "已重新登录：{name}",
-  "settings.driveLogin.webLogin": "网页端"
+  "settings.driveLogin.webLogin": "网页端",
+  "settings.importWatch.customTarget": "自定义目录（{kind} · {path}）",
+  "settings.importWatch.autoTarget": "自动路由（{kind}）"
 }

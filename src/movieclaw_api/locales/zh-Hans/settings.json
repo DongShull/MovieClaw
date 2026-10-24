@@ -107,7 +107,9 @@
     "restored": "已恢复，将在下轮巡检时重新处理",
     "created": "已创建监听导入规则：{path}",
     "itemClaimed": "已认领，等待后台整理入库",
-    "itemImported": "已入库"
+    "itemImported": "已入库",
+    "customTarget": "自定义目录（{kind} · {path}）",
+    "autoTarget": "自动路由（{kind}）"
   },
   "tips": {
     "reset": "使用提示已重置"

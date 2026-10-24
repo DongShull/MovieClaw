@@ -95,3 +95,16 @@ async def synchronize_site_fixture(site_id: str):
     assert row is not None
     await _sync_one_site(row)
     return {"ok": True}
+
+
+@app.post("/api/v1/__lab/import-watch/tick")
+async def poll_import_watch_fixture():
+    """Keep real probes and jobs; remove only the five-minute quiet wait in this fixture."""
+    from movieclaw_api.services import media_discover
+    from movieclaw_api.services.library import ingest, scan
+
+    ingest.get_tmdb_client = media_discover.get_tmdb_client
+    scan.get_tmdb_client = media_discover.get_tmdb_client
+    ingest.QUIET_SECONDS = 0
+    await ingest.ingest_tick()
+    return {"ok": True}

@@ -12,7 +12,7 @@
  * （z-60，压在库表单弹窗 z-50 之上），键盘 Escape 只关闭自己。
  */
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CheckIcon, ChevronRightIcon, FolderIcon, PencilIcon } from "@/components/icons";
@@ -33,6 +33,7 @@ export function DirectoryPicker({
   onSelect: (path: string) => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [view, setView] = useState<FsBrowse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,11 +214,11 @@ export function DirectoryPicker({
         </div>
 
         {/* 底栏：当前选择 + 确认 */}
-        <div className="flex items-center gap-3 border-t border-white/[0.08] bg-white/[0.02] px-5 py-3.5">
-          {/* 保尾截断（dir=rtl）：省略号在头部，当前目录名始终可见；LRM 防 "/" 跳位 */}
+        <div className={`${locale === "en" ? "flex flex-wrap" : "flex"} items-center gap-3 border-t border-white/[0.08] bg-white/[0.02] px-5 py-3.5`}>
+          {/* 中文保尾截断；英文独占一行显示完整路径。LRM 防 "/" 跳位。 */}
           <p
-            dir="rtl"
-            className="min-w-0 flex-1 truncate text-left font-mono text-sub text-[var(--text-muted)]"
+            dir={locale === "en" ? "ltr" : "rtl"}
+            className={`${locale === "en" ? "w-full break-all" : "min-w-0 flex-1 truncate"} text-left font-mono text-sub text-[var(--text-muted)]`}
             title={view?.path}
           >
             {view ? "‎" + view.path + "‎" : "…"}

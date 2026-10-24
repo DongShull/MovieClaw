@@ -4494,5 +4494,221 @@
   },
   "drives.verifyAndSignIn": {
     "sourceHash": "4e34537e5d0c9d970c34257d9e4305523d05bc6a29687e9fdf746b8e185c65ab"
+  },
+  "importWatch.removeTitle": {
+    "sourceHash": "36b6f95faeab346027786456afb956044821beb7499b7698ffc6f72575db0622"
+  },
+  "importWatch.removeHint": {
+    "sourceHash": "4080debffc11daef2a32d24f35105925c550dcfcc554f3e28bb3578fc515bf8b"
+  },
+  "importWatch.delete": {
+    "sourceHash": "2f9daa828907b93ff8a00d41a16828e0c6388bf3a95dadf816c8ee9c3bdac37d"
+  },
+  "importWatch.disabledHint": {
+    "sourceHash": "b8a40185e37829a19db4aae52e0c6df1f435b0f84a2637f9a38edc545b6b6442"
+  },
+  "importWatch.intro": {
+    "sourceHash": "fc13e2fcdfe2c8ae8a2a8a631bcac5714d6de431c3ae490e34c9c07018782fd9"
+  },
+  "importWatch.rules": {
+    "sourceHash": "63156d88ef50f00c39b60d524ccb3bfadb68779913a47468f751a06e1b7aa0d5"
+  },
+  "importWatch.ruleCount": {
+    "sourceHash": "93c98c57001e6eee011c0270e4030f1de4d99953c659ee749d5fc9354e84c658"
+  },
+  "importWatch.addRule": {
+    "sourceHash": "c9f9e18b06233971d4e4a99b63cf296166c2826e747856322f9ab7a96824d58e"
+  },
+  "importWatch.loadFailed": {
+    "sourceHash": "0860846d8e5a1253a63542820af63b52b76f0169c3cec9cf2a11c1b83e536bdd"
+  },
+  "importWatch.retry": {
+    "sourceHash": "b8784c8dd5636ff231b121892144e4a3977d5b874f21934c53f850cde7bac0ea"
+  },
+  "importWatch.empty": {
+    "sourceHash": "fc43ad6421dff7f95b87bde5e573e455150c1050e6d467f950f54d2d64e1e33a"
+  },
+  "importWatch.emptyHint": {
+    "sourceHash": "c50b49e839d8ccc34a8eebd81760d7e396efa3e4306858571868bd922eef6bea"
+  },
+  "importWatch.pending": {
+    "sourceHash": "999a459c3f3f2d1694440efc4afb9c9342069e0e4ee375b7dea943a28931283a"
+  },
+  "importWatch.failed": {
+    "sourceHash": "28384d7afd2e4fa66084f6803b9d3cb3b1c1ebb0a4ecc4cc97706745405e5df4"
+  },
+  "importWatch.imported": {
+    "sourceHash": "2bfa8a13150e11a2667e0f9343f9db3ccad03733c11d7dd8f63f206122c94050"
+  },
+  "importWatch.ignoredStatus": {
+    "sourceHash": "c9bb70bcaaa3bee1f1a6031886a12270c0cdabafbba9e845513a76e3959dac3f"
+  },
+  "importWatch.hardlink": {
+    "sourceHash": "1d6f4b39df8e1e4d9d39ad86c953436a5a1aee2b20b85f56355f3f5fd9047133"
+  },
+  "importWatch.copy": {
+    "sourceHash": "63d90d977348ab1f9aa34ebb42b103216ce161feb0a1c08e237607bf42c3cf79"
+  },
+  "importWatch.skipExistingBadge": {
+    "sourceHash": "15be5a41e094edda413e4e034f0dde4d96ce044fad3204d4aaa710fc5d6b3eff"
+  },
+  "importWatch.moreActions": {
+    "sourceHash": "8d8179dd186e5a02b73f7f9a15cd2a789809f6dff4d122dc5e8ddc2ea96246d5"
+  },
+  "importWatch.edit": {
+    "sourceHash": "051836569928a9f91145a70e00b212b62a06c21a97d2d828cb75acd3fbe851b9"
+  },
+  "importWatch.importedWorks": {
+    "sourceHash": "da04ea953531df6ca27b9fdce99cc892abe168e4f29b91af8f209f1b19200da7"
+  },
+  "importWatch.statusCount": {
+    "sourceHash": "b36c149f61f50d608b921321c4a0d4d57d34987c75a79d1ac26ab15af9d73524"
+  },
+  "importWatch.importedDetail": {
+    "sourceHash": "0e69d57df0866aa7b296dea747e4331f90660a0ee8b941737ad55170c19169ae"
+  },
+  "importWatch.entriesFailed": {
+    "sourceHash": "70964151001d0f43c643a147ebe1847a477bc7bd4784ab2019b3a86956122e98"
+  },
+  "importWatch.loading": {
+    "sourceHash": "4927a53bcc886afb9211eb1143351cf8e32ec830c381832e6060223c8b84f3d6"
+  },
+  "importWatch.noEntries": {
+    "sourceHash": "a63574cffd7a827506c7d90ba1ceb37d22438938be6139fa4e3a9964019e1e8c"
+  },
+  "importWatch.pendingHint": {
+    "sourceHash": "b86eada0d0e5192e968195d3b1a6024ebc3707d7c0d7191ccc95263eda62df55"
+  },
+  "importWatch.claim": {
+    "sourceHash": "06af7abe6277704e2b1e82018a313254dfe49ebb7ab21f7fe5c76b5fc9b47c0d"
+  },
+  "importWatch.ignore": {
+    "sourceHash": "6e90ac940752ebf13ab2d29a0d0d635ea9596d2e6d112962644b3d3dcb364eee"
+  },
+  "importWatch.restore": {
+    "sourceHash": "389596916722017e88e69cc2ba2be08a68a9cddcbb39231bcccaa150e71c0a78"
+  },
+  "importWatch.editTitle": {
+    "sourceHash": "dfb294e76e863a64ababf95ba0e36c86073c16b8f263554d138512094baacc8c"
+  },
+  "importWatch.addTitle": {
+    "sourceHash": "14e1edf38ce0ae7776eb6a69df6fcd0fe3ed81010767284576ad90c83ed2bf39"
+  },
+  "importWatch.sourceFolder": {
+    "sourceHash": "1f2ac5757c99b499534c2f807dacd2c6de02fa09e8631d9ba0450f36ad555da9"
+  },
+  "importWatch.browseSource": {
+    "sourceHash": "065e8dbdfc1ba91dc5e35238828d32d99a682f8c02e288c405f5e2ef85b4b0cb"
+  },
+  "importWatch.downloaderFolders": {
+    "sourceHash": "a5ad46c2b43fb0e72b5741093b7773268b7f93635b8cfd38b7a497d76a089d72"
+  },
+  "importWatch.downloaderFolderTitle": {
+    "sourceHash": "01ff98feb953bd4573dd7eee4547dce64486a42b7d21abc7b6f6e92d3dda600b"
+  },
+  "importWatch.sourceHint": {
+    "sourceHash": "d1f3f1a16a7907664cb289afd04e77778f6a12205447e108fd41bad22302a809"
+  },
+  "importWatch.strategy": {
+    "sourceHash": "440cc4b434c5a8563371b3a1c031dd1bc845e18e6ece068b34dfbeb72c52bc23"
+  },
+  "importWatch.hardlinkHint": {
+    "sourceHash": "df34d0d13a129f7b349b0b59906f239fd2b7a9b9e1bbacccaab56f1e3f2c2763"
+  },
+  "importWatch.copyHint": {
+    "sourceHash": "5396e324f8610b6df168479e57ab7f28b610db9660b1e530fe7ee20169313532"
+  },
+  "importWatch.hardlinkCheckHint": {
+    "sourceHash": "e34fbeb885f0faf17ddc2292472d4db3999e07c68d603f213d538e60e437f36d"
+  },
+  "importWatch.copyCheckHint": {
+    "sourceHash": "a9b132e8d3f9c4f54be784b67942079d9e7308a0dd3404bf32e47e6b11492175"
+  },
+  "importWatch.destination": {
+    "sourceHash": "48240ff621bfa7c1ecba037afd80026bff7b02edef11b30b3a561163e4359f6a"
+  },
+  "importWatch.autoMovie": {
+    "sourceHash": "9fdb7d6815ce0ca19f7f7e0925d037483c35a006f2462564e08e356235a129d5"
+  },
+  "importWatch.autoTv": {
+    "sourceHash": "204eaded634ecdeb98503396c80f57f05332860f7b8120e49002ed682bd2763e"
+  },
+  "importWatch.autoHint": {
+    "sourceHash": "53e251095b39ad7a1a6d45d37212c4f854504334c523c80f766345076ddf95e7"
+  },
+  "importWatch.otherLibrary": {
+    "sourceHash": "71dc9b4c01f4aebdaa39efab72cacae593d44d01fee36da512859b886cc7110a"
+  },
+  "importWatch.otherLibraryHint": {
+    "sourceHash": "5a57fab2138776a596f0524d0b5f5760858a674a5f4bca30b474bbb04f28baa8"
+  },
+  "importWatch.customFolderHint": {
+    "sourceHash": "ef417d5502c36276a9120678977ccbf2dcd16e06cc7ee99400b41323442a5d32"
+  },
+  "importWatch.customFolder": {
+    "sourceHash": "d374221a914fbac1a69dad9bb8ded44a15519e3c59e4f47df91baff9a5c50bd2"
+  },
+  "importWatch.noLibraries": {
+    "sourceHash": "9d4543ac115f392932411df4b54c03291cea3de5fdb358bdbca7356210122df0"
+  },
+  "importWatch.browseDestination": {
+    "sourceHash": "4483a2622755dde24a2a8b4a66fe8657d7bdabbd4426c95df3ffa8d69847bb19"
+  },
+  "importWatch.movie": {
+    "sourceHash": "03a3a327af684099e7e863d8080bba7c2539050a5fc066a1932d90e3bdf61b15"
+  },
+  "importWatch.tv": {
+    "sourceHash": "cb9a20776230420ec27c8d82fbdfa14ac7a1142b3000d55a2203b4285a0bf4d8"
+  },
+  "importWatch.other": {
+    "sourceHash": "d2909f1647e7c891a8282759b2eaa961e84620ff04cda7b8b5478cb540d74fa4"
+  },
+  "importWatch.kindHint": {
+    "sourceHash": "1f5e7764d6744679d6e0385cc1113175e583633051138c2c7cfc0af3537a7bba"
+  },
+  "importWatch.otherKindHint": {
+    "sourceHash": "1e2cae61a9f7ad1e398859649f4c140b0d11ad054c9c0f106fe017362f7e0cd8"
+  },
+  "importWatch.autoDestinationHint": {
+    "sourceHash": "6212431f172ccd5d3c0ad15823ad1322a4d18a2ed55530d8d14cb3563006923e"
+  },
+  "importWatch.customOtherHint": {
+    "sourceHash": "847cc9033d4d8eeebd20e0f8e2b3fb80ba253aa40ad62adede6f573762954501"
+  },
+  "importWatch.customDestinationHint": {
+    "sourceHash": "f77480f98fb5326a735b8e6c098fd02042b4eed4715415198bbb384c5a13a4be"
+  },
+  "importWatch.fixedDestinationHint": {
+    "sourceHash": "9a1a4907dbfd6e54bf6004cd3bdaf48d797df3a23a6a5b789e93ec4c0156b2f2"
+  },
+  "importWatch.existingFiles": {
+    "sourceHash": "e313a6d5720d9d927ed01714d1e5fe15a74e1e6d9db69e3f98519ef066555aa2"
+  },
+  "importWatch.processExisting": {
+    "sourceHash": "a62713088652dda2da6f7fae06febd47a6f682332234937e8354843675cfeca7"
+  },
+  "importWatch.processExistingHint": {
+    "sourceHash": "1f71694752fd14e7803ed9835cea3c83311f056a5cf1928e206a9e0ce924afe7"
+  },
+  "importWatch.skipExisting": {
+    "sourceHash": "7214b15bd64014b77c21d826478305ff946d006e4192b87928c6684ac3e32e78"
+  },
+  "importWatch.skipExistingHint": {
+    "sourceHash": "8af8ea98cf1b7b2ac73ddd4d31804b92314a7179d16e19aa8dfa83a7b7a83f0a"
+  },
+  "importWatch.existingProcessingHint": {
+    "sourceHash": "e96439e4790bce3c5d295d8f28b106a5f2a3d69bb8acf35ab956c55e262b934c"
+  },
+  "importWatch.existingSkippingHint": {
+    "sourceHash": "0c19aec2e1bb96dfa4388ea686512d51e0cb08deca05f33afb0d59ffd7b5d332"
+  },
+  "importWatch.cancel": {
+    "sourceHash": "2cd0f3be8738a86cede1a1452f874f31d569864bbb00cacd4130990f4610cb5c"
+  },
+  "importWatch.saving": {
+    "sourceHash": "ff509c9ba052a21c008c88b36ef5f13acc9cb693641689b35747be6daf11d9d6"
+  },
+  "importWatch.save": {
+    "sourceHash": "a3030bf8f16dc63c6b277564c68f78a3be5abe5f2907c51826dee7184ff793fd"
   }
 }

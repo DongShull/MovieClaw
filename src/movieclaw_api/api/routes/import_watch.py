@@ -16,12 +16,13 @@ from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.import_watch_config import ImportWatchConfigService
 from movieclaw_api.services.library import ingest
 from movieclaw_api.services.library.config import LibraryConfigService
-from movieclaw_api.services.library.profile import kind_label
+from movieclaw_api.services.library.profile import kind_reference
 from movieclaw_db.engine import get_session
 from movieclaw_db.models import ImportWatch, IngestEntry, IngestStatus
 
@@ -111,9 +112,15 @@ class ImportWatchView(BaseModel):
         if row.library_id is not None:
             label = library_name or "?"
         elif row.target_path:
-            label = f"自定义目录（{kind_label(row.kind or '')} · {row.target_path}）"
+            label = t(
+                "settings.importWatch.customTarget",
+                kind=render_value(kind_reference(row.kind or "")),
+                path=row.target_path,
+            )
         else:
-            label = f"自动路由（{kind_label(row.kind or '')}）"
+            label = t(
+                "settings.importWatch.autoTarget", kind=render_value(kind_reference(row.kind or ""))
+            )
         return cls(
             id=row.id,  # type: ignore[arg-type]
             source_path=row.source_path,

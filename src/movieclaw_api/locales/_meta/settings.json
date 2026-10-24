@@ -1099,5 +1099,11 @@
   },
   "driveLogin.webLogin": {
     "sourceHash": "2a56dc80540fcb8a5a6ef77b8c244760508f80a670f9c224cf110496f4b8d149"
+  },
+  "importWatch.customTarget": {
+    "sourceHash": "91820afbcf51827b8542c242529bfe106e5f94cdecf7b7a4523c8b6b89fd2b88"
+  },
+  "importWatch.autoTarget": {
+    "sourceHash": "32d5a5315de82d33a5c7c5b73ba37b80f88a5de6f0fd0724b9e820100d28fcf0"
   }
 }

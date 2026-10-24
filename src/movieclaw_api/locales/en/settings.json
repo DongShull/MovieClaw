@@ -107,7 +107,9 @@
     "restored": "Restored; it will be processed at the next scheduled check",
     "created": "Created an import watch rule: {path}",
     "itemClaimed": "Identified; awaiting background organization into the library",
-    "itemImported": "Added to library"
+    "itemImported": "Added to library",
+    "customTarget": "Custom folder ({kind} · {path})",
+    "autoTarget": "Automatic routing ({kind})"
   },
   "tips": {
     "reset": "Usage tips reset"
