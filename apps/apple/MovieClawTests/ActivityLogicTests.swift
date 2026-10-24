@@ -6,6 +6,18 @@ import Testing
 /// 口径逐条对照 Web `lib/task-activity.ts`、`lib/download-attention.ts`、`components/task-center-view.tsx`、
 /// `lib/episode-units.ts`、`lib/ingest-history.ts`、`lib/api/notices.ts`。
 struct ActivityLogicTests {
+    @Test @MainActor func deliveryColorsUseExecutorFactsAndDecodeLegacyResponses() {
+        let legacy: API.PlaybackDeliveryView = decode(["mode": "transcode", "label": "软件转码"])
+        #expect(legacy.executionKind == nil)
+        #expect(ActivityPlaybackSessionRow.deliveryColor(legacy) == Theme.danger)
+        let software: API.PlaybackDeliveryView = decode(["mode": "transcode", "label": "Software transcode", "execution_kind": "software"])
+        #expect(ActivityPlaybackSessionRow.deliveryColor(software) == Theme.danger)
+        let hardware: API.PlaybackDeliveryView = decode(["mode": "transcode", "label": "Custom raw label", "execution_kind": "hardware"])
+        #expect(ActivityPlaybackSessionRow.deliveryColor(hardware) == Theme.warning)
+        let remote: API.PlaybackDeliveryView = decode(["mode": "transcode", "label": "Remote transcode", "execution_kind": "remote"])
+        #expect(ActivityPlaybackSessionRow.deliveryColor(remote) == .purple)
+    }
+
     private func nn(_ value: Any?) -> Any { value ?? NSNull() }
 
     private func decode<T: Decodable>(_ json: [String: Any]) -> T {

@@ -59,6 +59,10 @@ export function activitySummaryParts(counts: {
 export function deliveryColor(delivery: PlaybackDelivery): string {
   if (delivery.mode === "direct") return "var(--ok)";
   if (delivery.mode === "remux" || delivery.mode === "audio") return "var(--info)";
+  if (delivery.execution_kind != null) {
+    if (delivery.execution_kind === "remote") return "#c084fc";
+    return delivery.execution_kind === "software" ? "var(--danger)" : "var(--warn)";
+  }
   // i18n-ignore: legacy playback delivery discriminator; retain for old API responses.
   if (delivery.label === "远程转码") return "#c084fc";
   // i18n-ignore: legacy playback delivery discriminator; retain for old API responses.

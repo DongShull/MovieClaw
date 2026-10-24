@@ -8713,6 +8713,8 @@ nonisolated extension API {
     struct PlaybackDeliveryView: Codable, Hashable, Sendable {
         /// direct=直连原文件；remux=重封装（音视频都不重编码）；audio=只转音频（视频直通）；transcode=视频转码
         var mode: String
+        /// Video transcode executor: hardware, software or remote; null otherwise
+        var executionKind: String?
         /// 简短中文标识：直连 / 重封装 / 音频转码 / 硬件转码 / 软件转码 / 远程转码
         var label: String
         /// 转码输出规格，如「1080p · H.264 · 8 Mbps」；直连 / 重封装为 null
@@ -8724,6 +8726,7 @@ nonisolated extension API {
 
         enum CodingKeys: String, CodingKey {
             case mode
+            case executionKind = "execution_kind"
             case label
             case target
             case executor

@@ -135,6 +135,10 @@ class PlaybackDeliveryView(BaseModel):
             "audio=只转音频（视频直通）；transcode=视频转码"
         )
     )
+    execution_kind: str | None = Field(
+        default=None,
+        description="Video transcode executor: hardware, software or remote; null otherwise",
+    )
     label: str = Field(
         description="简短中文标识：直连 / 重封装 / 音频转码 / 硬件转码 / 软件转码 / 远程转码"
     )

@@ -295,6 +295,7 @@ def _delivery_view(transcode, *, streaming: bool) -> PlaybackDeliveryView | None
             parts.append(f"{plan.video.bitrate_cap_bps / 1_000_000:.0f} Mbps")
         backend = BACKEND_LABELS.get(transcode.hw_backend or "", transcode.hw_backend)
         if transcode.remote:
+            execution_kind = "remote"
             label = t("player.delivery.remote")
             worker = transcode.remote_worker_id
             where = (
@@ -304,11 +305,14 @@ def _delivery_view(transcode, *, streaming: bool) -> PlaybackDeliveryView | None
             )
             executor = f"{where} · {backend}" if backend else where
         elif transcode.hw_backend:
+            execution_kind = "hardware"
             label, executor = t("player.delivery.hardware"), f"NAS · {backend}"
         else:
+            execution_kind = "software"
             label, executor = t("player.delivery.software"), t("player.delivery.cpu")
         return PlaybackDeliveryView(
-            mode="transcode", label=label, target=" · ".join(parts) or None,
+            mode="transcode", execution_kind=execution_kind, label=label,
+            target=" · ".join(parts) or None,
             executor=executor, reason=reason,
         )
     if plan.audio.action == "transcode":

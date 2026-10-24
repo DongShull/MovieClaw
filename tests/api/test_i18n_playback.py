@@ -83,3 +83,28 @@ def test_playback_start_error_preserves_its_nested_reference():
         assert http_error.message == (
             "Playback failed to start: The transcoding process failed to start: No such file"
         )
+
+
+def test_transcode_executor_classification_is_independent_of_reader_language():
+    from movieclaw_api.services.playback_activity import _delivery_view
+    from movieclaw_playback.decide import AudioPlan, VideoPlan
+
+    from .test_playback_activity import _fake_transcode
+
+    video = VideoPlan(action="transcode", codec="h264", height=1080)
+    for kind, options in [
+        ("software", {}),
+        ("hardware", {"hw": "qsv"}),
+        ("remote", {"hw": "videotoolbox", "remote": True, "worker": "raw-worker"}),
+    ]:
+        session = _fake_transcode(video, AudioPlan(action="copy"), **options)
+        views = []
+        for locale in ("en", "zh-Hans", "en"):
+            with use_locale(locale):
+                view = _delivery_view(session, streaming=True)
+            assert view.mode == "transcode" and view.execution_kind == kind
+            views.append(view)
+        assert views[0] == views[2]
+        assert views[0].label != views[1].label
+        assert views[0].target == views[1].target
+    assert _delivery_view(None, streaming=True).execution_kind is None

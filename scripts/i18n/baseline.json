@@ -18,7 +18,7 @@
   "apps/apple/MovieClaw/Features/Activity/ActivityStores.swift": 2,
   "apps/apple/MovieClaw/Features/Activity/ActivityView.swift": 30,
   "apps/apple/MovieClaw/Features/Activity/JobCard.swift": 38,
-  "apps/apple/MovieClaw/Features/Activity/NowPlayingRows.swift": 31,
+  "apps/apple/MovieClaw/Features/Activity/NowPlayingRows.swift": 29,
   "apps/apple/MovieClaw/Features/Activity/TaskCards.swift": 38,
   "apps/apple/MovieClaw/Features/Activity/TaskCenterLogic.swift": 239,
   "apps/apple/MovieClaw/Features/Activity/TaskCenterPanel.swift": 39,

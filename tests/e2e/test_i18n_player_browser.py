@@ -74,6 +74,17 @@ def test_player_languages_with_real_media(request):
             context.add_cookies([{"name": "mc_locale", "value": locale, "url": base}])
             page.goto(f"{base}/play/{item_id}")
             _wait_playing(page)
+            activity = _wait_for(
+                lambda: page.request.get(f"{base}/api/v1/playback/activity")
+                .json()["data"]["sessions"],
+                timeout=20,
+                what="actual playback delivery classification",
+            )
+            delivery = activity[0]["delivery"]
+            assert "execution_kind" in delivery
+            assert delivery["execution_kind"] in (None, "hardware", "software", "remote")
+            if delivery["mode"] != "transcode":
+                assert delivery["execution_kind"] is None
             video = page.locator("video")
             video.evaluate("v => { window.localeTestVideo = v; v.pause(); }")
             source = video.get_attribute("src")

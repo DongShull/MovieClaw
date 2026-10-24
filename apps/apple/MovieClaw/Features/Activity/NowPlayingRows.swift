@@ -277,7 +277,13 @@ struct ActivityPlaybackSessionRow: View {
         case "direct": return Theme.success
         case "remux", "audio": return Theme.info
         default:
+            if let kind = delivery.executionKind {
+                if kind == "remote" { return .purple }
+                return kind == "software" ? Theme.danger : Theme.warning
+            }
+            // i18n-ignore: legacy server response without an executor classification.
             if delivery.label == "远程转码" { return .purple }
+            // i18n-ignore: legacy server response without an executor classification.
             return delivery.label == "软件转码" ? Theme.danger : Theme.warning
         }
     }

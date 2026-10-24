@@ -220,6 +220,8 @@ export interface PlaybackFileSpec {
 export interface PlaybackDelivery {
   /** direct=直连原文件；remux=重封装；audio=只转音频（视频直通）；transcode=视频转码 */
   mode: string;
+  /** Stable executor classification; older servers omit it. */
+  execution_kind?: string | null;
   /** 简短中文标识：直连 / 重封装 / 音频转码 / 硬件转码 / 软件转码 / 远程转码 */
   label: string;
   /** 转码输出规格，如「1080p · H.264 · 8 Mbps」；直连 / 重封装为 null */
