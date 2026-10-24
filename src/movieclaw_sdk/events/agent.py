@@ -19,6 +19,7 @@ class RunFinished(Frozen):
     answer: str
     """回答开头的纯文本（去掉 Markdown 记号、压成一行）；出错时为空。"""
     error: str | None = None
+    error_ref: dict | None = None
     elapsed_ms: int | None = None
     source: Literal["app", "plugin", "channel"]
     """从哪发起：``app`` = App / 网页 / 命令行，``plugin`` = 插件代发，
@@ -32,4 +33,5 @@ AGENT_RUN_FINISHED = define(
     group="AI 助手",
     doc="AI 会话的一轮跑完（回答完或出错）",
     sensitive=True,
+    version="1.1",
 )

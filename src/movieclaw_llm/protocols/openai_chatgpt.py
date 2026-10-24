@@ -131,7 +131,13 @@ class OpenAIChatGPTProtocol(OpenAIResponsesProtocol):
     async def chat(self, request: ChatRequest, model_id: str) -> ChatResponse:
         async for event in self.chat_stream(request, model_id):
             if event.type == "error":
-                raise LlmServerError(event.partial.error or "ChatGPT 请求失败")
+                ref = event.partial.error_ref or {}
+                raise LlmServerError(
+                    event.partial.error or "ChatGPT 请求失败",
+                    message_key=ref.get("message_key")
+                    or (None if event.partial.error else "errors.llm.stream.chatgptFailed"),
+                    params=ref.get("params"),
+                )
             if event.type == "done":
                 return event.partial
         raise LlmServerError(

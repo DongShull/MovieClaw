@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.i18n import t
 from movieclaw_api.i18n.labels import device_kind, language_name
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.services.push.notify import AlertContent, server_identity
 from movieclaw_api.services.push.rules import Aggregator, Audience, Rule, register
 
@@ -152,7 +153,11 @@ async def _agent_finished(_s: AsyncSession, _member: int, p: Any) -> AlertConten
     if p.status == "done":
         body = p.answer or t("notify.agent.replied")
     else:
-        body = t("notify.agent.failed", reason=p.error or t("notify.agent.unknown"))
+        error_ref = getattr(p, "error_ref", None)
+        body = t(
+            "notify.agent.failed",
+            reason=render_value(error_ref) if error_ref else p.error or t("notify.agent.unknown"),
+        )
     return AlertContent(
         title=p.title or t("notify.agent.title"),
         body=body,

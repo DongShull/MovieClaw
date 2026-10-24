@@ -53,14 +53,12 @@ class TipSuggested(Frozen):
 
 
 SYSTEM_ALERT_RAISED = define(
-    "system.alert.raised", AlertRaised, title="出现需要处理的问题", group="系统"
+    "system.alert.raised", AlertRaised, title="出现需要处理的问题", group="系统", version="1.1"
 )
 SYSTEM_ALERT_RESOLVED = define(
-    "system.alert.resolved", AlertResolved, title="问题已消退", group="系统"
+    "system.alert.resolved", AlertResolved, title="问题已消退", group="系统", version="1.1"
 )
 SYSTEM_UPDATE_AVAILABLE = define(
     "system.update.available", UpdateAvailable, title="有新版本", group="系统"
 )
-SYSTEM_TIP_SUGGESTED = define(
-    "system.tip.suggested", TipSuggested, title="使用建议", group="系统"
-)
+SYSTEM_TIP_SUGGESTED = define("system.tip.suggested", TipSuggested, title="使用建议", group="系统")

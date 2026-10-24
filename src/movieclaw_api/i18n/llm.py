@@ -14,11 +14,9 @@ def preset_name(preset: ProviderPreset):
 
 
 def error_reference(error: LlmError):
-    if not error.message_key:
+    if not error.message_ref:
         return str(error)
-    result = reference(error.message_key, **error.params)
-    if error.provider:
-        result = reference(
-            "errors.llm.connection.providerError", provider=error.provider, error=result
-        )
-    return result
+    return {
+        "message": str(error),
+        **reference(error.message_ref["message_key"], **error.message_ref["params"]),
+    }

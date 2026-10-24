@@ -274,7 +274,7 @@ class OpenAIChatProtocol(OpenAIProtocolBase):
             stream = await self._client.chat.completions.create(**payload)
         except Exception as exc:  # noqa: BLE001
             err = self._translate_error(exc)
-            yield acc.error_event(str(err))
+            yield acc.error_event(err)
             return
 
         yield ChatStreamEvent(type="start", partial=acc.snapshot())
@@ -320,7 +320,7 @@ class OpenAIChatProtocol(OpenAIProtocolBase):
         except Exception as exc:  # noqa: BLE001 - 流中断以 error 事件收尾，保留 partial
             err = self._translate_error(exc)
             logger.warning("流式调用中断：%s", err)
-            yield acc.error_event(str(err))
+            yield acc.error_event(err)
             return
 
         # 收尾：工具参数完整了，逐个解析并发 toolcall_end

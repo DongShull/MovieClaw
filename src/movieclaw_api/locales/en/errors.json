@@ -444,7 +444,17 @@
     "emptyMessage": "The message text and image attachments cannot both be empty",
     "deleteWhileRunning": "This session is running. Stop it before deleting the session.",
     "stopOwnSession": "The current Agent cannot stop the session hosting it",
-    "sessionBusy": "This session already has an active run. Stop it or wait for it to finish. If the server just restarted, its state will recover automatically within 30 seconds."
+    "sessionBusy": "This session already has an active run. Stop it or wait for it to finish. If the server just restarted, its state will recover automatically within 30 seconds.",
+    "run": {
+      "modelFailed": "The model request failed with no reason.",
+      "noResult": "The model stream ended unexpectedly without a result.",
+      "emptyTwice": "I could not generate a reply after two attempts. There may be a temporary problem; try sending your message again later.",
+      "stepLimit": "The run stopped after reaching the limit of {limit, plural, one {# step} other {# steps}} without finishing. Try a smaller task or check whether it is stuck in a loop.",
+      "noTerminal": "The agent run ended unexpectedly without a terminal event.",
+      "unexpected": "An unexpected error occurred during the agent run: {error}",
+      "noTerminalRecord": "The run left no terminal event.",
+      "unknown": "The run failed with no reason."
+    }
   },
   "mcp": {
     "endpointMissing": "This endpoint does not exist or has been deleted",
@@ -798,6 +808,12 @@
       "allowUsage": "Allow subscription usage on the ChatGPT authorization page.",
       "differentAccount": "This sign-in uses a different ChatGPT account. Add a new connection.",
       "authUnavailable": "The ChatGPT authorization service is temporarily unavailable. Reconnect."
+    },
+    "stream": {
+      "serviceError": "The model service reported an error: {reason}",
+      "unknown": "Unknown error",
+      "subscriptionIncomplete": "The ChatGPT response did not complete. Try again; the subscription usage limit may have been reached.",
+      "chatgptFailed": "The ChatGPT request failed."
     }
   },
   "webhook": {

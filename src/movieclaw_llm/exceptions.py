@@ -24,10 +24,29 @@ class LlmError(Exception):
         params: dict | None = None,
     ) -> None:
         self.provider = provider
+        self.raw_message = message
         self.message_key = message_key
         self.params = params or {}
         prefix = f"[{provider}] " if provider else ""
         super().__init__(f"{prefix}{message}")
+
+    @property
+    def message_ref(self) -> dict | None:
+        """Language-neutral display metadata; retry decisions use the exception type."""
+        if not self.message_key:
+            return None
+        result = {
+            "message": self.raw_message,
+            "message_key": self.message_key,
+            "params": self.params,
+        }
+        if self.provider:
+            result = {
+                "message": str(self),
+                "message_key": "errors.llm.connection.providerError",
+                "params": {"provider": self.provider, "error": result},
+            }
+        return result
 
 
 class LlmAuthError(LlmError):

@@ -2290,5 +2290,41 @@
   },
   "llm.connection.authUnavailable": {
     "sourceHash": "0719c50ddbccac23c98e9349078631b72ac474fb036e2be0c77875bac1f97730"
+  },
+  "llm.stream.serviceError": {
+    "sourceHash": "d0b5f37e330ef4f72af6e139fd89db940e4373c856a4d5256c895e2fc309be96"
+  },
+  "llm.stream.unknown": {
+    "sourceHash": "13a46616e16fe5e684349b2088bd2de5ba310d1469542b69ac355b09c8210c97"
+  },
+  "llm.stream.subscriptionIncomplete": {
+    "sourceHash": "d8a00f41972d5c53b1d9e38d68b65b343abc1cc8aa6dfa9e425a6968567af6d9"
+  },
+  "llm.stream.chatgptFailed": {
+    "sourceHash": "5500c4d968d773edcca5a618dee3ff934aebf00b4737db0bfd5e863f86a06bab"
+  },
+  "agent.run.modelFailed": {
+    "sourceHash": "a8bc426ac7335bbb1a52083958f82a1aacf252b50d75a1d9cf61a0dd2b9a43a4"
+  },
+  "agent.run.noResult": {
+    "sourceHash": "91f903057a67e9bf248794347ba21e3b3bf560b54df3a38397c953fb831f4c7a"
+  },
+  "agent.run.emptyTwice": {
+    "sourceHash": "4827bd178da420b2389a69141557e1762d3e6e564eeec8d2cf62f7de25cab550"
+  },
+  "agent.run.stepLimit": {
+    "sourceHash": "ecd66fec9c3456258940b82501be20e5da5d56f278fc274587ffc90c37e5a00f"
+  },
+  "agent.run.noTerminal": {
+    "sourceHash": "7e5500750f12684276f7b085a3b86add5d61bf6358423401dcc048ef568afbc6"
+  },
+  "agent.run.unexpected": {
+    "sourceHash": "b2e619bfa47a84cca8978e63e0c5dbba11fa3c01873fe1093a36a95b7f8663bc"
+  },
+  "agent.run.noTerminalRecord": {
+    "sourceHash": "89196a50511da8d4ea6dfb1a16c56730c38f869c58c0304c64607d4b894c28e1"
+  },
+  "agent.run.unknown": {
+    "sourceHash": "b7d4458462cec0e94e0de48dbc41aa378141fafef527e9efaadc5df2e3aad3cf"
   }
 }

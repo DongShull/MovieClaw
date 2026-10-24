@@ -216,8 +216,10 @@ class AgentSessionRecorder:
 
     def _finished(self, event: AgentEvent, row: AgentSession | None) -> RunFinished:
         owner = (row.owner if row else None) or ""
-        source = self._source if self._source == "channel" else (
-            "plugin" if owner.startswith("plugin:") else "app"
+        source = (
+            self._source
+            if self._source == "channel"
+            else ("plugin" if owner.startswith("plugin:") else "app")
         )
         done = event.type == "agent_done"
         return RunFinished(
@@ -227,6 +229,13 @@ class AgentSessionRecorder:
             status="done" if done else "error",
             answer=answer_preview(event.result.text) if done and event.result else "",
             error=None if done else (event.error or "运行失败，原因未知"),
+            error_ref=(
+                None
+                if done
+                else event.error_ref
+                if event.error
+                else {"message_key": "errors.agent.run.unknown", "params": {}}
+            ),
             elapsed_ms=event.result.elapsed_ms if event.result else None,
             source=source,
         )

@@ -269,6 +269,7 @@ class AgentRunRegistry:
                         type="agent_error",
                         run_id=run.run_id,
                         error="Agent 运行异常结束，未返回终态事件",
+                        error_ref={"message_key": "errors.agent.run.noTerminal", "params": {}},
                     ),
                 )
         except asyncio.CancelledError:
@@ -287,6 +288,10 @@ class AgentRunRegistry:
                         type="agent_error",
                         run_id=run.run_id,
                         error=f"Agent 运行发生未知错误：{exc}",
+                        error_ref={
+                            "message_key": "errors.agent.run.unexpected",
+                            "params": {"error": str(exc)},
+                        },
                     ),
                 )
         finally:
@@ -343,7 +348,12 @@ class AgentRunRegistry:
             return
         terminal_event = next(
             (s.event for s in reversed(run.events) if s.event.type in TERMINAL_EVENT_TYPES),
-            AgentEvent(type="agent_error", run_id=run.run_id, error="运行未留下终态事件"),
+            AgentEvent(
+                type="agent_error",
+                run_id=run.run_id,
+                error="运行未留下终态事件",
+                error_ref={"message_key": "errors.agent.run.noTerminalRecord", "params": {}},
+            ),
         )
         # 补配对文案：停机取消 → 服务中断；用户取消 → 用户停止；
         # 其余终态（done 无孤儿 / error 断流）按「服务中断」的中性文案兜底

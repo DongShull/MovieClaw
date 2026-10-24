@@ -182,6 +182,7 @@ SUBSCRIPTION_AWAITING_SUBTITLES = define(
     title="等不到字幕版",
     group="订阅",
     doc="智能订阅等到期仍没有看得懂的字幕版本，原版不会自动下载",
+    version="1.1",
 )
 SUBSCRIPTION_DOWNLOAD_STUCK = define(
     "subscription.download_stuck",

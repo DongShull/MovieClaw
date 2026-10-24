@@ -282,7 +282,7 @@ class StreamAccumulator:
         self._finalized[index] = tc
         return tc
 
-    def snapshot(self, error: str | None = None) -> ChatResponse:
+    def snapshot(self, error: str | None = None, error_ref: dict | None = None) -> ChatResponse:
         tool_calls = [
             self._finalized.get(i) or self.tool_snapshot(i) for i in self.tool_order
         ] or None
@@ -295,9 +295,16 @@ class StreamAccumulator:
             model=self.model_id,
             provider=self.provider,
             error=error,
+            error_ref=error_ref,
             native_output=self.native_output,
         )
 
-    def error_event(self, message: str) -> ChatStreamEvent:
+    def error_event(self, message: str | LlmError) -> ChatStreamEvent:
         self.finish_reason = "error"
-        return ChatStreamEvent(type="error", partial=self.snapshot(error=message))
+        return ChatStreamEvent(
+            type="error",
+            partial=self.snapshot(
+                error=str(message),
+                error_ref=message.message_ref if isinstance(message, LlmError) else None,
+            ),
+        )

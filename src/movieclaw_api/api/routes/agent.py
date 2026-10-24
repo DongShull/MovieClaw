@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Literal
@@ -26,6 +27,7 @@ from movieclaw_api.exceptions import (
     UpstreamServiceException,
 )
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value, stored_message
 from movieclaw_api.schemas.agent import (
     AttachmentUploadView,
     SessionCompactionEntryView,
@@ -851,11 +853,18 @@ async def follow_session(
             for stored in events:
                 cursor = stored.sequence
                 event = stored.event
-                yield (
-                    f"id: {stored.sequence}\n"
-                    f"event: {event.type}\n"
-                    f"data: {event.model_dump_json(exclude_none=True, exclude={'run_id'})}\n\n"
+                serialized = event.model_dump_json(
+                    exclude_none=True, exclude={"run_id", "error_ref"}
                 )
+                if event.error:
+                    payload = json.loads(serialized)
+                    payload["error"] = (
+                        render_value(event.error_ref)
+                        if event.error_ref
+                        else stored_message(event.error)
+                    )
+                    serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+                yield (f"id: {stored.sequence}\nevent: {event.type}\ndata: {serialized}\n\n")
             if terminal:
                 return
             events, terminal = await registry.get_session_events(

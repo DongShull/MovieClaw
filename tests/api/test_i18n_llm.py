@@ -139,3 +139,17 @@ def test_preset_names_are_reader_local_and_routing_catalogs_do_not_change(client
     assert (
         next(r for r in rows[1] if r["id"] == "openai_compat")["display_name"] == "OpenAI 兼容端点"
     )
+
+
+@pytest.mark.parametrize("provider", [None, "Third-party provider"])
+def test_unknown_domain_message_key_keeps_raw_text_for_every_reader(provider):
+    error = LlmConnectError(
+        "Unknown plugin / 原始上游报错",
+        provider=provider,
+        message_key="plugin.unknown.error",
+        params={"opaque": "Raw value"},
+    )
+    for locale in ["en", "zh-Hans"]:
+        with use_locale(locale):
+            assert render_value(error_reference(error)) == str(error)
+            assert render_value(error.message_ref) == str(error)

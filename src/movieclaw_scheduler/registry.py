@@ -56,6 +56,7 @@ _REGISTRY: dict[str, TaskDefinition] = {}
 SCHEDULED_TASKS: RegistryKey[TaskDefinition] = RegistryKey(
     "scheduled-tasks",
     schema=TaskDefinition,
+    version="1.1",
     stability=Stability.EXPERIMENTAL,
     doc="可调度的定时任务（领域插件贡献；第三方插件可用 override 整段替换内置任务）",
 )

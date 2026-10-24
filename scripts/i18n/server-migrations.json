@@ -2189,5 +2189,17 @@
   "errors.llm.connection.accountUpdated": "ChatGPT 账号已更新，请重新发起请求",
   "errors.llm.connection.allowUsage": "请在 ChatGPT 授权页面允许使用订阅额度",
   "errors.llm.connection.differentAccount": "本次登录不是原来的 ChatGPT 账号，请新增接入",
-  "errors.llm.connection.authUnavailable": "ChatGPT 授权服务暂时不可用，请重新连接"
+  "errors.llm.connection.authUnavailable": "ChatGPT 授权服务暂时不可用，请重新连接",
+  "errors.llm.stream.serviceError": "模型服务报错：{reason}",
+  "errors.llm.stream.unknown": "未知错误",
+  "errors.llm.stream.subscriptionIncomplete": "ChatGPT 响应未完成，请重试（可能已达到订阅额度）",
+  "errors.llm.stream.chatgptFailed": "ChatGPT 请求失败",
+  "errors.agent.run.modelFailed": "模型调用失败，原因未知",
+  "errors.agent.run.noResult": "模型流异常终止，未返回结果",
+  "errors.agent.run.emptyTwice": "我连续两次都没能生成回复，可能是临时故障。请稍后再发一遍试试。",
+  "errors.agent.run.stepLimit": "已达到最大执行步数上限（{limit} 步）仍未完成，运行终止。请把任务拆小后重试，或检查是否陷入了循环。",
+  "errors.agent.run.noTerminal": "Agent 运行异常结束，未返回终态事件",
+  "errors.agent.run.unexpected": "Agent 运行发生未知错误：{error}",
+  "errors.agent.run.noTerminalRecord": "运行未留下终态事件",
+  "errors.agent.run.unknown": "运行失败，原因未知"
 }
