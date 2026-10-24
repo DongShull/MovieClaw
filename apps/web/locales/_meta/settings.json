@@ -6615,5 +6615,380 @@
   },
   "imChannels.codeHelp": {
     "sourceHash": "7121a7f3a5b1918e9d3ee77dc712ba7f5f6cec7ce9cc6ff52124b84c2fdb22fe"
+  },
+  "mcp.controls.create": {
+    "sourceHash": "2432e75587514627983db633bcfb6176fc37c5ee1d3f4cf559bc5276368008c0"
+  },
+  "mcp.controls.new": {
+    "sourceHash": "8228a95a764fdaf56fad835fe093697d0676a5573b3b06b51cfb38ff84992d83"
+  },
+  "mcp.controls.rotateTitle": {
+    "sourceHash": "e8b6603664ea2aba5cef15071ba8d8c9a5de5f48cdb788108a31ca519e670fa9"
+  },
+  "mcp.controls.rotateDescription": {
+    "sourceHash": "8b554b4832172059583889decb2fdd745b7b9d991876c9c1f42bf685566f6032"
+  },
+  "mcp.controls.generateToken": {
+    "sourceHash": "6734e548096e73c55335d91083bac47b61dce097a472d7e78937c0d0760c3b43"
+  },
+  "mcp.controls.services": {
+    "sourceHash": "ec309ab207ef7fa31b139a743e5bf864ae84aa1ae2cdebb5d304ac05a67c58fd"
+  },
+  "mcp.controls.enableService": {
+    "sourceHash": "e36607f106ae9791e362e939201094ac9d7bc8b92da6b31566470e245bdd0805"
+  },
+  "mcp.controls.noExternal": {
+    "sourceHash": "d03b3b2e47b13768b11d88e06a450d9df053336068938374373a07b20f3434b4"
+  },
+  "mcp.controls.endpointPath": {
+    "sourceHash": "55510a030578f11cb7ec6ad89b69f59eb3e9946d47b8ae5c458f9ec96d7e3cbf"
+  },
+  "mcp.controls.endpoints": {
+    "sourceHash": "52fff1680de153af928da8eb4bd43ebe0b00ec535ba56a763d7a99545f76b12c"
+  },
+  "mcp.controls.endpointHint": {
+    "sourceHash": "5cb8c480968a30e7a465bd0abbaaaa8f9e22fc40c60111ecde9965e90f3193fe"
+  },
+  "mcp.controls.configuredCount": {
+    "sourceHash": "fc22bd63316040d16180c567ad44a47f0257d3ba320e184b5552d91d92f1af75"
+  },
+  "mcp.controls.disabledHint": {
+    "sourceHash": "74db0331dada342fc7ef9012a0090c273f852361783ac06f698eac3e8950b8b0"
+  },
+  "mcp.controls.emptyTitle": {
+    "sourceHash": "3ed6aead3fe2813fe42f5e34895242d5d9eb988901be4c35c531628cc2a8df10"
+  },
+  "mcp.controls.emptyHint": {
+    "sourceHash": "7c7b059c65e051f5fda05b966187e49318cbf52c978d4d60984a4c79c2328175"
+  },
+  "mcp.controls.running": {
+    "sourceHash": "1f0eb99b7ed094bed9583489cc2d82772e8abc4b520bb49eeb62182357d1296e"
+  },
+  "mcp.controls.disabled": {
+    "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+  },
+  "mcp.controls.commandMode": {
+    "sourceHash": "266563eff184cd328616cb493a88d1a2e8844d6e1cd375735d3701682f8593e5"
+  },
+  "mcp.controls.serviceMode": {
+    "sourceHash": "dd52b6623039be1999aba262776e96bb2446971d3fc6ef93d1bf3fb2f6b2c401"
+  },
+  "mcp.controls.neverCalled": {
+    "sourceHash": "d3fd7cb6aadd1222e7003d008999b6b9c5bb1578e50372ca973574cfabc8efdd"
+  },
+  "mcp.controls.never": {
+    "sourceHash": "5594f4797ae55d1a203f79ecc95cfb9b4b378cfe1c81fff06373b0ced6f88471"
+  },
+  "mcp.controls.exposedServices": {
+    "sourceHash": "d9ed790d1c2edc346efe9c3767e8f31f7001646c1291cb59c47cbf5cc878ae02"
+  },
+  "mcp.controls.tools": {
+    "sourceHash": "5ca6730d441522017552bf309fcddbed161b77440dc3a11d9945788d802afdb3"
+  },
+  "mcp.controls.lastCalled": {
+    "sourceHash": "90c70831c051f048190a537ec31d7a3a6b1dd574147e10bf8f9a9db02fdd87e6"
+  },
+  "mcp.controls.openNamed": {
+    "sourceHash": "b2565227d4646c24020ced0f48573583f1a4446e4b6a197d1696ded8749d5532"
+  },
+  "mcp.controls.toolsCount": {
+    "sourceHash": "e8d29507398745fc708b9b10d679c0b9c07cf387c0756914e63fdf3ff0c30863"
+  },
+  "mcp.controls.saveTokenTitle": {
+    "sourceHash": "8c339a6ab8fdfeeab6318daf66be02d7fc868b8d975275a99ee165e8efd1e72e"
+  },
+  "mcp.controls.saveTokenHint": {
+    "sourceHash": "3867ee126319ca140525c9097bb31e1663348e43d29128982f090d4b748f6089"
+  },
+  "mcp.controls.address": {
+    "sourceHash": "66fb194a2c48a5fe0509eaaad4f30698a7134c7441f9ba4837b88c5c2575a360"
+  },
+  "mcp.controls.copyAddress": {
+    "sourceHash": "4c6de01bbe86b3d8eb1a8358aaefa0a2137ca32f66061feadbd902b1ad6f9e8a"
+  },
+  "mcp.controls.accessToken": {
+    "sourceHash": "7013328537a0f605602eea124ec5852a4412886cc4a780c23f7a9c9e99b87920"
+  },
+  "mcp.controls.copyToken": {
+    "sourceHash": "856566e0e69dfd3ea24ed8ec6670d4044d60bbe67730f4c43321970ee954526e"
+  },
+  "mcp.controls.addToClient": {
+    "sourceHash": "8d5156a339319b8081ae1e7f2265394b4d039bc7154be8260c513e84fa58f406"
+  },
+  "mcp.controls.tokenSaved": {
+    "sourceHash": "8fdca67635a763a501095ab91feb4d40b1764d6f67c751c238b8fb09c5b363ae"
+  },
+  "mcp.controls.overview": {
+    "sourceHash": "fea405f9b01d14166e102eba54ea0b210b2363ff0303a683b70bd98a3ef07d14"
+  },
+  "mcp.controls.settings": {
+    "sourceHash": "df3d58c7d84b85f2037cdd20ffca0f386668645ea53008c11b0c8887182b0356"
+  },
+  "mcp.controls.checkRequestFailed": {
+    "sourceHash": "22f1573c6a60dc8693542bcadf5ba59a32f91cecbf5e94607d5db4790534763c"
+  },
+  "mcp.controls.addressPlaceholder": {
+    "sourceHash": "52a30b9855a53a70c3908e4fe6d8e37f8ecb9f21bee8a3daeac1ef15d940e3dc"
+  },
+  "mcp.controls.allEndpoints": {
+    "sourceHash": "53073f83bb54913547ae54ddb5d304d3f6bf97b80d47b8f5d4d5ea6da23b8fc2"
+  },
+  "mcp.controls.enabled": {
+    "sourceHash": "dfb802238b38fbd49560b461d3ff1ee5cef3a72077c37a1325cb4892c10fd1c8"
+  },
+  "mcp.controls.enableNamed": {
+    "sourceHash": "6ef70ab095562e98045761e6e35f2db2f7fefdc892174c57d9ccc76f8d96ae3e"
+  },
+  "mcp.controls.externalHint": {
+    "sourceHash": "8b4418426a8ea140d81496c48048e1471161db8e4d23ef92fa66d9e03711a190"
+  },
+  "mcp.controls.authHeader": {
+    "sourceHash": "2e1f7392cd756ef695c993765c3f63b0aee6f1ebeca9a4d45684b68ac844e1c7"
+  },
+  "mcp.controls.authPlaceholder": {
+    "sourceHash": "ff335061233a21c24319bb0b5f618a97c698c731e01e569e679199287e6ae0e1"
+  },
+  "mcp.controls.transportHint": {
+    "sourceHash": "4ce45091598b9eac9d5a0fcbd71c383c7b38ea14bf7f563be6ecb7e5ed85af78"
+  },
+  "mcp.controls.checkTitle": {
+    "sourceHash": "de94f8b3ec85cda6f85db09d5d5bf9414fb6e79b211ac16bca325597e2adbec0"
+  },
+  "mcp.controls.checkHint": {
+    "sourceHash": "82b892f8006a4ff64bb118956018569c25b997aee5dce147eac60a244b25ea56"
+  },
+  "mcp.controls.checking": {
+    "sourceHash": "c534d0a894fcc17f0644fe8b441ad313e28a12ad18725e7f97f4960a2db88b76"
+  },
+  "mcp.controls.checkAgain": {
+    "sourceHash": "a9e3a18e45b132f31a944dc466bd5032f67e19d06c3e087b5d92c2dc9b639b4d"
+  },
+  "mcp.controls.runCheck": {
+    "sourceHash": "6732bfb7a297f032351af512ee2f7aaa6a42db4fdbb0f537bb4d069be1263cf3"
+  },
+  "mcp.controls.passed": {
+    "sourceHash": "1e9f2561b7cf43c495c3417ea97bdebc53321d66be975b811d3bc0022c72197d"
+  },
+  "mcp.controls.notPassed": {
+    "sourceHash": "2875bc4f7fcb16da1daa6a65e538d6020d9327e4b73a1f968f2a3a7191b3fb70"
+  },
+  "mcp.controls.protocol": {
+    "sourceHash": "ab2f31f30acf7fdaf2cabc1bc4d5df9ffcb1b3b25575727b1617c42ea2ae0a3a"
+  },
+  "mcp.controls.countUnit": {
+    "sourceHash": "d7fc811a3b82c1e9e2632ac6967c19ebb22c6a6987bfb34e9ffb747a99a816f0"
+  },
+  "mcp.controls.probe": {
+    "sourceHash": "65c915ecc14d59d00f1fffd66d25fed49b95efcfbda083e59e44489f527240ec"
+  },
+  "mcp.controls.succeeded": {
+    "sourceHash": "053461ce86d265729d98285cb97f3b083d89546ced5ed9d8589ef641f0b227e3"
+  },
+  "mcp.controls.failed": {
+    "sourceHash": "28384d7afd2e4fa66084f6803b9d3cb3b1c1ebb0a4ecc4cc97706745405e5df4"
+  },
+  "mcp.controls.definitionSize": {
+    "sourceHash": "2554bfdd37d0ed69fe59ee329863ab01a4716656ab11e1a348a7651c25d2ab36"
+  },
+  "mcp.controls.calculating": {
+    "sourceHash": "1b7d5b1a9315fc64f950319bd2b0a7b3434468f5025e764af49049556cbe4f54"
+  },
+  "mcp.controls.token": {
+    "sourceHash": "735da237b6da18549a2c55a0efef66bf7398a4e615fc67a63b2a6a0516e446d6"
+  },
+  "mcp.controls.rotate": {
+    "sourceHash": "6f6110b40397d0ed4b7f70661d0e15ddb39af9bdca1bec0ab87f7805997de462"
+  },
+  "mcp.controls.missingServices": {
+    "sourceHash": "b72674b450a0c2e20b1809e3d7ee284f6c3eeab968e30e138bdc88105d33bee8"
+  },
+  "mcp.controls.listSeparator": {
+    "sourceHash": "c4a40ea8fe35627476f7f8cb9e1fc7f8898f428c6d1ff18b0bc5479d5db39c5f"
+  },
+  "mcp.controls.loadingCatalog": {
+    "sourceHash": "2c3c5a8491481e090b640e21bad8f30900ba56b30319b4441b53dd2a095741c3"
+  },
+  "mcp.controls.saveChanges": {
+    "sourceHash": "991bb7cfe5a81550cffd1004300e86ad411d6358edb3eb9a985457e80a1bcba7"
+  },
+  "mcp.controls.danger": {
+    "sourceHash": "cd84121acb17f42dedf0b058002e0438d531ec1adda9c63a7b166a16a5f2ac7f"
+  },
+  "mcp.controls.deleteEndpoint": {
+    "sourceHash": "243b31d81e22680ea93b8fc3ee80d200126f1c12fd55b53b8df5374815a83a34"
+  },
+  "mcp.controls.deleteHint": {
+    "sourceHash": "571031bb6343325474ef596483cfb5e8b032674d986eb07b26bb07d95a71a9ef"
+  },
+  "mcp.controls.deleteConfirmPlaceholder": {
+    "sourceHash": "a0e396bb707c42210fdb02fbe7ad7c595e5e79859934e5a076beec13c538ac6a"
+  },
+  "mcp.controls.slugInvalid": {
+    "sourceHash": "7cd849474f135820ee261bd342f4336f6c45717dda93262cc132f7bb0933659b"
+  },
+  "mcp.controls.slugTaken": {
+    "sourceHash": "eeb5d3c3035eb48161e6066edf3fff195201e4a1927da11b7e7a5a098139732f"
+  },
+  "mcp.controls.cancel": {
+    "sourceHash": "2cd0f3be8738a86cede1a1452f874f31d569864bbb00cacd4130990f4610cb5c"
+  },
+  "mcp.controls.name": {
+    "sourceHash": "fffaddf8cc06d37f2eec4a107a86cc9a507abaf07b1a4c250d318b16af196e62"
+  },
+  "mcp.controls.namePlaceholder": {
+    "sourceHash": "975a3d2f093911b2eee94d58562a09ef1871fea8b1bfe9b4126bd1d583f97b1f"
+  },
+  "mcp.controls.slug": {
+    "sourceHash": "ff46e51ec778ae33f3b3a750e4d7286653a0b1586ec9f31cc037d92135491395"
+  },
+  "mcp.controls.slugFixed": {
+    "sourceHash": "950c94233b71bdb23d333fac79b81fbb65bbb6d9c043c4d06ff6665a194003ae"
+  },
+  "mcp.controls.slugPlaceholder": {
+    "sourceHash": "2a0fd3c565b80f27441896579602ab3331e87c19329cf110628632f20df3b926"
+  },
+  "mcp.controls.mode": {
+    "sourceHash": "83a1e0d7f958a23155fa21b2ce06c37bbaa4a43290022489ca4daa0a44d46df2"
+  },
+  "mcp.controls.expanded": {
+    "sourceHash": "00bd3960fea8ea982bcce83a3d2744a28c548ab59e94725cc8eee9c8840c2f56"
+  },
+  "mcp.controls.expandedHint": {
+    "sourceHash": "8f84d93a9347aa9ee55377c9664ad531a07ff6ae82a85ceefe32b0d470062581"
+  },
+  "mcp.controls.collapsed": {
+    "sourceHash": "84a07f292f1f78cc4d24cfe118da88225195e44636ff8608db4ac874e3d6d347"
+  },
+  "mcp.controls.collapsedHint": {
+    "sourceHash": "215a3877f3d3e81fbfabf83c428f85014a5ed190411a100844e77d761d80d480"
+  },
+  "mcp.controls.modeSize": {
+    "sourceHash": "e59d69157c161e593ee792467277493f9c21d6835ada7e2bc0da002299687b00"
+  },
+  "mcp.controls.selectedServices": {
+    "sourceHash": "c6428d759dcfb8601067d316d898ad6ea79a953285c67be62f5092ee6b4bc462"
+  },
+  "mcp.controls.searchServices": {
+    "sourceHash": "c2256d99ad6f9a5a1258c53b2a9cd7eb0c8e88a9673dc2c6557d3bedb79b1600"
+  },
+  "mcp.controls.clear": {
+    "sourceHash": "1ef3de06b32e521bd52421e0fcc282ff33c8d4866268bf79e26831e4382f3ce1"
+  },
+  "mcp.controls.commandsCount": {
+    "sourceHash": "d800e4ced1054bc7bad3da48722c7a5bdca65b6fc720693f23728834ef44e6f3"
+  },
+  "mcp.controls.serviceWarning": {
+    "sourceHash": "3692d1dfb502652d54d6f3b7e3e66b9de69ce77f549454e947360b4117d22f94"
+  },
+  "mcp.controls.timeout": {
+    "sourceHash": "fc5cfa112fdaed8bde0b8b9fffb452f9d39fba2b73a45bf5f953b9cca5241a3a"
+  },
+  "mcp.controls.clientSees": {
+    "sourceHash": "5c9ca822b3bf1f0fe46bd6c94c1e44046c8429ead06e302f11f377333fbe8608"
+  },
+  "mcp.controls.toolUnit": {
+    "sourceHash": "0b3f904711c16c628f6e8b0be821794bfbf308925f2f98afc720e9888ed0bac0"
+  },
+  "mcp.controls.previewSummary": {
+    "sourceHash": "f8c12dd0d6790a7017c0d5bcb24265bab953c3dccec1d25660c0f343b34c8ce5"
+  },
+  "mcp.controls.toolHint": {
+    "sourceHash": "3929ea68dfb9cf42d7a090b6b41ea5c40a44ee02667bf7b9cd2058fc80f0ca1a"
+  },
+  "mcp.controls.calculatingNow": {
+    "sourceHash": "e1fa1bf0cd786284412133e1d2ca77bff4b04415ce761d5b36fbc2fba4bdf585"
+  },
+  "mcp.controls.previewEmpty": {
+    "sourceHash": "e48c00a2b605400b8f925b6dcc5d1c4b2e7e87f6d8654411598f9792b4705fb5"
+  },
+  "mcp.controls.moreTools": {
+    "sourceHash": "3d9152ca35df3af4cc54577c343607ce7434e46a44c80734266328653e44bde7"
+  },
+  "mcp.controls.searchTools": {
+    "sourceHash": "257f845abc1bfdf066748893d9f9d95adb2c28b4bf81b71dcce58c9faccf1fad"
+  },
+  "mcp.controls.clearSearch": {
+    "sourceHash": "b6f00afa6537489b272a69159dd57f7360d34d2a53251dcee7e51920af80920a"
+  },
+  "mcp.controls.all": {
+    "sourceHash": "5c55a67935af8f4508ba05d6d81c9eb240a2ea0ba886d8428b985e305470da3f"
+  },
+  "mcp.controls.readOnly": {
+    "sourceHash": "3b5ec3533b0e44856a0266eff1dcdc2886fa48be4a8c34aaf43c4bec211383e3"
+  },
+  "mcp.controls.write": {
+    "sourceHash": "eaac2a1ac7becfb90e08c4d2ac7b5cf9a67072e0f8f16008f99d1aa4c23cefd6"
+  },
+  "mcp.controls.toolFraction": {
+    "sourceHash": "5c4f6c237f1c79f749ed43acd19c5901c6536b2eeaf004fa5d19c0031972c411"
+  },
+  "mcp.controls.noMatchingTools": {
+    "sourceHash": "343a6f30736c6dbfe327c730275ab375c11e683dd9dce4d98a70b01a64e473c5"
+  },
+  "mcp.controls.destructive": {
+    "sourceHash": "17a7770cdfbc06187474d8f5399424825e98218326fdf32b90d089024d4c7af3"
+  },
+  "mcp.controls.commandBadge": {
+    "sourceHash": "4733ca640ff71e5bbf51a8a517730f78cb9ffb6fd4e1063601dfca39c8577395"
+  },
+  "mcp.controls.parameterBadge": {
+    "sourceHash": "83266b2757676e409443d79dee8f6f5e80f72cb2b38b3ef08a8b4c6098ecf20e"
+  },
+  "mcp.controls.noParameters": {
+    "sourceHash": "4c80fe3c8ae00499cd1b034f0632ee35f7fa1bb0f86f5cd69371c20153a7e8df"
+  },
+  "mcp.controls.copyToolName": {
+    "sourceHash": "199e52e435f24e97ef76d23419999c6bcc20ac2c4e44f3996ed85e173cc7a50a"
+  },
+  "mcp.controls.copyExample": {
+    "sourceHash": "6053135b27f7c93d239e0587842ee4e9bba0fd6de069067269e4bd08e3a68be8"
+  },
+  "mcp.controls.destructiveHint": {
+    "sourceHash": "1b143abdf1d616b2f3996b2625f47320b7f11b8884d17b9acf60ffddaa35e181"
+  },
+  "mcp.controls.clearHint": {
+    "sourceHash": "02f209dd9f3ceadc60d90e52173ccdaf80f9c7666b88c680d7291398bb0d9c59"
+  },
+  "mcp.controls.backgroundJob": {
+    "sourceHash": "d97b7a6d3923c29a6c39513db68cddfaaab3b0aa5b2903a8bacddcfc5e2ee031"
+  },
+  "mcp.controls.commandCaption": {
+    "sourceHash": "857a38de0614ccae7c71e5742ce1034c05699516c9aa3f46f0228058b4c49be2"
+  },
+  "mcp.controls.matchingCommands": {
+    "sourceHash": "4222ad197bff8a39fba4d8ea4d341f2469c144ad0c3241b43d270395f430f95c"
+  },
+  "mcp.controls.command": {
+    "sourceHash": "928f87d4507bf9a0085474e308949fb1f089a3baa288fddbdc1087927fbcdfba"
+  },
+  "mcp.controls.description": {
+    "sourceHash": "4262c45dc797bb0cd5008331ef25b684413859f55b73c71fb4e2c01b645dbbb7"
+  },
+  "mcp.controls.paramsFields": {
+    "sourceHash": "0861d6ae0db206488482ab9cc788a9c50e95eec88635002a4ff2896052fbbae3"
+  },
+  "mcp.controls.required": {
+    "sourceHash": "11da9dc4428537c43ec205e68dcd8e12c23e84fda2f14d84b5bf16f54d3ed3a8"
+  },
+  "mcp.controls.options": {
+    "sourceHash": "b9eab8d20c173e37a1b57eefa056d9424adf471f513c3ce512ce1a187b35a1c1"
+  },
+  "mcp.controls.parameter": {
+    "sourceHash": "9634fb0832be624fc5beafc8a2ba68e9e66bfc5162c46aed461befee62b84783"
+  },
+  "mcp.controls.type": {
+    "sourceHash": "ba40014ff496f64e755492a5c6243cc0222a5d3e4b795ecfea7c9bed809adaab"
+  },
+  "mcp.controls.location": {
+    "sourceHash": "1fb4d574da92f1c182183f205b77a1fcfc538ab438a04f2399ceac29687a7a56"
+  },
+  "mcp.controls.noServices": {
+    "sourceHash": "f081d3f914c0d4fcf309f7df5ecb3ad197dc2fac4ce9d9e39ab993009eb06271"
+  },
+  "mcp.controls.copy": {
+    "sourceHash": "63d90d977348ab1f9aa34ebb42b103216ce161feb0a1c08e237607bf42c3cf79"
+  },
+  "mcp.controls.period": {
+    "sourceHash": "eb0d5884569b398e475b89e77a068c6c575a0064ff6a72fafc173102c4cfcd57"
   }
 }

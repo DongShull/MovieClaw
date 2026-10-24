@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Request
 
 from movieclaw_api.api.deps import require_admin_session
 from movieclaw_api.exceptions import NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.mcp import (
     EndpointCreatedView,
     EndpointCreateRequest,
@@ -192,7 +193,7 @@ async def check_endpoint(request: Request, endpoint_id: str) -> ApiResponse[Self
     base_url, _ = await _base_url()
     result = await self_check(request.app, endpoint, external_url=base_url)
     if not config.enabled:
-        result.warnings.insert(0, "MCP 总开关是关闭的，所有端点对外一律 404。")
+        result.warnings.insert(0, t("mcp.check.globalDisabled"))
     return ok(SelfCheckView(**vars(result)))
 
 
