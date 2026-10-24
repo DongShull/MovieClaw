@@ -122,5 +122,18 @@
     "images": "[图片 ×{count}]",
     "unnamed": "未命名会话",
     "defaultInstruction": "用户未附加说明，按上述技能指令执行。"
+  },
+  "cards": {
+    "notFound": "未找到",
+    "libraryMissing": "未找到媒体库 #{id}",
+    "openLibrary": "打开媒体库「{name}」，{summary}",
+    "itemMissing": "未找到条目 #{id}",
+    "resume": "继续播放",
+    "replay": "重新播放",
+    "itemContext": "{title}，{context}",
+    "stillLabel": "{title} 剧照",
+    "played": "已看完",
+    "playTitle": "{verb}《{title}》{unit}",
+    "subscriptionMissing": "未找到订阅 #{id}"
   }
 }

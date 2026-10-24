@@ -122,5 +122,18 @@
     "images": "[Images ×{count}]",
     "unnamed": "Unnamed session",
     "defaultInstruction": "No extra instructions; follow the selected skill."
+  },
+  "cards": {
+    "notFound": "Not found",
+    "libraryMissing": "Library #{id} not found",
+    "openLibrary": "Open library “{name}”, {summary}",
+    "itemMissing": "Item #{id} not found",
+    "resume": "Resume",
+    "replay": "Play again",
+    "itemContext": "{title}, {context}",
+    "stillLabel": "{title} still",
+    "played": "Watched",
+    "playTitle": "{verb} “{title}”{unit}",
+    "subscriptionMissing": "Subscription #{id} not found"
   }
 }

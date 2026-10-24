@@ -334,5 +334,38 @@
   },
   "session.defaultInstruction": {
     "sourceHash": "c6cf789703f862c7780e04b2791ba4242466a8115ec830a763a6b5006b880004"
+  },
+  "cards.notFound": {
+    "sourceHash": "12129b289261ad0f6a7eceeda59396e0b4d85cb54ed7eee915766d6faa3fb8be"
+  },
+  "cards.libraryMissing": {
+    "sourceHash": "0e2bbe23cc69a13e53d62a31b234adcbd7578598594965759f93043dad1c1fe0"
+  },
+  "cards.openLibrary": {
+    "sourceHash": "dd9ced10878d59695d79b5dd1d1ed833ea69f377429f99a058790a184c677a17"
+  },
+  "cards.itemMissing": {
+    "sourceHash": "e6dbb7ccd43a3edc0f5c36f547b5c045ba2116064b312082a046f81d0bd1e5e9"
+  },
+  "cards.resume": {
+    "sourceHash": "11a6c8e68b591c9fc2a8b13899efb57da77ee23d35559624c4ef40b570c42de9"
+  },
+  "cards.replay": {
+    "sourceHash": "dc4db96376ef9185596ea8cd0ff8596ac5e3c3a6b336f26a0549c36df9112abd"
+  },
+  "cards.itemContext": {
+    "sourceHash": "1f59b29d3c0683f67149b064c4d229c49aee67c52622d97e10dd79b2991d0248"
+  },
+  "cards.stillLabel": {
+    "sourceHash": "2f113b78c81286d6d5f0801c7c6b1945260bf59e646e9ee3aa834bc2335a642f"
+  },
+  "cards.played": {
+    "sourceHash": "4715b1c2316b458de284168fd1099a47f06c4a5def2a2cfe113ce2d0252671ce"
+  },
+  "cards.playTitle": {
+    "sourceHash": "33f6368b6fd3511b4e7bc84056bc1ae1cc98378a2f35203175f4c8d47925a754"
+  },
+  "cards.subscriptionMissing": {
+    "sourceHash": "346e8596c568d64988a48cff4e736f5970a62a7f72b792e6d3a00e078650ec5b"
   }
 }
