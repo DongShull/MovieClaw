@@ -404,12 +404,14 @@ CHANGE_PAGES = 10
 @register_task(
     "drive_changes",
     title="网盘变化同步",
+    title_key="settings.scheduledTasks.catalog.driveChangesTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=300,
     description=(
         "拉网盘的操作动态（上传、转存、移动、删除），只处理落在媒体库网盘目录里的：删掉的标缺失，"
         "其余只重新列有变化的那个目录。网盘不支持操作动态时靠每周复查。"
     ),
+    description_key="settings.scheduledTasks.catalog.driveChangesDescription",
 )
 async def poll_drive_changes() -> None:
     from movieclaw_api.services.drives.registry import backends
@@ -538,12 +540,14 @@ PROBE_BATCH = 20
 @register_task(
     "drive_probe_specs",
     title="网盘片源规格补探",
+    title_key="settings.scheduledTasks.catalog.driveProbeSpecsTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=600,
     description=(
         "纳管进来的网盘文件入库时不读字节，分辨率、HDR、音轨在这里按每日预算的一小部分慢慢补齐"
         "（新入库的先探）；没补到的在起播时当场探。"
     ),
+    description_key="settings.scheduledTasks.catalog.driveProbeSpecsDescription",
 )
 async def probe_cloud_specs() -> int:
     """探一批还没有规格的只在网盘上的文件。返回这轮探成了几个。"""

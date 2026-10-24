@@ -982,5 +982,41 @@
       "expensive": "Costly to rebuild",
       "actions": "Cleanup actions for {title}"
     }
+  },
+  "scheduledTasks": {
+    "ui": {
+      "loadFailed": "Could not load scheduled tasks",
+      "saveFailed": "Could not save the schedule",
+      "intro": "Each background task runs on its own schedule. Changes apply immediately without restarting. The server stores the schedule and enabled state for each task.",
+      "title": "Background tasks",
+      "count": "{count, plural, one {# task} other {# tasks}}",
+      "applySuggestion": "Run every hour",
+      "networkHint": "A library uses a network mount. File watching cannot detect remote changes, so Library reconciliation is needed to discover new files. The current schedule is {schedule}. Running every hour is recommended; incremental reconciliation usually takes only a few seconds.",
+      "loading": "Loading…",
+      "empty": "No scheduled tasks yet",
+      "emptyHint": "Tasks are registered when the scheduler starts. This list is empty when scheduling is disabled.",
+      "lastRun": "Last run: {last}{next, select, yes { · Next: {when}} other {}}{enabled, select, no { · Disabled} other {}}",
+      "neverRun": "Never run",
+      "enable": "Enable “{title}”",
+      "mode": "Schedule type",
+      "interval": "Every",
+      "daily": "Daily at a fixed time",
+      "cron": "cron expression",
+      "intervalHours": "Interval in hours",
+      "hoursUnit": "{count, plural, one {hour} other {hours}}",
+      "dailyTime": "Daily time",
+      "cronPlaceholder": "Minute hour day month weekday, e.g. 0 3 * * *",
+      "saving": "Saving…",
+      "save": "Save"
+    },
+    "schedule": {
+      "intervalUnset": "Interval not set",
+      "hours": "Every {count, plural, one {# hour} other {# hours}}",
+      "minutes": "Every {count, plural, one {# minute} other {# minutes}}",
+      "seconds": "Every {count, plural, one {# second} other {# seconds}}",
+      "daily": "Daily at {hour}:{minute}",
+      "cron": "cron: {expression}",
+      "unset": "Not set"
+    }
   }
 }

@@ -65,6 +65,7 @@ def test_rejects_unknown_server_key(catalog):
         'stored_fields("common.missing")',
         'reference("common.missing")',
         'upsert_notice(title_key="common.missing")',
+        'register_task("task", description_key="common.missing")',
         '{"message_key": "common.missing"}',
         '{"label_key": "common.missing"}',
         'Rule(title="notify.missing")',
@@ -167,3 +168,11 @@ def test_matcher_presentation_references_are_checked(catalog, source):
         "unknown key" in error or "call parameters differ" in error
         for error in check.check_catalogs()
     )
+
+
+def test_scheduler_description_references_are_checked(catalog):
+    root, _ = catalog
+    folder = root / "src/movieclaw_scheduler"
+    folder.mkdir(parents=True)
+    (folder / "tasks.py").write_text('register_task("task", description_key="common.missing")')
+    assert any("unknown key common.missing" in error for error in check.check_catalogs())

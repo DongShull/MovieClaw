@@ -631,5 +631,137 @@
   },
   "storage.computeFailed": {
     "sourceHash": "852d4a95ae92b2618df7e63c7d6083a5aa908c6652d87dde91ba321a076346ac"
+  },
+  "scheduledTasks.catalog.cleanupTaskRunsTitle": {
+    "sourceHash": "b536c6ca9282ae106a15de84eeeb89528bc1b355dd1be8e75a0cdc25d770ad40"
+  },
+  "scheduledTasks.catalog.cleanupTaskRunsDescription": {
+    "sourceHash": "f7f92a8939655adde83d868bcb0ca120365ef6f89154859234d162b56e08e227"
+  },
+  "scheduledTasks.catalog.cleanupCacheEntriesTitle": {
+    "sourceHash": "903a12cdeda0293d95607e86a59a7522be46d493d7bc6af71b84b84de9580519"
+  },
+  "scheduledTasks.catalog.cleanupCacheEntriesDescription": {
+    "sourceHash": "f78a17d13b8b1bd555bf5d918d3ec251def0290d80b94ce12413184b585a97a2"
+  },
+  "scheduledTasks.catalog.matchNewTorrentsTitle": {
+    "sourceHash": "efb067c1f81b53931edfbc68088d56099984ff48a3afde66b693a389319f06bf"
+  },
+  "scheduledTasks.catalog.matchNewTorrentsDescription": {
+    "sourceHash": "9baede2de3e490943c38a5e6d0ad7d3cb13f186b794f157db48daf39a7ca290b"
+  },
+  "scheduledTasks.catalog.downloadSourcesOrphanSweepTitle": {
+    "sourceHash": "26e5253f19afb5864e5f22eeb371476afa662033e584a6edc818f1c3a33d6c17"
+  },
+  "scheduledTasks.catalog.downloadSourcesOrphanSweepDescription": {
+    "sourceHash": "aa955069492b1dd7c7b3110ad30603081777303f9d31adfc35f5e0d9e13229d1"
+  },
+  "scheduledTasks.catalog.ratioBoostTitle": {
+    "sourceHash": "c45079dada9517b7f40bab6d40b56d4e4025cc563db7b9b085555003b5a3bd18"
+  },
+  "scheduledTasks.catalog.ratioBoostDescription": {
+    "sourceHash": "7b8c16f96fd1ec3b5131c6ad7f878162b1e1b0719f0542c14a5cbb01931a8bc8"
+  },
+  "scheduledTasks.catalog.checkDownloadProgressTitle": {
+    "sourceHash": "a442eda1717fd12d754307445b4bf2eefe529291e75ef2fc09b33d4f9469c7f8"
+  },
+  "scheduledTasks.catalog.checkDownloadProgressDescription": {
+    "sourceHash": "6b317a6c1540cbfc324793f42d9a6fe35b6598786b680d7c38eeb35c6c862662"
+  },
+  "scheduledTasks.catalog.syncSiteTorrentsTitle": {
+    "sourceHash": "af254313199ccd493a5ca1aeda2d4e48fb16beb78513fad53f9a6d0538bd32f0"
+  },
+  "scheduledTasks.catalog.syncSiteTorrentsDescription": {
+    "sourceHash": "5d420b379148e3e23bee76c08b8f45186ae481376987b8002792f06ab01bb974"
+  },
+  "scheduledTasks.catalog.refreshMediaMetadataTitle": {
+    "sourceHash": "942ff922d7ec90995beed98027da61bbe2f9b2fe1d9b38c2b69c1e222aa93e7e"
+  },
+  "scheduledTasks.catalog.refreshMediaMetadataDescription": {
+    "sourceHash": "a973b709423bddc3402a2ea994cbb20edbe8ace11ff3f1c72774c09c8cc8aba0"
+  },
+  "scheduledTasks.catalog.checkAppUpdateTitle": {
+    "sourceHash": "d95bc1d6f25ab45cb51b44678cc05ab223bfb799b53f69f9ab79df43809f34db"
+  },
+  "scheduledTasks.catalog.checkAppUpdateDescription": {
+    "sourceHash": "b909b0906604356fe57b72050a5095ee4b6ec17bc031c4c0841579b7f19e3167"
+  },
+  "scheduledTasks.catalog.driveReleaseSweepTitle": {
+    "sourceHash": "802d4b50c70cae5f97c471e724919ba9aa54dc820882e27fb2f5bff5132b1ef6"
+  },
+  "scheduledTasks.catalog.driveReleaseSweepDescription": {
+    "sourceHash": "3ed50dac10a3f9e8cca31654e91633b0337fcf5dd2dbf9c2844e004717dbd965"
+  },
+  "scheduledTasks.catalog.driveUploadSweepTitle": {
+    "sourceHash": "e48c61ddbbc341aa36ab7f6144a14dbc2868b712e24a2c364076fe81215eb5af"
+  },
+  "scheduledTasks.catalog.driveUploadSweepDescription": {
+    "sourceHash": "2668e6232a4bb549e63987ccf645b712e8eb8c0cba44f2aa7e6d4321e8f73517"
+  },
+  "scheduledTasks.catalog.backfillNfoAbsorptionTitle": {
+    "sourceHash": "d73cb3470eb021e8b2f39e46236e11a1348994d028f5b84807ee3e80fdd14ef2"
+  },
+  "scheduledTasks.catalog.backfillNfoAbsorptionDescription": {
+    "sourceHash": "6f79d6596d6185c599cd5d24fd6ae50ef6fc4820e0034f678ff58be149117549"
+  },
+  "scheduledTasks.catalog.libraryIngestTitle": {
+    "sourceHash": "04f8b4cbb63d64ba3239a8d65bd6873d508595f37e09ebe67e9f2fb97a818ea6"
+  },
+  "scheduledTasks.catalog.libraryIngestDescription": {
+    "sourceHash": "8a16747c04dd74eed7c42f58a260b359b4bd76aa9824fa29ce7b80799294659c"
+  },
+  "scheduledTasks.catalog.driveChangesTitle": {
+    "sourceHash": "62c147f5dde5a2d0b8de131a74d920d5fb936e6601a54b9e3105989c1fafca2d"
+  },
+  "scheduledTasks.catalog.driveChangesDescription": {
+    "sourceHash": "2af15b66551630e3262bb2af89156401b98f1755c8c577a96bae422e9ff683fb"
+  },
+  "scheduledTasks.catalog.driveProbeSpecsTitle": {
+    "sourceHash": "7b61094214a0974f1b72f30d1dd292803dc8cf9b71f2d3231d3e23c71a44a325"
+  },
+  "scheduledTasks.catalog.driveProbeSpecsDescription": {
+    "sourceHash": "8e83f0d303e8ebdac72afe9ea598d9bf49b7f5b89b6353db623d15fb63de0add"
+  },
+  "scheduledTasks.catalog.backfillMediaSeriesTitle": {
+    "sourceHash": "0bf7e763043a3f828851a4328b08e0b980179df9ea321caf830d8a0a5762ca62"
+  },
+  "scheduledTasks.catalog.backfillMediaSeriesDescription": {
+    "sourceHash": "ebd4e257b0904125301f88af19a1690511b82598d845cb6c879a4cd61671b080"
+  },
+  "scheduledTasks.catalog.libraryReconcileTitle": {
+    "sourceHash": "365cc315c2d7d34aa1169e827cc07cafd3fca8ae2fea4dfed7d46cbe88fd0b09"
+  },
+  "scheduledTasks.catalog.libraryReconcileDescription": {
+    "sourceHash": "bfa80e703f5e255ba67f596ed086afb081b0690b85674ebb96941db24cb67b38"
+  },
+  "scheduledTasks.catalog.libraryRecyclePurgeTitle": {
+    "sourceHash": "eb85ecbaae38d17938dd553255d6aedd8ead3039a58627d387369dfd7c36239d"
+  },
+  "scheduledTasks.catalog.libraryRecyclePurgeDescription": {
+    "sourceHash": "d63757980a469d1a24098c5bd72ae8baead58e9768346003df534b2c5661ecfe"
+  },
+  "scheduledTasks.catalog.libraryRecycleOrphanSweepTitle": {
+    "sourceHash": "d8495ac71360029725ab5939a8949ee9d0b04db66b86e1ecd7239be8a7b155dd"
+  },
+  "scheduledTasks.catalog.libraryRecycleOrphanSweepDescription": {
+    "sourceHash": "d47d4f6d4926fad529e525a34c6d783e795baa4871aa9cc192864e3bd058d2e9"
+  },
+  "scheduledTasks.catalog.searchWantedTitle": {
+    "sourceHash": "8ec6028c82ee6d1b07cebf7bd9c46f8f19263974f92dc5add5e4b34a4b884fbc"
+  },
+  "scheduledTasks.catalog.searchWantedDescription": {
+    "sourceHash": "1fe9171f447bc64857cad4199298a7ed0387bb1638be4f477c623517ccc72af3"
+  },
+  "scheduledTasks.catalog.smartSelectionDueTitle": {
+    "sourceHash": "be67479704a0a0dbf2797a22b64fec407baeb41dac10f31ad96bdc9a528f0ba9"
+  },
+  "scheduledTasks.catalog.smartSelectionDueDescription": {
+    "sourceHash": "66411b5cd742c080694455ae9e7591495ae85f436bb94d213185e3450d7355d0"
+  },
+  "scheduledTasks.catalog.backfillUpgradeSnapshotsTitle": {
+    "sourceHash": "4a06204543f61dfa1a4da5756b96dd836db3d7f5510166ebc1985146e74a6c6e"
+  },
+  "scheduledTasks.catalog.backfillUpgradeSnapshotsDescription": {
+    "sourceHash": "91987bb76728c04b761ef713b79623b9d33157ec9dee47c594279978451edd2a"
   }
 }

@@ -236,12 +236,14 @@ async def candidates(limit: int = SWEEP_BATCH) -> list[int]:
 @register_task(
     "drive_release_sweep",
     title="网盘库腾空本地",
+    title_key="settings.scheduledTasks.catalog.driveReleaseSweepTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=600,
     description=(
         "主根在网盘的库：已上传并核验、本地派生活做完、没人在读的文件，删掉本地那份（旁车文件保留）。"
         "开了「本地也保留一份」的库不腾空。"
     ),
+    description_key="settings.scheduledTasks.catalog.driveReleaseSweepDescription",
 )
 async def release_sweep() -> int:
     released = 0

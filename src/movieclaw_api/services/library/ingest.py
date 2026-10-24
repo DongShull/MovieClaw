@@ -746,6 +746,7 @@ async def _load_rules() -> list[tuple[ImportWatch, Library | None]]:
 @register_task(
     "library_ingest",
     title="监听导入（兜底巡检）",
+    title_key="settings.scheduledTasks.catalog.libraryIngestTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=FALLBACK_SWEEP_SECONDS,
     description=(
@@ -754,6 +755,7 @@ async def _load_rules() -> list[tuple[ImportWatch, Library | None]]:
         "（等静默窗口/等下载器完成）、或已 6 小时没被巡检过（事件路径可能"
         "已失效，网络挂载上常见）时纳入巡检。"
     ),
+    description_key="settings.scheduledTasks.catalog.libraryIngestDescription",
 )
 async def ingest_tick() -> None:
     # 先重建监听：目录此前未就绪（挂载晚于启动）或监听失效时借此恢复；

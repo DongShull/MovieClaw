@@ -131,12 +131,14 @@ async def _process_locked() -> None:
 @register_task(
     "match_new_torrents",
     title="订阅被动匹配（兜底扫描）",
+    title_key="settings.scheduledTasks.catalog.matchNewTorrentsTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=3600,
     description=(
         "低频兜底：扫描种子索引中水位之后的新种子并匹配订阅缺口，并全量重算追新发布预测。"
         "主触发在站点同步任务尾部（零延迟），本任务只兜进程重启/同步异常的漏网。"
     ),
+    description_key="settings.scheduledTasks.catalog.matchNewTorrentsDescription",
 )
 async def match_new_torrents_task() -> None:
     await process_new_torrents(full_forecast_refresh=True)

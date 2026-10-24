@@ -129,9 +129,11 @@ async def run_due(session, *, now=None):
 @register_task(
     "smart_selection_due",
     title="智能订阅等待到期",
+    title_key="settings.scheduledTasks.catalog.smartSelectionDueTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=30,
     description="恢复智能提交意图，并执行固定截止或观察窗口到期决策",
+    description_key="settings.scheduledTasks.catalog.smartSelectionDueDescription",
 )
 async def smart_selection_due():
     async with _lock, get_database().session() as session:

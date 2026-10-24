@@ -1391,12 +1391,14 @@ async def _admit_candidates(
 @register_task(
     "ratio_boost",
     title="自动刷分享率",
+    title_key="settings.scheduledTasks.catalog.ratioBoostTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=_TICK_SECONDS,
     description=(
         "盯各开启刷流站点的免费新种，第一时间抢下做种提高分享率；"
         "在站点各自的存储预算内自动汰换上传效率低的任务。"
     ),
+    description_key="settings.scheduledTasks.catalog.ratioBoostDescription",
 )
 async def run_ratio_boost() -> None:
     """tick 任务体：对账 → 预算收敛 → 准入。没有刷流站点且无在池任务时零成本返回。"""

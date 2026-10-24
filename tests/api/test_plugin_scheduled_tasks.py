@@ -38,6 +38,8 @@ async def apply(ctx) -> None:
         key=f"{ctx.entry_id}.sync", title="同步想看", handler=sync,
         default_trigger_type=TriggerType.INTERVAL, default_interval_seconds=3600,
         description="把想看同步成订阅",
+        title_key="plugin.acme.title",
+        description_key="plugin.acme.description",
     ))
 """
 
@@ -110,6 +112,8 @@ def test_a_plugin_scheduled_task_is_registered_and_runs_in_the_plugin(client) ->
     task = get_task("acme-tick.sync")
     assert task is not None and task.title == "同步想看"
     assert task.default_interval_seconds == 3600 and task.description == "把想看同步成订阅"
+    assert task.title_key == "plugin.acme.title"
+    assert task.description_key == "plugin.acme.description"
     call(client, task.handler)  # 调度器到点就是这么调的
     call(client, task.handler)
     assert call(client, runs) == 2

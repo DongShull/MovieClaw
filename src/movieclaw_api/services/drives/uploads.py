@@ -192,12 +192,14 @@ async def enqueue(library_id: int | None = None, *, origin: str = "system") -> l
 @register_task(
     "drive_upload_sweep",
     title="网盘上传巡检",
+    title_key="settings.scheduledTasks.catalog.driveUploadSweepTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=600,
     description=(
         "主根在网盘的库：还没传上去的本地文件（新入库的、上次失败过一段时间的）排进上传任务。"
         "新文件入库时会立即排，这里兜底。"
     ),
+    description_key="settings.scheduledTasks.catalog.driveUploadSweepDescription",
 )
 async def upload_sweep() -> None:
     await enqueue()

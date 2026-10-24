@@ -982,5 +982,41 @@
       "expensive": "重建代价高",
       "actions": "「{title}」的清理操作"
     }
+  },
+  "scheduledTasks": {
+    "ui": {
+      "loadFailed": "加载失败",
+      "saveFailed": "保存失败",
+      "intro": "后台任务各自按周期运行；改动立即生效，不用重启。周期与启停按任务记在服务器上。",
+      "title": "后台任务",
+      "count": "{count} 个任务",
+      "applySuggestion": "调到每 1 小时",
+      "networkHint": "有媒体库放在网络挂载上：实时监控收不到远端变化，新文件全靠「媒体库对账」发现。 现在是{schedule}，建议调到每 1 小时——增量对账通常只需几秒。",
+      "loading": "正在加载…",
+      "empty": "还没有定时任务",
+      "emptyHint": "后台调度启动时会登记各项任务；调度未启用时这里为空。",
+      "lastRun": "上次 {last}{next, select, yes { · 下次 {when}} other {}}{enabled, select, no { · 已停用} other {}}",
+      "neverRun": "还没跑过",
+      "enable": "启用「{title}」",
+      "mode": "周期方式",
+      "interval": "每隔",
+      "daily": "每天固定时刻",
+      "cron": "cron 表达式",
+      "intervalHours": "间隔小时数",
+      "hoursUnit": "{count, plural, other {小时}}",
+      "dailyTime": "每天几点",
+      "cronPlaceholder": "分 时 日 月 周，如 0 3 * * *",
+      "saving": "保存中…",
+      "save": "保存"
+    },
+    "schedule": {
+      "intervalUnset": "间隔未设置",
+      "hours": "每 {count} 小时",
+      "minutes": "每 {count} 分钟",
+      "seconds": "每 {count} 秒",
+      "daily": "每天 {hour}:{minute}",
+      "cron": "cron：{expression}",
+      "unset": "未设置"
+    }
   }
 }

@@ -2667,5 +2667,95 @@
   },
   "logs.viewer.historical": {
     "sourceHash": "e5aedf6ea939f07a853769e3d41fa478c07847c5af26c6ae27eda59f9fede306"
+  },
+  "scheduledTasks.ui.loadFailed": {
+    "sourceHash": "d1d044826a45ef6533a4744d171d4a8808dec292f57ade9f3878f1f8f7eed278"
+  },
+  "scheduledTasks.ui.saveFailed": {
+    "sourceHash": "6309a3bb5ba4c71474ed20228224f29ea2d56302a7e37c5eac9adb6113d66197"
+  },
+  "scheduledTasks.ui.intro": {
+    "sourceHash": "a732e46c85b976898d836eeb253a386db9b04636331392386f76e90c1139de72"
+  },
+  "scheduledTasks.ui.title": {
+    "sourceHash": "4c46c904395c29350de8f3a479d818af1391d7e760748d445cfedc6dbcda5b44"
+  },
+  "scheduledTasks.ui.count": {
+    "sourceHash": "b59e710715a9b17d613c38250651d2c5b12e43b6b77563d1bc40acd51ad72651"
+  },
+  "scheduledTasks.ui.applySuggestion": {
+    "sourceHash": "262887c9a808724f90679f16f67c25eb422ea0fbacd6b77e3478b617e69649f4"
+  },
+  "scheduledTasks.ui.networkHint": {
+    "sourceHash": "7f6b619416d0ecc2b2c2342970ab044649f3c370b97dd87e142fb6d5ad46268b"
+  },
+  "scheduledTasks.ui.loading": {
+    "sourceHash": "21bd738e0d7191a79734e976e49d15bafeb3f3385ae69620e52984d7da0e8c40"
+  },
+  "scheduledTasks.ui.empty": {
+    "sourceHash": "6b8e198ceef3cadcc088dca9b5f448a0b41a3239e3ce03be7c74875b416c6f0e"
+  },
+  "scheduledTasks.ui.emptyHint": {
+    "sourceHash": "850c65622da75372a165f5c22ac178b842541e3d98d6b795ae5947f09c9f8198"
+  },
+  "scheduledTasks.ui.lastRun": {
+    "sourceHash": "46953b79b47f976bbe62026bcccf37b6730abbda908f9d2165e6c099a76615a1"
+  },
+  "scheduledTasks.ui.neverRun": {
+    "sourceHash": "efbda84f915b9ba36524be4fc4b4ee6442a5312e9bc088f9644e5a84eea8c416"
+  },
+  "scheduledTasks.ui.enable": {
+    "sourceHash": "61c47385d7e048aa2d47856fa2495b6e3f95a2c94721279c452ad5680d37602f"
+  },
+  "scheduledTasks.ui.mode": {
+    "sourceHash": "9e5bed69683baa11417fcd6a71d00a3a49e0de7eea1d1deade5bbd448b5ca57f"
+  },
+  "scheduledTasks.ui.interval": {
+    "sourceHash": "100107ffb56b2e46647e2b05552395706a9a80a60982c61d6218f6b6d4231278"
+  },
+  "scheduledTasks.ui.daily": {
+    "sourceHash": "9be12cf9eff432ec329cccfca5b5fff380760bb66f989715b32eb1df394ef334"
+  },
+  "scheduledTasks.ui.cron": {
+    "sourceHash": "b505ad2e7e3d218ea962b95cfd1c1b3edbd578a2825bb2037640bcd360850eee"
+  },
+  "scheduledTasks.ui.intervalHours": {
+    "sourceHash": "4571310d8e96f95b4a3f5bc37dcb64d61d385a596dd5a8353416366ee259a365"
+  },
+  "scheduledTasks.ui.hoursUnit": {
+    "sourceHash": "9af66f78b720a3f1c788c763232eb01fc61d2c29b10af7deeb4668968acabb73"
+  },
+  "scheduledTasks.ui.dailyTime": {
+    "sourceHash": "5c45d344225d4354e77a6ed5e63c890fdf31f7404d753d57c9c605e1ba96e844"
+  },
+  "scheduledTasks.ui.cronPlaceholder": {
+    "sourceHash": "67f06ec252fe94940a5d93c963b784b5d6471e5953c712a3212346098cba5f0d"
+  },
+  "scheduledTasks.ui.saving": {
+    "sourceHash": "ff509c9ba052a21c008c88b36ef5f13acc9cb693641689b35747be6daf11d9d6"
+  },
+  "scheduledTasks.ui.save": {
+    "sourceHash": "a3030bf8f16dc63c6b277564c68f78a3be5abe5f2907c51826dee7184ff793fd"
+  },
+  "scheduledTasks.schedule.intervalUnset": {
+    "sourceHash": "361527b239dddf599e6e30c651a95945fbf8e76aa7f92573bde8b84e52a1d92a"
+  },
+  "scheduledTasks.schedule.hours": {
+    "sourceHash": "97a4fd49517769dc2a4667cabeb0ee5ebc2240def671f0a64d51eb8af5b6b0a7"
+  },
+  "scheduledTasks.schedule.minutes": {
+    "sourceHash": "4c78039bf9560e16538644c60fc6cc02d9e81f9501762a55e76feda078d50658"
+  },
+  "scheduledTasks.schedule.seconds": {
+    "sourceHash": "713c4c5916980a2d84cbd66cc59002e31a099ecfabbb4e2168d660bfdf66ce49"
+  },
+  "scheduledTasks.schedule.daily": {
+    "sourceHash": "f45e5091009b97316e97acb77d578c10ca27a975d5fb909d421257ecd3e19e79"
+  },
+  "scheduledTasks.schedule.cron": {
+    "sourceHash": "d0b4150c9f1f774fddf3232a3a806a154a317262df62f200945b408a85f81e18"
+  },
+  "scheduledTasks.schedule.unset": {
+    "sourceHash": "2f5f1d6fbfb061ed02def5f4a3a151303da034681e38179744c7d1b1401f1caf"
   }
 }

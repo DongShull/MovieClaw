@@ -772,6 +772,8 @@ def _contribution(session: Session, contribution: dict[str, Any]) -> tuple[Any, 
             default_cron=item.get("default_cron"),
             default_enabled=bool(item.get("default_enabled", True)),
             description=item.get("description") or "",
+            title_key=item.get("title_key"),
+            description_key=item.get("description_key"),
         )
     if registry == "im-channels":
         from movieclaw_api.plugins.keys import IM_CHANNELS

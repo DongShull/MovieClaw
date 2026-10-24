@@ -321,6 +321,8 @@ def _contribution(registry: str, item: Any) -> tuple[dict[str, Any], Any]:
             "default_cron": item.default_cron,
             "default_enabled": item.default_enabled,
             "description": item.description,
+            "title_key": getattr(item, "title_key", None),
+            "description_key": getattr(item, "description_key", None),
         }, item.handler
     if registry == "ingest-steps":
         return dataclasses.asdict(item), None

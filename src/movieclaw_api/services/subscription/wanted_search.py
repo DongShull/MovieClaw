@@ -142,12 +142,14 @@ def kick_search_soon() -> None:
 @register_task(
     "search_wanted",
     title="订阅缺口搜索",
+    title_key="settings.scheduledTasks.catalog.searchWantedTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=SEARCH_TICK_SECONDS,
     description=(
         "从订阅缺口队列取到期项，按媒体条目分组做跨站搜索（补旧专用；追新工单"
         "由被动匹配为主，到期才进入本队列兜底）。搜索结果沉淀进种子索引。"
     ),
+    description_key="settings.scheduledTasks.catalog.searchWantedDescription",
 )
 async def search_wanted() -> None:
     """tick 任务体：取到期条目组，逐组搜索→评估→记账，用满本轮搜索预算为止。

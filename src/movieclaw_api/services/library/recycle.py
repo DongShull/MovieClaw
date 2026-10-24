@@ -284,9 +284,11 @@ async def _has_other_files_under(session: AsyncSession, file: LibraryFile, direc
 @register_task(
     "library_recycle_purge",
     title="回收站到期清理",
+    title_key="settings.scheduledTasks.catalog.libraryRecyclePurgeTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=3600,
     description="删除超过保留期的待回收文件；待回收期间已消失的行顺带收敛",
+    description_key="settings.scheduledTasks.catalog.libraryRecyclePurgeDescription",
 )
 async def purge_due_files() -> None:
     """每小时：`purge_after <= now` 的删文件+删行；物理已消失的行删行收敛。
@@ -354,9 +356,11 @@ async def _notify_held(count: int, size: int) -> None:
 @register_task(
     "library_recycle_orphan_sweep",
     title="回收站孤儿清扫",
+    title_key="settings.scheduledTasks.catalog.libraryRecycleOrphanSweepTitle",
     trigger_type=TriggerType.CRON,
     cron="40 4 * * *",
     description="按修改时间清理回收站目录里没有台账行的历史遗留文件",
+    description_key="settings.scheduledTasks.catalog.libraryRecycleOrphanSweepDescription",
 )
 async def sweep_orphan_trash() -> None:
     """每天：清理回收站目录中**没有台账行**的超期文件（机制上线前的旧版本

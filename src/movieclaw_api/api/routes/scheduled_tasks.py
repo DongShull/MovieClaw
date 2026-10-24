@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import stored_message
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_db.engine import get_session
@@ -54,8 +55,10 @@ class ScheduledTaskUpdate(BaseModel):
 def _view(row: ScheduledTask, defn: TaskDefinition) -> ScheduledTaskView:
     return ScheduledTaskView(
         key=row.task_key,
-        title=defn.title,
-        description=defn.description,
+        title=stored_message(defn.title, defn.title_key) if defn.title_key else defn.title,
+        description=stored_message(defn.description, defn.description_key)
+        if defn.description_key
+        else defn.description,
         enabled=row.enabled,
         trigger_type=row.trigger_type,
         interval_seconds=row.interval_seconds,
@@ -79,9 +82,9 @@ async def list_scheduled_tasks(
     for row in rows:
         defn = get_task(row.task_key)
         if defn is not None:
-            views.append(_view(row, defn))
-    views.sort(key=lambda v: v.title)
-    return ok(views)
+            views.append((defn.title, _view(row, defn)))
+    views.sort(key=lambda item: item[0])
+    return ok([view for _, view in views])
 
 
 @router.put(

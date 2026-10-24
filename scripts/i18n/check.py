@@ -134,13 +134,14 @@ def check_catalogs() -> list[str]:
             "movieclaw_jellyfin",
             "movieclaw_media",
             "movieclaw_matcher",
+            "movieclaw_scheduler",
         )
         for path in (ROOT / "src" / package).rglob("*.py")
     ]
     for path in server_paths:
         for node in ast.walk(ast.parse(path.read_text())):
             keys = []
-            fields = {"message_key", "title_key", "label_key", "separator_key"}
+            fields = {"message_key", "title_key", "description_key", "label_key", "separator_key"}
             if isinstance(node, ast.Call):
                 arguments = call_parameters(node)
                 if arguments and arguments[0] in server_source:
@@ -243,6 +244,7 @@ def unused_keys() -> list[str]:
                     "movieclaw_jellyfin",
                     "movieclaw_media",
                     "movieclaw_matcher",
+                    "movieclaw_scheduler",
                 )
                 for path in (ROOT / "src" / package).rglob("*.py")
             ]

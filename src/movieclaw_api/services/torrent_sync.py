@@ -481,9 +481,11 @@ async def _sync_one_site(cred: SiteCredential) -> None:
 @register_task(
     "sync_site_torrents",
     title="同步站点最新种子",
+    title_key="settings.scheduledTasks.catalog.syncSiteTorrentsTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=_TICK_SECONDS,
     description="全局 tick：扫描各站游标，只对到期站点拉取最新发布并前向同步进本地索引。",
+    description_key="settings.scheduledTasks.catalog.syncSiteTorrentsDescription",
 )
 async def sync_site_torrents() -> None:
     """全局 tick 任务体：找出到期站点，逐个串行同步。

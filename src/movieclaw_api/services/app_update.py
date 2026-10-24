@@ -1569,6 +1569,7 @@ async def read_pending() -> PendingUpdateView:
 @register_task(
     "check_app_update",
     title="检查应用更新",
+    title_key="settings.scheduledTasks.catalog.checkAppUpdateTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=3600,
     description=(
@@ -1576,6 +1577,7 @@ async def read_pending() -> PendingUpdateView:
         "入口（不会自动安装，更新在「设置 → 应用」里一键完成）。检查用 ETag 条件"
         "请求，无新版时不消耗 GitHub API 配额。仅 Docker 部署生效。"
     ),
+    description_key="settings.scheduledTasks.catalog.checkAppUpdateDescription",
 )
 async def check_app_update_task() -> None:
     if _runtime_version() is None:

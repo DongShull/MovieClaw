@@ -5233,6 +5233,7 @@ _RECONCILE_PROBE_LIMIT = 10
 @register_task(
     "library_reconcile",
     title="媒体库对账",
+    title_key="settings.scheduledTasks.catalog.libraryReconcileTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=RECONCILE_INTERVAL_SECONDS,
     description=(
@@ -5240,6 +5241,7 @@ _RECONCILE_PROBE_LIMIT = 10
         "（默认只标记不删记录；开了「自动清理丢失记录」的库会把已确认丢失的"
         "记录清出台账）。兜底目录监听覆盖不到的场景。"
     ),
+    description_key="settings.scheduledTasks.catalog.libraryReconcileDescription",
 )
 async def reconcile_libraries() -> None:
     db = get_database()

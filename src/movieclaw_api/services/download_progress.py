@@ -72,6 +72,7 @@ _IN_FLIGHT = (WantedStatus.GRABBED, WantedStatus.DOWNLOADED)
 @register_task(
     "check_download_progress",
     title="订阅下载换源巡检",
+    title_key="settings.scheduledTasks.catalog.checkDownloadProgressTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=PROGRESS_TICK_SECONDS,
     description=(
@@ -80,6 +81,7 @@ _IN_FLIGHT = (WantedStatus.GRABBED, WantedStatus.DOWNLOADED)
         "movieclaw 看不到文件时告警，实际内容缺集时只退回缺失部分。"
         "下载完成后的入库由监听导入/库扫描完成，工单由库存对账关闭。"
     ),
+    description_key="settings.scheduledTasks.catalog.checkDownloadProgressDescription",
 )
 async def check_download_progress() -> None:
     async with _tick_lock:

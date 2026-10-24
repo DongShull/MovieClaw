@@ -67,7 +67,7 @@ def _reconcile(client: TestClient) -> dict:
 
 def test_lists_registered_tasks_with_defaults(client: TestClient) -> None:
     task = _reconcile(client)
-    assert task["title"] == "媒体库对账"
+    assert task["title"] == "Library reconciliation"
     assert task["enabled"] is True
     assert task["trigger_type"] == "interval" and task["interval_seconds"] == 6 * 3600
 
