@@ -111,7 +111,20 @@
     "collectionAlreadyShared": "This Collection already has an active share"
   },
   "recycle": {
-    "summary": "{operation, select, purge {Purged} restore {Restored} other {Moved to Trash:}} {done, plural, one {# file} other {# files}}{failed, plural, =0 {} other {, # failed}}{remaining, plural, =0 {} one {, # remaining (run again to process it)} other {, # remaining (run again to process them)}}"
+    "summary": "{operation, select, purge {Purged} restore {Restored} other {Moved to Trash:}} {done, plural, one {# file} other {# files}}{failed, plural, =0 {} other {, # failed}}{remaining, plural, =0 {} one {, # remaining (run again to process it)} other {, # remaining (run again to process them)}}",
+    "unknownSpec": "Unknown specifications",
+    "fileMissing": "The file record does not exist. It may have been purged",
+    "notTrashed": "The file is not in Trash",
+    "purgeFailed": "Could not purge: the folder contains other tracked files that need attention, or file permissions are insufficient. See the server logs",
+    "restoreFailed": "Could not restore: a file already exists at the original path, or this file is missing. You can purge the record later",
+    "noteUpgraded": "Replaced by an upgrade: {old} → {new}",
+    "noteRefuted": "Upgrade rejected: measured quality is no better than the current version",
+    "noteQuarantined": "Rejected upgrade files isolated: files from a rejected source are excluded from version comparisons",
+    "triggerTitle": "Subscription upgrade for “{title}”",
+    "triggerUpgrade": "Subscription upgrade",
+    "noteDuplicateIdentical": "Duplicate cleanup: identical to “{name}”, which was kept",
+    "noteDuplicateVersion": "Duplicate cleanup: kept “{name}” ({kept}) and removed this version ({removed})",
+    "qualityLabel": "{base}{hdr}"
   },
   "artwork": {
     "autoRestored": "Automatic selection for {kind} restored. A new image will be chosen at the next metadata refresh.",

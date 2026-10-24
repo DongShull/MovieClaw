@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections import Counter
 from datetime import timedelta
@@ -28,6 +29,7 @@ from sqlmodel import select
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import reference, render_value, stored_fields, stored_message
 from movieclaw_api.schemas.library import (
     TrashedBatchFailureView,
     TrashedBatchResultView,
@@ -157,6 +159,27 @@ def _tier(row: LibraryFile) -> str:
     return " ".join(part for part in (row.resolution, row.media_source) if part) or "未知规格"
 
 
+def _snapshot_text(context: dict, field: str) -> str | None:
+    value = context.get(field)
+    if value is None:
+        return None
+    ref = context.get(f"{field}_ref")
+    if isinstance(ref, dict) and ("message_key" in ref or "message_text" in ref):
+        return render_value({**ref, "message": value})
+    return stored_message(value)
+
+
+def _common_note(rows: list[LibraryFile], notes: set[str]) -> str | None:
+    if len(notes) != 1:
+        return None
+    contexts = [row.trash_context for row in rows if (row.trash_context or {}).get("note")]
+    refs = {json.dumps(ctx.get("note_ref"), sort_keys=True) for ctx in contexts}
+    # Compare original notes first. Mixed provenance cannot claim one translated reason.
+    return (
+        _snapshot_text(contexts[0], "note") if len(refs) == 1 else stored_message(next(iter(notes)))
+    )
+
+
 def _file_view(row: LibraryFile, episode_title: str | None) -> TrashedFileView:
     ctx = row.trash_context or {}
     return TrashedFileView(
@@ -179,8 +202,8 @@ def _file_view(row: LibraryFile, episode_title: str | None) -> TrashedFileView:
         trashed_at=row.trashed_at,
         purge_after=row.purge_after,
         reason=ctx.get("reason"),
-        note=ctx.get("note"),
-        last_error=ctx.get("last_error"),
+        note=_snapshot_text(ctx, "note"),
+        last_error=_snapshot_text(ctx, "last_error"),
     )
 
 
@@ -223,7 +246,7 @@ def _item_view(
             groups.add(row.release_group)
         if row.trashed_at and (latest_trashed is None or row.trashed_at > latest_trashed):
             latest_trashed = row.trashed_at
-            trigger_label = str((ctx.get("trigger") or {}).get("label") or "") or None
+            trigger_label = _snapshot_text(ctx.get("trigger") or {}, "label") or None
 
     purge_times = [r.purge_after for r in rows if r.purge_after is not None]
     files = [
@@ -255,11 +278,17 @@ def _item_view(
         earliest_purge_after=min(purge_times) if purge_times else None,
         latest_purge_after=max(purge_times) if purge_times else None,
         reasons=dict(reasons),
-        note=next(iter(notes)) if len(notes) == 1 else None,
+        note=_common_note(rows, notes),
         trigger_label=trigger_label,
         latest_trashed_at=latest_trashed,
         quality=TrashedQualityView(
             tiers=dict(tiers),
+            tier_labels={
+                _tier(row): t("library.recycle.unknownSpec")
+                if not row.resolution and not row.media_source
+                else _tier(row)
+                for row in rows
+            },
             hdr=sorted(hdr),
             video_codecs=sorted(codecs),
             audio_labels=sorted(audios),
@@ -468,9 +497,16 @@ async def list_trashed_files(
 # ---------------------------------------------------------------------------
 
 
-async def _set_last_error(session: AsyncSession, row: LibraryFile, error: str) -> None:
+async def _set_last_error(
+    session: AsyncSession, row: LibraryFile, error: str, error_ref: dict | None = None
+) -> None:
     """把失败原因写回审计快照（JSON 列整体替换才会被 SQLAlchemy 视为已修改）。"""
-    row.trash_context = {**(row.trash_context or {}), "last_error": error}
+    context = {**(row.trash_context or {}), "last_error": error}
+    if error_ref:
+        context["last_error_ref"] = error_ref
+    else:
+        context.pop("last_error_ref", None)
+    row.trash_context = context
     row.updated_at = utcnow()
     await session.commit()
 
@@ -487,29 +523,35 @@ async def _run_batch(
         if row is None:
             failed.append(
                 TrashedBatchFailureView(
-                    id=file_id, file_name=f"#{file_id}", error="文件记录不存在（可能已被清理）"
+                    id=file_id, file_name=f"#{file_id}", error=t("library.recycle.fileMissing")
                 )
             )
             continue
         file_name = PurePath(row.file_path).name
         if row.state != FileState.TRASHED:
             failed.append(
-                TrashedBatchFailureView(id=file_id, file_name=file_name, error="不在待回收状态")
+                TrashedBatchFailureView(
+                    id=file_id, file_name=file_name, error=t("library.recycle.notTrashed")
+                )
             )
             continue
         library_ids.add(row.library_id)
         if action == "purge":
             succeeded = await purge_file(session, row)
-            error = "清理失败：目录内还有其他在案文件（需先处理），或文件权限不足——详见服务日志"
+            error_key = "library.recycle.purgeFailed"
         else:
             succeeded = await restore_file(session, row)
-            error = "恢复失败：原路径已有同名文件，或文件已不存在——可稍后清理该记录"
+            error_key = "library.recycle.restoreFailed"
         if succeeded:
             await session.commit()
             done += 1
         else:
-            await _set_last_error(session, row, error)
-            failed.append(TrashedBatchFailureView(id=file_id, file_name=file_name, error=error))
+            await _set_last_error(
+                session, row, stored_fields(error_key)["message"], reference(error_key)
+            )
+            failed.append(
+                TrashedBatchFailureView(id=file_id, file_name=file_name, error=t(error_key))
+            )
     return done, failed, library_ids
 
 

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Literal
@@ -94,6 +95,7 @@ async def recycle_file(
     reason: str,
     trigger: dict[str, Any],
     note: str,
+    note_ref: dict | None = None,
     purge_after: Any = _AUTO,
 ) -> RecycleOutcome:
     """把在位文件转入待回收（唯一入口）。只改行 + 移文件、不 commit。
@@ -125,6 +127,8 @@ async def recycle_file(
         return "already_gone"
 
     context = {"reason": reason, "trigger": trigger, "note": note}
+    if note_ref:
+        context["note_ref"] = deepcopy(note_ref)
     retention = now + DEFAULT_RETENTION if purge_after is _AUTO else purge_after
 
     def _keep_in_place(why: str) -> RecycleOutcome:

@@ -42,7 +42,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.i18n.quality_labels import duplicate_quality_reference
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services.library import acquisition
 from movieclaw_api.services.library.origin import origin_of
 from movieclaw_api.services.library.recycle import recycle_file
@@ -665,6 +666,20 @@ def _note(keep: DupFile, gone: DupFile, bucket: Bucket) -> str:
     )
 
 
+def _note_reference(keep: DupFile, gone: DupFile, bucket: Bucket) -> dict:
+    if bucket == "identical":
+        return reference("library.recycle.noteDuplicateIdentical", name=keep.file_name)
+    return reference(
+        "library.recycle.noteDuplicateVersion",
+        name=keep.file_name,
+        kept=duplicate_quality_reference(keep.row.resolution, keep.row.media_source, keep.row.hdr),
+        removed=duplicate_quality_reference(
+            gone.row.resolution, gone.row.media_source, gone.row.hdr
+        ),
+    )
+
+
+
 async def recycle_extras(
     session: AsyncSession,
     unit: DupUnit,
@@ -696,6 +711,7 @@ async def recycle_extras(
                 reason=REASON_DUPLICATE,
                 trigger=trigger,
                 note=_note(keep, f, unit.bucket),
+                note_ref=_note_reference(keep, f, unit.bucket),
             )
             if result == "already_gone":
                 await session.delete(row)

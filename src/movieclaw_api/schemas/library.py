@@ -2104,6 +2104,8 @@ class TrashedQualityView(BaseModel):
     """组内品质汇总：``tiers`` 按「分辨率 片源」计数，其余字段去重列表。"""
 
     tiers: dict[str, int] = Field(default_factory=dict)
+    # Keep the original grouping keys; project only their display labels.
+    tier_labels: dict[str, str] = Field(default_factory=dict)
     hdr: list[str] = Field(default_factory=list)
     video_codecs: list[str] = Field(default_factory=list)
     audio_labels: list[str] = Field(default_factory=list)

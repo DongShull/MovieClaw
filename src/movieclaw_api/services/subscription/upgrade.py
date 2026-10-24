@@ -735,6 +735,9 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
             "kind": "subscription",
             "id": w.subscription_id,
             "label": f"《{item.title}》订阅洗版" if item is not None else "订阅洗版",
+            "label_ref": reference("library.recycle.triggerTitle", title=item.title)
+            if item is not None
+            else reference("library.recycle.triggerUpgrade"),
         }
 
     for wanted in rows:
@@ -756,6 +759,7 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                     reason="upgrade_refuted",
                     trigger=_recycle_trigger(wanted),
                     note="洗版证伪残留隔离：来自已证伪来源的文件不参与版本裁决",
+                    note_ref=reference("library.recycle.noteQuarantined"),
                 )
                 if outcome == "already_gone":
                     await session.delete(file)
@@ -928,6 +932,11 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                         reason="upgrade_replaced",
                         trigger=_recycle_trigger(wanted),
                         note=f"洗版替换：{old_label} → {new_label}",
+                        note_ref=reference(
+                            "library.recycle.noteUpgraded",
+                            old=quality_reference(baseline, spec),
+                            new=quality_reference(best_snapshot, spec),
+                        ),
                     )
                     if outcome == "already_gone":
                         await session.delete(file)  # 文件早没了：行删掉与磁盘一致
@@ -1029,6 +1038,7 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                         reason="upgrade_refuted",
                         trigger=_recycle_trigger(wanted),
                         note="洗版证伪：实测档位不高于当前版本",
+                        note_ref=reference("library.recycle.noteRefuted"),
                     )
                     if outcome == "already_gone":
                         await session.delete(file)

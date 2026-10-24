@@ -1096,5 +1096,44 @@
   },
   "duplicateScan.empty": {
     "sourceHash": "d5a52b657fc00522a633beb0985016c7ae8cf302e17ed349d45fb57576945fe7"
+  },
+  "recycle.unknownSpec": {
+    "sourceHash": "0a06975c34fb328b8070a9fb078f4e047ab3678ea4baac62f6d6df28b7409b4b"
+  },
+  "recycle.fileMissing": {
+    "sourceHash": "73260ba44ae67939d82722f3b04f95870391339eecd8bedb17e60b80fe272a81"
+  },
+  "recycle.notTrashed": {
+    "sourceHash": "27c5aef206cec6bcd422f916fdd6628372e4eb6469753ec20741c3720e417aab"
+  },
+  "recycle.purgeFailed": {
+    "sourceHash": "f36e409349b0794f0ce881ffd9ed3f9cd4d71ae0d072adc897d448e3597c99fe"
+  },
+  "recycle.restoreFailed": {
+    "sourceHash": "ad58e71444187357aa8992b2b5fe1f23b02f4b7b35c39bfcbdb0c54a036570d2"
+  },
+  "recycle.noteUpgraded": {
+    "sourceHash": "0c755854f0fe2f873a69b888a921b9c885054245ca2b9a0f49eab0bc67ea4bdf"
+  },
+  "recycle.noteRefuted": {
+    "sourceHash": "926e01b59d0c08f158e6d48e26e61f7eb859c687e84187f518d0df98e2b76b6d"
+  },
+  "recycle.noteQuarantined": {
+    "sourceHash": "9aa79f0653b98fde94b1a322667f5821f9699657381d2ff9e644ecd92e0b8a99"
+  },
+  "recycle.triggerTitle": {
+    "sourceHash": "c0046495d8101b35cde220ae951cdabd209ff094d5ca89c57f5072d40c2876fb"
+  },
+  "recycle.triggerUpgrade": {
+    "sourceHash": "6943cccd0a639947f1bda53c58250b5048f727c8fd27c935618ececf9e7cc8c8"
+  },
+  "recycle.noteDuplicateIdentical": {
+    "sourceHash": "f187e7bbb2c995ead6b0f2cbb1f581431b05b7c47b1ce8dacbe0db8010b7d07a"
+  },
+  "recycle.noteDuplicateVersion": {
+    "sourceHash": "aa895bd23b256bea329139982cadea335225ed5ca8dcca0c725b1a1ce68601d1"
+  },
+  "recycle.qualityLabel": {
+    "sourceHash": "30b3055e2cddf84d9d477acd6e515af52b1ad7bd484b6061c4b5530f8216d6b4"
   }
 }

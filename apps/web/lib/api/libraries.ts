@@ -2141,6 +2141,8 @@ export interface TrashedFile {
 export interface TrashedQuality {
   /** 「分辨率 片源」→ 文件数 */
   tiers: Record<string, number>;
+  /** Display labels indexed by the original grouping keys. */
+  tier_labels?: Record<string, string>;
   hdr: string[];
   video_codecs: string[];
   audio_labels: string[];

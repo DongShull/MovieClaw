@@ -14,6 +14,17 @@ def _label(parts: list) -> dict:
     )
 
 
+def duplicate_quality_reference(
+    resolution: str | None, source: str | None, hdr: str | None = None
+) -> dict:
+    base = " ".join(part for part in (resolution, source) if part)
+    return reference(
+        "library.recycle.qualityLabel",
+        base=base or reference("library.recycle.unknownSpec"),
+        hdr=f" {hdr}" if hdr else "",
+    )
+
+
 def quality_reference(
     snapshot: QualitySnapshot | TorrentAttrs, spec: RuleSetSpec | SmartPolicy | None = None
 ) -> dict:

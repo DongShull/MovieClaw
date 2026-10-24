@@ -315,7 +315,7 @@
   "src/movieclaw_api/api/routes/jobs.py": 20,
   "src/movieclaw_api/api/routes/libraries.py": 142,
   "src/movieclaw_api/api/routes/library_duplicates.py": 11,
-  "src/movieclaw_api/api/routes/library_recycle.py": 15,
+  "src/movieclaw_api/api/routes/library_recycle.py": 11,
   "src/movieclaw_api/api/routes/library_strm.py": 16,
   "src/movieclaw_api/api/routes/llm.py": 13,
   "src/movieclaw_api/api/routes/logs.py": 4,

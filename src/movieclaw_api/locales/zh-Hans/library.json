@@ -111,7 +111,20 @@
     "collectionAlreadyShared": "这个合集已有一条有效分享"
   },
   "recycle": {
-    "summary": "已{operation, select, purge {清理} restore {恢复} other {移入回收站}} {done} 个文件{failed, select, 0 {} other {，{failed} 个失败}}{remaining, select, 0 {} other {，还有 {remaining} 个未处理（再执行一次即可）}}"
+    "summary": "已{operation, select, purge {清理} restore {恢复} other {移入回收站}} {done} 个文件{failed, select, 0 {} other {，{failed} 个失败}}{remaining, select, 0 {} other {，还有 {remaining} 个未处理（再执行一次即可）}}",
+    "unknownSpec": "未知规格",
+    "fileMissing": "文件记录不存在（可能已被清理）",
+    "notTrashed": "不在待回收状态",
+    "purgeFailed": "清理失败：目录内还有其他在案文件（需先处理），或文件权限不足——详见服务日志",
+    "restoreFailed": "恢复失败：原路径已有同名文件，或文件已不存在——可稍后清理该记录",
+    "noteUpgraded": "洗版替换：{old} → {new}",
+    "noteRefuted": "洗版证伪：实测档位不高于当前版本",
+    "noteQuarantined": "洗版证伪残留隔离：来自已证伪来源的文件不参与版本裁决",
+    "triggerTitle": "《{title}》订阅洗版",
+    "triggerUpgrade": "订阅洗版",
+    "noteDuplicateIdentical": "重复清理：与「{name}」一模一样，已保留后者",
+    "noteDuplicateVersion": "重复清理：留下「{name}」（{kept}），移除本版本（{removed}）",
+    "qualityLabel": "{base}{hdr}"
   },
   "artwork": {
     "autoRestored": "已恢复{kind}的自动选图（下次刷新元数据时重新挑选）",
