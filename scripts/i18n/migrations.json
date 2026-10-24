@@ -4998,5 +4998,12 @@
   "agent.companion.working": "小幕，正在处理任务",
   "agent.companion.complete": "小幕，任务已完成",
   "agent.companion.failed": "小幕，任务遇到了问题",
-  "agent.companion.greet": "轻点和小幕打招呼"
+  "agent.companion.greet": "轻点和小幕打招呼",
+  "agent.session.continued": "续：{title}",
+  "agent.session.skill": "[技能] {text}",
+  "agent.session.skillOnly": "[技能]",
+  "agent.session.image": "[图片]",
+  "agent.session.images": "[图片 ×{count}]",
+  "agent.session.unnamed": "未命名会话",
+  "agent.session.defaultInstruction": "用户未附加说明，按上述技能指令执行。"
 }

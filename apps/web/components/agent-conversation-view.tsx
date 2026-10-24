@@ -416,6 +416,7 @@ const TurnView = memo(function TurnView({
       {/* 用户消息：右侧玻璃气泡 */}
       <UserBubble
         text={turn.input}
+        generatedSkillInstruction={turn.generatedSkillInstruction}
         images={turn.images}
         sessionId={sessionId}
         onEdit={onEdit && messageId ? () => onEdit(messageId, turn.input) : undefined}
@@ -475,11 +476,13 @@ const TurnView = memo(function TurnView({
  */
 function UserBubble({
   text,
+  generatedSkillInstruction,
   images,
   sessionId,
   onEdit,
 }: {
   text: string;
+  generatedSkillInstruction?: boolean;
   images?: AgentTurnImage[];
   sessionId: string;
   onEdit?: () => void;
@@ -491,10 +494,11 @@ function UserBubble({
   // token 服务端不会展开，气泡保留字面文本，不冒充「已调用」的 chip；
   // 名单加载完成前（null）暂不过滤，避免 chip 闪烁成字面文本
   const knownSkills = useSkillNames();
-  const { names: skillNames, text: plainText } = parseSkillTokens(
+  const { names: skillNames, text: rawPlainText } = parseSkillTokens(
     text,
-    knownSkills ?? undefined,
+    generatedSkillInstruction ? undefined : knownSkills ?? undefined,
   );
+  const plainText = generatedSkillInstruction ? t("agent.session.defaultInstruction") : rawPlainText;
   // 图片灯箱：记录被点开的下标（null 为关闭）。一轮里带几张图就一组浏览，
   // 灯箱内 ←→ 可在同轮图片间切换。乐观渲染优先本地 objectURL；回放走附件
   // 下载接口（immutable 缓存）——灯箱大图与缩略图共用同一地址，不重复下载。

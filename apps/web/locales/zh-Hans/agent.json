@@ -113,5 +113,14 @@
     "complete": "小幕，任务已完成",
     "failed": "小幕，任务遇到了问题",
     "greet": "轻点和小幕打招呼"
+  },
+  "session": {
+    "continued": "续：{title}",
+    "skill": "[技能] {text}",
+    "skillOnly": "[技能]",
+    "image": "[图片]",
+    "images": "[图片 ×{count}]",
+    "unnamed": "未命名会话",
+    "defaultInstruction": "用户未附加说明，按上述技能指令执行。"
   }
 }

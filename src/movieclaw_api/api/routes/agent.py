@@ -17,8 +17,8 @@ from movieclaw_agent import (
     compact,
     compact_skill_blocks,
     discover_skills,
-    expand_skill_invocations,
 )
+from movieclaw_agent.skills import prepare_skill_invocations, strip_skill_blocks
 from movieclaw_api.api.deps import require_login
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import (
@@ -228,6 +228,7 @@ async def _launch_user_message(
     llm_router: LlmRouter,
     attachment_ids: list[str] | None = None,
     thinking_level: str | None = None,
+    generated_skill_instruction: bool = False,
     tools: list[AgentTool] | None = None,
     system_prompt: str | None = None,
     owner: str | None = None,
@@ -254,16 +255,20 @@ async def _launch_user_message(
     # 显式技能调用：把 /skill:名字 占位符展开为技能正文块（docs/design/
     # agent-skills.md §9）。展开结果入转录（内容冻结在调用时刻）；已展开
     # 文本不含裸 token，retry 复用旧文本时这里天然是 no-op。
-    content = expand_skill_invocations(
+    expansion = prepare_skill_invocations(
         content, discover_skills(Path(get_settings().agent_skills_dir).resolve())
     )
+    content = expansion.text
     bound = get_agent_attachment_store().bind(session_id, attachment_ids) if attachment_ids else []
     user_content = compose_user_content(content, bound)
     recorder = AgentSessionRecorder(
         get_agent_session_store(), session_id, entry_count=entry_count
     )
     message_id = await recorder.record_user_message(
-        user_content, thinking_level=thinking_level, model=model
+        user_content,
+        thinking_level=thinking_level,
+        model=model,
+        generated_skill_instruction=generated_skill_instruction or expansion.generated_instruction,
     )
 
     # 请求水合：历史 + 本轮输入统一处理（视觉门控 / 读字节 / 预算，预算从
@@ -479,13 +484,22 @@ def _chat_view(
     if message.role == "tool":
         head = message.text()[:CHAT_VIEW_TOOL_OUTPUT_CHARS]
         return entry.model_copy(update={"message": message.model_copy(update={"content": head})})
+
+    def user_text(text: str) -> str:
+        compacted = compact_skill_blocks(text)
+        if entry.generated_skill_instruction:
+            names, rest = strip_skill_blocks(compacted)
+            if names and rest:
+                return compacted[: -len(rest)] + t("agent.session.defaultInstruction")
+        return compacted
+
     if isinstance(message.content, str):
         if message.role != "user":
             return entry
-        content: str | list[ContentPart] = compact_skill_blocks(message.content)
+        content: str | list[ContentPart] = user_text(message.content)
     else:
         content = [
-            TextPart(text=compact_skill_blocks(part.text))
+            TextPart(text=user_text(part.text))
             if isinstance(part, TextPart) and message.role == "user"
             else part
             for part in message.content
@@ -511,7 +525,12 @@ def _entry_view(
             timestamp=entry.timestamp,
             source_session_id=entry.source_session_id,
             source_leaf_id=entry.source_leaf_uuid,
-            source_title=entry.source_title,
+            source_title=render_value(
+                {**entry.source_title_ref, "message": entry.source_title or ""}
+            ).strip()[:80]
+            if entry.source_title_ref
+            else entry.source_title,
+            source_title_ref=entry.source_title_ref,
             replacement_history=(
                 [SessionMessageView.from_model(message) for message in entry.replacement_history]
                 if include_handoff_snapshot
@@ -535,6 +554,7 @@ def _entry_view(
         parent_id=entry.parent_uuid,
         timestamp=entry.timestamp,
         message=SessionMessageView.from_model(entry.message),
+        generated_skill_instruction=entry.generated_skill_instruction,
         model=entry.model,
         usage=entry.usage,
         finish_reason=entry.finish_reason,
@@ -576,8 +596,11 @@ async def fork_session(
     if is_running(source):
         raise BadRequestException(message_key="errors.agent.sourceRunning")
 
+    from movieclaw_api.services.agent_sessions import continuation_title
+
     source_title = source.title or source.last_prompt
-    header, handoff = store.fork(session_id, source_title=source_title)
+    source_ref = source.title_ref if source.title else source.last_prompt_ref
+    header, handoff = store.fork(session_id, source_title=source_title, source_title_ref=source_ref)
     # 快照里引用的图片按同 id 复制到新会话目录（目录按会话隔离，id 不冲突，
     # 引用无需改写）——handoff 的既有原则是「新会话不依赖源文件」，源会话
     # 之后被删除，新会话的图仍可水合。源附件缺失只跳过，不阻断 fork。
@@ -590,12 +613,8 @@ async def fork_session(
         get_agent_attachment_store().copy_session_attachments(
             session_id, header.session_id, referenced
         )
-    target_title = (
-        (source_title if source_title.startswith("续：") else f"续：{source_title}")[:80]
-        if source_title
-        else None
-    )
-    target = await repo.create(header.session_id, title=target_title)
+    target_title, target_ref = continuation_title(source_title, source_ref)
+    target = await repo.create(header.session_id, title=target_title, title_ref=target_ref)
     await repo.touch_after_append(
         header.session_id,
         leaf_uuid=handoff.uuid,
@@ -773,6 +792,7 @@ async def retry_session_message(
         leaf_uuid=summary.leaf_uuid,
         entry_count=summary.entry_count,
         last_prompt=summary.last_prompt,
+        last_prompt_ref=summary.last_prompt_ref,
     )
 
     return await _launch_user_message(
@@ -783,6 +803,9 @@ async def retry_session_message(
         thinking_level=thinking_level,
         history=history,
         entry_count=len(remaining_entries),
+        generated_skill_instruction=bool(target.generated_skill_instruction)
+        if payload.content is None
+        else False,
         llm_router=llm_router,
         tools=tools,
         system_prompt=system_prompt,

@@ -113,5 +113,14 @@
     "complete": "Xiaomu, task complete",
     "failed": "Xiaomu, a task encountered a problem",
     "greet": "Tap to greet Xiaomu"
+  },
+  "session": {
+    "continued": "Continued: {title}",
+    "skill": "[Skill] {text}",
+    "skillOnly": "[Skill]",
+    "image": "[Image]",
+    "images": "[Images ×{count}]",
+    "unnamed": "Unnamed session",
+    "defaultInstruction": "No extra instructions; follow the selected skill."
   }
 }

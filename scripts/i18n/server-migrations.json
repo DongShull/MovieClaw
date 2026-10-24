@@ -2201,5 +2201,11 @@
   "errors.agent.run.noTerminal": "Agent 运行异常结束，未返回终态事件",
   "errors.agent.run.unexpected": "Agent 运行发生未知错误：{error}",
   "errors.agent.run.noTerminalRecord": "运行未留下终态事件",
-  "errors.agent.run.unknown": "运行失败，原因未知"
+  "errors.agent.run.unknown": "运行失败，原因未知",
+  "agent.session.continued": "续：{title}",
+  "agent.session.skill": "[技能] {text}",
+  "agent.session.skillOnly": "[技能]",
+  "agent.session.image": "[图片]",
+  "agent.session.images": "[图片 ×{count}]",
+  "agent.session.defaultInstruction": "用户未附加说明，按上述技能指令执行。"
 }

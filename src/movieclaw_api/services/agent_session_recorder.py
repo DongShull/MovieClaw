@@ -28,6 +28,7 @@ from movieclaw_api.services.agent_sessions import (
     AgentSessionStore,
     SealReason,
     message_preview,
+    message_preview_reference,
 )
 from movieclaw_db.engine import get_database
 from movieclaw_db.models.agent_session import AgentSession
@@ -111,6 +112,7 @@ class AgentSessionRecorder:
         *,
         thinking_level: str | None = None,
         model: str | None = None,
+        generated_skill_instruction: bool = False,
     ) -> str:
         """落盘 user message，刷新标题（仅首条）与最后提示预览，返回 message id。
 
@@ -122,10 +124,17 @@ class AgentSessionRecorder:
         """
         message = ChatMessage(role="user", content=content)
         entry = self._store.append(
-            self._session_id, message, thinking_level=thinking_level, model=model
+            self._session_id,
+            message,
+            thinking_level=thinking_level,
+            model=model,
+            generated_skill_instruction=generated_skill_instruction or None,
         )
         self._entry_count += 1
         preview = message_preview(message)[:PREVIEW_MAX_CHARS]
+        preview_ref = message_preview_reference(
+            message, generated_skill_instruction=generated_skill_instruction
+        )
         async with get_database().session() as session:
             await AgentSessionRepository(session).touch_after_append(
                 self._session_id,
@@ -133,6 +142,8 @@ class AgentSessionRecorder:
                 entry_count=self._entry_count,
                 last_prompt=preview,
                 title=preview,
+                title_ref=preview_ref,
+                last_prompt_ref=preview_ref,
             )
         return entry.uuid
 
@@ -226,6 +237,7 @@ class AgentSessionRecorder:
             member_id=0,
             session_id=self._session_id,
             title=row.title if row else None,
+            title_ref=row.title_ref if row else None,
             status="done" if done else "error",
             answer=answer_preview(event.result.text) if done and event.result else "",
             error=None if done else (event.error or "运行失败，原因未知"),
@@ -280,7 +292,8 @@ async def rebuild_agent_session_index() -> None:
                         s.owner,
                     )
                     for s in summaries
-                ]
+                ],
+                message_refs={s.session_id: (s.title_ref, s.last_prompt_ref) for s in summaries},
             )
         if changed:
             logger.info("Agent 会话索引重建完成：校准了 %d 行", changed)

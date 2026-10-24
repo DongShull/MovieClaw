@@ -148,6 +148,18 @@
               "type": "null"
             }
           ]
+        },
+        "title_ref": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -162,7 +174,7 @@
     },
     "result": null,
     "stability": "experimental",
-    "version": "1.1"
+    "version": "1.2"
   },
   "dl.downloader.select": {
     "doc": "选下载器：按体积 / 站点 / 类型分流（只在没有显式指定时询问；须启用且可用）",

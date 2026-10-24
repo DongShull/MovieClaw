@@ -10,5 +10,13 @@
     "compacted": "会话上下文已压缩",
     "deleted": "会话已删除",
     "stopRequested": "已请求停止会话"
+  },
+  "session": {
+    "continued": "续：{title}",
+    "skill": "[技能] {text}",
+    "skillOnly": "[技能]",
+    "image": "[图片]",
+    "images": "[图片 ×{count}]",
+    "defaultInstruction": "用户未附加说明，按上述技能指令执行。"
   }
 }

@@ -313,5 +313,26 @@
   },
   "companion.greet": {
     "sourceHash": "4fbd58d410fe0863a9c05d76cba5c46f034eb18346f397b460e4c9d57a11876b"
+  },
+  "session.continued": {
+    "sourceHash": "aaf8a4cd2a7065e5fdab64b5fad185e15564fdb0172d2c392981a1876492698c"
+  },
+  "session.skill": {
+    "sourceHash": "7790cc21e95ad289fbecbb6b372f978915d527df7de34fe42625d70ef137e428"
+  },
+  "session.skillOnly": {
+    "sourceHash": "c5c02020c3baa8de9a5359312aacfd9d14703e47d3c1197ec05318ec3be176a7"
+  },
+  "session.image": {
+    "sourceHash": "a71f445d35779eded53cea1e54f9bbf22b62267f629e30f18bc54f5fa7057c40"
+  },
+  "session.images": {
+    "sourceHash": "113d8d4f8306c4959b9cac0a53696b0c73b601caccaeafc4acea4d03e315d03f"
+  },
+  "session.unnamed": {
+    "sourceHash": "a91ae60350922a63b3a0f0c94146209eba1ff31f944512b769e45cecff2633fa"
+  },
+  "session.defaultInstruction": {
+    "sourceHash": "c6cf789703f862c7780e04b2791ba4242466a8115ec830a763a6b5006b880004"
   }
 }

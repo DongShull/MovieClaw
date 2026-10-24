@@ -10,5 +10,13 @@
     "compacted": "Session context compacted",
     "deleted": "Session deleted",
     "stopRequested": "Session stop requested"
+  },
+  "session": {
+    "continued": "Continued: {title}",
+    "skill": "[Skill] {text}",
+    "skillOnly": "[Skill]",
+    "image": "[Image]",
+    "images": "[Images ×{count}]",
+    "defaultInstruction": "No extra instructions; follow the selected skill."
   }
 }

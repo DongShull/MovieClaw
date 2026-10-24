@@ -159,7 +159,12 @@ async def _agent_finished(_s: AsyncSession, _member: int, p: Any) -> AlertConten
             reason=render_value(error_ref) if error_ref else p.error or t("notify.agent.unknown"),
         )
     return AlertContent(
-        title=p.title or t("notify.agent.title"),
+        title=(
+            render_value({**p.title_ref, "message": p.title or ""}).strip()[:80]
+            if getattr(p, "title_ref", None)
+            else p.title
+        )
+        or t("notify.agent.title"),
         body=body,
         open=f"/sessions/{p.session_id}",
         thread=f"agent:{p.session_id}",

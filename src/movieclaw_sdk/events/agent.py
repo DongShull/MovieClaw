@@ -15,6 +15,7 @@ class RunFinished(Frozen):
     session_id: str
     title: str | None
     """会话标题（多半取自第一句提问）。"""
+    title_ref: dict | None = None
     status: Literal["done", "error"]
     answer: str
     """回答开头的纯文本（去掉 Markdown 记号、压成一行）；出错时为空。"""
@@ -33,5 +34,5 @@ AGENT_RUN_FINISHED = define(
     group="AI 助手",
     doc="AI 会话的一轮跑完（回答完或出错）",
     sensitive=True,
-    version="1.1",
+    version="1.2",
 )

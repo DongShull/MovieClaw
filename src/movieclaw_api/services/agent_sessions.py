@@ -40,6 +40,7 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from movieclaw_agent import CompactionResult, strip_skill_blocks
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.i18n.stored import reference
 from movieclaw_llm import ChatMessage, ImagePart, TextPart, TokenUsage, ToolCall
 
 logger = logging.getLogger("movieclaw_api.agent_sessions")
@@ -106,6 +107,7 @@ class SessionMessageEntry(BaseModel):
     parent_uuid: str | None = None
     timestamp: str
     message: ChatMessage
+    generated_skill_instruction: bool | None = None
     model: str | None = None
     usage: TokenUsage | None = None
     finish_reason: str | None = None
@@ -149,6 +151,7 @@ class SessionHandoffEntry(BaseModel):
     source_session_id: str
     source_leaf_uuid: str | None = None
     source_title: str | None = None
+    source_title_ref: dict | None = None
     replacement_history: list[ChatMessage]
 
 
@@ -171,6 +174,8 @@ class SessionSummary(BaseModel):
     leaf_uuid: str | None
     #: 首条 user 消息的截断文本；作为无自定义标题时的会话标题
     title: str | None
+    title_ref: dict | None = None
+    last_prompt_ref: dict | None = None
     #: 最后一条 user 消息的截断文本（列表页副标题）
     last_prompt: str | None
     #: 最后一条 entry 的时间戳（文件为空时取头的 created_at）
@@ -267,6 +272,49 @@ def message_preview(message: ChatMessage) -> str:
         if images > 1:
             return f"[图片 ×{images}]"
     return ""
+
+
+def message_preview_reference(
+    message: ChatMessage, *, generated_skill_instruction: bool = False
+) -> dict | None:
+    """Only mark placeholders derived from content facts, never from user text."""
+    text = message.text().strip()
+    if text:
+        names, rest = strip_skill_blocks(text)
+        if names:
+            if generated_skill_instruction:
+                return reference(
+                    "agent.session.skill", text=reference("agent.session.defaultInstruction")
+                )
+            if rest:
+                return reference("agent.session.skill", text=rest[:PREVIEW_MAX_CHARS])
+            return reference("agent.session.skillOnly")
+    elif isinstance(message.content, list):
+        count = sum(isinstance(part, ImagePart) for part in message.content)
+        if count == 1:
+            return reference("agent.session.image")
+        if count > 1:
+            return reference("agent.session.images", count=count)
+    return None
+
+
+def continuation_title(
+    source_title: str | None, source_ref: dict | None = None
+) -> tuple[str | None, dict | None]:
+    """Preserve legacy prefix rules; only a known generated prefix may be translated."""
+    if not source_title:
+        return None, None
+    if source_ref and source_ref.get("message_key") == "agent.session.continued":
+        return source_title[:PREVIEW_MAX_CHARS], source_ref
+    if source_title.startswith("续："):
+        return source_title[:PREVIEW_MAX_CHARS], None
+    return (
+        f"续：{source_title}"[:PREVIEW_MAX_CHARS],
+        reference(
+            "agent.session.continued",
+            title={**source_ref, "message": source_title} if source_ref else source_title,
+        ),
+    )
 
 
 def _repair_unpaired_tool_messages(
@@ -446,6 +494,7 @@ class AgentSessionStore:
         usage: TokenUsage | None = None,
         finish_reason: str | None = None,
         thinking_level: str | None = None,
+        generated_skill_instruction: bool | None = None,
     ) -> SessionMessageEntry:
         """追加一条定稿消息，自动接到当前链尾，返回写入的 entry。"""
         path = self.path(session_id)
@@ -463,6 +512,7 @@ class AgentSessionStore:
             usage=usage,
             finish_reason=finish_reason,
             thinking_level=thinking_level,
+            generated_skill_instruction=generated_skill_instruction,
         )
         with path.open("a", encoding="utf-8") as f:
             f.write(entry.model_dump_json(exclude_none=True) + "\n")
@@ -501,6 +551,7 @@ class AgentSessionStore:
         source_leaf_uuid: str | None,
         source_title: str | None,
         replacement_history: list[ChatMessage],
+        source_title_ref: dict | None = None,
     ) -> SessionHandoffEntry:
         """给新建的空会话写入首条交接快照。"""
         path = self.path(session_id)
@@ -516,6 +567,7 @@ class AgentSessionStore:
             source_session_id=source_session_id,
             source_leaf_uuid=source_leaf_uuid,
             source_title=source_title,
+            source_title_ref=source_title_ref,
             replacement_history=[dehydrate_message(m) for m in replacement_history],
         )
         with path.open("a", encoding="utf-8") as f:
@@ -524,7 +576,11 @@ class AgentSessionStore:
         return entry
 
     def fork(
-        self, source_session_id: str, *, source_title: str | None = None
+        self,
+        source_session_id: str,
+        *,
+        source_title: str | None = None,
+        source_title_ref: dict | None = None,
     ) -> tuple[SessionHeader, SessionHandoffEntry]:
         """从源会话的有效上下文创建一个完全独立的新会话。
 
@@ -542,6 +598,7 @@ class AgentSessionStore:
             source_session_id=source_session_id,
             source_leaf_uuid=source_leaf_uuid,
             source_title=source_title,
+            source_title_ref=source_title_ref,
             replacement_history=history,
         )
         return header, handoff
@@ -683,22 +740,27 @@ class AgentSessionStore:
         # 交接会话的标题固定为「续：源标题」——与 DB 索引只在 title 为空时
         # 回填的口径一致，用户后续发言不覆盖标题，重建索引时也保持同一语义。
         # 压缩/交接行都计入 entry_count 与链尾，但不伪造 last_prompt。
-        user_texts = [
-            message_preview(e.message)
+        user_entries = [
+            e
             for e in entries
             if isinstance(e, SessionMessageEntry)
             and e.message.role == "user"
             and message_preview(e.message)
         ]
-        handoff_title = next(
+        user_texts = [message_preview(e.message) for e in user_entries]
+        preview_refs = [
+            message_preview_reference(
+                e.message, generated_skill_instruction=bool(e.generated_skill_instruction)
+            )
+            for e in user_entries
+        ]
+        handoff_title, handoff_ref = next(
             (
-                (e.source_title if e.source_title.startswith("续：") else f"续：{e.source_title}")[
-                    :PREVIEW_MAX_CHARS
-                ]
+                continuation_title(e.source_title, e.source_title_ref)
                 for e in entries
                 if isinstance(e, SessionHandoffEntry) and e.source_title
             ),
-            None,
+            (None, None),
         )
         return SessionSummary(
             session_id=header.session_id,
@@ -706,6 +768,8 @@ class AgentSessionStore:
             entry_count=len(entries),
             leaf_uuid=entries[-1].uuid if entries else None,
             title=handoff_title or (user_texts[0][:PREVIEW_MAX_CHARS] if user_texts else None),
+            title_ref=handoff_ref if handoff_title else (preview_refs[0] if preview_refs else None),
+            last_prompt_ref=preview_refs[-1] if preview_refs else None,
             last_prompt=user_texts[-1][:PREVIEW_MAX_CHARS] if user_texts else None,
             last_timestamp=entries[-1].timestamp if entries else header.created_at,
             owner=header.owner,

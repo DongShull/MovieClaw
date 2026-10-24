@@ -22,5 +22,23 @@
   },
   "operations.stopRequested": {
     "sourceHash": "0eab9279ce66125b4b3e3b8a4d2f417321da227cf24925d546ca3af4fe735696"
+  },
+  "session.continued": {
+    "sourceHash": "aaf8a4cd2a7065e5fdab64b5fad185e15564fdb0172d2c392981a1876492698c"
+  },
+  "session.skill": {
+    "sourceHash": "7790cc21e95ad289fbecbb6b372f978915d527df7de34fe42625d70ef137e428"
+  },
+  "session.skillOnly": {
+    "sourceHash": "c5c02020c3baa8de9a5359312aacfd9d14703e47d3c1197ec05318ec3be176a7"
+  },
+  "session.image": {
+    "sourceHash": "a71f445d35779eded53cea1e54f9bbf22b62267f629e30f18bc54f5fa7057c40"
+  },
+  "session.images": {
+    "sourceHash": "113d8d4f8306c4959b9cac0a53696b0c73b601caccaeafc4acea4d03e315d03f"
+  },
+  "session.defaultInstruction": {
+    "sourceHash": "c6cf789703f862c7780e04b2791ba4242466a8115ec830a763a6b5006b880004"
   }
 }
