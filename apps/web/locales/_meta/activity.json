@@ -370,5 +370,941 @@
   },
   "jobPhase.analyzing": {
     "sourceHash": "0940fba7e9069a012fbe5cccc8ce4292ed0b19d4cb787c1daca517493f131e38"
+  },
+  "runningJobs.subtitles": {
+    "sourceHash": "4637fe3760a6909ef2f0d5735fc5bdb49b113a8ef858539e56b5f5484924816b"
+  },
+  "runningJobs.scan": {
+    "sourceHash": "2e7eebdf89461c2755f2daab8b8be8ce1c691800754d2b446b12a4d7e6afad85"
+  },
+  "runningJobs.libraryMetadata": {
+    "sourceHash": "1a766d2c2ae316cb7589eea8a8c287f366c5b05f07b529b01a9c25873648fa2c"
+  },
+  "runningJobs.mediaMetadata": {
+    "sourceHash": "6a81a00c53ef66be5195dcbdfcab8edef32c83451c5f1a161ac462622a1d1347"
+  },
+  "runningJobs.chapters": {
+    "sourceHash": "d631d46752118e7067a38688e97746ab926370b9cbe92b4ad0277d850260534a"
+  },
+  "runningJobs.skipSegments": {
+    "sourceHash": "6edeb1ad0751b5018458d8f27127c09bba0703601d3f8f89a852451551ecc26a"
+  },
+  "runningJobs.clips": {
+    "sourceHash": "e94c7cbe64cd8c2896436ddc7de09327a3fccd5c34d97d9850877ac7c37668f9"
+  },
+  "runningJobs.organize": {
+    "sourceHash": "add330d14438eeb65d49655cccb7dd6795e86ed4363f0c0863c5536013d3fdb2"
+  },
+  "runningJobs.transfer": {
+    "sourceHash": "2fbf2bb03759fd5f54a4a41c5ba85d976fe165f20f7550e687da3d7546fb7e8a"
+  },
+  "runningJobs.ingest": {
+    "sourceHash": "98be37e1fd3c82299e46395ff6d34b69316a03f710a7cc7f899e1c6ef5c3ce37"
+  },
+  "runningJobs.upload": {
+    "sourceHash": "e800746287983b3a688f8bd87f68e50ec0c1e843de184dc3e52cf6d8751f2a39"
+  },
+  "finishedJobs.subtitles": {
+    "sourceHash": "ede47cb1c1b0e0b52c649a9404969466c827b8797c1ad1c3d6e4cb7e41a88ba3"
+  },
+  "finishedJobs.scan": {
+    "sourceHash": "c2a291b64f6bfdddf24986dd8604af724d786324cc45ccd971d76f7350a0a3e6"
+  },
+  "finishedJobs.metadata": {
+    "sourceHash": "25cfcb565f3ff886e8c28caa32221b5f11addcc5b8e59f8d3ccf1ff4ec5e8bae"
+  },
+  "finishedJobs.chapters": {
+    "sourceHash": "c066f43a1a90da496245a617ebd2f2799c2c970f47aa2e78ee0423c7a99bf040"
+  },
+  "finishedJobs.skipSegments": {
+    "sourceHash": "f0f8cd62916b9c4b47f79f46efa63dc5f580693ed2f43784584f24da6fa050fd"
+  },
+  "finishedJobs.clips": {
+    "sourceHash": "7d964f3d53d760f8286773ae786c16f6940997397bc1d58be70ca118b58eade1"
+  },
+  "finishedJobs.organize": {
+    "sourceHash": "c82d6144ec502ba15dad25e3047ab99a620e936e731fcc4aa57cacb75b9314e7"
+  },
+  "finishedJobs.transfer": {
+    "sourceHash": "30958f641bbaa79025a5642e8896f0ff56c441629aab036a2c0208e08a1453b4"
+  },
+  "finishedJobs.ingest": {
+    "sourceHash": "e3614c883636ffd8a68f43b5a1ec13736e89d2cb653ff36d468c57a80dd360ab"
+  },
+  "finishedJobs.upload": {
+    "sourceHash": "0abe8012ff07e1ce8e7d1cde387be7266f810c1155298f9d89594cdad60bf6ec"
+  },
+  "downloadState.downloading": {
+    "sourceHash": "e2fc571a4cf00cebe5cc1a647892673d383d0c6beaf2c652f81301a7e5bd8955"
+  },
+  "downloadState.stalled": {
+    "sourceHash": "d80f8bbe1ddf76b9226a32ad3d34b13311bfdf895c58d182603a934fc24045c8"
+  },
+  "downloadState.paused": {
+    "sourceHash": "eb0c326b60ae897a19080c0b21565029be8da614a7dd6ecad97da24f4cb8fc90"
+  },
+  "downloadState.queued": {
+    "sourceHash": "d6f766f2adf532274a487ddd31db43c01eb635ff966d6c3c41d62250ed094354"
+  },
+  "downloadState.checking": {
+    "sourceHash": "784f9b54ae2ba27b3adbae158aa771caca488558fbeb7b6d6c4a5e21fa39bae7"
+  },
+  "downloadState.completed": {
+    "sourceHash": "f8b62f7e7071411179f35bc1c1673cb97256d67ca4003eec2bc6f45453e742f5"
+  },
+  "downloadState.error": {
+    "sourceHash": "ff5463e2ed2d36feb639cdc160fc45745913ac40e76263fc5ecd42ff4e1350ab"
+  },
+  "downloadState.missing": {
+    "sourceHash": "1e699500d3f60b8394a804668bd1b1ab922b3e78557bec752b8a5e197a391efc"
+  },
+  "downloadState.unknown": {
+    "sourceHash": "93e474c68ed556478a63700b1a3f6b0e0a4246e3fe92af1ffe097640620e2413"
+  },
+  "ingestState.queued": {
+    "sourceHash": "f8b62f7e7071411179f35bc1c1673cb97256d67ca4003eec2bc6f45453e742f5"
+  },
+  "ingestState.running": {
+    "sourceHash": "98be37e1fd3c82299e46395ff6d34b69316a03f710a7cc7f899e1c6ef5c3ce37"
+  },
+  "ingestState.retryWait": {
+    "sourceHash": "2575219eec281bc1f8381f54ddfe8278d314a4a2641e63ee99b40bb7d6990b83"
+  },
+  "ingestState.cancelling": {
+    "sourceHash": "af48159f380f8345e87f68372656dd5c71aa3ff87fb098d9d12217e8288abd8c"
+  },
+  "ingestState.waiting": {
+    "sourceHash": "a1e24a234373f0922a78f68df2bfb1d2d5d4827ef1036bef4fdf66db39fd9056"
+  },
+  "ingestState.blocked": {
+    "sourceHash": "c51c8a3d913a6a9ba3cd6aa3cca6d0d84d4df1ef47e7d45df3fe5afaa2f0aff4"
+  },
+  "ingestState.succeeded": {
+    "sourceHash": "446cf7bcc2282250ada797bf3f44969f87806b477163061da423e4fe91154033"
+  },
+  "ingestState.cancelled": {
+    "sourceHash": "8f930adac294146d359665a36d0a4aead553eabcffb1bda8ae387d5289b56e66"
+  },
+  "tasks.originCli": {
+    "sourceHash": "2db846e1c572208ea8e60b051e92fa97b697b659d46336dc93797e171b54357d"
+  },
+  "tasks.originAgent": {
+    "sourceHash": "2d92181d8b873464f4ae6836b631c4452fc7e954020ef1ec64b724c3941672c1"
+  },
+  "tasks.originWeb": {
+    "sourceHash": "2f47269ae8266ccfc35c2f8985e4589cdbfab1ffe94bb96d8c904b9eedbec8d8"
+  },
+  "tasks.working": {
+    "sourceHash": "3b7e27cb4379da3c65e512641d49c0e37c3cb10d7cb7fb0d257d9e6eebcf9558"
+  },
+  "tasks.failedDismissed": {
+    "sourceHash": "ebe91f29f969f5c9cedc162696069143165c3b9e7ecddab6c3883c581bce0f5a"
+  },
+  "tasks.cancelled": {
+    "sourceHash": "6f96c2add214c62e9123c68e8aec77ebe125566394784e6400537e82fdfa059f"
+  },
+  "tasks.completed": {
+    "sourceHash": "e9a880e595218fd2ec7b0f125f700efeb9f729f06d585dece9dd2e7ae8fb29c5"
+  },
+  "tasks.downloader": {
+    "sourceHash": "19c3857aba1b0d88fbf50b66335a5ec0e2e958fababde6bb7faac04a0d7b3e85"
+  },
+  "lifecycle.waitImport": {
+    "sourceHash": "f8b62f7e7071411179f35bc1c1673cb97256d67ca4003eec2bc6f45453e742f5"
+  },
+  "lifecycle.waitDownload": {
+    "sourceHash": "8dfd6cae0bc011de49933b71c439c90ae89325a16af0695c4a0dea9008947b74"
+  },
+  "lifecycle.next": {
+    "sourceHash": "acfc4e74a650e7dfce69a54bc74065931f029c9d80e78e3e024f1474c5f2950a"
+  },
+  "lifecycle.noAutoImport": {
+    "sourceHash": "4d5d9784836292cd43ad3ca81fd04cfc33ec5b339c6780734b0e0cf5a473ccee"
+  },
+  "lifecycle.noAutoImportHint": {
+    "sourceHash": "0eee64749e8a714ce7a54f53402e7783e5652c9c76aa87a0e6de72e8e212c19e"
+  },
+  "lifecycle.matchedLibrary": {
+    "sourceHash": "608c5f6b50175b6a79a4f8f93b30d708f2091ff9bff40c455c0ed639138c716b"
+  },
+  "lifecycle.noDirectImport": {
+    "sourceHash": "eb76a1695e4db5a3653a61bab619663851819ec9e181ef98220de26ad5d59bd7"
+  },
+  "lifecycle.noDirectImportHint": {
+    "sourceHash": "80de88250767d16ea5e86471cce0adf0c9da8783f384ba47bec7cb07057569da"
+  },
+  "lifecycle.pendingImport": {
+    "sourceHash": "6b4f6acfa1c6ded3de178daa5f2ae39bd1a045947dba0fea6a3542da5c7552eb"
+  },
+  "lifecycle.pendingReplace": {
+    "sourceHash": "b1dbd237e665251a38a64d8d0953488e91f22dcea06dd9c7ef2189098a5e9809"
+  },
+  "lifecycle.keepOld": {
+    "sourceHash": "69ae220e93b09693b10c03b76d17914012cf68abfcb92aacb578799064e19298"
+  },
+  "lifecycle.keepOldHint": {
+    "sourceHash": "eb364638eca66427a37a25d37f1b48d0ebbe422c9aa8a68b714463c799435260"
+  },
+  "lifecycle.pendingRecycle": {
+    "sourceHash": "4bba57fa989c5a4bb6690b0d2c6d183950e99dfb43fd13d0292712f00f467093"
+  },
+  "lifecycle.pendingRecycleHint": {
+    "sourceHash": "3ffb8f81032fc47ab0ebee57d92dc4b84b19071a36e2f04a7fdd348d7af4abbd"
+  },
+  "lifecycle.waitAssociation": {
+    "sourceHash": "fb1ec1dd11375674091b497cd94d1b6178da5ab2de92a025964244958d5c1f0b"
+  },
+  "lifecycle.handleInDownloader": {
+    "sourceHash": "ccc4ec6608f8df89c203400ab9188f35f260bef663ed69d8d336e62e5addcfd9"
+  },
+  "lifecycle.downloadComplete": {
+    "sourceHash": "c1c79b63f418fd14c983e88dc3b8c52a8e4e77d33ee181d26427efa98e09d9cc"
+  },
+  "lifecycle.filesReady": {
+    "sourceHash": "ca84d80c0fc506600a0c18da9666fcc838c730aa3fc4378605a65806674feef5"
+  },
+  "lifecycle.readProgress": {
+    "sourceHash": "e064f3661efc7f415c005f41ad5d75f2ee0a5ee0998837ef1e874ac16ec9a396"
+  },
+  "lifecycle.importAttention": {
+    "sourceHash": "c51c8a3d913a6a9ba3cd6aa3cca6d0d84d4df1ef47e7d45df3fe5afaa2f0aff4"
+  },
+  "lifecycle.importDismissed": {
+    "sourceHash": "002644b267585f0acd61cb329060792a2e5517bef7ad710b37effc3c2e1f3559"
+  },
+  "lifecycle.importDismissedHint": {
+    "sourceHash": "65e734396cfe315f84fd9596d67be4f9342c767f66e4375730f2421fd0ec5074"
+  },
+  "lifecycle.importing": {
+    "sourceHash": "98be37e1fd3c82299e46395ff6d34b69316a03f710a7cc7f899e1c6ef5c3ce37"
+  },
+  "lifecycle.contentMismatch": {
+    "sourceHash": "0d3cc4e844e38a6a96a46dc505a7628cbbc7949fc5855ff9b452d7dc00211a6a"
+  },
+  "lifecycle.replaceComplete": {
+    "sourceHash": "eb119d4ee68ecd124c8ce70d88023923f873814b4bda74932bfd15676b4db64e"
+  },
+  "lifecycle.importComplete": {
+    "sourceHash": "446cf7bcc2282250ada797bf3f44969f87806b477163061da423e4fe91154033"
+  },
+  "lifecycle.partialReplace": {
+    "sourceHash": "20f8d3cc7bd6802f8816b0f9b944bb620ed76894135d8b128da00d13ad08d0fb"
+  },
+  "lifecycle.partialImport": {
+    "sourceHash": "843b1c05d7810f11e953537a62d2d9d1fbaf44412d3a7f1348be4960e3696ad1"
+  },
+  "lifecycle.allReplaced": {
+    "sourceHash": "75c8a5637dca617b4562ad979c892af6b230936e838e7803e2194bf39c9bc0bc"
+  },
+  "lifecycle.allImported": {
+    "sourceHash": "70f3db3012eaa75a29fc4264047c347ad838169a2feb2e1f1863c46e46723ad3"
+  },
+  "lifecycle.importCancelled": {
+    "sourceHash": "8f930adac294146d359665a36d0a4aead553eabcffb1bda8ae387d5289b56e66"
+  },
+  "lifecycle.waitReprocess": {
+    "sourceHash": "c0fc25c67ec57f4777613617a6981a0fcf8f928adfd574560fa8f1630ad963bb"
+  },
+  "lifecycle.cannotImport": {
+    "sourceHash": "fb4a4e1398c13002bbc7e0b1eac2a27e22d14289c53d091d6129dfa5fc1c8090"
+  },
+  "lifecycle.filesInvisible": {
+    "sourceHash": "6c8d901a17fe355e3cb936f45dc3466d0abc90da103cd00347ce3f1e713f53f0"
+  },
+  "lifecycle.waitReplace": {
+    "sourceHash": "fdc2af04f6ada9f0b0c3c5c8be555580026ad1f15f34ceddf39e1cdd212716fc"
+  },
+  "lifecycle.verifyAfterImport": {
+    "sourceHash": "4c7112b9ef4690e3baeec702f978a233539767df1612f10217988009c051e4e5"
+  },
+  "lifecycle.dispatched": {
+    "sourceHash": "21326b6c9be51bc839bb4bedb1dcd4996f4adea4950b8beb67bd2d31bb644001"
+  },
+  "lifecycle.partialReplacedHint": {
+    "sourceHash": "8acabe5ec8621abf1b7302d501d769c439e415310c8562caa690be66f3218ec1"
+  },
+  "lifecycle.replaceSyncPending": {
+    "sourceHash": "6edf982b68ddf68219e6b23c9e608c946961f64a539c9cd65fbc21db537e98b5"
+  },
+  "lifecycle.partialImportedHint": {
+    "sourceHash": "58a9e63a4ffe994033da974aa07651183abbdf13f55052d0991dd889bab33048"
+  },
+  "lifecycle.importSyncPending": {
+    "sourceHash": "5a806873ec62bebaa685f337613a6708ce4b490d1079c15e6f61663c6047e9c0"
+  },
+  "lifecycle.previousImportCancelled": {
+    "sourceHash": "04415be6708442e62d0f270d7e05b1e056ab209d194be476affa3b427b5ad842"
+  },
+  "lifecycle.downloaderError": {
+    "sourceHash": "b88340e9b9615a738522bbbbe547a73f8abf777a3b8e634c622b1e03b9d2591e"
+  },
+  "lifecycle.missingTaskHint": {
+    "sourceHash": "98aeaa635df4a8b4f96c1ab4683aec5fa1df827e3bdf49343a8ec0cb191c5b8e"
+  },
+  "lifecycle.completedTaskHint": {
+    "sourceHash": "d25ed7fe7c998113d322821c7316c5a7cf172b5f4e6ec42f1da5f4eb937fcd79"
+  },
+  "lifecycle.pausedTaskHint": {
+    "sourceHash": "90aaf3930943566fcfa52383e4b4de941e8cec88d7b3ede0fbb78ccb645da605"
+  },
+  "lifecycle.queuedTaskHint": {
+    "sourceHash": "e2ee4e0d387aac55c0485a54feb80950fd7db065bc818a815749f36c3f889976"
+  },
+  "lifecycle.checkingTaskHint": {
+    "sourceHash": "f2ed3f9a3110baf3d9800167e7b55dfd36b0e12896172a6634e447611e82ea5c"
+  },
+  "lifecycle.stalledTaskHint": {
+    "sourceHash": "e5e45514221d87920828c6a5ebb32638c6245139558c6349de55ec2cba6268d3"
+  },
+  "lifecycle.unknownTaskHint": {
+    "sourceHash": "9a725acbcd4ef934cb07368e2315da791f56bb39c9d2c6a380688af1fe519262"
+  },
+  "tasks.processedBytes": {
+    "sourceHash": "71d9744afd1afddc9857e181a4e9d6ee1e401a7d4ebc20d72777efea520d7413"
+  },
+  "tasks.processedProgress": {
+    "sourceHash": "7c7daf633e0f01de5277c280787ce892fcaa26078508e16de985c2cd7a51b36a"
+  },
+  "tasks.historicalTitle": {
+    "sourceHash": "a95fc22c2dc83354cfac58223c25767e209fa2787e513a2ed566cb3f0c668a63"
+  },
+  "tasks.libraryTitle": {
+    "sourceHash": "527bb192e1df35395a89f2093e6d9ddd8a019c09cf16b76cf790e5f57b2a5ba7"
+  },
+  "tasks.mediaTitle": {
+    "sourceHash": "a22d8a07d09a29d3817ae370d75f9672ca6cde4284d289e3e15cc87ecd54a596"
+  },
+  "lifecycle.partialUnits": {
+    "sourceHash": "6684c54e65b72c7572ac5cfde56a0246bb7d1c810409eb4578d35b7d8ef27833"
+  },
+  "lifecycle.namedLibrary": {
+    "sourceHash": "a19b3b97600c0e5ee672690def1755a8a5a3575ef4b89f212968760591effbde"
+  },
+  "lifecycle.pendingTransfer": {
+    "sourceHash": "e03c3d274fe344c21fde89cea1b6edb401671781eb0dc67055de73d530d410c6"
+  },
+  "lifecycle.transferTarget": {
+    "sourceHash": "7babe45778235d3b7f8258179f04cfd2ff4f30b644b46fadf9f27f1f02e469be"
+  },
+  "lifecycle.scanIntoLibrary": {
+    "sourceHash": "30dc22edd3f60330d89ccbde1ac8896f21ce66ace5ee4f30eb5e6cc90f982380"
+  },
+  "lifecycle.importAndScrape": {
+    "sourceHash": "d78799cd0ad870490761207bfc05f315bfda4f0f6037ef2f038f3d61329f6fd8"
+  },
+  "lifecycle.verifyReplacement": {
+    "sourceHash": "ac24120dfb29c895106f4c58b5304865a7d95f2c8eb55f05b60c2b16f8fbab26"
+  },
+  "lifecycle.contentMissing": {
+    "sourceHash": "986769273dbdd54621c31c274e95a7ed4a381072d71141ab13410fbcaf39b32e"
+  },
+  "lifecycle.partialReplaceWait": {
+    "sourceHash": "fe9b737a0e44874897def37eb15eca4d403947ecfebefa5ed7e2b0df4fbc7a0e"
+  },
+  "lifecycle.partialImportWait": {
+    "sourceHash": "f856887925f26b3ae246de0c472758edb7b8585667d185e2664fce33a5d5567a"
+  },
+  "lifecycle.contentMissingHint": {
+    "sourceHash": "6ca5ac5f300e0fe6398f83085419861787916c2055f90b164b306ad691c6b658"
+  },
+  "lifecycle.partialReplaceHint": {
+    "sourceHash": "a709f91380b06081704f8d20f21a7e86c1be0ce25269a7b6a4cdd4f191b37ceb"
+  },
+  "lifecycle.partialImportHint": {
+    "sourceHash": "742069c58a9c07aab3e05ac31cb917a2e6ac54612e76ce3bd6b8709326adc59b"
+  },
+  "lifecycle.externalError": {
+    "sourceHash": "12e4eccc765829f1047f991334065c48736f61aede96f26423f8899603a4d51e"
+  },
+  "lifecycle.rescueError": {
+    "sourceHash": "925ca29c7a54ffbeb177106a628159efe62a26eca7adba5a38516b5522c6a53a"
+  },
+  "tasks.missingUnits": {
+    "sourceHash": "470cb8d718bf3812fbc5eff9129cc99dbafe997d7d1ba352f628c498c1eef501"
+  },
+  "tasks.moreEpisodes": {
+    "sourceHash": "cb0ce2b75e71010891e1644d989f7e745dc562debee1af41dbec49dc8c74001b"
+  },
+  "nav.all": {
+    "sourceHash": "5c55a67935af8f4508ba05d6d81c9eb240a2ea0ba886d8428b985e305470da3f"
+  },
+  "nav.active": {
+    "sourceHash": "dc9591e56d502b436c29bdd2819998a8460b951a7baff457484a930492c1a9d7"
+  },
+  "nav.attention": {
+    "sourceHash": "b7e3e715f18b9bace69fef102c98a2f7b43e0b95923692c81cc887d4aee6e7cd"
+  },
+  "nav.history": {
+    "sourceHash": "d79b1d0e5c61745ba89a882ef7ceaf480d0791403f0490786f9e8ed9050a5feb"
+  },
+  "nav.title": {
+    "sourceHash": "9e9bead81498b8980af6092ce91f0161f6b1eea4d1836b3fdc1338e140b7a481"
+  },
+  "nav.watch": {
+    "sourceHash": "8bd9c61f81c246100ba58f2c4a965d4ebc132d36c24ecabfbf3b05a5bf26ef89"
+  },
+  "nav.tasks": {
+    "sourceHash": "5253040db8643c857d0bd7823551422f0c2f91855d0d3656b4efd8b30b3edb95"
+  },
+  "nav.plays": {
+    "sourceHash": "c35040a4f3346ce8d98f526e988e8ff56257306db406fe95fd61f40801c2288a"
+  },
+  "nav.stats": {
+    "sourceHash": "8370241cffbb9e0011cf47db408d4b1a7a095e477234605eaaf564d43595932a"
+  },
+  "nav.boost": {
+    "sourceHash": "6b6222380826efa52423f47d65042b472ecf5b38599ad3cf4f0afedd771a8bdf"
+  },
+  "taskCenter.removedFiles": {
+    "sourceHash": "2db2bf821b6d084101d76231e5d2160e8f0fe05c47f15be1713381a1518e6bc6"
+  },
+  "taskCenter.removedKeepFiles": {
+    "sourceHash": "b846f13faa5459fee36d2d6cd6e34a8a7bba0136b3d2a865ac83b4574e9d28c6"
+  },
+  "taskCenter.removeFailed": {
+    "sourceHash": "3fc1dbd0475ba154a00b1db4a0ec51abe96b969d2a4e970f4d4d564d70f35e50"
+  },
+  "taskCenter.replacementStarted": {
+    "sourceHash": "533015f9a812144280eed27881920a619460abd0e63ff52bc8946e6697463630"
+  },
+  "taskCenter.replacementFailed": {
+    "sourceHash": "7d1859e9087c9dcd11ef0a90525a3d4edbe1fbaf9ecf54d067efab4632cbd89f"
+  },
+  "taskCenter.cancelRequested": {
+    "sourceHash": "b02b968ef03e5e823b37ea4cda1b691fbb42189a52cfb303a3a39c02f75c2ed1"
+  },
+  "taskCenter.cancelFailed": {
+    "sourceHash": "2bb7ec1ac349d902e676c0c203e6745c9a8761920403795ea3edc8a3e5e8c405"
+  },
+  "taskCenter.dismissNone": {
+    "sourceHash": "bef226a83299c417ce7d6e166ba7078877ce3c93926a81ef560d1a1e0267e1a7"
+  },
+  "taskCenter.dismissAllFailed": {
+    "sourceHash": "2ff454ac4a4b0d4ddb7124e124ad9dd3c3b8c7e63074ef875503e7ffdf1a969e"
+  },
+  "taskCenter.restoredAttention": {
+    "sourceHash": "b432d75b52bab327dd6a262c2c6eb53d9f46bc2e9ac1ccb2374869687b433a15"
+  },
+  "taskCenter.restoreFailed": {
+    "sourceHash": "4ce63f9134d43fac21ae167b015fe7aea519562c976f294d83a863c8cba2e6d6"
+  },
+  "taskCenter.requeued": {
+    "sourceHash": "a1a697dfc7ac0243130b09f72fe521c6b40329b59e3f7ca584be71c74e7c763b"
+  },
+  "taskCenter.retryFailed": {
+    "sourceHash": "df5b05f1755f779356cb34dbeee73b54ed09d13d6e71677aec6acd1b47dd3b9d"
+  },
+  "taskCenter.readingDownloaders": {
+    "sourceHash": "e4a2af9b30b0576c30dd708136fe80fd600eb57b5c992699da833548e0a240d8"
+  },
+  "taskCenter.waitRefresh": {
+    "sourceHash": "1d50fa7450fdde7b94f749ef4508ca609aaedce7ed8250f90800539b54a85a45"
+  },
+  "taskCenter.now": {
+    "sourceHash": "43584f37c1f4932ff09f95daf231e5d3caa45e6e05dfa751f6b0b33a01c830c5"
+  },
+  "taskCenter.loading": {
+    "sourceHash": "b613e93947fbbbfb77a9c2f70080ed50cb3de13c29069da7d0ce9ed6b12a5aca"
+  },
+  "taskCenter.deleteDialog": {
+    "sourceHash": "6b000a230c463204ca95ba35029164fa3ccf4d94cc30672a6653d142ec488d13"
+  },
+  "taskCenter.deleteTitle": {
+    "sourceHash": "b0cc372685df0b7af47927334b2380c9b9d0157b8b51a5cc0fcbac35c4d6d311"
+  },
+  "taskCenter.deleteFiles": {
+    "sourceHash": "a5dbe3f86f4d725c9f5a1a869bc496ebaeae71556c67bd9f32db6218f32e8e28"
+  },
+  "taskCenter.deleteFilesHint": {
+    "sourceHash": "1c9f158f65cf0dbf6816923ac341dca4c4b84ac0b15c6001adc11deef95ec306"
+  },
+  "taskCenter.keepSubscriptionHint": {
+    "sourceHash": "1216047aecf49a920f5c91e0ffca5f05655a363fddf9793f264f6d2b915aa02c"
+  },
+  "taskCenter.deleting": {
+    "sourceHash": "4fd4f40094d40891ebffd33201c474a72cd8b520460096aad0787615d431dfe8"
+  },
+  "taskCenter.deleteWithFiles": {
+    "sourceHash": "3f5b372c0182a5d3c8e2c653e308da204d68d0ea61ad8fcc7413c925e35732e7"
+  },
+  "taskCenter.deleteKeepFiles": {
+    "sourceHash": "fa1ccb5ea4f4164d98be659aadfc5dbadec387b555425fef3935c79926facb8a"
+  },
+  "taskCenter.checkSettings": {
+    "sourceHash": "78ee00feec97776d29f58a444154cbb7d7ff45dcd05b80647ab29c358ce378e3"
+  },
+  "taskCenter.attentionTitle": {
+    "sourceHash": "f50a99897dd17b1a5eff7e2f4ab11ec7bf772982f233265f2829ce9d91f24ad7"
+  },
+  "taskCenter.dismissing": {
+    "sourceHash": "ae65f5d9ebf80c72535d45d5a820e6f1287aab694e9bd7eaee3f9dbf7073bd3a"
+  },
+  "taskCenter.dismissAll": {
+    "sourceHash": "2f56ad4f73d5c7a933204e96badceb5132df8e97982cb7ff4b441fba4eff4b78"
+  },
+  "taskCenter.retrying": {
+    "sourceHash": "52d2420dbe128f767b37ef6badaf23f68a4e137ed020115c8533c43496961d69"
+  },
+  "taskCenter.fileDetails": {
+    "sourceHash": "7f4b1e0f0d49a487f5c9fa682e72e46aa9f14592d60dfa265402170c90fd7f13"
+  },
+  "taskCenter.expand": {
+    "sourceHash": "00bd3960fea8ea982bcce83a3d2744a28c548ab59e94725cc8eee9c8840c2f56"
+  },
+  "taskCenter.collapse": {
+    "sourceHash": "afd4b783536b8297bb2506836727af1ccae7626a7d04e89de7ad402360e0a970"
+  },
+  "taskCenter.siteDetails": {
+    "sourceHash": "363ed44082b01fcb0074dcd45f2fec2a1a8398837de47db64593528395a28768"
+  },
+  "taskCenter.historyRegion": {
+    "sourceHash": "f92d74c82783a886b9a12f32d85e15a1f3f498034aabafd89634fe42b724607f"
+  },
+  "taskCenter.upgradeHint": {
+    "sourceHash": "7e59b86c3c5e950af0c79babd72ec8019952cf918bfb970000f444c7b06adce2"
+  },
+  "taskCenter.upgrade": {
+    "sourceHash": "d2bf1dc5474866b12b52a6a60e16be74dfbf7c293a07b9b45f0cf521710d91a6"
+  },
+  "taskCenter.live": {
+    "sourceHash": "c69ec2ffb0db8ca41249e8d4fdd3212cb0df2bd61df6e6ebda718cb416e47d28"
+  },
+  "taskCenter.viewSubscription": {
+    "sourceHash": "98655b0f7bde99f7c2add92738846776fa83f51bfd08a8a968dafa63d4953ae7"
+  },
+  "taskCenter.replacing": {
+    "sourceHash": "2c478b7d353477be2fe2ab1f89cb6ea9d9a44298718a6a8d71c9504611d814b4"
+  },
+  "taskCenter.replaceNow": {
+    "sourceHash": "dabac01f1fcdadc811cd8e1802cceda1d5a17a830a440e196b4050a8318c14bc"
+  },
+  "taskCenter.subscriptionSource": {
+    "sourceHash": "2434d20eec2a9c2fd3d6ebe4ee8964b329d19820c52d2c58a63a9f320e224880"
+  },
+  "taskCenter.manualSource": {
+    "sourceHash": "f3e610af41d7362d7c0c64a1666b78c05d196312baea7f52c4e15da3d2c7f043"
+  },
+  "taskCenter.downloaderSource": {
+    "sourceHash": "52e1d3e4ce32b771459067e76b52e477d18902189e96a02dfcec71f35e3a00a4"
+  },
+  "taskCenter.importProgress": {
+    "sourceHash": "618dfb098f37dbaca025a76b44410163df2ceba6563b74adb416e6a2f4cc5158"
+  },
+  "taskCenter.downloadProgress": {
+    "sourceHash": "fad86bf65f72c74728991c2224b8c899848ccdc1a4711602fce713257b75c7c1"
+  },
+  "taskCenter.missingAllClients": {
+    "sourceHash": "61e29e2913df4f5da3f48becc0f8139dfb761b5bbe0884d966d0ebd31893cba1"
+  },
+  "taskCenter.deleteDownload": {
+    "sourceHash": "1f29b234ff27d84e6244fd0158029651a21d463d044088b65b389af9aade8348"
+  },
+  "taskCenter.lifecycleAria": {
+    "sourceHash": "5c0a9c125cbce40a0f6b60618a009b0acdb6c353e75423f64ebbb5fc5f00c337"
+  },
+  "taskCenter.torrentPage": {
+    "sourceHash": "c36b9fc19dcdfd671f4f4aeca3d83b62814f3ab5c8453ebb3cc5abfb3a2d5aab"
+  },
+  "taskCenter.deletingShort": {
+    "sourceHash": "5e8e7af57abbcbcfce41b5af51fc19e767922e5e9ef44c54ce1443cc21f877da"
+  },
+  "taskCenter.deleteAction": {
+    "sourceHash": "29dfebea0fdac1f6f358efd38d736a80603baabfb67b527073f78a29b89711c5"
+  },
+  "taskCenter.replaced": {
+    "sourceHash": "b7345661b1f5ccab29cef97fc39dacd47ba31173153e14b3b888c2dc1b132bbb"
+  },
+  "taskCenter.imported": {
+    "sourceHash": "2bfa8a13150e11a2667e0f9343f9db3ccad03733c11d7dd8f63f206122c94050"
+  },
+  "taskCenter.emptyAll": {
+    "sourceHash": "8551c20008b7b4b5148c2a21fb427e2ca676d633ea9b2e0b0a5c775e6e2f35b2"
+  },
+  "taskCenter.emptyAllHint": {
+    "sourceHash": "4c4c17889d14feea61d4302496823acfddaf1465d9cd56d3df123d81fbe047c2"
+  },
+  "taskCenter.emptyAttention": {
+    "sourceHash": "889fbfdd5af34e97d550820e3158b1ddd870b3518b2e354c12cc5ea134c146fe"
+  },
+  "taskCenter.emptyAttentionHint": {
+    "sourceHash": "2dec550df692e628f457d09ba2d0a684289c9c8f608c42f575421581e8637957"
+  },
+  "taskCenter.emptyActive": {
+    "sourceHash": "a09b374651d2eaf38607c1b69fb289351339af10f76800b579348b731e0d790b"
+  },
+  "taskCenter.emptyActiveHint": {
+    "sourceHash": "23d95f9bd7221b7f19654dc9c99ff93429446184b22ec302edbf6d757877f814"
+  },
+  "taskCenter.emptyHistory": {
+    "sourceHash": "d68776fe836897e39252a8875a74bbd7f0db05764ca338721014bff4b43de07e"
+  },
+  "taskCenter.emptyHistoryHint": {
+    "sourceHash": "41eede56d578d309ff520bb9d63453edfea487bd2449f2296a7be098f27cfabb"
+  },
+  "boost.off": {
+    "sourceHash": "c5adbe024e7e1c41eb594ac1a6b5e7b8b3c00a3dda31de9de251d2a251c6b2be"
+  },
+  "boost.paused": {
+    "sourceHash": "b0cb6bdaa9c2bf642ec2bb2fd20a02ae257748a77cad06947734908dc3cc0f9c"
+  },
+  "boost.heading": {
+    "sourceHash": "6b6222380826efa52423f47d65042b472ecf5b38599ad3cf4f0afedd771a8bdf"
+  },
+  "boost.uploaded": {
+    "sourceHash": "f2f02049468d58581201c94df99a24fe5acc29a3c009661f3bd7fbbda8b612d6"
+  },
+  "boost.downloaded": {
+    "sourceHash": "e2f12da7faa682177811ed705f801a5c0c34c72beb0a7f0c67d7a11509737966"
+  },
+  "boost.offHint": {
+    "sourceHash": "9bceaa9833fe6add4d7d4bd7c93deee7be59f4f201d4d488b55861c850361822"
+  },
+  "boost.managedHint": {
+    "sourceHash": "74b5c27106357fa65a386864d696ea2663585e73f0fe28362a5157cc88a0dfdc"
+  },
+  "boost.cleaning": {
+    "sourceHash": "6dfddc899afc3c13080504b8d1294f95f2bdfd8af3743aded170d8a5e20a4789"
+  },
+  "boost.cleanupAction": {
+    "sourceHash": "02d3069f8abc4b6be4981e370a51ec858eb016a30207cbbe09197132f036a08c"
+  },
+  "taskCenter.dismissedCount": {
+    "sourceHash": "d91eb8057771e9fc886106d68990715c30d34f6dbd0b60d38369b48ff4e3e009"
+  },
+  "taskCenter.updatedWhen": {
+    "sourceHash": "2c4cb405debe8daa4d2e625267d9e474cb96808fb3add022bd97faab8534743a"
+  },
+  "taskCenter.downloaderFallback": {
+    "sourceHash": "b9fd4f67216c54783f912d7c9d5fd24120dfe68b0d1e0a9c3d130c6eb21e4cb4"
+  },
+  "taskCenter.deleteHint": {
+    "sourceHash": "eea5dd3a733eaf22491da000708cc87b137f190a710559e45825ab22889a5eed"
+  },
+  "taskCenter.sourceWarning": {
+    "sourceHash": "526ed3577e003804d9202c9de099c8b0919975f19a958d8c16d51cf1a640540f"
+  },
+  "taskCenter.startedAt": {
+    "sourceHash": "975be365ec005ff2af98cb5527173951c8b10383889d481d4836a33b3d78b980"
+  },
+  "taskCenter.createdAt": {
+    "sourceHash": "13d0fafaa2d1a1f13ee7458aad868c28ea5c8f72f9e86a5480570370e37ce38c"
+  },
+  "taskCenter.fileCount": {
+    "sourceHash": "d7fc811a3b82c1e9e2632ac6967c19ebb22c6a6987bfb34e9ffb747a99a816f0"
+  },
+  "taskCenter.itemCount": {
+    "sourceHash": "7aec0d4e2435135491eb94758fce46d8b0d7773bbc9dd9f4850dfdd2a613c7bf"
+  },
+  "taskCenter.releaseCount": {
+    "sourceHash": "0d2855782480d510e72e3cc1048b169ea32cfbdec2a8582bbd725403cda5d386"
+  },
+  "taskCenter.resourceCount": {
+    "sourceHash": "11a1191992da39d56798d703a09a76329c23cc502fd8bbdd7ade0972cb7acaef"
+  },
+  "taskCenter.posterAria": {
+    "sourceHash": "44ae7728809f4737fd2daa226a494e834da8d9a3615b9068c2d321a7a06c75a1"
+  },
+  "taskCenter.remaining": {
+    "sourceHash": "5eab3340a0e82db57dcd6d48441243d93dabe9b638fd4f89a615285125f89ced"
+  },
+  "taskCenter.remainingShort": {
+    "sourceHash": "5f21a245d739d1c83545ff9fa9d9751becba9d6b3d940c6293ecbca341e4d89f"
+  },
+  "taskCenter.singleDone": {
+    "sourceHash": "cb4a4f0e435f5bbc9d8ae5e90dd41cf659f864e1791fedea63256d34ac5cc34c"
+  },
+  "taskCenter.doneEpisodes": {
+    "sourceHash": "53900c9035b91f90c353d6bea73bc8269b36abb342787090c5847345d234068f"
+  },
+  "taskCenter.seasonEpisodes": {
+    "sourceHash": "e90459c3b821e10e20ab5bbcd1a3985970dc178d10ac3a21b18d2fbe928d99e5"
+  },
+  "taskCenter.totalEpisodes": {
+    "sourceHash": "2b83d9918b95fabd9b4f468d3b3825cb7e94d1c20a4760d21cf24784c3969dc4"
+  },
+  "taskCenter.episodeCoverageAria": {
+    "sourceHash": "35320e53552601f5e7eb0413c12300afcff9ccc2d5042823e53fd765260f4625"
+  },
+  "boost.summary": {
+    "sourceHash": "22af5ae350175a4fa0ca2e61d26c61e29c606a99605e8f81f434dd44b743dd87"
+  },
+  "boost.uploadedTotal": {
+    "sourceHash": "faa4ffe7f1a2bffe0f7b7fedad456d5a7ed77839d90f6348382a32147adcad70"
+  },
+  "nav.taskAttentionCount": {
+    "sourceHash": "de1cf48075ebcc0e09fb42fa4bbd95303b2bf91f8d78777496f89b92435c00e3"
+  },
+  "nav.taskActiveCount": {
+    "sourceHash": "6f31013314254d9b03793bdfaf6b02893e4eab7dfe71c0c0272654bd3304b79d"
+  },
+  "nav.watchHint": {
+    "sourceHash": "d952ccf6c87cbfbbc127c9c825f7421d09e2a8c10cf4112fea225402be636d7e"
+  },
+  "nav.taskHint": {
+    "sourceHash": "f4c28bc2692e8e0ce218a939f9203b7911e086ce0c21d4e614056e769f362396"
+  },
+  "ingestHistory.target": {
+    "sourceHash": "d5b2a5ee988d09c5aaf3fe66d9d0ffe24bda906de68e1443a4925203df98c104"
+  },
+  "ingestHistory.addedEpisodes": {
+    "sourceHash": "924428f6c6508b0b7529a9409c051752f37446d49053cac362ac891426c5ad4f"
+  },
+  "ingestHistory.addedFiles": {
+    "sourceHash": "6750523f49de057c371cd874f7502b9534d5e45051d08a9f9ea31c9540d0df21"
+  },
+  "ingestHistory.addedGroup": {
+    "sourceHash": "fa62703dabaaa8d6d60260818cba3f9787668bd8f83b6cf764919f7358d83979"
+  },
+  "ingestHistory.existingGroup": {
+    "sourceHash": "c18f5840e535c60c3ecc10828d388df1c44941700c7881650f6e7e68c25415a1"
+  },
+  "ingestHistory.checkGroup": {
+    "sourceHash": "31d85d4904920fae5e73802a76da45c868c19c3faac79a5e1fcdf7500634ee21"
+  },
+  "ingestHistory.checked": {
+    "sourceHash": "4c76b138000e0fb7c18c1d1a29217f9f45a3c02431dd8b936456565302613bbb"
+  },
+  "ingestHistory.noCopy": {
+    "sourceHash": "5688c496a192352e6d53af7986c7277f17954656ac85527b453bd580ec8d18ca"
+  },
+  "ingestHistory.legacyCopy": {
+    "sourceHash": "5939749465f9cac7a93414bc0cefc74759e1a3031bca53ab2a05829ba02c3cbf"
+  },
+  "boost.cleanupButton": {
+    "sourceHash": "5bdb9612b81f9561b7e319944b2b954713468e28c10342e87886c0e1c039d5d3"
+  },
+  "boost.clean": {
+    "sourceHash": "9d2998cca51723193ae7d2f6dc9440d9cb144fc433f2460e7c7e8e11cbab5e4e"
+  },
+  "boost.disableAndClean": {
+    "sourceHash": "a0ff833a2a6d7aed6bbb0b6929671cfb4377af2db52c70c8c79ee431feb94390"
+  },
+  "boost.forceHint": {
+    "sourceHash": "4583c492e5f190c51ab1f122a393af68106d3ef4448a6f0832ba4162e43c3e04"
+  },
+  "boost.pendingPatrol": {
+    "sourceHash": "a15227c32681b465c7c586f9cfae5fc25b4fa8b85cd98fd85a9831ae08242d2e"
+  },
+  "boost.empty": {
+    "sourceHash": "b2a80ebe139e7ed1105e2c79b77c69f861e9728a562d961961db48540c138a74"
+  },
+  "boost.bySite": {
+    "sourceHash": "a1923c0aceb410a0668edf8d7baa02308e30a298692585b410cfe2a3b4c6032e"
+  },
+  "boost.offPageHint": {
+    "sourceHash": "4df4084cfb062194282033998b83213a520c2a3033d2c50a73f0f352e9572b1e"
+  },
+  "boost.running": {
+    "sourceHash": "b7068f3a03998937474972c340d909b27eb017d0c733f3852e6b9a39e6b1cc96"
+  },
+  "boost.sitePaused": {
+    "sourceHash": "eb0c326b60ae897a19080c0b21565029be8da614a7dd6ecad97da24f4cb8fc90"
+  },
+  "boost.siteOff": {
+    "sourceHash": "6744b4c6a9aa00381ffea2b3d229778b0724b073bd46e13f4e73868667eeb44f"
+  },
+  "boost.bySpeed": {
+    "sourceHash": "0a32c6d6b089434350d07c3cf5904c02bf67e5ab3c83ff69c5fd5213a464a580"
+  },
+  "boost.openTorrent": {
+    "sourceHash": "363ed44082b01fcb0074dcd45f2fec2a1a8398837de47db64593528395a28768"
+  },
+  "boost.noneToClean": {
+    "sourceHash": "067e9938de422d735456d44f49e0caaf22ec3e2305bd5759e0b5dea7b4a13c79"
+  },
+  "boost.cleanupCheckboxHint": {
+    "sourceHash": "b624c8c0b525ef4a4596d17d6b9bfba8ac7c51ea38efc01cfa82ccaa8ced6e55"
+  },
+  "boost.cleanupDeleteHint": {
+    "sourceHash": "66dbfef996eae7e020520a41d9a8a2e570de3fcaa34b4fc685251a8870f91a85"
+  },
+  "boost.cleanupDisableHint": {
+    "sourceHash": "336afc23943b71cdcedd19fed911a4ba30abfcc612f545431b9b5abfb6d2e416"
+  },
+  "boost.cleanupProtectedHint": {
+    "sourceHash": "ad86ff6b5a83c26dc0f80a28f3d038fd2e585e4699aa29e178c74c9d66029e39"
+  },
+  "boost.cleanupTitle": {
+    "sourceHash": "04a9830fafe6ab224af9943abb1515b0e9906ddb846a434794ffb7149de7445e"
+  },
+  "boost.forceLabel": {
+    "sourceHash": "61462403b661508882dc6e0cdc27305970feef9b80e395025db0f8e9711fea67"
+  },
+  "boost.pendingDeadline": {
+    "sourceHash": "591c4a25862abe4a8170d1a1b5e4cd67e5b2c3c1c6f468155b833326a45d20af"
+  },
+  "boost.torrentCount": {
+    "sourceHash": "de1fe1894a9ec768d95e55276051d65b0ea6874dff21078573aa0a71ee5d06f3"
+  },
+  "boost.uploadedSize": {
+    "sourceHash": "ed9c493905e8e54dc67b9c74737843554a2248c8c9bf0db3db4a1b70fff508fb"
+  },
+  "boost.siteTotals": {
+    "sourceHash": "a8391665a1b15394c18a21224f13257d48737ef712bad71a33565eed614e9a9a"
+  },
+  "boost.siteScheduled": {
+    "sourceHash": "f096aeb15e4c471fdbec2525dd3d18ec5c3dbe7642a48fa532f5d914f0c15485"
+  },
+  "boost.showMore": {
+    "sourceHash": "9b8624fa98f37a07eb62e50671ef37f69f09bffbc6fba638f50f7d9e0cecf3d2"
+  },
+  "boost.cleanupDeleted": {
+    "sourceHash": "4d7432af13ab3bf3776ca247a5c2b426d7364ae4036abf17efab6f65101f3fe2"
+  },
+  "boost.cleanupScheduled": {
+    "sourceHash": "3b0a53ddbd147cd449460d4935f6d5d505b9068e3670ab1665c57dc21d25a415"
+  },
+  "boost.cleanupFailed": {
+    "sourceHash": "5b00eb846dda629d2feaca555bdc815afeb4599a83f7e49c668ccf5f84268f46"
+  },
+  "boost.cleanupCheckbox": {
+    "sourceHash": "43811abdf43156c309b7a57ef6e3ae4d2b3e7baddeed1cd6bbbb583b53dfc84b"
+  },
+  "boost.uploadedMetric": {
+    "sourceHash": "59ad21d37b9e5d29832a1cfb66ca2a83418c75a280a9d718c6d41e38ebf7a6c6"
+  },
+  "boost.downloadedMetric": {
+    "sourceHash": "caec9293b11cbbcd7cc45bb26228b26b7fe7a47b688f4af2cb9a6ee71c6851b0"
+  },
+  "overview.healthy": {
+    "sourceHash": "6fb51ac22914a0943ad6eb991d3b5c51e99b5b062933d69ea39af7b59da3a023"
+  },
+  "overview.noOneWatching": {
+    "sourceHash": "18df3fe2a41220d04f1454fe38c17e49f07a75e3b91b2b0fdb95b8105f6d3a28"
+  },
+  "overview.unknownDevice": {
+    "sourceHash": "8ca01a9ba438675d0e4d20336a1f3dbf0ccd2d35b081c770b67fe6abbf00a43c"
+  },
+  "overview.unknownSite": {
+    "sourceHash": "14f7f27b8553cacb9a202677e912373bba1b36e935ffe141ae9084953e59f649"
+  },
+  "overview.weeklyNew": {
+    "sourceHash": "9962117a8fb98ad447330db9af88c9d91998ccadd014860900ddf749f3ac68be"
+  },
+  "overview.weeklyFlat": {
+    "sourceHash": "af8e620b3dfdcd77618b68cad6970583645f977cf4092b5949a15cf89d23b570"
+  },
+  "overview.back": {
+    "sourceHash": "99485ea76b71b05a29aa110d6dcf2eca92a23693548faf46d9bdfbb5a92fa1b5"
+  },
+  "overview.scopeIncludesHidden": {
+    "sourceHash": "e75f92e1c7f5a635e5b753cc45d86b423699f6abf38d5dc7f5f778356d65ec98"
+  },
+  "overview.showAll": {
+    "sourceHash": "84941ac6e844e7afe087dd3c674195f60b757c2dc107092271d1dbd86fa4f533"
+  },
+  "overview.scopeMineAction": {
+    "sourceHash": "8c7af2436cc9e0a57346be09a0ea23c19fb2c59a207b548c7ec19f77903ea7ce"
+  },
+  "overview.loading": {
+    "sourceHash": "86b6d0d63062ba81715ba82376104aa54f47edb20d8b5e8ddf399e04a57a7468"
+  },
+  "overview.playing": {
+    "sourceHash": "e6666b2eb3327899a00d3a789e435dd56a5fa7923629bca608ee2e1f580263ce"
+  },
+  "overview.downloading": {
+    "sourceHash": "06b2117d58cc6295b16658a1f6d26a395a9e517a7b403280a6f044261b9674f0"
+  },
+  "overview.seeAll": {
+    "sourceHash": "fa2ff3c379a7c988a3f553b4350556f1b94f28829f786ad5b646c6835e803d63"
+  },
+  "overview.jobActions": {
+    "sourceHash": "a52c091c0a094a0c926f9305160378769ce92583c99fba52a8d92d1ad9d7b865"
+  },
+  "overview.recentFinished": {
+    "sourceHash": "684134665ec0cafaf958bfa3ca10246f5ce16020320b9cd5a9e326243da903cf"
+  },
+  "overview.deletedItem": {
+    "sourceHash": "d14d616c2479144b3bd557612eef9e76a6753e2bd58360fa8c823440fbdaab6c"
+  },
+  "overview.playingState": {
+    "sourceHash": "8dc8241d68372cafea33e8131f818281d48eb4d20ba4c698067a18088e8dfe5f"
+  },
+  "overview.watched": {
+    "sourceHash": "e2f45f1a1b60c383d6cf73a19b6bae72faf96857e603ff37152cffc0c529396a"
+  },
+  "overview.lastWeek": {
+    "sourceHash": "2b39b90c05582fecd639dfd02a1dcd9110224da2e17fd6074cd02938e14d059f"
+  },
+  "overview.hoursUnit": {
+    "sourceHash": "3b6fefc50febace4472333c87df059024ef94bbe22c6a0afb32014f7fd330e16"
+  },
+  "overview.minutesUnit": {
+    "sourceHash": "bd957bc497aa1a4101b19975d9ab6f227c71b2101bc201dd0a8ff0664d94b778"
+  },
+  "overview.scopeMine": {
+    "sourceHash": "57a8f7fd7829d0826b8841b13465eb0143aeeb26354bcd4f76bd1af30a8c7af9"
+  },
+  "overview.scopeAll": {
+    "sourceHash": "eafea2e0fe78728b5b4377b17ad96e27206bc5178af1275fda4b7591676586cf"
+  },
+  "overview.allMembers": {
+    "sourceHash": "0f47166651beae76c1cfe7f2e6ac404feddc7c607ca2d838edd0a261598b576f"
+  },
+  "overview.admin": {
+    "sourceHash": "56db248412ff27921086ebf139689a9f20dbe3a71089d361406c24a2006640eb"
+  },
+  "overview.filters": {
+    "sourceHash": "b5f15473fdc0fefe54938ded6af1586874e43b8b6012627bf5fb325f75912cc3"
+  },
+  "overview.period": {
+    "sourceHash": "e9bf2c2feae418ae9e9ae0b8c0267fe05148ee38a83c925a82e2b53b291ac61f"
+  },
+  "overview.member": {
+    "sourceHash": "6e6d6ddbb7c1a453d2c1ca55818aaf2fd0af0cddadf5fe1c11f7cab73149f55d"
+  },
+  "overview.scope": {
+    "sourceHash": "ae72b532f4b8f09e179cb9ed5c523d67c1fa7e1c7355035168da5eb11f727320"
+  },
+  "overview.includeHidden": {
+    "sourceHash": "b66070b2ed22458e1ba67986cc89be4333fc78b23d160aa1922941f585a54999"
+  },
+  "overview.attentionCount": {
+    "sourceHash": "de1cf48075ebcc0e09fb42fa4bbd95303b2bf91f8d78777496f89b92435c00e3"
+  },
+  "overview.watchingCount": {
+    "sourceHash": "1e30526585a9a1a46974e1049b28838d9fd6535c31e262360ef175e405862c83"
+  },
+  "overview.downloadingCount": {
+    "sourceHash": "0a5bca87c0c3538647ce5b15fb6e6674ef31999802c3c2e6ce875e64ae0a730b"
+  },
+  "overview.activeCount": {
+    "sourceHash": "49ae9d72251c21749a9bcb76ca66bd49a591a55d926df3073442fb271c7a18a9"
+  },
+  "overview.weeklyUp": {
+    "sourceHash": "3424e6316bf76d420cd6769184a8c1b05c3fb141d395feb646a91dcb2199ca64"
+  },
+  "overview.weeklyDown": {
+    "sourceHash": "54777e4c092d38b01064213d3d3887327ab2fabb28f51628179bed300761cfac"
+  },
+  "overview.scopeHidden": {
+    "sourceHash": "521c04b4dc2a0d0834a2acd80dc44eb4167b83c39f825e7d2b6e11374376f3ff"
+  },
+  "overview.seeAllCount": {
+    "sourceHash": "67028aa8f81010ccede1391037ffec29ff5d46cc451dcda4c8fe2773768a735b"
+  },
+  "overview.watchProgress": {
+    "sourceHash": "e0be15d4f36f2dcddddaf7fe86a603b50706e5026fab4537b21729b7bb3baf3a"
+  },
+  "overview.days": {
+    "sourceHash": "cde10eb29dead304beaf65f40657c743865dc41b08d21e70353011558d4a23c3"
+  },
+  "overview.boostSeeding": {
+    "sourceHash": "b86de918b12f82c97fc6be23757d012e3aa7d153fe82daa507b69c6c558ec166"
+  },
+  "overview.boostLimited": {
+    "sourceHash": "e148d4aa3d15a2ea1d2db1b155a8d0182822d01889a9d9290aa4b51687e2ccd6"
+  },
+  "overview.boostSiteOff": {
+    "sourceHash": "60e1fbff9f3bb62cd60cbc3b42ea218add1be27cbbe26fad5bd45d4d638fdf0b"
+  },
+  "overview.boostPaused": {
+    "sourceHash": "f86001d56883b7975345f4f2891d2014cb8f18d6092b0eba35c92dcb81284a90"
+  },
+  "overview.boostScheduled": {
+    "sourceHash": "299420e9050247f5639e186c7f48d9100440ca7697eca59554f12be232bde2f5"
+  },
+  "tasks.refreshSearchIndex": {
+    "sourceHash": "797d9edac2e2953a9ee834b9cd54d6939e152fc957a89e72df0cd61a2669c3e8"
   }
 }

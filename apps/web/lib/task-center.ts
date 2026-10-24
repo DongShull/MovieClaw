@@ -1,3 +1,6 @@
+import { appTranslator, type AppMessageKey } from "./i18n/translate.ts";
+import { requestLocale, type AppLocale } from "./i18n/negotiate.ts";
+
 /**
  * 「活动」页（/activity）的视角模型。
  *
@@ -72,12 +75,12 @@ export const ACTIVITY_PAGES = ["active", "history", "plays", "stats", "boost"] a
 
 export type ActivityPageName = (typeof ACTIVITY_PAGES)[number];
 
-export const ACTIVITY_PAGE_TITLES: Record<ActivityPageName, string> = {
-  active: "进行中",
-  history: "已结束",
-  plays: "最近播放",
-  stats: "观看统计",
-  boost: "刷流做种",
+const ACTIVITY_PAGE_TITLES: Record<ActivityPageName, AppMessageKey> = {
+  active: "activity.nav.active",
+  history: "activity.nav.history",
+  plays: "activity.nav.plays",
+  stats: "activity.nav.stats",
+  boost: "activity.nav.boost",
 };
 
 /** 查询值 → 银玻璃总览的二级页；落在总览本身时返回 null。 */
@@ -107,4 +110,8 @@ export function taskCenterViewFromQuery(
   const candidate = readQuery(value);
   if (candidate === "boost") return "active";
   return isTaskView(candidate) ? candidate : "all";
+}
+
+export function activityPageTitle(page: ActivityPageName, locale: AppLocale = requestLocale() ?? "zh-Hans"): string {
+  return appTranslator(locale)(ACTIVITY_PAGE_TITLES[page]);
 }
