@@ -349,7 +349,9 @@ final class AppModel {
             // 换完弹「已切换到「某某」」（主界面整棵重建，只能经 pendingNotice 带过去）；换到另一台服务器时
             // 写上是哪台——账户卡上不显示服务器，只在切换提示与切换抽屉里出现（2026-09-29 用户决定）
             let changesServer = address != server
-            pendingNotice = "已切换到「\(session.nickname)」" + (changesServer ? " · \(address.hostLabel)" : "")
+            pendingNotice = changesServer
+                ? String(localized: .authAccountsSwitchedServer(session.nickname, address.hostLabel))
+                : String(localized: .authAccountsSwitched(session.nickname))
             activate(address, session: session, token: saved)
         } catch let error as APIError where error.isUnauthorized {
             TokenVault.delete(server: address, username: username)
@@ -438,14 +440,14 @@ final class AppModel {
         switch await switchToAnotherAccount(on: server) {
         case let .switched(next):
             // 退出后人还在 App 里，很容易以为没退成：明确说出现在换成了谁
-            pendingNotice = "已退出「\(current.nickname)」，已切换到「\(next.nickname)」"
+            pendingNotice = String(localized: .authAccountsSignedOutSwitched(current.nickname, next.nickname))
             return next
         case let .unreachable(nextToken):
             // 服务器连不上，验证不了下一个账号：它的登录留着（不能因为断网把同一台服务器上的别的账号
             // 一起删掉），停在「连不上」，服务器恢复后点「重试」就进去
             token = nextToken
             AuthTokenRegistry.shared.setCurrent(nextToken, server: server)
-            launchError = "已退出「\(current.nickname)」。服务器暂时连不上，恢复后点「重试」进入其他账号"
+            launchError = String(localized: .authAccountsSignedOutUnreachable(current.nickname))
             phase = .unreachable
             return nil
         case .noneLeft:

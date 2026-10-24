@@ -117,7 +117,7 @@ struct MacMainView: View {
             router.activePlayback?.close()
             let fresh = MacRouter(selection: .home)
             Self.installEarlyStart(on: fresh, model: model)
-            router = fresh
+            self.router = fresh
             MacScrollBench.shared.router = fresh
             // 库清单清空后按新账号重新取（同一个对象，免得加载任务写进被换掉的旧对象里）
             libraries.reset()

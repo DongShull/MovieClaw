@@ -687,5 +687,12 @@
   "auth.menu.switchTo": "切换到",
   "auth.menu.switchToAccount": "切换到 %@，%@",
   "auth.menu.expiredMacHint": "「%@」的登录已失效，请用「添加账号」重新登录",
-  "settings.about.versionBuild": "%@（%@）"
+  "settings.about.versionBuild": "%@（%@）",
+  "settings.network.routeLan": "家里网络 · %@",
+  "settings.network.routeVpn": "外网（经 VPN）· %@",
+  "settings.network.routeWan": "外网 · %@",
+  "auth.accounts.switched": "已切换到「%@」",
+  "auth.accounts.switchedServer": "已切换到「%@」 · %@",
+  "auth.accounts.signedOutSwitched": "已退出「%@」，已切换到「%@」",
+  "auth.accounts.signedOutUnreachable": "已退出「%@」。服务器暂时连不上，恢复后点「重试」进入其他账号"
 }

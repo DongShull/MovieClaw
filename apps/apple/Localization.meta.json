@@ -2489,6 +2489,50 @@
         "version",
         "build"
       ]
+    },
+    "settings.network.routeLan": {
+      "sourceHash": "e3b9ec100467c6296d9e5325135f42ea3b8015c1748e50ec58728c3dac225676",
+      "parameters": [
+        "host"
+      ]
+    },
+    "settings.network.routeVpn": {
+      "sourceHash": "1128117f38a90111dbdb1b98f946a76e212ad6d829db323a82e5b1eee77b39c7",
+      "parameters": [
+        "host"
+      ]
+    },
+    "settings.network.routeWan": {
+      "sourceHash": "fc7a1c1cd8b9e0cdf4fe24163b2ba05eec704a13332b4a27a5effbe31b0543db",
+      "parameters": [
+        "host"
+      ]
+    },
+    "auth.accounts.switched": {
+      "sourceHash": "ada62ee4ee64d3ffae0f7a028378055cfc4a9fec0b69c049ad0e79a220f526d9",
+      "parameters": [
+        "nickname"
+      ]
+    },
+    "auth.accounts.switchedServer": {
+      "sourceHash": "e5d113a6aab624026e5a067adb079b7cca2ed3139d2f266c7d1ebe006e5fa9f3",
+      "parameters": [
+        "nickname",
+        "host"
+      ]
+    },
+    "auth.accounts.signedOutSwitched": {
+      "sourceHash": "c00ec380233f8d3197144d294d43fa1849b29fbf0812fee38b33604c3fead2a1",
+      "parameters": [
+        "nickname",
+        "nextNickname"
+      ]
+    },
+    "auth.accounts.signedOutUnreachable": {
+      "sourceHash": "98420801763523478d64a5f28ee32970b23aca65bc4d84a02bcb5d0549e18571",
+      "parameters": [
+        "nickname"
+      ]
     }
   },
   "MovieClaw/InfoPlist.xcstrings": {
