@@ -174,4 +174,51 @@ final class LocalizationUITests: XCTestCase {
         }
     }
 
+    @MainActor func testScheduledTaskDraftDiscardAndSaveUseEnglish() {
+        let env = ProcessInfo.processInfo.environment
+        app.launchArguments = ["--reset-state", "--ui-testing", "-mcServer", env["MC_TEST_SERVER"]!,
+                               "-mcUser", "admin", "-mcPass", env["MC_TEST_PASSWORD"]!,
+                               "-mcRoute", "/settings/app?tab=tasks", "-AppleLanguages", "(en)",
+                               "-AppleLocale", "en_US"]
+        app.launch()
+        let row = app.buttons["task-row-library_reconcile"]
+        XCTAssertTrue(app.navigationBars["Scheduled tasks"].waitForExistence(timeout: 30))
+        for _ in 0..<10 where !row.isHittable { app.swipeUp() }
+        XCTAssertTrue(row.isHittable)
+        XCTAssertTrue(row.label.contains("Library reconciliation"))
+        row.tap()
+        let enabled = app.switches["task-enabled-library_reconcile"]
+        XCTAssertTrue(enabled.waitForExistence(timeout: 10))
+        enabled.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertEqual(enabled.value as? String, "0")
+        let save = app.buttons["task-save-library_reconcile"]
+        XCTAssertTrue(save.isEnabled)
+        app.buttons["sheet-close"].tap()
+        let alert = app.alerts["Discard unsaved changes?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["Keep editing"].tap()
+        XCTAssertEqual(enabled.value as? String, "0")
+        app.buttons["sheet-close"].tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["Discard changes"].tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(enabled.waitForExistence(timeout: 5))
+        XCTAssertEqual(enabled.value as? String, "1")
+        let hours = app.steppers["task-hours-library_reconcile"]
+        XCTAssertTrue(hours.waitForExistence(timeout: 5))
+        hours.buttons["task-hours-library_reconcile-Increment"].tap()
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        let updated = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS %@", "Every 7 hours"), object: row)
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: save)
+        XCTAssertEqual(XCTWaiter.wait(for: [updated, closed], timeout: 15), .completed)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "scheduled-task-saved-en"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.terminate()
+    }
+
 }

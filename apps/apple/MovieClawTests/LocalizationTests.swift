@@ -124,4 +124,24 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(String(localized: .settingsStorageComputedUpdating("a few seconds ago")), "Calculated a few seconds ago · Updating")
     }
 
+    @MainActor func testEnglishScheduleMessagesAndRawCronValues() {
+        func task(_ seconds: Int, cron: String? = nil) -> API.ScheduledTaskView {
+            .init(key: "raw", title: "Raw task", description: "Raw description", enabled: true,
+                  triggerType: cron == nil ? "interval" : "cron",
+                  intervalSeconds: cron == nil ? seconds : nil, cronExpr: cron)
+        }
+        XCTAssertEqual(SettingsSchedule.describe(task(1)), "Every 1 second")
+        XCTAssertEqual(SettingsSchedule.describe(task(2)), "Every 2 seconds")
+        XCTAssertEqual(SettingsSchedule.describe(task(60)), "Every 1 minute")
+        XCTAssertEqual(SettingsSchedule.describe(task(120)), "Every 2 minutes")
+        XCTAssertEqual(SettingsSchedule.describe(task(3600)), "Every 1 hour")
+        XCTAssertEqual(SettingsSchedule.describe(task(7200)), "Every 2 hours")
+        XCTAssertEqual(SettingsSchedule.describe(task(3_600_000)), "Every 1,000 hours")
+        XCTAssertEqual(SettingsSchedule.describe(task(0)), "Interval not set")
+        let daily = task(0, cron: "5 4 * * *")
+        XCTAssertEqual(SettingsSchedule.describe(daily), "Daily at 04:05")
+        XCTAssertEqual(daily.cronExpr, "5 4 * * *")
+        XCTAssertEqual(SettingsSchedule.describe(task(0, cron: "0 4 * * 1")), "cron: 0 4 * * 1")
+    }
+
 }

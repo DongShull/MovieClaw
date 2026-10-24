@@ -2323,6 +2323,124 @@
     },
     "settings.app.tasks": {
       "sourceHash": "3c39e9bde120ddb5f92906e988fee4dbb22a08a448641373b984d7636e377c29"
+    },
+    "settings.scheduledTasks.ui.applySuggestion": {
+      "sourceHash": "262887c9a808724f90679f16f67c25eb422ea0fbacd6b77e3478b617e69649f4"
+    },
+    "settings.scheduledTasks.ui.daily": {
+      "sourceHash": "9be12cf9eff432ec329cccfca5b5fff380760bb66f989715b32eb1df394ef334"
+    },
+    "settings.scheduledTasks.paused": {
+      "sourceHash": "eb0c326b60ae897a19080c0b21565029be8da614a7dd6ecad97da24f4cb8fc90"
+    },
+    "settings.scheduledTasks.footer": {
+      "sourceHash": "959a6885008892e6a8e0180c1184f5d85ff48e3d63951392e2c4dc7101089eaa"
+    },
+    "settings.scheduledTasks.nativeNetworkHint": {
+      "sourceHash": "bb0f0cfe66d53fc96f0e5bd7efa00bef4b1f336a8010e68ea6414ec97c0dd374",
+      "parameters": [
+        "schedule"
+      ]
+    },
+    "settings.scheduledTasks.schedule.intervalUnset": {
+      "sourceHash": "361527b239dddf599e6e30c651a95945fbf8e76aa7f92573bde8b84e52a1d92a"
+    },
+    "settings.scheduledTasks.schedule.unset": {
+      "sourceHash": "2f5f1d6fbfb061ed02def5f4a3a151303da034681e38179744c7d1b1401f1caf"
+    },
+    "settings.scheduledTasks.schedule.daily": {
+      "sourceHash": "58435badcad43added3e9ff7638fb5792dd693d0c729eae68e0e410bfaa85dc5",
+      "parameters": [
+        "hour",
+        "minute"
+      ]
+    },
+    "settings.scheduledTasks.schedule.cron": {
+      "sourceHash": "5fab610a8c3c8c820f68a59ccb6ec721efa79c4087c5e87f4d01e17f50730d63",
+      "parameters": [
+        "expression"
+      ]
+    },
+    "settings.scheduledTasks.everyHour": {
+      "sourceHash": "8b3a3303ddd8c97c24073cb3e591c5062b6c0ced8f44e2780ea75aebdc18670a",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.scheduledTasks.everyHours": {
+      "sourceHash": "8b3a3303ddd8c97c24073cb3e591c5062b6c0ced8f44e2780ea75aebdc18670a",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.scheduledTasks.everyMinute": {
+      "sourceHash": "4fe5e670d03ece868209b31c050e8d58ac6247b260458dc97ef128be3c20a8c7",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.scheduledTasks.everyMinutes": {
+      "sourceHash": "4fe5e670d03ece868209b31c050e8d58ac6247b260458dc97ef128be3c20a8c7",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.scheduledTasks.everySecond": {
+      "sourceHash": "657b36e41dd941e22f06aa08a5bbc187c541d4a15160ee15efbe3f4d60f7090a",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.scheduledTasks.everySeconds": {
+      "sourceHash": "657b36e41dd941e22f06aa08a5bbc187c541d4a15160ee15efbe3f4d60f7090a",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.scheduledTasks.intervalValue": {
+      "sourceHash": "34098076e97c1d25b202ba4b802e33c9e44f3476d847afe1a9db1face6132ff2",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.scheduledTasks.editor.enable": {
+      "sourceHash": "e69df86265e3277cf0ed04a0db3a9315debf2daa0efefbad266d22746dde95a3"
+    },
+    "settings.scheduledTasks.editor.mode": {
+      "sourceHash": "3e5c3ba2c6a7c4e266ddd09135591ccbb786128e156951a07c974cee6bb88d1f"
+    },
+    "settings.scheduledTasks.editor.interval": {
+      "sourceHash": "02431769cfda7007183caef1701b1bd06707b36abee71c62fa0e66bde3a56c1c"
+    },
+    "settings.scheduledTasks.editor.cron": {
+      "sourceHash": "900983c91036ed83e61361bfd40f27fa0e75fe03666edefe312209a29ebc715d"
+    },
+    "settings.scheduledTasks.editor.intervalLabel": {
+      "sourceHash": "4f5df723d99de36b909f329c8170947744d28e6da3b4d39549b5aa88ff884a2a"
+    },
+    "settings.scheduledTasks.editor.time": {
+      "sourceHash": "5986e9d976e01bdee0cac98b6ab31d958bd33692e3fe2ac76461703dc51dc83a"
+    },
+    "settings.scheduledTasks.editor.cronPlaceholder": {
+      "sourceHash": "8f3b1b7b7d153d177b622b9e483da919bb2f49b917b86c31b652025b274c27d3"
+    },
+    "settings.scheduledTasks.editor.lastRun": {
+      "sourceHash": "7bf63ab836226ad30e1abef01192fdb9c845723aec0f86e270230133f5f10378"
+    },
+    "settings.scheduledTasks.editor.neverRun": {
+      "sourceHash": "7adc856731f31518352c1386368c343db59ade49f9592acd79f8a007123466d8"
+    },
+    "settings.scheduledTasks.editor.nextRun": {
+      "sourceHash": "bdedfc1bb06978ef309b09c29a75a6694f3c27c71789ca8759a0f08a76bc0b78"
+    },
+    "settings.scheduledTasks.editor.discardTitle": {
+      "sourceHash": "01aeaa37eedefb79426938b665114e95f74aed3faab48591b1e439557239e5ae"
+    },
+    "settings.scheduledTasks.editor.continueEditing": {
+      "sourceHash": "fd4b9e3b6c685bae8320db0d59bf2cc60f927288988d98b5e53ca7aeba370bfc"
+    },
+    "settings.scheduledTasks.editor.discard": {
+      "sourceHash": "9b7824cefa1e8b160881b03eeb1149918e2efa8ed27b4ad71e2671c7e1d7af00"
     }
   },
   "MovieClaw/InfoPlist.xcstrings": {

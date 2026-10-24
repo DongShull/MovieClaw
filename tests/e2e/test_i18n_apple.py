@@ -133,6 +133,10 @@ def test_apple_language_flow(tmp_path, platform):
                         "MC_TEST_PASSWORD": theme.ADMIN["password"],
                     }
                 )
+                if name == "MovieClawTests":
+                    config[name].setdefault("OnlyTestIdentifiers", []).append(
+                        "MaintenanceSettingsTests"
+                    )
                 if player_item is not None:
                     config[name]["EnvironmentVariables"]["MC_TEST_PLAYER_ITEM"] = str(player_item)
             run.write_bytes(plistlib.dumps(config))
@@ -150,6 +154,15 @@ def test_apple_language_flow(tmp_path, platform):
                         "NO",
                         "-collect-test-diagnostics",
                         "never",
+                        *(
+                            [
+                                "-only-testing:MovieClawTests/LocalizationTests",
+                                "-only-testing:MovieClawTests/MaintenanceSettingsTests",
+                                "-only-testing:MovieClawUITests/LocalizationUITests",
+                            ]
+                            if platform == "ios"
+                            else []
+                        ),
                     ],
                     cwd=theme.REPO,
                     stdout=log,
@@ -171,11 +184,19 @@ def test_apple_language_flow(tmp_path, platform):
                     "testEnglishPluralVariations",
                     "testPlaybackMenusUseTheEffectiveLanguage",
                     "testStorageCleanupUsesTheReaderLanguage",
+                    "testScheduledTaskDraftDiscardAndSaveUseEnglish",
                 ]
             )
             for test_name in expected:
                 assert f"{test_name}]' passed" in output, output[-12000:]
             if platform == "ios":
+                assert "Suite MaintenanceSettingsTests passed" in output
+                with httpx.Client(base_url=base) as verification:
+                    assert verification.post("/api/v1/auth/login", json=theme.ADMIN).is_success
+                    tasks = verification.get("/api/v1/scheduled-tasks").json()["data"]
+                    task = next(row for row in tasks if row["key"] == "library_reconcile")
+                    assert task["enabled"] and task["interval_seconds"] == 25200
+                    assert task["trigger_type"] == "interval" and task["next_run_at"]
                 assert not cached.exists()
                 assert (
                     hashlib.sha256((media / "English playback.mp4").read_bytes()).digest()
