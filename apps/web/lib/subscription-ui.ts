@@ -183,6 +183,7 @@ export function subscriptionCollectionMeta(
 }
 
 export interface TodayArrivalPresentation {
+  // i18n-ignore: legacy theme SDK discriminator; display uses arrivalStatusText.
   statusLabel: "预计入库" | "等待资源" | "下载中" | "整理中";
   timeLabel: string;
   estimatedAt: number | null;
@@ -244,11 +245,20 @@ function groupedEpisodeLabel(rows: PresentedTodayArrival[], locale: AppLocale): 
     .join(" · ");
 }
 
-const arrivalStageOrder: Record<TodayArrivalPresentation["statusLabel"], number> = {
-  预计入库: 0,
-  等待资源: 0,
-  下载中: 1,
-  整理中: 2,
+export type ArrivalStage = "expected" | "waiting" | "downloading" | "organizing";
+
+/** Preserve the theme SDK's legacy discriminator while using stable stages internally. */
+export function arrivalStageOf(presentation: TodayArrivalPresentation): ArrivalStage {
+  return ({ 预计入库: "expected", 等待资源: "waiting", 下载中: "downloading", 整理中: "organizing" } as const)[presentation.statusLabel];
+}
+
+export function arrivalStatusText(presentation: TodayArrivalPresentation, locale: AppLocale): string {
+  const keys = { expected: "subscription.arrivals.statusExpected", waiting: "subscription.arrivals.statusWaiting", downloading: "subscription.arrivals.statusDownloading", organizing: "subscription.arrivals.statusOrganizing" } as const;
+  return appTranslator(locale)(keys[arrivalStageOf(presentation)]);
+}
+
+const arrivalStageOrder: Record<ArrivalStage, number> = {
+  expected: 0, waiting: 0, downloading: 1, organizing: 2,
 };
 
 /**
@@ -258,8 +268,8 @@ const arrivalStageOrder: Record<TodayArrivalPresentation["statusLabel"], number>
 function blockingPresentation(rows: PresentedTodayArrival[]): TodayArrivalPresentation {
   return rows.toSorted((left, right) => {
     const stage =
-      arrivalStageOrder[left.presentation.statusLabel] -
-      arrivalStageOrder[right.presentation.statusLabel];
+      arrivalStageOrder[arrivalStageOf(left.presentation)] -
+      arrivalStageOrder[arrivalStageOf(right.presentation)];
     if (stage !== 0) return stage;
     const leftTime = left.presentation.estimatedAt;
     const rightTime = right.presentation.estimatedAt;
@@ -353,6 +363,7 @@ export function todayArrivalPresentation(
   const t = appTranslator(locale);
   const taskCompleted = task?.state === "completed";
   if (arrival.status === "downloaded" || taskCompleted) {
+    // i18n-ignore: legacy theme SDK discriminator.
     return { statusLabel: "整理中", timeLabel: t("subscription.arrivals.finishing"), estimatedAt: now.getTime() };
   }
 
@@ -364,6 +375,7 @@ export function todayArrivalPresentation(
           (etaSeconds + arrival.estimated_download_to_import_minutes * 60) * 1000
         : null;
     return {
+      // i18n-ignore: legacy theme SDK discriminator.
       statusLabel: "下载中",
       timeLabel: estimatedAt == null ? t("subscription.arrivals.timePending") : formatEstimatedArrival(estimatedAt, now, locale),
       estimatedAt,
@@ -377,6 +389,7 @@ export function todayArrivalPresentation(
       ? null
       : estimatedWantedArrival(arrival, predictedAt, now);
   return {
+    // i18n-ignore: legacy theme SDK discriminator.
     statusLabel: predictedAt != null && predictedAt <= now.getTime() ? "等待资源" : "预计入库",
     timeLabel:
       estimatedAt == null
