@@ -2481,5 +2481,92 @@
   },
   "network.external.dockerWarning": {
     "sourceHash": "5eba3310d9bbe831aad7a27fbac9d363a6252020e3b9eca83fbeb3a04039cf45"
+  },
+  "storage.ui.readFailed": {
+    "sourceHash": "e036bf2e6b5306564ae5d47e842a313e5749c6a92c3054bcf6c9ace8c512402d"
+  },
+  "storage.ui.cleanFailed": {
+    "sourceHash": "09e7b98edc4d443a960cc226955afa7c718dc2f249db31a5f10d2880a3f24674"
+  },
+  "storage.ui.orphansTitle": {
+    "sourceHash": "3373dcc666a3e8b5aef2cffa428af7e11a31a133c8d1986e22e7f1d8a89794d1"
+  },
+  "storage.ui.orphansHint": {
+    "sourceHash": "9366277ff6e703ee802f8ff29b77c0f366006200ef120c514c12afacebbc6773"
+  },
+  "storage.ui.orphans": {
+    "sourceHash": "3905e6f112d270949400830c2e488470e66a50494035d56f1c55d1f05758f57f"
+  },
+  "storage.ui.clearTitle": {
+    "sourceHash": "9ea568f2a1d0afee0034889936ec7327373a260516d221f18fbad84e07d8cd1f"
+  },
+  "storage.ui.clearBytes": {
+    "sourceHash": "7d31e0ef3eea837d923a7cbca57c5ca4c1f617161e2aae59329ced46bcdd5527"
+  },
+  "storage.ui.clear": {
+    "sourceHash": "b730d8da2058b35b3073b51b1a8c1eff6533a5089b962c9e1e5e3d16f71b2679"
+  },
+  "storage.ui.cleaned": {
+    "sourceHash": "a97ecbbeacf7bbf2bf23692a55ed803e37a59bf686883f5d24648ac553cd5343"
+  },
+  "storage.ui.computedAt": {
+    "sourceHash": "a35ffbfb96612dcbc1c2b9e24bfeb535b56b34a062512e33a7bfa280f96301c1"
+  },
+  "storage.ui.firstComputing": {
+    "sourceHash": "2062b471f15f90c38c86f8ec5434c66aee8dc4f35aad0960578d1dd0b1c505b7"
+  },
+  "storage.ui.notComputed": {
+    "sourceHash": "91960cc6f7ded3b8b9e1c08ffbc4eb1172720fcffaf3b787b86b29e317aa2827"
+  },
+  "storage.ui.overview": {
+    "sourceHash": "56b38491ae4a0da586dde90800a45eead13771674a53062d5e6767f8b1f18fd2"
+  },
+  "storage.ui.computing": {
+    "sourceHash": "8284301049c24be7f244f300bb505ef0777e723f2d57714bcf67ef94b61285ab"
+  },
+  "storage.ui.refresh": {
+    "sourceHash": "aee88743413144a2ec6c48e348628142cd063832fdb5f1e91242ce7808cee96a"
+  },
+  "storage.ui.unregistered": {
+    "sourceHash": "89e0ff403f9fcb748050b3867838e2fe1194e7a094ae33a99bb388e1585ea6e0"
+  },
+  "storage.ui.unregisteredHint": {
+    "sourceHash": "c6b61566ea1300a4f16bd452ae31e4e910690fea856b9ca86b47458e756e1200"
+  },
+  "storage.ui.caches": {
+    "sourceHash": "3adaa1a6968bb2f82187474734ec497bd19f028501f838f82ba99ebbaa18e6b5"
+  },
+  "storage.ui.total": {
+    "sourceHash": "29021fc3328159792b0403b3646d411247257a318f42d14a102b363b9e606cab"
+  },
+  "storage.ui.data": {
+    "sourceHash": "f5d5dffd9dc235709bc20c5e62709a96a7ca49d7b74d8ae3656d3d505284e4eb"
+  },
+  "storage.ui.dataTotal": {
+    "sourceHash": "83ab1a340baaf9ff18323d282a31c8e739ba2849303ff3847a31b8bdbfaec1ed"
+  },
+  "storage.ui.reclaimable": {
+    "sourceHash": "45294349dddd9a5e691cdf3882fdb2b4bab16ee66a3e3a6b7da1012a4a60d86f"
+  },
+  "storage.ui.other": {
+    "sourceHash": "2aa462a5a7dbdab5768fd976093038fddf2c7bf1d6c9fb08e1173ec4df47f8e0"
+  },
+  "storage.ui.free": {
+    "sourceHash": "d6822b04178d6929a0cc4d5cba6fbbeea5beb41278dd0a33b883c41e95fc0873"
+  },
+  "storage.ui.disk": {
+    "sourceHash": "aa898ae1b3040590505ab6608f8d3e3f485f1326d248ea7af2c611767225c38e"
+  },
+  "storage.ui.freeTotal": {
+    "sourceHash": "7a530ace14a7edeb457abd20f16ef72543a2f7456a46528fba9a57651ae5dea4"
+  },
+  "storage.ui.about": {
+    "sourceHash": "289b172d87969896126b41e036c621fe5c287c4629b8db31eeb86722c6eb2dc8"
+  },
+  "storage.ui.expensive": {
+    "sourceHash": "1195f9449d61a86b19fab7ac01e41e8e6c1ad95cb7b5aa72a2837ac5eda4a071"
+  },
+  "storage.ui.actions": {
+    "sourceHash": "0c1f60f3a6a68e9b1b37fe4941e9f6e9f15ff8e22340b86522477c1196d8f393"
   }
 }

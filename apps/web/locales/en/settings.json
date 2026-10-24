@@ -914,5 +914,38 @@
   "controls": {
     "enabled": "On",
     "disabled": "Off"
+  },
+  "storage": {
+    "ui": {
+      "readFailed": "Could not load storage usage",
+      "cleanFailed": "Cleanup failed",
+      "orphansTitle": "Clean orphan entries in “{title}”?",
+      "orphansHint": "Only entries no longer in a library will be deleted. Content in use is unaffected.",
+      "orphans": "Clean orphan entries",
+      "clearTitle": "Clear “{title}”?",
+      "clearBytes": "Clear and free {bytes}",
+      "clear": "Clear all",
+      "cleaned": "Freed {bytes}; removed {removed, plural, one {# entry} other {# entries}}{skipped, plural, =0 {} one {; skipped # entry in use} other {; skipped # entries in use}}",
+      "computedAt": "Calculated {when}{updating, select, yes { · Updating} other {}}",
+      "firstComputing": "Calculating for the first time. This may take tens of seconds…",
+      "notComputed": "Not yet calculated",
+      "overview": "Disk overview",
+      "computing": "Calculating",
+      "refresh": "Refresh",
+      "unregistered": "Unregistered directories",
+      "unregisteredHint": "Unregistered entries were found in the data directory. They will not be measured or cleaned. Please report their paths to the developers.",
+      "caches": "Clearable caches",
+      "total": "Total {bytes}",
+      "data": "Application data",
+      "dataTotal": "Total {bytes} · Read only; deletion unavailable",
+      "reclaimable": "Reclaimable cache",
+      "other": "Other usage",
+      "free": "Free",
+      "disk": "Disk containing the data directory",
+      "freeTotal": "Free · {bytes} total",
+      "about": "About {title}",
+      "expensive": "Costly to rebuild",
+      "actions": "Cleanup actions for {title}"
+    }
   }
 }

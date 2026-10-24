@@ -367,5 +367,269 @@
   },
   "network.services.githubHint": {
     "sourceHash": "b08cfd82a2ab030aa3ebfc85dcd85db4f879c3f21ac598d325ae65cf5206450d"
+  },
+  "storage.directories.cacheImagesTitle": {
+    "sourceHash": "d82a3ef0c63a576acbdb9fcc29487fba746037bdd8248915e67e88effc4c96a1"
+  },
+  "storage.directories.cacheImagesSummary": {
+    "sourceHash": "929782f46c8a22380127b14bfedca9033b7967cad7b8eab51c2770db216da521"
+  },
+  "storage.directories.cacheImagesDescription": {
+    "sourceHash": "868a113e5c1c7ea24d6a2a48283dfb7ba7249d6929493d9b1649e46224c7f533"
+  },
+  "storage.directories.cachePlaybackSubsTitle": {
+    "sourceHash": "8af616bc059b5d1f36ca9b4c0b29f238aeba8bce704d7bd896df97041819e6f2"
+  },
+  "storage.directories.cachePlaybackSubsSummary": {
+    "sourceHash": "cb00dcaab934461a013914eb401c3b535113c734f9f7f1205bba51dcc6515da9"
+  },
+  "storage.directories.cachePlaybackSubsDescription": {
+    "sourceHash": "23a20c9aa7bba78d3220917474a8114671b1ca0b85c6101be4d3d84fe36ac23b"
+  },
+  "storage.directories.cacheAudioFingerprintsTitle": {
+    "sourceHash": "a57e0f47a511e5e628f8414393d2919ffdc27d1f6a31e321520d8f431019c327"
+  },
+  "storage.directories.cacheAudioFingerprintsSummary": {
+    "sourceHash": "225af1b11a0693c7a48a9e52cfe7d26a0ade4153c1c0166a703fc590ccc06de7"
+  },
+  "storage.directories.cacheAudioFingerprintsDescription": {
+    "sourceHash": "233e89185b25b042036e5edf2bdec70c062fc6ca93cca749865b167387005e43"
+  },
+  "storage.directories.cacheReelsClipsTitle": {
+    "sourceHash": "942fcb73d5a5e5b7282b0e5f3c25cb4f8c60202388bde51ae66713b7494864dc"
+  },
+  "storage.directories.cacheReelsClipsSummary": {
+    "sourceHash": "e0a3e4a60ca80afb2f353808bc83b635dbece6c284df8f5d8b52639f4b4b9330"
+  },
+  "storage.directories.cacheReelsClipsDescription": {
+    "sourceHash": "7157870dfc29277c8c2527ba1b6e43a680be014b948c624f843bd3b8f6c28f8a"
+  },
+  "storage.directories.cacheOfflineExportsTitle": {
+    "sourceHash": "d23eabd22c6e45c45a61769359277ee187ab933111671fa9545961703e9d78ae"
+  },
+  "storage.directories.cacheOfflineExportsSummary": {
+    "sourceHash": "71cb0444e46a4542b8f1dc91219052f182c2c2c94f10ff4076d4dbf3826ad965"
+  },
+  "storage.directories.cacheOfflineExportsDescription": {
+    "sourceHash": "9edbf3114b27655ee19a66687e42138ee46f58f824b418e8c4a4599b56ae691d"
+  },
+  "storage.directories.cacheReelsTitle": {
+    "sourceHash": "78a935cb1b578d135abc0b52711188f2230a50a0e74df79a3835251340ab4e53"
+  },
+  "storage.directories.cacheReelsSummary": {
+    "sourceHash": "cc9d0d01ab7f2069371ea57631ccce9e3e54a6745259546f46cab47220101fe5"
+  },
+  "storage.directories.cacheReelsDescription": {
+    "sourceHash": "ce4f83d711cff3c39c59749224943cc596b898e886f6976343c8003ca371a885"
+  },
+  "storage.directories.cachePlaybackCuesTitle": {
+    "sourceHash": "4944305144e6ec6a75df09b6f28c8dbd2f86405921980fbe1ed4176eb606516b"
+  },
+  "storage.directories.cachePlaybackCuesSummary": {
+    "sourceHash": "aaa598a3322a964768d8d9179c6596885f325018d068f0ce6c2a0cc16f0bfbe4"
+  },
+  "storage.directories.cachePlaybackCuesDescription": {
+    "sourceHash": "49296eba1a5d0655002e0a4ce70456d62916a9b741af94b8815228584873e712"
+  },
+  "storage.directories.cacheSubtitleGenTitle": {
+    "sourceHash": "739d15c1e6be367c850186f5a73ffbc1ec6113efac0111b0b324ababcffb7035"
+  },
+  "storage.directories.cacheSubtitleGenSummary": {
+    "sourceHash": "ce067cc66cf6e780e326f4ba2337b40ffca07c74ff281ddcf490b5a47da93cc0"
+  },
+  "storage.directories.cacheSubtitleGenDescription": {
+    "sourceHash": "9c08225fbb57d4e5fe72862e24045fc5aa229475cd9d5e30ac4ad82211bceb61"
+  },
+  "storage.directories.cacheTrickplayTitle": {
+    "sourceHash": "0ec58f27ccf1359aaa6134cb9f240397640a727d21d43e35aa2597a1bc66d964"
+  },
+  "storage.directories.cacheTrickplaySummary": {
+    "sourceHash": "3361c2e6d2e171f32413b3bcc0974212efd983f8e44ca2dabf2ead43e1dd5d41"
+  },
+  "storage.directories.cacheTrickplayDescription": {
+    "sourceHash": "3f579a7806eef7da24c7d79cf8676a4c0d07745ed30ef5b9ccc57d3a2728f1ed"
+  },
+  "storage.directories.transcodesTitle": {
+    "sourceHash": "b63acf501bf4a0323261a494be77c4ee969651651925a23ac89e42e54dc3d69a"
+  },
+  "storage.directories.transcodesSummary": {
+    "sourceHash": "15e4221e41623eabd75dbbe94d086b4a20bfb1ee28fd7385fc5ba66853a9178f"
+  },
+  "storage.directories.transcodesDescription": {
+    "sourceHash": "6421fd389e0f30616466ddc8c6ee0de72baa8ec189013b5e285731707d04233f"
+  },
+  "storage.directories.metadataCoversTitle": {
+    "sourceHash": "43cf91869aa29ac92e3a923abb983be410e9acf13ae77f58583b3587a163e039"
+  },
+  "storage.directories.metadataCoversSummary": {
+    "sourceHash": "1109ec966d3802cc303295217168df143de0628e93d67664047058739ca7c2cd"
+  },
+  "storage.directories.metadataCoversDescription": {
+    "sourceHash": "cd44e8ec489bacb04dde045f05242608be472ddf9d2aae441407eb958ac48ff3"
+  },
+  "storage.directories.metadataImagesTitle": {
+    "sourceHash": "90d3f78ecff7c47e535f57098392c6ab8e480a62710e6b5f2381c720148c6c04"
+  },
+  "storage.directories.metadataImagesSummary": {
+    "sourceHash": "a7e9529e12b36283b22b36d8f9e567e31200030c49d4943cc6859dc8220f2c94"
+  },
+  "storage.directories.metadataImagesDescription": {
+    "sourceHash": "568fabadcd9e5f7f9195ee6a3d0f90cf5e1f9ab8b11ea717bf6734847f0a0d87"
+  },
+  "storage.directories.metadataPeopleTitle": {
+    "sourceHash": "4e7f7e7fa0d95db91f12aa41c3299998518f850b5da05901ba10556e8cdd0958"
+  },
+  "storage.directories.metadataPeopleSummary": {
+    "sourceHash": "0d19b30aca61942ffbdf04d9dc5c6548761736d2e44909c2557861c8af18fcff"
+  },
+  "storage.directories.metadataPeopleDescription": {
+    "sourceHash": "d549ad83af714396950db7b2f406fc6ac0f3bdfc53eecc5ca929c6601631732e"
+  },
+  "storage.directories.databaseTitle": {
+    "sourceHash": "263200d7d529b522a90256e58f495caf7f1534daf51c7df437a9c2b4eac2619a"
+  },
+  "storage.directories.databaseSummary": {
+    "sourceHash": "b183f6936892c2c29d1e829b96bee3a18b5db0daee188547c76bed6cb300aa5b"
+  },
+  "storage.directories.databaseDescription": {
+    "sourceHash": "c1db4f6a33302b82473a6d0874e0dd54e19d1b7fe25c8f807ff66f39a5003193"
+  },
+  "storage.directories.logsTitle": {
+    "sourceHash": "fc08fa260979279586861e2e1faba0e21b6b0438048afa9c98b134660d3fbe3d"
+  },
+  "storage.directories.logsSummary": {
+    "sourceHash": "3b33118fb977f7d6e9338ed0fb6ecb947c28bd72ad9d4707a655e5ddfa6469f6"
+  },
+  "storage.directories.logsDescription": {
+    "sourceHash": "136ba9466439f518c591fdfa9d2d0f9122941a17c51621c96dffa9d09cde7b11"
+  },
+  "storage.directories.uploadsTitle": {
+    "sourceHash": "bb5caa9c59767eb864f7427cfffd36e7356f88b8eee62c6040354551fcc559cb"
+  },
+  "storage.directories.uploadsSummary": {
+    "sourceHash": "57756fa2b16db6549a68fe4c3b937ca8d3185490594cad9537d12e0cbad0cba2"
+  },
+  "storage.directories.uploadsDescription": {
+    "sourceHash": "0b0ee337e2f45c591f4295b6feb84e87bd65bde725d33330dffb6df9c4e859fc"
+  },
+  "storage.directories.updatesTitle": {
+    "sourceHash": "64c230d2256744e6ea3900ca04be010df9b850077d0dd427c066b22386a86dcd"
+  },
+  "storage.directories.updatesSummary": {
+    "sourceHash": "cfc6b0b10102264973795dbc2d4a8739507ad622647523a6d852b5407b5163f9"
+  },
+  "storage.directories.updatesDescription": {
+    "sourceHash": "d8f10400f4e0be5e71abc58168aee2f026e042ea0eed81eae80e518847d62d38"
+  },
+  "storage.directories.modelsTitle": {
+    "sourceHash": "f4f41a31b451ae1bc67990c2b06740d7e74b616d4fb160c9f7da8e5c905357da"
+  },
+  "storage.directories.modelsSummary": {
+    "sourceHash": "66d9b06bf08db71c9d73884284fecfc2e266f154998313d680cd21428b572f61"
+  },
+  "storage.directories.modelsDescription": {
+    "sourceHash": "ac2beb616a6869acc87636b91044d70ce49bdd6239cfb82e0d960906fc121215"
+  },
+  "storage.directories.pluginsPatchTitle": {
+    "sourceHash": "91cb36321af39a82c0da317ddfc30fe6f33b8d3e7a9fd4577e78c655308aef5a"
+  },
+  "storage.directories.pluginsPatchSummary": {
+    "sourceHash": "63daf4913053ad0432805fea027e7dddd986ad701c64621cb2cf72343f8e8459"
+  },
+  "storage.directories.pluginsPatchDescription": {
+    "sourceHash": "70ee8376bfa5e4673ac0934f4e377ff3eda3e3db01bc804a0b4f10423738c926"
+  },
+  "storage.directories.pluginsLocalTitle": {
+    "sourceHash": "3b0d29939820a500b0199ba648d1c8f35e9376e24f91fc822fcb73ca8faacc8f"
+  },
+  "storage.directories.pluginsLocalSummary": {
+    "sourceHash": "991bfc2554b80a612cafa2d2b8022799c003ba79e0a2e9f76933e8562b492fec"
+  },
+  "storage.directories.pluginsLocalDescription": {
+    "sourceHash": "50244f018974c1ff8643b24ec87a0ec4c40631165040f600e78e227232d7558a"
+  },
+  "storage.directories.pluginsBootTitle": {
+    "sourceHash": "53ffeaee17731f9478a26b270a4fae64335e4af7d4cce708229e26c46ff97ca6"
+  },
+  "storage.directories.pluginsBootSummary": {
+    "sourceHash": "0b0984f5c7ee6fd191b17ba167bfc763c970862016456cdebf05e9d6ce1fd5e5"
+  },
+  "storage.directories.pluginsBootDescription": {
+    "sourceHash": "7f925bc856aec64a34d5df1faa8364dfe4d1a5f4d013a451cf89e3c9ffbdef4e"
+  },
+  "storage.directories.pluginsFeaturesTitle": {
+    "sourceHash": "203a0875a1371d78bc5344f6faef8c848999072da547bc7c625edbf8c5396bf4"
+  },
+  "storage.directories.pluginsFeaturesSummary": {
+    "sourceHash": "e91e555478c6f0426073fa290470d26047956452354fc2b4c5c3d68e3b753523"
+  },
+  "storage.directories.pluginsFeaturesDescription": {
+    "sourceHash": "a662bc5201204a7b606b0a7515f57f12f793c7402fea806650cfa3950840f078"
+  },
+  "storage.directories.pluginsSafeModeTitle": {
+    "sourceHash": "8effcf5eb3f10e7abe07ccdf6faa88d131d0703c330531b390126423d4e0a6da"
+  },
+  "storage.directories.pluginsSafeModeSummary": {
+    "sourceHash": "f83f4767a94e56b5fb1abd7c9483412b878d0ed9d2c254c79e08ee998f37f5ea"
+  },
+  "storage.directories.pluginsSafeModeDescription": {
+    "sourceHash": "956c8489eed425ffd666d8fe5e98c8cb0b2384e203ec1482d7bad56a559434ba"
+  },
+  "storage.directories.siteConfigsTitle": {
+    "sourceHash": "11258110296ff6d6a02ca46c6f21cbdd9ce1a64cfb678b617cf36da7106cddc4"
+  },
+  "storage.directories.siteConfigsSummary": {
+    "sourceHash": "c4a51738decb1a19ea2a926f4ca9d19cf07475f84ef2d0cea11ae38ff54f8a2d"
+  },
+  "storage.directories.siteConfigsDescription": {
+    "sourceHash": "238728ce9c235e32354827e815aff8c6d84c063d49d07af8da4483338f9cbce0"
+  },
+  "storage.directories.agentWorkspaceTitle": {
+    "sourceHash": "c6ffcc6d7f4cba36d3fb9362c26a723ca287c65d02b9b37b9507aea8dfc55c59"
+  },
+  "storage.directories.agentWorkspaceSummary": {
+    "sourceHash": "72795322380eecf7f85357ed35fd74d9ffc735b883f7925d248a9b44e6e4bd65"
+  },
+  "storage.directories.agentWorkspaceDescription": {
+    "sourceHash": "94aa60ba02e61fc6bac0a2b069566520e9a641e4d2ea9fa1817fde345e774d92"
+  },
+  "storage.directories.agentSessionsTitle": {
+    "sourceHash": "b875a6c2600da5e6516261d894cdc5353181e30c69b76849c99459aa4f472e99"
+  },
+  "storage.directories.agentSessionsSummary": {
+    "sourceHash": "d81a1ac2cffdac9b6d17593d3b77f617136a60f09c678427b4a7c1a4488d3dda"
+  },
+  "storage.directories.agentSessionsDescription": {
+    "sourceHash": "a286d3000d5ba327c904edc52030506d85ce299ac5fa227a7b990832a392d8cc"
+  },
+  "storage.directories.agentSkillsTitle": {
+    "sourceHash": "05d2d712465cc3dc040ab79297c5ed888c04bf466d0e8bc78e92d09ed1e34422"
+  },
+  "storage.directories.agentSkillsSummary": {
+    "sourceHash": "9b149376cf0e0a87c96ca086a3b98a2da9491be0decf15bddb9bb0dbb0240c43"
+  },
+  "storage.directories.agentSkillsDescription": {
+    "sourceHash": "39a1d637cf2c934cd648f0c1a760ca6649ce9e5f0fe4d3b8cb6f808d39ac963d"
+  },
+  "storage.directories.configTitle": {
+    "sourceHash": "f21a649b96131090b7088c7cecccd8e63baa4376885d861bc15b46038b35677f"
+  },
+  "storage.directories.configSummary": {
+    "sourceHash": "14246ac9b3defd8054aa0d53167bc1f436ca0a12629a9db8f10ab9865f6d0ff6"
+  },
+  "storage.directories.configDescription": {
+    "sourceHash": "1e2e540f89baca5e372e7a6e2654eae6a4f68b7c4892b1fb92a42035829b1e0e"
+  },
+  "storage.directories.secretKeyTitle": {
+    "sourceHash": "4bf2820482f937a9b29d4121a41dcabd41c98427393b3cc74d4718dff03053c3"
+  },
+  "storage.directories.secretKeySummary": {
+    "sourceHash": "e512d6d058af7e2231910395271fa31b8e2ed898f9e226bfbf0f5099887da180"
+  },
+  "storage.directories.secretKeyDescription": {
+    "sourceHash": "730affc8155fc39cc40971b418a9d606c36773ed523d009e2711274f7894b3b7"
+  },
+  "storage.computeFailed": {
+    "sourceHash": "852d4a95ae92b2618df7e63c7d6083a5aa908c6652d87dde91ba321a076346ac"
   }
 }

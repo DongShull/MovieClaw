@@ -21,12 +21,22 @@ data/ 下的每一个目录都在 ``DATA_DIRS`` 里有且仅有一条登记：�
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
 from movieclaw_api.core.config import Settings, get_settings
+from movieclaw_api.i18n import messages, t
+
+
+def directory_text(key: str, field: str, default: str) -> str:
+    """Translate registered display fields at read time; preserve unknown registrations."""
+    identity = "".join(part.title() for part in re.split(r"[._-]", key))
+    name = identity[:1].lower() + identity[1:] + field.title()
+    message_key = f"settings.storage.directories.{name}"
+    return t(message_key) if message_key in messages("zh-Hans") else default
 
 
 class Group(StrEnum):

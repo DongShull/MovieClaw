@@ -914,5 +914,38 @@
   "controls": {
     "enabled": "已开启",
     "disabled": "已关闭"
+  },
+  "storage": {
+    "ui": {
+      "readFailed": "读取占用信息失败",
+      "cleanFailed": "清理失败",
+      "orphansTitle": "清理「{title}」的孤儿条目？",
+      "orphansHint": "只删除媒体库里已不存在的条目，正在使用的内容不受影响。",
+      "orphans": "清理孤儿条目",
+      "clearTitle": "清空「{title}」？",
+      "clearBytes": "清空并释放 {bytes}",
+      "clear": "全部清空",
+      "cleaned": "已释放 {bytes}，删除 {removed} 项{skipped, plural, =0 {} other {，跳过正在使用的 {skipped} 项}}",
+      "computedAt": "统计于 {when}{updating, select, yes { · 更新中} other {}}",
+      "firstComputing": "首次统计中，可能要几十秒…",
+      "notComputed": "尚未统计",
+      "overview": "磁盘概览",
+      "computing": "统计中",
+      "refresh": "刷新",
+      "unregistered": "未登记目录",
+      "unregisteredHint": "数据目录下出现了程序未登记的条目，不会被统计或清理。请把路径反馈给开发者。",
+      "caches": "可清理的缓存",
+      "total": "合计 {bytes}",
+      "data": "应用数据",
+      "dataTotal": "合计 {bytes} · 只展示，不提供删除",
+      "reclaimable": "可回收缓存",
+      "other": "其他占用",
+      "free": "剩余",
+      "disk": "数据目录所在磁盘",
+      "freeTotal": "剩余 · 共 {bytes}",
+      "about": "「{title}」的说明",
+      "expensive": "重建代价高",
+      "actions": "「{title}」的清理操作"
+    }
   }
 }

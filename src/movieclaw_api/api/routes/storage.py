@@ -18,6 +18,7 @@ from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.storage import CleanPayload, CleanResultView, StorageStateView
 from movieclaw_api.services.storage import service
+from movieclaw_api.services.storage.registry import directory_text
 
 router = APIRouter(prefix="/app/storage", tags=["app"])
 
@@ -32,7 +33,16 @@ async def get_storage_usage(
     refresh: bool = Query(default=False, description="在后台重新统计一次（本次请求不等待）"),
 ) -> ApiResponse[StorageStateView]:
     state = await service.usage(refresh=refresh)
-    return ok(StorageStateView.model_validate(asdict(state)))
+    view = StorageStateView.model_validate(asdict(state))
+    if view.usage:
+        for directory in view.usage.dirs:
+            for field in ("title", "summary", "description"):
+                setattr(
+                    directory,
+                    field,
+                    directory_text(directory.key, field, getattr(directory, field)),
+                )
+    return ok(view)
 
 
 @router.post(
