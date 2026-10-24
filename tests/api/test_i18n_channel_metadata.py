@@ -106,7 +106,8 @@ def test_localized_wire_copies_nested_maps_in_both_directions():
 PLUGIN = """
 from movieclaw_sdk import plugin
 from movieclaw_sdk.channels import (
-    IM_CHANNELS, Binding, BindResult, Capabilities, ChannelDriver, FlowState, FormField,
+    IM_CHANNELS, Binding, BindResult, Capabilities,
+    ChannelDriver, ChannelInputError, FlowState, FormField,
 )
 
 class Form(ChannelDriver):
@@ -121,6 +122,10 @@ class Form(ChannelDriver):
         placeholder_localized={"en": "Enter credential"}, help_localized={"en": "Keep this field"},
     ),), hint="作者提示", hint_localized={"en": "Author hint"})
     async def validate(self, fields):
+        if fields["secret"] == "bad":
+            raise ChannelInputError("凭据不正确", message_localized={"en": "Incorrect credential"})
+        if fields["secret"] == "unknown":
+            raise ValueError("作者未知原因")
         return BindResult("account-1", "用户名称", {"secret": fields["secret"]})
 
 class Flow(ChannelDriver):
@@ -213,6 +218,22 @@ def test_real_plugin_metadata_and_flow_are_projected_for_each_reader(world):
         assert zh["form"]["binding"]["fields"][0]["label"] == "私有凭据"
         assert en["flow"]["title"] == zh["flow"]["title"] == "流程原名"
 
+        for value, english, chinese in [
+            ("bad", "Incorrect credential", "凭据不正确"),
+            ("unknown", "作者未知原因", "作者未知原因"),
+        ]:
+            for locale, expected in [("en", english), ("zh-Hans", chinese), ("en", english)]:
+                invalid = client.post(
+                    "/api/v1/channels/bindings",
+                    json={
+                        "channel_id": en["form"]["id"],
+                        "fields": {"secret": value},
+                    },
+                    headers={"Accept-Language": locale},
+                )
+                assert invalid.status_code == 400, invalid.text
+                assert invalid.json()["message"] == expected
+
         response = client.post(
             "/api/v1/channels/bindings",
             json={
@@ -258,5 +279,6 @@ def test_real_plugin_metadata_and_flow_are_projected_for_each_reader(world):
         second = client.post("/api/v1/channels/bindings", json={"channel_id": en["flow"]["id"]})
         path2 = "/api/v1/channels/bindings/" + second.json()["data"]["binding_id"]
         client.post(path2 + "/input", json={"value": "missing"})
-        assert data(path2, "en")["message"] == "绑定结果缺失，请重新发起"
+        assert data(path2, "en")["message"] == "The linking result is missing. Start again"
+        assert data(path2, "zh-Hans")["message"] == "绑定结果缺失，请重新发起"
         assert data(path2, "en")["status"] == "failed"

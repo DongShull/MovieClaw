@@ -15,7 +15,11 @@ from pyicumessageformat import Parser
 # The checker is also imported directly by its tests.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apple_catalogs import check_apple  # noqa: E402
-from metadata_sources import check_builtin_sources, check_manifest_sources  # noqa: E402
+from metadata_sources import (  # noqa: E402
+    check_builtin_sources,
+    check_channel_sources,
+    check_manifest_sources,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 HAN = re.compile(r"[\u3400-\u9fff]")
@@ -120,6 +124,7 @@ def check_catalogs() -> list[str]:
                 (web_source if directory.parts[-2] == "web" else server_source)[name] = text
     errors.extend(check_builtin_sources(ROOT, server_source))
     errors.extend(check_manifest_sources(ROOT))
+    errors.extend(check_channel_sources(ROOT))
     originals = json.loads((ROOT / "scripts/i18n/migrations.json").read_text())
     for key, original in originals.items():
         if web_source.get(key) != original:

@@ -1249,6 +1249,8 @@ class Runner:
             )
             message_text = str(exc) if kind != "error" else f"{type(exc).__name__}: {exc}"
             reply.update(ok=False, error=message_text, error_kind=kind)
+            if getattr(exc, "message_ref", None):
+                reply["message_ref"] = exc.message_ref
         return reply
 
     def _account(self, cid: str, data: dict[str, Any]) -> Any:

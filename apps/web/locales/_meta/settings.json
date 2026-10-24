@@ -6453,5 +6453,167 @@
   },
   "notificationPreferences.noDevices": {
     "sourceHash": "61c489d0e6a406d282687e856ee290910ae269df0edccb6f0903904b4ea14690"
+  },
+  "imChannels.unbindTitle": {
+    "sourceHash": "7c015249013f82eff665c2325fb56c41b11c9e6856a76d07468c87a83d14baef"
+  },
+  "imChannels.unbindDescription": {
+    "sourceHash": "2d987f154e672cfcfec9c33955f58919138170c415c3e122f694674bce491255"
+  },
+  "imChannels.unbind": {
+    "sourceHash": "3ba0a291df80b3bc96d5df7d28a73105cb04c10ceb0f9d932c5849af7a6680ae"
+  },
+  "imChannels.testSent": {
+    "sourceHash": "5f5369ac6807435a187577e0da2ceb876399223f5807fa438231add436ca7e48"
+  },
+  "imChannels.introBefore": {
+    "sourceHash": "b0af60e77093b26190f09aa3c87b0b75d15fcdf991131fb892ac752ed9cb1ad5"
+  },
+  "imChannels.notificationsLink": {
+    "sourceHash": "56dceea49a81266c6bd59314b2fcf5a192dbb96269a309d8be1cd97f00b71fec"
+  },
+  "imChannels.introChat": {
+    "sourceHash": "970d0f40abbe7b3ec651098100d95dcafdb5766554ac4af9b84e04dcfa350144"
+  },
+  "imChannels.resetHelp": {
+    "sourceHash": "56866612e903b6f87d69abb85e3579244b4361aa1c8268f1b101683c49a3bf3f"
+  },
+  "imChannels.stopHelp": {
+    "sourceHash": "d80deb09797f7b44a08314921e3c009aa516e413040e76909d8a889562bcfd88"
+  },
+  "imChannels.pluginsLink": {
+    "sourceHash": "f8afa283f457c4c7f1c9df402461d2f267f8396a150523c074061392d3b401c7"
+  },
+  "imChannels.introAfter": {
+    "sourceHash": "14de0a54c77d2180a9501f5c61ee30932b62d2399ad150d9b31605ecd73e2065"
+  },
+  "imChannels.llmFeature": {
+    "sourceHash": "9594305a8735ffac5a33c4aea043e81e0feb045317c4d874abc2ddc2c8bb3804"
+  },
+  "imChannels.section": {
+    "sourceHash": "d1f91cb7b93bd17d2ff67510e6bc491be8101c2c99cb0c6d16320ff1b4dc53d7"
+  },
+  "imChannels.loading": {
+    "sourceHash": "4927a53bcc886afb9211eb1143351cf8e32ec830c381832e6060223c8b84f3d6"
+  },
+  "imChannels.accountCount": {
+    "sourceHash": "1e8f626e33e71c255e366d804dc8b7648acfca6ff15242a8365b6c536642b378"
+  },
+  "imChannels.empty": {
+    "sourceHash": "4dba9fa85b3086b9f5368d03b5056f3ef87f77227e74516430118390810c7e76"
+  },
+  "imChannels.unavailable": {
+    "sourceHash": "4805256857a21e62ecf8c12ee898586b4648994149dab8b09c6456d957b08c35"
+  },
+  "imChannels.supported": {
+    "sourceHash": "213943b00c348ee79791637ac1ed06f96db4b889df06e8e334ae4baa9fe46e3e"
+  },
+  "imChannels.testSection": {
+    "sourceHash": "6aa8f49cc992dfd75a114269ed26de0ad6d4e7d7a70d9c8afb3d7a57a88a73ed"
+  },
+  "imChannels.testLabel": {
+    "sourceHash": "8a83d4d64fc327be82d643a7ebdc1cc261bb0a2f426fab9228ca4dbef72d68f5"
+  },
+  "imChannels.testDescription": {
+    "sourceHash": "6fa64b657f70c87b3e662afce48648b8882cbc352de9631fcf8ccf089f6c7532"
+  },
+  "imChannels.sending": {
+    "sourceHash": "364970d8168ca5febaa4368e54789e4183aa22488b30e8314d25acef9c07d5b5"
+  },
+  "imChannels.send": {
+    "sourceHash": "edecf0ae6e5144f9e297af730f9f6ce2ac17914f3368e72ead50c22aacd15db6"
+  },
+  "imChannels.boundChat": {
+    "sourceHash": "5ee9799a543f21bff44bed03dcbf41bc7f2008105cfc3ba141e896e9b4e5e9e7"
+  },
+  "imChannels.boundPush": {
+    "sourceHash": "e643e6994f66bb4a8ce73b0e3e2ed7e754b65eb17f373bafb09cc808a1823b83"
+  },
+  "imChannels.add": {
+    "sourceHash": "c62bb0106bd5954197fd664144da6e0d77d6081f310bcf27f6b72381a1222360"
+  },
+  "imChannels.addNamed": {
+    "sourceHash": "4c07631c1c6cc0f4e5e79ae2a6b0ef40d538131665de61062585df7ed3fd0c63"
+  },
+  "imChannels.pluginDisabled": {
+    "sourceHash": "189f19b8d826d939592aca6291f3840b21bee6b0284c403c9db17a7d68f70e84"
+  },
+  "imChannels.stale": {
+    "sourceHash": "ac7a4475b82c88d061fe38f53e06282d94a9becc830deb3abacaf40a509931ce"
+  },
+  "imChannels.running": {
+    "sourceHash": "1f0eb99b7ed094bed9583489cc2d82772e8abc4b520bb49eeb62182357d1296e"
+  },
+  "imChannels.stopped": {
+    "sourceHash": "62cdc8713bcf7667b6c2bb302ce59dee80c82f65835062bcb09e88917bd5acae"
+  },
+  "imChannels.disabledDescription": {
+    "sourceHash": "d78229eb54881d21a3a07b650f7ba12070372b10219a996c549ef63342425d51"
+  },
+  "imChannels.staleDescription": {
+    "sourceHash": "06c9b2e1031c704d39c36e4678ccedda0d9bb0da3fd0af8bfe43278b3ce96ec2"
+  },
+  "imChannels.boundAt": {
+    "sourceHash": "20e4127c999894428efddf9fe4c82282348c0ccd5a914748562652c6276a9d59"
+  },
+  "imChannels.bindTitle": {
+    "sourceHash": "31fe9380586629da5040083d5a2a03f3ac0bb3f278aa695bd0e620fd145e6720"
+  },
+  "imChannels.close": {
+    "sourceHash": "3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7"
+  },
+  "imChannels.callback": {
+    "sourceHash": "9ca160d659855662108ddc9e123eef25edb9e56843b1559f5c385278608d4306"
+  },
+  "imChannels.copy": {
+    "sourceHash": "63d90d977348ab1f9aa34ebb42b103216ce161feb0a1c08e237607bf42c3cf79"
+  },
+  "imChannels.startFailed": {
+    "sourceHash": "398f9152ad743d5fd3f0ca0af524fc305fb70dadb95a1a2c704daf595e52596c"
+  },
+  "imChannels.retry": {
+    "sourceHash": "b8784c8dd5636ff231b121892144e4a3977d5b874f21934c53f850cde7bac0ea"
+  },
+  "imChannels.incomplete": {
+    "sourceHash": "2e401ba9bd79e127a11c7ecd34efa1e43be39c180baa5097ba04a43529a3b76d"
+  },
+  "imChannels.waitingScan": {
+    "sourceHash": "3b9e0bf954bab6799d6871a46cb530ab64205e4d92e2941e6bd471811808ad1b"
+  },
+  "imChannels.oneMoreStep": {
+    "sourceHash": "e2eb4eca0178902915ad98e1c646c401f6986b5fdba7e9ee583117bedef77fea"
+  },
+  "imChannels.scanned": {
+    "sourceHash": "db810b1db5e4250ed293fc81ca77f9530b8e58eb89201bd238383e1836ec7dc0"
+  },
+  "imChannels.restart": {
+    "sourceHash": "808a98b21808b0d0a67053cc47406261798dfe22501c3d7c9080c72ff386c709"
+  },
+  "imChannels.enterValue": {
+    "sourceHash": "60120ff05f5c62b9d56632189b72cf32381346eb477427b2ae11c4e21705f07e"
+  },
+  "imChannels.confirm": {
+    "sourceHash": "36f33adaf0942634a8ece1eec4a6f30d44dec73e1ef8704b29d983a57f2e09ae"
+  },
+  "imChannels.optional": {
+    "sourceHash": "968333deb09556669506b69daf6c2a36846d84ec83d1d736f926e5badce6a340"
+  },
+  "imChannels.validating": {
+    "sourceHash": "fee0b2ceff3fc8283ebde6127b7503332f1814a0d05778ad6f5d452a4821879b"
+  },
+  "imChannels.getCode": {
+    "sourceHash": "1f834a31683fe486fc579f86e159ff0de846eb7592a00f9fe6c2725d454b76cf"
+  },
+  "imChannels.finishLinking": {
+    "sourceHash": "6efdcc41c075a92d51709a46d9a368aefe46b3dc55e4e293f7b6006c225f9671"
+  },
+  "imChannels.done": {
+    "sourceHash": "c0b3fbff51ccc40b8bf1a81666e7ecced016187cbe2ac6f1d627e0d7a287e04d"
+  },
+  "imChannels.qrAlt": {
+    "sourceHash": "d57454df057686d0ee4ca1a53b8949e119585dba811e310921880ae5375cbf27"
+  },
+  "imChannels.codeHelp": {
+    "sourceHash": "7121a7f3a5b1918e9d3ee77dc712ba7f5f6cec7ce9cc6ff52124b84c2fdb22fe"
   }
 }

@@ -38,6 +38,18 @@ logger = logging.getLogger("movieclaw_sdk.channels")
 # 与清单的 W3C 语言映射一致；未声明的语言保留作者原文。
 LocalizedText = dict[str, str | dict[str, str]]
 
+
+class ChannelInputError(ValueError):
+    """绑定输入不合法；可选译文随原文一起交给宿主，不改变 ValueError 分类。"""
+
+    def __init__(self, message: str, *, message_localized: LocalizedText | None = None) -> None:
+        super().__init__(message)
+        self.message_ref = {
+            "message_text": message,
+            "message_localized": deepcopy(message_localized or {}),
+        }
+
+
 # ---------------------------------------------------------------------- 消息
 
 

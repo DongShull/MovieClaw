@@ -215,3 +215,7 @@ class ChannelDriver:
 原字段仍是作者原文；宿主按每次请求的语言生成展示副本，不改驱动、绑定快照、二维码内容或凭据。
 缺少译文时显示原文，不按通道 ID 猜译。进程内与独立进程都支持；未声明映射的旧驱动继续产生
 原有线上结构。使用新字段的插件应声明 `sdk = "^1.2"` 和 `"im-channels" = "^1.2"`。
+
+绑定输入错误可使用 `ChannelInputError("原始错误", message_localized={"en": "Translated error"})`。
+它仍是 `ValueError`，既有表单错误分类不变；独立进程会保留原文与可选消息引用，API 在响应边界
+选取语言。普通 `ValueError` 与未知作者错误仍按原文回退。

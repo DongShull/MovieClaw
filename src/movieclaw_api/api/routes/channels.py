@@ -158,7 +158,9 @@ async def _binding_view(hub: ChannelHub, binding_id: str) -> ChannelBindingView:
         ),
         account=account,
         callback_url=binding.callback_url,
-        callback_note=binding.callback_note,
+        callback_note=render_value(binding.callback_note_ref)
+        if binding.callback_note_ref
+        else binding.callback_note,
     )
 
 
@@ -178,16 +180,22 @@ async def start_binding(
     try:
         driver = hub.driver(channel_id)
     except ChannelUnavailable as exc:
-        raise ConflictException(str(exc)) from exc
+        raise ConflictException(
+            message_key="channels.binding.disabled", params={"channel": channel_id}
+        ) from exc
     # 能对话的通道完全由 AI 模型驱动：没配模型时绑定了也用不了，在入口拦下并引导去设置
     if driver.capabilities.receive and not await LlmProviderRepository(session).has_any():
         raise BadRequestException(message_key="errors.channels.modelRequired")
     try:
         binding = await hub.begin_binding(channel_id, payload.fields)
     except ValueError as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(
+            render_value(getattr(exc, "message_ref", None)) or str(exc)
+        ) from exc
     except ChannelUnavailable as exc:
-        raise ConflictException(str(exc)) from exc
+        raise ConflictException(
+            message_key="channels.binding.disabled", params={"channel": channel_id}
+        ) from exc
     except Exception as exc:  # noqa: BLE001 -- 网关不可达等，转成中文业务错误
         raise BadRequestException(
             message_key="errors.channels.pairingFailed", params={"error": exc}
@@ -220,7 +228,9 @@ async def submit_binding_input(
     try:
         await hub.binding_input(binding_id, payload.value.strip())
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(
+            render_value(getattr(exc, "message_ref", None)) or str(exc)
+        ) from exc
     return ok(await _binding_view(hub, binding_id))
 
 
@@ -248,7 +258,7 @@ async def unbind_account(channel_id: str, account_id: str) -> ApiResponse[dict]:
     operation_id="channels.im.push.test",
 )
 async def send_test_push(payload: PushTestPayload) -> ApiResponse[dict]:
-    text = payload.text.strip() or "📣 这是一条来自 MovieClaw 的测试推送。收到说明通道工作正常！"
+    text = payload.text.strip() or t("channels.binding.testMessage")
     sent = await push_to_all_channels(text)
     if sent == 0:
         raise BadRequestException(message_key="errors.channels.noPushAccount")

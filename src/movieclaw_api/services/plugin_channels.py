@@ -56,6 +56,10 @@ class RemoteChannelDriver(ChannelDriver):
             if exc.kind == "auth":
                 raise ChannelAuthError(exc.detail) from exc
             if exc.kind == "value":
+                if exc.message_ref:
+                    error = ch.ChannelInputError(exc.detail)
+                    error.message_ref = deepcopy(exc.message_ref)
+                    raise error from exc
                 raise ValueError(exc.detail) from exc
             raise
 

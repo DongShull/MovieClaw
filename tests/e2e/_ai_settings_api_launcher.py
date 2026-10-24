@@ -139,3 +139,44 @@ if os.environ.get("E2E_MARKET_UPSTREAM"):
             await self.transport.aclose()
 
     plugin_market.transport_factory = MarketTransport
+
+
+@app.post("/api/v1/__lab/im/upstream")
+async def im_http_fixture(payload: dict[str, str]):
+    """Use the owned drivers and real HTTP; replace only their external destination."""
+    from movieclaw_plugins.weixin.weixin_channel import binding as weixin_binding
+    from movieclaw_sdk import net
+
+    upstream = payload["url"].rstrip("/")
+    assert urlsplit(upstream).hostname == "127.0.0.1"
+    weixin_binding.DEFAULT_BASE_URL = upstream + "/weixin"
+    original_poll = getattr(weixin_binding.poll_qr_status, "_fixture_original", weixin_binding.poll_qr_status)
+
+    async def poll(base_url, qrcode, verify_code=None):
+        return await original_poll(upstream + "/weixin", qrcode, verify_code)
+
+    poll._fixture_original = original_poll
+    weixin_binding.poll_qr_status = poll
+    original = getattr(net.http_transport, "_fixture_original", net.http_transport)
+
+    class ImTransport(httpx.AsyncBaseTransport):
+        def __init__(self, service):
+            self.service = service
+            self.transport = httpx.AsyncHTTPTransport()
+
+        async def handle_async_request(self, request):
+            assert request.url.host in {"api.telegram.org", "open.feishu.cn"}
+            return await self.transport.handle_async_request(httpx.Request(
+                request.method, upstream + "/" + self.service + request.url.raw_path.decode(),
+                headers=request.headers, content=await request.aread(), extensions=request.extensions,
+            ))
+
+        async def aclose(self):
+            await self.transport.aclose()
+
+    def transport(service=None, **kwargs):
+        return ImTransport(service) if service in {"telegram", "feishu"} else original(service, **kwargs)
+
+    transport._fixture_original = original
+    net.http_transport = transport
+    return {"ok": True}

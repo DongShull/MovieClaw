@@ -161,8 +161,9 @@ def stack(tmp_path_factory, search_provider):
         yield {"base": base, "root": root, "data": data, "database_url": env["DATABASE_URL"]}
     finally:
         for process in (web, api):
-            with suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGTERM)
+            if process.poll() is None:
+                with suppress(ProcessLookupError):
+                    os.killpg(process.pid, signal.SIGTERM)
         for process in (web, api):
             try:
                 process.wait(timeout=15)

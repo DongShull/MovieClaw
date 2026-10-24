@@ -97,3 +97,65 @@ def test_builtin_code_and_manifest_changes_require_translation_review(tmp_path):
         manifest.read_text().replace("(core.database,)", "(core.database,core.new,)")
     )
     assert any("declarations" in error for error in checks.check_builtin_sources(tmp_path, catalog))
+
+
+def test_owned_channel_sources_detect_stale_fields_and_missing_translations(tmp_path):
+    source = tmp_path / "src/movieclaw_plugins/example/example_channel/driver.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        'class Driver:\n    title="作者名称"\n    title_localized={"en":"Author title"}\n'
+        '    binding=Binding.form((FormField("token","令牌",label_localized={"en":"Token"}),),'
+        'hint="作者提示",hint_localized={"en":"Author hint"})\n'
+    )
+    ledger = tmp_path / "scripts/i18n/channel-metadata.json"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        json.dumps(
+            {
+                str(source.relative_to(tmp_path)): {
+                    key: {"sourceHash": hashlib.sha256(text.encode()).hexdigest()}
+                    for key, text, _ in checks.channel_texts(source)
+                }
+            }
+        )
+    )
+    assert checks.check_channel_sources(tmp_path) == []
+    source.write_text(source.read_text().replace("作者提示", "更新提示"))
+    assert any("Stale English" in error for error in checks.check_channel_sources(tmp_path))
+    source.write_text(source.read_text().replace(',label_localized={"en":"Token"}', ""))
+    assert any(
+        "Missing or invalid English" in error for error in checks.check_channel_sources(tmp_path)
+    )
+
+
+def test_owned_channel_state_catalog_and_input_errors_have_provenance(tmp_path):
+    folder = tmp_path / "src/movieclaw_plugins/example/example_channel"
+    folder.mkdir(parents=True)
+    (folder / "driver.py").write_text('class Driver:\n    title="Example"\n')
+    source = folder / "binding.py"
+    source.write_text(
+        '_BINDING_MESSAGES={"scan":("扫码","Scan the code")}\n'
+        'raise ChannelInputError(f"原原因：{exc}",message_localized={"en":f"Reason: {exc}"})\n'
+    )
+    ledger = tmp_path / "scripts/i18n/channel-metadata.json"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        json.dumps(
+            {
+                str(source.relative_to(tmp_path)): {
+                    key: {"sourceHash": hashlib.sha256(text.encode()).hexdigest()}
+                    for key, text, _ in checks.channel_texts(source)
+                }
+            }
+        )
+    )
+    assert checks.check_channel_sources(tmp_path) == []
+    source.write_text(source.read_text().replace('"扫码"', '"重新扫码"'))
+    assert any("Stale English" in error for error in checks.check_channel_sources(tmp_path))
+    before = source.read_text()
+    source.write_text(before.replace('f"Reason: {exc}"', '"Reason"'))
+    assert any("placeholders differ" in error for error in checks.check_channel_sources(tmp_path))
+    source.write_text(before.replace('f"Reason: {exc}"', 'f"原原因: {exc}"'))
+    assert any(
+        "Missing or invalid English" in error for error in checks.check_channel_sources(tmp_path)
+    )

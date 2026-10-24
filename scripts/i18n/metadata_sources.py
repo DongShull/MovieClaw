@@ -141,9 +141,7 @@ def check_builtin_sources(root: Path, catalog: dict[str, str]) -> list[str]:
             if catalog.get(record[field]) != source:
                 errors.append(f"Built-in metadata source changed: {entry_id}.{field}")
     for path, module in modules.items():
-        covered = {
-            row["function"] for row in records.values() if root / row["path"] == path
-        }
+        covered = {row["function"] for row in records.values() if root / row["path"] == path}
         for node in ast.walk(module):
             if (
                 isinstance(node, ast.Call)
@@ -156,4 +154,106 @@ def check_builtin_sources(root: Path, catalog: dict[str, str]) -> list[str]:
                 and node.args[0].id not in covered
             ):
                 errors.append(f"Missing built-in child metadata: {node.args[0].id}")
+    return errors
+
+
+def channel_texts(path: Path):
+    """Read owned driver annotations and the WeChat state catalog without imports."""
+    tree = ast.parse(path.read_text())
+
+    def literal(node):
+        if isinstance(node, ast.IfExp):
+            node = node.body
+        if isinstance(node, ast.JoinedStr):
+            return "".join(
+                value.value
+                if isinstance(value, ast.Constant)
+                else "{" + ast.unparse(value.value) + "}"
+                for value in node.values
+            )
+        if isinstance(node, ast.Dict):
+            return {
+                literal(key): literal(value)
+                for key, value in zip(node.keys, node.values, strict=True)
+            }
+        try:
+            return ast.literal_eval(node)
+        except (ValueError, TypeError):
+            return None
+
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            values = {}
+            for child in node.body:
+                if isinstance(child, ast.Assign) and isinstance(child.targets[0], ast.Name):
+                    values[child.targets[0].id] = literal(child.value)
+            for name in ("title", "description"):
+                if name in values:
+                    yield f"{node.name}.{name}", values[name], values.get(name + "_localized")
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "_BINDING_MESSAGES"
+            for target in node.targets
+        ):
+            for key, (source, english) in literal(node.value).items():
+                yield f"messages.{key}", source, {"en": english}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = ast.unparse(node.func)
+        if name not in (
+            "Binding.form",
+            "Binding.flow",
+            "FormField",
+            "FlowState",
+            "ChannelInputError",
+        ):
+            continue
+        values = {keyword.arg: literal(keyword.value) for keyword in node.keywords}
+        if name == "ChannelInputError":
+            source = literal(node.args[0]) if node.args else None
+            if isinstance(source, str):
+                yield (
+                    "inputError." + hashlib.sha256(source.encode()).hexdigest()[:12],
+                    source,
+                    values.get("message_localized"),
+                )
+            continue
+        if name == "FormField":
+            values.setdefault("label", literal(node.args[1]) if len(node.args) > 1 else None)
+            prefix = f"field.{literal(node.args[0])}" if node.args else "field"
+        elif name == "FlowState":
+            prefix = f"flow.{values.get('status') or 'snapshot'}"
+        else:
+            prefix = "binding"
+        for field in ("label", "help", "placeholder", "hint", "message", "input_label"):
+            if isinstance(values.get(field), str):
+                yield f"{prefix}.{field}", values[field], values.get(field + "_localized")
+
+
+def check_channel_sources(root: Path) -> list[str]:
+    paths = sorted((root / "src/movieclaw_plugins").glob("*/*_channel/driver.py"))
+    if not paths:
+        return []
+    ledger_path = root / "scripts/i18n/channel-metadata.json"
+    if not ledger_path.exists():
+        return [f"Missing channel metadata provenance: {ledger_path}"]
+    ledger = json.loads(ledger_path.read_text())
+    errors = []
+    for path in sorted({source for driver in paths for source in driver.parent.glob("*.py")}):
+        relative = str(path.relative_to(root))
+        for name, source, translations in channel_texts(path):
+            if not isinstance(source, str) or (not HAN.search(source) and not translations):
+                continue
+            english = translations.get("en") if isinstance(translations, dict) else None
+            if isinstance(english, dict):
+                english = english.get("value")
+            if not isinstance(english, str) or not english.strip() or HAN.search(english):
+                errors.append(f"Missing or invalid English channel metadata: {relative}:{name}")
+            elif name.startswith("inputError.") and set(re.findall(r"\{[^{}]+\}", source)) != set(
+                re.findall(r"\{[^{}]+\}", english)
+            ):
+                errors.append(f"Channel error placeholders differ: {relative}:{name}")
+            expected = ledger.get(relative, {}).get(name, {}).get("sourceHash")
+            if expected != hashlib.sha256(source.encode()).hexdigest():
+                errors.append(f"Stale English channel metadata: {relative}:{name}")
     return errors
