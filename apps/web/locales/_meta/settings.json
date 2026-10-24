@@ -6990,5 +6990,230 @@
   },
   "mcp.controls.period": {
     "sourceHash": "eb0d5884569b398e475b89e77a068c6c575a0064ff6a72fafc173102c4cfcd57"
+  },
+  "playback.controls.limitLabel": {
+    "sourceHash": "ee24d587c58c468952966a9231cb09b7b009fdff08501016945ecccced67e3d3"
+  },
+  "playback.controls.ready": {
+    "sourceHash": "f5400d5c2a388865de0f8ac2bdd855d462cc49712bbfc8df10334c35fc2bf0ac"
+  },
+  "playback.controls.cores": {
+    "sourceHash": "86db051546353b13efd89c839a0dd800b500c38e0ff095943b872b06489a5702"
+  },
+  "playback.controls.jobs": {
+    "sourceHash": "55b4fe2c48fa94c0316cd4780c4f79a5bb63f1cbf80a9c331f10056d78ebabac"
+  },
+  "playback.controls.seen": {
+    "sourceHash": "9b1896dc54a98ad404bf1dfee0b9f33414a5d6e3cc1853e2363a8c9ea9623128"
+  },
+  "playback.controls.overridden": {
+    "sourceHash": "9732c5014af4267183482a8d59d111b6725d6d9b6bba2c108d52c8e6a4b6a042"
+  },
+  "playback.controls.limitCount": {
+    "sourceHash": "cdea7f8f9c48c8d25a4d4913e6353c84cf8b3827dc9c69367db9fc70945e66a3"
+  },
+  "playback.controls.load": {
+    "sourceHash": "63522ce6cf5459560700359c999c17a4f1580b33323dbcb73cac203141d866c0"
+  },
+  "playback.controls.offlineHint": {
+    "sourceHash": "146a81708bf3102e09899b09b402fefb1d401fb9e09c290c50f05fd135d903ab"
+  },
+  "playback.controls.clipsOff": {
+    "sourceHash": "0e1fd2106ca199034b3328197acdf2bfe0b92d0e2017f48fa7b3bce07a2d4d89"
+  },
+  "playback.controls.deleteClips": {
+    "sourceHash": "fc665cc3326e6db97d29140cfc6deb36c93a0998ebc63682a2060ea191c169b5"
+  },
+  "playback.controls.preparing": {
+    "sourceHash": "2ac3d5cf54e7b4a8d188ab488188ccbcb34a4927385e84a5d0ffcfc4dfe5fe8e"
+  },
+  "playback.controls.clipsSkipped": {
+    "sourceHash": "8c882ac781dd19c562ab913784cb8071eea31fb263a93a6ddd60198ce9c3a981"
+  },
+  "playback.controls.clipsDone": {
+    "sourceHash": "b00750e8fce42a719353e7cda5033f82fd78c7c19e29c2a36ba65c5ebde44ca8"
+  },
+  "playback.controls.clipsPaused": {
+    "sourceHash": "e394a7493a24f5b0de865771b51f0e9e02880355c40a21a38e24d9cf95193ddd"
+  },
+  "playback.controls.clipsRunning": {
+    "sourceHash": "18a57f6845fb072c4d0008729a75ceab594ed9e9cca8558024ee7cbb2492ebb0"
+  },
+  "playback.controls.limitFailed": {
+    "sourceHash": "680280e94bc1560b49e4ec709b7b8a1b2b6e8cb4a2a2393f21281eadd26fcccd"
+  },
+  "playback.controls.saving": {
+    "sourceHash": "6bdb4435095e5d285aa21be60ab343f9e489a314c6e132874dc0fa5ce6b4f5bb"
+  },
+  "playback.controls.concurrent": {
+    "sourceHash": "44493a24829e1dab37b50effe307aeb78d246f2fc392218179c816ae5d64fe29"
+  },
+  "playback.controls.overrideSaved": {
+    "sourceHash": "68cad71128f3d7b52e18b2ca883af5bd2e7c1ae96361f53630fb950adda2a44f"
+  },
+  "playback.controls.autoRestored": {
+    "sourceHash": "2f7832394ba0b5ba9adec327cb5578d04cb16174d476df4aa86de052be280264"
+  },
+  "playback.controls.loadingRemote": {
+    "sourceHash": "c1302c6cbda32ab606fc128d3ff5c54b1cf5e3b25a33da2458a46b8a01459aba"
+  },
+  "playback.controls.remoteTitle": {
+    "sourceHash": "2e14513e7a456952f0cb57b8c8c900528cc0999cf20cc631f949541d447f0972"
+  },
+  "playback.controls.loadRemoteFailed": {
+    "sourceHash": "cc738abaeb2e5efb3824bcc521bdf81b2d4ee298e9f327c7d58206b4b5ab379a"
+  },
+  "playback.controls.retry": {
+    "sourceHash": "b8784c8dd5636ff231b121892144e4a3977d5b874f21934c53f850cde7bac0ea"
+  },
+  "playback.controls.off": {
+    "sourceHash": "6744b4c6a9aa00381ffea2b3d229778b0724b073bd46e13f4e73868667eeb44f"
+  },
+  "playback.controls.invalidOverride": {
+    "sourceHash": "02e16bb02ad2c3b5d49364d90de546390a202b321ca775b6e46247c39165350b"
+  },
+  "playback.controls.noConnection": {
+    "sourceHash": "485d9d0561deb20c615fc293fd3a1b1a567363c8f982fbd908f16ba4d7718795"
+  },
+  "playback.controls.deviceLink": {
+    "sourceHash": "e40870c14d353ac7c636112d85fa67794ca6962412ce9883ca8d3d1323993ac1"
+  },
+  "playback.controls.remoteHint": {
+    "sourceHash": "059caeda212fa92e8d205ff84e40809074a0fcc91d61bb6691f581c2348e9d5c"
+  },
+  "playback.controls.enableRemote": {
+    "sourceHash": "5d533b5fa210a2e6d5a5819f84882c6751cb3c4a624385d846fdc95ccab03dff"
+  },
+  "playback.controls.fallbackHint": {
+    "sourceHash": "c9ecb024f729efa6204bc8021cc3e4ef6828f0a2778fb53ca299acdfed7e7c9a"
+  },
+  "playback.controls.disabledRemoteHint": {
+    "sourceHash": "bdafbced388fadb281debdbb2ce1ec4be06a8a396f977cded7ce2cedd4440ac0"
+  },
+  "playback.controls.status": {
+    "sourceHash": "82b7cf40b5e63d33ce89e23efe810b5f76aded0a13ad7291e22ba5e09b6c5c1b"
+  },
+  "playback.controls.limitHint": {
+    "sourceHash": "13328b00d58b85be52bc5d31d7719594702adbdaa40805a0b10687aff249860b"
+  },
+  "playback.controls.disabledWorker": {
+    "sourceHash": "9af01c8b168fa7aa201927ec3bff13aafd81774beb59eee6caa9437f8ccd8a2c"
+  },
+  "playback.controls.invalidWorker": {
+    "sourceHash": "fdee63ed9a1e22b4753fccac7570e7d41daed65be35f896c601588760bab5cd2"
+  },
+  "playback.controls.loadingWorkers": {
+    "sourceHash": "987493c4cebab266ed515c38cd0025d9b5023a425f6b36038e0022cdcea6235a"
+  },
+  "playback.controls.draining": {
+    "sourceHash": "243de599288f9c56f45d10f18fe5d821cf76bd343872a5fee0cb4fafa84542de"
+  },
+  "playback.controls.online": {
+    "sourceHash": "b9086662b1df1f201abb3c367862af46ffb4dd98d9d748e12e9649a3d58f9e0c"
+  },
+  "playback.controls.offline": {
+    "sourceHash": "c599740114595021e60a87d61a840ac4e383af57ead8c3efb88fb1076ad32ace"
+  },
+  "playback.controls.upgradeWorker": {
+    "sourceHash": "e8e6f520392f5d9dc39ea3df9ea4bab54370b2e19d7a35ebba4e8c5610026ac4"
+  },
+  "playback.controls.disconnected": {
+    "sourceHash": "3d52574ce15005618ef3b4bf96659abef1f47436f67dca9e33f6b3d73daab238"
+  },
+  "playback.controls.noWorkers": {
+    "sourceHash": "2b04f176cda586db69dfea0647fe97a7beaa5fd3859fc87f68eb0bbb45f719c1"
+  },
+  "playback.controls.devices": {
+    "sourceHash": "dba76e2b10a1ed3e6f609ccae6678575e2e2408125805a68ddcd8225799a02e0"
+  },
+  "playback.controls.advanced": {
+    "sourceHash": "d6e61888b07853ea306f29467275f6718e7d8da499d514cc200e2a09834d7bc1"
+  },
+  "playback.controls.address": {
+    "sourceHash": "d72a0325a7992a89c39c9e2b52695968565558835e0d7be3b5fc9987b34c3a49"
+  },
+  "playback.controls.autoAddress": {
+    "sourceHash": "4c3c2089969b6ffee236ae7110e25002015272e097894633bf8c36f28975b15f"
+  },
+  "playback.controls.addressLabel": {
+    "sourceHash": "12452e3acfd54d544aa08bdf403fe5ed5e70fa920fe8ee26a2a8968b99aca90c"
+  },
+  "playback.controls.addressPlaceholder": {
+    "sourceHash": "5ab2522c48e570132bb8015741b2c6d3cdf2f2d5d34b4ae16bb1e69e21e9c0cb"
+  },
+  "playback.controls.cloudAuto": {
+    "sourceHash": "08c1e91c56ef14977da441a1e68aec24f7a3ca85df730ded74c8fe5a2f9aef4a"
+  },
+  "playback.controls.cloudAutoHint": {
+    "sourceHash": "a173df5c01f3f8cde31bc1eed80e7488c8fcd94d28f9cfb7b84826feac08c198"
+  },
+  "playback.controls.cloudRelay": {
+    "sourceHash": "5ed642575c509b5b09ccf01fd7fae2e22257257e05d63ec4b56b511151e4db5d"
+  },
+  "playback.controls.cloudRelayHint": {
+    "sourceHash": "f108aa77d4aeaf79225b3250756331cda7d326b1ec0b672750dc3901b2f37c66"
+  },
+  "playback.controls.cloudDirect": {
+    "sourceHash": "252bfed324e5fdb5d67d82823748a0097135f6a9ef86e9e6f094fc4d5e572bfc"
+  },
+  "playback.controls.cloudDirectHint": {
+    "sourceHash": "aff2ea765fd5d8a5695fef38ecd1e56ee5acf97983b64878ba278f6301aa18c4"
+  },
+  "playback.controls.cloudTitle": {
+    "sourceHash": "6cf591dc7205dcb872ece59fb0da2d849e94db099a17350e2b76b95fb8513a1d"
+  },
+  "playback.controls.cloudFootnote": {
+    "sourceHash": "da5c8e4e3235dd5164eafae206b471151e5cf8e65486e9afb9b665c4248573eb"
+  },
+  "playback.controls.disableClipsTitle": {
+    "sourceHash": "9b487509629d31a36b1f87b0f468db4a730c959ee2c46f00ed16e7427b72cc15"
+  },
+  "playback.controls.disableClipsHint": {
+    "sourceHash": "f1fb2b29f6e93dfe118633a0c9e7f6ff19708e4fecfd9764b524a6de47f0358d"
+  },
+  "playback.controls.turnOff": {
+    "sourceHash": "3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7"
+  },
+  "playback.controls.keepClipsHint": {
+    "sourceHash": "d7499f3075cde4ac83eaccb877ac4cd89a44df473a7602b9b2bb1fa6a171e7a6"
+  },
+  "playback.controls.clipsTitle": {
+    "sourceHash": "7d964f3d53d760f8286773ae786c16f6940997397bc1d58be70ca118b58eade1"
+  },
+  "playback.controls.trickplayTitle": {
+    "sourceHash": "7b476960f80799d7475ae871a3ccf08fee396cd1205558955154ec068202391b"
+  },
+  "playback.controls.trickplayOn": {
+    "sourceHash": "6d6f616f2948060db21abf6454dd10126f04b7074c61431ebc9a0ca3851625bb"
+  },
+  "playback.controls.trickplayOff": {
+    "sourceHash": "74d8d4b5b51c7ea674917bb6c5018ef8ea517cf7fd7d12fb2a02d0fa30eaaeb6"
+  },
+  "playback.controls.cacheTitle": {
+    "sourceHash": "c41d77646960e3f065191e54ead81fef0708e2df83a3c34d75a710f025bc2848"
+  },
+  "playback.controls.cacheOn": {
+    "sourceHash": "242caf0a7d94a8f5fa09368fb49bda5d49c9913b6a1296e452e8e4c146b4a617"
+  },
+  "playback.controls.cacheOff": {
+    "sourceHash": "2620f64aa8de87771ae6a830b0b8b4e43148e44214ae3fa2ffa789e57cb0f436"
+  },
+  "playback.controls.tipTitle": {
+    "sourceHash": "f70d3c42f3dbca057e6c83f10973cf9b04acf0a77efbcf305e142938fb7e9aea"
+  },
+  "playback.controls.tipHint": {
+    "sourceHash": "02b24244916cc94943eec6bdf2e1552c6cc26ddb6e002818342394695be7af42"
+  },
+  "playback.controls.tipOpen": {
+    "sourceHash": "07c3e915bd2e931c31d271a9ed68e78afa3f5677736f75ec451e0350e9a52497"
+  },
+  "playback.controls.closeTip": {
+    "sourceHash": "d301bc1258334c7c70efe8fd3ce59b45d587e6c4d50c56568453478ba217db64"
+  },
+  "playback.controls.pairHint": {
+    "sourceHash": "122803f2c9efc04307dc1beaecef89063c85cafb97a6e03816c526e1b3f3b482"
+  },
+  "playback.controls.advancedHint": {
+    "sourceHash": "b64bdad9247ec96dd06bab5cae01785fd36e63945a57fa6db54d6f016b247869"
   }
 }

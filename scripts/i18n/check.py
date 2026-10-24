@@ -145,6 +145,7 @@ def check_catalogs() -> list[str]:
             "movieclaw_scheduler",
             "movieclaw_downloader",
             "movieclaw_tracker",
+            "movieclaw_mcp",
         )
         for path in (ROOT / "src" / package).rglob("*.py")
     ]
@@ -257,6 +258,7 @@ def unused_keys() -> list[str]:
                     "movieclaw_scheduler",
                     "movieclaw_downloader",
                     "movieclaw_tracker",
+                    "movieclaw_mcp",
                 )
                 for path in (ROOT / "src" / package).rglob("*.py")
             ]

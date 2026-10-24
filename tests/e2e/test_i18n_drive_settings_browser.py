@@ -205,7 +205,13 @@ def stack(tmp_path_factory, search_provider, drive_http):
         _wait_http(f"http://127.0.0.1:{api_port}/api/v1/auth/bootstrap", 60)
         base = f"http://127.0.0.1:{web_port}"
         _wait_http(base + "/login", 120)
-        yield {"base": base, "root": root, "data": data, "database_url": env["DATABASE_URL"]}
+        yield {
+            "base": base,
+            "api_base": f"http://127.0.0.1:{api_port}",
+            "root": root,
+            "data": data,
+            "database_url": env["DATABASE_URL"],
+        }
     finally:
         for process in (web, api):
             with suppress(ProcessLookupError):

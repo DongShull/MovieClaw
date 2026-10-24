@@ -55,5 +55,8 @@
   ],
   "settings.webSearch.ui.disableConfirm": [
     "disable"
+  ],
+  "settings.playback.controls.turnOff": [
+    "turn off"
   ]
 }
