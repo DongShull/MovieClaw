@@ -64,6 +64,7 @@ async def build_config_view() -> AppConfigView:
         web_port=port,
         web_port_source=source,
         web_port_default=DEFAULT_WEB_PORT,
+        web_port_reset_target=_parse_port(os.environ.get("MOVIECLAW_WEB_PORT")) or DEFAULT_WEB_PORT,
         web_port_rejected=rejected,
         web_port_configurable=_web_port_managed(),
     )

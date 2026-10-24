@@ -224,6 +224,8 @@ nonisolated extension API {
         var webPortSource: String
         /// 内置默认端口，用于「恢复默认」的展示
         var webPortDefault: Int
+        /// Port after clearing the override, including environment defaults
+        var webPortResetTarget: Int?
         /// 上次启动时因无法绑定而被自动废弃的端口；null = 无
         var webPortRejected: Int?
         /// 当前部署形态是否支持应用内改端口（仅由容器入口托管进程的 Docker 部署）
@@ -234,6 +236,7 @@ nonisolated extension API {
             case webPort = "web_port"
             case webPortSource = "web_port_source"
             case webPortDefault = "web_port_default"
+            case webPortResetTarget = "web_port_reset_target"
             case webPortRejected = "web_port_rejected"
             case webPortConfigurable = "web_port_configurable"
         }
@@ -7678,11 +7681,15 @@ nonisolated extension API {
         var ok: Bool
         var latencyMs: Int?
         var message: String
+        var messageKey: String?
+        var messageParams: [String: API.JSONValue]?
 
         enum CodingKeys: String, CodingKey {
             case ok
             case latencyMs = "latency_ms"
             case message
+            case messageKey = "message_key"
+            case messageParams = "message_params"
         }
     }
 

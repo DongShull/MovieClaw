@@ -93,4 +93,27 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(next.subtitleEditQuestion?.prompt, "Do you understand English?")
     }
 
+    func testNetworkProbeReferencesRemainOptional() throws {
+        let legacy = try JSONDecoder().decode(API.NetworkTestResult.self, from: Data(#"{"ok":true,"latency_ms":12,"message":"Legacy probe"}"#.utf8))
+        XCTAssertNil(legacy.messageKey)
+        XCTAssertNil(legacy.messageParams)
+        let keyed = try JSONDecoder().decode(API.NetworkTestResult.self, from: Data(#"{"ok":true,"latency_ms":12,"message":"Connected (HTTP 503)","message_key":"settings.network.responses.http","message_params":{"status":503,"raw":"原始错误"}}"#.utf8))
+        XCTAssertEqual(keyed.ok, legacy.ok)
+        XCTAssertEqual(keyed.latencyMs, legacy.latencyMs)
+        XCTAssertEqual(keyed.messageKey, "settings.network.responses.http")
+        XCTAssertEqual(keyed.messageParams?["status"], .int(503))
+        XCTAssertEqual(keyed.messageParams?["raw"], .string("原始错误"))
+    }
+
+    func testPortResetTargetPreservesLegacyDefault() throws {
+        let oldJSON = #"{"external_url":"","web_port":18881,"web_port_source":"setting","web_port_default":3000,"web_port_rejected":null,"web_port_configurable":true}"#
+        let legacy = try JSONDecoder().decode(API.AppConfigView.self, from: Data(oldJSON.utf8))
+        XCTAssertNil(legacy.webPortResetTarget)
+        let nextJSON = oldJSON.replacingOccurrences(of: #""web_port_default":3000"#, with: #""web_port_default":3000,"web_port_reset_target":18880"#)
+        let next = try JSONDecoder().decode(API.AppConfigView.self, from: Data(nextJSON.utf8))
+        XCTAssertEqual(next.webPortDefault, legacy.webPortDefault)
+        XCTAssertEqual(next.webPort, legacy.webPort)
+        XCTAssertEqual(next.webPortResetTarget, 18880)
+    }
+
 }

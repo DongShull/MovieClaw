@@ -87,6 +87,7 @@ export function SettingsRow({
   error,
   children,
   href,
+  stackOnMobile = false,
 }: {
   label: ReactNode;
   description?: ReactNode;
@@ -98,6 +99,8 @@ export function SettingsRow({
   children?: ReactNode;
   /** 点行进详情页：名称与说明区域成为链接，行尾控件照常可点 */
   href?: string;
+  /** Place controls below the label on narrow screens. */
+  stackOnMobile?: boolean;
 }) {
   const text = (
     <>
@@ -112,17 +115,17 @@ export function SettingsRow({
   );
   return (
     <div
-      className={`flex min-h-[56px] items-center gap-4 px-4 py-3 ${href ? "transition-colors hover:bg-white/[0.03]" : ""}`}
+      className={`flex min-h-[56px] items-center gap-4 px-4 py-3 ${stackOnMobile ? "max-sm:flex-col max-sm:items-start" : ""} ${href ? "transition-colors hover:bg-white/[0.03]" : ""}`}
     >
       {leading}
       {href ? (
-        <Link href={href as Route} className="group min-w-0 flex-1">
+        <Link href={href as Route} className={`group min-w-0 flex-1 ${stackOnMobile ? "max-sm:w-full" : ""}`}>
           {text}
         </Link>
       ) : (
-        <div className="min-w-0 flex-1">{text}</div>
+        <div className={`min-w-0 flex-1 ${stackOnMobile ? "max-sm:w-full" : ""}`}>{text}</div>
       )}
-      {children != null && <div className="flex shrink-0 items-center gap-2">{children}</div>}
+      {children != null && <div className={`flex shrink-0 items-center gap-2 ${stackOnMobile ? "max-sm:w-full max-sm:flex-wrap max-sm:justify-end" : ""}`}>{children}</div>}
       {href && (
         <Link href={href as Route} aria-hidden tabIndex={-1} className="shrink-0">
           <ChevronRightIcon className="size-4 text-[var(--text-faint)]" />

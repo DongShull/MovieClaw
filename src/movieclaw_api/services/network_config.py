@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
@@ -25,6 +26,7 @@ from movieclaw_api.core.config import (
     normalize_tmdb_base_url,
 )
 from movieclaw_api.exceptions import BadRequestException
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import reference
 from movieclaw_api.schemas.network import (
     EgressServiceOption,
@@ -68,9 +70,73 @@ logger = logging.getLogger("movieclaw_api.network_config")
 # ---------------------------------------------------------------------------
 
 
+
+_SERVICE_LABELS = {
+    "tmdb": [
+        "settings.network.services.tmdbLabel",
+        "settings.network.services.tmdbHint"
+    ],
+    "image": [
+        "settings.network.services.imageLabel",
+        "settings.network.services.imageHint"
+    ],
+    "fanart": [
+        "settings.network.services.fanartLabel",
+        "settings.network.services.fanartHint"
+    ],
+    "douban": [
+        "settings.network.services.doubanLabel",
+        "settings.network.services.doubanHint"
+    ],
+    "llm": [
+        "settings.network.services.llmLabel",
+        "settings.network.services.llmHint"
+    ],
+    "web_search": [
+        "settings.network.services.webSearchLabel",
+        "settings.network.services.webSearchHint"
+    ],
+    "telegram": [
+        "settings.network.services.telegramLabel",
+        "settings.network.services.telegramHint"
+    ],
+    "discord": [
+        "settings.network.services.discordLabel",
+        "settings.network.services.discordHint"
+    ],
+    "feishu": [
+        "settings.network.services.feishuLabel",
+        "settings.network.services.feishuHint"
+    ],
+    "webhook": [
+        "settings.network.services.webhookLabel",
+        "settings.network.services.webhookHint"
+    ],
+    "movieclaw_cloud": [
+        "settings.network.services.movieclawCloudLabel",
+        "settings.network.services.movieclawCloudHint"
+    ],
+    "movieclaw_push": [
+        "settings.network.services.movieclawPushLabel",
+        "settings.network.services.movieclawPushHint"
+    ],
+    "pypi": [
+        "settings.network.services.pypiLabel",
+        "settings.network.services.pypiHint"
+    ],
+    "github": [
+        "settings.network.services.githubLabel",
+        "settings.network.services.githubHint"
+    ]
+}
+
 async def _service_catalog(session: AsyncSession) -> list[EgressServiceOption]:
     """开关目录 = 内置服务 + 已配置的 PT 站（site:<id>）。"""
-    options = [EgressServiceOption(**item) for item in BUILTIN_EGRESS_SERVICES]
+    options = [
+        EgressServiceOption(id=item["id"], label=t(_SERVICE_LABELS[item["id"]][0]),
+                            description=t(_SERVICE_LABELS[item["id"]][1]))
+        for item in BUILTIN_EGRESS_SERVICES
+    ]
     for cred in await CredentialRepository(session).list_all():
         try:
             display_name = get_site_config(cred.site_id).display_name
@@ -80,7 +146,7 @@ async def _service_catalog(session: AsyncSession) -> list[EgressServiceOption]:
             EgressServiceOption(
                 id=f"site:{cred.site_id}",
                 label=display_name,
-                description="PT 站点（国内直连通常更快，按需开启）",
+                description=t("settings.network.services.siteHint"),
             )
         )
     return options
@@ -105,7 +171,10 @@ async def build_config_view(session: AsyncSession) -> NetworkConfigView:
             "douban_api_base_url": env_settings.douban_api_base_url,
             "pypi_index_url": deps.DEFAULT_INDEX,
         },
-        pypi_index_presets={"PyPI": deps.DEFAULT_INDEX, "清华镜像": deps.TSINGHUA_INDEX},
+        pypi_index_presets={
+            "PyPI": deps.DEFAULT_INDEX,
+            t("settings.network.services.tsinghua"): deps.TSINGHUA_INDEX,
+        },
         env_proxy_detected=env_proxy_url() or "",
     )
 
@@ -126,10 +195,10 @@ def _validate_payload(payload: NetworkConfigPayload) -> None:
                 },
             )
     for name, value in (
-        ("TMDB 接口镜像", payload.tmdb_api_base_url),
-        ("TMDB 图床镜像", payload.tmdb_image_base_url),
-        ("豆瓣接口地址", payload.douban_api_base_url),
-        ("插件依赖包索引", payload.pypi_index_url or ""),
+        (reference("settings.network.services.tmdbApi"), payload.tmdb_api_base_url),
+        (reference("settings.network.services.tmdbImage"), payload.tmdb_image_base_url),
+        (reference("settings.network.services.doubanApi"), payload.douban_api_base_url),
+        (reference("settings.network.services.packageIndex"), payload.pypi_index_url or ""),
     ):
         value = value.strip()
         if value and urlsplit(value).scheme not in ("http", "https"):
@@ -341,59 +410,70 @@ async def _probe_target(service: str, session: AsyncSession) -> tuple[str, dict[
     )
 
 
+def _probe_result(*, ok: bool, message: dict[str, Any]) -> NetworkTestResult:
+    key, params = message["message_key"], message["params"]
+    return NetworkTestResult(
+        ok=ok, message=t(key, **params), message_key=key, message_params=params
+    )
+
+
 def _classify_probe(service: str, status_code: int) -> NetworkTestResult:
     """探测拿到了 HTTP 响应 = 线路通；再按服务语义细化提示。"""
     if service == "tmdb":
         if status_code == 200:
-            message = "网络连通，API Key 有效"
+            message = reference("settings.network.responses.validKey")
         elif status_code == 401:
-            message = "网络连通，但 TMDB API Key 无效或未配置"
+            message = reference("settings.network.responses.invalidTmdbKey")
         else:
-            message = f"网络连通（HTTP {status_code}）"
-        return NetworkTestResult(ok=True, message=message)
+            message = reference("settings.network.responses.http", status=status_code)
+        return _probe_result(ok=True, message=message)
     if service == "llm":
         if status_code == 200:
-            message = "网络连通，API Key 有效"
+            message = reference("settings.network.responses.validKey")
         elif status_code in (401, 403):
-            message = "网络连通，但 API Key 无效"
+            message = reference("settings.network.responses.invalidKey")
         else:
-            message = f"网络连通（HTTP {status_code}）"
-        return NetworkTestResult(ok=True, message=message)
+            message = reference("settings.network.responses.http", status=status_code)
+        return _probe_result(ok=True, message=message)
     if service == "fanart":
         from movieclaw_api.services.fanart import current_fanart_setting
 
         if status_code == 200:
-            message = "网络连通，API Key 有效"
+            message = reference("settings.network.responses.validKey")
         elif status_code == 401 and not current_fanart_setting().api_key:
-            message = "网络连通（尚未填写 Fanart.tv API Key）"
+            message = reference("settings.network.responses.missingFanartKey")
         elif status_code == 401:
-            message = "网络连通，但 Fanart.tv API Key 无效"
+            message = reference("settings.network.responses.invalidFanartKey")
         else:
-            message = f"网络连通（HTTP {status_code}）"
-        return NetworkTestResult(ok=True, message=message)
+            message = reference("settings.network.responses.http", status=status_code)
+        return _probe_result(ok=True, message=message)
     if service == "web_search":
-        return NetworkTestResult(
+        return _probe_result(
             ok=True,
             message=(
-                f"网络连通（HTTP {status_code}）。密钥是否有效请到「设置 → AI 设定」里测试连接"
+                reference("settings.network.responses.search", status=status_code)
             ),
         )
     if service == "github":
         if status_code == 200:
-            message = "网络连通，可正常检查更新"
+            message = reference("settings.network.responses.updates")
         elif status_code in (403, 429):
-            message = "网络连通，但 GitHub 接口限流中（稍后自动恢复，不影响每日自动检查）"
+            message = reference("settings.network.responses.githubLimit")
         else:
-            message = f"网络连通（HTTP {status_code}）"
-        return NetworkTestResult(ok=True, message=message)
+            message = reference("settings.network.responses.http", status=status_code)
+        return _probe_result(ok=True, message=message)
     if service == "movieclaw_cloud" and status_code == 200:
-        return NetworkTestResult(ok=True, message="网络连通，可正常访问 MovieClaw Cloud")
+        return _probe_result(ok=True, message=reference("settings.network.responses.cloud"))
     if service == "movieclaw_push" and status_code == 200:
-        return NetworkTestResult(ok=True, message="网络连通，可正常访问推送中继")
+        return _probe_result(ok=True, message=reference("settings.network.responses.push"))
     if service in ("telegram", "discord") and status_code in (401, 403, 404):
         channel_name = "Telegram" if service == "telegram" else "Discord"
-        return NetworkTestResult(ok=True, message=f"网络连通，但 {channel_name} bot Token 无效")
-    return NetworkTestResult(ok=True, message=f"网络连通（HTTP {status_code}）")
+        return _probe_result(
+            ok=True, message=reference("settings.network.responses.bot", channel=channel_name)
+        )
+    return _probe_result(
+        ok=True, message=reference("settings.network.responses.http", status=status_code)
+    )
 
 
 async def test_service(session: AsyncSession, service: str) -> NetworkTestResult:
@@ -409,12 +489,17 @@ async def test_service(session: AsyncSession, service: str) -> NetworkTestResult
         ) as client:
             response = await client.get(url, headers=headers)
     except httpx.TimeoutException:
-        return NetworkTestResult(
-            ok=False, message="连接超时（10 秒无响应），当前出口无法访问该服务"
+        return _probe_result(
+            ok=False, message=reference("settings.network.responses.timeout")
         )
     except httpx.HTTPError as exc:
         logger.info("连通性测试失败：service=%s（%s）", service, exc)
-        return NetworkTestResult(ok=False, message=f"连接失败：{type(exc).__name__}（{exc}）")
+        return _probe_result(
+            ok=False,
+            message=reference(
+                "settings.network.responses.failed", kind=type(exc).__name__, error=str(exc)
+            ),
+        )
     latency_ms = int((time.perf_counter() - started) * 1000)
     # 测通了就闭合该服务的熔断：业务请求立刻恢复，不用等冷却期
     get_breaker(service).reset()

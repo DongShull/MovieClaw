@@ -411,7 +411,8 @@ private struct ExternalAccessEditor: View {
 
     private var dirty: Bool { draft != (kind == .url ? config.externalUrl : String(config.webPort)) }
     private var valid: Bool { kind == .url ? NetworkSettingsValidation.validURL(draft, allowEmpty: true) : NetworkSettingsValidation.port(draft) != nil }
-    private var target: Int { restoring ? config.webPortDefault : NetworkSettingsValidation.port(draft) ?? config.webPort }
+    private var resetTarget: Int { config.webPortResetTarget ?? config.webPortDefault }
+    private var target: Int { restoring ? resetTarget : NetworkSettingsValidation.port(draft) ?? config.webPort }
     private var confirmationMessage: String {
         let seenPort = origin.port ?? (origin.scheme == "https" ? 443 : 80)
         let mapping = seenPort != config.webPort ? "当前通过端口 \(seenPort) 访问，服务器监听 \(config.webPort)，中间存在端口映射或反向代理。" : ""
@@ -437,7 +438,7 @@ private struct ExternalAccessEditor: View {
                     LabeledContent("当前端口", value: String(config.webPort))
                     LabeledContent("来源", value: config.webPortSource == "setting" ? "应用内设置" : config.webPortSource == "env" ? "环境变量" : "默认")
                     if config.webPortSource == "setting" {
-                        Button("恢复默认端口（\(config.webPortDefault)）") { restoring = true; confirming = true }
+                        Button("恢复默认端口（\(resetTarget)）") { restoring = true; confirming = true }
                     }
                 }
             } footer: {
