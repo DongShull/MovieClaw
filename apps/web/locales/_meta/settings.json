@@ -5043,5 +5043,299 @@
   },
   "plugins.pendingConsent": {
     "sourceHash": "1d146cadbbb65725c65935c950e9ca3dc82dfae78fd4dc0cfd22a183295aeb69"
+  },
+  "pluginMarket.storage": {
+    "sourceHash": "be9ef9541278d58b15d120cc0ef413a37c9b8669c195312fb7eee1446bcd95f4"
+  },
+  "pluginMarket.downloader": {
+    "sourceHash": "19c3857aba1b0d88fbf50b66335a5ec0e2e958fababde6bb7faac04a0d7b3e85"
+  },
+  "pluginMarket.messaging": {
+    "sourceHash": "4f1f6ea2b75de5873646849ab96ef7fb9f67e293ff2f9f1595515f77c2d45b85"
+  },
+  "pluginMarket.sites": {
+    "sourceHash": "a59fe62777ff25aec42c337fccbf5929af9c9b45bc42ee17131f5900889f4534"
+  },
+  "pluginMarket.library": {
+    "sourceHash": "d771576fc05c241bada9731f5fa997d50f63c3433cbcdd2141bc07d4ca6c1949"
+  },
+  "pluginMarket.tools": {
+    "sourceHash": "5ca6730d441522017552bf309fcddbed161b77440dc3a11d9945788d802afdb3"
+  },
+  "pluginMarket.other": {
+    "sourceHash": "d2909f1647e7c891a8282759b2eaa961e84620ff04cda7b8b5478cb540d74fa4"
+  },
+  "pluginMarket.all": {
+    "sourceHash": "5c55a67935af8f4508ba05d6d81c9eb240a2ea0ba886d8428b985e305470da3f"
+  },
+  "pluginMarket.update": {
+    "sourceHash": "3055a035f0eb7a8b00ddc95c65ab5de8fc1df0436e13adfb45607bdaa03673fc"
+  },
+  "pluginMarket.bundled": {
+    "sourceHash": "deba37cb0977327cc3941b2816fa4e9a9ad6bf020d7c9fb0c8db0cf23733235b"
+  },
+  "pluginMarket.installed": {
+    "sourceHash": "a8b6c39dcabfc14bb136596e34a95b424257b82d54c3ac49a7728b876ae58526"
+  },
+  "pluginMarket.install": {
+    "sourceHash": "e8f88f51ccb085ea870b413bf5c4a6425690a42450cfc462ed8450a165dcc57e"
+  },
+  "pluginMarket.incompatible": {
+    "sourceHash": "391f9606e1d8642255d85129379e9581b78c6c9ddb6d21d51c00f7c5460f5422"
+  },
+  "pluginMarket.unavailable": {
+    "sourceHash": "71ba2b9505259e5236e62f9099de9face58b25a7f0f3e8d1d70839cac7144698"
+  },
+  "pluginMarket.currentVersion": {
+    "sourceHash": "be47cb852e52c4a212af07b8993dc4c15b58c4ab267076f8ca6ec1fbc7d69f38"
+  },
+  "pluginMarket.prerelease": {
+    "sourceHash": "065d4b037ce5d3c6021425c8447e002efc916db431c8f733ef8585bcaf028783"
+  },
+  "pluginMarket.yanked": {
+    "sourceHash": "0462a8aa7036a3c48d0b06273dc04990a922b7f4ad04ae3cb2d77cf37033873a"
+  },
+  "pluginMarket.cannotInstall": {
+    "sourceHash": "dcdc724ed529f91f8dae45b198cba2bf5955519ea64aeb28fb1e7523164cd4bf"
+  },
+  "pluginMarket.upgradeVersion": {
+    "sourceHash": "a6be0724bbd588f3587d6ef7fa41ebac183ce3f5fdaba0564c7d857c203b82a9"
+  },
+  "pluginMarket.switchVersion": {
+    "sourceHash": "455940da8f4874a61f33f5b61f88adf9484cf4a7edc8794a3d5e8bb8446644b9"
+  },
+  "pluginMarket.inline": {
+    "sourceHash": "ce557a22e50e36661acea0e8e339e701beb9e79bb8af1b41808b52f2efcd4d73"
+  },
+  "pluginMarket.inlineRisk": {
+    "sourceHash": "83347bc5e971fd1abeb36048d1a650ffe1088c64c8ad654baa1f7ffbfc130310"
+  },
+  "pluginMarket.exec": {
+    "sourceHash": "969ae750baf0f7c54ae976ba5909b3b8c9c2ff4a6d4254974c3d72dc54dfbeee"
+  },
+  "pluginMarket.execHint": {
+    "sourceHash": "66d6cf56a5d215058f56f308539ede4cea461298598ee60653d64f8bf74891a8"
+  },
+  "pluginMarket.process": {
+    "sourceHash": "baff2b1ab436e8ff40444aa68bb262b714115c4a0d4bd7d1edda6c9811e44399"
+  },
+  "pluginMarket.processHint": {
+    "sourceHash": "f06152c13cff65f96f9e5fca2451f907d0ffa5f3fb42c7da155d0532c053ca4b"
+  },
+  "pluginMarket.watching": {
+    "sourceHash": "d7695b2e20d17f199dc55e63a95ceab2655444007a4aa1884756dfd517b5f3b1"
+  },
+  "pluginMarket.events": {
+    "sourceHash": "ea9e15b521e84fd1a3fd157b2d12262f16df10b70989d20ecf4720cee4895f71"
+  },
+  "pluginMarket.web": {
+    "sourceHash": "74784584d4ce2a83cbff58d9f7daf0e3fb3c4e2267f227fa440135613826ff7c"
+  },
+  "pluginMarket.webRisk": {
+    "sourceHash": "9f0b95d4062a9c1b25923ef17d8bb60a7121c66f736d87e64efb1d7bcadfdc53"
+  },
+  "pluginMarket.callbacks": {
+    "sourceHash": "70ac402cdf9f53d6482ed87ce07f089f1879b47cf7c30d8aa941f917a6a3a09b"
+  },
+  "pluginMarket.callbacksHint": {
+    "sourceHash": "28c436ecba133d8ea0856dbb26fa478e206cc986dca5194304003518dcebd32a"
+  },
+  "pluginMarket.operations": {
+    "sourceHash": "c4f1b72951251efce03f2f4e0b5dcaa40c98cb6fc61c70e69ae1a0b5d36f93dc"
+  },
+  "pluginMarket.readWrite": {
+    "sourceHash": "85e878353418dbe4d06964d666a1b37d98ed1879d4c09139c2e5d37c8051fd4a"
+  },
+  "pluginMarket.readOnly": {
+    "sourceHash": "70c441a4f1bf727c144180d4f62ec61482e9d55bd158e099615f9d1afbbdac2d"
+  },
+  "pluginMarket.network": {
+    "sourceHash": "c52f522e3c5314c8c4b803bdc406db3dd1c580796a2c06b1f0dff45a9e228b79"
+  },
+  "pluginMarket.networkHint": {
+    "sourceHash": "602519ed14c97be199e8b902653c88c11e8d11a1c930a83e90e630b1b9b32432"
+  },
+  "pluginMarket.dependencies": {
+    "sourceHash": "9e5fc0d2cdc0f7983c281575bb12df38973a1e4c06990ab992811d87be875085"
+  },
+  "pluginMarket.dependencyHint": {
+    "sourceHash": "4c476847f1ee08967bfab9338e54ed3d5f65f1ab1d0b1abc885b313509aacda9"
+  },
+  "pluginMarket.dependencyWithNative": {
+    "sourceHash": "4b97d60ac61889fd03c6382da81e330d2ba33bedc49459c033a865d9d6524b42"
+  },
+  "pluginMarket.noExtraPermissions": {
+    "sourceHash": "0f78c66ebcb50435b5f303eae47a4967b4bebefdbedd28618bf522e75165e493"
+  },
+  "pluginMarket.noExtraHint": {
+    "sourceHash": "242a28dd891081b4037e0f624b31253a8d5a1fe1091ff6938a40a126f1460b53"
+  },
+  "pluginMarket.downloads": {
+    "sourceHash": "a93a561f3e7537d0e4d9abd6a60e33b076e687eeeed21c543e3367a78f3a5298"
+  },
+  "pluginMarket.unloaded": {
+    "sourceHash": "43523cac435e80967675602527ff59e08bd9505e6d4d8fe772025962b5b47904"
+  },
+  "pluginMarket.loadFailed": {
+    "sourceHash": "d1d044826a45ef6533a4744d171d4a8808dec292f57ade9f3878f1f8f7eed278"
+  },
+  "pluginMarket.updatesFound": {
+    "sourceHash": "8e25408d07ddba7179ca4276aaf101c97c61e055272bd1bb086fe1e2cec9c118"
+  },
+  "pluginMarket.upToDate": {
+    "sourceHash": "4219a7449e2607bf075ab4536cffa6fedec908f3347188a732259310110736f1"
+  },
+  "pluginMarket.checkFailed": {
+    "sourceHash": "4f6f06254d160f172e468f5412f4ffdc391ceb6fdf9ceba8889a56acd48f410e"
+  },
+  "pluginMarket.downloadFailed": {
+    "sourceHash": "8a03e35ad323e38721375f1ad5467ac0bee7ce460c85050a7cebdb1206a758f1"
+  },
+  "pluginMarket.installedRunning": {
+    "sourceHash": "32bb86629db4b908dca01ab19d2b55e60399fcaaa69259c51f062f13bcf12552"
+  },
+  "pluginMarket.failedRollback": {
+    "sourceHash": "4d177e3ff77f38423f17c17422cf29a34b9f09ab55322113d3c6f88b47228683"
+  },
+  "pluginMarket.failedUninstall": {
+    "sourceHash": "9e0d793de048fa5c25637a7489a069c5df8f4bd21fcf9306e2fdeaab44e1af6d"
+  },
+  "pluginMarket.unknownReason": {
+    "sourceHash": "a1a9da9ee6ed040160b2b2f44e64c9c097cb7c728b575c49fbfee17b256b67f1"
+  },
+  "pluginMarket.installFailed": {
+    "sourceHash": "a8581cc00ff3c62e08e066187f1577c43850e7437662c264c78655dc66a008f3"
+  },
+  "pluginMarket.discarded": {
+    "sourceHash": "b6719689189554a458cc745ac0051ebeede07f521c877e117f54172e6475e21d"
+  },
+  "pluginMarket.actionFailed": {
+    "sourceHash": "0c3b4cf7aa259edb1b6f67e65a42dc91054928dcd727b159aab5f52a3ca75613"
+  },
+  "pluginMarket.retry": {
+    "sourceHash": "b8784c8dd5636ff231b121892144e4a3977d5b874f21934c53f850cde7bac0ea"
+  },
+  "pluginMarket.reading": {
+    "sourceHash": "05bce40a6c7639d2953d350a2d2c5eff69ce9af6627773419e6ed660dbd7ef31"
+  },
+  "pluginMarket.stale": {
+    "sourceHash": "d21ffcd16ea71ea3a2bd63cb48e2b119c3b6d4546624224082cd2ac1c049f7e1"
+  },
+  "pluginMarket.updates": {
+    "sourceHash": "08d43bdc4dcb6253030c9c21ef2b04e66cdf96aa9f2f1b78cf668f36a3773a65"
+  },
+  "pluginMarket.updatesHint": {
+    "sourceHash": "95e63287413303674efb89124aab8bb780d3f342285453f7162f1fcf0176717a"
+  },
+  "pluginMarket.downloading": {
+    "sourceHash": "369ca5e19c59093f19e84280271633807863b361244b7925890189d0a64017b0"
+  },
+  "pluginMarket.search": {
+    "sourceHash": "af38ec4666fa564b8d60dd5cfa5754685d3e7a7b0ee0ce7cc258ad170681e73f"
+  },
+  "pluginMarket.empty": {
+    "sourceHash": "4ee2dabaf7437200bfa0e242444f33bcb387f153edd5081f810f0ee52ae46b91"
+  },
+  "pluginMarket.noMatch": {
+    "sourceHash": "b77a7a928cf8926b08fd3b2029242b052acc997906b71f4f3ca41ae889f7e08e"
+  },
+  "pluginMarket.officialCatalog": {
+    "sourceHash": "d2cd12d491f41ec1537416067ae50c4cc3a9a8f6c7f6631a0df3b60e7e96d107"
+  },
+  "pluginMarket.catalog": {
+    "sourceHash": "d6cbf74ce3755fbbdbb502af49ef1f526a011ab473a5eef51938504aeea5c7bd"
+  },
+  "pluginMarket.verified": {
+    "sourceHash": "a930e9dc002b93446d1b9d0c298a25a45c2f34696be6cbd00c2fe053467b4eaa"
+  },
+  "pluginMarket.unsigned": {
+    "sourceHash": "7cfbd6d59dd1dc37edd5db723ec5e25a009e7873ef5e159dc1873601dd7a6379"
+  },
+  "pluginMarket.sourceSummary": {
+    "sourceHash": "07ff4337b518176f4ff08ca0653da1fa621e69c8261ef0ad98f881013fa78b1d"
+  },
+  "pluginMarket.checking": {
+    "sourceHash": "6b72c3d6855cb87dbe9ab48b5a8bd1f05d773857a0bb9512d4c9bd17defb1d1a"
+  },
+  "pluginMarket.check": {
+    "sourceHash": "7f68ebad19ba6bcd2a09ae0cc3c71d9bc2688358f5cc3dc553b08292b64536b1"
+  },
+  "pluginMarket.updateApp": {
+    "sourceHash": "0d8fab8ac4d6bace546dd295b53016012fabf75d59cb4ea98f3303a2d662b1f4"
+  },
+  "pluginMarket.installBlocked": {
+    "sourceHash": "679b5118cf0a3595a0a05a5f036c6ea18ca0de25d639e4341a10a353cf287394"
+  },
+  "pluginMarket.deprecated": {
+    "sourceHash": "a0d86899f30624a3aa0073a1db84ad1d5b34c42072a56ce866e4fdd724e97244"
+  },
+  "pluginMarket.installedVersion": {
+    "sourceHash": "d9dc6cb2d139cee2933beebcbda57321670d1b011ed4223195aad1856dc58786"
+  },
+  "pluginMarket.installedBundledVersion": {
+    "sourceHash": "470398ad75e7c00dc4c14e893296e0bbdd6c7a518e1934fa8ba1281aed990ebf"
+  },
+  "pluginMarket.manage": {
+    "sourceHash": "bb6d995724f49a72e190cd17111e072c28d740557b2f87c1c954c219c400b5b0"
+  },
+  "pluginMarket.deprecatedTitle": {
+    "sourceHash": "b34a8e3b59663bc61e6d05b4a8c268b2c3429c39225aed571ee7de884883ccd6"
+  },
+  "pluginMarket.replacement": {
+    "sourceHash": "f585769e71c6294d856a3a0f58ca8b4bcd4091faae877f5db3ab5045e5b55d45"
+  },
+  "pluginMarket.yankedTitle": {
+    "sourceHash": "dc2c7fb8932c7107b2488edd90aee86707f62c30144c715b668f1597afb4b42f"
+  },
+  "pluginMarket.recommended": {
+    "sourceHash": "c1b4c0ea5bdfd788760b52dc9f0afa71894a3df46de335ead2028b1992c9ff5e"
+  },
+  "pluginMarket.serverIncompatible": {
+    "sourceHash": "d7e0f44788ad8304e7fa03ccf1cb1b5b7acb429ad769bb5b6f0ff240a98a91de"
+  },
+  "pluginMarket.changelog": {
+    "sourceHash": "0ff983ee831d05659b09dc7afd0d9b3320847175297e1401b8cfc675e8076b8a"
+  },
+  "pluginMarket.feedback": {
+    "sourceHash": "31882138222f1083f2205321c96440c3903e711c426ed6f4d261fcfd84624b2f"
+  },
+  "pluginMarket.about": {
+    "sourceHash": "66a66f52a2b114b54638c45bbc1338f633a31a3d938b80ee087a3c28dd558a1e"
+  },
+  "pluginMarket.permissions": {
+    "sourceHash": "978cbca6265d1af23a61e6390ca0d9af602bf54aebd4cbb782e6e782e06edc35"
+  },
+  "pluginMarket.versions": {
+    "sourceHash": "61d0c291c28420a5f891c236aaf13e6532e8ff80b743f97bf051e274719172e4"
+  },
+  "pluginMarket.screenshot": {
+    "sourceHash": "dbde49cabd3f8a1386a7886df9d23e3563ed54c812f01b5fa92941d6e7016122"
+  },
+  "pluginMarket.readingReadme": {
+    "sourceHash": "661c2f016766f32165ddd414a8ac0a351d6e55b0963acee4f364c74d154f67ea"
+  },
+  "pluginMarket.noReadme": {
+    "sourceHash": "7ea7c47b557bc2e6bc6e8bcf5d7d29f12e82ce548f33f39db13c276527a8ec79"
+  },
+  "pluginMarket.sourceCode": {
+    "sourceHash": "008acc17e98130cf2b0043948e5976991606da3cd58cfaaabe9e3ae9ce40ca37"
+  },
+  "pluginMarket.permissionsHint": {
+    "sourceHash": "cc7db840a98cdd4723e12a700937a164d3a654fc96d2f844d7fb3eaa61c3de91"
+  },
+  "pluginMarket.dependencySize": {
+    "sourceHash": "78af0bb8e97b6253706d60a104ac8420482e5999caf1acb632aefb0c221cb52b"
+  },
+  "pluginMarket.nativeCode": {
+    "sourceHash": "508dfe03334f5b739e0e901b0be2c93bcbddc092e081d3745d884435f8942018"
+  },
+  "pluginMarket.noWheel": {
+    "sourceHash": "7b609854e4ad673e48c9991b9588b636b2c3708b6d9e7b6acabd84e325e83b26"
+  },
+  "pluginMarket.withdrawalReason": {
+    "sourceHash": "3396fd22299bc20aaf7e52a782c813a62e39955ed2b9af7e05974a50a5a67b22"
+  },
+  "pluginMarket.noReleaseNotes": {
+    "sourceHash": "510e1b0c5f5c2daa73709c8c71161c3b289f76b56e77cc2d9850ab551652918f"
   }
 }

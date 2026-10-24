@@ -108,3 +108,34 @@ async def poll_import_watch_fixture():
     ingest.QUIET_SECONDS = 0
     await ingest.ingest_tick()
     return {"ok": True}
+
+
+# Marketplace fixture keeps signature/hash/package validation real and substitutes only HTTP.
+if os.environ.get("E2E_MARKET_UPSTREAM"):
+    import json
+    from urllib.parse import quote
+
+    from movieclaw_api.services import plugin_market
+
+    market_upstream = os.environ["E2E_MARKET_UPSTREAM"]
+    assert urlsplit(market_upstream).hostname == "127.0.0.1"
+    plugin_market.CATALOG_KEYS = json.loads(os.environ["E2E_MARKET_KEYS"])
+
+    class MarketTransport(httpx.AsyncBaseTransport):
+        def __init__(self):
+            self.transport = httpx.AsyncHTTPTransport()
+
+        async def handle_async_request(self, request):
+            assert request.url.host in {"github.com", "raw.githubusercontent.com"}
+            redirected = httpx.Request(
+                request.method,
+                market_upstream + "/" + quote(str(request.url), safe=""),
+                content=await request.aread(),
+                extensions=request.extensions,
+            )
+            return await self.transport.handle_async_request(redirected)
+
+        async def aclose(self):
+            await self.transport.aclose()
+
+    plugin_market.transport_factory = MarketTransport
