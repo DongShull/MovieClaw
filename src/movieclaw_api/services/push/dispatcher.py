@@ -61,6 +61,7 @@ class Outcome:
     result: str
     message: str = ""
     channel_id: str | None = None
+    message_ref: dict | None = None
 
 
 def build_message(
@@ -147,20 +148,29 @@ async def deliver(items: list[Outgoing], *, attempt: int = 0) -> list[Outcome]:
                             item.device_name,
                             "no_channel",
                             "没有能推这个 App 的可用通道",
+                            message_ref={"message_key": "push.outcome.noChannel"},
                         )
                     )
                 continue
             if not available:
                 state = channel_registry.runtime(candidates[0].id)
+                blocked = state.blocked()
+                message = state.blocked_message if blocked else None
+                message_ref = state.blocked_message_ref if blocked else None
+                if not message:
+                    message = state.device_block(item.token)
+                    message_ref = state.device_block_refs.get(item.token)
+                if not message:
+                    message = "今天的推送额度已经用完"
+                    message_ref = {"message_key": "push.channels.quotaExhausted"}
                 outcomes.append(
                     Outcome(
                         item.device_id,
                         item.device_name,
                         "rate_limited",
-                        (state.blocked_message if state.blocked() else None)
-                        or state.device_block(item.token)
-                        or "今天的推送额度已经用完",
+                        message,
                         candidates[0].id,
+                        message_ref=message_ref,
                     )
                 )
                 continue
@@ -189,12 +199,24 @@ async def deliver(items: list[Outgoing], *, attempt: int = 0) -> list[Outcome]:
                 item.failed_channels.clear()
             spawn(_retry_later(retry, attempt))
             final.extend(
-                Outcome(i.device_id, i.device_name, "queued", "通道暂时不可用，稍后自动重试")
+                Outcome(
+                    i.device_id,
+                    i.device_name,
+                    "queued",
+                    "通道暂时不可用，稍后自动重试",
+                    message_ref={"message_key": "push.outcome.queued"},
+                )
                 for i in retry
             )
         else:
             final.extend(
-                Outcome(i.device_id, i.device_name, "failed", "通道一直不可用，重试后仍没发出去")
+                Outcome(
+                    i.device_id,
+                    i.device_name,
+                    "failed",
+                    "通道一直不可用，重试后仍没发出去",
+                    message_ref={"message_key": "push.outcome.failed"},
+                )
                 for i in retry
             )
     return final
@@ -248,7 +270,15 @@ async def _send_batch(channel: Channel, batch: list[Outgoing]) -> list[Outcome] 
         if error.retryable:
             return None
         return [
-            Outcome(i.device_id, i.device_name, "failed", error.message, channel.id) for i in batch
+            Outcome(
+                i.device_id,
+                i.device_name,
+                "failed",
+                error.message,
+                channel.id,
+                message_ref=error.message_ref,
+            )
+            for i in batch
         ]
 
     state.record_success(response.quota)
@@ -295,6 +325,10 @@ async def _handle_result(channel: Channel, item: Outgoing, result: dict) -> Outc
                 until,
                 message or "这台设备今天的推送已达上限",
             )
+            if message:
+                state.device_block_refs.pop(item.token, None)
+            else:
+                state.device_block_refs[item.token] = {"message_key": "push.outcome.deviceQuota"}
     elif code == "apns_error" and result.get("retryable"):
         outcome.result = "retry"
     elif code == "topic_not_allowed":

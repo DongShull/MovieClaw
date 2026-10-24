@@ -97,5 +97,32 @@
   },
   "warnings.undeclared": {
     "sourceHash": "2da7995d8941cca44433586ffaf294b03ecf02790f95aabca55958a99be39664"
+  },
+  "outcome.noChannel": {
+    "sourceHash": "d7f346b9ccb7b5d45d88c97428f90eb2fb21671de6f7a000d79b962c412a8b11"
+  },
+  "outcome.queued": {
+    "sourceHash": "0efb34c9cc68f6ba12289aaf42ca2012c012a0ab72625fd32f5d44d0fd06548c"
+  },
+  "outcome.failed": {
+    "sourceHash": "d638fdb9e1f3f47042609c449ded2c6c30a85256166c4c621650d906d6401424"
+  },
+  "outcome.deviceQuota": {
+    "sourceHash": "896a32470601817aa07eecb2842d2a714de159b04179c834fc983a5d67cbb31c"
+  },
+  "outcome.delivered": {
+    "sourceHash": "c3433fe19ad074b7a33d6576b44e38081ef60a960a0c48ed7c12a06ae4805f12"
+  },
+  "outcome.streamSent": {
+    "sourceHash": "f4202c5408104fa5c4d072e596862e0ffdba0bd0788d825adcc495d840a27f07"
+  },
+  "outcome.streamQueued": {
+    "sourceHash": "9e33bab076bfc22ff0f28e28816844fa6af267d687c1555f57cd5d202883ae28"
+  },
+  "outcome.imSent": {
+    "sourceHash": "115712c952206f2c2fb8848a728a68b312da9f13c17588f947f2ec68614387ad"
+  },
+  "outcome.imMissing": {
+    "sourceHash": "5bee348b6e13ab58295421ca89d929757ee2f46f97c74f85dec2272e9f048747"
   }
 }

@@ -65,6 +65,7 @@ class ChannelRuntime:
     device_blocks: dict[str, tuple[datetime, str]] = field(default_factory=dict)
     last_error_ref: dict | None = None
     blocked_message_ref: dict | None = None
+    device_block_refs: dict[str, dict] = field(default_factory=dict)
 
     def record_success(self, quota: dict | None) -> None:
         self.last_success_at = utcnow()
@@ -94,6 +95,7 @@ class ChannelRuntime:
             return None
         if entry[0] <= utcnow():
             del self.device_blocks[token]
+            self.device_block_refs.pop(token, None)
             return None
         return entry[1]
 
@@ -103,6 +105,7 @@ class ChannelRuntime:
         self.blocked_message = None
         self.blocked_message_ref = None
         self.device_blocks.clear()
+        self.device_block_refs.clear()
 
 
 _runtime: dict[str, ChannelRuntime] = {}

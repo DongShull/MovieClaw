@@ -1,5 +1,6 @@
 import { appTranslator, type AppMessageKey } from "./i18n/translate.ts";
 import { requestLocale, type AppLocale } from "./i18n/negotiate.ts";
+import { formatList } from "./i18n/format.ts";
 
 /**
  * 「MovieClaw Cloud」「App 推送」「通知」三个设置分区的展示口径
@@ -342,14 +343,15 @@ export function relayNameFromUrl(url: string): string {
 /* —— 我的通知 —— */
 
 /** 事件按 group 分组，组和组内顺序都照后端给的顺序。 */
-export function groupEvents<T extends { group: string }>(
+export function groupEvents<T extends { group: string; group_id?: string | null }>(
   events: T[],
-): { group: string; items: T[] }[] {
-  const groups: { group: string; items: T[] }[] = [];
+): { group: string; id?: string; items: T[] }[] {
+  const groups: { group: string; id?: string; items: T[] }[] = [];
   for (const event of events) {
-    const existing = groups.find((g) => g.group === event.group);
+    const id = event.group_id ?? event.group;
+    const existing = groups.find((g) => (g.id ?? g.group) === id);
     if (existing) existing.items.push(event);
-    else groups.push({ group: event.group, items: [event] });
+    else groups.push({ group: event.group, items: [event], ...(event.group_id != null ? { id } : {}) });
   }
   return groups;
 }
@@ -412,20 +414,24 @@ export function devicePushNote(
 }
 
 /** 「通知」页顶部提示里的一行：「iPad：系统通知已关闭，在这台设备的设置里打开」。 */
-export function attentionLine(item: Pick<MyPushAttention, "device_name" | "status" | "status_text">): string {
-  const reason = item.status_text?.trim() || (Object.hasOwn(DEVICE_PUSH_FALLBACK, item.status) ? appTranslator()(DEVICE_PUSH_FALLBACK[item.status]) : null) || item.status;
-  return `${item.device_name}：${reason}`;
+export function attentionLine(item: Pick<MyPushAttention, "device_name" | "status" | "status_text">,
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): string {
+  const t = appTranslator(locale);
+  const reason = item.status_text?.trim() || (Object.hasOwn(DEVICE_PUSH_FALLBACK, item.status) ? t(DEVICE_PUSH_FALLBACK[item.status]) : null) || item.status;
+  return t("settings.notificationPreferences.reasonLine", { name: item.device_name, reason });
 }
 
 /** 测试按钮旁的说明：发给几台；一台都没有时告诉人设备从哪来。 */
-export function testTargetHint(readyDevices: number, imAccounts = 0): string {
+export function testTargetHint(readyDevices: number, imAccounts = 0,
+  locale: AppLocale = requestLocale() ?? "zh-Hans"): string {
+  const t = appTranslator(locale);
   const targets = [
-    readyDevices > 0 ? `${readyDevices} 台设备` : "",
-    imAccounts > 0 ? `${imAccounts} 个 IM 账号` : "",
+    readyDevices > 0 ? t("settings.notificationPreferences.devices", { count: readyDevices }) : "",
+    imAccounts > 0 ? t("settings.notificationPreferences.imAccounts", { count: imAccounts }) : "",
   ].filter(Boolean);
   return targets.length > 0
-    ? `发给你的 ${targets.join("和 ")}`
-    : "还没有能收到通知的设备：用 MovieClaw App 登录后会出现";
+    ? t("settings.notificationPreferences.testTargets", { targets: locale === "zh-Hans" ? targets.join("和 ") : formatList(targets, locale) })
+    : t("settings.notificationPreferences.noTargetsHint");
 }
 
 /**
@@ -433,30 +439,30 @@ export function testTargetHint(readyDevices: number, imAccounts = 0): string {
  * 别的结果（包括「通道暂时不可用，稍后自动重试」这类已排队的）都把服务端
  * 的说明带上——sent 怎么算以服务端为准。
  */
-export function summarizePushTest(result: PushTestResult): {
+export function summarizePushTest(result: PushTestResult, locale: AppLocale = requestLocale() ?? "zh-Hans"): {
   tone: "success" | "error";
   message: string;
 } {
+  const t = appTranslator(locale);
   const notes = result.results
     .filter((r) => r.result !== "ok")
-    .map((r) => `${r.device_name}：${r.message?.trim() || "没有发出去"}`)
-    .join("；");
+    .map((r) => t("settings.notificationPreferences.reasonLine", { name: r.device_name, reason: r.message?.trim() || t("settings.notificationPreferences.notSent") }))
+    .join(locale === "zh-Hans" ? "；" : "; ");
   if (result.sent > 0) {
     // IM 也是通知渠道，回执里单说（device_id 为 im），不算进「台设备」
     const im = result.results.some((r) => r.device_id === "im" && r.result === "ok");
     const devices = result.sent - (im ? 1 : 0);
-    const target = [devices > 0 ? `${devices} 台设备` : "", im ? "IM" : ""]
-      .filter(Boolean)
-      .join("和 ");
+    const targets = [devices > 0 ? t("settings.notificationPreferences.devices", { count: devices }) : "", im ? "IM" : ""].filter(Boolean);
+    const target = locale === "zh-Hans" ? targets.join("和 ") : formatList(targets, locale);
     return {
       tone: "success",
       message: notes
-        ? `测试通知已发给 ${target}。${notes}`
-        : `测试通知已发给 ${target}，${devices > 0 ? "看看手机吧" : "去 IM 看看吧"}`,
+        ? t("settings.notificationPreferences.partialReceipt", { target, notes })
+        : t("settings.notificationPreferences.sentReceipt", { target, hint: devices > 0 ? t("settings.notificationPreferences.checkPhone") : t("settings.notificationPreferences.checkIm") }),
     };
   }
   return {
     tone: "error",
-    message: notes ? `测试通知没有发出去。${notes}` : "没有能收通知的设备",
+    message: notes ? t("settings.notificationPreferences.failedReceipt", { notes }) : t("settings.notificationPreferences.noDevices"),
   };
 }

@@ -25,6 +25,7 @@ class PushEvent:
     default: bool
     #: 只有管理员会收到（成员看不到这个开关）
     admin_only: bool = False
+    group_id: str | None = None
 
 
 #: 旧版偏好键 → 现在的键（老 App 还会发旧键；库里的旧键已由迁移改名）
@@ -51,6 +52,7 @@ def push_events() -> list[PushEvent]:
             title=stored_message(entry.title, entry.title),
             description=stored_message(entry.description, entry.description),
             group=stored_message(entry.group, entry.group),
+            group_id=entry.group,
             default=entry.default,
             admin_only=entry.admin_only,
         )

@@ -82,6 +82,11 @@ async def deliver(messages: list[ImMessage]) -> list[Outcome]:
                 "ok" if sent else "failed",
                 f"已交给 {sent} 个 IM 账号发送" if sent else "IM 账号没有推送目标，重新绑定试试",
                 "im",
+                message_ref=(
+                    {"message_key": "push.outcome.imSent", "params": {"count": sent}}
+                    if sent
+                    else {"message_key": "push.outcome.imMissing"}
+                ),
             )
         )
     return outcomes

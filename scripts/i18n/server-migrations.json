@@ -2495,5 +2495,14 @@
   "push.warnings.publicHttp": "地址是 http:// 而且不在局域网：令牌会明文经过公网，建议在中继前面加 HTTPS",
   "push.warnings.publicNoAuth": "这个中继不要令牌、又在公网上：知道地址的人都能用它往你的 App 推送",
   "push.warnings.noDevices": "目前没有设备会用到这个中继，它能推送的 App：{apps}",
-  "push.warnings.undeclared": "（没有声明）"
+  "push.warnings.undeclared": "（没有声明）",
+  "push.outcome.noChannel": "没有能推这个 App 的可用通道",
+  "push.outcome.queued": "通道暂时不可用，稍后自动重试",
+  "push.outcome.failed": "通道一直不可用，重试后仍没发出去",
+  "push.outcome.deviceQuota": "这台设备今天的推送已达上限",
+  "push.outcome.delivered": "已送达苹果推送服务",
+  "push.outcome.streamSent": "已通过实时连接送出",
+  "push.outcome.streamQueued": "手机现在没连着，连上后补发",
+  "push.outcome.imSent": "已交给 {count} 个 IM 账号发送",
+  "push.outcome.imMissing": "IM 账号没有推送目标，重新绑定试试"
 }

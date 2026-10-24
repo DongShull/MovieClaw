@@ -37,5 +37,16 @@
     "publicNoAuth": "This public relay requires no token. Anyone who knows its address can push to your app",
     "noDevices": "No registered devices currently use this relay. Supported apps: {apps}",
     "undeclared": "(not declared)"
+  },
+  "outcome": {
+    "noChannel": "No available channel supports this app",
+    "queued": "Channel is temporarily unavailable. It will retry automatically",
+    "failed": "Channel remains unavailable after retries. The notification was not sent",
+    "deviceQuota": "This device has reached today’s push limit",
+    "delivered": "Delivered to Apple Push Notification service",
+    "streamSent": "Sent through the live connection",
+    "streamQueued": "The phone is disconnected. Delivery will resume when it reconnects",
+    "imSent": "Passed to {count, plural, one {# IM account} other {# IM accounts}} for delivery",
+    "imMissing": "The IM account has no push destination. Try linking it again"
   }
 }

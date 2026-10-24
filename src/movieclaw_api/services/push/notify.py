@@ -325,6 +325,11 @@ async def prepare(
                 "ok" if online else "queued",
                 "已通过实时连接送出" if online else "手机现在没连着，连上后补发",
                 "stream",
+                message_ref={
+                    "message_key": "push.outcome.streamSent"
+                    if online
+                    else "push.outcome.streamQueued"
+                },
             )
         )
     if queued:

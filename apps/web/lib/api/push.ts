@@ -171,6 +171,7 @@ export interface MyPushEvent {
   description: string;
   /** 分组标题（我的订阅、账号安全、管理员通知……），按出现顺序分组 */
   group: string;
+  group_id?: string | null;
   enabled: boolean;
   default: boolean;
 }
@@ -228,8 +229,10 @@ export interface PushTestResult {
   results: { device_id: string; device_name: string; result: string; message: string | null }[];
 }
 
-export function getMyPush(): Promise<MyPushView> {
-  return unwrap(request<ApiEnvelope<MyPushView>>("/push/me"));
+export function getMyPush(locale?: AppLocale): Promise<MyPushView> {
+  return unwrap(request<ApiEnvelope<MyPushView>>("/push/me", locale ? {
+    headers: { "Accept-Language": locale },
+  } : undefined));
 }
 
 /**

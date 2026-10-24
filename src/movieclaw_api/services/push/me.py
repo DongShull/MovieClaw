@@ -14,6 +14,7 @@ from movieclaw_api.exceptions import (
     NotFoundException,
 )
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.cloud import (
     MyPushView,
     PushAttentionView,
@@ -60,7 +61,12 @@ def device_status(device: LoginDevice, channels: list[Channel]) -> tuple[str, st
     candidates = channel_registry.route(channels, device.push_topic)
     if not candidates:
         return "no_channel", t("auth.devicePush.noChannel"), None
-    return "ok", t("auth.devicePush.ready"), candidates[0].name
+    channel = candidates[0]
+    return (
+        "ok",
+        t("auth.devicePush.ready"),
+        (t("push.channels.official") if channel.kind == "official" else channel.name),
+    )
 
 
 async def build_view(session: AsyncSession, principal: Principal) -> MyPushView:
@@ -72,6 +78,7 @@ async def build_view(session: AsyncSession, principal: Principal) -> MyPushView:
             title=e.title,
             description=e.description,
             group=e.group,
+            group_id=e.group_id,
             enabled=effective[e.key],
             default=e.default,
         )
@@ -236,7 +243,8 @@ async def test(principal: Principal) -> PushTestView:
                 device_id="im" if o.channel_id == "im" else f"ld-{o.device_id}",
                 device_name=o.device_name,
                 result=o.result,
-                message=o.message or ("已送达苹果推送服务" if o.result == "ok" else ""),
+                message=render_value(o.message_ref or o.message)
+                or (t("push.outcome.delivered") if o.result == "ok" else ""),
             )
             for o in outcomes
         ],
