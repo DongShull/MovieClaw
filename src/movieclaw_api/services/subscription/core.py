@@ -25,16 +25,15 @@ from sqlalchemy import and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.exceptions import (
     BadRequestException,
     ForbiddenException,
     NotFoundException,
 )
-from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services.library.profile import kind_reference
 from movieclaw_api.services.media_library import MediaLibraryService
-from movieclaw_api.services.rule_sets import RuleSetService
+from movieclaw_api.services.rule_sets import RuleSetService, rule_set_name_reference
 from movieclaw_api.services.subscription import events as subscription_events
 from movieclaw_api.services.subscription.cleanup import (
     CleanupPlan,
@@ -511,7 +510,11 @@ class SubscriptionService:
                 and await self._repo.add_follower(existing.id, member_id)
             )
             if is_new_follower:
-                await self._log(existing, ActivityType.CREATED, **stored_fields('activity.subscription.newFollower'))
+                await self._log(
+                    existing,
+                    ActivityType.CREATED,
+                    **stored_fields("activity.subscription.newFollower"),
+                )
             logger.info("条目《%s》已有订阅 #%s，幂等返回", item.title, existing.id)
             return existing
         assert item.id is not None
@@ -556,7 +559,7 @@ class SubscriptionService:
         # 入库目标：显式指定优先；否则按收藏范围路由并**创建时定格**——粘性
         # 的实现（docs/design/library-routing.md 2.1）：之后每次投递读定格值，
         # 规则中途变更不影响既有订阅，一部剧不会裂在两个库
-        route_note: str | None = None
+        route_note: str | dict | None = None
         facts_known = False
         facts = None
         if library_id is not None:
@@ -566,17 +569,17 @@ class SubscriptionService:
             facts, facts_known = decision.facts, True
             if decision.library is not None:
                 library_id = decision.library.id
-                route_note = decision.reason
+                route_note = decision.reason_message or decision.reason
         # 规则组：显式指定优先；否则按适用范围自动选组（docs/design/rule-set-scope.md），
         # 都不命中落默认组。成员订阅、补下缺失单元等不带规则组的路径都走这里
-        rule_note: str | None = None
+        rule_note: str | dict | None = None
         if rule_set_id is None and selection_mode == "rules":
             if not facts_known:
                 facts = await gather_facts(self._session, item)
             pick = await self._rule_sets.pick(kind.value, facts)
             rule_set_id = pick.rule_set.id
             if pick.matched:
-                rule_note = pick.reason
+                rule_note = pick.reason_message or pick.reason
         assert rule_set_id is not None or smart_policy is not None
 
         # 订阅弹层打开时（prepare）用户还没选库，条目多半没有刮削归属；
@@ -635,23 +638,21 @@ class SubscriptionService:
                 # 新回答立刻作用到其他在等的智能订阅（比如「我看得懂英语」）
                 await apply_to_subscriptions(self._session)
             await self._session.commit()
-        created_message = self._created_message(item, kind, selected, follow_future, rows)
-        if skipped_owned:
-            created_message += f"；库里已有 {len(skipped_owned)} 个单元，无需重复下载"
-        windows = windows_of(subscription, known_max_of(episodes))
-        if windows:
-            created_message += "；" + "、".join(
-                _cap_text(w) for w in windows
-            )
-        if route_note:
-            created_message += f"；{route_note}"
-        if rule_note:
-            created_message += f"；{rule_note}"
+        created_base = self._created_reference(item, kind, selected, follow_future, rows)
         await self._record(SUBSCRIPTION_CREATED, subscription)
         await self._log(
             subscription,
             ActivityType.CREATED,
-            created_message,
+            **stored_fields(
+                "activity.subscription.created",
+                base=created_base,
+                hasOwned="yes" if skipped_owned else "no",
+                owned=len(skipped_owned),
+                hasRoute="yes" if route_note else "no",
+                route=route_note or "",
+                hasRule="yes" if rule_note else "no",
+                rule=rule_note or "",
+            ),
             payload={
                 "selected_seasons": selected,
                 "follow_future": follow_future,
@@ -836,29 +837,33 @@ class SubscriptionService:
                 self._session,
                 dedupe_key=f"subscription.landing:{subscription_id}:{info_hash}",
             )
-        season_text = self._season_text(list(subscription.selected_seasons))
-        rule_note = f"，规则组改为「{new_rule_set.name}」" if new_rule_set is not None else ""
         floors_after = floors_of(subscription)
-        floor_text = (
-            "、".join(f"第 {s} 季按 {n} 集" for s, n in sorted(floors_after.items()))
+        floors_message = (
+            {
+                "message_list": [
+                    reference("activity.subscription.episodeFloor", season=season, count=count)
+                    for season, count in sorted(floors_after.items())
+                ],
+                "separator_key": "common.list.separator",
+            }
             if floors_after
-            else "改回以 TMDB 为准"
+            else reference("activity.subscription.tmdbEpisodeCount")
         )
-        floor_note = f"，集数{floor_text}" if floors_after != floors_before else ""
-        window_list = windows_of(subscription, known_max_of(episodes))
-        cap_text = (
-            "、".join(_cap_text(w) for w in window_list)
-            if window_list
-            else "不再限制订阅的集数"
-        )
-        cap_note = f"，{cap_text}" if caps != caps_before else ""
         await self._log(
             subscription,
             ActivityType.ADJUSTED,
-            f"调整订阅：勾选{season_text}，自动续订{'开' if subscription.follow_future else '关'}"
-            f"{rule_note}{floor_note}{cap_note}；新增 {len(to_add)} 个单元，"
-            f"重新纳入 {reactivated} 个，退出范围 {deactivated} 个"
-            "（下载器任务不会自动删除；退出范围后停止搜索与换源）",
+            **stored_fields(
+                "activity.subscription.adjusted",
+                seasons=self._season_reference(list(subscription.selected_seasons)),
+                follow="yes" if subscription.follow_future else "no",
+                ruleChanged="yes" if new_rule_set is not None else "no",
+                rule=rule_set_name_reference(new_rule_set) if new_rule_set is not None else "",
+                floorsChanged="yes" if floors_after != floors_before else "no",
+                floors=floors_message,
+                added=len(to_add),
+                reactivated=reactivated,
+                deactivated=deactivated,
+            ),
             payload={
                 "selected_seasons": list(subscription.selected_seasons),
                 "follow_future": subscription.follow_future,
@@ -1086,7 +1091,12 @@ class SubscriptionService:
             self._session.add(row)
             requeued += 1
         if requeued:
-            await self._log(subscription, ActivityType.ADJUSTED, payload={"requeued_units": sorted(units)}, **stored_fields('activity.subscription.missingFilesRequeued', count=requeued))
+            await self._log(
+                subscription,
+                ActivityType.ADJUSTED,
+                payload={"requeued_units": sorted(units)},
+                **stored_fields("activity.subscription.missingFilesRequeued", count=requeued),
+            )
             item_row = await self._media_repo_get(subscription.media_item_id)
             await self._recompute_status(subscription, item_row)
             self._kick_search()
@@ -1157,7 +1167,9 @@ class SubscriptionService:
                     reason="paused",
                 )
             await self._repo.save(subscription)
-            await self._log(subscription, ActivityType.PAUSED, **stored_fields('activity.subscription.paused'))
+            await self._log(
+                subscription, ActivityType.PAUSED, **stored_fields("activity.subscription.paused")
+            )
             return subscription
         subscription.status = SubscriptionStatus.ACTIVE
         if previous != subscription.status:
@@ -1168,7 +1180,9 @@ class SubscriptionService:
                 reason="resumed",
             )
         await self._repo.save(subscription)
-        await self._log(subscription, ActivityType.RESUMED, **stored_fields('activity.subscription.resumed'))
+        await self._log(
+            subscription, ActivityType.RESUMED, **stored_fields("activity.subscription.resumed")
+        )
         item = await self._media_repo_get(subscription.media_item_id)
         await self._recompute_status(subscription, item)
         self._refresh_forecasts_soon(subscription.media_item_id)
@@ -1225,7 +1239,11 @@ class SubscriptionService:
             subscription.created_by_member_id = heir
             await self._repo.save(subscription)
             await self._repo.remove_follower(subscription_id, heir)
-            await self._log(subscription, ActivityType.CREATED, **stored_fields('activity.subscription.ownerTransferred'))
+            await self._log(
+                subscription,
+                ActivityType.CREATED,
+                **stored_fields("activity.subscription.ownerTransferred"),
+            )
             logger.info(
                 "订阅 #%d 发起人 #%d 退出，转移给成员 #%d", subscription_id, member_id, heir
             )
@@ -1761,47 +1779,63 @@ class SubscriptionService:
             )
         )
 
-    def _created_message(
+    def _created_reference(
         self,
         item: MediaItem,
         kind: MediaKind,
         selected: list[int],
         follow_future: bool,
         rows: list[WantedItem],
-    ) -> str:
-        """创建活动的中文摘要：把 E 的定义和调度分布一句话说清楚。"""
+    ) -> dict:
+        """Keep scheduling facts in the history; render the summary for each reader."""
         now = utcnow()
         if kind is MediaKind.MOVIE:
             row = rows[0] if rows else None
             if row is None:
-                return f"创建订阅《{item.title}》"
+                return reference("activity.subscription.createdMovieEmpty", title=item.title)
             if row.next_search_at is None:
-                return (
-                    f"创建订阅《{item.title}》：影片尚未定档，定档/上映后自动安排搜索；"
-                    "期间站点新出的资源仍会被自动匹配"
-                )
+                return reference("activity.subscription.createdMovieUndated", title=item.title)
             if row.next_search_at > now:
-                return (
-                    f"创建订阅《{item.title}》：影片未上映或刚上映，"
-                    f"{row.next_search_at.date().isoformat()} 起开始搜索资源；"
-                    "期间站点新出的资源仍会被自动匹配"
+                return reference(
+                    "activity.subscription.createdMovieScheduled",
+                    title=item.title,
+                    date=row.next_search_at.date().isoformat(),
                 )
-            return f"创建订阅《{item.title}》：已加入搜索队列，等待搜索任务寻找资源"
+            return reference("activity.subscription.createdMovieQueued", title=item.title)
         immediate = sum(1 for w in rows if w.next_search_at is not None and w.next_search_at <= now)
         future = sum(1 for w in rows if w.next_search_at is not None and w.next_search_at > now)
         undated = sum(1 for w in rows if w.next_search_at is None)
         parts = []
         if immediate:
-            parts.append(f"{immediate} 集已播出、排入搜索队列")
+            parts.append(reference("activity.subscription.createdAired", count=immediate))
         if future:
-            parts.append(f"{future} 集未播出、播出后先等被动匹配")
+            parts.append(reference("activity.subscription.createdFuture", count=future))
         if undated:
-            parts.append(f"{undated} 集未定档、定档后再安排")
-        detail = "；".join(parts) if parts else "暂无待办集"
-        return (
-            f"创建订阅《{item.title}》：勾选{self._season_text(selected)}，"
-            f"自动续订{'开' if follow_future else '关'}；"
-            f"共生成 {len(rows)} 个追踪项——{detail}"
+            parts.append(reference("activity.subscription.createdUndated", count=undated))
+        detail = (
+            {"message_list": parts, "separator_key": "common.list.issueSeparator"}
+            if parts
+            else reference("activity.subscription.createdNoEpisodes")
+        )
+        return reference(
+            "activity.subscription.createdTv",
+            title=item.title,
+            seasons=self._season_reference(selected),
+            follow="yes" if follow_future else "no",
+            count=len(rows),
+            detail=detail,
+        )
+
+    @staticmethod
+    def _season_reference(selected: list[int]) -> dict:
+        if not selected:
+            return reference("subscription.scope.noSeasons")
+        return reference(
+            "subscription.scope.seasons",
+            numbers={
+                "message_list": [str(number) for number in selected],
+                "separator_key": "common.list.separator",
+            },
         )
 
     @staticmethod
@@ -1956,7 +1990,11 @@ class SubscriptionService:
         if not dismiss_hint(subscription, season_number, known_max):
             raise BadRequestException(message_key="errors.subscription.noEpisodeHint")
         await self._repo.save(subscription)
-        await self._log(subscription, ActivityType.ADJUSTED, **stored_fields('activity.subscription.episodeHintDismissed', season=season_number))
+        await self._log(
+            subscription,
+            ActivityType.ADJUSTED,
+            **stored_fields("activity.subscription.episodeHintDismissed", season=season_number),
+        )
         await self._recompute_status(subscription, item)
         return subscription
 

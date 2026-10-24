@@ -60,6 +60,19 @@
     "replacementSearchUnavailable": "The alternative source search is temporarily unavailable and will retry when site connections recover",
     "reconciledImport": "{units} imported (confirmed by library reconciliation)",
     "identityCorrected": "The files for {units} no longer belong to this title because their identity was corrected. Searching for releases again.",
-    "multipleUnits": "{first} and others ({count, plural, one {# episode} other {# episodes}})"
+    "multipleUnits": "{first} and others ({count, plural, one {# episode} other {# episodes}})",
+    "created": "{base}{hasOwned, select, yes {; {owned, plural, one {# unit already in the library; no duplicate download needed} other {# units already in the library; no duplicate downloads needed}}} other {}}{hasRoute, select, yes {; {route}} other {}}{hasRule, select, yes {; {rule}} other {}}",
+    "createdMovieEmpty": "Created subscription to “{title}”",
+    "createdMovieUndated": "Created subscription to “{title}”: no release date is set. Searches will be scheduled after a date or release is confirmed; new site releases will still be matched automatically",
+    "createdMovieScheduled": "Created subscription to “{title}”: the movie is unreleased or just released. Searches start on {date}; new site releases will still be matched automatically",
+    "createdMovieQueued": "Created subscription to “{title}”: queued for a search task to find releases",
+    "createdTv": "Created subscription to “{title}”: selected {seasons}, following future releases {follow, select, yes {on} other {off}}; created {count, plural, one {# tracking unit} other {# tracking units}} — {detail}",
+    "createdAired": "{count, plural, one {# aired episode queued for search} other {# aired episodes queued for search}}",
+    "createdFuture": "{count, plural, one {# unaired episode will await passive matching after airing} other {# unaired episodes will await passive matching after airing}}",
+    "createdUndated": "{count, plural, one {# episode has no air date; scheduling follows once it is set} other {# episodes have no air date; scheduling follows once they are set}}",
+    "createdNoEpisodes": "No pending episodes",
+    "adjusted": "Adjusted subscription: selected {seasons}, following future releases {follow, select, yes {on} other {off}}{ruleChanged, select, yes {, rule set changed to “{rule}”} other {}}{floorsChanged, select, yes {, episode counts: {floors}} other {}}; added {added, plural, one {# unit} other {# units}}, restored {reactivated, number}, removed {deactivated, number} from scope (downloader tasks are kept; searches and source replacement stop for removed units)",
+    "episodeFloor": "season {season, number}: {count, plural, one {# episode} other {# episodes}}",
+    "tmdbEpisodeCount": "use TMDB counts again"
   }
 }

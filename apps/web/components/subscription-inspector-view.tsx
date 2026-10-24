@@ -154,7 +154,7 @@ export function SubscriptionInspectorView({
 
   useEffect(() => {
     reload();
-  }, [reload]);
+  }, [reload, locale]);
 
   // 预测刷新在后台跑（订阅创建/调整/恢复后要几秒才落库），刚取到的详情可能还是
   // 旧预测。后端标了 forecast_pending 就隔一会儿只重取详情，直到预测落库；
@@ -1414,7 +1414,7 @@ function activityColor(type: SubscriptionActivity["type"]): string {
 
 /**
  * 活动时间线（全宽竖轨）：圆点定性（颜色）+ 中文流水句 + 相对时间。
- * message 由后端写入时渲染成完整句子，前端不做模板拼接。
+ * message 由后端按读取者语言渲染成完整句子，前端不做模板拼接。
  */
 function ActivityTimeline({
   activities,
@@ -1424,6 +1424,7 @@ function ActivityTimeline({
   /** 已被外层卡片（排查记录折叠区）包裹时不再画自己的边框底色 */
   bare?: boolean;
 }) {
+  const locale = useLocale();
   if (activities.length === 0) {
     return (
       <p className="solid-card rounded-2xl border border-white/[0.07] bg-[rgba(14,16,22,0.45)] p-5 text-sub leading-6 text-[var(--text-muted)] backdrop-blur-xl">
@@ -1454,14 +1455,14 @@ function ActivityTimeline({
                 {!last && <span className="mt-1.5 w-px flex-1 bg-white/[0.08]" />}
               </div>
               <div
-                className={`flex min-w-0 flex-1 items-baseline gap-5 ${last ? "" : "pb-5"}`}
+                className={`flex min-w-0 flex-1 items-baseline gap-5 ${locale === "en" ? "max-md:flex-wrap max-md:gap-y-1" : ""} ${last ? "" : "pb-5"}`}
               >
-                <p className="min-w-0 flex-1 text-ui leading-6 text-white/85">{a.message}</p>
+                <p className={`min-w-0 flex-1 text-ui leading-6 text-white/85 ${locale === "en" ? "max-md:basis-full [overflow-wrap:anywhere]" : ""}`}>{a.message}</p>
                 <span
                   className="tnum shrink-0 text-caption text-[var(--text-faint)]"
-                  title={formatDateTime(a.created_at)}
+                  title={formatDateTime(a.created_at, locale)}
                 >
-                  {formatRelativeTime(a.created_at)}
+                  {formatRelativeTime(a.created_at, locale)}
                 </span>
               </div>
             </li>

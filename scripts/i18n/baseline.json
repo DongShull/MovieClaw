@@ -626,7 +626,7 @@
   "src/movieclaw_api/services/storage/registry.py": 87,
   "src/movieclaw_api/services/storage/service.py": 1,
   "src/movieclaw_api/services/subscription/cleanup.py": 22,
-  "src/movieclaw_api/services/subscription/core.py": 64,
+  "src/movieclaw_api/services/subscription/core.py": 29,
   "src/movieclaw_api/services/subscription/dispatch.py": 30,
   "src/movieclaw_api/services/subscription/file_selection.py": 5,
   "src/movieclaw_api/services/subscription/health.py": 102,

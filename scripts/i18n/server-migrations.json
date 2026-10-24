@@ -1791,5 +1791,18 @@
   "subscription.upgrade.summaryMissing": "{count} 个缺失将照常下载",
   "subscription.upgrade.summarySeparator": "；",
   "subscription.upgrade.summary": "{parts}",
-  "subscription.upgrade.noUnits": "没有可处理的单元"
+  "subscription.upgrade.noUnits": "没有可处理的单元",
+  "activity.subscription.created": "{base}{hasOwned, select, yes {；库里已有 {owned} 个单元，无需重复下载} other {}}{hasRoute, select, yes {；{route}} other {}}{hasRule, select, yes {；{rule}} other {}}",
+  "activity.subscription.createdMovieEmpty": "创建订阅《{title}》",
+  "activity.subscription.createdMovieUndated": "创建订阅《{title}》：影片尚未定档，定档/上映后自动安排搜索；期间站点新出的资源仍会被自动匹配",
+  "activity.subscription.createdMovieScheduled": "创建订阅《{title}》：影片未上映或刚上映，{date} 起开始搜索资源；期间站点新出的资源仍会被自动匹配",
+  "activity.subscription.createdMovieQueued": "创建订阅《{title}》：已加入搜索队列，等待搜索任务寻找资源",
+  "activity.subscription.createdTv": "创建订阅《{title}》：勾选{seasons}，自动续订{follow, select, yes {开} other {关}}；共生成 {count} 个追踪项——{detail}",
+  "activity.subscription.createdAired": "{count} 集已播出、排入搜索队列",
+  "activity.subscription.createdFuture": "{count} 集未播出、播出后先等被动匹配",
+  "activity.subscription.createdUndated": "{count} 集未定档、定档后再安排",
+  "activity.subscription.createdNoEpisodes": "暂无待办集",
+  "activity.subscription.adjusted": "调整订阅：勾选{seasons}，自动续订{follow, select, yes {开} other {关}}{ruleChanged, select, yes {，规则组改为「{rule}」} other {}}{floorsChanged, select, yes {，集数{floors}} other {}}；新增 {added} 个单元，重新纳入 {reactivated} 个，退出范围 {deactivated} 个（下载器任务不会自动删除；退出范围后停止搜索与换源）",
+  "activity.subscription.episodeFloor": "第 {season} 季按 {count} 集",
+  "activity.subscription.tmdbEpisodeCount": "改回以 TMDB 为准"
 }

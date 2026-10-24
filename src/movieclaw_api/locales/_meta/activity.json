@@ -163,5 +163,44 @@
   },
   "subscription.multipleUnits": {
     "sourceHash": "6c5cb524c902e327ba631a35f362d4c42d85f16b8c2b1418c524fc96ff77c8ff"
+  },
+  "subscription.created": {
+    "sourceHash": "b827a2a2ef410476469a947ff34b739ceaeea1f003568fb86f0d2183b10b83ac"
+  },
+  "subscription.createdMovieEmpty": {
+    "sourceHash": "477d2be73b3917d2d0983410c2139a48000f4b5bb4ec0e998277424c81cb217b"
+  },
+  "subscription.createdMovieUndated": {
+    "sourceHash": "2f4ab0b18ba76c95dbba4a6f607b6976ce415f2f59aed92a731e236a9005500e"
+  },
+  "subscription.createdMovieScheduled": {
+    "sourceHash": "e85a1dd9a41428c4fc0108db7118a6c35c0497e944670340aa8d6cc38920282d"
+  },
+  "subscription.createdMovieQueued": {
+    "sourceHash": "29517d2b99be936569696a18d8c6ae5ce195c75053a1d7572e5a6ac7b8369377"
+  },
+  "subscription.createdTv": {
+    "sourceHash": "8b4dedcb36ce27dca2e56935d4b83e94c97ba09c377c136d5ab670175f10f3e2"
+  },
+  "subscription.createdAired": {
+    "sourceHash": "41cb1d4e7b1c7fada0f1af177ddf7cf761401a52414dd177835d0226619ad3bf"
+  },
+  "subscription.createdFuture": {
+    "sourceHash": "c91e72cad4db93b1c6d9ce98bfc195c747af87415fa16b0adc421724ce7b38bf"
+  },
+  "subscription.createdUndated": {
+    "sourceHash": "fe53ac872f3ca497c2a03f920a4c155b5a2882c737006a8e50b055f6fd94f387"
+  },
+  "subscription.createdNoEpisodes": {
+    "sourceHash": "b98e40113948acd40b52d23af68ebd9ac33d1577297a0acf330f87be99af29f5"
+  },
+  "subscription.adjusted": {
+    "sourceHash": "4001abe5384f4e1a6f854233e608d03feaa71fb7dceb2d8e16738e639c40c490"
+  },
+  "subscription.episodeFloor": {
+    "sourceHash": "af10cea3552df3ee3018a0b644429b160a8e6e9ff7eab6d65685c69d0aa05c87"
+  },
+  "subscription.tmdbEpisodeCount": {
+    "sourceHash": "11f00da2d98e84b1cccf55bad87b85f1e70d0a9fdbbbbd8b4ce9212251b67b09"
   }
 }

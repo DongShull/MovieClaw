@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 ROUTES: dict[str, dict] = {
+    "/3/genre/tv/list": {"genres": []},
     "/3/movie/300": {
         "id": 300,
         "title": "某电影",
@@ -35,6 +36,7 @@ ROUTES: dict[str, dict] = {
         "name": "测试剧集",
         "original_name": "Test Show",
         "first_air_date": "2024-01-01",
+        "poster_path": "/i18n.png",
         "overview": "一部用于端到端验收的假剧集。",
         "status": "Returning Series",
         "external_ids": {},

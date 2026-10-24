@@ -60,6 +60,19 @@
     "replacementSearchUnavailable": "替代源搜索暂时无法执行，站点连接恢复后将自动重试",
     "reconciledImport": "{units}已入库（媒体库对账确认）",
     "identityCorrected": "{units}的文件已不属于本条目（身份被改正），重新开始寻找资源",
-    "multipleUnits": "{first} 等 {count} 集"
+    "multipleUnits": "{first} 等 {count} 集",
+    "created": "{base}{hasOwned, select, yes {；库里已有 {owned} 个单元，无需重复下载} other {}}{hasRoute, select, yes {；{route}} other {}}{hasRule, select, yes {；{rule}} other {}}",
+    "createdMovieEmpty": "创建订阅《{title}》",
+    "createdMovieUndated": "创建订阅《{title}》：影片尚未定档，定档/上映后自动安排搜索；期间站点新出的资源仍会被自动匹配",
+    "createdMovieScheduled": "创建订阅《{title}》：影片未上映或刚上映，{date} 起开始搜索资源；期间站点新出的资源仍会被自动匹配",
+    "createdMovieQueued": "创建订阅《{title}》：已加入搜索队列，等待搜索任务寻找资源",
+    "createdTv": "创建订阅《{title}》：勾选{seasons}，自动续订{follow, select, yes {开} other {关}}；共生成 {count} 个追踪项——{detail}",
+    "createdAired": "{count} 集已播出、排入搜索队列",
+    "createdFuture": "{count} 集未播出、播出后先等被动匹配",
+    "createdUndated": "{count} 集未定档、定档后再安排",
+    "createdNoEpisodes": "暂无待办集",
+    "adjusted": "调整订阅：勾选{seasons}，自动续订{follow, select, yes {开} other {关}}{ruleChanged, select, yes {，规则组改为「{rule}」} other {}}{floorsChanged, select, yes {，集数{floors}} other {}}；新增 {added} 个单元，重新纳入 {reactivated} 个，退出范围 {deactivated} 个（下载器任务不会自动删除；退出范围后停止搜索与换源）",
+    "episodeFloor": "第 {season} 季按 {count} 集",
+    "tmdbEpisodeCount": "改回以 TMDB 为准"
   }
 }
