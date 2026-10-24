@@ -845,5 +845,95 @@
   },
   "torrent.episodes": {
     "sourceHash": "d4d51ec17cccf554b31a8b097eb6a19074660eb7846b3f23388fa8e456052e2e"
+  },
+  "preferences.otherHint": {
+    "sourceHash": "f41290c65eee68728c31fc696e6a9e9efe22195b7fb80d5e2f2f079ba30c79ae"
+  },
+  "preferences.deleteTitle": {
+    "sourceHash": "e5de7decfb580faaffa38eb34ced4df445c137766249da7222205c5ae0289419"
+  },
+  "preferences.reorder": {
+    "sourceHash": "8c78a036a52bcc157f58407307a2d6d261a4801e7ac4c21584b563ef5dc458cb"
+  },
+  "preferences.actions": {
+    "sourceHash": "0d2995169459d9d97c3dd7a0298c91f1ed6cb045ea9ec66200bdfa96af8c8cc1"
+  },
+  "preferences.visibility": {
+    "sourceHash": "660b91c5a78e4de8a1f91c5d93fece0a41c76f78c068c1ed7d564121a23bdbea"
+  },
+  "preferences.posterToggle": {
+    "sourceHash": "3b52e682696b277a159c28b16b86aa79f02467c772eba1e2fae4e3a69b6ba9a3"
+  },
+  "preferences.privateToggle": {
+    "sourceHash": "a87f660ee096b92061b3eaaa7b9ea60601d75c670cac11c6a1521f55694fcd6f"
+  },
+  "preferences.footnote": {
+    "sourceHash": "835e5aa1545134305397f5e360c7d52091cc7abe35093de31b3c8a5367213ba8"
+  },
+  "preferences.saveFailed": {
+    "sourceHash": "c0913f645bfd716f8f8fb79229f0eb93f5d84600f25f8a8a011d3b3ec8dd72dc"
+  },
+  "preferences.deleteHint": {
+    "sourceHash": "40c17dac872a879c9712842b859583e3177083160e9f8b1c5eb5c09597f04116"
+  },
+  "preferences.title": {
+    "sourceHash": "8ea7e2d398070acbc72f148261c1b9ef570fefbd8e582768b7edb044cc0949e3"
+  },
+  "preferences.new": {
+    "sourceHash": "fd9ec52d026a8bd98635b0c05ba9dbd5fd5d4c0ee09f44e87db7941cb61051e5"
+  },
+  "preferences.custom": {
+    "sourceHash": "4eafa9e925b30bcdc99faefeb4a833b47194b0d4f6d7753cecfebea31a61d01a"
+  },
+  "preferences.edit": {
+    "sourceHash": "051836569928a9f91145a70e00b212b62a06c21a97d2d828cb75acd3fbe851b9"
+  },
+  "preferences.editorEdit": {
+    "sourceHash": "397586d66a5649d87df3f8be5d39845bb42ffe1b3e9490b55b92bce7acd69295"
+  },
+  "preferences.saving": {
+    "sourceHash": "ff509c9ba052a21c008c88b36ef5f13acc9cb693641689b35747be6daf11d9d6"
+  },
+  "preferences.name": {
+    "sourceHash": "81a51c6f6627b792a4cc9306671d3b3c931840c4661bd9a594646362885c8e10"
+  },
+  "preferences.namePlaceholder": {
+    "sourceHash": "4a918e7cd8f9912dc03310708538780abfa4ed53aff4a1d3371549885fd3ec1e"
+  },
+  "preferences.categories": {
+    "sourceHash": "d577bc9402076f9683d7d85f7c432e9a88198682528a23704fe0ebd3ee47422d"
+  },
+  "preferences.categoriesHint": {
+    "sourceHash": "1704c74ded252951380849935d90ac4cca327d8a9c2316cc0731e6007f49fe57"
+  },
+  "preferences.sites": {
+    "sourceHash": "86f38dcd61db81ee831f4b5d5d82a5dc9ef770c3ffa7f7a6d479132307371127"
+  },
+  "preferences.sitesHint": {
+    "sourceHash": "958ff5fda0347266315e1a52714ea78ae123c33e3f987ae78196e3030d70fcb4"
+  },
+  "preferences.loadingSites": {
+    "sourceHash": "f0750b7346535a57b09f9559618acbd527e474cddcb4a6267b033669d69cd25f"
+  },
+  "preferences.noSites": {
+    "sourceHash": "a2fd36c85a2befd0898b1e520ea875188ee4320d5f87f59321c2b9169065b8ae"
+  },
+  "preferences.unavailableHint": {
+    "sourceHash": "28074472c28e3e1bf0a491a157404b0af0392faa2945edb9c89383358a9bd200"
+  },
+  "preferences.unavailable": {
+    "sourceHash": "70081805976d8f921bf41e9edc3c92a954187940b696a497827921a5c1f3f974"
+  },
+  "preferences.poster": {
+    "sourceHash": "e8d2e909cae54108f0b687882b7edaf1425b13a2e0fe66c6145cb727ca235562"
+  },
+  "preferences.private": {
+    "sourceHash": "6b1b85433a21937996aa28b52be573dd515faa72a66b42e0e81dc1c0880b3586"
+  },
+  "preferences.posterHint": {
+    "sourceHash": "36224f45300c311c5b65bc6cbff46711b80ec542485b925190a727474cf14475"
+  },
+  "preferences.privateHint": {
+    "sourceHash": "6d462b0f0c0903030437d78686eea459b123e556f927dc56a5cd913e2eebb7d5"
   }
 }
