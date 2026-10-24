@@ -1900,5 +1900,8 @@
   "library.duplicateScan.suggest": "排出建议保留",
   "library.duplicateScan.persist": "记录结论",
   "library.duplicateScan.completed": "重复扫描完成：{units} 个单元有重复，按建议清理可腾出 {files} 个文件",
-  "library.duplicateScan.empty": "重复扫描完成：没有发现重复文件"
+  "library.duplicateScan.empty": "重复扫描完成：没有发现重复文件",
+  "activity.playbackLabels.unknownClient": "未知客户端",
+  "activity.playbackLabels.shareGuest": "分享访客",
+  "activity.playbackLabels.member": "成员 #{id}"
 }

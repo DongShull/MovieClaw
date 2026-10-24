@@ -1612,5 +1612,212 @@
   },
   "upNext.posterAria": {
     "sourceHash": "44ae7728809f4737fd2daa226a494e834da8d9a3615b9068c2d321a7a06c75a1"
+  },
+  "watchStats.watched": {
+    "sourceHash": "97d19f8172708dc25d65e90dda64d1c8c603f18dad0a768edfc9bf60a6577e72"
+  },
+  "watchStats.plays": {
+    "sourceHash": "603471c6a4f527a4ab774f9bfb87eb7d283e4886b4867f10daae17536f9d6ab7"
+  },
+  "watchStats.completion": {
+    "sourceHash": "14485c3b6fe8ae10270da9389f783e18c9758ee9070622dd544f2c1e7e3e91ac"
+  },
+  "watchStats.members": {
+    "sourceHash": "f09344979f9de1b41d4584f767bb13c6b91075fcadbf564594802338e00b0d0b"
+  },
+  "watchStats.dailyAverage": {
+    "sourceHash": "dba45f363944d62753b8d0ffe9b77c86d255e5cf83297024341fe91143455dd0"
+  },
+  "watchStats.new": {
+    "sourceHash": "0006d696d8e1ec28a134667ab0b633e632f11501e4938a9c617ba7212e2e1bf3"
+  },
+  "watchStats.flat": {
+    "sourceHash": "a9105fc058c4896aed2ad4f9aaa23f1acf166897e29ebc11d9fa7f173c030f07"
+  },
+  "watchStats.versusPrevious": {
+    "sourceHash": "c0cd52db796461ef34197a7b3275d96e6505724c6390b8b3d4566f40ed370613"
+  },
+  "watchStats.noPrevious": {
+    "sourceHash": "02859089a798bd5ea49ca5a12d54c1cdebe481addc369a63fa96fc58b4216fdb"
+  },
+  "watchStats.weekly": {
+    "sourceHash": "3816e03a76082b6a8f59b767d7332a1472ded78b5b4fc649f8adceba2601611d"
+  },
+  "watchStats.daily": {
+    "sourceHash": "e12978bbcbcbd8439b5ededa1d737574aabf0c39348bc35f98c04f6bab62dd1b"
+  },
+  "watchStats.currentPeriod": {
+    "sourceHash": "015a2a0afcac684119a1ab37cc3d6e40044512c3449fa69b1b5e3e3e6906d802"
+  },
+  "watchStats.previousPeriod": {
+    "sourceHash": "458829d5edbc1466ed1ff1ada02c7b62a20413b3a46541c7603236e14950b00f"
+  },
+  "watchStats.noData": {
+    "sourceHash": "7e588a9591160c219c8fa7f15a98d54b7fb7749067013547096438466a9cfa5a"
+  },
+  "watchStats.collapse": {
+    "sourceHash": "afd4b783536b8297bb2506836727af1ccae7626a7d04e89de7ad402360e0a970"
+  },
+  "watchStats.heatmap": {
+    "sourceHash": "53c0c45fa75e494d99626920d7c988beb308b6f3246de6166346b1b26274ac79"
+  },
+  "watchStats.heatmapHint": {
+    "sourceHash": "64a2780ee6f62d4e53608ce20511b357a6da8fef2a7c2989003c44f7583c871c"
+  },
+  "watchStats.noHeatmap": {
+    "sourceHash": "a4bf4071d5bd4d7cf75dba22809198dc9792d3a5c3a06a53de2967f2cb7b0a0e"
+  },
+  "watchStats.sameRank": {
+    "sourceHash": "614019fd9638e3d6a888410aff0688462674bbbda831b7af814922832d6c869f"
+  },
+  "watchStats.newRank": {
+    "sourceHash": "a25e63a80ae5ae8ce3108bd843900c081e38dd7045f2df6be12830ac3f43d84e"
+  },
+  "watchStats.first": {
+    "sourceHash": "11740fe5f5f701bb26188719f985459a75b0a1c79aac184a86e8f2f5144c5ab4"
+  },
+  "watchStats.second": {
+    "sourceHash": "43eb2685a3451855bfbd3d763601136ed8c42e4a596065f38a558d20ed9feff5"
+  },
+  "watchStats.third": {
+    "sourceHash": "1f86a0ae2f970a72afd484aa52ffefc3586f79ca06da20b8bd787668c6cc087d"
+  },
+  "watchStats.popularOutside": {
+    "sourceHash": "ba8129605addca66442a3f81ca2b19d76c0a0ba369be7a9c3806f709e3a8f410"
+  },
+  "watchStats.noRankedTitles": {
+    "sourceHash": "ffc9ec1360e15e6b34f1c2f45a9504fab2db01617332f94f1eda15cf08396893"
+  },
+  "watchStats.deletedNoRanking": {
+    "sourceHash": "b163788fbb84cf021922c548769227c6b99163c78ba347a541770085c12dc786"
+  },
+  "watchStats.showAll": {
+    "sourceHash": "84941ac6e844e7afe087dd3c674195f60b757c2dc107092271d1dbd86fa4f533"
+  },
+  "watchStats.mostWatchedThis": {
+    "sourceHash": "708a4bb3e0a86746c77f0e7d57ac6ade9973e963bb221f62f457c099004dab0f"
+  },
+  "watchStats.mostPopularThis": {
+    "sourceHash": "95840c8fd8b8a57da43a2648a14131ae65b20a5caeae6c4461d5703175347d64"
+  },
+  "watchStats.byWatchTime": {
+    "sourceHash": "57b28f619fb343ceb6057db989848b030a25b57d31e026d942836daa4485e7f1"
+  },
+  "watchStats.byAudience": {
+    "sourceHash": "09fe923a9f195bfd5427acfe3cc717a028bc09678011b7b09e5089bb33c0af2d"
+  },
+  "watchStats.reading": {
+    "sourceHash": "0a85d3c5d3568c30bfdf16e61ada0c633302e6c3fe59f01185000c028196a187"
+  },
+  "watchStats.loadFailed": {
+    "sourceHash": "85a6ba1ab49f7d43e75eab038b4ff07cfac4ec706432315f6fd0281c95cd9baf"
+  },
+  "watchStats.allMembers": {
+    "sourceHash": "7d87a520445a01c766335e1906a0d8a4416c1401f5c392dadcc06b03d76e619b"
+  },
+  "watchStats.last90": {
+    "sourceHash": "2270ca7cd91bbcf244171c62c81cf83d744485f300768ded45fa838e1d63c30a"
+  },
+  "watchStats.memberFallback": {
+    "sourceHash": "c13920a3cd248c4a24c55e15021630625c90664b0f5ee7884e5ae2f211201f5e"
+  },
+  "watchStats.emptyHint": {
+    "sourceHash": "b04b30c4e2512fdec0b67ae9c15184597e5ca88afd0097f0eda7346c84066a26"
+  },
+  "watchStats.noCurrent": {
+    "sourceHash": "bbf7d83e7197521c239805e71b882bb6cb6719564ab7127cceb3f2e40566458a"
+  },
+  "watchStats.byMember": {
+    "sourceHash": "858113bb067b0b28f73fa06ed0953734d7e05869f1cb03dcddc5ff44881ade6c"
+  },
+  "watchStats.memberSelected": {
+    "sourceHash": "791cbf6b16ebfb9bcc14838c90ca4822a4cc62d4bb9c8554d71a9b42e6766344"
+  },
+  "watchStats.memberDrill": {
+    "sourceHash": "559f9d343f4c79bb0462209c30ac290f0b4eab49596832656dcb94a26c0b1a27"
+  },
+  "watchStats.byClient": {
+    "sourceHash": "c40d54cfb20f235191cdb821650d50f14659a319de71b0de928b560fbfb9ee37"
+  },
+  "watchStats.mostWatched": {
+    "sourceHash": "83f0eed9cb060acdc8fb40902f3b55d4f9055e98b992270c07bfb9d90093da7f"
+  },
+  "watchStats.deletedItems": {
+    "sourceHash": "fa70d8a0f983b85e6989c46ca0501bf80276e7722bf8a692a544207c0d2f240c"
+  },
+  "watchStats.byDelivery": {
+    "sourceHash": "1b556f9199093eb651941e26611ead82137667262f9463a49b7dc5baf0d97a64"
+  },
+  "watchStats.deliveryHint": {
+    "sourceHash": "f493efbff5250f5ac52b738728b8b04c6fe054e07d5edd2c86af8435c8dfe58b"
+  },
+  "watchStats.noDelivery": {
+    "sourceHash": "286849b0969823dbd15c9b35b58fdccf5c52b56c3d581f8d65838da51848b0f9"
+  },
+  "watchStats.hoursValue": {
+    "sourceHash": "679b6d3f42ef624c72ab82ec9f4ed11c5165c1d14f8cf3e9ab525317af9c5368"
+  },
+  "watchStats.hoursUnit": {
+    "sourceHash": "3b6fefc50febace4472333c87df059024ef94bbe22c6a0afb32014f7fd330e16"
+  },
+  "watchStats.minutesUnit": {
+    "sourceHash": "bd957bc497aa1a4101b19975d9ab6f227c71b2101bc201dd0a8ff0664d94b778"
+  },
+  "watchStats.playsUnit": {
+    "sourceHash": "ee55817ee29b22b800733099b5a6c070b99c2fa9c9dc33ca4d8882c6f92562b1"
+  },
+  "watchStats.membersUnit": {
+    "sourceHash": "013628f07195a1d2a0318cb503806bbdae978af613922e763da20a7a0984ad84"
+  },
+  "watchStats.playsValue": {
+    "sourceHash": "56907455c50eee428caabfd8229d13863f959ac7cd737e4d717bd148c2b54581"
+  },
+  "watchStats.membersValue": {
+    "sourceHash": "8f22b1a62a88a34f38806e5f060b0ab899d00198264fdc440e6f9f9d5a5d590e"
+  },
+  "watchStats.points": {
+    "sourceHash": "f65a5b86046878b23535dcecad6d3a4ac0306283effb4394cc47a7b146c7869a"
+  },
+  "watchStats.previousValue": {
+    "sourceHash": "d26182c7d70d80282bc05d9afd34a71edeb0f9b723dd2d976b19c0ffb9f23f20"
+  },
+  "watchStats.trendAria": {
+    "sourceHash": "fa4c22e760053c353553aff11241a4a6326bc97e28c463780c6586f1f67f0746"
+  },
+  "watchStats.noChartPlays": {
+    "sourceHash": "22745d95e9682e221b6662be860c079980acc9eaa27a7ef375d10b4618595019"
+  },
+  "watchStats.dayCount": {
+    "sourceHash": "1a009fb8a3326156397c522a14787371c0f69beec5cae72ce013860025070dff"
+  },
+  "watchStats.expandAll": {
+    "sourceHash": "9dd9eba74dc5e391bcb2636cdbeeaa7ab4e5838c4d89a8aa639612fae2ad9fcc"
+  },
+  "watchStats.otherCount": {
+    "sourceHash": "36c4ba1b5fe78d3f23a6a078601604d92580f0ef7a6d1f85a8e218e65bcda5fe"
+  },
+  "watchStats.heatmapCell": {
+    "sourceHash": "e65c5f41d001b9fb44149290e247b48c6e651d4b3925b44be14764ac498f4542"
+  },
+  "watchStats.previousRank": {
+    "sourceHash": "b78a89f5a502caca4ac57cccabcd426d8eae238aaa5ef7aa592b648f54b3855a"
+  },
+  "watchStats.audience": {
+    "sourceHash": "b117b51087cb6ca00a00e7b4f52cffd71c199f7a5be92f8a7fea6b30045f6502"
+  },
+  "watchStats.hiddenTitles": {
+    "sourceHash": "f820c4d3920fe89901969c7789f9dcaac2f1d0908924b4b39569a842402b21bb"
+  },
+  "watchStats.noRecent": {
+    "sourceHash": "8dfd21f0c9801624937c6b041fb5adec5e7f6e35b2f437ed50a908e0e417e732"
+  },
+  "watchStats.noMemberCurrent": {
+    "sourceHash": "461bd35c4561f743399785f09d4537cb56bde87114802709f0b7b12148236ebe"
+  },
+  "watchStats.onlyPrevious": {
+    "sourceHash": "9c289b302fdce5d831bd22cd0fb07e7ecb51f88fe7d23cab3866e5dd3271b9c7"
+  },
+  "watchStats.playsCompleted": {
+    "sourceHash": "a82451811617f56aa2a77417ec87cf602e5f8f897ebe74ae441301506c5c560f"
   }
 }

@@ -240,7 +240,7 @@ async def _member_names(session: AsyncSession, member_ids: set[int]) -> dict[int
         names[0] = account.username
     if -1 in member_ids:
         # docs/design/media-share.md §4.5：分享出去的影片被不登录的人播放
-        names[-1] = "分享访客"
+        names[-1] = t("activity.playbackLabels.shareGuest")
     real_ids = {i for i in member_ids if i > 0}
     if real_ids:
         for member in (
@@ -248,7 +248,7 @@ async def _member_names(session: AsyncSession, member_ids: set[int]) -> dict[int
         ).scalars():
             names[member.id] = member.username
     for member_id in member_ids:
-        names.setdefault(member_id, f"成员 #{member_id}")
+        names.setdefault(member_id, t("activity.playbackLabels.member", id=member_id))
     return names
 
 

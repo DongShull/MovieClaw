@@ -94,5 +94,10 @@
     "dismissed": "已忽略，不再计入需要处理",
     "restored": "已撤销忽略",
     "notDismissed": "任务并未被忽略"
+  },
+  "playbackLabels": {
+    "unknownClient": "未知客户端",
+    "shareGuest": "分享访客",
+    "member": "成员 #{id}"
   }
 }

@@ -94,5 +94,10 @@
     "dismissed": "Dismissed; it no longer needs attention",
     "restored": "Dismissal undone",
     "notDismissed": "The task was not dismissed"
+  },
+  "playbackLabels": {
+    "unknownClient": "Unknown client",
+    "shareGuest": "Share guest",
+    "member": "Member #{id}"
   }
 }

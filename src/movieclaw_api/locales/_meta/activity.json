@@ -256,5 +256,14 @@
   },
   "jobActions.notDismissed": {
     "sourceHash": "d7429bcfceb7012239d9fca0d537c707f317e5d8ecf2910482535939581ba29c"
+  },
+  "playbackLabels.unknownClient": {
+    "sourceHash": "5b8268e3f5e68f47005f65b652f09226825e14db6a70939c64f946b7875fa2ee"
+  },
+  "playbackLabels.shareGuest": {
+    "sourceHash": "e76b40620f5ffe0dfdca8a2846c0ad3bf6ee0d002e530cdbf5a39d707c2c18fd"
+  },
+  "playbackLabels.member": {
+    "sourceHash": "0e64070390e71f4b2dad4733c90d1a180ba17a3cee3bfb524824b4463f0eea7d"
   }
 }
