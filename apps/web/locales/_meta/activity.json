@@ -1,0 +1,374 @@
+{
+  "jobTypes.subtitleGenerate": {
+    "sourceHash": "c3cc6b881a1d1e395603ba84a3bd6932fa5d617011b339af09501b22ca2aca76"
+  },
+  "jobTypes.libraryScan": {
+    "sourceHash": "c6c7a2a4a21e41bde3e2b357b94f94da5d3c5b243ad11f5ace66c0ac8237f320"
+  },
+  "jobTypes.libraryMetadata": {
+    "sourceHash": "20718645a7c1bb0db63c05bf067e912fe068936949eb5acbcfaf8d20fd76fa73"
+  },
+  "jobTypes.mediaMetadata": {
+    "sourceHash": "fb4e6df380259b4bd806d2792bee28daa60da1e7b5dc6e048d9371084b4c1066"
+  },
+  "jobTypes.chapters": {
+    "sourceHash": "23fd5b167934a38355a6227bca72be02aa8661d27faf4cd9eac474de92d9fa03"
+  },
+  "jobTypes.skipSegments": {
+    "sourceHash": "0940fba7e9069a012fbe5cccc8ce4292ed0b19d4cb787c1daca517493f131e38"
+  },
+  "jobTypes.reelClips": {
+    "sourceHash": "942fcb73d5a5e5b7282b0e5f3c25cb4f8c60202388bde51ae66713b7494864dc"
+  },
+  "jobTypes.organize": {
+    "sourceHash": "be0ffa7fbfd8be54809efc0552b7d09601231ce5b7c991779afb46024fdae016"
+  },
+  "jobTypes.transfer": {
+    "sourceHash": "9c7234defc43e64406a38879e45fee6fa06076c11cd9e7f556a8885b94f03868"
+  },
+  "jobTypes.ingest": {
+    "sourceHash": "05b57c2a0289571d7a4159b6ffa81d771a51052759fe391ddb2d27d2c70c0719"
+  },
+  "jobTypes.upload": {
+    "sourceHash": "4c3c59fd3ab9e9216d6d48b9aa1c160e60cf2404ad81a8b68e9c75dc3bf74d71"
+  },
+  "jobStatus.queued": {
+    "sourceHash": "d6f766f2adf532274a487ddd31db43c01eb635ff966d6c3c41d62250ed094354"
+  },
+  "jobStatus.running": {
+    "sourceHash": "dc9591e56d502b436c29bdd2819998a8460b951a7baff457484a930492c1a9d7"
+  },
+  "jobStatus.retryWait": {
+    "sourceHash": "2575219eec281bc1f8381f54ddfe8278d314a4a2641e63ee99b40bb7d6990b83"
+  },
+  "jobStatus.cancelling": {
+    "sourceHash": "0b58e0113da68f9117740f84588610da04262b152ddc2c56d457f480ee303187"
+  },
+  "jobStatus.waiting": {
+    "sourceHash": "1365705a177e1e468e5e511ff7ac0ead00fc548a01511cc344eb358b1ae4611c"
+  },
+  "jobStatus.blocked": {
+    "sourceHash": "b7e3e715f18b9bace69fef102c98a2f7b43e0b95923692c81cc887d4aee6e7cd"
+  },
+  "jobStatus.succeeded": {
+    "sourceHash": "f28461bb49c8564716309d575f90f72cf15b5c4667e40c2d037434bedb54a01a"
+  },
+  "jobStatus.failed": {
+    "sourceHash": "6707de42c29ddf4e778897f923f1aa645ac2859141345ce375df6baa39f42c72"
+  },
+  "jobStatus.cancelled": {
+    "sourceHash": "a37778f17c5f3ee5e7c3561c4a7e82f3e8936aca7161071add9c2adac6123564"
+  },
+  "jobPhase.queued": {
+    "sourceHash": "4f021f59121c6827c4f809d4dadc6dd376425a3763ad70bd15c75f668a81c0e3"
+  },
+  "jobPhase.preparing": {
+    "sourceHash": "ddcf6e77b0ee10007e0bf80e63260487ac3ab725d0e0d842e89f3f3b4e5d8ddd"
+  },
+  "jobPhase.ocr": {
+    "sourceHash": "adf6e101cae69fec7d2d24a90f519c24d6763b4ec562fd83362c5c0118e22638"
+  },
+  "jobPhase.syncing": {
+    "sourceHash": "e671d55d76920257bb5f91f95d1af14e417c9424ad0f384e0e11a2fec2de4c07"
+  },
+  "jobPhase.glossary": {
+    "sourceHash": "15f389e3728a062fa5060b2bfb9708ff30519fa0a42dd4b6286ba7642f1bdca3"
+  },
+  "jobPhase.translating": {
+    "sourceHash": "96dd88617e672350623d517be92e144fa3411526c1fa7f68e92726fdf99961ac"
+  },
+  "jobPhase.validating": {
+    "sourceHash": "12878b45031409e840ebd209a30edb91b716c423a09b2e66dba75aaf6ad73ec2"
+  },
+  "jobPhase.compressing": {
+    "sourceHash": "c68f68fca09676370011abcbadd180de98473ed5ff4baab8e8f25fc610dbad1f"
+  },
+  "jobPhase.writing": {
+    "sourceHash": "7ed80e44eaf9c51ca83bfaa61c356008f8fa6a402c813a277b5914f19057a7e6"
+  },
+  "jobPhase.refreshing": {
+    "sourceHash": "722c76c85c480661ff752bd781bd10c165110aeaa56d810cd8e4fe28da68730c"
+  },
+  "jobPhase.walking": {
+    "sourceHash": "c6e81891b30667e44540b1b4edbdd5ea5fdd436a63cb85020a309123f380b09e"
+  },
+  "jobPhase.ingesting": {
+    "sourceHash": "5f325f70a4fe72e83b01ca9b2fa48539ac87cf0e77374c1dc703e512b7987c8c"
+  },
+  "jobPhase.probing": {
+    "sourceHash": "2d7f3c1f7c17a5083a0e5622e913eaf3724a23b14419aa6c995a5170d99594ca"
+  },
+  "jobPhase.assets": {
+    "sourceHash": "24e0a314eef16f34c76aa709a273088bc9e589e39ce15cbc41c6437e5f62748c"
+  },
+  "jobPhase.organizing": {
+    "sourceHash": "d88c36f21257e894ce14f94c62e9a8a67e1ee2f6487b52161060899da118d677"
+  },
+  "jobPhase.transferring": {
+    "sourceHash": "72075dee40ded2ae6b7f284f78683e7dd7a602b99f6c9a747cbbe68c8addcff4"
+  },
+  "jobPhase.identifying": {
+    "sourceHash": "ed0437d4754a6a019852e5f1ed1b3d49510c9efa79c956b2bccba0fb0090ee54"
+  },
+  "jobPhase.waitingLibrary": {
+    "sourceHash": "2c176234569900bcea90b7f34cc6c7cd20e854d8fdac1a5edd451894103823d1"
+  },
+  "jobPhase.waitingStable": {
+    "sourceHash": "3c0a6f7cef0518586f2833a82090d8d96bf26ec2781c942f4c073b41f8b1c8c3"
+  },
+  "jobPhase.finalizing": {
+    "sourceHash": "3615b021b8af5e8273f6515d60366e6fad8f9ab7b1d2f2dc8f210e2255f88697"
+  },
+  "jobPhase.blocked": {
+    "sourceHash": "8fb3a3261b4386457f8adef2ca3a95ddfaa88faeadc9bbb4e9967532cf3101fc"
+  },
+  "jobLanguages.chs": {
+    "sourceHash": "9937e365aaf3a0854053a3179584ad9cd82e1164ea8535b50c1e6ae7102b373c"
+  },
+  "jobLanguages.cht": {
+    "sourceHash": "7bf7a60617de1a5da9d96c0b77ec574ddb527f199694571d4cb234af2c2625ed"
+  },
+  "jobLanguages.eng": {
+    "sourceHash": "d1648bacbc1630a60ebc0091fa7a4cb7d831c4696a80f302dcacfc59838895a0"
+  },
+  "jobLanguages.jpn": {
+    "sourceHash": "3a944ddb3868f4b21ed515205ad6a7e0177451af2549a6f55f1996fc5a3d7045"
+  },
+  "jobLanguages.kor": {
+    "sourceHash": "259cdcf751996c6c1d43b2bdcf714f2f24783c08180979dfd842e9750757ab4b"
+  },
+  "jobLanguages.fre": {
+    "sourceHash": "99cdf164a8140865a706489a5fe02f38319be7d8dd030963575f5b568a800bca"
+  },
+  "jobLanguages.ger": {
+    "sourceHash": "7566092dce7261d0feb9f7987b8d9ac297b352b81f5f74c5de37e3370cf20b8f"
+  },
+  "jobLanguages.spa": {
+    "sourceHash": "6c872d27f8359dc7a5aba0230d9dbbbe2b9288c019638711664f9674b2a87635"
+  },
+  "jobLanguages.ita": {
+    "sourceHash": "5bdde8257c53cfbc321499906fefbee23ea59d9eabc92a4fa4e26c02302ae3a7"
+  },
+  "jobLanguages.por": {
+    "sourceHash": "6ce072a79389aa68ce3e81d881ba94d3e05ba3634ebc3f6d12b9876a26642362"
+  },
+  "jobLanguages.rus": {
+    "sourceHash": "bdb6608a4dc8d212b92d2a651215ac3b9a6eb95e7b4f89d973c13680598f879c"
+  },
+  "jobLanguages.tha": {
+    "sourceHash": "a15fb0d0595f0bf84942ffe6726ca7d3ac4eafeda3ea973b3e28db08d8c209b3"
+  },
+  "jobs.originAgent": {
+    "sourceHash": "2df7697dbb6128781c7871082454bcfa03686558e5afe7f28f6ca66ecc3b2d1d"
+  },
+  "jobs.originPlugin": {
+    "sourceHash": "e806fbbe8ec6e82d06a9159025db9cdb0f664fe56cce96181d192fd1242e4a09"
+  },
+  "jobs.originSystem": {
+    "sourceHash": "ccc7d7c559b70fa5403b0c80eb3b58bdc328ac24ed7d1cd530bfff58f3dc1253"
+  },
+  "jobs.originWeb": {
+    "sourceHash": "005074b65962188cbd88f09a020e527867341fc6501742100f71f0b07241cc56"
+  },
+  "jobs.crossDevice": {
+    "sourceHash": "69a635d1775d7fda77d44ecd6b0ba4d01a012e048484966e84805c6f10ddc2c4"
+  },
+  "jobs.retryAction": {
+    "sourceHash": "a55426f9f917ef3889354bf7f0e8dace4554d10974dc3e75fcaad931948d89b8"
+  },
+  "jobs.actionFailed": {
+    "sourceHash": "25f5b39a98893090da1fcb816778c3a9044b84e521533bfa51f87ec737947c75"
+  },
+  "jobs.dismissFailed": {
+    "sourceHash": "6e937d7f09180fd0ee74c044c680c0c43ce5fe875a8607eb107b420e21b6896a"
+  },
+  "jobs.restoreFailed": {
+    "sourceHash": "49f09b1a2cf4c0ec83131c72885f1d0315da21a8f29df4cad7a204b757c1fa8a"
+  },
+  "jobs.cancelFailed": {
+    "sourceHash": "2ce9069ed9f558342ec76e12dfba7db40dc3444e9782dead45b253d06bc6e332"
+  },
+  "jobs.cancellingAction": {
+    "sourceHash": "e8e08b0f61dd4ddb2c51928bcbe1953077e91139bc5f325cb2c276fd095d2ffa"
+  },
+  "jobs.cancelAction": {
+    "sourceHash": "537d17f1c5313861fc1d12449c7bf7833e8fedaa851c23e5f42a142b857905ad"
+  },
+  "jobs.processingAction": {
+    "sourceHash": "d3d21191f32e79a50dd0d1e30c2053bc547cfebc45fbe23926674e29cb8cc8c6"
+  },
+  "jobs.dismissAction": {
+    "sourceHash": "3ad0f72a46ed3fcd7da8c9b9cbefcf972be5885c910420cd859846715e5d0670"
+  },
+  "jobs.restoringAction": {
+    "sourceHash": "a7b2ccfd291355f4539a9824bcd8ecd3b7fd63bfa92886dfe82ae3e6ece7d4df"
+  },
+  "jobs.restoreAction": {
+    "sourceHash": "6d5d0fa872442a7696bb8b1bfb59286dc0bc9509e520694f3d70516e3fed0caf"
+  },
+  "jobs.attentionPrefix": {
+    "sourceHash": "96d31d922ef4ded9391c2bca6ea2976e24b75934acd79a143f7aad115e12fcf3"
+  },
+  "jobs.continueWait": {
+    "sourceHash": "3cbe08de5fd74da13969ab1bcf8a6d5058460c1293c37b657d5712717062cf03"
+  },
+  "jobs.waiting": {
+    "sourceHash": "26c8cfcbf763073f0baa48dcb197088d994fed793a6067bf7957948ab5543803"
+  },
+  "jobs.processing": {
+    "sourceHash": "694b71bc8013ff4330dca5be5c64a62d51798ac0958e3e9b135dad1b69e8bb84"
+  },
+  "jobs.collapseUsage": {
+    "sourceHash": "347c7f3581e94689253cad8236e3859de447c149dadbdded9f82288953f66dc1"
+  },
+  "jobs.expandUsage": {
+    "sourceHash": "154c1003f2c7a660d4282f0419bb7d6b75c318b76f6a384f03d73727dd93ca1c"
+  },
+  "jobs.totalTokens": {
+    "sourceHash": "9638021caee5231a5a62efb829fb25466b04408d04c699e1daabb16d0e608332"
+  },
+  "jobs.inputTokens": {
+    "sourceHash": "2087c777c06fefe5b85ee362b7bfb5220c587191fa4b3bf1f713cc6ceb32ebd2"
+  },
+  "jobs.outputTokens": {
+    "sourceHash": "fb04addb4c2654f51feb55712992205a3c4a1a552f284f0a7534b2a712fea793"
+  },
+  "jobs.cacheTokens": {
+    "sourceHash": "ac7ee524579b7f10a801ce41efc39ed913c3d6f8a839b8896c572ba6ff0d6eb6"
+  },
+  "jobs.dismissed": {
+    "sourceHash": "c9bb70bcaaa3bee1f1a6031886a12270c0cdabafbba9e845513a76e3959dac3f"
+  },
+  "jobs.muteSubtitle": {
+    "sourceHash": "6f9339582ddbf2b63c32186250b89072305a91a5ef5b6ddf18ae27495cc84bef"
+  },
+  "jobs.dismissDialog": {
+    "sourceHash": "ea027ace0366c1de2f5fa6a8debf6ff7e0e512fdcd85e6330b85cb7b7b511a53"
+  },
+  "jobs.dismissTitle": {
+    "sourceHash": "da1fcb7b744efcac1c8adc1fee270869d32a6dfb2a40f6cbc0b6964c9ba6b22c"
+  },
+  "jobs.dismissHint": {
+    "sourceHash": "6934af1c84b17498a18b4b6ada4f2edd17d9277d2926570e4b066f24bb350461"
+  },
+  "jobs.muteHint": {
+    "sourceHash": "43b90dfefc3947416c1324bcec9aa48dbd1a8fdb6428dcff2a41393f54fd772f"
+  },
+  "jobs.cancel": {
+    "sourceHash": "2cd0f3be8738a86cede1a1452f874f31d569864bbb00cacd4130990f4610cb5c"
+  },
+  "jobs.dismissing": {
+    "sourceHash": "ae65f5d9ebf80c72535d45d5a820e6f1287aab694e9bd7eaee3f9dbf7073bd3a"
+  },
+  "jobs.dismiss": {
+    "sourceHash": "6e90ac940752ebf13ab2d29a0d0d635ea9596d2e6d112962644b3d3dcb364eee"
+  },
+  "jobs.importedFile": {
+    "sourceHash": "528f50d743a7c0a4a0f12495d2d2be861768dc592f9113fd7d73551d7f591d49"
+  },
+  "jobs.bilingual": {
+    "sourceHash": "32c28b9230d0808ae9db112971fbc42cd440fc137eef0590e706f8fbcaa4ac98"
+  },
+  "jobs.milliseconds": {
+    "sourceHash": "6b6404c0e80c48395f5ac1aba8248414db2990a28891caf9825b27477a20efcd"
+  },
+  "jobs.progress": {
+    "sourceHash": "a9442dbf081b9a2c7dd54ba3901c951cd6249be9ce554cb5051083a8a6317bf2"
+  },
+  "jobs.subtitleEvents": {
+    "sourceHash": "ebca101e3ef0814615d71c595c02b02646bb6596371106accca1492dea8228d3"
+  },
+  "jobs.parallelism": {
+    "sourceHash": "030dd86299bd17f9ce4947c021a92c4619bb8b4342be94f9236452e0b3c1faa8"
+  },
+  "jobs.rateLimitRetries": {
+    "sourceHash": "fb510bc2fb7c06a6bc40c190478d49f2d9ed08f197bf15b4b8a56ff621d0aca9"
+  },
+  "jobs.identified": {
+    "sourceHash": "67faf7a0b1be18e230e81c79bd6c34a7bafc1fdd75b3f623089c43230a274f8d"
+  },
+  "jobs.probed": {
+    "sourceHash": "86b994d8de25decc17e7c85dde190f66045382878eeff50bba1d9e52737c3beb"
+  },
+  "jobs.unidentified": {
+    "sourceHash": "84c6649a0831718927c7035c8e61b7f86f1350090be72457452ff691a5d18502"
+  },
+  "jobs.missing": {
+    "sourceHash": "384336c4a5ded0781f6465ff2355b3e4c15a4631654e88c3c1f01ef3c5a08556"
+  },
+  "jobs.issues": {
+    "sourceHash": "bca86c89780022541a4dbdc51a1e993b0a16a0440272d4c162cd0f0c60d8dff6"
+  },
+  "jobs.unfinishedItems": {
+    "sourceHash": "ed8844f9a1c83e4f3a0609bb08a6a3b3ec8d45bacdfbcc2556da67db400f2a21"
+  },
+  "jobs.failedImages": {
+    "sourceHash": "7535af2d88c045fb825bd9935a56afd102520b874d1fd562c22ce7c54d4cf5bd"
+  },
+  "jobs.downloadedImages": {
+    "sourceHash": "9a0bf5961762262364368823565970cee4f62ea90890041cd960cee9fcd7db89"
+  },
+  "jobs.reusedImages": {
+    "sourceHash": "95551f7d9dff93dbc4acae7dd75c7901075523d16036ed3b77feca93ffab313c"
+  },
+  "jobs.adoptedImages": {
+    "sourceHash": "74b972c8eccedc4c1a06dbae54f26cc6d3be0539c91fe2bb432876e89358c7e1"
+  },
+  "jobs.derivedImages": {
+    "sourceHash": "77490ebbd485128a683091df4844bcb6ea35631335e289e28c6451483cfa14e5"
+  },
+  "jobs.grabbedImages": {
+    "sourceHash": "ceec21727332ca231109c4b94fa65ce61b8e21a6dd082ba91b594bf0f5718471"
+  },
+  "jobs.movedBytes": {
+    "sourceHash": "b87bfa7d4391404543064b2545f36fae0006cb0cada3c07148c09e9bd47e4c07"
+  },
+  "jobs.totalBytes": {
+    "sourceHash": "6e4b7ac6384266ec11a3b8547a5a99731398591c1174a28ec023fd1b128d78fc"
+  },
+  "jobs.statusAria": {
+    "sourceHash": "159d1362307c8afc918307a89ca821de02c9ae241845b8f9e81ab254d2aa27a8"
+  },
+  "jobs.generatedSubtitles": {
+    "sourceHash": "a603934eb6030dc98a31e0cbcd151955bc8166472594f12bfa6f7e311f365d1b"
+  },
+  "jobs.moreActions": {
+    "sourceHash": "5f7c338e7a9e4cbf198b3dc36b7ff0693e7c2da27edbbeb8392a4be570c49345"
+  },
+  "jobs.phaseStep": {
+    "sourceHash": "375cb5244020652b27e96e0754d88015da14b5ce6c3dc3d284c483ca7b0b5498"
+  },
+  "jobs.attempt": {
+    "sourceHash": "d214bebcef6983c0ae9a2fe007b0785acedd3d5db59adc0bdb64158edd33f40e"
+  },
+  "jobs.usageSummary": {
+    "sourceHash": "edf8cb09cc0c07eeb926cdfcc2dfc9512eb5724bef00750710efa84e58b880c0"
+  },
+  "jobs.modelRequests": {
+    "sourceHash": "26f3ec44c148facb68750e758e6852ad22b21a5b031ed904873938c4e0467c77"
+  },
+  "jobs.failedRequests": {
+    "sourceHash": "ba3bb774e24ebcf2b83b5c2604230a7c83053cdf6bd7b5867e4163d8e1e44146"
+  },
+  "jobs.totalResponseTime": {
+    "sourceHash": "501d4a32a6989e376fdeffb9c4089edc8f5d528aa2d123e613f1e098367988ae"
+  },
+  "jobs.maxResponseTime": {
+    "sourceHash": "e308c183b2ff5c20d339f8c2b45be796061101ec9382cbc7dcb6b215a0682f8b"
+  },
+  "jobs.importedFiles": {
+    "sourceHash": "d7a027f2c4ef9861bac60143bcbdccda6662df361119351e6ca04edc69219b86"
+  },
+  "jobPhase.retryWait": {
+    "sourceHash": "2575219eec281bc1f8381f54ddfe8278d314a4a2641e63ee99b40bb7d6990b83"
+  },
+  "jobPhase.completed": {
+    "sourceHash": "f28461bb49c8564716309d575f90f72cf15b5c4667e40c2d037434bedb54a01a"
+  },
+  "jobPhase.cancelled": {
+    "sourceHash": "a37778f17c5f3ee5e7c3561c4a7e82f3e8936aca7161071add9c2adac6123564"
+  },
+  "jobPhase.analyzing": {
+    "sourceHash": "0940fba7e9069a012fbe5cccc8ce4292ed0b19d4cb787c1daca517493f131e38"
+  }
+}

@@ -6,7 +6,7 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import {
-  JOB_STATUS_LABELS,
+  jobStatusLabel,
   jobTypeLabel,
   JobCard,
   jobDetailItems,
@@ -750,7 +750,7 @@ function activeJobStatus(job: JobView): string {
   if (job.status === "running") {
     return ACTIVE_JOB_ACTIONS[job.job_type] || "正在处理";
   }
-  return JOB_STATUS_LABELS[job.status] || job.status;
+  return jobStatusLabel(job.status);
 }
 
 function historicalJobTitle(job: JobView): string {

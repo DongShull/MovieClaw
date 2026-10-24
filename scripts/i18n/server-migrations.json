@@ -1882,5 +1882,16 @@
   "subscription.health.watchNoRootNarrative": "投递到监听导入目录 {base}，但库没有根路径，下载完成后无法入库。",
   "subscription.health.watchNarrative": "订阅命中本库的影片会投递到 {base}，下载完成后自动识别并{strategy, select, hardlink {硬链接进 {root} 的「片名 (年份)」目录——源文件留在下载目录继续做种，删种不删片。} other {复制进 {root} 的「片名 (年份)」目录——源文件保留在下载目录。}}",
   "subscription.health.directNarrative": "订阅命中本库的影片会以「片名 (年份)」目录直接下载进 {base}，下载完成即在库内，扫描自动入账。",
-  "subscription.health.noRootNarrative": "库没有根路径：下载会落到下载器默认目录，不会自动入库。"
+  "subscription.health.noRootNarrative": "库没有根路径：下载会落到下载器默认目录，不会自动入库。",
+  "activity.jobActions.dismissAll": "已忽略 {count} 个失败任务",
+  "activity.jobActions.dismissNone": "当前没有需要忽略的失败任务",
+  "activity.jobActions.cancelRequested": "已请求取消",
+  "activity.jobActions.alreadyFinished": "任务已经结束",
+  "activity.jobActions.resumed": "任务已恢复并重新入队",
+  "activity.jobActions.requeued": "任务已重新入队",
+  "activity.jobActions.alreadyDismissed": "任务已经忽略过了",
+  "activity.jobActions.dismissedMuted": "已忽略，并且不再自动重建同类任务",
+  "activity.jobActions.dismissed": "已忽略，不再计入需要处理",
+  "activity.jobActions.restored": "已撤销忽略",
+  "activity.jobActions.notDismissed": "任务并未被忽略"
 }

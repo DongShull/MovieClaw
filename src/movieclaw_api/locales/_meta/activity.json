@@ -223,5 +223,38 @@
   },
   "subscription.smartWaitExtended": {
     "sourceHash": "ce9b7a0e7ab2612b22dc4ddea459b7e1e2834d2966efa620eea5b8f2bfcf6173"
+  },
+  "jobActions.dismissAll": {
+    "sourceHash": "d91eb8057771e9fc886106d68990715c30d34f6dbd0b60d38369b48ff4e3e009"
+  },
+  "jobActions.dismissNone": {
+    "sourceHash": "bef226a83299c417ce7d6e166ba7078877ce3c93926a81ef560d1a1e0267e1a7"
+  },
+  "jobActions.cancelRequested": {
+    "sourceHash": "0a8b91a093c13236db4f43357dccd2b9ea63406d529a3bf324dfb06bb611c86b"
+  },
+  "jobActions.alreadyFinished": {
+    "sourceHash": "5221aba8ee3fa66e3c82fe3af508cdcd56f97c3f7fb31cad4eb64c44d5403c64"
+  },
+  "jobActions.resumed": {
+    "sourceHash": "e9c477117896894be1a620d3c1915cd7b3f99f2448e01e0457dadaed7e081228"
+  },
+  "jobActions.requeued": {
+    "sourceHash": "317b3f9d065ea94f9aada5790e8aeff79ee62cd44ba36bb4f46b6847f19d7fc6"
+  },
+  "jobActions.alreadyDismissed": {
+    "sourceHash": "babff7ca32c7a891a3ad411412fe600ce1d851884e688ebee7e4667e7c3bdeee"
+  },
+  "jobActions.dismissedMuted": {
+    "sourceHash": "b394246b1b3c95b38f4571d84f74c4355c1c3d1a5a44d5c1cda906c9d81a48f8"
+  },
+  "jobActions.dismissed": {
+    "sourceHash": "462dd1caabb0aa2d37d87463597f233482a44cf84777784f88bc268b97d0f80f"
+  },
+  "jobActions.restored": {
+    "sourceHash": "22a93142a5387606f4cc6b6265d9dc6262de500c4e317266bbbdaec09275d412"
+  },
+  "jobActions.notDismissed": {
+    "sourceHash": "d7429bcfceb7012239d9fca0d537c707f317e5d8ecf2910482535939581ba29c"
   }
 }

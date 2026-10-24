@@ -81,5 +81,18 @@
     "searchCompleted": "搜索《{title}》（{keywords}）：{sites} 个站点返回 {results} 个结果，身份命中 {hits}，规则拒绝 {rejected}，投递覆盖 {dispatched} 个单元{hasRemaining, select, yes {；剩余 {remaining} 个缺口按退避曲线排期} other {；本组缺口已全部安排}}",
     "smartCandidateRequested": "已请求立即下载当前候选",
     "smartWaitExtended": "用户延长了等待时间"
+  },
+  "jobActions": {
+    "dismissAll": "已忽略 {count} 个失败任务",
+    "dismissNone": "当前没有需要忽略的失败任务",
+    "cancelRequested": "已请求取消",
+    "alreadyFinished": "任务已经结束",
+    "resumed": "任务已恢复并重新入队",
+    "requeued": "任务已重新入队",
+    "alreadyDismissed": "任务已经忽略过了",
+    "dismissedMuted": "已忽略，并且不再自动重建同类任务",
+    "dismissed": "已忽略，不再计入需要处理",
+    "restored": "已撤销忽略",
+    "notDismissed": "任务并未被忽略"
   }
 }

@@ -30,10 +30,12 @@ import zhNotify from "../../locales/zh-Hans/notify.json" with { type: "json" };
 import enNotify from "../../locales/en/notify.json" with { type: "json" };
 import zhErrors from "../../locales/zh-Hans/errors.json" with { type: "json" };
 import enErrors from "../../locales/en/errors.json" with { type: "json" };
+import zhActivity from "../../locales/zh-Hans/activity.json" with { type: "json" };
+import enActivity from "../../locales/en/activity.json" with { type: "json" };
 import type { AppLocale } from "./negotiate.ts";
 
-export const zhHans = { download: zhDownload, player: zhPlayer, media: zhMedia, library: zhLibrary, subscription: zhSubscription, auth: zhAuth, setup: zhSetup, common: zhCommon, settings: zhSettings, units: zhUnits, home: zhHome, nav: zhNav, search: zhSearch, agent: zhAgent, notify: zhNotify, errors: zhErrors };
-const en = { download: enDownload, player: enPlayer, media: enMedia, library: enLibrary, subscription: enSubscription, auth: enAuth, setup: enSetup, common: enCommon, settings: enSettings, units: enUnits, home: enHome, nav: enNav, search: enSearch, agent: enAgent, notify: enNotify, errors: enErrors };
+export const zhHans = { download: zhDownload, player: zhPlayer, media: zhMedia, library: zhLibrary, subscription: zhSubscription, auth: zhAuth, setup: zhSetup, common: zhCommon, settings: zhSettings, units: zhUnits, home: zhHome, nav: zhNav, search: zhSearch, agent: zhAgent, notify: zhNotify, errors: zhErrors, activity: zhActivity };
+const en = { download: enDownload, player: enPlayer, media: enMedia, library: enLibrary, subscription: enSubscription, auth: enAuth, setup: enSetup, common: enCommon, settings: enSettings, units: enUnits, home: enHome, nav: enNav, search: enSearch, agent: enAgent, notify: enNotify, errors: enErrors, activity: enActivity };
 
 // Merge by leaf, keeping the Chinese source as a migration fallback.
 function merge(source: Record<string, unknown>, translated: Record<string, unknown>): Record<string, unknown> {

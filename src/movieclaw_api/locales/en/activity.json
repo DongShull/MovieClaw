@@ -81,5 +81,18 @@
     "searchCompleted": "Searched for “{title}” ({keywords}): {sites, plural, one {# site returned} other {# sites returned}} {results, plural, one {# result} other {# results}}, {hits, number} identity matches, {rejected, number} rejected by rules, {dispatched, plural, one {# unit covered by dispatches} other {# units covered by dispatches}}{hasRemaining, select, yes {; {remaining, plural, one {# remaining unit scheduled with backoff} other {# remaining units scheduled with backoff}}} other {; all missing units in this group have been arranged}}",
     "smartCandidateRequested": "Requested an immediate download of the current candidate",
     "smartWaitExtended": "The user extended the wait"
+  },
+  "jobActions": {
+    "dismissAll": "{count, plural, one {Dismissed # failed task} other {Dismissed # failed tasks}}",
+    "dismissNone": "There are no failed tasks to dismiss",
+    "cancelRequested": "Cancellation requested",
+    "alreadyFinished": "The task has already finished",
+    "resumed": "The task was resumed and queued again",
+    "requeued": "The task was queued again",
+    "alreadyDismissed": "The task was already dismissed",
+    "dismissedMuted": "Dismissed; tasks of this type will no longer be recreated automatically",
+    "dismissed": "Dismissed; it no longer needs attention",
+    "restored": "Dismissal undone",
+    "notDismissed": "The task was not dismissed"
   }
 }

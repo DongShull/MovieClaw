@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.exceptions import BadRequestException, NotFoundException, exception_fields
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import localize_fields
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.schemas.jobs import (
@@ -264,7 +265,9 @@ async def dismiss_all_failed_jobs(
     )
     return ApiResponse(
         data=JobDismissAllView(dismissed=len(rows), jobs=await job_views(session, rows)),
-        message=f"已忽略 {len(rows)} 个失败任务" if rows else "当前没有需要忽略的失败任务",
+        message=t("activity.jobActions.dismissAll", count=len(rows))
+        if rows
+        else t("activity.jobActions.dismissNone"),
     )
 
 
@@ -359,7 +362,9 @@ async def cancel_job(
         raise NotFoundException(message_key="errors.jobs.missing")
     return ApiResponse(
         data=JobCancelView(cancelled=cancelled, job=await job_view(session, row)),
-        message="已请求取消" if cancelled else "任务已经结束",
+        message=t("activity.jobActions.cancelRequested")
+        if cancelled
+        else t("activity.jobActions.alreadyFinished"),
     )
 
 
@@ -395,11 +400,11 @@ async def retry_job_row(
             job=await job_view(session, created.job),
         ),
         message=(
-            "任务已恢复并重新入队"
+            t("activity.jobActions.resumed")
             if was_blocked
-            else "任务已重新入队"
+            else t("activity.jobActions.requeued")
             if created.created
-            else "相同任务已在进行中"
+            else t("activity.jobs.conflict")
         ),
     )
 
@@ -437,11 +442,11 @@ async def dismiss_job_row(
         muted = await subtitle_auto.mute_from_job(session, row, muted_by=str(principal))
 
     if not dismissed:
-        message = "任务已经忽略过了"
+        message = t("activity.jobActions.alreadyDismissed")
     elif muted:
-        message = "已忽略，并且不再自动重建同类任务"
+        message = t("activity.jobActions.dismissedMuted")
     else:
-        message = "已忽略，不再计入需要处理"
+        message = t("activity.jobActions.dismissed")
     return ApiResponse(
         data=JobDismissView(
             dismissed=dismissed, muted=muted, job=await job_view(session, row)
@@ -469,5 +474,7 @@ async def undismiss_job_row(
         await subtitle_auto.unmute_from_job(session, row)
     return ApiResponse(
         data=JobDismissView(dismissed=False, muted=False, job=await job_view(session, row)),
-        message="已撤销忽略" if restored else "任务并未被忽略",
+        message=t("activity.jobActions.restored")
+        if restored
+        else t("activity.jobActions.notDismissed"),
     )
