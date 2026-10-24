@@ -424,5 +424,10 @@
     "exitHealth": "完整健康链路连续失败，容器主动退出等待自动拉起",
     "exitWatchdog": "健康看门狗意外退出",
     "exitUnknown": "无法确定退出的子进程"
+  },
+  "driveLogin": {
+    "added": "已添加：{name}",
+    "relogged": "已重新登录：{name}",
+    "webLogin": "网页端"
   }
 }

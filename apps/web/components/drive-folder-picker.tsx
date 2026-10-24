@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 /**
  * 选网盘上的文件夹挂到媒体库（docs/design/cloud-storage.md §4.1，样稿 mockups/cloud-storage-demo.html）。
@@ -53,6 +53,7 @@ export function DriveFolderPicker({
   onSelect: (picked: PickedDriveFolder) => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? 0);
   const [stack, setStack] = useState<Level[]>([ROOT]);
   const [dirs, setDirs] = useState<DriveDir[] | null>(null);
@@ -207,8 +208,8 @@ export function DriveFolderPicker({
         )}
       </div>
 
-      <div className="flex items-center gap-3 border-t border-white/[0.08] bg-white/[0.02] px-5 py-3.5">
-        <p className="min-w-0 flex-1 truncate text-sub text-[var(--text-muted)]" title={current.path}>
+      <div className={`${locale === "en" ? "flex flex-wrap" : "flex"} items-center gap-3 border-t border-white/[0.08] bg-white/[0.02] px-5 py-3.5`}>
+        <p className={`${locale === "en" ? "w-full break-words" : "min-w-0 flex-1 truncate"} text-sub text-[var(--text-muted)]`} title={current.path}>
           {blocked ?? current.path}
         </p>
         <button type="button" onClick={onClose} className="btn-glass h-8 shrink-0 px-3.5 text-ui font-medium">

@@ -2428,5 +2428,71 @@
   },
   "siteDiagnostic.authReverify": {
     "sourceHash": "00a916ca4b916b4bb1c168daa7e24fe19f26f33b8bbcfbee28316229c78b4fe5"
+  },
+  "driveLogin.qrExpired": {
+    "sourceHash": "c6b58e933511416c1ed2e47b03cf2318076dffe247baa1ece2f967afc7537dbe"
+  },
+  "driveLogin.noScan": {
+    "sourceHash": "0600b01d333ac69aa3a97097ad8694036f19cf1c01be6552ddd1e998633c29bb"
+  },
+  "driveLogin.invalidOption": {
+    "sourceHash": "3fd1402a8464d2dcd9bf6a212abb3ecdc392d2626d699edd024b8032698500b2"
+  },
+  "driveLogin.cancelled": {
+    "sourceHash": "a37778f17c5f3ee5e7c3561c4a7e82f3e8936aca7161071add9c2adac6123564"
+  },
+  "driveLogin.resultMissing": {
+    "sourceHash": "e136cceedc17da8733cc07bba1dfed2a166d52bc740d472448aea824a48517fa"
+  },
+  "driveLogin.addFailed": {
+    "sourceHash": "bf49bddcfb48b9eb87efebe206521980a0bc1f640301fc2a3e86ecc6cd9f8dd4"
+  },
+  "driveLogin.noCookie": {
+    "sourceHash": "04ce05afed499867fdb03ac1b6425514ed0d7b7d50a28faa9c52157c99775cbb"
+  },
+  "driveLogin.cookieRejected": {
+    "sourceHash": "a3142897885219bc92074ad22b01b92206bac3a078c45465aca8de6dc77bc2f7"
+  },
+  "driveLogin.noForm": {
+    "sourceHash": "c4428d1caf39f2d4e5b08b972a95c23a048a53093d5060219d8e982830d40994"
+  },
+  "driveLogin.unknownFields": {
+    "sourceHash": "8632a5458470747c61c52aa122d1198b7810701c6b0c2306c02a3354676884ba"
+  },
+  "driveLogin.requiredFields": {
+    "sourceHash": "9ebac1b5da2acc3d11f7ea32cab1865b7f433d76944a96376695e800e15b7002"
+  },
+  "driveLogin.listSeparator": {
+    "sourceHash": "c4a40ea8fe35627476f7f8cb9e1fc7f8898f428c6d1ff18b0bc5479d5db39c5f"
+  },
+  "driveLogin.formRejected": {
+    "sourceHash": "94aa84b3a840d91d93525d038ce60d45eb8c7adb48df225fe2c65c74252db6f1"
+  },
+  "driveLogin.reloginMissing": {
+    "sourceHash": "be74720cbfffa49c7cbf1b89662e61609417031ad0760f961d75229fb0dda80d"
+  },
+  "driveLogin.wrongAccount": {
+    "sourceHash": "8972eebd7ea571d68ebf7d80ec4da8c05a15c97d56ca8d699482dc603bd3b952"
+  },
+  "driveLogin.nameRequired": {
+    "sourceHash": "b344ea41caf976e2a92b505eafcd1a2460aebf94e6ca50cb6466cb44e59ddef2"
+  },
+  "driveLogin.invalidRate": {
+    "sourceHash": "fb63b5093f3c26da7e8e4e85ccf3d4a48012f2eabc2668dd18f3c44e8b48b88c"
+  },
+  "driveLogin.invalidBudget": {
+    "sourceHash": "a62b2a4e2208c24db13fb3d29093dd070b229e74d7b8da81b5db67f1e3f000a6"
+  },
+  "driveLogin.invalidSlots": {
+    "sourceHash": "ee45b092fa021b406bf4b0050aa650da70a04d76fbe03f900e4f83aec31567d6"
+  },
+  "driveLogin.inUse": {
+    "sourceHash": "0f4e28d0bacf7bd23889793ac040d3e15cc486c380122e9250935f0a71e14ff1"
+  },
+  "driveLogin.librarySeparator": {
+    "sourceHash": "c67ca960ddf544fca6665c99bacd800c0a6cb1a6689d88e7676b72d69358965e"
+  },
+  "driveLogin.backendUnavailable": {
+    "sourceHash": "6b02bcb642821639fca43361abace246c8816b2fe162c1bc130d428608a39671"
   }
 }

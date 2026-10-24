@@ -1,6 +1,6 @@
 {
   "name": "@movieclaw/theme-netflix",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "MovieClaw 网页的 Netflix 主题插件（docs/design/theme-plugins.md）",
   "scripts": {

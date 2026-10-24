@@ -454,7 +454,9 @@ async def stream_target(
     view = await _account_view(item.account_id)
     backend = backends().get(view.backend)
     if backend is None:
-        raise BackendUnavailable(f"没有安装能连接「{view.backend}」网盘的存储插件")
+        raise BackendUnavailable(
+            f"没有安装能连接「{view.backend}」网盘的存储插件", backend_type=view.backend
+        )
     if allow_direct and choose_direct(
         mode=await stream_mode(),
         account_id=item.account_id,

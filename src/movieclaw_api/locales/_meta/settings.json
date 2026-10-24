@@ -1090,5 +1090,14 @@
   },
   "downloaders.urlLabel": {
     "sourceHash": "37aac5b4e639b93b620a8366fb9d17875610a76ab8c8ab5f12d3ec6da37788dd"
+  },
+  "driveLogin.added": {
+    "sourceHash": "3eed9773d983f8daa3bcfeea0613a4510b33d95296b37c0b8f10875359a77820"
+  },
+  "driveLogin.relogged": {
+    "sourceHash": "def43c9c1ad52b9b948b94fab9c08a5c20b671c392bbc9211e3498c48f8de3ff"
+  },
+  "driveLogin.webLogin": {
+    "sourceHash": "2a56dc80540fcb8a5a6ef77b8c244760508f80a670f9c224cf110496f4b8d149"
   }
 }

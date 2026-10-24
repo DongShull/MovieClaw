@@ -68,6 +68,7 @@ const EXPECTED = [
   "tmdbImageForWidth",
   "TodayArrivalGroup",
   "UpNextItem",
+  "useActiveExtensionPoints",
   "useAgentConversations",
   "useAppLocale",
   "useAppNavLinks",

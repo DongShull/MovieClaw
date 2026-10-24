@@ -926,5 +926,29 @@
     "trUrl": "Invalid Transmission URL. Use a URL such as http://host:9091.",
     "verifyUnexpected": "An unexpected error occurred during the connection test ({kind}): {detail}",
     "pluginNotRunning": "Downloader plugin {entry} is not running. It will retry automatically."
+  },
+  "driveLogin": {
+    "qrExpired": "The QR code has expired. Scan a new code.",
+    "noScan": "{name} does not support QR code sign-in",
+    "invalidOption": "Sign-in option {option}={value} is not available",
+    "cancelled": "Cancelled",
+    "resultMissing": "The sign-in result is missing. Scan a new code.",
+    "addFailed": "Could not add account: {reason}",
+    "noCookie": "{name} does not support cookie sign-in",
+    "cookieRejected": "Could not read the {name} sign-in: {reason}",
+    "noForm": "{name} does not support credential sign-in",
+    "unknownFields": "These fields are not in the sign-in form: {fields}",
+    "requiredFields": "Enter: {fields}",
+    "listSeparator": ", ",
+    "formRejected": "{name} rejected these credentials: {reason}",
+    "reloginMissing": "The cloud drive account you are signing in to no longer exists",
+    "wrongAccount": "You signed in as a different account ({who}), rather than “{name}”. Use “Add cloud drive account” to add a new account.",
+    "nameRequired": "Account name is required",
+    "invalidRate": "Request rate must be between 0.1 and 20 requests per second",
+    "invalidBudget": "Daily budget must be between 100 and 1,000,000 requests",
+    "invalidSlots": "Concurrent streams must be between 1 and 10",
+    "inUse": "Libraries “{names}” still use this account’s cloud drive folders. Remove those folders in the library editor first.",
+    "librarySeparator": "”, “",
+    "backendUnavailable": "No storage plugin is installed for the “{type}” cloud drive"
   }
 }

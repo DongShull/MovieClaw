@@ -17,4 +17,4 @@ Tailwind 工具类一律带 `nf:` 前缀（`nf:flex`、`nf:md:hidden`）：主�
 
 语言：清单的 `title_localized` / `description_localized` 与 `[theme].description_localized` 提供英文元数据。
 主题组件通过 SDK 的 `useAppLocale()` 读宿主语言、`useAppTranslations()` 读宿主资源；自己的文案由主题维护。
-这两个出口从 `ui.theme` 1.2 起提供，清单因此声明 `^1.2`。语言切换时组件重新渲染，不重新加载 React 或丢弃页面状态。
+这两个出口从 `ui.theme` 1.2 起提供；设置侧栏还通过 1.3 的 `useActiveExtensionPoints` 与宿主共用插件/账号的可用状态，清单声明 `^1.3`。语言切换时组件重新渲染，不重新加载 React 或丢弃页面状态。

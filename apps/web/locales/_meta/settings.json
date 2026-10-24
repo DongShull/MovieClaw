@@ -4224,5 +4224,275 @@
   },
   "extension.notEnabled": {
     "sourceHash": "f95ea7f4c063eea7e863c6e43d471dc0bac0d3870a2640bc3b0ee530531406e9"
+  },
+  "drives.removeTitle": {
+    "sourceHash": "7fb0a8b8d934a6daa001ec61c654ab9c9fc2a833d4ea42390dc2c6152b230974"
+  },
+  "drives.removeHint": {
+    "sourceHash": "0cb14bdeb31f716f56c37859fc17657f03424ba84a4341bb62acde8b7ae220a6"
+  },
+  "drives.remove": {
+    "sourceHash": "6135d4159e8925413f3341383615f2995299a536c2a7e15b74035d6d8593c03d"
+  },
+  "drives.removedAccountToast": {
+    "sourceHash": "99b591b79446ad692778824501c1ff15f20e8e20de9d22ae471915fa0e43930a"
+  },
+  "drives.intro": {
+    "sourceHash": "343f9c2677f0dc7e7559cb0568093b7ff9e0375a2156b45f4aee704fee34789a"
+  },
+  "drives.accounts": {
+    "sourceHash": "311bb313fdeca6aa2ce7d9415821a0b0247e064340241f68bac3ca5b19ae6d76"
+  },
+  "drives.loading": {
+    "sourceHash": "4927a53bcc886afb9211eb1143351cf8e32ec830c381832e6060223c8b84f3d6"
+  },
+  "drives.accountCount": {
+    "sourceHash": "7c99637060f9a8ae97116e421f6ee1b0554c167379c77bfac2264ef75f22bd97"
+  },
+  "drives.noAccounts": {
+    "sourceHash": "0813c496f49c689d09b0916b2664c6b96c75b212346066bee0fe8020005e07a1"
+  },
+  "drives.noBackends": {
+    "sourceHash": "300548ec65220c0a1fcae0fcb2678ed7ede8c4439417e8b3caa5b09faaad35d6"
+  },
+  "drives.addHint": {
+    "sourceHash": "f2e36cf6dee303873bba17724dedd17ff360093c161ae8ca1cba1d9183f59abc"
+  },
+  "drives.added": {
+    "sourceHash": "3eed9773d983f8daa3bcfeea0613a4510b33d95296b37c0b8f10875359a77820"
+  },
+  "drives.relogged": {
+    "sourceHash": "def43c9c1ad52b9b948b94fab9c08a5c20b671c392bbc9211e3498c48f8de3ff"
+  },
+  "drives.addAccount": {
+    "sourceHash": "cef1b1b091823d3791f472e6cbe5958329f61ea4864cf3b7f279bad6161dfcfe"
+  },
+  "drives.pluginRequired": {
+    "sourceHash": "d177b02ff0399915ffaeb4400d379c32eccf188c5054d6e019b69fa015d96366"
+  },
+  "drives.healthy": {
+    "sourceHash": "296de0e31f8c22d9343c1f07f7fcd2e88a425d769cb0c88d8b24cc865f2c0685"
+  },
+  "drives.signInRequired": {
+    "sourceHash": "f90a144f6068fb444569458663f3e9049f455687da9d9a9c813305cec66cafe0"
+  },
+  "drives.rateLimited": {
+    "sourceHash": "595c751b84117afa506a82f7de65abe4432f22fc5e24b4d7376ec744a25f8046"
+  },
+  "drives.apiBroken": {
+    "sourceHash": "b423dfd959772240a15ea92d73be2cd2b1043beb0053b83a456a4b4ac725d786"
+  },
+  "drives.disabled": {
+    "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+  },
+  "drives.browserImport": {
+    "sourceHash": "8a3e5923a9ed33d70b2ca245bf6ac71b22f425486a38eba2a9146dc16f8ad061"
+  },
+  "drives.formLogin": {
+    "sourceHash": "cd39cf31e75b1567de1800c42e13222a47c1b7e4a1e438569d0fc4745c0c0855"
+  },
+  "drives.scanLogin": {
+    "sourceHash": "378eaca774bb95516f7da042ca93a35d90e37f5edd8f6e4b0c9e9c4fee9672a4"
+  },
+  "drives.backendUnavailable": {
+    "sourceHash": "d39446fc2895ede206764ac33f275c13ff3a24e14b9fa5cafe1d4f9458782d36"
+  },
+  "drives.expired": {
+    "sourceHash": "0759032719bfdf718ca253ba35740f0af4a774401b591ce2bc776a7446fcb6ea"
+  },
+  "drives.cookieExpiredHint": {
+    "sourceHash": "8d260f180103b1b6461da62b53f30f0834d6174efe0918a57564bbc18d864234"
+  },
+  "drives.expiredHint": {
+    "sourceHash": "22e628e1ffb1f99871b779e9bbdf9ee053f0b4d537b0a8f406055831f2acb0af"
+  },
+  "drives.limitedReason": {
+    "sourceHash": "efc38d2ef9fd97e32867831ff2b9ef86a86626a108895cf20eb9c20181d66106"
+  },
+  "drives.limitedUntil": {
+    "sourceHash": "ed05fba85b9e09f92784af01061f1eeaf41c480075d1f0fe438dd7145a422527"
+  },
+  "drives.limitedHint": {
+    "sourceHash": "cd32f64d786519687af52e922917a47269896b73a4adfbe6fd69c979d37f829d"
+  },
+  "drives.changedReason": {
+    "sourceHash": "ed90f7b158d1cbad0956883a439e48ca6059436d6c7d58c27407d1ee8e39606b"
+  },
+  "drives.brokenHint": {
+    "sourceHash": "94a0c77ca1073f992ccc534508f0c9f890433e186bcf9278726d76ebe9f3f995"
+  },
+  "drives.capacity": {
+    "sourceHash": "d8272b3c5f197b58409e2de014b8d60f2825e50e8aaa5613be40b742c3767364"
+  },
+  "drives.signInAgain": {
+    "sourceHash": "957244cdb9f232abfe43f0c6cb6e4d45fe08c68d50f5056929279ecff69144b1"
+  },
+  "drives.moreActions": {
+    "sourceHash": "cd472ffd09221db2c7ecbbd09c64ff14661fe12152ac97a526ee107133aa7b1a"
+  },
+  "drives.refreshCapacity": {
+    "sourceHash": "e7cbe594d2eb512e86f3a12df1667b470dd887d803d876e13ce141e78c3438c5"
+  },
+  "drives.switchToScan": {
+    "sourceHash": "f8c33cf9c680f6f63fe4696cd4d528b91d64eed280c592bbceabd7c199554ba4"
+  },
+  "drives.scanAgainLogin": {
+    "sourceHash": "eebded43905a08ae9dd608a9037cd3c8540d9e9669fbb0f4bc9e024f6ebc8afb"
+  },
+  "drives.rename": {
+    "sourceHash": "83c37e8a4a5f2c360b3e2d059866f96b5fa1758040129b617a83a542ecb28989"
+  },
+  "drives.accountName": {
+    "sourceHash": "706a17538d4a1f0079019b0e384f2700294a980583b803b8f0ad95b5694b98f4"
+  },
+  "drives.renamed": {
+    "sourceHash": "67fe314e5243810b88cdd9df2ec6d98dab529c2592eb2859232fdb5934694bca"
+  },
+  "drives.removeAccount": {
+    "sourceHash": "f83faae7028078f71be0bae4b19dd3d3b137d746dfdf5f4d15ec70b919fb8c04"
+  },
+  "drives.saved": {
+    "sourceHash": "1bd91a7d0c53c93693523300ece2f5ee35f4643df383495723e944d6f056a720"
+  },
+  "drives.dailyUsage": {
+    "sourceHash": "aa0be36f5eed49773868938dafdd8d3f65020a2e258b33051845a88b66c86a3c"
+  },
+  "drives.advanced": {
+    "sourceHash": "d6e61888b07853ea306f29467275f6718e7d8da499d514cc200e2a09834d7bc1"
+  },
+  "drives.readSlots": {
+    "sourceHash": "f0c052e0b18302a90176a59f4ed3c66c5a1efba0af4e9993374fda13e7f34be4"
+  },
+  "drives.readSlotsValue": {
+    "sourceHash": "60f028c998bac8e200c7e3dabba3c1ae66b718c5ae5541d4843f34121721b5f3"
+  },
+  "drives.readSlotsHint": {
+    "sourceHash": "ccd176423285340ec4f12fe5d3662517b7119775a9036ec7e5acfaeff7e486ef"
+  },
+  "drives.adjust": {
+    "sourceHash": "f65c42a2540befe5ba3f648d20350d260eaf531a1b48bbe04ae4aa47ae574906"
+  },
+  "drives.save": {
+    "sourceHash": "a3030bf8f16dc63c6b277564c68f78a3be5abe5f2907c51826dee7184ff793fd"
+  },
+  "drives.cancel": {
+    "sourceHash": "2cd0f3be8738a86cede1a1452f874f31d569864bbb00cacd4130990f4610cb5c"
+  },
+  "drives.slotsRange": {
+    "sourceHash": "4973eefd1d229bb44ae707e08bf82e06931d9e7bf3dcbf833d0fc5686ec342f8"
+  },
+  "drives.requestRate": {
+    "sourceHash": "ee12cb1b6cc86906fc698e03b61b66879b32c5223b818852cba63649176bace5"
+  },
+  "drives.requestsPerSecond": {
+    "sourceHash": "7af70d0a0bb276bcbb4965e66047ab3709903b97674b5d1e40a5cde89d8154bb"
+  },
+  "drives.pluginDefault": {
+    "sourceHash": "34e1480c77c385eef447901af6fdabe89351c829d27a35a68c4169edd34fa4c0"
+  },
+  "drives.defaultsRestored": {
+    "sourceHash": "b047bf296adacdd21cca09c5eb9ea5002c09bd2aebe141c7c0d4fc2ad5bafc66"
+  },
+  "drives.restoreDefault": {
+    "sourceHash": "ba2e93e73037c71e5522101bb084c5b5a52dcd9e615c9f955275f25611eccc37"
+  },
+  "drives.dailyBudget": {
+    "sourceHash": "96caf749ea338d2bf0aa178a7d62133ac03847b0b2d50653fdff50c70803bc43"
+  },
+  "drives.budgetHint": {
+    "sourceHash": "a17be073b207024ed21bc48648326006fc7ed2661e469c5f340f707fc559b1c9"
+  },
+  "drives.invalidRate": {
+    "sourceHash": "4dfa243b9922abcf516285e43495dcac73542edb2184cbd5c94e22fba42a67d6"
+  },
+  "drives.invalidBudget": {
+    "sourceHash": "ce95e6b05f4de270eda1d7a52d9b876e03a6f8d09379e5ac56ea6fd2cfc59bea"
+  },
+  "drives.removeFooter": {
+    "sourceHash": "3d2d3af179f3c1f3b756f740d9331954cf8ae8e07d8d4e574863b1215a5b00b2"
+  },
+  "drives.afterUpload": {
+    "sourceHash": "d3dcf4fd4a03c6b13a4fac6d17b2ec5b9be5fe5b795a3a9d63ea02e1d388f761"
+  },
+  "drives.removeTasks": {
+    "sourceHash": "2df42a5a68acc3ceef5688bff3c99ed6e2d2258d2f9559f2f37280f61b059ea5"
+  },
+  "drives.removeTasksHint": {
+    "sourceHash": "3ab1e058e0ea3907fc858756bd15c4c7ff171b9650d4cec2343fc501c2bf850b"
+  },
+  "drives.extensionLogin": {
+    "sourceHash": "364f5c786f1ed72084be478e32fdd340e93681a4e488f722139094909bd1a8b4"
+  },
+  "drives.reloginTitle": {
+    "sourceHash": "9d2d814defc8ed85b64e2a5fcb2b78b668332c8164c87f492f0e1443943bca2f"
+  },
+  "drives.addTitle": {
+    "sourceHash": "a66e11477dcc97c18166e9e02768a9bd8a131998ca38ae3dcaeea44a7fca1907"
+  },
+  "drives.close": {
+    "sourceHash": "3fd47edce45b3603d4192f61dbf3e51162589b0951042a18d244132ac92e7bb7"
+  },
+  "drives.recommended": {
+    "sourceHash": "a1162cd91fd2f3540f5526e633e855c4d846e47de951af2fca3ff5a0f9000ed3"
+  },
+  "drives.retry": {
+    "sourceHash": "b8784c8dd5636ff231b121892144e4a3977d5b874f21934c53f850cde7bac0ea"
+  },
+  "drives.qrImage": {
+    "sourceHash": "24252855064cef10e5af102f8587b33ec90b576c687efa4bc8339cc9f8f5ca14"
+  },
+  "drives.loginIncomplete": {
+    "sourceHash": "96b3620be2f0c62ed66592129767acfa7ae980b048e79cf24963c7f01d70ed00"
+  },
+  "drives.scanned": {
+    "sourceHash": "36ec02ee7514414ac5beec9dd023f30d00b01db8782e86aa1818fa8159b8cda8"
+  },
+  "drives.scanWithApp": {
+    "sourceHash": "0a030eb9deb01988b3085babece2f3bfd871057613bd8f3cfb6690d9e359b4da"
+  },
+  "drives.confirmOnPhone": {
+    "sourceHash": "9eddfd5840e61c5ff6fbbb33b9ec130a92a6c82286309740bfe090f979e611e0"
+  },
+  "drives.rescan": {
+    "sourceHash": "a379593b5b7590f020e8954e36367b3894afe5137944378c7b9afc9e8b7260e4"
+  },
+  "drives.extensionStepOne": {
+    "sourceHash": "02210a0fd4801e98eaadea3497daf6143482e52373ee48e1aab0e1f0f45123a6"
+  },
+  "drives.extensionStepTwo": {
+    "sourceHash": "8ca02449f1c5b35a7a88c6183fe23cba105ab86b8cb93f3b79760f9834c52e9c"
+  },
+  "drives.extensionStepThree": {
+    "sourceHash": "86c66e48f2d9a08d7a9459b8466276832e32fa64421153b2eed6ff6e1cb9b67a"
+  },
+  "drives.cookieWarning": {
+    "sourceHash": "018962a7530bf8edf2275f7343df2a9daedfaba4453e1bc7f0dbad68cda4a8b2"
+  },
+  "drives.installExtension": {
+    "sourceHash": "a954505e3ddbab8b3948780b350cfdd034ebbf97fb55a2de5c7c9a8a910e9675"
+  },
+  "drives.pasteCookie": {
+    "sourceHash": "cdc40a7f4203e7fe9bf5b9d1a2fb13ae548671e9e8ab225ad36074620e9e6b8f"
+  },
+  "drives.cookiePlaceholder": {
+    "sourceHash": "d57959a02c3c520768592ea3db114563e6460a475de328d37955e444f8a4bc30"
+  },
+  "drives.checking": {
+    "sourceHash": "fee0b2ceff3fc8283ebde6127b7503332f1814a0d05778ad6f5d452a4821879b"
+  },
+  "drives.signIn": {
+    "sourceHash": "1e2df9c3075ae9e48a96d1013063f777b1728a4c5d08c6d667421587b464e3de"
+  },
+  "drives.unsupportedForm": {
+    "sourceHash": "3f97544f168f4e7b4461eaa9909fa8541fedfdea3d8f55ebfccd1bdf83bf5d46"
+  },
+  "drives.verifyCredentialsHint": {
+    "sourceHash": "39d1687504357ada5de820d7903775c5684ca95e474f810eb2f6e51676f60693"
+  },
+  "drives.verifying": {
+    "sourceHash": "7f2d0739a240dc5197db9746c6f500555d966a7f8703c2b0f8c585f08c5e6b5e"
+  },
+  "drives.verifyAndSignIn": {
+    "sourceHash": "4e34537e5d0c9d970c34257d9e4305523d05bc6a29687e9fdf746b8e185c65ab"
   }
 }

@@ -424,5 +424,10 @@
     "exitHealth": "Repeated full health checks failed. The container exited to allow automatic recovery.",
     "exitWatchdog": "The health watchdog exited unexpectedly",
     "exitUnknown": "The exited child process could not be identified"
+  },
+  "driveLogin": {
+    "added": "Added: {name}",
+    "relogged": "Signed in again: {name}",
+    "webLogin": "Web sign-in"
   }
 }

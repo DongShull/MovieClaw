@@ -8,6 +8,7 @@ import {
   useSession,
   useAppLocale,
   useAppTranslations,
+  useActiveExtensionPoints,
 } from "@movieclaw/theme-sdk";
 
 
@@ -34,7 +35,8 @@ export function NetflixSettingsSidebar({
   const { session } = useSession();
   const locale = useAppLocale();
   const t = useAppTranslations();
-  const sectionGroups = settingsSectionGroupsFor(session.role, undefined, locale);
+  const extensionPoints = useActiveExtensionPoints(session.role === "admin");
+  const sectionGroups = settingsSectionGroupsFor(session.role, extensionPoints, locale);
   // 有可用更新时给「更新与维护」分区行点一颗小蓝点：与银玻璃侧栏同一份快照数据
   const pendingUpdate = usePendingUpdate(session.role !== "member");
 
