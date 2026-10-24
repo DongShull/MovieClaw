@@ -7,7 +7,16 @@
     "connectionRetested": "Connection test restarted",
     "connectionDeleted": "Deleted",
     "remoteRevocationPending": "Local connection deleted. Remote revocation is unconfirmed; disconnect this app in ChatGPT settings.",
-    "modelWithProvider": "{model} ({provider})"
+    "modelWithProvider": "{model} ({provider})",
+    "preset": {
+      "bailian": "Alibaba Cloud Model Studio",
+      "chatgpt": "ChatGPT subscription (preview)",
+      "deepseek": "Official DeepSeek",
+      "glm": "Official Zhipu GLM",
+      "kimi": "Official Kimi (Moonshot AI)",
+      "openai": "OpenAI",
+      "openaiCompat": "OpenAI-compatible endpoint"
+    }
   },
   "updates": {
     "applicationScope": "application updates",

@@ -1066,5 +1066,26 @@
   },
   "llm.modelWithProvider": {
     "sourceHash": "c91c788ede0bb925c37be7ce3048d2c1b6e3a4dfea29eb4de43d0aa2e14e69ef"
+  },
+  "llm.preset.bailian": {
+    "sourceHash": "d747d6f5125b6beed61463b9405af36a10b0cc4582628e24ae6b18dd10310967"
+  },
+  "llm.preset.chatgpt": {
+    "sourceHash": "691d6fe79e27c21d25a21e8355edf6e4d633bdc4f4029eb44a592412b5f1aad3"
+  },
+  "llm.preset.deepseek": {
+    "sourceHash": "1e887aad880da89f4e9cb0ae304122eaa352829f0ed50aa35b3ac024d19de4c3"
+  },
+  "llm.preset.glm": {
+    "sourceHash": "e350527ab3c0a01f319d2e85db09143a340beb5981fe2d5a85c413c1c6ac6f2c"
+  },
+  "llm.preset.kimi": {
+    "sourceHash": "ba6a58029375bfaac2a3e93eca9733f90b5ffe7ed6df22466ee94ff231567113"
+  },
+  "llm.preset.openai": {
+    "sourceHash": "8b7d1a3187ab355dc31bc683aaa71ab5ed217940c12196a9cd5f4ca984babfa4"
+  },
+  "llm.preset.openaiCompat": {
+    "sourceHash": "de9905489dfc1668f5eb44793114f4b56ee3c572cfdc9f5e99a33ebb141047f7"
   }
 }

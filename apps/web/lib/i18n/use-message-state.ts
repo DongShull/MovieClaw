@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { AppMessageKey } from "./translate";
 
-type Message = string | {
+export type Message = string | {
   key: AppMessageKey;
   values?: Record<string, string | number | Date>;
 };

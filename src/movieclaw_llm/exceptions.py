@@ -15,8 +15,17 @@ class LlmError(Exception):
     #: 该类错误是否值得重试（由子类覆盖）
     retryable: bool = False
 
-    def __init__(self, message: str, *, provider: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        provider: str | None = None,
+        message_key: str | None = None,
+        params: dict | None = None,
+    ) -> None:
         self.provider = provider
+        self.message_key = message_key
+        self.params = params or {}
         prefix = f"[{provider}] " if provider else ""
         super().__init__(f"{prefix}{message}")
 
@@ -31,10 +40,16 @@ class LlmRateLimitError(LlmError):
     retryable = True
 
     def __init__(
-        self, message: str, *, provider: str | None = None, retry_after: float | None = None
+        self,
+        message: str,
+        *,
+        provider: str | None = None,
+        retry_after: float | None = None,
+        message_key: str | None = None,
+        params: dict | None = None,
     ) -> None:
         self.retry_after = retry_after
-        super().__init__(message, provider=provider)
+        super().__init__(message, provider=provider, message_key=message_key, params=params)
 
 
 class LlmConnectError(LlmError):

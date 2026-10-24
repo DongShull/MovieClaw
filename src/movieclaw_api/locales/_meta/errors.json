@@ -2182,5 +2182,113 @@
   },
   "webSearch.httpDetail": {
     "sourceHash": "c80becaed254d1a5020ca0a9d7d888609b06742dc41eacc6e9a970a710121abe"
+  },
+  "llm.connection.auth": {
+    "sourceHash": "eb2b7bbde201db326240d44245aa29cb577cd492b12d17f2498aad0a0a193a4b"
+  },
+  "llm.connection.rate": {
+    "sourceHash": "1144f77d7ab94062d4f3306c5b5a563306c548248c3a34e75732e40bbb9e26a3"
+  },
+  "llm.connection.connect": {
+    "sourceHash": "2fccdad7a043d1e571a9e6443a973fc0a2bf1e7dd86e3fa252b29b4faa713d7f"
+  },
+  "llm.connection.filter": {
+    "sourceHash": "8f70b91466dac0ceaa1a20a799863d1f66ca8d8af643e908aade2b7921387754"
+  },
+  "llm.connection.request": {
+    "sourceHash": "ea0f4da0dee4dff56680a9f3aad44bd31d76a5383045a4cc3c2459819577218a"
+  },
+  "llm.connection.server": {
+    "sourceHash": "407c29279e86d1e78e09209c0ed76808b192120f13bfa85a15f46343e44056c1"
+  },
+  "llm.connection.http": {
+    "sourceHash": "faa01beaffa78896ed458e406c1f9c2d71f8a2c4a890b4d05bd2bdfd298044da"
+  },
+  "llm.connection.unknown": {
+    "sourceHash": "01079905f3a0156104e4768ca5b10679c60ac5fee8a4b110f8831cee5ed0fcfd"
+  },
+  "llm.connection.invalidGrant": {
+    "sourceHash": "cf70c00f0ee711232c7c9104e0f03d27e33b8e23c664c34886ef4815a8f39a64"
+  },
+  "llm.connection.subscriptionGrant": {
+    "sourceHash": "53245569fe5f197338d2b94e708d09463f47b3c62aa3d216ef3c2149127aec31"
+  },
+  "llm.connection.identity": {
+    "sourceHash": "f6dbb253afe15a8e5022bc6d4fa7cdf8fa601f0b94404df8d73ebb39f389712f"
+  },
+  "llm.connection.renew": {
+    "sourceHash": "e4ff69a22d064d8f6a0201750380e8d54589183d351c05e282efc5a1ea445261"
+  },
+  "llm.connection.revoked": {
+    "sourceHash": "9534e79c5815ce144abe8e5ca2e338c47c3acfbbb9f1303417ba4882e830e67e"
+  },
+  "llm.connection.responsesTools": {
+    "sourceHash": "b785b41ff7c52ce2444673499ee8605ff28bc5c50a5f20aab8e9e4fff713bc71"
+  },
+  "llm.connection.chatToolsNoReasoning": {
+    "sourceHash": "fa502e4fdff435d41c71627adca843362db1e3ba13a0bd74275330d631b30566"
+  },
+  "llm.connection.protocolUnknown": {
+    "sourceHash": "f9d9b8a8fd12a917b21d515b7df188339f273b3460766f639af8e7508667f241"
+  },
+  "llm.connection.noProviders": {
+    "sourceHash": "44e393ad1cd7a1f99db9c01f3729b462f0d2b64629366ed118dc7d03fc7a860e"
+  },
+  "llm.connection.noDefault": {
+    "sourceHash": "56e2710b21a3ffbb4dc990fb6b7b65442f3f104dca0b9485e7eaf80f2e3767cd"
+  },
+  "llm.connection.disabled": {
+    "sourceHash": "105ea8266bef61dff7ca859e3eaaf1e84d758be22851de6284e0aabc507afbda"
+  },
+  "llm.connection.providerMissing": {
+    "sourceHash": "62d02e0294528a72a93a4b26f5d194b8fb00c1fad8d538c6d9866b18755b596c"
+  },
+  "llm.connection.modelMissing": {
+    "sourceHash": "a646b46cb85da8c7ce25faa20918863b517c3a3a84aca2ee2a96141e67f84b43"
+  },
+  "llm.connection.typeUnknown": {
+    "sourceHash": "5eff835619c442287bde14c47133a9a89d2086bc5195114f46c8acdcd536be39"
+  },
+  "llm.connection.responsesHint": {
+    "sourceHash": "4c401a1fb1c858f971bf04125de731ef359cb705801ce8a030bc5f41db540704"
+  },
+  "llm.connection.toolMissing": {
+    "sourceHash": "5bcdfa7bfcd9cfed1d7f61d922c42754fe84535a767fe477a2ae51f7ff613a24"
+  },
+  "llm.connection.chatgptIncomplete": {
+    "sourceHash": "659c5a5c65390cdb048614b248161987e4ea1322bc9fdf8d5f4842362ea05f70"
+  },
+  "llm.connection.chatgptCatalog": {
+    "sourceHash": "f5923a45c05679894c0c20466400b594b9160badabf27afefdb066f0fe550188"
+  },
+  "llm.connection.failedResponse": {
+    "sourceHash": "4933a7e7b0b4bdb4f9154de409f3c1ddec32e630ba87eeb4466b8551a30a1c11"
+  },
+  "llm.connection.failedUnknown": {
+    "sourceHash": "f4ab20994af672bb0ddbe1f6b3f78a53eaaf5356bfe7653361b06d40fc304b1a"
+  },
+  "llm.connection.providerError": {
+    "sourceHash": "e0341be604f05a6881bd56e1ad5f49b7bd89f8017878c2fa9f538da989bccfee"
+  },
+  "llm.connection.verificationUnknown": {
+    "sourceHash": "6a4bfb9f957f43d1cc9a87ea3a5ba4850aec74c1b7d2a9de10445c542189a7c7"
+  },
+  "llm.connection.credentialUnavailable": {
+    "sourceHash": "c7983e7356fe129be8550e48fecb087a863585ddd4b0a7aab84423ff7fef2598"
+  },
+  "llm.connection.connectionRemoved": {
+    "sourceHash": "ad5e4fbd28625ccce3fa62dd02d377759067c42fb56382533dbaebfb6aebea43"
+  },
+  "llm.connection.accountUpdated": {
+    "sourceHash": "e51d3053ad27ce76180c66a8fa3c9e8c354400da3991d5049dfe84d1e264a4b7"
+  },
+  "llm.connection.allowUsage": {
+    "sourceHash": "4ed53982681612445e08bb6cab5d64b25d2b7869e1848850ddc430c3c1659bb6"
+  },
+  "llm.connection.differentAccount": {
+    "sourceHash": "2da03f00c28131e6f026b5723e0ceab658e3ee55944b0ef0c486e0bfc2575862"
+  },
+  "llm.connection.authUnavailable": {
+    "sourceHash": "0719c50ddbccac23c98e9349078631b72ac474fb036e2be0c77875bac1f97730"
   }
 }

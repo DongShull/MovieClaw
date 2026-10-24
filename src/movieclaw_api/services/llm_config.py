@@ -37,7 +37,8 @@ from movieclaw_api.exceptions import (
     ConflictException,
     NotFoundException,
 )
-from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n.llm import error_reference, preset_name
+from movieclaw_api.i18n.stored import reference, render_value
 from movieclaw_api.schemas.llm import (
     LlmDefaultsView,
     LlmModelDiscoveryPayload,
@@ -312,10 +313,10 @@ class LlmConfigService:
         try:
             preset = get_preset(payload.provider_type)
         except LlmError as exc:
-            raise BadRequestException(str(exc)) from exc
+            raise BadRequestException(render_value(error_reference(exc))) from exc
         if preset.requires_base_url and not payload.base_url:
             raise BadRequestException(
-                message_key="errors.llm.endpointRequired", params={"name": preset.display_name}
+                message_key="errors.llm.endpointRequired", params={"name": preset_name(preset)}
             )
         key = payload.api_key
         if payload.provider_type == "chatgpt":
@@ -330,7 +331,7 @@ class LlmConfigService:
             try:
                 return sorted(set((await protocol.test_connection()).models))
             except LlmError as exc:
-                raise BadRequestException(str(exc)) from exc
+                raise BadRequestException(render_value(error_reference(exc))) from exc
             finally:
                 await protocol.close()
         if not key and payload.provider_id:
@@ -354,7 +355,7 @@ class LlmConfigService:
             return sorted(set(info.models))
         except LlmError as exc:
             raise BadRequestException(
-                message_key="errors.llm.modelListFailed", params={"error": exc}
+                message_key="errors.llm.modelListFailed", params={"error": error_reference(exc)}
             ) from exc
         finally:
             await protocol.close()
@@ -423,7 +424,7 @@ class LlmConfigService:
                 return
             raise BadRequestException(
                 message_key="errors.llm.modelNotInCatalog",
-                params={"id": model_id, "name": preset.display_name},
+                params={"id": model_id, "name": preset_name(preset)},
             )
         if any(m.id == model_id for m in preset.models):
             return
@@ -469,10 +470,10 @@ class LlmConfigService:
             preset = get_preset(provider_type)
         except LlmError as exc:
             # 未知供应商类型：领域错误翻译成 400（错误信息本身已含可选项提示）
-            raise BadRequestException(str(exc)) from exc
+            raise BadRequestException(render_value(error_reference(exc))) from exc
         if preset.requires_base_url and not base_url:
             raise BadRequestException(
-                message_key="errors.llm.endpointRequired", params={"name": preset.display_name}
+                message_key="errors.llm.endpointRequired", params={"name": preset_name(preset)}
             )
         if provider_type == "chatgpt" and base_url not in (None, RESOURCE):
             raise BadRequestException(message_key="errors.llm.chatgptEndpointOnly")
@@ -482,7 +483,7 @@ class LlmConfigService:
             raise BadRequestException(
                 message_key="errors.llm.protocolUnsupported",
                 params={
-                    "name": preset.display_name,
+                    "name": preset_name(preset),
                     "protocol": api_protocol,
                     "available": {
                         "message_list": preset.selectable_protocols or [preset.protocol],
@@ -494,7 +495,7 @@ class LlmConfigService:
             if not preset.models and not extra_models:
                 raise BadRequestException(
                     message_key="errors.llm.modelEntryRequired",
-                    params={"name": preset.display_name},
+                    params={"name": preset_name(preset)},
                 )
             for model in extra_models:
                 self._assert_model_configured(preset, extra_models, model.id)
@@ -538,7 +539,7 @@ class LlmConfigService:
             try:
                 ChatGPTCredentials.parse(api_key)
             except LlmError as exc:
-                raise BadRequestException(str(exc)) from None
+                raise BadRequestException(render_value(error_reference(exc))) from None
         extras = extra_models or []
         test_model = await self._validate(
             name=name,
@@ -591,7 +592,7 @@ class LlmConfigService:
             try:
                 ChatGPTCredentials.parse(api_key)
             except LlmError as exc:
-                raise BadRequestException(str(exc)) from None
+                raise BadRequestException(render_value(error_reference(exc))) from None
         if not api_key and (provider_type != row.provider_type or base_url != row.base_url):
             raise BadRequestException(message_key="errors.llm.apiKeyRefreshRequired")
         if api_protocol is ...:
@@ -728,9 +729,14 @@ async def verify_llm_provider(provider_id: int) -> None:
                 row.default_model,
             )
         except LlmError as exc:
-            # LlmError 的 message 本身已是清晰中文，直接展示
+            # 原始中文保留；引用在读取时按当前语言渲染
             logger.info("LLM 连接测试失败「%s」：%s", row.name, exc)
-            await repo.update_status(provider_id, ConfigStatus.FAILED, last_error=str(exc))
+            await repo.update_status(
+                provider_id,
+                ConfigStatus.FAILED,
+                last_error=str(exc),
+                last_error_ref=error_reference(exc) if exc.message_key else None,
+            )
             return
         except Exception as exc:  # noqa: BLE001 -- 背景任务兜底，绝不外抛
             logger.exception("LLM 连接测试发生未知错误「%s」", row.name)
@@ -738,6 +744,11 @@ async def verify_llm_provider(provider_id: int) -> None:
                 provider_id,
                 ConfigStatus.FAILED,
                 last_error=f"测试时发生未知错误（{type(exc).__name__}）：{exc}",
+                last_error_ref=reference(
+                    "errors.llm.connection.verificationUnknown",
+                    type=type(exc).__name__,
+                    error=str(exc),
+                ),
             )
             return
         else:

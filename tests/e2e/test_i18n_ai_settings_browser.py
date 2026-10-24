@@ -447,15 +447,15 @@ def test_provider_deletion_uses_revocation_facts(stack, browser):
             time.sleep(0.1)
         assert row["status"] == "active", row
         page.goto(base + "/settings/llm")
-        page.get_by_role("button", name="「ChatGPT fixture」的更多操作", exact=True).click()
-        page.get_by_role("menuitem", name="删除…", exact=True).click()
+        page.get_by_role("button", name='More actions for "ChatGPT fixture"', exact=True).click()
+        page.get_by_role("menuitem", name="Delete…", exact=True).click()
         with page.expect_response(
             lambda response, target=provider_id: (
                 response.request.method == "DELETE"
                 and response.url.endswith(f"/llm/providers/{target}")
             )
         ) as deleted:
-            page.get_by_role("dialog").get_by_role("button", name="删除", exact=True).click()
+            page.get_by_role("dialog").get_by_role("button", name="Delete", exact=True).click()
         assert deleted.value.ok
         result = deleted.value.json()
         assert result["data"] == {"remote_revoked": confirmed}
@@ -465,9 +465,9 @@ def test_provider_deletion_uses_revocation_facts(stack, browser):
             expect(page.get_by_role("dialog")).to_have_count(0)
         else:
             dialog = page.get_by_role("dialog")
-            expect(dialog).to_contain_text("ChatGPT 接入已移除")
+            expect(dialog).to_contain_text("ChatGPT connection removed")
             expect(dialog).to_contain_text("Remote revocation is unconfirmed")
-            dialog.get_by_role("button", name="知道了", exact=True).click()
+            dialog.get_by_role("button", name="Got it", exact=True).click()
         rows = context.request.get(base + "/api/v1/llm/providers").json()["data"]
         assert all(value["id"] != provider_id for value in rows)
     context.close()

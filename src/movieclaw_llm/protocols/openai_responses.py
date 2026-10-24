@@ -278,7 +278,15 @@ class OpenAIResponsesProtocol(OpenAIProtocolBase):
     def _parse_response(self, response: Any, model_id: str) -> ChatResponse:
         if getattr(response, "status", None) == "failed":
             raise LlmServerError(
-                f"模型服务返回失败：{self._failure_message(response)}", provider=self.config.name
+                f"模型服务返回失败：{self._failure_message(response)}",
+                provider=self.config.name,
+                message_key="errors.llm.connection.failedResponse",
+                params={
+                    "reason": (
+                        getattr(getattr(response, "error", None), "message", None)
+                        or {"message_key": "errors.llm.connection.failedUnknown", "params": {}}
+                    )
+                },
             )
         content: list[str] = []
         thinking: list[str] = []

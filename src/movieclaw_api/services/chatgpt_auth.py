@@ -15,6 +15,8 @@ import httpx
 from pydantic import Field
 
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.i18n.llm import error_reference
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.settings import get_setting_store
 from movieclaw_api.settings.base import SettingSchema, register_setting
 from movieclaw_db.crypto import get_secret_box
@@ -72,7 +74,10 @@ class DatabaseChatGPTTokenStore:
             repo = LlmProviderRepository(session)
             row = await repo.get(provider_id)
             if row is None or row.provider_type != "chatgpt":
-                raise LlmAuthError("ChatGPT 接入已移除，请重新连接")
+                raise LlmAuthError(
+                    "ChatGPT 接入已移除，请重新连接",
+                    message_key="errors.llm.connection.connectionRemoved",
+                )
             return repo.decrypted_api_key(row)
 
     async def save(self, provider_id: int, previous: str, updated: str) -> None:
@@ -80,9 +85,15 @@ class DatabaseChatGPTTokenStore:
             repo = LlmProviderRepository(session)
             row = await repo.get(provider_id)
             if row is None or row.provider_type != "chatgpt":
-                raise LlmAuthError("ChatGPT 接入已移除，请重新连接")
+                raise LlmAuthError(
+                    "ChatGPT 接入已移除，请重新连接",
+                    message_key="errors.llm.connection.connectionRemoved",
+                )
             if repo.decrypted_api_key(row) != previous:
-                raise LlmAuthError("ChatGPT 账号已更新，请重新发起请求")
+                raise LlmAuthError(
+                    "ChatGPT 账号已更新，请重新发起请求",
+                    message_key="errors.llm.connection.accountUpdated",
+                )
             row.api_key = get_secret_box().encrypt(updated)
             await session.commit()
 
@@ -242,12 +253,18 @@ async def complete_sign_in(
                 or not data.get("refresh_token")
                 or not data.get("id_token")
             ):
-                raise LlmAuthError("请在 ChatGPT 授权页面允许使用订阅额度")
+                raise LlmAuthError(
+                    "请在 ChatGPT 授权页面允许使用订阅额度",
+                    message_key="errors.llm.connection.allowUsage",
+                )
             keys = await client.get(ISSUER + "/.well-known/jwks.json")
             keys.raise_for_status()
             claims = verify_id_token(data["id_token"], keys.json(), issued_id, pending.nonce)
             if pending.subject is not None and claims["sub"] != pending.subject:
-                raise LlmAuthError("本次登录不是原来的 ChatGPT 账号，请新增接入")
+                raise LlmAuthError(
+                    "本次登录不是原来的 ChatGPT 账号，请新增接入",
+                    message_key="errors.llm.connection.differentAccount",
+                )
             models_response = await client.get(
                 RESOURCE + "/models",
                 headers={
@@ -262,10 +279,9 @@ async def complete_sign_in(
             ]
     except (LlmAuthError, httpx.HTTPError, ValueError) as exc:
         await _revoke_rejected_grant(data, issued_id, pending.host_id)
-        message = (
-            str(exc) if isinstance(exc, LlmAuthError) else "ChatGPT 授权服务暂时不可用，请重新连接"
-        )
-        raise BadRequestException(message) from None
+        if isinstance(exc, LlmAuthError):
+            raise BadRequestException(render_value(error_reference(exc))) from None
+        raise BadRequestException(message_key="errors.llm.connection.authUnavailable") from None
     if not models:
         await _revoke_rejected_grant(data, issued_id, pending.host_id)
         raise BadRequestException(message_key="errors.chatgpt.noModels")

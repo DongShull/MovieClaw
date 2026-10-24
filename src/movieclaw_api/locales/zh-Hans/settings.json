@@ -7,7 +7,16 @@
     "connectionRetested": "已重新发起连接测试",
     "connectionDeleted": "已删除",
     "remoteRevocationPending": "本地接入已删除；远端撤销未确认，请在 ChatGPT 设置中断开此 App",
-    "modelWithProvider": "{model}（{provider}）"
+    "modelWithProvider": "{model}（{provider}）",
+    "preset": {
+      "bailian": "阿里云百炼",
+      "chatgpt": "ChatGPT 订阅（预览）",
+      "deepseek": "DeepSeek 官方",
+      "glm": "智谱 GLM 官方",
+      "kimi": "Kimi 官方（月之暗面）",
+      "openai": "OpenAI",
+      "openaiCompat": "OpenAI 兼容端点"
+    }
   },
   "updates": {
     "applicationScope": "应用更新",

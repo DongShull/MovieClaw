@@ -4,6 +4,9 @@ from datetime import UTC, datetime
 
 from pydantic import Field, field_serializer, field_validator
 
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.llm import preset_name
+from movieclaw_api.i18n.stored import render_value, stored_message
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_db.models.llm_provider import LlmProvider
 from movieclaw_db.models.site_credential import ConfigStatus
@@ -42,7 +45,7 @@ class LlmPresetView(BaseModel):
     def from_preset(cls, preset: ProviderPreset) -> LlmPresetView:
         return cls(
             id=preset.id,
-            display_name=preset.display_name,
+            display_name=render_value(preset_name(preset)),
             base_url=preset.base_url,
             requires_base_url=preset.requires_base_url,
             protocol=preset.protocol,
@@ -70,7 +73,9 @@ class LlmProviderView(BaseModel):
     default_model: str = Field(description="连接测试用的模型 id（目录里第一个）")
     status: ConfigStatus
     usable: bool = Field(description="是否可用 = 连接测试通过（status=active）")
-    last_error: str | None = Field(default=None, description="最近测试失败原因（清晰中文）")
+    last_error: str | None = Field(
+        default=None, description="最近测试失败原因（按当前请求语言显示）"
+    )
     last_checked_at: datetime | None = None
     available_models: list[str] | None = Field(
         default=None, description="最近验证成功时端点上报的可用模型列表"
@@ -94,7 +99,7 @@ class LlmProviderView(BaseModel):
     def from_model(cls, row: LlmProvider) -> LlmProviderView:
         """从 ORM 记录构造脱敏视图。只挑选可公开字段，天然屏蔽密钥密文。"""
         account = None
-        credential_error = None
+        credentials_invalid = False
         if row.provider_type == "chatgpt":
             from movieclaw_db.repositories.llm_provider_repo import LlmProviderRepository
             from movieclaw_llm.chatgpt import ChatGPTCredentials
@@ -105,7 +110,7 @@ class LlmProviderView(BaseModel):
                     LlmProviderRepository.decrypted_api_key(row)
                 ).email
             except (LlmAuthError, ValueError):
-                credential_error = "ChatGPT 授权不可用，请重新连接"
+                credentials_invalid = True
         return cls(
             id=row.id or 0,
             name=row.name,
@@ -115,9 +120,17 @@ class LlmProviderView(BaseModel):
             user_agent=row.user_agent,
             api_protocol=row.api_protocol,
             default_model=row.default_model,
-            status=ConfigStatus.FAILED if credential_error else row.status,
-            usable=row.status == ConfigStatus.ACTIVE and credential_error is None,
-            last_error=credential_error or row.last_error,
+            status=ConfigStatus.FAILED if credentials_invalid else row.status,
+            usable=row.status == ConfigStatus.ACTIVE and not credentials_invalid,
+            last_error=(
+                t("errors.llm.connection.credentialUnavailable")
+                if credentials_invalid
+                else render_value(row.last_error_ref)
+                if row.last_error_ref
+                else stored_message(row.last_error)
+                if row.last_error
+                else None
+            ),
             last_checked_at=row.last_checked_at,
             available_models=row.available_models,
             extra_models=[ModelInfo.model_validate(m) for m in row.extra_models or []],

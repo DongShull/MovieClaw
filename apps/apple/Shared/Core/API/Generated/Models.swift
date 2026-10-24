@@ -6508,7 +6508,7 @@ nonisolated extension API {
         var status: API.ConfigStatus
         /// 是否可用 = 连接测试通过（status=active）
         var usable: Bool
-        /// 最近测试失败原因（清晰中文）
+        /// 最近测试失败原因（按当前请求语言显示）
         var lastError: String?
         var lastCheckedAt: String?
         /// 最近验证成功时端点上报的可用模型列表
