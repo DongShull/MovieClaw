@@ -866,5 +866,9 @@
     "watchImport": "Send to automatic-import watched directory {path}; completed files are organized and imported automatically",
     "directImport": "Download directly into library directory {path}; completed downloads are recorded automatically",
     "collapse": "Collapse"
+  },
+  "wall": {
+    "moviePageTitle": "Movie subscriptions",
+    "tvPageTitle": "Series subscriptions"
   }
 }

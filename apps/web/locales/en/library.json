@@ -1581,5 +1581,30 @@
     "title": "Cloud import report · {name}",
     "hint": "Media specifications (resolution, HDR and audio tracks) are filled in gradually in the background. Playback works now; missing information is read when playback starts. Additions, moves and deletions on the cloud drive sync automatically, with a full check each week. Choose Scan library to sync immediately."
   },
-  "routingOverlap": "“{a}” and “{b}” can match the same title with equally specific rules. The earlier library, “{first}”, takes priority. {dimension, select, none {Both libraries already use the same dimensions. Adjust their overlapping values to remove the ambiguity.} other {To give “{later}” priority, edit it and add a {dimension, select, genres {“Genre”} origin_countries {“Region”} other {“Genre” or “Region”}} condition (Select all works too). More conditions take priority; leave it unchanged to keep the current behavior.}}"
+  "routingOverlap": "“{a}” and “{b}” can match the same title with equally specific rules. The earlier library, “{first}”, takes priority. {dimension, select, none {Both libraries already use the same dimensions. Adjust their overlapping values to remove the ambiguity.} other {To give “{later}” priority, edit it and add a {dimension, select, genres {“Genre”} origin_countries {“Region”} other {“Genre” or “Region”}} condition (Select all works too). More conditions take priority; leave it unchanged to keep the current behavior.}}",
+  "kindWall": {
+    "genreUnknown": "Genre {id}",
+    "all": "All {kind}",
+    "genreTitle": "{genre} · {kind}",
+    "noLibrary": "{kind, select, movie {No movie libraries to browse yet} tv {No series libraries to browse yet} other {No other video libraries to browse yet}}",
+    "summary": "{count, plural, one {# title} other {# titles}} · {libraries, plural, one {# library} other {# libraries}}, with each title counted once",
+    "genreSummary": "{kind, select, movie {{count, plural, one {# movie} other {# movies}}} tv {{count, plural, one {# series} other {# series}}} other {{count, plural, one {# other video} other {# other videos}}}} · {libraries, plural, one {# library} other {# libraries}}",
+    "loadFailed": "Could not load"
+  },
+  "genreTile": {
+    "count": "{kind, select, tv {{count, plural, one {# series} other {# series}}} other {{count, plural, one {# movie} other {# movies}}}}",
+    "browse": "Browse {label}, {countLabel}"
+  },
+  "recentAddition": {
+    "multiSeason": "Added {seasons, plural, one {# season} other {# seasons}} · {episodes, plural, one {# episode} other {# episodes}}",
+    "season": "Season {season}",
+    "specials": "Specials",
+    "complete": "{season} · All {episodes, plural, one {# episode} other {# episodes}}",
+    "partial": "{season} · {episodes, plural, one {# new episode} other {# new episodes}}"
+  },
+  "favoriteLevel": {
+    "episode": "Favorited {code}",
+    "specials": "Favorited specials",
+    "season": "Favorited Season {season}"
+  }
 }

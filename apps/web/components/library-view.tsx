@@ -59,6 +59,7 @@ import {
   rowTitle,
   SORT_PRESETS,
 } from "@/lib/home-rows";
+import { genreLabels } from "@/lib/genre-labels";
 import { formatBytes } from "@/lib/format";
 import { imageUrl, responsiveImage } from "@/lib/image-proxy";
 import { libraryInventoryAction } from "@/lib/library-inventory-summary";
@@ -158,6 +159,7 @@ let lastLoadedHome: {
 
 export function LibraryView({ hero }: { hero?: ReactNode }) {
   const locale = useLocale();
+  const genreNames = genreLabels(locale);
   const t = useTranslations();
   const { canManageLibraries } = usePermissions();
   // 银玻璃手机：同原生 App 的媒体库首页（LibraryHomeView.swift）——左上角大字标题
@@ -448,10 +450,10 @@ export function LibraryView({ hero }: { hero?: ReactNode }) {
       ]),
     );
     return {
-      items: items.map(favoriteItemToMediaItem),
+      items: items.map((item) => favoriteItemToMediaItem(item, locale)),
       hrefOf: (m: MediaItem) => hrefs.get(m.id),
     };
-  }, [favorites]);
+  }, [favorites, locale]);
 
   /** 库行 / 合集行：服务端已按这一行的排序给到前 20，复用发现页的横滚海报行。
    *  已在库的条目点击进**媒体库条目详情**（本地刮削信息 + 片源规格 + 条目操作），
@@ -473,7 +475,7 @@ export function LibraryView({ hero }: { hero?: ReactNode }) {
           row={{
             id: `home-${row.id}`,
             title: rowTitle(row),
-            items: items.map(libraryItemToMediaItem),
+            items: items.map((item) => libraryItemToMediaItem(item, locale)),
           }}
           moreHref={moreHref}
           moreLabel={t("library.home.viewAll")}
@@ -575,7 +577,7 @@ export function LibraryView({ hero }: { hero?: ReactNode }) {
               {genres.map((genre) => (
                 <GenreTile
                   key={genre.value}
-                  label={genre.label}
+                  label={genreNames[Number(genre.value)] ?? genre.label}
                   count={genre.count}
                   coverUrl={genre.cover_url}
                   mediaKind={row.mediaKind}
@@ -832,12 +834,13 @@ export function libraryItemKey(item: LibraryItem): string {
   return item.tmdb_id != null ? String(item.tmdb_id) : `local:${item.media_item_id}`;
 }
 
-export function libraryItemToMediaItem(item: LibraryItem): MediaItem {
-  const t = appTranslator();
+export function libraryItemToMediaItem(item: LibraryItem, locale?: AppLocale): MediaItem {
+  const t = appTranslator(locale);
   const overlayDetails = buildRecentAdditionOverlay(
     item.kind,
     item.recent_addition,
-    item.added_at ? t("library.hero.added", { time: formatRelativeTime(item.added_at) }) : null,
+    item.added_at ? t("library.hero.added", { time: formatRelativeTime(item.added_at, locale) }) : null,
+    locale,
   );
   return {
     id: libraryItemKey(item),
@@ -865,14 +868,15 @@ export function libraryItemToMediaItem(item: LibraryItem): MediaItem {
 }
 
 /** 收藏卡：海报卡形态同库存条目，hover 层只说「收藏的是哪一层」（整剧与电影不解释）。 */
-function favoriteItemToMediaItem(item: FavoriteItem): MediaItem {
+function favoriteItemToMediaItem(item: FavoriteItem, locale?: AppLocale): MediaItem {
   const level = favoriteLevelLabel(
     item.kind,
     item.favorite_season_number,
     item.favorite_episode_number,
+    locale,
   );
   return {
-    ...libraryItemToMediaItem(item),
+    ...libraryItemToMediaItem(item, locale),
     overlayDetails: level ? { primary: level } : undefined,
   };
 }

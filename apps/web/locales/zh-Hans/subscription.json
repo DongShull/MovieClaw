@@ -866,5 +866,9 @@
     "watchImport": "投递到自动入库的监听目录 {path}，下载完成后自动整理入库",
     "directImport": "直接下载到库内目录 {path}，完成后自动入账",
     "collapse": "收起"
+  },
+  "wall": {
+    "moviePageTitle": "电影订阅",
+    "tvPageTitle": "剧集订阅"
   }
 }

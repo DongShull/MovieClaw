@@ -2452,5 +2452,11 @@
   },
   "pipeline.collapse": {
     "sourceHash": "afd4b783536b8297bb2506836727af1ccae7626a7d04e89de7ad402360e0a970"
+  },
+  "wall.moviePageTitle": {
+    "sourceHash": "22770fd568b5526effe556019c9e72bb691c1e7a30f996dd04c480df890f78c8"
+  },
+  "wall.tvPageTitle": {
+    "sourceHash": "9d77fadab9c1bd4d1a65e57541fca59755e914acea032d2818654bb20ea225f3"
   }
 }

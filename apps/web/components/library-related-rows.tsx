@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
 import type { Route } from "next";
@@ -35,6 +35,7 @@ export function LibraryRelatedRows({
   /** 电影所属系列合集；剧集与没有系列的电影为 null */
   seriesCollectionId: number | null;
 }) {
+  const locale = useLocale();
   const t = useTranslations();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [series, setSeries] = useState<CollectionSeries | null>(null);
@@ -80,7 +81,7 @@ export function LibraryRelatedRows({
           row={{
             id: `similar-${mediaItemId}`,
             title: t("library.item.similar"),
-            items: items.map(libraryItemToMediaItem),
+            items: items.map((item) => libraryItemToMediaItem(item, locale)),
           }}
           cardAction="none"
           cardHref={(m: MediaItem) => hrefs.get(m.id)}

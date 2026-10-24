@@ -1581,5 +1581,30 @@
     "title": "纳管报告 · {name}",
     "hint": "规格（分辨率、HDR、音轨）在后台慢慢补齐，不影响现在播放；没补到的在起播时当场读取。之后在网盘里新增、移动、删除的片子会自动跟上，每周还会整体复查一次；想马上同步就点「扫描库」。"
   },
-  "routingOverlap": "「{a}」与「{b}」的收藏范围可能同时命中同一部作品且条件数相同，届时优先进创建更早的「{first}」。{dimension, select, none {两库已声明相同的维度：错开重叠的取值即可消除歧义。} other {想让「{later}」优先收这类作品：编辑它，补上{dimension, select, genres {「类型」} origin_countries {「区域」} other {「类型」或「区域」}}条件（用「全选」也可以）——条件多的库优先命中；想维持现状则无需改动。}}"
+  "routingOverlap": "「{a}」与「{b}」的收藏范围可能同时命中同一部作品且条件数相同，届时优先进创建更早的「{first}」。{dimension, select, none {两库已声明相同的维度：错开重叠的取值即可消除歧义。} other {想让「{later}」优先收这类作品：编辑它，补上{dimension, select, genres {「类型」} origin_countries {「区域」} other {「类型」或「区域」}}条件（用「全选」也可以）——条件多的库优先命中；想维持现状则无需改动。}}",
+  "kindWall": {
+    "genreUnknown": "类型 {id}",
+    "all": "全部{kind}",
+    "genreTitle": "{genre} · {kind}",
+    "noLibrary": "{kind, select, movie {还没有可浏览的电影库} tv {还没有可浏览的剧集库} other {还没有可浏览的其他视频库}}",
+    "summary": "{count} 部作品 · 来自 {libraries} 个库，同一部片只算一次",
+    "genreSummary": "{count} 部{kind, select, movie {电影} tv {剧集} other {其他视频}} · 来自 {libraries} 个库",
+    "loadFailed": "加载失败"
+  },
+  "genreTile": {
+    "count": "{count} 部{kind, select, tv {剧集} other {电影}}",
+    "browse": "浏览{label}，{countLabel}"
+  },
+  "recentAddition": {
+    "multiSeason": "新增{seasons}季 · {episodes}集",
+    "season": "第{season}季",
+    "specials": "特别篇",
+    "complete": "{season} · 全{episodes}集",
+    "partial": "{season} · 新增{episodes}集"
+  },
+  "favoriteLevel": {
+    "episode": "收藏了 {code}",
+    "specials": "收藏了特别篇",
+    "season": "收藏了第 {season} 季"
+  }
 }

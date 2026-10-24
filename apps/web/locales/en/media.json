@@ -272,5 +272,34 @@
   "season": {
     "specials": "Specials",
     "title": "Season {number}"
+  },
+  "genres": {
+    "action": "Action",
+    "adventure": "Adventure",
+    "animation": "Animation",
+    "comedy": "Comedy",
+    "crime": "Crime",
+    "documentary": "Documentary",
+    "drama": "Drama",
+    "family": "Family",
+    "fantasy": "Fantasy",
+    "history": "History",
+    "horror": "Horror",
+    "music": "Music",
+    "mystery": "Mystery",
+    "romance": "Romance",
+    "scienceFiction": "Science Fiction",
+    "tvMovie": "TV Movie",
+    "thriller": "Thriller",
+    "war": "War",
+    "western": "Western",
+    "actionAdventure": "Action & Adventure",
+    "kids": "Kids",
+    "news": "News",
+    "reality": "Reality",
+    "scienceFictionFantasy": "Sci-Fi & Fantasy",
+    "soap": "Soap",
+    "talk": "Talk",
+    "warPolitics": "War & Politics"
   }
 }
