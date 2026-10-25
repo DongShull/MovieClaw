@@ -29,6 +29,11 @@ nonisolated enum AppFormatting {
         items.joined(separator: AppLanguage.identifier == "zh-Hans" ? "、" : ", ")
     }
 
+    /// Consecutive sentences: Chinese runs them together, other languages separate them with a space.
+    static func sentences(_ items: [String]) -> String {
+        items.filter { !$0.isEmpty }.joined(separator: AppLanguage.identifier == "zh-Hans" ? "" : " ")
+    }
+
     static func runtime(minutes: Int) -> String {
         let hours = minutes / 60, remainder = minutes % 60
         if hours == 0 { return String(localized: .unitsDurationMinutesShort(remainder)) }

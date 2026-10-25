@@ -240,4 +240,15 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(SettingsBScrapeSummary.quality(setting), "Quality: original · No poster width limit · Backdrop ≥1920")
     }
 
+    @MainActor func testEnglishSubscriptionCopy() throws {
+        XCTAssertEqual(SubsFormat.seasonList([2, 1]), "Seasons 1, 2")
+        XCTAssertEqual(SubsFormat.seasonList([3]), "Season 3")
+        let timing = try JSONDecoder().decode(API.ResourceTimingView.self, from: JSONSerialization.data(withJSONObject: [
+            "site_id": "mteam", "torrent_id": "1", "submitted_at": "2026-01-01T00:00:00Z",
+            "publish_to_submit_seconds": 150, "dry_run": false,
+        ]))
+        XCTAssertEqual(WantedLogic.resourceTimingNote(timing, previous: true), "Previous · mteam: submitted to downloader 2 min, 30 sec after release")
+        XCTAssertEqual(SubscriptionsHome.weekday(of: "2026-09-26"), "Sat")
+    }
+
 }
