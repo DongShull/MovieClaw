@@ -1484,6 +1484,8 @@ data class LibrarySearchMatch(
     @SerialName("source_field") val sourceField: String = "",
     @SerialName("matched_name") val matchedName: String = "",
     @SerialName("label") val label: String = "",
+    @SerialName("label_key") val labelKey: String? = null,
+    @SerialName("label_params") val labelParams: JsonObject? = null,
     @SerialName("person_id") val personId: Long? = null,
 )
 

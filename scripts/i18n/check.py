@@ -15,12 +15,12 @@ from pyicumessageformat import Parser
 # The checker is also imported directly by its tests.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apple_catalogs import check_apple  # noqa: E402
-from swift_strings import literals as swift_literals  # noqa: E402
 from metadata_sources import (  # noqa: E402
     check_builtin_sources,
     check_channel_sources,
     check_manifest_sources,
 )
+from swift_strings import literals as swift_literals  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 HAN = re.compile(r"[\u3400-\u9fff]")
@@ -309,8 +309,29 @@ def unused_keys() -> list[str]:
     return warnings
 
 
-API_DOC_CALLS = {"Field", "Query", "Path", "Body", "Header", "Form", "File", "Cookie", "APIRouter", "FastAPI"}
-ROUTE_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "api_route", "websocket"}
+API_DOC_CALLS = {
+    "Field",
+    "Query",
+    "Path",
+    "Body",
+    "Header",
+    "Form",
+    "File",
+    "Cookie",
+    "APIRouter",
+    "FastAPI",
+}
+ROUTE_METHODS = {
+    "get",
+    "post",
+    "put",
+    "patch",
+    "delete",
+    "head",
+    "options",
+    "api_route",
+    "websocket",
+}
 API_DOC_ARGUMENTS = {"description", "summary", "examples", "response_description"}
 
 
@@ -325,8 +346,16 @@ def api_doc_nodes(tree: ast.AST) -> set[int]:
         if not isinstance(node, ast.Call):
             continue
         func = node.func
-        name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
-        if name not in API_DOC_CALLS and not (isinstance(func, ast.Attribute) and name in ROUTE_METHODS):
+        name = (
+            func.id
+            if isinstance(func, ast.Name)
+            else func.attr
+            if isinstance(func, ast.Attribute)
+            else ""
+        )
+        if name not in API_DOC_CALLS and not (
+            isinstance(func, ast.Attribute) and name in ROUTE_METHODS
+        ):
             continue
         for keyword in node.keywords:
             if keyword.arg in API_DOC_ARGUMENTS:
@@ -362,7 +391,17 @@ def keyed_fallback_nodes(tree: ast.AST) -> set[int]:
     return found
 
 
-REGEX_FUNCTIONS = {"compile", "search", "match", "fullmatch", "sub", "subn", "findall", "finditer", "split"}
+REGEX_FUNCTIONS = {
+    "compile",
+    "search",
+    "match",
+    "fullmatch",
+    "sub",
+    "subn",
+    "findall",
+    "finditer",
+    "split",
+}
 LOG_NAMES = {"logger", "logging", "log", "_logger", "_log"}
 
 
@@ -377,9 +416,14 @@ def excluded_nodes(tree: ast.AST) -> set[int]:
         # A setting domain's title only labels the descriptor in code; no view renders it. A
         # built-in plugin's declared title is its identity: views render plugins.builtins.*
         # (BUILTIN_MESSAGE_KEYS, guarded by test_i18n_builtin_metadata)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in (
-            "register_setting",
-            "plugin",
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id
+            in (
+                "register_setting",
+                "plugin",
+            )
         ):
             for keyword in node.keywords:
                 if keyword.arg == "title":
@@ -389,7 +433,12 @@ def excluded_nodes(tree: ast.AST) -> set[int]:
         owner = node.func.value
         if isinstance(owner, ast.Name) and owner.id.lower() in LOG_NAMES:
             found.update(id(child) for child in ast.walk(node))
-        if isinstance(owner, ast.Name) and owner.id == "re" and node.func.attr in REGEX_FUNCTIONS and node.args:
+        if (
+            isinstance(owner, ast.Name)
+            and owner.id == "re"
+            and node.func.attr in REGEX_FUNCTIONS
+            and node.args
+        ):
             found.update(id(child) for child in ast.walk(node.args[0]))
     return found
 
@@ -426,9 +475,11 @@ def baseline() -> dict[str, int]:
             line_start = source.rfind("\n", 0, literal.start) + 1
             previous_start = source.rfind("\n", 0, max(0, line_start - 1)) + 1
             line_end = source.find("\n", literal.end)
-            if HAN.search(literal.text) and "i18n-ignore" not in source[
-                previous_start : line_end if line_end >= 0 else None
-            ]:
+            if (
+                HAN.search(literal.text)
+                and "i18n-ignore"
+                not in source[previous_start : line_end if line_end >= 0 else None]
+            ):
                 count += 1
         if count:
             counts[str(path.relative_to(ROOT))] = count

@@ -11,6 +11,10 @@ from pathlib import Path
 
 HAN = re.compile(r"[\u3400-\u9fff，。！？：；「」《》、]")
 
+# Distributables that must still install on older hosts, whose strict manifest model rejects
+# `*_localized` (see the host-contract baseline job in .github/workflows/watch-presence.yml).
+OLDER_HOST_PACKAGES = {"plugins/watch-presence/movieclaw-plugin.toml"}
+
 
 def check_manifest_sources(root: Path) -> list[str]:
     owners = {}
@@ -40,7 +44,7 @@ def check_manifest_sources(root: Path) -> list[str]:
                     translated = translated.get("value")
                 name = f"{source_file}:{namespace}.{field}"
                 if translated is None:
-                    if HAN.search(source):
+                    if HAN.search(source) and source_file not in OLDER_HOST_PACKAGES:
                         errors.append(f"Missing English plugin metadata: {name}")
                     continue
                 if (

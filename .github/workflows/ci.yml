@@ -299,7 +299,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pip install 'pyicumessageformat>=1.0,<2.0'
       - run: python scripts/i18n/check.py
+      # time.test.mjs 的期望按东八区本地时间写（格式化走浏览器本地时区），Runner 默认 UTC
       - run: node --test apps/web/test/i18n*.test.mjs apps/web/test/time.test.mjs apps/web/test/format.test.mjs
+        env:
+          TZ: Asia/Shanghai
 
   # macOS Worker 的构建门禁。开发者多数在 Linux/容器里改代码，Swift 侧的
   # 编译错误在本地完全暴露不出来，只能靠这里拦。

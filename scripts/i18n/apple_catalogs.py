@@ -143,7 +143,9 @@ def check_apple(root, web_english, web_parameters, terms=None):
         for key in catalog["strings"]:
             name = symbol_name(key)
             if name in symbols:
-                errors.append(f"Apple keys generate the same symbol: {path}:{symbols[name]} / {key}")
+                errors.append(
+                    f"Apple keys generate the same symbol: {path}:{symbols[name]} / {key}"
+                )
             symbols[name] = key
         for key, entry in catalog["strings"].items():
             context = f"{path}:{key}"

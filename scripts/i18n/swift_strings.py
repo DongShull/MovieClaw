@@ -56,7 +56,9 @@ def _code(source: str, index: int, limit: int, stop: list[int] | None) -> Iterat
         stop[0] = limit
 
 
-def _string(source: str, start: int, hashes: int, limit: int, found: list[int]) -> Iterator[Literal]:
+def _string(
+    source: str, start: int, hashes: int, limit: int, found: list[int]
+) -> Iterator[Literal]:
     index = start + hashes
     multiline = source.startswith('"""', index)
     quote = '"""' if multiline else '"'

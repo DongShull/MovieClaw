@@ -46,24 +46,24 @@ const schema = { properties: { channel: { type: ["string", "null"], enum: ["原�
 test("schema placeholders translate without changing field names, option tokens or text conversion", () => {
   const changes = [], props = { schema, values: {}, secretsSet: ["token"], onChange: (...args) => changes.push(args) };
   const before = JSON.stringify(schema);
-  const module = load("../components/schema-form.tsx", "en");
-  const html = render(module.SchemaForm, props);
+  const loaded = load("../components/schema-form.tsx", "en");
+  const html = render(loaded.SchemaForm, props);
   for (const value of ["(Not set)", "One per line", "Set (leave blank to keep)", "Not set"]) assert.ok(html.includes(value), value);
   assert.match(html, /value="原始选项"/);
-  const fields = nodes(module.SchemaForm(props));
+  const fields = nodes(loaded.SchemaForm(props));
   fields.find((node) => node.type === "select").props.onChange({ target: { value: "原始选项" } });
   fields.find((node) => node.type === "textarea").props.onChange({ target: { value: "用户频道\nsecond" } });
   assert.deepEqual(changes, [["channel", "原始选项"], ["recipients", "用户频道\nsecond"]]);
-  assert.deepEqual([...module.parseValue(schema.properties.recipients, "用户频道\nsecond")], ["用户频道", "second"]);
+  assert.deepEqual([...loaded.parseValue(schema.properties.recipients, "用户频道\nsecond")], ["用户频道", "second"]);
   assert.equal(JSON.stringify(schema), before);
 });
 
 test("handoff labels, failure fallback and missing-plugin guidance preserve routes and source evidence", async () => {
   const calls = [];
-  const module = load("../components/handoff-button.tsx", "en", { calls });
+  const loaded = load("../components/handoff-button.tsx", "en", { calls });
   const props = { kind: "notice", refId: "17" };
-  assert.match(render(module.HandoffButton, props), />Ask AI</);
-  await module.HandoffButton(props).props.onClick();
+  assert.match(render(loaded.HandoffButton, props), />Ask AI</);
+  await loaded.HandoffButton(props).props.onClick();
   assert.deepEqual(calls, [["handoff", "notice", "17"], ["prompt", "作者现场"], ["route", "/sessions/raw-session-id"]]);
   const errors = [];
   await load("../components/handoff-button.tsx", "en", { calls: errors, fail: true }).HandoffButton(props).props.onClick();

@@ -10,14 +10,6 @@
       "sourceHash": "15b1c5414d370561e7e9706d4eefdbb74219c1a00d7e4d249a52af415b316ec0"
     }
   },
-  "plugins/watch-presence/movieclaw-plugin.toml": {
-    "plugin.title": {
-      "sourceHash": "d98f7442bfb61798a1a53c73b2b9529d3e5e1090732a621b3db01c9d6c227a08"
-    },
-    "plugin.description": {
-      "sourceHash": "8552cda0c83da3c2d81bc7d9abfe4f1049150883068acbf97ab8883a9fd2b4a9"
-    }
-  },
   "src/movieclaw_plugins/discord/movieclaw-plugin.toml": {
     "plugin.title": {
       "sourceHash": "0a89dd4395c970383001d3cd32d5d809609c2ee7f88f68c175610fda41b41ca4"

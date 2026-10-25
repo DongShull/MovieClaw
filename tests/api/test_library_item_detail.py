@@ -927,7 +927,10 @@ async def test_item_detail_reports_scraping_state(db, tmp_path) -> None:
 
         # 模拟后台正在刮：单飞字典（id → 阶段）是状态的唯一事实源，
         # 阶段文案与整库刷新同一套，两处状态语言因此一致
-        media_scrape._scraping[item_id] = {"message_key": "library.scrape.phase.images", "params": {}}
+        media_scrape._scraping[item_id] = {
+            "message_key": "library.scrape.phase.images",
+            "params": {},
+        }
         try:
             resp = await get_library_item(library.id, item_id, _ADMIN, session)
             assert resp.data.scraping is True
