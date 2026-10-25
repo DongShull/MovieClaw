@@ -251,6 +251,17 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(SubscriptionsHome.weekday(of: "2026-09-26"), "Sat")
     }
 
+    @MainActor func testEnglishAgentAndLibraryCopy() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 12, hour: 9)))
+        let earlier = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 10, day: 11, hour: 23, minute: 59)))
+        let label = AgentTimeline.groupTime(earlier, now: now, calendar: calendar)
+        XCTAssertTrue(label.contains("Oct") && !label.contains("月"), label)
+        XCTAssertEqual(String(localized: .libraryRatingAtLeast(9)), "Rated 9+")
+        XCTAssertEqual(String(localized: .libraryPositionOfTotal(3, 120)), "3 of 120")
+    }
+
     @MainActor func testEnglishSearchAndOfflineCopy() {
         XCTAssertEqual(OfflineDownloader.transcodeWaitNote(wait: "queue", ahead: 2), "Waiting to transcode; 2 ahead")
         XCTAssertEqual(OfflineDownloader.transcodeWaitNote(wait: "transcoder", ahead: 0), "Waiting for a free transcoder")

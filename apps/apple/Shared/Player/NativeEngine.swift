@@ -242,7 +242,7 @@ final class NativeEngine: NSObject, PlayerEngine {
         if let tokenURL, let token = PlaybackAPI.token(in: tokenURL.absoluteString) { AetherPlayback.redact(token) }
         #if DEBUG
         loadedAt = .now
-        FileHandle.standardError.write(Data("[NativeEngine \(String(format: "%.3f", ProcessInfo.processInfo.systemUptime))] 装载 start=\(start)\n".utf8))
+        FileHandle.standardError.write(Data("[NativeEngine \(String(format: "%.3f", ProcessInfo.processInfo.systemUptime))] 装载 start=\(start)\n".utf8)) // i18n-ignore: developer diagnostics
         #endif
         // 带上 App 的 User-Agent：服务端按它把这条流登记成「MovieClaw iOS」而不是浏览器
         loadIssued = true
@@ -687,7 +687,7 @@ final class NativeEngine: NSObject, PlayerEngine {
             #if DEBUG
             let elapsed = Int((ContinuousClock.now - loadedAt) / .milliseconds(1))
             let stamp = String(format: "%.3f", ProcessInfo.processInfo.systemUptime)
-            FileHandle.standardError.write(Data("[NativeEngine \(stamp)] \(event) 距装载 \(elapsed) 毫秒 t=\(String(format: "%.2f", currentTime))\n".utf8))
+            FileHandle.standardError.write(Data("[NativeEngine \(stamp)] \(event) 距装载 \(elapsed) 毫秒 t=\(String(format: "%.2f", currentTime))\n".utf8)) // i18n-ignore: developer diagnostics
             #endif
             onEvent?(event)
         }
@@ -698,7 +698,7 @@ extension NativeEngine: AVPictureInPictureControllerDelegate {
     nonisolated func pictureInPictureControllerWillStartPictureInPicture(_ controller: AVPictureInPictureController) {
         MainActor.assumeIsolated {
             #if DEBUG
-            FileHandle.standardError.write(Data("[PiP] 进入画中画 t=\(String(format: "%.2f", currentTime))\n".utf8))
+            FileHandle.standardError.write(Data("[PiP] 进入画中画 t=\(String(format: "%.2f", currentTime))\n".utf8)) // i18n-ignore: developer diagnostics
             #endif
             isPictureInPictureActive = true
             core.setPictureInPictureActive(true)
@@ -709,7 +709,7 @@ extension NativeEngine: AVPictureInPictureControllerDelegate {
     nonisolated func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
         MainActor.assumeIsolated {
             #if DEBUG
-            FileHandle.standardError.write(Data("[PiP] 退出画中画 t=\(String(format: "%.2f", currentTime))\n".utf8))
+            FileHandle.standardError.write(Data("[PiP] 退出画中画 t=\(String(format: "%.2f", currentTime))\n".utf8)) // i18n-ignore: developer diagnostics
             #endif
             isPictureInPictureActive = false
             core.setPictureInPictureActive(false)
@@ -720,7 +720,7 @@ extension NativeEngine: AVPictureInPictureControllerDelegate {
     nonisolated func pictureInPictureController(_ controller: AVPictureInPictureController, failedToStartPictureInPictureWithError error: any Error) {
         MainActor.assumeIsolated {
             #if DEBUG
-            FileHandle.standardError.write(Data("[PiP] 画中画启动失败：\(error.localizedDescription)\n".utf8))
+            FileHandle.standardError.write(Data("[PiP] 画中画启动失败：\(error.localizedDescription)\n".utf8)) // i18n-ignore: developer diagnostics
             #endif
             isPictureInPictureActive = false
             core.setPictureInPictureActive(false)

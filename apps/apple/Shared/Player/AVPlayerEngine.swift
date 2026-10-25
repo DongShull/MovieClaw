@@ -234,14 +234,14 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
             let loadedAt = Date()
             for try await event in item.metrics(forType: AVMetricPlayerItemInitialLikelyToKeepUpEvent.self) {
                 func rel(_ date: Date?) -> String { date.map { String(Int($0.timeIntervalSince(loadedAt) * 1000)) } ?? "-" }
-                var lines = ["[AVStartup] 够播用时 \(Int(event.timeTaken * 1000)) 毫秒"]
+                var lines = ["[AVStartup] 够播用时 \(Int(event.timeTaken * 1000)) 毫秒"] // i18n-ignore: developer diagnostics
                 for playlist in event.playlistRequestEvents {
                     let request = playlist.mediaResourceRequestEvent
-                    lines.append("  列表 \(request?.url?.lastPathComponent ?? "?") \(rel(request?.requestStartTime))→\(rel(request?.responseEndTime))")
+                    lines.append("  列表 \(request?.url?.lastPathComponent ?? "?") \(rel(request?.requestStartTime))→\(rel(request?.responseEndTime))") // i18n-ignore: developer diagnostics
                 }
                 for segment in event.mediaSegmentRequestEvents {
                     let request = segment.mediaResourceRequestEvent
-                    lines.append("  分片 \(request?.url?.lastPathComponent ?? "?") \(rel(request?.requestStartTime))→\(rel(request?.responseEndTime)) \(request?.byteRange.length ?? 0) 字节")
+                    lines.append("  分片 \(request?.url?.lastPathComponent ?? "?") \(rel(request?.requestStartTime))→\(rel(request?.responseEndTime)) \(request?.byteRange.length ?? 0) 字节") // i18n-ignore: developer diagnostics
                 }
                 print(lines.joined(separator: "\n"))
                 break
@@ -376,7 +376,7 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
                       reason == nil || reason == .setRateFailed else { return }
                 self.rateFailureRetried = true
                 #if DEBUG
-                print("[AVPlayerEngine] 开播被系统退回暂停（缓冲还是空的），打开防卡顿等待后重新开播")
+                print("[AVPlayerEngine] 开播被系统退回暂停（缓冲还是空的），打开防卡顿等待后重新开播") // i18n-ignore: developer diagnostics
                 #endif
                 self.player.automaticallyWaitsToMinimizeStalling = true
                 self.player.rate = self.desiredRate
