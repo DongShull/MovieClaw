@@ -50,7 +50,11 @@ def parameters(message: str) -> set[str]:
                     result.update(visit(option))
         return result
 
-    return visit(Parser({"allow_tags": True}).parse(message))
+    try:
+        return visit(Parser({"allow_tags": True}).parse(message))
+    except SyntaxError:
+        # Server messages render without rich-text tags, so "<placeholder>" is literal text there.
+        return visit(Parser().parse(message))
 
 
 def call_parameters(node: ast.Call) -> tuple[str, set[str]] | None:

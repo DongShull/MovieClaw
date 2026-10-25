@@ -193,7 +193,9 @@ async def save_remote_transcode_config(
         # 远程 Worker 会按既有重连逻辑重新握手。局部导入避免配置服务与注册表循环依赖。
         from movieclaw_api.services.playback.remote_worker import get_remote_worker_registry
 
-        await get_remote_worker_registry().disconnect_all("远程转码配置已变更")
+        await get_remote_worker_registry().disconnect_all(
+        reference("player.worker.configChanged")
+    )
     return await build_remote_transcode_config_view()
 
 

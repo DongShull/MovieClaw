@@ -667,6 +667,7 @@ def build_hls_command(
     播放器最早也要等一整段——这是转码起播与跳转首帧里最大的一块。
     """
     if plan.tier is PlaybackTier.DIRECT_PLAY:
+        # i18n-ignore: programming invariant
         raise ValueError("档 0 是原文件直出，不需要 ffmpeg")
 
     argv = ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "warning"]

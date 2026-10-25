@@ -124,5 +124,97 @@
     "subtitleNone": "没有要自动开的字幕",
     "subtitleOffRemembered": "你上次看时关掉了字幕",
     "subtitleOffSeries": "沿用这部剧上一集：不开字幕"
+  },
+  "qoe": {
+    "source": {
+      "uhdBluray": "UHD 原盘",
+      "bluray": "蓝光原盘",
+      "legacy": "老格式",
+      "dolbyVision": "杜比视界",
+      "sd": "标清",
+      "unknown": "未知"
+    },
+    "reason": {
+      "noPicture": "出画前退出",
+      "failed": "失败",
+      "abnormalExit": "异常退出",
+      "startupSlow": "起播慢",
+      "seekSlow": "跳转慢",
+      "interrupted": "非自愿中断",
+      "avoidableLoss": "可避免的规格损失",
+      "misguess": "猜错音轨 / 字幕 / 续播位置"
+    },
+    "network": {
+      "home": "在家",
+      "away": "在外",
+      "unknown": "分不清"
+    }
+  },
+  "session": {
+    "remoteNoSegment": "远程 Worker 未产出请求的分片",
+    "exitCode": "ffmpeg 退出码：{code}",
+    "stderr": "ffmpeg stderr：{tail}",
+    "failure": "{detail}",
+    "cloudFileUnavailable": "网盘取不到这个文件：{reason}",
+    "cloudLinkUnavailable": "网盘直链取不到",
+    "strmUnusable": "strm 用不了：{reason}",
+    "remoteRejected": "远程 Worker 拒绝任务",
+    "remoteSeekRejected": "远程 Worker 拒绝 seek 任务",
+    "remoteDisconnected": "远程 Worker 已断开连接",
+    "remotePlaylistTimeout": "远程 Worker 超时未上传播放列表",
+    "processExit": "ffmpeg 退出码 {code}",
+    "playlistTimeout": "ffmpeg 超时未产出播放列表",
+    "startupExit": "转码进程起步即退出、一段都没产出：{detail}",
+    "noOutput": "（ffmpeg 无输出）"
+  },
+  "hw": {
+    "backend": {
+      "vaapi": "Intel / AMD 显卡（VAAPI）",
+      "qsv": "Intel 核显（QSV）",
+      "nvenc": "NVIDIA 显卡（NVENC）",
+      "videotoolbox": "Apple 芯片（VideoToolbox）"
+    },
+    "noFfmpeg": "系统中未找到 ffmpeg，无法检测硬件加速。",
+    "remoteWorker": "已连接远程 Worker，并通过其 VideoToolbox 能力声明。",
+    "macOnly": "这是 macOS 专有的加速方式，Linux 上不存在，属正常情况。",
+    "buildHint": "官方镜像已内置支持；自行编译或使用发行版 ffmpeg 时可能缺少。",
+    "missingEncoder": "当前 ffmpeg 构建不含 {encoder} 编码器。{hint}",
+    "verifiedLowPower": "已通过一秒钟的真实编码验证（低功耗编码），可用于硬件转码。",
+    "probeTimeout": "硬件编码探测超时——设备可能被占用或驱动无响应。",
+    "verified": "已通过一秒钟的真实编码验证，可用于硬件转码。",
+    "noNvidia": "未检测到 NVIDIA 设备节点。Docker 部署需要先在宿主机装 NVIDIA Container Toolkit，再在 compose 里加 `runtime: nvidia` 与 `NVIDIA_VISIBLE_DEVICES=all`（或声明 `deploy.resources.reservations.devices`、`docker run --gpus all`）。注意 NVIDIA 独显不走 /dev/dri，宿主机没有核显时别去挂它。",
+    "noDri": "未检测到 /dev/dri。容器部署需要把显卡设备挂进容器——在 compose 的服务下加 `devices: [\"/dev/dri:/dev/dri\"]` 后重启。",
+    "noRenderNode": "/dev/dri 里没有 renderD* 渲染节点，宿主机可能没有可用的显卡驱动。",
+    "gidHint": "（宿主机上该节点属组 GID 是 {gid}）",
+    "noPermission": "{node} 存在但当前用户无读写权限{hint}。请在 compose 里加 `group_add: [\"<render 组 GID>\"]` 后重启容器——这个 GID 在群晖、unRAID 与各发行版上并不相同，需按宿主机实际值填。",
+    "driverPermission": "驱动报权限不足。请把容器用户加入宿主机的 render 组（compose 里的 `group_add`）后重启。",
+    "driverCannotOpen": "驱动打不开设备节点，请确认显卡设备已挂进容器且宿主机驱动正常。",
+    "driverUnsupported": "驱动不支持这种编码，可能是显卡代次过旧或驱动版本过低。",
+    "driverInitFailed": "驱动初始化失败，通常是宿主机显卡驱动缺失或版本不匹配。",
+    "probeFailed": "硬件编码探测失败：{summary}",
+    "noReason": "（ffmpeg 未给出原因）"
+  },
+  "worker": {
+    "waiterMissing": "远程任务等待器不存在",
+    "acceptTimeout": "远程 Worker 接单超时",
+    "jobExists": "远程任务已存在",
+    "discTooOld": "在线的 Worker 版本过旧，不支持原盘，请把 MovieClaw 转码器更新到与服务端相同的版本",
+    "segmentTooOld": "在线的 Worker 版本过旧，不支持 {type} 分片，请把 MovieClaw 转码器更新到与服务端相同的版本",
+    "noneIdle": "没有在线且空闲的 Apple VideoToolbox Worker",
+    "dispatchFailed": "无法向远程 Worker 下发任务",
+    "disconnected": "远程 Worker 已断开连接",
+    "replaced": "远程 Worker 连接已替换",
+    "configChanged": "远程转码配置已变更"
+  },
+  "strm": {
+    "cloudUnavailable": "网盘副本现在不可用",
+    "mountUnreadable": "读不出媒体信息（挂载掉线或文件损坏、格式不支持）",
+    "linkExpired": "直链已失效或无权访问（HTTP {status}），请重新生成 strm",
+    "linkUnreadable": "读不出媒体信息（直链失效、网盘连不上或格式不支持）",
+    "noVideo": "没有视频流",
+    "fileGone": "文件已不在台账里"
+  },
+  "watch": {
+    "browser": "浏览器"
   }
 }

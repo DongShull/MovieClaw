@@ -124,5 +124,97 @@
     "subtitleNone": "No subtitles to enable automatically",
     "subtitleOffRemembered": "You turned subtitles off last time",
     "subtitleOffSeries": "Uses the previous episode’s choice: subtitles off"
+  },
+  "qoe": {
+    "source": {
+      "uhdBluray": "UHD Blu-ray disc",
+      "bluray": "Blu-ray disc",
+      "legacy": "Legacy format",
+      "dolbyVision": "Dolby Vision",
+      "sd": "SD",
+      "unknown": "Unknown"
+    },
+    "reason": {
+      "noPicture": "Exited before the picture appeared",
+      "failed": "Failed",
+      "abnormalExit": "Abnormal exit",
+      "startupSlow": "Slow start",
+      "seekSlow": "Slow seek",
+      "interrupted": "Involuntary interruption",
+      "avoidableLoss": "Avoidable quality loss",
+      "misguess": "Wrong audio / subtitle / resume guess"
+    },
+    "network": {
+      "home": "At home",
+      "away": "Away",
+      "unknown": "Unclear"
+    }
+  },
+  "session": {
+    "remoteNoSegment": "The remote worker didn’t produce the requested segment",
+    "exitCode": "ffmpeg exit code: {code}",
+    "stderr": "ffmpeg stderr: {tail}",
+    "failure": "{detail}",
+    "cloudFileUnavailable": "Cloud storage couldn’t provide this file: {reason}",
+    "cloudLinkUnavailable": "Couldn’t get a direct cloud link",
+    "strmUnusable": "The strm file can’t be used: {reason}",
+    "remoteRejected": "The remote worker rejected the job",
+    "remoteSeekRejected": "The remote worker rejected the seek job",
+    "remoteDisconnected": "The remote worker disconnected",
+    "remotePlaylistTimeout": "The remote worker timed out before uploading the playlist",
+    "processExit": "ffmpeg exited with code {code}",
+    "playlistTimeout": "ffmpeg timed out before producing the playlist",
+    "startupExit": "The transcoder exited at startup without producing any segment: {detail}",
+    "noOutput": "(no ffmpeg output)"
+  },
+  "hw": {
+    "backend": {
+      "vaapi": "Intel / AMD graphics (VAAPI)",
+      "qsv": "Intel integrated graphics (QSV)",
+      "nvenc": "NVIDIA graphics (NVENC)",
+      "videotoolbox": "Apple silicon (VideoToolbox)"
+    },
+    "noFfmpeg": "ffmpeg wasn’t found, so hardware acceleration can’t be checked.",
+    "remoteWorker": "A remote worker is connected and reports VideoToolbox support.",
+    "macOnly": "This acceleration is macOS-only and doesn’t exist on Linux; that’s expected.",
+    "buildHint": "The official image includes it; self-built or distribution ffmpeg builds may lack it.",
+    "missingEncoder": "This ffmpeg build doesn’t include the {encoder} encoder. {hint}",
+    "verifiedLowPower": "Passed a one-second real encoding test (low-power encoding); ready for hardware transcoding.",
+    "probeTimeout": "The hardware encoding probe timed out; the device may be busy or the driver unresponsive.",
+    "verified": "Passed a one-second real encoding test; ready for hardware transcoding.",
+    "noNvidia": "No NVIDIA device node was found. For Docker, install the NVIDIA Container Toolkit on the host, then add `runtime: nvidia` and `NVIDIA_VISIBLE_DEVICES=all` in compose (or declare `deploy.resources.reservations.devices`, `docker run --gpus all`). NVIDIA cards don’t use /dev/dri, so don’t mount it if the host has no integrated graphics.",
+    "noDri": "/dev/dri wasn’t found. Mount the graphics device into the container: add `devices: [\"/dev/dri:/dev/dri\"]` to the service in compose and restart.",
+    "noRenderNode": "/dev/dri has no renderD* render node; the host may lack a working graphics driver.",
+    "gidHint": " (its group GID on the host is {gid})",
+    "noPermission": "{node} exists but the current user can’t read or write it{hint}. Add `group_add: [\"<render group GID>\"]` in compose and restart the container; the GID differs between Synology, unRAID and distributions, so use the host’s actual value.",
+    "driverPermission": "The driver reports insufficient permissions. Add the container user to the host’s render group (`group_add` in compose) and restart.",
+    "driverCannotOpen": "The driver can’t open the device node. Make sure the device is mounted and the host driver works.",
+    "driverUnsupported": "The driver doesn’t support this encoding; the GPU may be too old or the driver outdated.",
+    "driverInitFailed": "The driver failed to initialize, usually because the host driver is missing or mismatched.",
+    "probeFailed": "The hardware encoding probe failed: {summary}",
+    "noReason": "(ffmpeg gave no reason)"
+  },
+  "worker": {
+    "waiterMissing": "The remote job waiter doesn’t exist",
+    "acceptTimeout": "The remote worker didn’t accept the job in time",
+    "jobExists": "The remote job already exists",
+    "discTooOld": "The online worker is too old to support discs. Update the MovieClaw transcoder to the server’s version",
+    "segmentTooOld": "The online worker is too old to support {type} segments. Update the MovieClaw transcoder to the server’s version",
+    "noneIdle": "No Apple VideoToolbox worker is online and idle",
+    "dispatchFailed": "Couldn’t send the job to the remote worker",
+    "disconnected": "The remote worker disconnected",
+    "replaced": "The remote worker connection was replaced",
+    "configChanged": "The remote transcoding settings changed"
+  },
+  "strm": {
+    "cloudUnavailable": "The cloud copy isn’t available right now",
+    "mountUnreadable": "Couldn’t read media info (the mount is offline, the file is damaged, or the format isn’t supported)",
+    "linkExpired": "The direct link expired or access was denied (HTTP {status}); regenerate the strm file",
+    "linkUnreadable": "Couldn’t read media info (the link expired, cloud storage is unreachable, or the format isn’t supported)",
+    "noVideo": "No video stream",
+    "fileGone": "The file is no longer in the library records"
+  },
+  "watch": {
+    "browser": "Browser"
   }
 }

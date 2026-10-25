@@ -25,11 +25,8 @@ from typing import Any
 
 from starlette.websockets import WebSocket
 
-from movieclaw_api.services.playback.ffmpeg_args import (
-    HW_BACKENDS,
-    WorkerVideoCaps,
-    effective_hw_backend,
-)
+from movieclaw_api.i18n.stored import reference, source_render
+from movieclaw_api.services.playback.ffmpeg_args import WorkerVideoCaps
 from movieclaw_api.services.playback.remote_config import (
     RemoteTranscodeRuntimeConfig,
     remote_transcode_issues,
@@ -60,19 +57,27 @@ _DEFAULT_HW_DECODERS = ("h264", "hevc")
 
 
 class RemoteWorkerUnavailable(RuntimeError):
-    """没有可接单的远程 Worker。"""
+    """没有可接单的远程 Worker。``ref`` 是原因的文案引用，``str()`` 是中文原文。"""
+
+    def __init__(self, key: str, /, **params) -> None:
+        self.ref = reference(key, **params)
+        super().__init__(source_render(self.ref))
 
 
 def describe_job_failure(message: dict[str, Any]) -> str:
     """把 Worker 上报的任务失败压成一行：原因、ffmpeg 退出码、stderr 最后三行。"""
+    # i18n-ignore: worker protocol text, logs and programming invariants
     parts = [str(message.get("error") or "未说明原因").strip()]
     exit_code = message.get("exit_code")
     # Worker 的错误文案常常本身就是「ffmpeg 退出码：N」，别再重复一遍
+    # i18n-ignore: worker protocol text, logs and programming invariants
     if isinstance(exit_code, int) and not isinstance(exit_code, bool) and "退出码" not in parts[0]:
+        # i18n-ignore: worker protocol text, logs and programming invariants
         parts.append(f"ffmpeg 退出码 {exit_code}")
     stderr_tail = message.get("stderr_tail")
     if isinstance(stderr_tail, str) and stderr_tail.strip():
         lines = [line.strip() for line in stderr_tail.strip().splitlines() if line.strip()]
+        # i18n-ignore: worker protocol text, logs and programming invariants
         parts.append(f"stderr 末尾：{' | '.join(lines[-3:])[-600:]}")
     return "；".join(parts)
 
@@ -189,9 +194,11 @@ class RemoteWorkerRegistry:
         """校验 hello 并登记 Worker；同 ID 的旧连接会被替换。"""
         raw_worker_id = hello.get("worker_id")
         if not isinstance(raw_worker_id, str):
+            # i18n-ignore: worker protocol text, logs and programming invariants
             raise ValueError("worker_id 必须是字符串")
         worker_id = raw_worker_id.strip()
         if not _WORKER_ID.fullmatch(worker_id):
+            # i18n-ignore: worker protocol text, logs and programming invariants
             raise ValueError("worker_id 为空或包含不支持的字符")
         capabilities = self._parse_capabilities(hello.get("capabilities"))
         connection = WorkerConnection(
@@ -218,9 +225,10 @@ class RemoteWorkerRegistry:
             previous = self._workers.get(worker_id)
             if previous is not None:
                 logger.warning("远程 Worker %s 重复连接，关闭旧连接", worker_id)
-                self._mark_jobs_lost(previous, "远程 Worker 连接已替换")
+                self._mark_jobs_lost(previous, reference("player.worker.replaced"))
             self._workers[worker_id] = connection
         if previous is not None:
+            # i18n-ignore: worker protocol text, logs and programming invariants
             await self._close_quietly(previous.websocket, code=1012, reason="连接已替换")
         logger.info(
             "远程转码 Worker 已上线：%s（版本=%s 平台=%s ffmpeg=%s 并发=%d 后端=%s 分片=%s）",
@@ -241,7 +249,7 @@ class RemoteWorkerRegistry:
             if current is not connection:
                 return
             self._workers.pop(connection.worker_id, None)
-            lost_jobs = self._mark_jobs_lost(connection, "远程 Worker 已断开连接")
+            lost_jobs = self._mark_jobs_lost(connection, reference("player.worker.disconnected"))
         # 带上被判失败的任务 ID：Worker 崩在半路时，用户先看到的是「播放失败」，
         # 而这一行是把那次失败和这台 Worker 的掉线对上号的唯一凭据。
         logger.warning(
@@ -264,6 +272,7 @@ class RemoteWorkerRegistry:
             self._job_speeds.clear()
             self._paused_jobs.clear()
         for connection in workers:
+            # i18n-ignore: worker protocol text, logs and programming invariants
             await self._close_quietly(connection.websocket, code=1001, reason="服务端关闭")
 
     def connected_login_device_ids(self) -> set[int]:
@@ -291,7 +300,7 @@ class RemoteWorkerRegistry:
             await self._close_quietly(connection.websocket, code=1008, reason=reason)
         return len(victims)
 
-    async def disconnect_all(self, reason: str) -> None:
+    async def disconnect_all(self, reason: dict) -> None:
         """配置变更时断开所有 Worker，使旧令牌不再保持有效连接。"""
         with self._lock:
             workers = list(self._workers.values())
@@ -301,7 +310,9 @@ class RemoteWorkerRegistry:
             self._job_workers.clear()
             self._job_attempts.clear()
         for connection in workers:
-            await self._close_quietly(connection.websocket, code=1012, reason=reason)
+            await self._close_quietly(
+                connection.websocket, code=1012, reason=source_render(reason)
+            )
 
     # -- 能力与状态 ------------------------------------------------------
 
@@ -466,11 +477,11 @@ class RemoteWorkerRegistry:
         with self._lock:
             queue = self._job_events.get(job_id)
         if queue is None:
-            raise RemoteWorkerUnavailable("远程任务等待器不存在")
+            raise RemoteWorkerUnavailable("player.worker.waiterMissing")
         try:
             return await asyncio.wait_for(queue.get(), timeout=timeout)
         except TimeoutError as exc:
-            raise RemoteWorkerUnavailable("远程 Worker 接单超时") from exc
+            raise RemoteWorkerUnavailable("player.worker.acceptTimeout") from exc
 
     def reserve(
         self,
@@ -499,22 +510,18 @@ class RemoteWorkerRegistry:
         """
         with self._lock:
             if job_id in self._job_workers:
-                raise RemoteWorkerUnavailable("远程任务已存在")
+                raise RemoteWorkerUnavailable("player.worker.jobExists")
             connection = self._select_worker(
                 backend, segment_type, disc=disc, plan=plan, source_id=source_id
             )
             if connection is None:
                 if disc and self._select_worker(backend, segment_type) is not None:
-                    raise RemoteWorkerUnavailable(
-                        "在线的 Worker 版本过旧或不支持原盘（Windows 转码器不读原盘；"
-                        "Mac 转码器请更新到与服务端相同的版本）"
-                    )
+                    raise RemoteWorkerUnavailable("player.worker.discTooOld")
                 if segment_type != "fmp4" and self._select_worker(backend) is not None:
                     raise RemoteWorkerUnavailable(
-                        f"在线的 Worker 版本过旧或不支持 {segment_type} 分片（Windows 转码器不接"
-                        " TS 分片；Mac 转码器请更新到与服务端相同的版本）"
+                        "player.worker.segmentTooOld", type=segment_type
                     )
-                raise RemoteWorkerUnavailable(f"没有在线且空闲的远程转码 Worker（{backend}）")
+                raise RemoteWorkerUnavailable("player.worker.noneIdle")
             self._job_workers[job_id] = connection.worker_id
             self._job_attempts[job_id] = (
                 attempt_id if isinstance(attempt_id, str) and attempt_id else job_id
@@ -542,7 +549,7 @@ class RemoteWorkerRegistry:
         except Exception as exc:  # noqa: BLE001
             self._release_job(job_id)
             logger.warning("下发远程任务失败：worker=%s job=%s", connection.worker_id, job_id)
-            raise RemoteWorkerUnavailable("无法向远程 Worker 下发任务") from exc
+            raise RemoteWorkerUnavailable("player.worker.dispatchFailed") from exc
         return connection.worker_id
 
     async def cancel(self, job_id: str, *, force: bool = False) -> None:
@@ -792,6 +799,7 @@ class RemoteWorkerRegistry:
                 except Exception:  # noqa: BLE001
                     # 服务器设置已保存；断开后握手会重新同步，不保留半同步的连接。
                     await self.unregister(c)
+                    # i18n-ignore: worker protocol text, logs and programming invariants
                     await self._close_quietly(c.websocket, code=1012, reason="配置同步失败")
 
     @staticmethod
@@ -890,7 +898,7 @@ class RemoteWorkerRegistry:
                 if connection is not None:
                     connection.jobs.discard(job_id)
 
-    def _mark_jobs_lost(self, connection: WorkerConnection, error: str) -> list[str]:
+    def _mark_jobs_lost(self, connection: WorkerConnection, error: dict) -> list[str]:
         """把某条连接上的任务统一标为失败，并释放 Worker 槽位。"""
         with self._lock:
             lost_jobs = [
@@ -908,7 +916,13 @@ class RemoteWorkerRegistry:
                 self._paused_jobs.discard(job_id)
                 self.publish_job_event(
                     job_id,
-                    {"type": "job.failed", "job_id": job_id, "error": error},
+                    # 失败原因是服务端自己的话：带上引用，会话诊断按读者语言渲染
+                    {
+                        "type": "job.failed",
+                        "job_id": job_id,
+                        "error": source_render(error),
+                        "error_ref": error,
+                    },
                 )
         return lost_jobs
 

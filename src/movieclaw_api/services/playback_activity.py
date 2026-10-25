@@ -293,7 +293,9 @@ def _delivery_view(transcode, *, streaming: bool) -> PlaybackDeliveryView | None
             parts.append(_VIDEO_CODEC_LABELS.get(codec.lower(), codec.upper()))
         if plan.video.bitrate_cap_bps:
             parts.append(f"{plan.video.bitrate_cap_bps / 1_000_000:.0f} Mbps")
-        backend = BACKEND_LABELS.get(transcode.hw_backend or "", transcode.hw_backend)
+        backend = render_value(
+            BACKEND_LABELS.get(transcode.hw_backend or "", transcode.hw_backend)
+        )
         if transcode.remote:
             execution_kind = "remote"
             label = t("player.delivery.remote")

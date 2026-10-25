@@ -31,6 +31,7 @@ from movieclaw_api.exceptions import (
     exception_fields,
 )
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.schemas.library import LibraryGalleryGroupView, SeasonEpisodesView
 from movieclaw_api.schemas.playback import (
@@ -258,6 +259,11 @@ def _diagnostic_error(error: str | None) -> str | None:
     return sanitized[-1000:]
 
 
+def _session_error_text(session: TranscodeSession) -> str | None:
+    """会话错误按读者语言给：自己的话有引用，Worker/ffmpeg 原文照旧。"""
+    return render_value(session.error_ref) if session.error_ref else session.error
+
+
 def _diagnostic_processing_mode(session: TranscodeSession) -> str:
     """把内部档位归一成面向用户的执行模式。"""
     if session.remote:
@@ -353,7 +359,7 @@ def _build_playback_diagnostics(
     job_stderr_tail = _diagnostic_error(
         job.get("stderr_tail") if job and isinstance(job.get("stderr_tail"), str) else None
     )
-    session_error = _diagnostic_error(session.error)
+    session_error = _diagnostic_error(_session_error_text(session))
     if session_error is None:
         session_error = job_error
     failed_segments = sorted(session.remote_failed_segments)
@@ -1617,7 +1623,9 @@ async def ping_playback_session(
         {
             "alive": True,
             "failed": failed,
-            "error": _diagnostic_error(session.error) if failed and session else None,
+            "error": _diagnostic_error(_session_error_text(session))
+            if failed and session
+            else None,
         }
     )
 
@@ -3180,7 +3188,15 @@ async def probe_playback_hardware(
     statuses = [*await probe_backends_async(force=refresh), *remote_backend_statuses()]
     return ok(
         HwProbeView(
-            backends=[HwBackendStatusView(**vars(s)) for s in statuses],
+            backends=[
+                HwBackendStatusView(
+                    name=s.name,
+                    label=render_value(s.label),
+                    available=s.available,
+                    detail=render_value(s.detail),
+                )
+                for s in statuses
+            ],
             hardware_available=any(s.available for s in statuses),
         )
     )
