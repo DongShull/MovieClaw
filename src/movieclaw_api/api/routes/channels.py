@@ -30,7 +30,7 @@ from movieclaw_api.exceptions import (
 )
 from movieclaw_api.i18n import t
 from movieclaw_api.i18n.metadata import localized_text
-from movieclaw_api.i18n.stored import render_value
+from movieclaw_api.i18n.stored import render_value, stored_message
 from movieclaw_api.schemas.channels import (
     ChannelAccountView,
     ChannelBindingInputPayload,
@@ -80,7 +80,7 @@ def _account_view(row: ChannelAccount, hub: ChannelHub | None) -> ChannelAccount
         status=row.status,
         running=bool(hub and hub.is_running(row.channel_id, row.account_id)),
         channel_available=available,
-        last_error=row.last_error,
+        last_error=stored_message(row.last_error) if row.last_error else None,
         bound_at=row.created_at,
     )
 

@@ -302,7 +302,11 @@
     "settingsInvalid": "设置不合规：{detail}",
     "noLongerExists": "插件已不存在",
     "startupFailed": "启动失败",
-    "callbacksDisabled": "插件回调未启用"
+    "callbacksDisabled": "插件回调未启用",
+    "deadLetterMissing": "死信 {id} 不存在",
+    "deadLetterResolved": "这条死信已经处理过",
+    "deadLetterConsumerStopped": "对应的插件当前没有运行，启用后再重放",
+    "deadLetterExpired": "事件已过保留期被清理，无法重放"
   },
   "share": {
     "passwordLength": "分享密码长度须在 {minimum}–{maximum} 位之间",

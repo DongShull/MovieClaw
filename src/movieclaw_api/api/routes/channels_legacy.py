@@ -12,8 +12,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.api.routes.channels import _hub, _qrcode_data_url
-from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
+from movieclaw_api.exceptions import (
+    BadRequestException,
+    ConflictException,
+    NotFoundException,
+    exception_fields,
+)
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import stored_message
 from movieclaw_api.schemas.channels import (
     FeishuBindPayload,
     ImAccountView,
@@ -46,9 +52,9 @@ async def _begin(hub: ChannelHub, channel_id: str, fields: dict[str, str]) -> Bi
     try:
         return await hub.begin_binding(channel_id, fields)
     except ValueError as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     except ChannelUnavailable as exc:
-        raise ConflictException(str(exc)) from exc
+        raise ConflictException(**exception_fields(exc)) from exc
     except Exception as exc:  # noqa: BLE001 -- 网关不可达等，转成中文业务错误
         raise BadRequestException(
             message_key="errors.channels.pairingFailed", params={"error": exc}
@@ -68,7 +74,7 @@ def _weixin_account(row: ChannelAccount, hub: ChannelHub) -> WeixinAccountView:
         bound_user_id=row.bound_user_id,
         status=row.status,
         running=hub.is_running(row.channel_id, row.account_id),
-        last_error=row.last_error,
+        last_error=stored_message(row.last_error) if row.last_error else None,
         bound_at=row.created_at,
     )
 
@@ -80,7 +86,7 @@ def _im_account(row: ChannelAccount, hub: ChannelHub) -> ImAccountView:
         bound_user_id=row.bound_user_id,
         status=row.status,
         running=hub.is_running(row.channel_id, row.account_id),
-        last_error=row.last_error,
+        last_error=stored_message(row.last_error) if row.last_error else None,
         bound_at=row.created_at,
     )
 

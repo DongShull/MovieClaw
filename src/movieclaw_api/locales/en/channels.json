@@ -18,5 +18,13 @@
     "started": "Linked. The channel is running",
     "testMessage": "📣 This is a test push from MovieClaw. If you received it, the channel is working!",
     "missing": "This linking request does not exist or has expired"
+  },
+  "pairing": {
+    "tooManyAttempts": "Too many wrong pairing codes, so this binding was cancelled. Start a new binding from Settings.",
+    "wrongCode": "That pairing code is wrong. Send the 6-digit code shown in Settings to finish binding.",
+    "success": "Binding complete! I’m the MovieClaw assistant; send me a message whenever you need something."
+  },
+  "accounts": {
+    "credentialsExpired": "Credentials expired; bind again"
   }
 }

@@ -52,5 +52,17 @@
   },
   "binding.missing": {
     "sourceHash": "733b6eac80a73d7b204fb7ff8afa9e1775a9921a154117be08bc698857141cc2"
+  },
+  "pairing.tooManyAttempts": {
+    "sourceHash": "d467830681b4d380530c513c3f09a0825ceaa522267ef03e43e02ced961c4619"
+  },
+  "pairing.wrongCode": {
+    "sourceHash": "5595ecddcb03de2e7837377a94b87fc012780ad8055b6b86050fe556ec99c029"
+  },
+  "pairing.success": {
+    "sourceHash": "0584f2fc7b22472983ed32f908caa5b00714c2f828255de8bce940ac4ac179f6"
+  },
+  "accounts.credentialsExpired": {
+    "sourceHash": "06c9b2e1031c704d39c36e4678ccedda0d9bb0da3fd0af8bfe43278b3ce96ec2"
   }
 }

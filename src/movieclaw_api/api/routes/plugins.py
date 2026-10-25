@@ -26,6 +26,7 @@ from movieclaw_api.exceptions import (
     exception_fields,
 )
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import exception_reference
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.auth import Principal
@@ -370,7 +371,7 @@ async def replay_dead_letter(letter_id: int, request: Request) -> ApiResponse[No
         raise NotFoundException(**exception_fields(exc)) from exc
     except ReplayError as exc:
         raise ConflictException(
-            message_key="errors.plugins.replayFailed", params={"error": exc}
+            message_key="errors.plugins.replayFailed", params={"error": exception_reference(exc)}
         ) from exc
     return ok(None, message=t("plugins.operations.eventReplayed"))
 

@@ -302,7 +302,11 @@
     "settingsInvalid": "Invalid settings: {detail}",
     "noLongerExists": "The plugin no longer exists",
     "startupFailed": "Startup failed",
-    "callbacksDisabled": "Plugin callbacks are not enabled"
+    "callbacksDisabled": "Plugin callbacks are not enabled",
+    "deadLetterMissing": "Dead letter {id} doesn’t exist",
+    "deadLetterResolved": "This dead letter was already handled",
+    "deadLetterConsumerStopped": "The plugin isn’t running; enable it, then replay",
+    "deadLetterExpired": "The event was removed after its retention period and can’t be replayed"
   },
   "share": {
     "passwordLength": "The share password must be between {minimum} and {maximum} characters",

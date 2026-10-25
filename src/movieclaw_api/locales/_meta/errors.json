@@ -2611,5 +2611,17 @@
   },
   "offline.segmentStalled": {
     "sourceHash": "618dbee08b2ec5c6392bbde9895d4ccef5dd26cc977579b575defcbfe2d5a17b"
+  },
+  "plugins.deadLetterMissing": {
+    "sourceHash": "1ead0474fa99294b127a2a15a529020e40dc16ffb7d9c4b71576fc306fafaf0c"
+  },
+  "plugins.deadLetterResolved": {
+    "sourceHash": "7a8639f0688e48e978b44b3e2c75db9238dd7a06fceced00888292e0afad66c7"
+  },
+  "plugins.deadLetterConsumerStopped": {
+    "sourceHash": "4fd9b7c86a679cd8b93af4fe87b47b7b9185e5c0f6d2f93451e11ec452c6ea48"
+  },
+  "plugins.deadLetterExpired": {
+    "sourceHash": "a5892814fda7f62073b8bede1121c64f90e00093b9f6d8e81eb848f756a79574"
   }
 }
