@@ -43,7 +43,6 @@
   "src/movieclaw_api/plugins/playback.py": 7,
   "src/movieclaw_api/plugins/scheduling.py": 5,
   "src/movieclaw_api/plugins/settings_store.py": 1,
-  "src/movieclaw_api/reset_password.py": 22,
   "src/movieclaw_api/schemas/agent.py": 3,
   "src/movieclaw_api/schemas/downloader.py": 9,
   "src/movieclaw_api/schemas/library.py": 1,
