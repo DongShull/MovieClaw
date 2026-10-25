@@ -24,6 +24,11 @@ nonisolated enum AppFormatting {
         Duration.seconds(seconds).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated).locale(locale))
     }
 
+    /// Inline list: Chinese keeps 「、」, other languages use a comma.
+    static func list(_ items: [String]) -> String {
+        items.joined(separator: AppLanguage.identifier == "zh-Hans" ? "、" : ", ")
+    }
+
     static func runtime(minutes: Int) -> String {
         let hours = minutes / 60, remainder = minutes % 60
         if hours == 0 { return String(localized: .unitsDurationMinutesShort(remainder)) }

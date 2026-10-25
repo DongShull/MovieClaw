@@ -212,7 +212,7 @@ enum RememberedChoices {
         var parts: [String] = []
         if let quality {
             // 画质按网络环境分开记：点明是哪个环境下的选择，回到家看到原画不会以为记忆失灵
-            parts.append(network.label.map { String(localized: .playerMemoryNetworkQuality(quality, $0)) } ?? String(localized: .playerMemoryQuality(quality)))
+            parts.append(network.label.map { String(localized: .playerMemoryNetworkQuality(String(quality), $0)) } ?? String(localized: .playerMemoryQuality(String(quality))))
         }
         if let audio { parts.append(String(localized: .playerMemoryAudio(audio))) }
         if let subtitle { parts.append(String(localized: .playerMemorySubtitles(subtitle))) }

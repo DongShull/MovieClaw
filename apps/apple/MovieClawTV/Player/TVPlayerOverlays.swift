@@ -246,7 +246,7 @@ struct TVQualityOfferCard: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 20) {
-                Button(String(localized: .playerControlsUseQuality(offer.maxHeight)), action: accept)
+                Button(String(localized: .playerControlsUseQuality(String(offer.maxHeight))), action: accept)
                     .accessibilityIdentifier("tv-quality-offer-accept")
                 Button(String(localized: .playerControlsKeepQuality), action: dismiss)
             }
@@ -262,7 +262,7 @@ struct TVQualityOfferCard: View {
     private var detail: String {
         let measured = PlaybackController.formatBandwidth(offer.measuredBps) ?? String(localized: .playerControlsSlowMeasured)
         let required = PlaybackController.formatBandwidth(offer.requiredBps) ?? String(localized: .playerControlsSlowRequired)
-        return String(localized: .playerControlsSlowDescription(measured, required, offer.maxHeight))
+        return String(localized: .playerControlsSlowDescription(measured, required, String(offer.maxHeight)))
     }
 }
 

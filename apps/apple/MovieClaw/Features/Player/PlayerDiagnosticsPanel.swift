@@ -112,7 +112,7 @@ struct PlayerDiagnosticsPanel: View {
             if let job = diagnostics?.jobId {
                 ActionLine(String(localized: .playerDiagnosticsJobLine) + job + (diagnostics?.jobState.map { " · \(Self.jobStateLabels[$0] ?? $0)" } ?? "") + (diagnostics?.jobSpeed.map { " · \($0)" } ?? ""))
             }
-            if let code = diagnostics?.jobExitCode { ActionLine(String(localized: .playerDiagnosticsExitCode(code)), alert: true) }
+            if let code = diagnostics?.jobExitCode { ActionLine(String(localized: .playerDiagnosticsExitCode(String(code))), alert: true) }
             if let error = diagnostics?.jobError, error != diagnostics?.sessionError { ActionLine("Worker：\(error)", alert: true) }
             if let tail = diagnostics?.jobStderrTail { ActionLine("ffmpeg stderr：\(tail)", alert: true) }
             if let error = diagnostics?.sessionError { ActionLine(error, alert: true) }

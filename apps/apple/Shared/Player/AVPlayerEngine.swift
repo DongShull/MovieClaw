@@ -491,7 +491,7 @@ final class AVPlayerEngine: NSObject, PlayerEngine {
     private static func describe(_ error: Error?, fallback: String) -> String {
         guard let error = error as NSError? else { return fallback }
         let detail = error.localizedFailureReason ?? error.localizedDescription
-        return String(localized: .playerEngineDetailedError(fallback, detail, error.code))
+        return String(localized: .playerEngineDetailedError(fallback, detail, String(error.code)))
     }
 }
 
