@@ -3,6 +3,7 @@ from __future__ import annotations
 from urllib.parse import urlparse
 
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_db.models.site_credential import AuthType
 from movieclaw_tracker.registry import SiteConfig, get_site_config, list_sites
 
@@ -72,7 +73,7 @@ class SiteCatalogService:
         """校验某站点是否支持指定授权类型，不支持则抛 400。返回站点目录项。"""
         config = self.get(site_id)
         if auth_type.value not in config.supported_auth_types:
-            supported = "、".join(config.supported_auth_types) or "（无）"
+            supported = "、".join(config.supported_auth_types) or t("common.value.none")
             raise BadRequestException(
                 message_key="errors.sites.authTypeUnsupported",
                 params={"id": site_id, "type": auth_type.value, "supported": supported},

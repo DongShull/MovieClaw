@@ -55,5 +55,8 @@
     "progress": "Uploaded {done} (instant {rapid})",
     "done": "Upload finished: {done, plural, one {# file} other {# files}} (instant {rapid}){failed, plural, =0 {} one {; # failed (the reason is recorded on the file; it retries later)} other {; # failed (the reasons are recorded on the files; they retry later)}}",
     "nothingToUpload": "New content of this library is no longer stored in cloud storage; nothing to upload"
+  },
+  "drives": {
+    "pluginNotRunning": "The cloud drive plugin {id} isn’t running; it will be retried automatically"
   }
 }

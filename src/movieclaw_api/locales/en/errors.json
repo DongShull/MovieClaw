@@ -533,7 +533,9 @@
   },
   "playbackSync": {
     "memberInactive": "This member does not exist or is disabled",
-    "cursorInvalid": "This cursor is invalid"
+    "cursorInvalid": "This cursor is invalid",
+    "timezoneRequired": "Times must include a time zone",
+    "futureTime": "Times can’t be in the future"
   },
   "subtitles": {
     "fileMissing": "File id={id} does not exist or is missing",
@@ -1047,5 +1049,15 @@
   "agentInput": {
     "thinkingLevel": "Thinking level “{value}” isn’t supported; use one of {choices}",
     "emptyMessage": "A message needs text or an image attachment"
+  },
+  "libraryInput": {
+    "imagePath": "Invalid image path: only TMDB image paths or Fanart.tv image URLs are accepted"
+  },
+  "searchInput": {
+    "categoryNameEmpty": "A custom category needs a name"
+  },
+  "tmdb": {
+    "notConfiguredSubscriptions": "No TMDB API key is configured, so subscriptions are unavailable. Set TMDB_API_KEY in .env (or the environment) and restart the server; get a free key under Account settings → API on themoviedb.org",
+    "notConfiguredDiscover": "No TMDB API key is configured, so Discover is unavailable. Set TMDB_API_KEY in .env (or the environment) and restart the server; get a free key under Account settings → API on themoviedb.org"
   }
 }

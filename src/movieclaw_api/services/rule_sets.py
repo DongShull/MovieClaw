@@ -62,7 +62,7 @@ _DEFAULT_SPEC = {"resolutions": ["2160p", "1080p"], "min_seeders": 1}
 
 # 适用范围里的作品类型字段（其余字段复用媒体库收藏范围的求值与校验）
 _KIND_FIELD = "kind"
-_KIND_LABELS = {"movie": "电影", "tv": "剧集"}
+_KINDS = ("movie", "tv")
 
 
 def validate_scope(raw: list | None) -> list[dict]:
@@ -86,10 +86,10 @@ def validate_scope(raw: list | None) -> list[dict]:
         values = rule.get("values")
         if not isinstance(values, list) or not values:
             raise BadRequestException(message_key="errors.ruleSets.scopeKindRequired")
-        if not all(v in _KIND_LABELS for v in values):
+        if not all(v in _KINDS for v in values):
             raise BadRequestException(message_key="errors.ruleSets.scopeKindInvalid")
         kinds = sorted(set(values))
-        if len(kinds) < len(_KIND_LABELS):
+        if len(kinds) < len(_KINDS):
             cleaned.append({"field": _KIND_FIELD, "op": "any_of", "values": kinds})
     rest = [r for r in raw if r.get("field") != _KIND_FIELD]
     return cleaned + validate_match_rules(rest, scope="applicability")
@@ -126,7 +126,7 @@ class RuleSetPick:
 
 def _pick_reason_message(kind: str, row: RuleSet, facts: RoutingFacts | None) -> dict:
     parts = [
-        kind_reference(kind) if kind in _KIND_LABELS else kind
+        kind_reference(kind) if kind in _KINDS else kind
         for rule in row.match_rules
         if rule.get("field") == _KIND_FIELD
     ]

@@ -8,6 +8,7 @@
     "paragraphSeparator": "\n\n"
   },
   "value": {
-    "missing": "(missing)"
+    "missing": "(missing)",
+    "none": "none"
   }
 }

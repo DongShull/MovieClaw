@@ -533,7 +533,9 @@
   },
   "playbackSync": {
     "memberInactive": "成员不存在或已停用",
-    "cursorInvalid": "游标无效"
+    "cursorInvalid": "游标无效",
+    "timezoneRequired": "时间必须包含时区",
+    "futureTime": "不能使用未来时间"
   },
   "subtitles": {
     "fileMissing": "文件不存在或已丢失：id={id}",
@@ -1047,5 +1049,15 @@
   "agentInput": {
     "thinkingLevel": "思维链档位「{value}」不在支持的取值里：{choices}",
     "emptyMessage": "消息正文与图片附件不能同时为空"
+  },
+  "libraryInput": {
+    "imagePath": "图片路径不合法：只接受 TMDB 图片路径或 Fanart.tv 图床地址"
+  },
+  "searchInput": {
+    "categoryNameEmpty": "自定义分类的名称不能为空"
+  },
+  "tmdb": {
+    "notConfiguredSubscriptions": "尚未配置 TMDB API Key，订阅功能不可用。请在 .env（或环境变量）中设置 TMDB_API_KEY 后重启服务；Key 可在 themoviedb.org 的账户设置 → API 页免费申请",
+    "notConfiguredDiscover": "尚未配置 TMDB API Key，发现页暂不可用。请在 .env（或环境变量）中设置 TMDB_API_KEY 后重启服务；Key 可在 themoviedb.org 的账户设置 → API 页免费申请"
   }
 }

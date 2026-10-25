@@ -116,6 +116,7 @@ async def resolve_notices(
     session: AsyncSession, *, dedupe_key: str | None = None, prefix: str | None = None
 ) -> int:
     """问题消失，消退对应告警。按精确 key 或前缀批量；返回消退条数。"""
+    # i18n-ignore: developer-facing (contract docs, assertions, generated CSS comment)
     assert (dedupe_key is None) != (prefix is None), "精确 key 与前缀二选一"
     query = select(SystemNotice).where(
         SystemNotice.status != NoticeStatus.RESOLVED.value  # type: ignore[arg-type]

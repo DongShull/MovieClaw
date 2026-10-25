@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_db.models.base import utcnow
 
@@ -79,7 +80,11 @@ class SyncRecordIn(BaseModel):
     @field_validator("watched_at", "expected_updated_at")
     @classmethod
     def aware(cls, value):
-        return _aware_past(value)
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError(t("errors.playbackSync.timezoneRequired"))
+        if value is not None and value.timestamp() > utcnow().replace(tzinfo=UTC).timestamp() + 5:
+            raise ValueError(t("errors.playbackSync.futureTime"))
+        return value
 
 
 class SyncImportIn(BaseModel):

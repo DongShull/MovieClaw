@@ -4,7 +4,7 @@ import logging
 
 import httpx
 
-from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.i18n.stored import source_text, stored_fields
 from movieclaw_api.services.auth_factory import build_auth_provider
 from movieclaw_api.services.site_access import invalidate_site_access
 from movieclaw_db.engine import get_database
@@ -115,7 +115,7 @@ async def verify_site(site_id: str) -> None:
         )
         auth_result = await site.authenticate()
         if not auth_result.success:
-            error = auth_result.message or "认证未通过"
+            error = auth_result.message or source_text("errors.siteDiagnostic.authNotPassed")
             reason = getattr(auth_result, "message_ref", None)
             if reason:
                 error_ref = {"message": error, **reason}
@@ -127,7 +127,7 @@ async def verify_site(site_id: str) -> None:
                 status = ConfigStatus.ACTIVE
                 logger.info("站点验证成功：site=%s 用户=%s", site_id, profile.username)
             else:
-                error = "认证成功但无法获取用户资料，请检查账号状态"
+                error = source_text("errors.siteDiagnostic.profileMissing")
                 error_ref = stored_fields("errors.siteDiagnostic.profileMissing")
     except Exception as exc:  # noqa: BLE001 -- 背景任务需吞掉所有异常并记录原因
         error_ref = friendly_error_message(exc)

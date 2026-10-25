@@ -35,7 +35,7 @@ from movieclaw_api import __version__
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import AppException, BadRequestException, ConflictException
 from movieclaw_api.i18n import use_locale
-from movieclaw_api.i18n.stored import reference, render_value
+from movieclaw_api.i18n.stored import reference, render_value, source_text
 from movieclaw_api.services.cloud import client
 from movieclaw_api.services.cloud.client import CloudUnreachable
 from movieclaw_api.settings import get_setting_store
@@ -593,7 +593,7 @@ class CloudService:
             detail = reply.message or f"HTTP {reply.status}"
             return await self._renew_failed(
                 setting,
-                f"MovieClaw Cloud 拒绝了续签：{detail}",
+                source_text("errors.cloud.renewRejected", detail=detail),
                 reason={"message_key": "errors.cloud.renewRejected", "params": {"detail": detail}},
             )
 

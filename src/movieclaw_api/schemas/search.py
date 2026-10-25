@@ -17,6 +17,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, field_serializer, field_validator
 
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import stored_message
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_db.models.search_history import SearchHistory
@@ -188,7 +189,7 @@ class PresetTabItem(BaseModel):
     def _strip_name(cls, value: str) -> str:
         value = value.strip()
         if not value:
-            raise ValueError("自定义分类的名称不能为空")
+            raise ValueError(t("errors.searchInput.categoryNameEmpty"))
         return value
 
 

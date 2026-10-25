@@ -64,6 +64,7 @@ from movieclaw_api.exceptions import (
     NotFoundException,
     UnauthorizedException,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.services import login_devices
 from movieclaw_api.settings import (
     AdminAccountSetting,
@@ -1060,7 +1061,7 @@ def authorize_device(
         user_code=user_code,
         device_code_hash=_hash_token(device_code),
         client_type=client_type,
-        client_name=client_name.strip() or "未命名设备",
+        client_name=client_name.strip() or t("auth.device.unnamed"),
         source_ip=source_ip,
         installation_id=(installation_id or "").strip()[:128] or None,
         platform=(platform or "").strip()[:128] or None,

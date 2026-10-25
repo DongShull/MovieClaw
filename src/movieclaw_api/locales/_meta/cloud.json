@@ -133,5 +133,8 @@
   },
   "upload.nothingToUpload": {
     "sourceHash": "254562d89545ed0c009ce4af835f0994564e7d117de337db4e16c33627c1ddd2"
+  },
+  "drives.pluginNotRunning": {
+    "sourceHash": "4d6c420d864d9ad887e0c08d9d9e4c4aee3724d80dc2f6440334538ce011f425"
   }
 }

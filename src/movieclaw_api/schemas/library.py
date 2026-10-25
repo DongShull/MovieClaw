@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import Field, field_serializer, field_validator
 
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.services.library.preflight import (
     MAX_SELECTION as BATCH_TRANSFER_MAX_SELECTION,
@@ -1359,7 +1360,7 @@ class ArtworkSelectPayload(BaseModel):
 
         if value is None or value.startswith("/") or is_fanart_asset(value):
             return value
-        raise ValueError("图片路径不合法：只接受 TMDB 图片路径或 Fanart.tv 图床地址")
+        raise ValueError(t("errors.libraryInput.imagePath"))
 
 
 class ReidentifyResultView(BaseModel):

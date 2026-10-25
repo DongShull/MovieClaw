@@ -23,6 +23,7 @@ from typing import Literal
 from movieclaw_agent import CompactionResult
 from movieclaw_agent.events import AgentEvent
 from movieclaw_api import events
+from movieclaw_api.i18n.stored import source_text
 from movieclaw_api.services.agent_sessions import (
     PREVIEW_MAX_CHARS,
     AgentSessionStore,
@@ -240,7 +241,7 @@ class AgentSessionRecorder:
             title_ref=row.title_ref if row else None,
             status="done" if done else "error",
             answer=answer_preview(event.result.text) if done and event.result else "",
-            error=None if done else (event.error or "运行失败，原因未知"),
+            error=None if done else (event.error or source_text("errors.agent.run.unknown")),
             error_ref=(
                 None
                 if done

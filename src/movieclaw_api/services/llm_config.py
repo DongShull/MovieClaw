@@ -38,7 +38,7 @@ from movieclaw_api.exceptions import (
     NotFoundException,
 )
 from movieclaw_api.i18n.llm import error_reference, preset_name
-from movieclaw_api.i18n.stored import reference, render_value
+from movieclaw_api.i18n.stored import reference, render_value, source_text
 from movieclaw_api.schemas.llm import (
     LlmDefaultsView,
     LlmModelDiscoveryPayload,
@@ -743,7 +743,11 @@ async def verify_llm_provider(provider_id: int) -> None:
             await repo.update_status(
                 provider_id,
                 ConfigStatus.FAILED,
-                last_error=f"测试时发生未知错误（{type(exc).__name__}）：{exc}",
+                last_error=source_text(
+                    "errors.llm.connection.verificationUnknown",
+                    type=type(exc).__name__,
+                    error=str(exc),
+                ),
                 last_error_ref=reference(
                     "errors.llm.connection.verificationUnknown",
                     type=type(exc).__name__,

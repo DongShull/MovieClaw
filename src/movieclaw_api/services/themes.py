@@ -165,6 +165,7 @@ def stylesheet(settings: object, kernel: Any) -> str:
 
     所有主题 CSS 都挂在各自的 ``html[data-theme="<id>"]`` 作用域下，一起加载互不影响。
     """
+    # i18n-ignore: developer-facing (contract docs, assertions, generated CSS comment)
     lines = ["/* MovieClaw 网页主题（docs/design/theme-plugins.md §4.3） */"]
     for theme in themes(settings, kernel):
         if theme.incompatible is None:

@@ -73,8 +73,8 @@ def rule_target_label(rule: ImportWatch, library_name: str | None) -> str:
         return f"「{library_name or '?'}」"
     if rule.target_path:
         kind_label = _KIND_LABELS.get(rule.kind or "", rule.kind or "?")
-        return f"自定义目录（{kind_label} · {rule.target_path}）"
-    return f"自动路由（{_KIND_LABELS.get(rule.kind or '', rule.kind or '?')}）"
+        return f"自定义目录（{kind_label} · {rule.target_path}）"  # i18n-ignore: log label
+    return f"自动路由（{_KIND_LABELS.get(rule.kind or '', rule.kind or '?')}）"  # i18n-ignore
 
 
 class ImportWatchConfigService:

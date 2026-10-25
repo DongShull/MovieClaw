@@ -118,6 +118,7 @@ async def _process_locked() -> None:
 
             # 没有任何缺口时评估管道自己会立即返回（它要加载匹配上下文，这里不再
             # 先加载一遍判空——那样每批都要把全部订阅的上下文多读一次）
+            # i18n-ignore: audit source label for logs and activity payload
             await evaluate_and_dispatch(session, rows, source="被动匹配")
             # 换源退避只约束主动跨站搜索；刚同步进索引的新种是新的事实，
             # 应立即抢跑评估，不能让用户等到 1h/3h/12h/24h 的下个时间点。

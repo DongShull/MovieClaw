@@ -392,5 +392,8 @@
   "callbacks": {
     "noActive": "There’s no active callback address #{id}",
     "missing": "There’s no callback address #{id}"
+  },
+  "settings": {
+    "notEditable": "This plugin has no settings to change here"
   }
 }

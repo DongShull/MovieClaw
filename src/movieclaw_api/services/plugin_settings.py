@@ -77,8 +77,10 @@ async def update(
     """保存界面填的值并重启插件；返回保存后的 :func:`view`。"""
     desc = description(kernel, entry_id)
     if not desc or "schema" not in desc:
-        reason = (desc or {}).get("unsupported") or "这个插件没有可在界面上修改的设置"
-        raise BadRequestException(reason)
+        reason = (desc or {}).get("unsupported")
+        if reason:
+            raise BadRequestException(reason)
+        raise BadRequestException(message_key="plugins.settings.notEditable")
     schema = desc["schema"]
     properties = schema["properties"]
     unknown = sorted(set(values) - set(properties))

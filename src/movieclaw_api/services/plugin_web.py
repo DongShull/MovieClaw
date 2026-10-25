@@ -249,7 +249,7 @@ def _read_manifest(root: Path) -> tuple[dict[str, Any] | None, str | None]:
             continue
         try:
             if path.stat().st_size > MAX_MANIFEST_BYTES:
-                raise ValueError(f"超过 {MAX_MANIFEST_BYTES // 1024} KB")
+                raise ValueError(f"超过 {MAX_MANIFEST_BYTES // 1024} KB")  # i18n-ignore: logged
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             logger.warning("插件网页的 %s 读不出来，按没有 manifest 处理：%s", path, exc)

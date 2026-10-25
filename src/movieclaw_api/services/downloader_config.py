@@ -13,7 +13,8 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
-from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import reference, source_text
 from movieclaw_api.services.download_health import adopt_landing_groups
 from movieclaw_api.services.downloader_paths import PathProbe, detail_key, probe_mappings, summarize
 from movieclaw_db.engine import get_database
@@ -75,7 +76,9 @@ class DownloaderConfigService:
 
         known = adapters()
         if client_type not in known:
-            names = "、".join(f"{a.title}（{t}）" for t, a in known.items()) or "无"
+            names = "、".join(f"{a.title}（{kind}）" for kind, a in known.items()) or t(
+                "common.value.none"
+            )
             raise BadRequestException(
                 message_key="errors.downloaders.typeMissing",
                 params={"type": client_type, "types": names},
@@ -260,7 +263,9 @@ async def verify_downloader(downloader_id: int) -> None:
             return
         except Exception as exc:  # noqa: BLE001 -- 背景任务兜底，绝不外抛
             logger.exception("下载器连接测试发生未知错误：%s", row.name)
-            error = f"测试时发生未知错误（{type(exc).__name__}）：{exc}"
+            error = source_text(
+                "errors.downloader.verifyUnexpected", kind=type(exc).__name__, detail=str(exc)
+            )
             error_ref = {
                 "message": error,
                 **reference(

@@ -392,5 +392,8 @@
   "callbacks": {
     "noActive": "没有有效的回调地址 #{id}",
     "missing": "没有回调地址 #{id}"
+  },
+  "settings": {
+    "notEditable": "这个插件没有可在界面上修改的设置"
   }
 }

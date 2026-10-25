@@ -8,6 +8,7 @@
     "paragraphSeparator": "\n\n"
   },
   "value": {
-    "missing": "（缺失）"
+    "missing": "（缺失）",
+    "none": "无"
   }
 }
