@@ -1,4 +1,4 @@
-"""Library background-job messages keep a Chinese rollback value and render in the reader's language."""
+"""Library job messages keep a Chinese rollback value and render in the reader's language."""
 
 from movieclaw_api.i18n import use_locale
 from movieclaw_api.i18n.stored import localize_fields, stored_fields
@@ -50,7 +50,8 @@ def test_batch_skip_reasons_join_in_reader_language():
         reason = localize_fields(outcome.skips)[0]["reason"]
     assert (
         reason
-        == "The target library’s primary root is not accessible: /x (is the disk mounted?); Nothing to move"
+        == "The target library’s primary root is not accessible: /x (is the disk mounted?); "
+        "Nothing to move"
     )
 
 
