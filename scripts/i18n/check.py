@@ -328,6 +328,13 @@ def keyed_fallback_nodes(tree: ast.AST) -> set[int]:
     a message with `message_key=`) is the rollback copy of a migrated message."""
     found: set[int] = set()
     for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            # The same pairing in a dict literal: {"label": "重试", "label_key": "..."}.
+            keys = {key.value for key in node.keys if isinstance(key, ast.Constant)}
+            for key, value in zip(node.keys, node.values, strict=True):
+                if isinstance(key, ast.Constant) and f"{key.value}_key" in keys:
+                    found.update(id(child) for child in ast.walk(value))
+            continue
         if not isinstance(node, ast.Call):
             continue
         names = {keyword.arg for keyword in node.keywords if keyword.arg}

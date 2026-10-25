@@ -2065,5 +2065,14 @@
   },
   "ingest.claimed": {
     "sourceHash": "a2d89716d50f72688bdd2cbbd81e71d1fcaed55e40b44986ae0ac5f5c60b032b"
+  },
+  "subtitleJob.rateLimitPaused": {
+    "sourceHash": "e86fa5504f53f2fa2b4edeb6e9fa62ea42fa6d6df4d8333d12baae722fe40538"
+  },
+  "subtitleJob.bilingualLabel": {
+    "sourceHash": "eaf45548fe6c82d791a25abe69ce84c901843fa60d3e97f659629ccbd4194322"
+  },
+  "subtitleJob.autoActor": {
+    "sourceHash": "b8190db007e8c35362d8a6f0aba2b13869b150833de8eb19fbe0f783dcb866b4"
   }
 }

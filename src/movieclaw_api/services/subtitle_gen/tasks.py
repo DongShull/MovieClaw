@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.exceptions import AppException, BadRequestException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.services import jobs, media_extract
@@ -219,19 +220,12 @@ async def _film_context(
 
 # 输出语言是产品能力边界，也是提示词、文件名和断点身份的一部分。语言 token
 # 采用项目既有短码；外挂文件末段另写 ISO 639-2/B，兼容 Jellyfin/Plex/Kodi。
+# 值是展示名的消息键（library.subtitleLanguages.*），渲染时按读者语言取
 OUTPUT_LANGUAGES: dict[str, str] = {
-    "chs": "简体中文",
-    "cht": "繁体中文",
-    "eng": "英语",
-    "jpn": "日语",
-    "kor": "韩语",
-    "fre": "法语",
-    "ger": "德语",
-    "spa": "西班牙语",
-    "ita": "意大利语",
-    "por": "葡萄牙语",
-    "rus": "俄语",
-    "tha": "泰语",
+    code: f"library.subtitleLanguages.{code}"
+    for code in (
+        "chs", "cht", "eng", "jpn", "kor", "fre", "ger", "spa", "ita", "por", "rus", "tha",
+    )
 }
 _FILENAME_LANGUAGE = {"chs": "chi", "cht": "chi"}
 _LANGUAGE_TOKEN = _re.compile(r"^[a-z0-9-]{2,16}$")
@@ -274,8 +268,12 @@ def subtitle_output_key(target_language: str, secondary_language: str | None = N
 def subtitle_output_label(target_language: str, secondary_language: str | None = None) -> str:
     target, secondary = ensure_output_languages(target_language, secondary_language)
     if secondary is None:
-        return OUTPUT_LANGUAGES[target]
-    return f"{OUTPUT_LANGUAGES[target]} + {OUTPUT_LANGUAGES[secondary]}双语"
+        return t(OUTPUT_LANGUAGES[target])
+    return t(
+        "library.subtitleJob.bilingualLabel",
+        primary=t(OUTPUT_LANGUAGES[target]),
+        secondary=t(OUTPUT_LANGUAGES[secondary]),
+    )
 
 
 def _sidecar_path(
@@ -1117,6 +1115,17 @@ _STOP_AT_ONCE_PHASES = frozenset({"preparing", "extracting", "ocr", "syncing"})
 _MODEL_RETRY_DELAY_SECONDS = 30
 
 
+def _model_setup_problem(message: str, key: str | None, params: dict | None) -> bool:
+    """失败原因是不是「模型没配好/不可用」（该引导去设置页）。
+
+    判的是中文原文（与改造前同一口径），不随读者语言变化：有消息键按键重新渲染中文，
+    没有键的旧文本直接判。
+    """
+    text = stored_fields(key, **(params or {}))["message"] if key else message
+    # i18n-ignore: decision keywords over the Chinese source text, never shown
+    return "配置" in text or "模型" in text
+
+
 def _brief(exc: Exception, limit: int = 200) -> str:
     """错误原文可能带整段响应体：给用户看的截到够判断原因的长度。"""
     text = str(exc).strip()
@@ -1232,7 +1241,7 @@ async def _run_generation_job(
             ],
         ) from exc
     except AppException as exc:
-        if "配置" in exc.message or "模型" in exc.message:
+        if _model_setup_problem(exc.message, exc.message_key, exc.params):
             raise jobs.JobBlocked(
                 exc.message,
                 message_key=exc.message_key,
@@ -1344,7 +1353,7 @@ async def _run_generation_job(
             {"type": "retry_job", "label": "重试", "label_key": "activity.jobs.retry"},
             {"type": "handoff_agent", "label": "交给 Agent", "label_key": "activity.jobs.agent"},
         ]
-        if "配置" in result.message or "模型" in result.message:
+        if _model_setup_problem(result.message, result.message_key, result.message_params):
             raise jobs.JobBlocked(
                 result.message,
                 message_key=result.message_key,
@@ -1561,7 +1570,9 @@ async def _run(
         await _refresh_subtitle_inventory(db, file_id)
         chosen = plan.candidate
         chosen.reasons.append(
+            # i18n-ignore: model prompt, task log detail or internal retry signal
             f"PGS 以 {plan.language.label or '已确认语言'}"
+            # i18n-ignore: model prompt, task log detail or internal retry signal
             f"经 {plan.capability.engine or 'OCR'} 转为 SRT"
         )
         chosen.reasons.append(assessment.reason)
@@ -1879,10 +1890,12 @@ async def _build_chat(
             # 专属信号：翻译层据此把块对半拆开重译。原样重发只会再次被截断——
             # 撞的是供应商天花板。深度思考模型是这里最常见的触发者。
             raise translate.ChatOutputTruncated(
+                # i18n-ignore: model prompt, task log detail or internal retry signal
                 "模型写到自身输出上限仍未写完译文"
                 f"（本次思考+正文共 {response.usage.completion_tokens} tokens）"
             )
         if response.finish_reason == "tool_calls":
+            # i18n-ignore: model prompt, task log detail or internal retry signal
             raise ValueError("字幕模型返回了意外的工具调用，正在重试结构化输出")
         return response.content or ""
 

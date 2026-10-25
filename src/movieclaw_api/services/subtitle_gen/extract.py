@@ -67,6 +67,7 @@ class SourceExtractionPending(Exception):
 # 高频汉字集（简繁通用字为主，含字幕场景高频词素）：中文编码判定的
 # 打分依据——GBK/Big5 互解出来的错字几乎不落在高频集内，真中文过半命中
 _COMMON_CJK = set(
+    # i18n-ignore: CJK frequency data for language detection
     "的一是不了人我在有他这中大来上国个到说们为子和你地出道也时年得就那要下以"
     "生会自着去之过家学对可她里后小么心多天而能好都然没日于起还发成事只作当想"
     "看文无开手十用主行方又如前所本见经头面公同三已老从动两长知民样现分将外但"
@@ -79,6 +80,7 @@ _COMMON_CJK = set(
 
 def _chinese_score(text: str) -> float:
     """解码质量分：CJK 字符里高频字的占比（0..1）；无 CJK 记 0。"""
+    # i18n-ignore: CJK frequency data for language detection
     cjk = [c for c in text if "一" <= c <= "鿿"]
     if not cjk:
         return 0.0

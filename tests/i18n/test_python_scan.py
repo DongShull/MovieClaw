@@ -40,8 +40,9 @@ def test_chinese_fallback_beside_its_key_is_migrated():
 register_task("a", title="清理历史", title_key="settings.x.title", description="删除旧记录")
 raise JobRetry("稍后重试", message_key="library.x.retry")
 raise JobRetry("仍未迁移")
+actions = [{"label": "重试", "label_key": "activity.jobs.retry"}, {"label": "配置模型"}]
 """
-    assert sorted(counted(source)) == ["仍未迁移", "删除旧记录"]
+    assert sorted(counted(source)) == ["仍未迁移", "删除旧记录", "配置模型"]
 
 
 def test_bare_strings_logs_and_regex_patterns_are_not_interface_text():

@@ -30,7 +30,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from movieclaw_api.i18n.stored import reference, stored_fields
+from movieclaw_api.i18n.stored import reference, source_text, stored_fields
 from movieclaw_api.services import media_extract
 from movieclaw_api.services.subtitle_gen import process
 
@@ -105,18 +105,10 @@ _PADDLE_LANGUAGES = {
 # 用户确认的是“PGS 图片里写的语言”，不是 Tesseract/Paddle 的内部参数。
 # 对外统一使用项目已有的 ISO 639-2/B 风格 token，简繁中文单独保留，避免
 # 通用字幕语言规范化把 ``cht`` 合并成 ``chi`` 后选错识别模型。
+# 值是中文原文（落库判定的回滚值与启动日志用）；给人看的地方用 library.subtitleLanguages.* 引用
 OCR_LANGUAGE_LABELS: dict[str, str] = {
-    "eng": "英语",
-    "chs": "简体中文",
-    "cht": "繁体中文",
-    "jpn": "日语",
-    "kor": "韩语",
-    "fre": "法语",
-    "ger": "德语",
-    "spa": "西班牙语",
-    "ita": "意大利语",
-    "por": "葡萄牙语",
-    "rus": "俄语",
+    code: source_text(f"library.subtitleLanguages.{code}")
+    for code in ("eng", "chs", "cht", "jpn", "kor", "fre", "ger", "spa", "ita", "por", "rus")
 }
 
 _OCR_LANGUAGE_ALIASES = {
@@ -126,13 +118,18 @@ _OCR_LANGUAGE_ALIASES = {
     "chs": "chs",
     "zh-cn": "chs",
     "zh-hans": "chs",
+    # i18n-ignore: language aliases parsed from track titles
     "简体": "chs",
+    # i18n-ignore: language aliases parsed from track titles
     "简中": "chs",
     "cht": "cht",
     "zh-tw": "cht",
     "zh-hant": "cht",
+    # i18n-ignore: language aliases parsed from track titles
     "繁体": "cht",
+    # i18n-ignore: language aliases parsed from track titles
     "繁體": "cht",
+    # i18n-ignore: language aliases parsed from track titles
     "繁中": "cht",
     # chi/zho/zh 不携带简繁信息；用于自动推荐时必须让用户确认。
     "chi": "chs",
@@ -162,16 +159,27 @@ _OCR_LANGUAGE_ALIASES = {
 _AMBIGUOUS_CHINESE_CODES = frozenset({"chi", "zho", "zh", "chinese"})
 _UNKNOWN_LANGUAGE_CODES = frozenset({"", "und", "unk", "unknown", "none"})
 _TITLE_LANGUAGE_HINTS = (
+    # i18n-ignore: language aliases parsed from track titles
     (("繁体", "繁體", "繁中", "traditional chinese", "zh-hant"), "cht"),
+    # i18n-ignore: language aliases parsed from track titles
     (("简体", "簡體", "简中", "簡中", "simplified chinese", "zh-hans"), "chs"),
+    # i18n-ignore: language aliases parsed from track titles
     (("english", "英语", "英語"), "eng"),
+    # i18n-ignore: language aliases parsed from track titles
     (("japanese", "日本語", "日语", "日語"), "jpn"),
+    # i18n-ignore: language aliases parsed from track titles
     (("korean", "한국어", "韩语", "韓語"), "kor"),
+    # i18n-ignore: language aliases parsed from track titles
     (("french", "français", "法语", "法語"), "fre"),
+    # i18n-ignore: language aliases parsed from track titles
     (("german", "deutsch", "德语", "德語"), "ger"),
+    # i18n-ignore: language aliases parsed from track titles
     (("spanish", "español", "西班牙语", "西班牙語"), "spa"),
+    # i18n-ignore: language aliases parsed from track titles
     (("italian", "italiano", "意大利语", "義大利語"), "ita"),
+    # i18n-ignore: language aliases parsed from track titles
     (("portuguese", "português", "葡萄牙语", "葡萄牙語"), "por"),
+    # i18n-ignore: language aliases parsed from track titles
     (("russian", "русский", "俄语", "俄語"), "rus"),
 )
 
@@ -415,6 +423,7 @@ def _tesseract_languages(executable: str) -> tuple[set[str], str | None]:
     except (OSError, subprocess.TimeoutExpired) as exc:
         return set(), str(exc)
     if proc.returncode != 0:
+        # i18n-ignore: language aliases parsed from track titles
         return set(), (proc.stderr or proc.stdout or "未知错误").strip()[:240]
     lines = {line.strip() for line in proc.stdout.splitlines() if line.strip()}
     return {line for line in lines if " " not in line}, None
@@ -704,6 +713,7 @@ def _decide(env: _Environment, language: str | None) -> Capability:
         message = stored_fields(
             "library.subtitleOcr.tesseractListFailed",
             detail=reference("library.subtitleOcr.unknownError")
+            # i18n-ignore: language aliases parsed from track titles
             if env.tesseract_error == "未知错误"
             else env.tesseract_error,
         )
