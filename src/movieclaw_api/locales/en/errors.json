@@ -585,7 +585,15 @@
     "exportRemoved": "The exported file has been cleaned up",
     "strmUnavailable": "The strm source is unavailable: {error}",
     "transcodeFailed": "Transcoding failed: {reason}",
-    "unknownReason": "unknown reason"
+    "unknownReason": "unknown reason",
+    "profileUnsupported": "Unsupported quality: {profile}",
+    "noTranscoder": "No hardware transcoding is available and software transcoding is off",
+    "notInLibrary": "This file is no longer in the library",
+    "unknownDuration": "The runtime is unknown, so it can’t be transcoded for download",
+    "startFailed": "Transcoding couldn’t start: {error}",
+    "noProgress": "Transcoding made no progress",
+    "segmentFailed": "Segment {index} couldn’t be transcoded",
+    "segmentStalled": "Segment {index} wasn’t ready after {seconds} seconds"
   },
   "themes": {
     "missing": "This theme does not exist",

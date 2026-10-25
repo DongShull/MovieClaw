@@ -2587,5 +2587,29 @@
   },
   "drives.rangeInvalid": {
     "sourceHash": "8767684e80cd74e30075a39cdb251f5869aba761a25ab5d274f2cbd9919ccfcd"
+  },
+  "offline.profileUnsupported": {
+    "sourceHash": "10a3743f74684d4ef9d657d364d827b07ee539643c7e0dbf83080266f4b7750a"
+  },
+  "offline.noTranscoder": {
+    "sourceHash": "fd4f216fca4f91443249b5accce0a0f9bcd52ab48b6e5bf8dea87dee51951b67"
+  },
+  "offline.notInLibrary": {
+    "sourceHash": "4daa61a6eff5ab219a0d235f7e0fac4810369891aa4abfed42e32f12c1f95eae"
+  },
+  "offline.unknownDuration": {
+    "sourceHash": "495ab7091583f1113474c4440fada8baf4ccd2fdda3c2f467964a74dfc101f6d"
+  },
+  "offline.startFailed": {
+    "sourceHash": "189bc855083df2c3a65395bb53edaf781fd49753521ed6010f4bf9938a282ac5"
+  },
+  "offline.noProgress": {
+    "sourceHash": "a66f38c756b6eba072966bd02007a227cacb12099e128dbf5353399e80f6a41f"
+  },
+  "offline.segmentFailed": {
+    "sourceHash": "18027dc580fe17329847426a6277931e2966b2035df1c4096e4a457e19cb6768"
+  },
+  "offline.segmentStalled": {
+    "sourceHash": "618dbee08b2ec5c6392bbde9895d4ccef5dd26cc977579b575defcbfe2d5a17b"
   }
 }

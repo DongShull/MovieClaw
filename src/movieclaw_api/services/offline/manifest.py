@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.offline import (
     OfflineFileProfilesView,
     OfflineManifestView,
@@ -54,7 +55,7 @@ def _source_height(file: LibraryFile) -> int | None:
 
 def _original_label(file: LibraryFile) -> str:
     parts = [p for p in (file.resolution, (file.video_codec or "").upper() or None) if p]
-    return "原画" + (" · " + " ".join(parts) if parts else "")
+    return t("player.offline.original") + (" · " + " ".join(parts) if parts else "")
 
 
 async def build_manifest(
@@ -124,7 +125,7 @@ async def build_manifest(
         resume_position_ms=state.position_ms if state is not None else None,
     )
     if file.is_disc():
-        view.unavailable_reason = "原盘暂不支持下载到设备"
+        view.unavailable_reason = t("errors.offline.discUnsupported")
         return view
 
     decision = await playback_plan.decide_for_file(
@@ -250,7 +251,7 @@ async def build_profiles(
         )
         if file.is_disc():
             entry.profiles = []
-            entry.unavailable_reason = "原盘暂不支持下载到设备"
+            entry.unavailable_reason = t("errors.offline.discUnsupported")
         else:
             entry.profiles = _profile_views(file, available.get(file.id or 0, set()))
         result.append(entry)

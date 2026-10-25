@@ -224,5 +224,16 @@
     "japanese": "Japanese",
     "korean": "Korean",
     "generic": "Subtitles"
+  },
+  "offline": {
+    "transcoded": "{spec} transcoded",
+    "queued": "Transcoding {spec} · Queued",
+    "failed": "Transcoding {spec} · Failed",
+    "transcoding": "Transcoding {spec}",
+    "speed": "{speed}×",
+    "percent": "{percent}% transcoded",
+    "nasGpu": "NAS GPU",
+    "nasSoftware": "NAS software",
+    "original": "Original"
   }
 }

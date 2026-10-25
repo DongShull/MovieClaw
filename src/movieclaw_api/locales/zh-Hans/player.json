@@ -224,5 +224,16 @@
     "japanese": "日文",
     "korean": "韩文",
     "generic": "字幕"
+  },
+  "offline": {
+    "transcoded": "{spec} 转码版",
+    "queued": "转码 {spec} · 排队中",
+    "failed": "转码 {spec} · 失败",
+    "transcoding": "转码 {spec}",
+    "speed": "{speed} 倍速",
+    "percent": "已转 {percent}%",
+    "nasGpu": "NAS 显卡",
+    "nasSoftware": "NAS 软件",
+    "original": "原画"
   }
 }

@@ -574,5 +574,32 @@
   },
   "hw.lowPower": {
     "sourceHash": "fc67c77611bc70ee13a63660999e916d89c0c29dc259adf866eb5a90d0d6d663"
+  },
+  "offline.transcoded": {
+    "sourceHash": "25ce932204c14646dbc0b045d4b3086679b1140c3651ff20e409432455b4e70f"
+  },
+  "offline.queued": {
+    "sourceHash": "ab61ebe65ff09bdf3d54b8ed8403408e45134a2ca8b004954f8db15791843753"
+  },
+  "offline.failed": {
+    "sourceHash": "8080cb24a3a4ce1c28c52cc825842bec70c298d3c8c31c8473db611e6d3cff22"
+  },
+  "offline.transcoding": {
+    "sourceHash": "c140ab8d94f2bedba8b97e7d9275616fc7568df5180d285458bb13775c8f4ff2"
+  },
+  "offline.speed": {
+    "sourceHash": "e1c5aa1031df66f96ad44bd1f3b223d80b0266ab80dac6610ab23e6f8baba95d"
+  },
+  "offline.percent": {
+    "sourceHash": "73037f32aba09e6f2aa4ec97d1f06389a54e5afc7fe750e0d503337eaee72470"
+  },
+  "offline.nasGpu": {
+    "sourceHash": "078bbe368bff43304f3ca524171dc0ea2cf5d9822b2aa8fb78dc957c1a8774ad"
+  },
+  "offline.nasSoftware": {
+    "sourceHash": "5f8a2b7a4f67a0e71ffac9a400b9c2c33af6b891ac568e2baec79e1e079ef164"
+  },
+  "offline.original": {
+    "sourceHash": "e890613e4c15b168444cc43eda24eda7672729bd13aeee5c61cb4329e6db1496"
   }
 }

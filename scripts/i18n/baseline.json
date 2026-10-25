@@ -77,8 +77,6 @@
   "src/movieclaw_api/services/login_devices.py": 6,
   "src/movieclaw_api/services/media_discover.py": 2,
   "src/movieclaw_api/services/media_extract.py": 7,
-  "src/movieclaw_api/services/offline/exports.py": 30,
-  "src/movieclaw_api/services/offline/manifest.py": 3,
   "src/movieclaw_api/services/playback_activity.py": 1,
   "src/movieclaw_api/services/plugin_channels.py": 3,
   "src/movieclaw_api/services/plugin_data.py": 4,

@@ -585,7 +585,15 @@
     "exportRemoved": "导出文件已回收",
     "strmUnavailable": "strm 用不了：{error}",
     "transcodeFailed": "转码失败：{reason}",
-    "unknownReason": "未知原因"
+    "unknownReason": "未知原因",
+    "profileUnsupported": "不支持的档位：{profile}",
+    "noTranscoder": "没有可用的硬件转码，且软件转码未开启",
+    "notInLibrary": "文件已不在媒体库里",
+    "unknownDuration": "片长未知，没法转码导出",
+    "startFailed": "转码起不来：{error}",
+    "noProgress": "转码一直没有进展",
+    "segmentFailed": "第 {index} 段转不出来",
+    "segmentStalled": "第 {index} 段等了 {seconds} 秒还没转出来"
   },
   "themes": {
     "missing": "没有这个主题",

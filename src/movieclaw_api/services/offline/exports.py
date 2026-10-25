@@ -42,6 +42,8 @@ from starlette.responses import Response
 from starlette.types import Receive, Scope, Send
 
 from movieclaw_api.core.config import get_settings
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import exception_reference, reference, render_value, source_render
 from movieclaw_api.services.playback import plan as playback_plan
 from movieclaw_api.services.playback.errors import PlaybackError
 from movieclaw_api.services.playback.ffmpeg_args import (
@@ -72,6 +74,7 @@ from movieclaw_api.services.playback.session import (
     SessionLimitError,
     SessionStartError,
     TranscodeSession,
+    _set_error,
     get_session_manager,
 )
 from movieclaw_api.services.playback.track_context import track_contexts
@@ -112,6 +115,22 @@ STATUS_DONE = "done"
 STATUS_FAILED = "failed"
 
 
+#: 本机转码的执行者标记（活动页按读者语言显示）；旧 meta.json 里是中文原文
+_NAS_GPU = "nas:gpu"
+_NAS_SOFTWARE = "nas:software"
+_EXECUTOR_KEYS = {
+    _NAS_GPU: "player.offline.nasGpu",
+    _NAS_SOFTWARE: "player.offline.nasSoftware",
+    "NAS 显卡": "player.offline.nasGpu",  # i18n-ignore: legacy stored value
+    "NAS 软件": "player.offline.nasSoftware",  # i18n-ignore: legacy stored value
+}
+
+
+def _executor_label(executor: str) -> str:
+    key = _EXECUTOR_KEYS.get(executor)
+    return t(key) if key else executor
+
+
 class ExportStreamAborted(RuntimeError):
     """边转边发中途作废（转码失败 / 重转换了代号）：抛出去让服务器掐断连接、不发结束块。"""
 
@@ -131,6 +150,8 @@ class ExportState:
     expected_bytes: int
     final_bytes: int | None = None
     error: str | None = None
+    #: 失败原因的文案引用（读时按读者语言渲染；error 留中文原文给旧版）
+    error_ref: dict | None = None
     created_at: float = 0.0
     last_access_at: float = 0.0
     #: 每转一次换一个随机串：产物被回收后重建、代号从头数时，ETag 也不会与上一次撞上
@@ -248,9 +269,9 @@ async def build_plan(file: LibraryFile, profile: str, audio_track: str | None) -
     同一个规划函数。硬件算上在线的转码器（播放怎么算这里就怎么算）；真正由谁转在开转时
     才定（``_execution``）。"""
     if profile not in PROFILES:
-        raise ExportUnavailable(f"不支持的档位：{profile}")
+        raise ExportUnavailable(reference("errors.offline.profileUnsupported", profile=profile))
     if file.is_disc():
-        raise ExportUnavailable("原盘暂不支持下载到设备")
+        raise ExportUnavailable(reference("errors.offline.discUnsupported"))
     media, policy = await _media_and_policy(file, audio_track)
     return _offerable(media, policy, profile, audio_track)
 
@@ -264,7 +285,7 @@ def _offerable(media, policy, profile: str, audio_track: str | None) -> Playback
     if plan.tier is PlaybackTier.HARDWARE_TRANSCODE:
         return plan
     if not policy.software_transcode_enabled:
-        raise ExportUnavailable("没有可用的硬件转码，且软件转码未开启")
+        raise ExportUnavailable(reference("errors.offline.noTranscoder"))
     return plan
 
 
@@ -529,24 +550,24 @@ class ExportManager:
             return None
         spec = f"{state.profile} {(state.codec or 'h264').upper()}"
         if state.status == STATUS_DONE:
-            return f"{spec} 转码版", state.final_bytes
+            return t("player.offline.transcoded", spec=spec), state.final_bytes
         if state.status == STATUS_QUEUED:
-            return f"转码 {spec} · 排队中", None
+            return t("player.offline.queued", spec=spec), None
         if state.status == STATUS_FAILED:
-            return f"转码 {spec} · 失败", None
-        parts = [f"转码 {spec}"]
+            return t("player.offline.failed", spec=spec), None
+        parts = [t("player.offline.transcoding", spec=spec)]
         if state.executor:
-            parts.append(state.executor)
+            parts.append(_executor_label(state.executor))
         if self._running_export_id() == export_id and self._round_start is not None:
             start_index, started = self._round_start
             elapsed = time.monotonic() - started
             if elapsed >= 5 and state.done_segments > start_index:
                 speed = (state.done_segments - start_index) * SEGMENT_SECONDS / elapsed
-                parts.append(f"{speed:.1f} 倍速")
+                parts.append(t("player.offline.speed", speed=f"{speed:.1f}"))
         projected = None
         if state.total_segments:
             fraction = state.done_segments / state.total_segments
-            parts.append(f"已转 {int(fraction * 100)}%")
+            parts.append(t("player.offline.percent", percent=int(fraction * 100)))
             if fraction > 0.02:
                 with contextlib.suppress(OSError):
                     projected = int(self.output_path(state).stat().st_size / fraction)
@@ -588,7 +609,11 @@ class ExportManager:
                 if not isinstance(exc, ExportUnavailable):
                     logger.exception("离线导出失败：%s", export_id)
                 state.status = STATUS_FAILED
-                state.error = str(exc) or exc.__class__.__name__
+                error = exception_reference(exc)
+                if isinstance(error, dict):
+                    state.error, state.error_ref = source_render(error), error
+                else:
+                    state.error, state.error_ref = error or exc.__class__.__name__, None
                 self._save(state)
                 logger.warning("离线导出失败：%s：%s", export_id, state.error)
             finally:
@@ -600,7 +625,7 @@ class ExportManager:
         state.generation += 1
         state.nonce = secrets.token_hex(4)
         state.status = STATUS_RUNNING
-        state.error = None
+        state.error = state.error_ref = None
         state.final_bytes = None
         state.done_segments = 0
         out = self.output_path(state)
@@ -635,9 +660,9 @@ class ExportManager:
         async with get_database().session() as session:
             file = await session.get(LibraryFile, state.file_id)
         if file is None:
-            raise ExportUnavailable("文件已不在媒体库里")
+            raise ExportUnavailable(reference("errors.offline.notInLibrary"))
         if not file.duration_seconds:
-            raise ExportUnavailable("片长未知，没法转码导出")
+            raise ExportUnavailable(reference("errors.offline.unknownDuration"))
         segments = compute_uniform_plan(float(file.duration_seconds), target_s=SEGMENT_SECONDS)
         sessions = get_session_manager()
         cache = (await get_setting_store().get(PlaybackPolicySetting)).transcode_cache_enabled
@@ -668,6 +693,7 @@ class ExportManager:
                     remote_base_url=(
                         effective_remote_transcode_config().base_url if execution.remote else ""
                     ),
+                    # i18n-ignore: transcoder menu-bar text; the worker's language is unknown here
                     display_name=f"离线下载 · {Path(file.file_path).name}",
                     device_id=f"offline-export:{state.export_id}",
                     cache=cache,
@@ -684,7 +710,9 @@ class ExportManager:
                     continue
                 stalled += 1
                 if stalled >= _MAX_STALLED_ROUNDS:
-                    raise ExportUnavailable(f"转码起不来：{exc}") from exc
+                    raise ExportUnavailable(
+                        reference("errors.offline.startFailed", error=exception_reference(exc))
+                    ) from exc
                 logger.info("离线导出 %s 开转码会话失败，稍后重试：%s", state.export_id, exc)
                 await asyncio.sleep(_CAPACITY_POLL_S)
                 continue
@@ -692,7 +720,7 @@ class ExportManager:
             self._round_start = (index, time.monotonic())
             state.codec = execution.plan.video.codec
             state.executor = live.remote_worker_id or (
-                "NAS 显卡" if execution.hw_backend else "NAS 软件"
+                _NAS_GPU if execution.hw_backend else _NAS_SOFTWARE
             )
             expected = estimate_bytes(
                 state.profile,
@@ -722,7 +750,7 @@ class ExportManager:
             finally:
                 self._session_id = None
                 self._round_start = None
-                await sessions.stop(live.id, reason="离线导出这一轮结束")
+                await sessions.stop(live.id, reason="离线导出这一轮结束")  # i18n-ignore: log
             if live.preempted:
                 continue  # 被播放挤掉：不算没进展，等名额空出来接着转
             if index > before:
@@ -739,7 +767,9 @@ class ExportManager:
                 continue
             stalled += 1
             if stalled >= _MAX_STALLED_ROUNDS:
-                raise ExportUnavailable(live.error or "转码一直没有进展")
+                raise ExportUnavailable(
+                    live.error_ref or live.error or reference("errors.offline.noProgress")
+                )
             await asyncio.sleep(_CAPACITY_POLL_S)
         assert out is not None
         state.status = STATUS_DONE
@@ -779,10 +809,17 @@ class ExportManager:
                             index,
                         )
                         return segments.count, init
-                    live.error = f"第 {index} 段转不出来"
+                    _set_error(live, reference("errors.offline.segmentFailed", index=index))
                     return index, init
                 if time.monotonic() - idle_since > _SEGMENT_STALL_S:
-                    live.error = f"第 {index} 段等了 {_SEGMENT_STALL_S:.0f} 秒还没转出来"
+                    _set_error(
+                        live,
+                        reference(
+                            "errors.offline.segmentStalled",
+                            index=index,
+                            seconds=f"{_SEGMENT_STALL_S:.0f}",
+                        ),
+                    )
                     return index, init
                 continue  # 30 秒没等到但会话还活着（远程首片、慢机）：接着等
             assert isinstance(path, Path)
@@ -923,8 +960,10 @@ class ExportTailResponse(Response):
                         continue
                 state = self.manager.get(self.export_id)
                 if state is None or state.generation != self.generation:
+                    # i18n-ignore: server-side abort reason, never shown
                     raise ExportStreamAborted(f"离线导出 {self.export_id} 重转了，掐断旧连接")
                 if state.status == STATUS_FAILED:
+                    # i18n-ignore: server-side abort reason, never shown
                     raise ExportStreamAborted(f"离线导出 {self.export_id} 转码失败，掐断连接")
                 if state.status == STATUS_DONE and handle is not None:
                     if state.final_bytes is not None and sent >= state.final_bytes:
@@ -932,6 +971,7 @@ class ExportTailResponse(Response):
                         return
                     if state.final_bytes is not None and sent < state.final_bytes:
                         # 转完了却读不满（文件被替换、截断）：不能当完成，也不空转
+                        # i18n-ignore: server-side abort reason, never shown
                         raise ExportStreamAborted(f"离线导出 {self.export_id} 产物不完整")
                 await asyncio.sleep(_TAIL_POLL_S)
         finally:
@@ -946,6 +986,6 @@ def state_view_fields(manager: ExportManager, state: ExportState) -> dict[str, A
         "etag": state.etag,
         "expected_bytes": state.expected_bytes,
         "final_bytes": state.final_bytes,
-        "error": state.error,
+        "error": render_value(state.error_ref) if state.error_ref else state.error,
         "queue_position": manager.queue_position(state.export_id),
     }
