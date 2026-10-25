@@ -41,6 +41,7 @@ register_task("a", title="清理历史", title_key="settings.x.title", descripti
 raise JobRetry("稍后重试", message_key="library.x.retry")
 raise JobRetry("仍未迁移")
 actions = [{"label": "重试", "label_key": "activity.jobs.retry"}, {"label": "配置模型"}]
+rows = [{"title": f"任务 {n}", "_title_ref": ref}, {"label": "回收", "label_ref": ref}]
 """
     assert sorted(counted(source)) == ["仍未迁移", "删除旧记录", "配置模型"]
 

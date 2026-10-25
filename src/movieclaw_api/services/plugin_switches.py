@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from movieclaw_api.i18n import t
 from movieclaw_kernel import Patch, State
 
 logger = logging.getLogger("movieclaw_api.plugin_switches")
@@ -136,6 +137,13 @@ def removed_ids(settings: object) -> set[str]:
 
 
 # ---------------------------------------------------------------------- 查询
+def _title(fiber: Any) -> str:
+    """插件名按读者语言（官方插件有目录键，第三方插件原样）。"""
+    from movieclaw_api.plugins.presentation import builtin_text
+
+    return builtin_text(fiber.plugin.name, "title", fiber.plugin.title)
+
+
 def admin_lock(fiber: Any) -> str | None:
     """被管理员硬覆盖关掉：返回给人看的原因；开关因此锁住。"""
     from movieclaw_api.services.plugin_features import SOURCE_PREFIX, locked_text
@@ -183,11 +191,17 @@ def _switchable(kernel: Any, settings: object, entry_id: str) -> Any:
 
     fiber = kernel.fiber(entry_id)
     if fiber is None:
-        raise PluginSwitchError(404, "PLUGIN_NOT_FOUND", f"没有这个插件：{entry_id}")
+        raise PluginSwitchError(
+            404, "PLUGIN_NOT_FOUND", t("plugins.switches.pluginMissing", id=entry_id)
+        )
     if entry_id not in bundled_ids() and entry_id not in pkg.package_ids(settings):
-        raise PluginSwitchError(400, "PLUGIN_NOT_SWITCHABLE", "系统模块不能在这里停用")
+        raise PluginSwitchError(400, "PLUGIN_NOT_SWITCHABLE", t("plugins.switches.systemModule"))
     if not fiber.plugin.disableable:
-        raise PluginSwitchError(400, "PLUGIN_NOT_SWITCHABLE", f"「{fiber.plugin.title}」不能停用")
+        raise PluginSwitchError(
+            400,
+            "PLUGIN_NOT_SWITCHABLE",
+            t("plugins.switches.notSwitchable", title=_title(fiber)),
+        )
     return fiber
 
 
@@ -200,7 +214,7 @@ async def set_enabled(
         lock = admin_lock(fiber)
         if lock:
             raise PluginSwitchError(
-                409, "PLUGIN_LOCKED", f"「{fiber.plugin.title}」{lock}，要在那里改回来并重启应用"
+                409, "PLUGIN_LOCKED", t("plugins.switches.locked", title=_title(fiber), lock=lock)
             )
         before = read_switches(settings)
         if (entry_id not in before.disabled) == enabled:
@@ -241,16 +255,18 @@ async def uninstall_bundled(
 
     async with _lock:
         if entry_id not in bundled_ids():
-            raise PluginSwitchError(400, "PLUGIN_NOT_BUNDLED", "只有官方插件能在这里卸载")
+            raise PluginSwitchError(400, "PLUGIN_NOT_BUNDLED", t("plugins.switches.onlyBundled"))
         if entry_id in {canonical(i) for i in pkg.package_ids(settings)}:
             raise PluginSwitchError(
-                409, "PLUGIN_REPLACED", "它已被同名插件包替换：要卸载的是那个插件包"
+                409, "PLUGIN_REPLACED", t("plugins.switches.replaced")
             )
         fiber = kernel.fiber(entry_id)
         if fiber is not None:
             if not fiber.plugin.disableable:
                 raise PluginSwitchError(
-                    400, "PLUGIN_NOT_SWITCHABLE", f"「{fiber.plugin.title}」不能卸载"
+                    400,
+                    "PLUGIN_NOT_SWITCHABLE",
+                    t("plugins.switches.notRemovable", title=_title(fiber)),
                 )
             lock = admin_lock(fiber)
             if lock:
@@ -283,7 +299,9 @@ async def restore_bundled(kernel: Any, settings: object, entry_id: str) -> str:
         package = bundled().get(entry_id)
         before = read_switches(settings)
         if package is None or entry_id not in before.removed:
-            raise PluginSwitchError(404, "PLUGIN_NOT_REMOVED", f"没有卸载过的官方插件：{entry_id}")
+            raise PluginSwitchError(
+                404, "PLUGIN_NOT_REMOVED", t("plugins.switches.notRemoved", id=entry_id)
+            )
         removed = {k: v for k, v in before.removed.items() if k != entry_id}
         _save(settings, Switches(before.disabled, removed))
         if kernel.fiber(entry_id) is not None:
@@ -303,7 +321,7 @@ def _save(settings: object, switches: Switches) -> None:
         _write(settings, switches)
     except OSError as exc:
         raise PluginSwitchError(
-            500, "PLUGIN_STATE_WRITE_FAILED", f"开关状态写不进去：{exc}"
+            500, "PLUGIN_STATE_WRITE_FAILED", t("plugins.switches.writeFailed", error=str(exc))
         ) from exc
 
 

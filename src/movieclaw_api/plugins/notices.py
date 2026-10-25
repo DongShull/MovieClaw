@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.plugins.keys import DB, SETTING_STORE
 from movieclaw_kernel import PLUGIN_STATE, Context, PluginStateChanged, plugin
 
@@ -90,7 +91,11 @@ async def publish_safe_mode(mode) -> None:
         if not mode.active:
             await resolve_notices(session, dedupe_key=safe_mode.NOTICE_KEY)
             return
-        skipped = "、".join(mode.skipped) or "无"
+        skipped = (
+            {"message_list": mode.skipped, "separator_key": "common.list.separator"}
+            if mode.skipped
+            else reference("plugins.safeMode.none")
+        )
         await upsert_notice(
             session,
             dedupe_key=safe_mode.NOTICE_KEY,

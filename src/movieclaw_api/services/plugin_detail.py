@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from movieclaw_api.i18n.metadata import localized_text
-from movieclaw_api.i18n.stored import reference, render_value
+from movieclaw_api.i18n.stored import reference, render_value, source_text
 from movieclaw_kernel import Event, Kernel, Mode
 from movieclaw_kernel.contracts import CATALOG
 
@@ -73,6 +73,7 @@ def _adds(
     for c in kernel.registry(IM_CHANNELS).contributions():
         if _owned(entry_id, c.entry_id):
             count = accounts.get(c.id, 0)
+            # i18n-ignore: rollback text beside _detail_ref
             detail = f"已接入 {count} 个账号" if count else "还没有接入账号"
             title = getattr(c.item, "title", "") or c.id
             out.append(
@@ -130,7 +131,9 @@ def _adds(
             }
         )
     for key, label, title_key in (
+        # i18n-ignore: rollback text beside _title_ref
         (SITE_DATA_PACKS, "站点配置", "plugins.detail.siteConfigs"),
+        # i18n-ignore: rollback text beside _title_ref
         (SITE_CLASSES, "站点适配", "plugins.detail.siteAdapters"),
     ):
         mine = [c for c in kernel.registry(key).contributions() if _owned(entry_id, c.entry_id)]
@@ -243,16 +246,12 @@ def _adds(
 
     declared = plugin_events.declared(entry_id)
     if declared is not None:
-        audiences = {
-            "admins": "管理员",
-            "member": "事件里的那个成员",
-            "media": "订阅或关注了那部片的人",
-        }
         audience_keys = {
             "admins": "plugins.detail.audienceAdmins",
             "member": "plugins.detail.audienceMember",
             "media": "plugins.detail.audienceMedia",
         }
+        audiences = {name: source_text(key) for name, key in audience_keys.items()}
         for title in declared.events.values():
             out.append(
                 {

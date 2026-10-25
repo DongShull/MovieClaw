@@ -303,7 +303,20 @@
     "pipFailed": "pip install failed: {detail}"
   },
   "switches": {
-    "disabled": "The plugin was disabled"
+    "disabled": "The plugin was disabled",
+    "lockedEnv": "Turned off by the environment variable {name}",
+    "lockedPatch": "Turned off in data/plugins.yaml",
+    "lockedBy": "Turned off by {source}",
+    "featureMissing": "No such feature: {feature}",
+    "notSwitchable": "“{title}” can’t be turned off",
+    "locked": "“{title}”: {lock}. Change it back there and restart the app",
+    "writeFailed": "Couldn’t save the switch state: {error}",
+    "pluginMissing": "No such plugin: {id}",
+    "systemModule": "System modules can’t be turned off here",
+    "onlyBundled": "Only official plugins can be uninstalled here",
+    "replaced": "It was replaced by a plugin package with the same id; uninstall that package instead",
+    "notRemovable": "“{title}” can’t be uninstalled",
+    "notRemoved": "There’s no uninstalled official plugin {id}"
   },
   "market": {
     "what": {
@@ -346,5 +359,38 @@
     "alreadyInstalled": "{name} {version} is already installed",
     "cannotInstall": "{name} {version} can’t be installed: {reason}",
     "packageMismatch": "The package contains {packageId} {packageVersion}, which doesn’t match {id} {version} in the index, so it was discarded"
+  },
+  "declarations": {
+    "eventShape": "Each item in events must be '{name, title}'",
+    "eventPrefix": "Event {name} must start with the plugin id ({prefix})",
+    "eventReserved": "Event {name} uses a reserved system domain",
+    "eventDuplicate": "Event {name} is declared more than once",
+    "notificationShape": "Each item in notifications must be a table",
+    "notificationFields": "Unknown fields in the notification declaration: {fields}",
+    "notificationIncomplete": "Incomplete notification declaration: {error}",
+    "notificationEvent": "The notification refers to event {event}, which isn’t declared in events",
+    "notificationDuplicate": "Event {event} can have only one notification",
+    "audience": "Invalid audience {audience}: use admins, member:<field> or media:<field>",
+    "level": "Invalid interruption level {level}: {levels}",
+    "open": "Invalid open target {open}: {opens}",
+    "notificationTitle": "The notification for event {event} has no title",
+    "sensitiveList": "permissions.events must be a list of event names",
+    "noSensitive": "There are no sensitive events under {pattern}",
+    "notSensitive": "{name} isn’t a sensitive event that needs separate approval",
+    "sensitiveUndeclared": "Event {name} reveals who watched what and when; declare it in [permissions] events of the manifest and get approval before subscribing"
+  },
+  "runtime": {
+    "processGoneRetry": "The process of plugin {id} isn’t running; it will be retried shortly"
+  },
+  "safeMode": {
+    "forcedEnv": "The environment variable {env} requires starting in safe mode",
+    "forcedFile": "The data folder contains {file}, which requires starting in safe mode",
+    "unstable": "The last start didn’t run stably (plugins loaded then: {plugins}), so local and third-party plugins aren’t loaded this time",
+    "envLocked": "Safe mode is forced by the environment variable {env}; remove it and restart to leave safe mode",
+    "none": "none"
+  },
+  "callbacks": {
+    "noActive": "There’s no active callback address #{id}",
+    "missing": "There’s no callback address #{id}"
   }
 }

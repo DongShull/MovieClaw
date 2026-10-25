@@ -82,3 +82,16 @@ def test_removed_official_plugin_uses_reader_metadata_and_keeps_switch_records(a
         assert result[0][0]["description"].startswith("Connect a bot")
         restored = client.post("/api/v1/app/plugins/telegram-channel/bundled/restore")
         assert restored.status_code == 200, restored.text
+
+
+def test_feature_defaults_match_their_catalog_sources():
+    """功能卡的中文是回滚默认值：须与目录键同文，英文须有译文。"""
+    from movieclaw_api.i18n import messages
+    from movieclaw_api.plugins.features import FEATURES
+
+    chinese, english = messages("zh-Hans"), messages("en")
+    for feature in FEATURES:
+        assert feature.title_key and chinese[feature.title_key] == feature.title
+        assert feature.description_key
+        assert chinese[feature.description_key] == feature.description
+        assert english[feature.title_key] and english[feature.description_key]

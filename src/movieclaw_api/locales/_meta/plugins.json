@@ -982,5 +982,119 @@
   },
   "market.packageMismatch": {
     "sourceHash": "b8eba1cc1e16bef3c615fe4610c9c7f6a02c394b10a116f64b0624bef6b98085"
+  },
+  "declarations.eventShape": {
+    "sourceHash": "22416b795fe60655aecd19783d2719f15be20daca1e2e96157a32ec30b27f68a"
+  },
+  "declarations.eventPrefix": {
+    "sourceHash": "8c5919e4aad072c981d00456741f7009cee81bbb8612a601119c4d6b473e944b"
+  },
+  "declarations.eventReserved": {
+    "sourceHash": "497589f500394ef2e1ac2190e5f745ac518b13bd6de63ac689bfc453952b9aff"
+  },
+  "declarations.eventDuplicate": {
+    "sourceHash": "0fd52e963731f709f8a5d418b5571b112f8952e7d8f8b8cb96759b330d167638"
+  },
+  "declarations.notificationShape": {
+    "sourceHash": "dd5ead35204b33c4888b37aeca8cd4e16507e3bb16a06a717466c64ba4f9940b"
+  },
+  "declarations.notificationFields": {
+    "sourceHash": "f7421fe11dcbbc5a8cc95ea516e4c25ec149ed30c65214f4a306cdc77390db40"
+  },
+  "declarations.notificationIncomplete": {
+    "sourceHash": "8be8deae4670237e05397da7dc0d34b400db9440eae05880c2c203bd56dc7a44"
+  },
+  "declarations.notificationEvent": {
+    "sourceHash": "172fc17ffde8d957b6c2490107e0e4b78281098e1e8135dd3f47acffa9a0982f"
+  },
+  "declarations.notificationDuplicate": {
+    "sourceHash": "0b67ec73fe30f8dab1348b4e07e3724141854d21155c15a488370f96818fb31c"
+  },
+  "declarations.audience": {
+    "sourceHash": "0ff445dbbae812179aa75914f6ba7571f351bb4fbea2d171e1e8952a4b8a0ca5"
+  },
+  "declarations.level": {
+    "sourceHash": "d5dcc1be051050928cc548cb9930f66494983b776447454b8bd61d182e51cb7e"
+  },
+  "declarations.open": {
+    "sourceHash": "446d294f264c9593b58399a87cf4f171797a0b722c966423f342c83368155a6a"
+  },
+  "declarations.notificationTitle": {
+    "sourceHash": "752717e04d451b6c83e0f3e9e659a8f5a746b12567d36420dc188076a78000f9"
+  },
+  "declarations.sensitiveList": {
+    "sourceHash": "38cdec4de1b7941181b572d064e28fc2ec54649d14135e2fd9467c2e90c0ff41"
+  },
+  "declarations.noSensitive": {
+    "sourceHash": "de2bfdf7b743e135d641cc6e6010fb72b53a041297a873cab754598143b9759c"
+  },
+  "declarations.notSensitive": {
+    "sourceHash": "bcec0a261a486ed1f7377f3eb452093a4a545efc30bf305272c358de47f57eea"
+  },
+  "declarations.sensitiveUndeclared": {
+    "sourceHash": "e4ccfe5aa2bcb5778efdad1a569488cbbf5cc45350024c69b39400063be3f950"
+  },
+  "runtime.processGoneRetry": {
+    "sourceHash": "7cd904138468ed91d5245249a24a1651ea48c7e448ce616c8e4dccb646e3e23c"
+  },
+  "safeMode.forcedEnv": {
+    "sourceHash": "3927ba04f76d153d203342621d2629d48d0e9a0b788d32467cec778428264f68"
+  },
+  "safeMode.forcedFile": {
+    "sourceHash": "c1cf2390cb7061fe793413c12619087cd1979f552c67076d46a03e9eb8f0c5d7"
+  },
+  "safeMode.unstable": {
+    "sourceHash": "472bdb04c52cb2804d9c7997d6b075baafbaf261eabae53ff3a2808ff910576a"
+  },
+  "safeMode.envLocked": {
+    "sourceHash": "249543cedbaf1647200526aa2826874ff3ce33a6ab148ff2453656fb9a49162a"
+  },
+  "safeMode.none": {
+    "sourceHash": "484d55613910eb8c0917fe308b499d474115ced993cd002a17d7cc75254330a4"
+  },
+  "switches.lockedEnv": {
+    "sourceHash": "25a545ce02db679d784e0d723f38742074460fa39d7cdf3b8d417035938f11c9"
+  },
+  "switches.lockedPatch": {
+    "sourceHash": "cabef6e3d1b4436df9f5f47b96a683886543995c5f9338239d855275d613019c"
+  },
+  "switches.lockedBy": {
+    "sourceHash": "19b93c82dd3414dc0b7a04accff2cb89d0b75ceb2cf8b07ae4cc3a69371493a4"
+  },
+  "switches.featureMissing": {
+    "sourceHash": "ad71a66d2ba0aa24e9504ef85916f5868d2b78cb57cb6b4a352c031c10e9fb7b"
+  },
+  "switches.notSwitchable": {
+    "sourceHash": "19eab2af5deb0bda91ba8a77a2926a4cc0b1bd2b76850311b9730f0dfcc809e9"
+  },
+  "switches.locked": {
+    "sourceHash": "3ed26e15cb370adc96a6de61c945648a4b71fd3e42abf9541edddcdca98f9e07"
+  },
+  "switches.writeFailed": {
+    "sourceHash": "8843fb6b9ef85f2fcc765793d975d3d1c1c005e81e72cdc52514f77347745f07"
+  },
+  "switches.pluginMissing": {
+    "sourceHash": "cc18401bc860ff2502a6e2953436d25a2c04d9144031305ffb9532d9eac972dd"
+  },
+  "switches.systemModule": {
+    "sourceHash": "49c9e73b552f2f731fa84c94f533cb11bd59380b1b2a00e81b2be3b1eefbd605"
+  },
+  "switches.onlyBundled": {
+    "sourceHash": "2918e6b62d013b9f962d4425da3d9d7181122ed41f0da5242bfa29cd740122e0"
+  },
+  "switches.replaced": {
+    "sourceHash": "01e52d09ce8f404e4ebefc6aedf5c85ebc91a8f8c182873e6805b5383c164721"
+  },
+  "switches.notRemovable": {
+    "sourceHash": "5e676fa8b4eb383464cfee8e87273cd4f5dc4a8ed99c75e5a9ff85c8607938ae"
+  },
+  "switches.notRemoved": {
+    "sourceHash": "a8336bff33f54c05b2c425c43d1b190cfe28f590724e91fe9d30be384be460f9"
+  },
+  "callbacks.noActive": {
+    "sourceHash": "736489f290d227b9bf25226b93b4a4ae2131d8262307c84490d8b099419993dd"
+  },
+  "callbacks.missing": {
+    "sourceHash": "049ecf9ba7301a6b31de73c48e6b03ee092e44d13c7315d64361f6b1a77a322d"
   }
 }

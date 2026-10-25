@@ -303,7 +303,20 @@
     "pipFailed": "pip 安装失败：{detail}"
   },
   "switches": {
-    "disabled": "插件已停用"
+    "disabled": "插件已停用",
+    "lockedEnv": "已按环境变量 {name} 关闭",
+    "lockedPatch": "已在 data/plugins.yaml 中关闭",
+    "lockedBy": "已被 {source} 关闭",
+    "featureMissing": "没有这个功能：{feature}",
+    "notSwitchable": "「{title}」不能停用",
+    "locked": "「{title}」{lock}，要在那里改回来并重启应用",
+    "writeFailed": "开关状态写不进去：{error}",
+    "pluginMissing": "没有这个插件：{id}",
+    "systemModule": "系统模块不能在这里停用",
+    "onlyBundled": "只有官方插件能在这里卸载",
+    "replaced": "它已被同名插件包替换：要卸载的是那个插件包",
+    "notRemovable": "「{title}」不能卸载",
+    "notRemoved": "没有卸载过的官方插件：{id}"
   },
   "market": {
     "what": {
@@ -346,5 +359,38 @@
     "alreadyInstalled": "{name} {version} 已经安装",
     "cannotInstall": "{name} {version} 装不了：{reason}",
     "packageMismatch": "插件包里是 {packageId} {packageVersion}，与索引的 {id} {version} 不一致，已丢弃"
+  },
+  "declarations": {
+    "eventShape": "events 的每一项须是 '{name, title}'",
+    "eventPrefix": "事件 {name} 须以插件 id 开头（{prefix}）",
+    "eventReserved": "事件 {name} 用了系统保留的域",
+    "eventDuplicate": "事件 {name} 重复声明",
+    "notificationShape": "notifications 的每一项须是表",
+    "notificationFields": "通知声明里有不认识的字段：{fields}",
+    "notificationIncomplete": "通知声明不完整：{error}",
+    "notificationEvent": "通知引用的事件 {event} 没在 events 里声明",
+    "notificationDuplicate": "事件 {event} 只能有一条通知",
+    "audience": "收件人 {audience} 不合规：admins、member:<字段> 或 media:<字段>",
+    "level": "打扰级别 {level} 不合规：{levels}",
+    "open": "点开去哪 {open} 不合规：{opens}",
+    "notificationTitle": "事件 {event} 的通知没有标题",
+    "sensitiveList": "permissions.events 须是事件名列表",
+    "noSensitive": "{pattern} 下没有敏感事件",
+    "notSensitive": "{name} 不是需要单独授权的敏感事件",
+    "sensitiveUndeclared": "事件 {name} 涉及谁在什么时候看了什么，须在清单 [permissions] events 里声明、经用户批准后才能订阅"
+  },
+  "runtime": {
+    "processGoneRetry": "插件 {id} 的进程不在运行，稍后重试"
+  },
+  "safeMode": {
+    "forcedEnv": "环境变量 {env} 要求以安全模式启动",
+    "forcedFile": "数据目录里有 {file} 文件，要求以安全模式启动",
+    "unstable": "上次启动没能稳定运行（当时加载了插件：{plugins}），本次先不加载本地 / 第三方插件",
+    "envLocked": "安全模式是环境变量 {env} 强制的，去掉它并重启才能退出",
+    "none": "无"
+  },
+  "callbacks": {
+    "noActive": "没有有效的回调地址 #{id}",
+    "missing": "没有回调地址 #{id}"
   }
 }

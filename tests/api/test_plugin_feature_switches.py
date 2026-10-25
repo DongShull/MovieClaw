@@ -40,7 +40,7 @@ def make_client(*, admin: bool = True) -> tuple[object, TestClient]:
     if who is None:
         who = Principal(kind="member", name="family", is_admin=False)
     app.dependency_overrides[require_login] = lambda: who
-    return app, TestClient(app)
+    return app, TestClient(app, headers={"Accept-Language": "zh-Hans"})
 
 
 def by_key(client: TestClient) -> dict[str, dict]:

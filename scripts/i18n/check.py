@@ -161,6 +161,10 @@ def check_catalogs() -> list[str]:
         )
         for path in (ROOT / "src" / package).rglob("*.py")
     ]
+    for name, message in server_source.items():
+        # t(key, **params) takes the message key positionally: a "{key}" parameter can't be passed.
+        if "key" in parameters(message):
+            errors.append(f"{name}: rename the {{key}} parameter (it collides with t(key, ...))")
     for path in server_paths:
         for node in ast.walk(ast.parse(path.read_text())):
             keys = []
@@ -337,9 +341,14 @@ def keyed_fallback_nodes(tree: ast.AST) -> set[int]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Dict):
             # The same pairing in a dict literal: {"label": "重试", "label_key": "..."}.
+            # A reference beside the text ("label_ref", "_title_ref") is the same pairing.
             keys = {key.value for key in node.keys if isinstance(key, ast.Constant)}
             for key, value in zip(node.keys, node.values, strict=True):
-                if isinstance(key, ast.Constant) and f"{key.value}_key" in keys:
+                if isinstance(key, ast.Constant) and keys & {
+                    f"{key.value}_key",
+                    f"{key.value}_ref",
+                    f"_{key.value}_ref",
+                }:
                     found.update(id(child) for child in ast.walk(value))
             continue
         if not isinstance(node, ast.Call):
