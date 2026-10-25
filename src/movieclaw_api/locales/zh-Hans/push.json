@@ -48,5 +48,8 @@
     "streamQueued": "手机现在没连着，连上后补发",
     "imSent": "已交给 {count} 个 IM 账号发送",
     "imMissing": "IM 账号没有推送目标，重新绑定试试"
+  },
+  "status": {
+    "episodes": "E{first} 等 {count} 集"
   }
 }

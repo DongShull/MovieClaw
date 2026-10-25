@@ -37,6 +37,7 @@ from movieclaw_db.models import utcnow
 logger = logging.getLogger("movieclaw_api.push.channels")
 
 OFFICIAL_ID = "official"
+# i18n-ignore: internal name; views show push.channels.official
 OFFICIAL_NAME = "MovieClaw 官方推送"
 #: 官方 App 的 Bundle ID：官方通道没拉到过 /v1/info 时按它路由，设备覆盖里据此认出官方版
 OFFICIAL_TOPIC = "io.movieclaw.app"

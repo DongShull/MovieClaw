@@ -75,14 +75,23 @@
     "library": "媒体库",
     "security": "账号安全",
     "admin": "管理员",
-    "agent": "AI 助手"
+    "agent": "AI 助手",
+    "plugin": "插件 · {title}",
+    "pluginDescription": "来自插件「{title}」"
   },
   "alert": {
     "resolvedTitle": "已恢复：{title}",
     "resolvedBody": "问题已经自动消失，不用处理了。",
     "pendingTitle": "有 {count} 个问题需要处理",
     "separator": "；",
-    "summary": "{titles}{overflow, select, yes {等} other {}}"
+    "summary": "{titles}{overflow, select, yes {等} other {}}",
+    "fromPlugin": "来自 {title}",
+    "subscriptionCompleteTitle": "《{title}》订阅已收齐",
+    "subscriptionCompleteBody": "订阅的内容都已入库，没有要等的了。",
+    "upgradedTitle": "洗版完成：{name}",
+    "upgradedBody": "换成了更好的版本",
+    "untitledYear": "{year} 年的作品",
+    "untitled": "一部作品"
   },
   "downloader": {
     "connectionTitle": "下载器「{name}」连接失败",

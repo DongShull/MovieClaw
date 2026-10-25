@@ -75,14 +75,23 @@
     "library": "Library",
     "security": "Account security",
     "admin": "Administrator",
-    "agent": "AI assistant"
+    "agent": "AI assistant",
+    "plugin": "Plugin · {title}",
+    "pluginDescription": "From the plugin “{title}”"
   },
   "alert": {
     "resolvedTitle": "Resolved: {title}",
     "resolvedBody": "The problem has resolved itself. No action is needed.",
     "pendingTitle": "{count, plural, one {# issue needs attention} other {# issues need attention}}",
     "separator": "; ",
-    "summary": "{titles}{overflow, select, yes {; and more} other {}}"
+    "summary": "{titles}{overflow, select, yes {; and more} other {}}",
+    "fromPlugin": "From {title}",
+    "subscriptionCompleteTitle": "“{title}” subscription complete",
+    "subscriptionCompleteBody": "Everything in the subscription is in the library; nothing left to wait for.",
+    "upgradedTitle": "Upgrade finished: {name}",
+    "upgradedBody": "Replaced with a better version",
+    "untitledYear": "A title from {year}",
+    "untitled": "A title"
   },
   "downloader": {
     "connectionTitle": "Downloader {name} could not connect",

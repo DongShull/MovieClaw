@@ -48,5 +48,8 @@
     "streamQueued": "The phone is disconnected. Delivery will resume when it reconnects",
     "imSent": "Passed to {count, plural, one {# IM account} other {# IM accounts}} for delivery",
     "imMissing": "The IM account has no push destination. Try linking it again"
+  },
+  "status": {
+    "episodes": "E{first} · {count, plural, one {# episode} other {# episodes}}"
   }
 }

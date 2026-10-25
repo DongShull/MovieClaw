@@ -26,6 +26,7 @@ from movieclaw_api.settings.cloud import PushRelay, RelayInfo
 from movieclaw_db.engine import get_database
 from movieclaw_db.models import utcnow
 
+# i18n-ignore: not referenced anywhere
 _AUTH_LABELS = {"issuer": "签发方令牌", "static": "令牌", "none": "无鉴权"}
 
 

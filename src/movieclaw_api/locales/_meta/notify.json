@@ -424,5 +424,32 @@
   },
   "channels.testSent": {
     "sourceHash": "5d163c9177ac9ecf39684e911b52aca1287c2cc4b7c887b25667292638ad981a"
+  },
+  "groups.plugin": {
+    "sourceHash": "fb16bdf5439a5db7a9d2d15ad51548490eca1daf8998ba47e084842e372dd481"
+  },
+  "groups.pluginDescription": {
+    "sourceHash": "7e26ae5b6ecefd16b3ceaec7d34eeed3b69d9b65713b9c9b077ce90fc2d6820f"
+  },
+  "alert.fromPlugin": {
+    "sourceHash": "8166917d5cb5e5fcefe61cbe047181aec0f3c635a9bb47cd129dac499985105f"
+  },
+  "alert.subscriptionCompleteTitle": {
+    "sourceHash": "ea662875d47148a98d9955e6cae5b250989f7a0f552bec2dfe99b99592e38b54"
+  },
+  "alert.subscriptionCompleteBody": {
+    "sourceHash": "1639e7dd4c16f05df6d218464b509b683d68665fa35782d744ee2184a0275c2f"
+  },
+  "alert.upgradedTitle": {
+    "sourceHash": "0c8f77a1f297e7a44787db26cff9f1e13ed48185a76b740481c72cc5fc8073b7"
+  },
+  "alert.upgradedBody": {
+    "sourceHash": "58ebd445114d8be357241045c06ae830ba5d9af7818432eb23f88e7249f11615"
+  },
+  "alert.untitledYear": {
+    "sourceHash": "938a65665432ba01467d44a1fb755a13d4a403002013efbe3fe40b580cb1516f"
+  },
+  "alert.untitled": {
+    "sourceHash": "990b837fd949ffe4c0478b457007a4294ccc9a20764c2c2636f5bbd82271eb5e"
   }
 }

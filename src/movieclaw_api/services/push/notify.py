@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.i18n import normalize_locale, t, use_locale
+from movieclaw_api.i18n.stored import source_text
 from movieclaw_api.services.locale_preferences import member_locale
 from movieclaw_api.services.push import crypto, im, outbox, preferences, registration
 from movieclaw_api.services.push.dispatcher import Outcome, Outgoing, build_message, deliver, spawn
@@ -94,7 +95,7 @@ async def _account_names(session: AsyncSession, member_ids: set[int]) -> dict[in
     names: dict[int, str] = {}
     if 0 in member_ids:
         admin = await get_admin_account()
-        names[0] = admin.nickname or admin.username or "管理员"
+        names[0] = admin.nickname or admin.username or source_text("notify.groups.admin")
     others = {m for m in member_ids if m}
     if others:
         rows = await session.execute(select(Member).where(Member.id.in_(others)))  # type: ignore[union-attr]
@@ -323,7 +324,7 @@ async def prepare(
                 device.id or 0,
                 device.name,
                 "ok" if online else "queued",
-                "已通过实时连接送出" if online else "手机现在没连着，连上后补发",
+                source_text("push.outcome.streamSent" if online else "push.outcome.streamQueued"),
                 "stream",
                 message_ref={
                     "message_key": "push.outcome.streamSent"
