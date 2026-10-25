@@ -431,5 +431,29 @@
     "added": "已添加：{name}",
     "relogged": "已重新登录：{name}",
     "webLogin": "网页端"
+  },
+  "validation": {
+    "languagesMax": "元数据语言优先级最多 {max} 项",
+    "languageTag": "语言标签格式不正确：{value}（应为 zh-CN / en-US / ja 形式）",
+    "certCountriesMin": "分级地区至少保留一项",
+    "certCountriesMax": "分级地区最多 {max} 项",
+    "countryCode": "地区码格式不正确：{value}（应为 CN / US 形式）",
+    "posterMode": "海报选择只能是 default（TMDB 默认）或 language（按语言优先级）",
+    "imageLanguagesMin": "图片语言优先级至少保留一项",
+    "imageLanguagesMax": "图片语言优先级最多 {max} 项",
+    "imageLanguageToken": "图片语言项不合法：{value}（应为语言码或 meta/orig/null 特殊项）",
+    "sourceOrder": "来源顺序必须恰好包含 {sources} 各一次，当前为：{value}",
+    "sizeInvalid": "{kind}档位不合法：{value}（可选 {choices}）",
+    "sizePoster": "海报",
+    "sizeBackdrop": "背景",
+    "sizeStill": "剧照",
+    "sizeProfile": "头像",
+    "imageQuality": "图片画质不合法：{value}（可选 original / standard / compact / custom）",
+    "homeRowSource": "自加行必须且只能指定 library_id / collection_id / media_kind 之一",
+    "homeRowNoSource": "内置行与默认库行不能指定来源",
+    "homeRowSort": "这一行不支持排序档 {sort}",
+    "homeRowOrder": "排序方向只能是 asc 或 desc，收到 {order}",
+    "homeRowDuplicate": "首页的行 id 不能重复",
+    "searchProvider": "不支持的搜索供应商"
   }
 }

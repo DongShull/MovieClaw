@@ -431,5 +431,29 @@
     "added": "Added: {name}",
     "relogged": "Signed in again: {name}",
     "webLogin": "Web sign-in"
+  },
+  "validation": {
+    "languagesMax": "Metadata language priority allows at most {max} entries",
+    "languageTag": "Invalid language tag: {value} (use a form like zh-CN, en-US or ja)",
+    "certCountriesMin": "Keep at least one rating region",
+    "certCountriesMax": "Rating regions allow at most {max} entries",
+    "countryCode": "Invalid region code: {value} (use a form like CN or US)",
+    "posterMode": "Poster selection must be default (TMDB default) or language (by language priority)",
+    "imageLanguagesMin": "Keep at least one image language",
+    "imageLanguagesMax": "Image language priority allows at most {max} entries",
+    "imageLanguageToken": "Invalid image language entry: {value} (use a language code or meta, orig or null)",
+    "sourceOrder": "The source order must contain each of {sources} exactly once; got {value}",
+    "sizeInvalid": "Invalid {kind} size: {value} (choose from {choices})",
+    "sizePoster": "poster",
+    "sizeBackdrop": "backdrop",
+    "sizeStill": "still",
+    "sizeProfile": "profile photo",
+    "imageQuality": "Invalid image quality: {value} (choose original, standard, compact or custom)",
+    "homeRowSource": "A custom row must set exactly one of library_id, collection_id or media_kind",
+    "homeRowNoSource": "Built-in and default library rows can’t set a source",
+    "homeRowSort": "This row doesn’t support the sort {sort}",
+    "homeRowOrder": "Sort order must be asc or desc; got {order}",
+    "homeRowDuplicate": "Home row ids must be unique",
+    "searchProvider": "Unsupported search provider"
   }
 }

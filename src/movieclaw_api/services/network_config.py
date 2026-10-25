@@ -70,71 +70,12 @@ logger = logging.getLogger("movieclaw_api.network_config")
 # ---------------------------------------------------------------------------
 
 
-
-_SERVICE_LABELS = {
-    "tmdb": [
-        "settings.network.services.tmdbLabel",
-        "settings.network.services.tmdbHint"
-    ],
-    "image": [
-        "settings.network.services.imageLabel",
-        "settings.network.services.imageHint"
-    ],
-    "fanart": [
-        "settings.network.services.fanartLabel",
-        "settings.network.services.fanartHint"
-    ],
-    "douban": [
-        "settings.network.services.doubanLabel",
-        "settings.network.services.doubanHint"
-    ],
-    "llm": [
-        "settings.network.services.llmLabel",
-        "settings.network.services.llmHint"
-    ],
-    "web_search": [
-        "settings.network.services.webSearchLabel",
-        "settings.network.services.webSearchHint"
-    ],
-    "telegram": [
-        "settings.network.services.telegramLabel",
-        "settings.network.services.telegramHint"
-    ],
-    "discord": [
-        "settings.network.services.discordLabel",
-        "settings.network.services.discordHint"
-    ],
-    "feishu": [
-        "settings.network.services.feishuLabel",
-        "settings.network.services.feishuHint"
-    ],
-    "webhook": [
-        "settings.network.services.webhookLabel",
-        "settings.network.services.webhookHint"
-    ],
-    "movieclaw_cloud": [
-        "settings.network.services.movieclawCloudLabel",
-        "settings.network.services.movieclawCloudHint"
-    ],
-    "movieclaw_push": [
-        "settings.network.services.movieclawPushLabel",
-        "settings.network.services.movieclawPushHint"
-    ],
-    "pypi": [
-        "settings.network.services.pypiLabel",
-        "settings.network.services.pypiHint"
-    ],
-    "github": [
-        "settings.network.services.githubLabel",
-        "settings.network.services.githubHint"
-    ]
-}
-
 async def _service_catalog(session: AsyncSession) -> list[EgressServiceOption]:
     """开关目录 = 内置服务 + 已配置的 PT 站（site:<id>）。"""
     options = [
-        EgressServiceOption(id=item["id"], label=t(_SERVICE_LABELS[item["id"]][0]),
-                            description=t(_SERVICE_LABELS[item["id"]][1]))
+        EgressServiceOption(
+            id=item["id"], label=t(item["label_key"]), description=t(item["description_key"])
+        )
         for item in BUILTIN_EGRESS_SERVICES
     ]
     for cred in await CredentialRepository(session).list_all():

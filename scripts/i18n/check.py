@@ -368,11 +368,17 @@ LOG_NAMES = {"logger", "logging", "log", "_logger", "_log"}
 
 def excluded_nodes(tree: ast.AST) -> set[int]:
     """String constants that are not interface text: docstrings and bare string statements,
-    log calls, regex patterns (parsing data), OpenAPI documentation and keyed fallbacks."""
+    log calls, regex patterns (parsing data), OpenAPI documentation, setting-domain titles and
+    keyed fallbacks."""
     found = api_doc_nodes(tree) | keyed_fallback_nodes(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
             found.add(id(node.value))
+        # A setting domain's title only labels the descriptor in code; no view renders it
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "register_setting":
+            for keyword in node.keywords:
+                if keyword.arg == "title":
+                    found.add(id(keyword.value))
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
             continue
         owner = node.func.value

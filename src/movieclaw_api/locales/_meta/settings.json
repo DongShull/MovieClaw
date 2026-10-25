@@ -1105,5 +1105,71 @@
   },
   "importWatch.autoTarget": {
     "sourceHash": "32d5a5315de82d33a5c7c5b73ba37b80f88a5de6f0fd0724b9e820100d28fcf0"
+  },
+  "validation.languagesMax": {
+    "sourceHash": "e9f91afe9dcc98321fd3972bdbaace80b947c484f33b4b99fc5ce5667aa95ebe"
+  },
+  "validation.languageTag": {
+    "sourceHash": "309695e34f827ff6428addbff60254d9756bf1d880270bc7afbac0ead3e76110"
+  },
+  "validation.certCountriesMin": {
+    "sourceHash": "9ff7618d084e8b0a5cabb251edb74fb27df54cfe069a87b5cbf9a72ee06f0c03"
+  },
+  "validation.certCountriesMax": {
+    "sourceHash": "2da8fe63e4d5d6e9fab280ab3e94cd503f910eeb82d19e723154ad3b9f557e43"
+  },
+  "validation.countryCode": {
+    "sourceHash": "50e87e1a98d5f8b9346ebdce3a8c6177bad24b1c70e587399c6cb8d9eac8152c"
+  },
+  "validation.posterMode": {
+    "sourceHash": "aa7845b915ecea59e035ca6256d6bd42263e96286697dec7f5401c5d911851db"
+  },
+  "validation.imageLanguagesMin": {
+    "sourceHash": "cc335065c9bf9da6dc4b10953253c380a4e4c10480c7b4cdccdfe5cbb6aef820"
+  },
+  "validation.imageLanguagesMax": {
+    "sourceHash": "bc488a69d86c1cb78c3aae72fbbae249f0619984556a33f06dddf15c8c04b7c5"
+  },
+  "validation.imageLanguageToken": {
+    "sourceHash": "a831ef5b96cdf79023b36902cc9b8bc9de4c95ad3c00e434f9fe3dcb87508e13"
+  },
+  "validation.sourceOrder": {
+    "sourceHash": "4e247bd07e2c5b9dcba9a4721487be95c8c82a6490ff1ff6c8b861d208e279a5"
+  },
+  "validation.sizeInvalid": {
+    "sourceHash": "75f40063fb74b0963059d69105f6c3408fb15590d238cceccf100a5943c87521"
+  },
+  "validation.sizePoster": {
+    "sourceHash": "c60789cc44e89b26b124aba9ecda78b818c9cc094fb52a1951b5dbc14f224e49"
+  },
+  "validation.sizeBackdrop": {
+    "sourceHash": "f4b669c55756180ee9457b358a5132c298359a5dd46896e00a2aab9cb86b74e2"
+  },
+  "validation.sizeStill": {
+    "sourceHash": "6a0d4732be6bcaade76908029441a1c7999444f6c690d3a9c7138647f996a6b1"
+  },
+  "validation.sizeProfile": {
+    "sourceHash": "3ea2d23c902cfa31238e5ebbbe0722f7dee5b534ada436f81641a4e127414873"
+  },
+  "validation.imageQuality": {
+    "sourceHash": "08688de7593451ee828b271d72a4d9daf5865e4df693f8028abfcb512bea8ee7"
+  },
+  "validation.homeRowSource": {
+    "sourceHash": "d5543a9da131ddcd6f3e22f5aa1850aab61b0511f929dc34652fdcd355f8a329"
+  },
+  "validation.homeRowNoSource": {
+    "sourceHash": "e9eab3a181cbb564a8b442964d6ea7818edef3db9cdaf10ff368bbba8bdaa39e"
+  },
+  "validation.homeRowSort": {
+    "sourceHash": "7df6220821d84a5cac25c5a6bb290a750ddc31f39ea85498f145d2b88c972774"
+  },
+  "validation.homeRowOrder": {
+    "sourceHash": "96a62dd28342f0b05d76639f511372e4924678ba7fa35db9e4f199c4856c9070"
+  },
+  "validation.homeRowDuplicate": {
+    "sourceHash": "7b3a9ecb8f6ed508e27f0367c5b18fd98968607769eb64a4fbcaa66c81319e88"
+  },
+  "validation.searchProvider": {
+    "sourceHash": "81c848dafee119abb3637605c65e8a66fdd4e4c26217ee7ab894b08959e046d3"
   }
 }
