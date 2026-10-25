@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { AppLocale } from "@/lib/i18n/negotiate";
+import { formatList } from "@/lib/i18n/format";
 import { appTranslator } from "@/lib/i18n/translate";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -2757,6 +2758,7 @@ function MissingRow({
   onChanged: () => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2774,15 +2776,17 @@ function MissingRow({
   // 剧集：按季聚合缺失集数做摘要；电影：单文件
   const summary =
     item.kind === "tv"
-      ? Array.from(
-          item.files.reduce((m, f) => {
-            m.set(f.season_number, (m.get(f.season_number) ?? 0) + 1);
-            return m;
-          }, new Map<number, number>()),
+      ? formatList(
+          Array.from(
+            item.files.reduce((m, f) => {
+              m.set(f.season_number, (m.get(f.season_number) ?? 0) + 1);
+              return m;
+            }, new Map<number, number>()),
+          )
+            .sort(([a], [b]) => a - b)
+            .map(([s, n]) => (s === 0 ? t("library.issues.missingSpecials", { count: n }) : t("library.issues.missingSeason", { season: s, count: n }))),
+          locale,
         )
-          .sort(([a], [b]) => a - b)
-          .map(([s, n]) => (s === 0 ? t("library.issues.missingSpecials", { count: n }) : t("library.issues.missingSeason", { season: s, count: n })))
-          .join("、")
       : t("library.issues.fileCount", { count: item.files.length });
 
   return (

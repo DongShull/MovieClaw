@@ -1819,5 +1819,8 @@
   },
   "watchStats.playsCompleted": {
     "sourceHash": "a82451811617f56aa2a77417ec87cf602e5f8f897ebe74ae441301506c5c560f"
+  },
+  "taskCenter.downloadsLoadFailed": {
+    "sourceHash": "a7146c552599ce72e53406d6c0d7dc17af214baaca32af49a252ecf356aa06b1"
   }
 }

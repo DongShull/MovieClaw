@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatList } from "@/lib/i18n/format";
 import { appTranslator } from "@/lib/i18n/translate";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 
@@ -196,6 +197,7 @@ export function PosterCardVisual({
   revealInfoOnTouch?: boolean;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const { canSubscribe, subscriptionOf } = useSubscribeEntry();
   const hasSubscribeAction =
     action === "subscribe" || action === "follow" || action === "backfill";
@@ -279,7 +281,7 @@ export function PosterCardVisual({
         : undefined,
       item.overlayDetails?.primary,
       item.overlayDetails?.secondary,
-      item.genres?.join("、"),
+      item.genres && formatList(item.genres, locale, { type: "unit", style: "short" }),
       item.overlayMeta,
     ].filter(Boolean);
     return (

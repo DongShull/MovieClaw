@@ -512,12 +512,13 @@ function DeleteDownloadTaskDialog({
 
 export function SourceWarning({ sources, error }: { sources: DownloadTaskSource[]; error: string | null }) {
   const t = useTranslations();
+  const locale = useLocale();
 
   const message = error
     ? error
     : sources
         .map((source) => t("activity.taskCenter.sourceWarning", { name: source.name, hasMessage: source.message ? "yes" : "no", message: source.message ?? "" }))
-        .join("；");
+        .join(locale === "zh-Hans" ? "；" : "; ");
   return (
     <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sub leading-6 text-amber-100">
       <InfoIcon className="mt-0.5 size-4 shrink-0" />

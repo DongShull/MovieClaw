@@ -5,8 +5,9 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions,
   return new Intl.NumberFormat(locale, options).format(value);
 }
 
-export function formatList(values: string[], locale: AppLocale = requestLocale() ?? "zh-Hans"): string {
-  return locale === "zh-Hans" ? values.join("、") : new Intl.ListFormat(locale).format(values);
+export function formatList(values: string[], locale: AppLocale = requestLocale() ?? "zh-Hans",
+  options?: Intl.ListFormatOptions): string {
+  return locale === "zh-Hans" ? values.join("、") : new Intl.ListFormat(locale, options).format(values);
 }
 
 export function formatDate(value: Date, options: Intl.DateTimeFormatOptions,

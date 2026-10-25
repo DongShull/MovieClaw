@@ -361,7 +361,8 @@
     "doneEpisodes": "({count, plural, one {# episode} other {# episodes}} {upgrade, select, yes {replaced} other {imported}})",
     "seasonEpisodes": "{count, plural, one {# episode} other {# episodes}}",
     "totalEpisodes": "{count, plural, one {# episode} other {# episodes}} total",
-    "episodeCoverageAria": "Covers {count, plural, one {# episode} other {# episodes}}: {episodes}. {hasDone, select, yes {{done, plural, one {# episode} other {# episodes}} {upgrade, select, yes {replaced} other {imported}}. } other {}}Expand to see all episode numbers"
+    "episodeCoverageAria": "Covers {count, plural, one {# episode} other {# episodes}}: {episodes}. {hasDone, select, yes {{done, plural, one {# episode} other {# episodes}} {upgrade, select, yes {replaced} other {imported}}. } other {}}Expand to see all episode numbers",
+    "downloadsLoadFailed": "Couldn't load download tasks"
   },
   "boost": {
     "off": "Boosting off",

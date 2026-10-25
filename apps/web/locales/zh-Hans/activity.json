@@ -361,7 +361,8 @@
     "doneEpisodes": "{upgrade, select, yes {（已完成 {count} 集替换）} other {（有 {count} 集已入库）}}",
     "seasonEpisodes": "共 {count} 集",
     "totalEpisodes": "合计 {count} 集",
-    "episodeCoverageAria": "覆盖 {count} 集：{episodes}。{hasDone, select, yes {{upgrade, select, yes {已完成 {done} 集替换。} other {其中 {done} 集已入库。}}} other {}}展开查看全部集号"
+    "episodeCoverageAria": "覆盖 {count} 集：{episodes}。{hasDone, select, yes {{upgrade, select, yes {已完成 {done} 集替换。} other {其中 {done} 集已入库。}}} other {}}展开查看全部集号",
+    "downloadsLoadFailed": "下载任务加载失败"
   },
   "boost": {
     "off": "刷流已关闭",

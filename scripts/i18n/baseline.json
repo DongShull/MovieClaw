@@ -232,7 +232,7 @@
   "apps/web/lib/backdrop.tsx": 2,
   "apps/web/lib/categories.ts": 8,
   "apps/web/lib/cloud-push-display.ts": 2,
-  "apps/web/lib/download-tasks.tsx": 2,
+  "apps/web/lib/download-tasks.tsx": 1,
   "apps/web/lib/glass-rim-shaders.ts": 1,
   "apps/web/lib/glass-rim.ts": 5,
   "apps/web/lib/hero-edge-color.ts": 1,
