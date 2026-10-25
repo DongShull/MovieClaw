@@ -1062,6 +1062,7 @@
   "library.duplicateScan.fingerprint": "比对文件指纹",
   "library.duplicateScan.persist": "记录结论",
   "library.duplicateScan.queued": "等待扫描重复文件",
+  "library.duplicateScan.subject": "重复文件",
   "library.duplicateScan.suggest": "排出建议保留",
   "library.duplicateScan.units": "圈出 {count} 个多文件单元",
   "library.duplicates.keepAllSaved": "已标记「都留着」：{count} 个文件不再列为重复",

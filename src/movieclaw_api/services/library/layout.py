@@ -137,15 +137,25 @@ _TITLE_YEAR = re.compile(r"^(.+?)\s*\((\d{4})\)")
 _BRACKET_TAGS = re.compile(r"[\[{][^\]}]*[\]}]")
 
 _CN_DIGITS = {
+    # i18n-ignore: Chinese numerals parsed from file names
     "一": 1,
+    # i18n-ignore: Chinese numerals parsed from file names
     "二": 2,
+    # i18n-ignore: Chinese numerals parsed from file names
     "两": 2,
+    # i18n-ignore: Chinese numerals parsed from file names
     "三": 3,
+    # i18n-ignore: Chinese numerals parsed from file names
     "四": 4,
+    # i18n-ignore: Chinese numerals parsed from file names
     "五": 5,
+    # i18n-ignore: Chinese numerals parsed from file names
     "六": 6,
+    # i18n-ignore: Chinese numerals parsed from file names
     "七": 7,
+    # i18n-ignore: Chinese numerals parsed from file names
     "八": 8,
+    # i18n-ignore: Chinese numerals parsed from file names
     "九": 9,
 }
 
@@ -254,6 +264,7 @@ def _season_int(text: str) -> int | None:
     """季号数字：'4' / '04' / '四' / '十二' / '二十' → int；解析不了返回 None。"""
     if text.isdigit():
         return int(text)
+    # i18n-ignore: Chinese numerals parsed from file names
     tens, sep, units = text.partition("十")
     if not sep:
         return _CN_DIGITS.get(text)

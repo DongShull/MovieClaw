@@ -1495,5 +1495,8 @@
   },
   "segments.disabled": {
     "sourceHash": "919b7c7c0b34f98744e427de6a3bab4cfbffe32f140aa3eb924dc425d6e962b7"
+  },
+  "duplicateScan.subject": {
+    "sourceHash": "3b0db02d8063b59fbb5e338a36280391ea27c27c127c807b5587143611c8dc2e"
   }
 }

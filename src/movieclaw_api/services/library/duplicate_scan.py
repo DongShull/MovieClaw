@@ -36,7 +36,8 @@ from sqlalchemy import delete, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import localize_fields, stored_fields
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import localize_fields, source_text, stored_fields
 from movieclaw_api.services import jobs
 from movieclaw_api.services.foreground import yield_to_foreground
 from movieclaw_api.services.library import acquisition
@@ -71,32 +72,27 @@ JOB_TYPE = "library.duplicate-scan"
 
 #: 三档的名字与一句话说明。文案放后端：CLI、Web 与将来的通知说的是同一句话
 TIER_LABELS: dict[str, str] = {
-    "safe": "可以放心清理",
-    "suggested": "建议清理",
-    "review": "需要你决定",
+    tier: source_text(f"library.duplicates.tierLabel.{tier}")
+    for tier in ("safe", "suggested", "review")
 }
 TIER_HINTS: dict[str, str] = {
-    "safe": "机器确认过没有区别：同一个文件的多份记录，或尺寸与时长完全一致。清掉不丢任何东西。",
-    "suggested": "每组里有一个档位明显更高，其余是它的低配版。清理前可以逐条看一眼清单。",
-    "review": "各有各的好，机器不替你决定。同一种取舍的放在一组，一次回答一批。",
+    tier: source_text(f"library.duplicates.tierHint.{tier}")
+    for tier in ("safe", "suggested", "review")
 }
 #: ``review`` 档的取舍类型：用户面对它时真正在犹豫的那件事。
 #: 名字只留主干、解释一律交给 ``REVIEW_KIND_HINTS``——它在摘要卡上和计数、三个
 #: 按钮抢同一行，名字里再塞一个括号补语，窄屏上整行就塌成一根文字柱
+_REVIEW_KEYS = {
+    "resolution": "resolution",
+    "hdr": "hdr",
+    "unknown": "unknown",
+    "same_tier": "sameTier",
+}
 REVIEW_KIND_LABELS: dict[str, str] = {
-    "resolution": "分辨率不同",
-    "hdr": "HDR 与 SDR 并存",
-    "unknown": "规格不全",
-    "same_tier": "同档不同版本",
+    kind: source_text(f"library.duplicates.reviewLabel.{key}") for kind, key in _REVIEW_KEYS.items()
 }
 REVIEW_KIND_HINTS: dict[str, str] = {
-    "resolution": "一个分辨率高、一个片源更好，阶梯上各占一头。要画质还是要体积，只有你知道。",
-    "hdr": "HDR 版本在不支持的设备上颜色会发灰，很多人两个都留着。",
-    "unknown": (
-        "分辨率或片源有一边没探到，机器比不出档位，「建议保留」只是按码率、来源、文件名挑的。"
-        "分辨率缺的，重新扫描媒体库会补探；片源认文件名，有订阅的剧可以在订阅页整季「标注片源」。"
-    ),
-    "same_tier": "规格完全同档，差的是发布组、字幕或压制。挑一个熟悉的组，或者都留着。",
+    kind: source_text(f"library.duplicates.reviewHint.{key}") for kind, key in _REVIEW_KEYS.items()
 }
 #: 分档在页面上的先后：先做没风险的，再做要花心思的
 TIER_ORDER: tuple[Tier, ...] = ("safe", "suggested", "review")
@@ -182,9 +178,7 @@ async def scan_duplicates(
     """
     report = await detect_duplicates(session, report_progress=report_progress)
     if report_progress is not None:
-        await report_progress(
-            "persist", stored_fields("library.duplicateScan.persist"), None, None
-        )
+        await report_progress("persist", stored_fields("library.duplicateScan.persist"), None, None)
     result = ScanResult(
         upgrading_units=report.upgrading_units, keep_old_items=report.keep_old_items
     )
@@ -696,7 +690,7 @@ async def enqueue_duplicate_scan_job(
     return await jobs.create_job(
         session,
         job_type=JOB_TYPE,
-        subject="重复文件",
+        subject=t("library.duplicateScan.subject"),
         input_data={},
         dedupe_key=JOB_TYPE,
         conflict_policy="return_existing",

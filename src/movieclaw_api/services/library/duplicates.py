@@ -43,7 +43,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.i18n.quality_labels import duplicate_quality_reference
-from movieclaw_api.i18n.stored import reference, stored_fields
+from movieclaw_api.i18n.stored import reference, source_render, source_text, stored_fields
 from movieclaw_api.services.library import acquisition
 from movieclaw_api.services.library.origin import origin_of
 from movieclaw_api.services.library.recycle import recycle_file
@@ -93,13 +93,7 @@ _SNAPSHOT_CHUNK = 100
 # 建议依据：机器码 → 给人看的话的**后半句**。前半句由"档位比全了没有"决定
 # （见 ``_reason_text``）——这句话必须是真的：曾经不论谁定的序都写"按实测码率
 # 建议"，而实际上定序的是"未知当最差"，码率根本没轮到
-_REASONS = {
-    "ladder": "档位最高",
-    "bitrate": "实测码率更高",
-    "origin": "来源可追溯",
-    "naming": "占着标准文件名",
-    "fallback": "最近入库",
-}
+_REASONS = ("ladder", "bitrate", "origin", "naming", "fallback")
 
 
 def _reason_text(basis: str, partial: bool) -> str:
@@ -110,12 +104,7 @@ def _reason_text(basis: str, partial: bool) -> str:
     - 有文件的规格没探全（那一位对整个单元失效）→ 「规格没探全，…」——
       它同时是"这个单元为什么进不了『建议清理』"的解释。
     """
-    if partial:
-        core = "在能比的位上最高" if basis == "ladder" else _REASONS[basis]
-        return f"规格没探全，{core}"
-    if basis == "ladder":
-        return _REASONS["ladder"]
-    return f"同档，{_REASONS[basis]}"
+    return source_text(f"library.duplicates.{'reasonPartial' if partial else 'reason'}.{basis}")
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +221,7 @@ async def _tick(
 def quality_label_of(row: LibraryFile) -> str:
     """版本签名里的质量标签：「分辨率 片源」，HDR 有值时追加——HDR 与 SDR 是不同版本。"""
     parts = [p for p in (row.resolution, row.media_source) if p]
-    label = " ".join(parts) or "未知规格"
+    label = " ".join(parts) or source_text("library.recycle.unknownSpec")
     return f"{label} {row.hdr}" if row.hdr else label
 
 
@@ -512,8 +501,11 @@ async def detect_duplicates(
         return report
     item_ids = {k[0] for k in unit_keys}
     await _tick(
-        report_progress, "units",
-        stored_fields("library.duplicateScan.units", count=len(unit_keys)), None, None,
+        report_progress,
+        "units",
+        stored_fields("library.duplicateScan.units", count=len(unit_keys)),
+        None,
+        None,
     )
 
     # 2. 这些单元的全部在位行（一次取，按单元分桶）
@@ -552,8 +544,11 @@ async def detect_duplicates(
     for start in range(0, len(paths), _STAT_CHUNK):
         stats |= await asyncio.to_thread(_stat_many, paths[start : start + _STAT_CHUNK])
         await _tick(
-            report_progress, "fingerprint",
-            stored_fields("library.duplicateScan.fingerprint"), len(stats), len(paths),
+            report_progress,
+            "fingerprint",
+            stored_fields("library.duplicateScan.fingerprint"),
+            len(stats),
+            len(paths),
         )
     inode = {r.id or -1: stats.get(r.file_path) for r in flat}
     origins = await acquisition.current().describe_origins(session, flat)
@@ -565,8 +560,11 @@ async def detect_duplicates(
     for start in range(0, len(flat), _SNAPSHOT_CHUNK):
         snapshots |= await asyncio.to_thread(_snapshots_many, flat[start : start + _SNAPSHOT_CHUNK])
         await _tick(
-            report_progress, "suggest",
-            stored_fields("library.duplicateScan.suggest"), len(snapshots), len(flat),
+            report_progress,
+            "suggest",
+            stored_fields("library.duplicateScan.suggest"),
+            len(snapshots),
+            len(flat),
         )
     units_by_item: dict[int, list[DupUnit]] = defaultdict(list)
     for key, unit_rows in listed.items():
@@ -659,12 +657,7 @@ async def _refresh_unit(session: AsyncSession, unit: DupUnit) -> None:
 
 
 def _note(keep: DupFile, gone: DupFile, bucket: Bucket) -> str:
-    if bucket == "identical":
-        return f"重复清理：与「{keep.file_name}」一模一样，已保留后者"
-    return (
-        f"重复清理：留下「{keep.file_name}」（{keep.quality_label}），"
-        f"移除本版本（{gone.quality_label}）"
-    )
+    return source_render(_note_reference(keep, gone, bucket))
 
 
 def _note_reference(keep: DupFile, gone: DupFile, bucket: Bucket) -> dict:
@@ -678,7 +671,6 @@ def _note_reference(keep: DupFile, gone: DupFile, bucket: Bucket) -> dict:
             gone.row.resolution, gone.row.media_source, gone.row.hdr
         ),
     )
-
 
 
 async def recycle_extras(
@@ -722,7 +714,13 @@ async def recycle_extras(
             await session.rollback()
             file_id, file_name = marks[id(f)]
             logger.warning("重复清理移入回收站失败：%s", file_name, exc_info=True)
-            outcome.failed.append((file_id, file_name, f"移入回收站失败：{exc}"))
+            outcome.failed.append(
+                (
+                    file_id,
+                    file_name,
+                    source_text("library.duplicates.recycleFailed", detail=str(exc)),
+                )
+            )
             outcome.failure_refs[file_id] = reference(
                 "library.duplicates.recycleFailed", detail=str(exc)
             )
@@ -756,7 +754,7 @@ async def resolve_unit(
     outcome = ResolveOutcome()
     units = [u for d in report.items for s in d.seasons for u in s.units]
     if not units:
-        raise LookupError("这个单元已经没有重复文件（可能刚被扫描或洗版改动过），请刷新列表")
+        raise LookupError(source_text("library.duplicates.unitChanged"))
 
     if keep == "all":
         now = utcnow()
@@ -770,17 +768,17 @@ async def resolve_unit(
 
     if isinstance(keep, int):
         if episode_number is None and len(units) != 1:
-            raise ValueError("按文件「留这个」必须指定到集")
+            raise ValueError(source_text("library.duplicates.episodeRequired"))
         unit = units[0]
         target = next((f for f in unit.files if f.row.id == keep), None)
         if target is None:
-            raise LookupError("要保留的文件已不在这个单元里（文件集合已变化），请刷新列表")
+            raise LookupError(source_text("library.duplicates.fileChanged"))
         await recycle_extras(session, unit, target, trigger, outcome, include_kept=True)
         return outcome
 
     # 整季留某个版本
     if not any(f.version_key == keep for u in units for f in u.files):
-        raise LookupError("这一季里已经没有这个版本（文件集合已变化），请刷新列表")
+        raise LookupError(source_text("library.duplicates.versionChanged"))
     for u in units:
         target = next((f for f in u.files if f.version_key == keep), None) or u.suggested
         await recycle_extras(session, u, target, trigger, outcome, include_kept=False)

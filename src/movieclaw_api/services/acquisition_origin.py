@@ -16,13 +16,11 @@ from sqlmodel import select
 
 from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services.library.origin import (
-    _STRATEGY_LABELS,
     KIND_MANUAL_DOWNLOAD,
     KIND_SCAN,
     KIND_SUBSCRIPTION,
     KIND_WATCH_IMPORT,
     _detail_reference,
-    _join,
     _snapshot,
     _strategy_reference,
 )
@@ -56,19 +54,9 @@ def subscription_origin(
     strategy: str | None,
 ) -> dict[str, Any]:
     """订阅投递入库：投递记录里有站点、种子标题、目的（首次 / 洗版）与是否人工选种。"""
-    verb = "洗版投递" if attempt.purpose == "upgrade" else "自动投递"
-    label = f"订阅《{item_title}》{verb}" + ("（人工选种）" if attempt.manual else "")
-    detail = _join(
-        site_display_name(attempt.site_id),
-        attempt.torrent_title or attempt.download_name,
-        downloader_name,
-        _STRATEGY_LABELS.get(strategy or ""),
-    )
     return _snapshot(
         KIND_SUBSCRIPTION,
-        label,
-        detail,
-        label_ref=reference(
+        reference(
             "library.origin.subscription",
             title=item_title,
             delivery=reference(
@@ -78,7 +66,7 @@ def subscription_origin(
             ),
             manual=reference("library.origin.manualSelection") if attempt.manual else "",
         ),
-        detail_ref=_detail_reference(
+        _detail_reference(
             site_display_name(attempt.site_id),
             attempt.torrent_title or attempt.download_name,
             downloader_name,
@@ -95,18 +83,10 @@ def manual_download_origin(
     strategy: str | None,
 ) -> dict[str, Any]:
     """手动下载入库：身份锚入库成功即删除，快照是它留下的唯一人话。"""
-    detail = _join(
-        site_display_name(intent.site_id),
-        torrent_title or intent.download_name,
-        downloader_name,
-        _STRATEGY_LABELS.get(strategy or ""),
-    )
     return _snapshot(
         KIND_MANUAL_DOWNLOAD,
-        "手动下载",
-        detail,
-        label_ref=reference("library.origin.manualDownload"),
-        detail_ref=_detail_reference(
+        reference("library.origin.manualDownload"),
+        _detail_reference(
             site_display_name(intent.site_id),
             torrent_title or intent.download_name,
             downloader_name,
@@ -163,25 +143,15 @@ async def load_origin_context(
 
 def _legacy_fallback(row: LibraryFile) -> dict[str, Any]:
     if row.source == FileSource.SCANNED:
-        return _snapshot(
-            KIND_SCAN,
-            "存量扫描发现（非本系统入库）",
-            None,
-            label_ref=reference("library.origin.scan"),
-        )
+        return _snapshot(KIND_SCAN, reference("library.origin.scan"))
     if row.site_id or row.torrent_id:
-        return _snapshot(
-            KIND_WATCH_IMPORT,
-            "手动或监听导入",
-            _join(site_display_name(row.site_id)),
-            label_ref=reference("library.origin.manualOrWatch"),
-        )
+        snapshot = _snapshot(KIND_WATCH_IMPORT, reference("library.origin.manualOrWatch"))
+        snapshot["detail"] = site_display_name(row.site_id)  # 站点名是数据，不翻译
+        return snapshot
     return _snapshot(
         KIND_WATCH_IMPORT,
-        "监听目录导入",
-        "来源种子未记录",
-        label_ref=reference("library.origin.legacyWatch"),
-        detail_ref=reference("library.origin.missingTorrent"),
+        reference("library.origin.legacyWatch"),
+        reference("library.origin.missingTorrent"),
     )
 
 
@@ -263,9 +233,8 @@ async def derive_origins(
         elif key in titles:
             result[row.id] = _snapshot(
                 KIND_WATCH_IMPORT,
-                "手动或监听导入",
-                _join(site_display_name(row.site_id), titles[key]),
-                label_ref=reference("library.origin.manualOrWatch"),
+                reference("library.origin.manualOrWatch"),
+                _detail_reference(site_display_name(row.site_id), titles[key]),
             )
         else:
             result[row.id] = _legacy_fallback(row)

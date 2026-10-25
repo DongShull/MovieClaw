@@ -50,6 +50,20 @@ def render_value(value):
     return value
 
 
+def source_text(key: str, **params) -> str:
+    """A message rendered in the source language (Chinese), for values stored or compared as text.
+
+    Readers get their own language through ``stored_message`` at response time.
+    """
+    return stored_fields(key, **params)["message"]
+
+
+def source_render(value) -> str:
+    """Render a stored reference (or plain text) in the source language."""
+    with use_locale("zh-Hans"):
+        return render_value(value)
+
+
 def stored_fields(key: str, **params) -> dict:
     """Keep a Chinese rollback value beside the reference in a JSON history field."""
     params = jsonable_encoder(params, custom_encoder={Exception: str})

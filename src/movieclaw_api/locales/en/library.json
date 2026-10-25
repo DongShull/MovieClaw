@@ -461,7 +461,8 @@
     "suggest": "Ranking files to recommend keeping",
     "persist": "Recording results",
     "completed": "Duplicate scan complete: {units, plural, one {# unit has} other {# units have}} duplicates; suggested cleanup can remove {files, plural, one {# file} other {# files}}",
-    "empty": "Duplicate scan complete: no duplicate files found"
+    "empty": "Duplicate scan complete: no duplicate files found",
+    "subject": "Duplicate files"
   },
   "origin": {
     "subscription": "Subscription “{title}”: {delivery}{manual}",

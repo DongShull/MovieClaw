@@ -461,7 +461,8 @@
     "suggest": "排出建议保留",
     "persist": "记录结论",
     "completed": "重复扫描完成：{units} 个单元有重复，按建议清理可腾出 {files} 个文件",
-    "empty": "重复扫描完成：没有发现重复文件"
+    "empty": "重复扫描完成：没有发现重复文件",
+    "subject": "重复文件"
   },
   "origin": {
     "subscription": "订阅《{title}》{delivery}{manual}",
