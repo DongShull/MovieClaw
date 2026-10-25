@@ -367,5 +367,17 @@
   },
   "cards.subscriptionMissing": {
     "sourceHash": "346e8596c568d64988a48cff4e736f5970a62a7f72b792e6d3a00e078650ec5b"
+  },
+  "handoff.failed": {
+    "sourceHash": "add72283fde4c0fb0ca751c97b53d746fb9846cea4ff36ae90696f5d3569f4d5"
+  },
+  "handoff.preparing": {
+    "sourceHash": "d3d14311b872b035b982eec6814eea95ad257056d0e6343707f5df2a2d9a084f"
+  },
+  "handoff.analyze": {
+    "sourceHash": "4303315cec1e5646195ae8269e54924cf985998ae02080823647d3e39f36c391"
+  },
+  "composer.imageTypeUnsupported": {
+    "sourceHash": "46cf4ae9c51c71a6c78f299702f3b082ae170b7f96d7387063a0d608a2cd26a2"
   }
 }

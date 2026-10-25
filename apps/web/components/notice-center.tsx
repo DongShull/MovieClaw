@@ -161,7 +161,7 @@ function NoticeCenterInner({
             </div>
             {/* 操作条：一道发丝线与正文分开，主次分明——「去处理」是这条事项
                 真正的出口（实心玻璃按钮），「忽略」是退路（纯文字，最弱） */}
-            <div className="mt-3 flex items-center justify-end gap-2 border-t border-white/[0.05] pt-2.5">
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-white/[0.05] pt-2.5">
               <button
                 type="button"
                 onClick={() => dismiss(notice.id)}
@@ -177,7 +177,7 @@ function NoticeCenterInner({
               <button
                 type="button"
                 onClick={() => goto(notice)}
-                className="btn-glass gap-1 px-3 py-1.5 text-sub font-medium text-[var(--text)] max-md:py-2"
+                className="btn-glass gap-1 whitespace-nowrap px-3 py-1.5 text-sub font-medium text-[var(--text)] max-md:py-2"
               >
                 {t("notify.center.resolve")}<ChevronRightIcon className="size-3.5" />
               </button>

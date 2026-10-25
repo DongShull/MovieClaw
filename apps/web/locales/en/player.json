@@ -273,6 +273,7 @@
     "retryUpload": " · Upload failed; awaiting retry",
     "behindPlayhead": " · Behind the current playback position",
     "lastUpload": "Latest upload {upload}",
-    "lastSegmentWait": "Last segment wait {seconds}s"
+    "lastSegmentWait": "Last segment wait {seconds}s",
+    "missingCredentials": "The playback URL is missing diagnostics credentials"
   }
 }

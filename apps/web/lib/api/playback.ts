@@ -1,3 +1,4 @@
+import { appTranslator } from "@/lib/i18n/translate";
 import { publicEnv } from "@/lib/env";
 import { getPlayerDeviceId } from "@/lib/player/device";
 import type { TrickplayIndex } from "@/lib/player/trickplay";
@@ -797,7 +798,7 @@ export async function fetchPlaybackDiagnostics(
   );
   const token = resolvedUrl.searchParams.get("token");
   if (!token) {
-    throw new Error("播放地址缺少诊断凭据");
+    throw new Error(appTranslator()("player.diagnostics.missingCredentials"));
   }
   const response = await request<ApiEnvelope<PlaybackDiagnostics>>(
     `${scope.base}/sessions/${encodeURIComponent(sessionId)}/diagnostics?token=${encodeURIComponent(token)}`,

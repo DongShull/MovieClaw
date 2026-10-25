@@ -26,7 +26,8 @@
     "faster": "Faster",
     "smarter": "Smarter",
     "reasoning": "Reasoning",
-    "reasoningToggle": "Toggle reasoning"
+    "reasoningToggle": "Toggle reasoning",
+    "imageTypeUnsupported": "Unsupported image format. Choose a JPG, PNG, WebP or GIF image."
   },
   "modelGate": {
     "defaultFeature": "AI conversations",
@@ -135,5 +136,10 @@
     "played": "Watched",
     "playTitle": "{verb} “{title}”{unit}",
     "subscriptionMissing": "Subscription #{id} not found"
+  },
+  "handoff": {
+    "failed": "Could not start AI analysis",
+    "preparing": "Preparing context…",
+    "analyze": "Ask AI"
   }
 }

@@ -2545,5 +2545,24 @@
     "done": "Done",
     "qrAlt": "QR code to link {channel}",
     "codeHelp": "Valid for 10 minutes. The sender becomes the only user who can chat with the bot and receive notifications."
+  },
+  "schema": {
+    "unset": "(Not set)",
+    "onePerLine": "One per line",
+    "secretSet": "Set (leave blank to keep)",
+    "secretUnset": "Not set"
+  },
+  "pluginApp": {
+    "unavailable": "This page is unavailable",
+    "adminHint": "The plugin may have been removed or disabled, its web pages may not be approved yet, or the app may be in safe mode.",
+    "memberHint": "It may have been removed, or the administrator may not have made it available to members.",
+    "settings": "Open plugin settings"
+  },
+  "imageUpload": {
+    "selectImage": "Choose an image file",
+    "readFailed": "Could not read the image",
+    "decodeFailed": "Could not decode the image. Try another file.",
+    "unsupported": "This browser does not support image processing",
+    "encodeFailed": "Could not encode the image. Try again."
   }
 }

@@ -273,6 +273,7 @@
     "retryUpload": " · 上传失败待重试",
     "behindPlayhead": " · 已落后当前播放位置",
     "lastUpload": "最近上传 {upload}",
-    "lastSegmentWait": "最近供片等待 {seconds} 秒"
+    "lastSegmentWait": "最近供片等待 {seconds} 秒",
+    "missingCredentials": "播放地址缺少诊断凭据"
   }
 }

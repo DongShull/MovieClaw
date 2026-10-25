@@ -1,3 +1,4 @@
+import { appTranslator } from "@/lib/i18n/translate";
 import { resolveRequestUrl, redirectToLoginOn401, HttpError, request } from "@/lib/http";
 
 /** Agent 执行事件（见 movieclaw_agent.events.AgentEvent）。 */
@@ -412,7 +413,7 @@ export async function streamSession(
 
     if (!response.ok) throw await responseError(response);
     if (!response.body) {
-      throw new HttpError("当前环境不支持流式响应", response.status, null);
+      throw new HttpError(appTranslator()("common.streamUnsupported"), response.status, null);
     }
 
     retryDelay = 500;

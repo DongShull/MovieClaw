@@ -495,7 +495,7 @@ export async function streamSearchTorrents(
     throw new HttpError(message, response.status, details);
   }
   if (!response.body) {
-    throw new HttpError("当前环境不支持流式响应", response.status, null);
+    throw new HttpError(appTranslator()("common.streamUnsupported"), response.status, null);
   }
 
   // SSE 帧以空行分隔；块内 `event:` 行给事件名、`data:` 行给 JSON 载荷

@@ -27,5 +27,6 @@
   "clipboardDenied": "The browser denied clipboard access",
   "off": "Off",
   "healthPageTitle": "Service status",
-  "avatarLabel": "{name}’s avatar"
+  "avatarLabel": "{name}’s avatar",
+  "streamUnsupported": "Streaming responses are not supported in this environment"
 }

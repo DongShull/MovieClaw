@@ -7218,5 +7218,44 @@
   },
   "metadata.pluginTitle": {
     "sourceHash": "52240ccbc159344d2dcc0f016c8bedfbfaca2242f8dc47d1fed702b8ea93fb6d"
+  },
+  "schema.unset": {
+    "sourceHash": "d202957b49ef1451e58a976e811442b60f57c82cc762f7794c88c81beeafbb6a"
+  },
+  "schema.onePerLine": {
+    "sourceHash": "ab4484113db71ee1d2c0a10b729e473f8fa4862b7aebd265a64134d1f642adc0"
+  },
+  "schema.secretSet": {
+    "sourceHash": "c7841ac5b4531b9da7441434ddfe219c2d034f097ef940034fd4d9e0708d6106"
+  },
+  "schema.secretUnset": {
+    "sourceHash": "2f5f1d6fbfb061ed02def5f4a3a151303da034681e38179744c7d1b1401f1caf"
+  },
+  "pluginApp.unavailable": {
+    "sourceHash": "e0e0350cb995c88e3cab3d8a9f0dc429b8d45179811f66fb71958e9394c9cb4e"
+  },
+  "pluginApp.adminHint": {
+    "sourceHash": "9776429488f1bd836a0413a52a4591d587cd0f5f6fbfda5f8a9efbf4bc3c3b15"
+  },
+  "pluginApp.memberHint": {
+    "sourceHash": "8f9ccd6dae41925c83a3f524e50919a56afb09875b364ecab8a2523e937510d1"
+  },
+  "pluginApp.settings": {
+    "sourceHash": "c750949398bbb2e055fd54f02dbd90cf111c7bdec13c92e7f76d868107b9cbf4"
+  },
+  "imageUpload.selectImage": {
+    "sourceHash": "35fc560913c0d4cda680899f00bc83ac5617a7c0ec2b026cea770a5c56cd901d"
+  },
+  "imageUpload.readFailed": {
+    "sourceHash": "c72ad3f4aa4ef83f3eda05660b82cbf4e30600fb88e621a6afc89d8d8f2ba236"
+  },
+  "imageUpload.decodeFailed": {
+    "sourceHash": "bf9d2fddf4bbf9b3d0237bf0a0323dbc7cbf55542c6846c6c79712bb02477b28"
+  },
+  "imageUpload.unsupported": {
+    "sourceHash": "c00b69d8ea8e97c289a06d5b197dfc1c7d80ac91c57c6d37ac32acbd86207997"
+  },
+  "imageUpload.encodeFailed": {
+    "sourceHash": "77f1184734bb838c9142d72d2216a41a370b68d540ca3190f35571fdae75f2a6"
   }
 }

@@ -2545,5 +2545,24 @@
     "done": "完成",
     "qrAlt": "{channel}绑定二维码",
     "codeHelp": "10 分钟内有效 · 发码人将成为唯一可对话的用户与推送目标"
+  },
+  "schema": {
+    "unset": "（不设置）",
+    "onePerLine": "每行一个",
+    "secretSet": "已设置（留空不改）",
+    "secretUnset": "未设置"
+  },
+  "pluginApp": {
+    "unavailable": "这个页面打不开",
+    "adminHint": "插件可能已卸载或停用、还没有同意它的网页运行，或者应用正处于安全模式。",
+    "memberHint": "它可能已被移除，或者管理员没有开放给成员。",
+    "settings": "去插件设置"
+  },
+  "imageUpload": {
+    "selectImage": "请选择图片文件",
+    "readFailed": "读取图片失败",
+    "decodeFailed": "图片解码失败，请换一张试试",
+    "unsupported": "当前浏览器不支持图片处理",
+    "encodeFailed": "图片编码失败，请重试"
   }
 }

@@ -26,7 +26,8 @@
     "faster": "更快",
     "smarter": "更聪明",
     "reasoning": "思维链",
-    "reasoningToggle": "思维链开关"
+    "reasoningToggle": "思维链开关",
+    "imageTypeUnsupported": "不支持的图片格式，请选择 JPG / PNG / WebP / GIF 图片"
   },
   "modelGate": {
     "defaultFeature": "AI 对话能力",
@@ -135,5 +136,10 @@
     "played": "已看完",
     "playTitle": "{verb}《{title}》{unit}",
     "subscriptionMissing": "未找到订阅 #{id}"
+  },
+  "handoff": {
+    "failed": "无法发起 AI 分析",
+    "preparing": "正在整理上下文…",
+    "analyze": "交给 AI 分析"
   }
 }

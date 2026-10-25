@@ -718,5 +718,8 @@
   },
   "errors.frameDrops": {
     "sourceHash": "3aed3820f54aa448a4ec4b428b19336fb70078c8c52a0b0b0cd6dc40b7a4356c"
+  },
+  "diagnostics.missingCredentials": {
+    "sourceHash": "3e283dbd6d6e279c176e8b6eea79e797e4037c992bc7b5ebe7b3827fb0afbf58"
   }
 }

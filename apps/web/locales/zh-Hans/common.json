@@ -27,5 +27,6 @@
   "clipboardDenied": "浏览器拒绝访问剪贴板",
   "off": "关闭",
   "healthPageTitle": "服务状态",
-  "avatarLabel": "{name} 的头像"
+  "avatarLabel": "{name} 的头像",
+  "streamUnsupported": "当前环境不支持流式响应"
 }
