@@ -2623,5 +2623,17 @@
   },
   "plugins.deadLetterExpired": {
     "sourceHash": "a5892814fda7f62073b8bede1121c64f90e00093b9f6d8e81eb848f756a79574"
+  },
+  "torrent.selectionOwnerUnconfirmed": {
+    "sourceHash": "31b48a36cded0dcc56152b08a7ded9b91868ee45d57ed2401a4481d6fa45b443"
+  },
+  "torrent.selectionNotPaused": {
+    "sourceHash": "4db882184a30849747348161fcadc4f30f65ce4c66e5a2f5c6ac5929803bb433"
+  },
+  "torrent.selectionReadbackMismatch": {
+    "sourceHash": "fbe75ecb09cb874ce006c0adb6032ec7adb5aa966c1fb0695b93b2a809739981"
+  },
+  "torrent.stateUnconfirmed": {
+    "sourceHash": "ab66e77dcfbebdab092d21d37fec38f066b1ed1c89955670251774b48912c50c"
   }
 }

@@ -752,7 +752,11 @@
     "downloaderMissing": "下载器不存在：#{id}",
     "downloaderUnavailable": "下载器「{name}」当前不可用（已停用或连接验证未通过），请在「设置 → 下载器」里检查后重试，或改用其他下载器",
     "fetchFailed": "从站点 {id} 取回种子失败：{error}",
-    "submitFailed": "提交到下载器「{name}」失败：{error}"
+    "submitFailed": "提交到下载器「{name}」失败：{error}",
+    "selectionOwnerUnconfirmed": "无法确认该任务属于本次智能投递，不修改已有任务，等待对账",
+    "selectionNotPaused": "文件选择尚未核验且任务不是暂停状态，请在下载器暂停后重试",
+    "selectionReadbackMismatch": "下载器文件选择回读不一致，未恢复下载；稍后重试同一任务",
+    "stateUnconfirmed": "下载器状态尚未确认，等待重试同一任务"
   },
   "appUpdate": {
     "manifestMissing": "发布（{tag}）没有携带更新清单，可能是旧版发布或发布流程未完成，暂无法应用内更新",

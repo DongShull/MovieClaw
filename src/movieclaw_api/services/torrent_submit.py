@@ -31,6 +31,7 @@ from sqlmodel import select
 
 from movieclaw_api import hooks
 from movieclaw_api.exceptions import BadRequestException, UpstreamServiceException
+from movieclaw_api.i18n.stored import exception_reference, keyed_error
 from movieclaw_api.services.site_access import SiteUnavailableError, get_site_access
 from movieclaw_db.models import DownloaderClient, DownloadHint, ManualDownloadIntent, utcnow
 from movieclaw_db.models.manual_download_intent import MANUAL_DOWNLOAD_INTENT_TTL
@@ -349,16 +350,17 @@ async def submit_torrent(
         if isinstance(exc, UnsatisfiableSelection):
             raise  # 文件清单的确定结论，调用方要据此收窄投递，不能当网络故障
         raise UpstreamServiceException(
-            message_key="errors.torrent.submitFailed", params={"name": row.name, "error": exc}
+            message_key="errors.torrent.submitFailed",
+            params={"name": row.name, "error": exception_reference(exc)},
         ) from exc
     finally:
         await downloader.close()
 
     # 目录日志：有映射翻译时同时打两个视角，方便核对跨容器部署是否配对
     if submit_save_path != effective_save_path:
-        dir_text = f"{effective_save_path} →（映射）{submit_save_path}"
+        dir_text = f"{effective_save_path} →（映射）{submit_save_path}"  # i18n-ignore: log
     else:
-        dir_text = effective_save_path or "（下载器默认）"
+        dir_text = effective_save_path or "（下载器默认）"  # i18n-ignore: log
     logger.info(
         "种子已提交到下载器「%s」：site=%s name=%s hash=%s 已存在=%s 目录=%s",
         row.name,
@@ -404,7 +406,7 @@ async def apply_strict_file_selection(
         await asyncio.sleep(0.2)
         status = await downloader.get_torrent(info_hash, include_files=True)
     if status is None or owner not in status.tags:
-        raise ValueError("无法确认该任务属于本次智能投递，不修改已有任务，等待对账")
+        raise keyed_error(ValueError, "errors.torrent.selectionOwnerUnconfirmed")
     plan = plan_strict_file_selection(
         [f.path for f in status.files],
         needed_units,
@@ -414,7 +416,7 @@ async def apply_strict_file_selection(
     actual = {i for i, f in enumerate(status.files) if f.selected}
     if actual != expected:
         if status.state != "paused":
-            raise ValueError("文件选择尚未核验且任务不是暂停状态，请在下载器暂停后重试")
+            raise keyed_error(ValueError, "errors.torrent.selectionNotPaused")
         indices = [
             status.files[i].index if status.files[i].index is not None else i
             for i in plan.keep_indices
@@ -428,10 +430,10 @@ async def apply_strict_file_selection(
         != [(f.index, f.path, f.size_bytes) for f in status.files]
         or {i for i, f in enumerate(verified.files) if f.selected} != expected
     ):
-        raise ValueError("下载器文件选择回读不一致，未恢复下载；稍后重试同一任务")
+        raise keyed_error(ValueError, "errors.torrent.selectionReadbackMismatch")
     if not verified.completed:
         if verified.state not in {"paused", "downloading", "queued", "stalled", "checking"}:
-            raise ValueError("下载器状态尚未确认，等待重试同一任务")
+            raise keyed_error(ValueError, "errors.torrent.stateUnconfirmed")
         if before_resume is not None:
             await before_resume()
         # 校验恢复数据时也可能仍处于添加时的暂停态；恢复是幂等操作。
@@ -563,6 +565,7 @@ async def _reclaim_boost_task(
             return submit_result
     task.state = BoostTaskState.MISSING
     task.evicted_at = utcnow()
+    # i18n-ignore: ledger note (evict_reason), not rendered
     task.evict_reason = "已被订阅/手动下载接管，数据已迁至媒体目标目录"
     task.updated_at = utcnow()
     await session.commit()

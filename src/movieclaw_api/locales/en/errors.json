@@ -752,7 +752,11 @@
     "downloaderMissing": "Downloader #{id} does not exist",
     "downloaderUnavailable": "Downloader \"{name}\" is disabled or has not passed connection verification. Check it in Settings → Downloaders or choose another.",
     "fetchFailed": "Could not fetch the torrent from site {id}: {error}",
-    "submitFailed": "Could not submit to downloader \"{name}\": {error}"
+    "submitFailed": "Could not submit to downloader \"{name}\": {error}",
+    "selectionOwnerUnconfirmed": "Couldn’t confirm this task belongs to this smart submission; the existing task is left alone until reconciliation",
+    "selectionNotPaused": "File selection isn’t verified and the task isn’t paused; pause it in the downloader and retry",
+    "selectionReadbackMismatch": "The downloader’s file selection didn’t read back as set, so the download wasn’t resumed; retry the same task later",
+    "stateUnconfirmed": "The downloader state isn’t confirmed yet; the same task will be retried"
   },
   "appUpdate": {
     "manifestMissing": "Release {tag} has no update manifest. It may be an old release or its release process is incomplete. In-app updating is unavailable.",

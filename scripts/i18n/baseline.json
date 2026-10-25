@@ -80,7 +80,6 @@
   "src/movieclaw_api/services/plugin_jobs.py": 3,
   "src/movieclaw_api/services/plugin_settings.py": 1,
   "src/movieclaw_api/services/plugin_web.py": 1,
-  "src/movieclaw_api/services/ratio_boost.py": 18,
   "src/movieclaw_api/services/rule_sets.py": 2,
   "src/movieclaw_api/services/search_runs.py": 1,
   "src/movieclaw_api/services/server_addresses.py": 3,
@@ -91,7 +90,6 @@
   "src/movieclaw_api/services/themes.py": 1,
   "src/movieclaw_api/services/title_discovery.py": 8,
   "src/movieclaw_api/services/torrent_matcher.py": 1,
-  "src/movieclaw_api/services/torrent_submit.py": 7,
   "src/movieclaw_api/services/torrent_sync.py": 8,
   "src/movieclaw_api/services/verification.py": 2,
   "src/movieclaw_api/services/webhook/delivery.py": 6
