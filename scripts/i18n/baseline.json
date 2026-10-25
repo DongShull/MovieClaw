@@ -87,7 +87,6 @@
   "src/movieclaw_api/services/plugin_settings.py": 1,
   "src/movieclaw_api/services/plugin_web.py": 1,
   "src/movieclaw_api/services/ratio_boost.py": 18,
-  "src/movieclaw_api/services/remove_source.py": 30,
   "src/movieclaw_api/services/rule_sets.py": 2,
   "src/movieclaw_api/services/search_runs.py": 1,
   "src/movieclaw_api/services/server_addresses.py": 4,
