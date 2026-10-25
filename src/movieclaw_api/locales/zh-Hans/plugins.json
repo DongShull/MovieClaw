@@ -304,5 +304,47 @@
   },
   "switches": {
     "disabled": "插件已停用"
+  },
+  "market": {
+    "what": {
+      "index": "获取插件索引",
+      "signature": "获取插件索引签名",
+      "readme": "说明文档",
+      "lock": "依赖锁文件",
+      "icon": "图标",
+      "screenshot": "截图",
+      "package": "插件包"
+    },
+    "githubUnreachable": "{what}失败：连不上 GitHub（{error}）。可以在「设置 → 网络与代理」给 GitHub 配代理，或配置下载加速镜像后重试",
+    "tooLarge": "{what}超过 {kb} KB，已放弃",
+    "githubStatus": "{what}失败：GitHub 返回 {status}",
+    "assetIncomplete": "索引里{what}的记录不完整或过大",
+    "assetMismatch": "下载的{what}与索引里的校验值不一致，已丢弃（可能被镜像篡改）",
+    "assetGone": "下载{what}失败：地址已失效（404）",
+    "download": "下载{what}",
+    "indexNotJson": "插件索引不是合法的 JSON，已拒绝加载",
+    "indexFormat": "插件索引格式不对，已拒绝加载",
+    "indexSchema": "插件索引是 schema {schema}，这个版本的 MovieClaw 只认 schema {supported}{newer, select, yes {，请更新 MovieClaw} other {}}",
+    "indexUnsigned": "插件索引没有签名，已拒绝加载",
+    "unknownKey": "插件索引用的签名密钥 {keyId} 本机不认识，请更新 MovieClaw",
+    "keyUnset": "（未写）",
+    "signatureMissing": "插件索引声明了签名，但没有找到 index.json.sig，已拒绝加载",
+    "signatureInvalid": "插件索引的签名校验失败，内容可能被篡改，已拒绝加载",
+    "indexMissing": "插件索引地址不存在（404）",
+    "runtimeUnsupported": "运行方式 {runtime} 本机不支持，请更新 MovieClaw",
+    "sdkRequired": "需要 SDK {required}，本机是 {current}",
+    "sdkInvalid": "SDK 版本要求写法不对：{sdk}",
+    "needsUpdate": "需要更新 MovieClaw：{reason}",
+    "missingOperation": "需要更新 MovieClaw：本机没有宿主操作 {operation}",
+    "noArtifact": "没有适用于这台服务器（{platform}）的安装包",
+    "idTaken": "已有同 id 的内置插件或本地插件，不能安装",
+    "notInMarket": "插件市场里没有 {id}",
+    "versionMissing": "{name} 没有 {version} 这个版本",
+    "noIcon": "{id} 没有图标",
+    "iconFormat": "图标格式不支持",
+    "noScreenshot": "{id} 没有这张截图",
+    "alreadyInstalled": "{name} {version} 已经安装",
+    "cannotInstall": "{name} {version} 装不了：{reason}",
+    "packageMismatch": "插件包里是 {packageId} {packageVersion}，与索引的 {id} {version} 不一致，已丢弃"
   }
 }

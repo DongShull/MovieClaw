@@ -868,5 +868,119 @@
   },
   "dependencies.pipFailed": {
     "sourceHash": "b7f05e4d68c2c4e41c7df55c6adb406f94a1f0ace4ee2c7c31f9391a4f74caba"
+  },
+  "market.what.index": {
+    "sourceHash": "a3933eba13a090b0f0048d6ab898fac898623436339c3743d355780981018efe"
+  },
+  "market.what.signature": {
+    "sourceHash": "0b81ff50491360a0d22981ea2e4ac14c36abcb4a2175883f2c0610bb9fab3971"
+  },
+  "market.what.readme": {
+    "sourceHash": "66c26395bb80f29cb86bf03d218fa6bdfdb5f0a2bbe13e04b5ae9d986bcdb79b"
+  },
+  "market.what.lock": {
+    "sourceHash": "785288237158c55bcd4e82b0da94f68146fd5198209a447dbb7a8c7091678c03"
+  },
+  "market.what.icon": {
+    "sourceHash": "0d720eeea26466dd99f0c1d3b0bb9876f58d64885aba1d629cf76b760d850875"
+  },
+  "market.what.screenshot": {
+    "sourceHash": "c95dc99afe57b28521c627c339a0580a760774823e47f8719a16e47063a6ba4b"
+  },
+  "market.what.package": {
+    "sourceHash": "2f965f0c5a2b73bad895f821f6c822a2beffb13f75d84bcb9611df2f4b6abdeb"
+  },
+  "market.githubUnreachable": {
+    "sourceHash": "e6e03a92c19c571440a79f68a1eef3d667f8457ef8a3f77b5c7eea303cf5044d"
+  },
+  "market.tooLarge": {
+    "sourceHash": "d023b5e49f6f0285bffe24b341274ecb5a3a3fa33e0be1052def607c72323c9a"
+  },
+  "market.githubStatus": {
+    "sourceHash": "00577b5faebecc9fc43cf7f69be3be78f95d658495e324bb1fd0937fe45df5e1"
+  },
+  "market.assetIncomplete": {
+    "sourceHash": "659f19ea04f33d19e131cae0f2daaf222901e9602871e7beb2bf4b67c6e6c70b"
+  },
+  "market.assetMismatch": {
+    "sourceHash": "2f57bf3ad690698f225084d62dd14e8c212a4d422fa7dd76c3485728343101cd"
+  },
+  "market.assetGone": {
+    "sourceHash": "cee17352d41422e2c64509ebb0fe23f4edf907abc3f2b9153f2db880ef0b6a23"
+  },
+  "market.download": {
+    "sourceHash": "2c9b98c5a6790c275ef1350f60bce4b2e1493fa6edda5f68c85563fc54752be3"
+  },
+  "market.indexNotJson": {
+    "sourceHash": "bbce1b5b8dc5131d2cb38a82cdc582e5b2e617f4cae4c1074ce3b0823c332349"
+  },
+  "market.indexFormat": {
+    "sourceHash": "5efc6cf895629bb0301076e4be081ace550bbd185d86368832ed983f298a2ba0"
+  },
+  "market.indexSchema": {
+    "sourceHash": "eb7c3d42e950ede7a9ced0b15e34a8d45c879c30c2b3bde59707e81967bf1b9b"
+  },
+  "market.indexUnsigned": {
+    "sourceHash": "d51ae362017f5e754169f44020d273221ede211fc3f1c2b6f423ba13da9a7e26"
+  },
+  "market.unknownKey": {
+    "sourceHash": "5dade5c4a7d84b0753126a50531c512f9d9109d61e552bffcfe828ecd26ecfc3"
+  },
+  "market.keyUnset": {
+    "sourceHash": "1c3e573e1d923aea7d82e17277d480aab3efa91f4814faf3267e53c8df26fd26"
+  },
+  "market.signatureMissing": {
+    "sourceHash": "e2c3391b25ac4e5df725b1bc452b33dbd482eced96eb5628e9e45d7bc3632354"
+  },
+  "market.signatureInvalid": {
+    "sourceHash": "49bde8b9986bb14ab508050f9eb310987977d07eeb6b8bf8beabbd70019628b7"
+  },
+  "market.indexMissing": {
+    "sourceHash": "0967d92496b29dffb445b70b3bb69575acec6f8b34075e5f3deb835c35bf19f1"
+  },
+  "market.runtimeUnsupported": {
+    "sourceHash": "0522b66454d0566993624f46666b0c2f779b14994cbde0bee5b4a0b6e53d4cee"
+  },
+  "market.sdkRequired": {
+    "sourceHash": "6a7a86c757770cee34223ea82290ecd4e5de571713a9d974184f0f40c237bcb7"
+  },
+  "market.sdkInvalid": {
+    "sourceHash": "fdb6c1a1430100b8b84f71b5848d5c5aaeb494873111541b5edc4dd9e7bf7f41"
+  },
+  "market.needsUpdate": {
+    "sourceHash": "57ddfdfb942c51f1fd065bde77bea631a170c4f4da65a7a66ac342281ee09fa4"
+  },
+  "market.missingOperation": {
+    "sourceHash": "d01b38b0151878cd35f37fe17ab259ce50a048851ebf852987e082764dffe8ce"
+  },
+  "market.noArtifact": {
+    "sourceHash": "9179f6114c3d6c24f1b3f7846a8269d7f57802b19902df6c464b4214a0a84f39"
+  },
+  "market.idTaken": {
+    "sourceHash": "2d1374b83f8f85636959eac9ddd5f0c2ba06e017ab9ada19b8dfa51c3cef8be8"
+  },
+  "market.notInMarket": {
+    "sourceHash": "a60497e6d1b9d8efa54473d6ffc7e3d0ec10f3a79f0493cf2ed6cbf757ee4f35"
+  },
+  "market.versionMissing": {
+    "sourceHash": "2f89c78c9edb25886d0ca53a44a22e7ccb0b7ba7770424553bee4dda7fdf0358"
+  },
+  "market.noIcon": {
+    "sourceHash": "4dbe1d3455e78f0093886b253b98b460972c806d79a1776cfbaf7899e0d45d89"
+  },
+  "market.iconFormat": {
+    "sourceHash": "12ff7f63abb78b4ed52162a5b5585f2baf7903ec6bec885500e9cf254bf8289a"
+  },
+  "market.noScreenshot": {
+    "sourceHash": "3acd6575d60a4c596f586cb4e21256b368a0c841df0c578690ad338ec80a6f86"
+  },
+  "market.alreadyInstalled": {
+    "sourceHash": "131d5f51a02b9cfd448f813254546ef665eaebc46d8e444a50352b0242acf40c"
+  },
+  "market.cannotInstall": {
+    "sourceHash": "8a92703b54cc677cc16553aeb9334deed5a97b7a608d58468a7088ea55840dc7"
+  },
+  "market.packageMismatch": {
+    "sourceHash": "b8eba1cc1e16bef3c615fe4610c9c7f6a02c394b10a116f64b0624bef6b98085"
   }
 }

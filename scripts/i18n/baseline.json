@@ -101,7 +101,6 @@
   "src/movieclaw_api/services/plugin_gateway.py": 6,
   "src/movieclaw_api/services/plugin_health.py": 1,
   "src/movieclaw_api/services/plugin_jobs.py": 3,
-  "src/movieclaw_api/services/plugin_market.py": 52,
   "src/movieclaw_api/services/plugin_routes.py": 9,
   "src/movieclaw_api/services/plugin_runtime.py": 34,
   "src/movieclaw_api/services/plugin_settings.py": 1,

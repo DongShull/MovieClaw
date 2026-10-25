@@ -304,5 +304,47 @@
   },
   "switches": {
     "disabled": "The plugin was disabled"
+  },
+  "market": {
+    "what": {
+      "index": "Fetching the plugin index",
+      "signature": "Fetching the plugin index signature",
+      "readme": "the readme",
+      "lock": "the dependency lock file",
+      "icon": "the icon",
+      "screenshot": "the screenshot",
+      "package": "the plugin package"
+    },
+    "githubUnreachable": "{what} failed: GitHub is unreachable ({error}). Configure a proxy for GitHub in Settings → Network & proxy, or set a download mirror, then retry",
+    "tooLarge": "{what} exceeds {kb} KB, so it was abandoned",
+    "githubStatus": "{what} failed: GitHub returned {status}",
+    "assetIncomplete": "The index entry for {what} is incomplete or too large",
+    "assetMismatch": "The downloaded {what} doesn’t match the checksum in the index and was discarded (a mirror may have tampered with it)",
+    "assetGone": "Downloading {what} failed: the address no longer exists (404)",
+    "download": "Downloading {what}",
+    "indexNotJson": "The plugin index isn’t valid JSON, so it wasn’t loaded",
+    "indexFormat": "The plugin index has an invalid format, so it wasn’t loaded",
+    "indexSchema": "The plugin index uses schema {schema}, but this version of MovieClaw only supports schema {supported}{newer, select, yes {; update MovieClaw} other {}}",
+    "indexUnsigned": "The plugin index isn’t signed, so it wasn’t loaded",
+    "unknownKey": "The plugin index is signed with a key this server doesn’t know ({keyId}); update MovieClaw",
+    "keyUnset": "(none)",
+    "signatureMissing": "The plugin index declares a signature, but index.json.sig wasn’t found, so it wasn’t loaded",
+    "signatureInvalid": "The plugin index signature didn’t verify; the content may have been tampered with, so it wasn’t loaded",
+    "indexMissing": "The plugin index address doesn’t exist (404)",
+    "runtimeUnsupported": "The runtime {runtime} isn’t supported here; update MovieClaw",
+    "sdkRequired": "Requires SDK {required}; this server has {current}",
+    "sdkInvalid": "Invalid SDK version requirement: {sdk}",
+    "needsUpdate": "MovieClaw needs an update: {reason}",
+    "missingOperation": "MovieClaw needs an update: this server has no host operation {operation}",
+    "noArtifact": "There’s no package for this server ({platform})",
+    "idTaken": "A built-in or local plugin with the same id exists, so it can’t be installed",
+    "notInMarket": "The plugin market has no {id}",
+    "versionMissing": "{name} has no version {version}",
+    "noIcon": "{id} has no icon",
+    "iconFormat": "Unsupported icon format",
+    "noScreenshot": "{id} doesn’t have this screenshot",
+    "alreadyInstalled": "{name} {version} is already installed",
+    "cannotInstall": "{name} {version} can’t be installed: {reason}",
+    "packageMismatch": "The package contains {packageId} {packageVersion}, which doesn’t match {id} {version} in the index, so it was discarded"
   }
 }
