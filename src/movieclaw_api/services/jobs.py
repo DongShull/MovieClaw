@@ -199,12 +199,23 @@ def _new_job_id() -> str:
     return f"job_{uuid.uuid4().hex}"
 
 
-def default_progress(message: str | None = None) -> dict[str, Any]:
+def default_progress(
+    message: str | None = None,
+    *,
+    message_key: str | None = None,
+    message_params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """所有任务共享的进度外壳；领域明细只放 details，不污染公共契约。"""
+    if message_key:
+        text = stored_fields(message_key, **(message_params or {}))
+    elif message is not None:
+        text = {"message": message}
+    else:
+        text = stored_fields("activity.jobs.queued")
     return {
         "mode": "waiting",
         "phase": "queued",
-        **({"message": message} if message is not None else stored_fields("activity.jobs.queued")),
+        **text,
         "current": None,
         "total": None,
         "percent": None,
@@ -547,7 +558,13 @@ async def _record_transition(
 
 
 async def request_cancel(
-    session: AsyncSession, job_id: str, *, requested_by: str, reason: str | None = None
+    session: AsyncSession,
+    job_id: str,
+    *,
+    requested_by: str,
+    reason: str | None = None,
+    reason_key: str | None = None,
+    reason_params: dict[str, Any] | None = None,
 ) -> tuple[Job | None, bool]:
     """请求取消任务。``reason`` 是面向用户的取消原因，会直接显示在任务中心；
 
@@ -576,7 +593,9 @@ async def request_cancel(
             "mode": "paused",
             "phase": "cancelled",
             **(
-                {"message": reason, "message_key": None, "message_params": {}}
+                stored_fields(reason_key, **(reason_params or {}))
+                if reason_key
+                else {"message": reason, "message_key": None, "message_params": {}}
                 if reason
                 else stored_fields("activity.jobs.cancelled")
             ),

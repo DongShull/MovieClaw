@@ -4570,7 +4570,9 @@ async def get_transfer_status(
                     bytes_moved=int(result.get("bytes_moved") or 0),
                     removed_dirs=int(result.get("removed_dirs") or 0),
                     subscription_moved=bool(result.get("subscription_moved")),
-                    errors=list(result.get("errors") or []),
+                    errors=render_organize_errors(
+                        list(result.get("errors") or []), list(result.get("error_messages") or [])
+                    ),
                 )
             )
     last = last_transfer(library_id)
@@ -4592,7 +4594,7 @@ async def get_transfer_status(
             bytes_moved=summary.bytes_moved,
             removed_dirs=summary.removed_dirs,
             subscription_moved=summary.subscription_moved,
-            errors=summary.errors,
+            errors=render_organize_errors(summary.errors, summary.error_messages),
         )
     )
 
@@ -4632,10 +4634,16 @@ def _batch_status_view(job: Job) -> TransferStatusView:
         removed_dirs=int(result.get("removed_dirs") or 0),
         # 跳过是用户在预检里确认过的策略性结果，失败才是意外——两者分开给，
         # 前端不能把它们合成一个"问题数"（合了就没法只对失败给重试入口）
-        skips=[str(item.get("reason") or "") for item in (result.get("skips") or [])],
+        skips=[
+            str(item.get("reason") or "") for item in localize_fields(result.get("skips") or [])
+        ],
         errors=[
-            f"{item.get('title') or ''}：{item.get('reason') or ''}"
-            for item in (result.get("failures") or [])
+            t(
+                "library.batchTransfer.failureLine",
+                title=item.get("title") or "",
+                reason=item.get("reason") or "",
+            )
+            for item in localize_fields(result.get("failures") or [])
         ],
     )
 
