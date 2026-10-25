@@ -180,3 +180,8 @@ def test_web_number_style_is_a_plain_apple_argument():
     shapes = apple.apple_shapes("{done, number}/{total, plural, one {# episode} other {# episodes}}")
     assert "{total, plural, one {{done}/# episode} other {{done}/# episodes}}" in shapes
     assert "{count} identified" in apple.apple_shapes("{count, number} identified")
+
+
+def test_keys_that_generate_the_same_swift_symbol_are_reported():
+    assert apple.symbol_name("settings.members.ui.search") == apple.symbol_name("settings.membersUi.search")
+    assert apple.symbol_name("common.close") == "commonClose"

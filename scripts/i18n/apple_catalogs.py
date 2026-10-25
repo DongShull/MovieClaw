@@ -110,6 +110,12 @@ def whole_plural(icu):
     return "{" + control + ", plural, " + " ".join(lifted) + "}"
 
 
+def symbol_name(key):
+    """The Swift symbol Xcode generates for a manual catalog key (segments joined in lowerCamel)."""
+    parts = key.split(".")
+    return parts[0] + "".join(part[0].upper() + part[1:] for part in parts[1:])
+
+
 def apple_shapes(icu):
     """Forms a Web message may take in an Apple catalog: number styles become plain printf
     arguments, and an embedded plural is lifted to whole-message variations."""
@@ -133,6 +139,12 @@ def check_apple(root, web_english, web_parameters, terms=None):
             errors.append(f"Apple source language changed: {path}")
         if catalog["strings"].keys() != records.keys():
             errors.append(f"Apple catalog metadata key set differs: {path}")
+        symbols = {}
+        for key in catalog["strings"]:
+            name = symbol_name(key)
+            if name in symbols:
+                errors.append(f"Apple keys generate the same symbol: {path}:{symbols[name]} / {key}")
+            symbols[name] = key
         for key, entry in catalog["strings"].items():
             context = f"{path}:{key}"
             if path.endswith("Localizable.xcstrings") and not re.fullmatch(

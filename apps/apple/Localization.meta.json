@@ -10055,6 +10055,3736 @@
     },
     "library.filters.matchedTailMany": {
       "sourceHash": "258b0373e956a65111f0692f62809cd9c2dd1c25008bd6d2c5a05e27f69cd603"
+    },
+    "settings.cloudConnect.syncNow": {
+      "sourceHash": "36e7a43a1c674e505add9add8581ddc4948de2616bba26dc870f4df69c99aad2"
+    },
+    "settings.cloudConnect.disconnectAction": {
+      "sourceHash": "a33f3804768e68eeb00fb5e9d5a17b810fce12463cdbb49c6448091695e49171"
+    },
+    "settings.members.credentials.account": {
+      "sourceHash": "311bb313fdeca6aa2ce7d9415821a0b0247e064340241f68bac3ca5b19ae6d76"
+    },
+    "settings.devices.labels.connected": {
+      "sourceHash": "5be0323e8adcaeae8a644b6e8e4ad05864ec03c7b841504f91c911ff06dabd6d"
+    },
+    "settings.cloudConnect.noticeTitle": {
+      "sourceHash": "2df27bda038af67f30f34c7d6dd02685d18cd58fcd89796350852a0827088f1d"
+    },
+    "settings.cloudConnect.dismissNotice": {
+      "sourceHash": "a0d845188a6a0d3d1f1ad25dbc2e4d7e80cd7b7acf3faa1f4085c7644e3fb1a0"
+    },
+    "settings.controls.enabled": {
+      "sourceHash": "8a4ef3e48e4e8a5a35b62a6738659ffc2e43f81964e27ecf3704fd020945a07f"
+    },
+    "settings.cloudConnect.reportStats": {
+      "sourceHash": "17e5cda2cdf7de778be13151a4e07374eef2b3b093a384481f8b29adc6bcfeeb"
+    },
+    "settings.cloudConnect.synced": {
+      "sourceHash": "a97b743dc7c4f9f9f94bf5d31f60722387328fab4e3ba25d0b1e07b94b9a9fa7"
+    },
+    "settings.cloudConnect.disconnect": {
+      "sourceHash": "f33ac04eece6a6a69194f9101a1cab2a2194ee8edc66275c99da6880845a3077"
+    },
+    "settings.cloudConnect.forceDisconnect": {
+      "sourceHash": "e95c4f7d81862c75b60490e80085283aa11225aaca496d59c43b2eb534b2dd47"
+    },
+    "settings.drives.healthy": {
+      "sourceHash": "296de0e31f8c22d9343c1f07f7fcd2e88a425d769cb0c88d8b24cc865f2c0685"
+    },
+    "settings.cloudConnect.capabilityPush": {
+      "sourceHash": "1c6d86598bd49e1b07c106cb140808b730d9859713bc06e9936032d1fb322341"
+    },
+    "settings.cloudConnect.serverName": {
+      "sourceHash": "ec79bfcf63ea434db0705c33e99fc9a3d49729b0270de99a423121afa7a137e7"
+    },
+    "settings.pluginPackages.discard": {
+      "sourceHash": "e7f51b070effdbe91ef57e73bf05796afd5d6ab5c2b9b5bd0a02d3523dd9982a"
+    },
+    "settings.devices.approval.code": {
+      "sourceHash": "5cfc08a6fc512d66e665496fca4ddb0a7290b6b0edf0f37e719fd81efcc3311d"
+    },
+    "settings.cloudConnect.getNewCode": {
+      "sourceHash": "0865278b09c1c10bb34698c4205a8851f1878f09c77ed57c5d23247e789d52b7"
+    },
+    "settings.cloudConnect.failureExpired": {
+      "sourceHash": "6f62bbf23d647bc46dd6fd787d157c2c283ab408a02397c02377605fe6fbe6cd"
+    },
+    "settings.notificationPreferences.allLibrariesHint": {
+      "sourceHash": "5bd9253ce59c4df014c51b364ee7e03baae95e34f76428cec0b8cd5e9b2da7ef"
+    },
+    "settings.notificationPreferences.selectedLibrariesHint": {
+      "sourceHash": "f9819b820c09756efebc0e264d88069b7046ca92f7df8d2505ba639745cb83ac"
+    },
+    "settings.plugins.restore": {
+      "sourceHash": "e0534b8a4e46a0cb5601d4da01910450a4ef2ffd6eacdc29c7312dcf7cfe0930"
+    },
+    "settings.notificationPreferences.muted": {
+      "sourceHash": "c944c392546ed72d1f4064a970779762fff582dc80bb9f8b78ed651cca881c4d"
+    },
+    "settings.notificationPreferences.sendTest": {
+      "sourceHash": "5e0022a1e9076490a3023b97d579c640f6659cbe6fe536d79d35061813696d47"
+    },
+    "settings.pushChannels.deviceCount": {
+      "sourceHash": "96fea69bb70a1c0470b93bc0dcab485ce2c1f9b4c263a1162d3c5b6f0a5728af",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.notificationPreferences.imAccounts": {
+      "sourceHash": "b8740127aad171e0ba8c66a860ecd06bfeb581271bea4bc96c23bed6ee60f76b",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.update.ui.loading": {
+      "sourceHash": "2b85d77ba96a2532da5046eac7290c11aa6264ed86a9f5ee5a5918f13728dccd"
+    },
+    "settings.update.ui.loadFailed": {
+      "sourceHash": "573271b616731d1e06618d03a282ad99610bcdbee69b72a15fd2c4af849614c8"
+    },
+    "settings.update.ui.restart": {
+      "sourceHash": "035c09440e5e6ccd453239c4e7bac1602b3bf22eeec0c939087ac847a0ac6aed"
+    },
+    "settings.pluginMarket.changelog": {
+      "sourceHash": "0ff983ee831d05659b09dc7afd0d9b3320847175297e1401b8cfc675e8076b8a"
+    },
+    "settings.update.ui.versionWaiting": {
+      "sourceHash": "7d8404dab504b75840b065014f06623c9f4b31ed0a9036db02aab44f011d59c3"
+    },
+    "settings.update.ui.versionWaitingHint": {
+      "sourceHash": "5238f2fac977e63c9d20f66d65d3591dd9580c6f73cd4a0286396ad1c943d51b"
+    },
+    "settings.update.ui.restartTimeout": {
+      "sourceHash": "b5a52da09a8abe554e8eecd32d7f115d4950fc0bf0bfa38dd7819cf792092b2b"
+    },
+    "settings.update.ui.versionTimeoutHint": {
+      "sourceHash": "6ae05e4d11e9ce8772a9952a6245ffc29a6f5c3fb74a652853eea335eed9fbd5"
+    },
+    "settings.update.ui.appWaiting": {
+      "sourceHash": "d0744e2fd7e94816e95e6270513a9b9626de0164b28d46c046941469cd28bf2d"
+    },
+    "settings.update.ui.appWaitingHint": {
+      "sourceHash": "8b1a6ae3f7f8c38a34a7f95c31e8d15c264e724f3a51f6110411d68868903574"
+    },
+    "settings.update.ui.appTimeoutHint": {
+      "sourceHash": "d20eebf90a5ab5bedb44c75e252aecdbeaabe575ae7e6e69e21a922a0b69ba57"
+    },
+    "settings.update.ui.refresh": {
+      "sourceHash": "9366e1784dec59b2b8a7cb712fc8d043eaf5347752b07a6ad83e12beb1166220"
+    },
+    "settings.update.ui.baselineSource": {
+      "sourceHash": "3d7f5542b410b19f8986869c2f71ee22dbda64eab3f2684ac2cda61afa04794a"
+    },
+    "settings.update.ui.devSource": {
+      "sourceHash": "bc76e5f5df2184e9cd5c0bc343f8bc186d236e0fd8c4c802ddc9af09293fe80c"
+    },
+    "settings.update.ui.checking": {
+      "sourceHash": "6b72c3d6855cb87dbe9ab48b5a8bd1f05d773857a0bb9512d4c9bd17defb1d1a"
+    },
+    "settings.update.ui.check": {
+      "sourceHash": "7f68ebad19ba6bcd2a09ae0cc3c71d9bc2688358f5cc3dc553b08292b64536b1"
+    },
+    "settings.update.ui.abnormalExit": {
+      "sourceHash": "48721c1e7060d88d9b2328fbfebdccdd5ad3e06687cd463477dfff183ac1a722",
+      "parameters": [
+        "at",
+        "detail",
+        "code"
+      ]
+    },
+    "settings.llm.ui.understood": {
+      "sourceHash": "de32e20193ad104208b76827aba34935d0f9864e271733f85915c19fbfacf902"
+    },
+    "settings.update.ui.updating": {
+      "sourceHash": "e6442ce18f53cf9901f87fa262cc56632c1eef975cfdaa7fd1b7f1556838c542"
+    },
+    "settings.update.ui.updatingHint": {
+      "sourceHash": "0fb7d64981f30389b26852a72f9059ffb76bf1745a867aae181980a2636ea76c"
+    },
+    "settings.update.ui.checkModel": {
+      "sourceHash": "80f220dd4dcacfc3d5c8255a5e8ad1ab2409c14e4fb1bf35b44d794385b1890a"
+    },
+    "settings.mcp.controls.countUnit": {
+      "sourceHash": "cb60bdbf0c079321f157fd8b6311ed17704ae7b7f0e3c13c57545f509dd5839d",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.update.ui.dismissFailed": {
+      "sourceHash": "c5cf50753135235b34860591bcf5db6c2f770ec5c07a8579760dedb07b5eadc7"
+    },
+    "settings.update.ui.restartTitle": {
+      "sourceHash": "b46af1e63b6ff4faffe906e75057b31ac2999914291d0151cc14fe5a91f51f30"
+    },
+    "settings.update.ui.restartConfirmHint": {
+      "sourceHash": "20b5975186b6c5e4a8dfc6be05d079d578cdd71f6e7d7ec406c2315c1981dc2c"
+    },
+    "settings.update.ui.restartConfirm": {
+      "sourceHash": "4a7dfba7106183fc4290fbaf1ebcd8e8978d3473c2e20b454c0c4efcdcbc278c"
+    },
+    "settings.update.ui.installedAt": {
+      "sourceHash": "e42735ffd76dfa714944e231abf83bef7363b6e216f49842d63b317df1ad8ed9",
+      "parameters": [
+        "at"
+      ]
+    },
+    "settings.update.ui.rollbackRestore": {
+      "sourceHash": "53cf3788ee11ae2b6ee23fad8760fda642687ff0a83f21e74832999813fe3721",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.update.ui.rollbackRestart": {
+      "sourceHash": "35277259e7ea13cdbc278fe21ffbe7fd06dd871faf33235b21566878dbd2b574",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.update.ui.switchSafe": {
+      "sourceHash": "e07cf478239530e8fc5df9a5cd897a709ed1da9512645caa7cac83961f801fc9"
+    },
+    "settings.update.ui.restoreBackup": {
+      "sourceHash": "dd0bb0f0e33798d85a263fe9bf32231ebff3a6b063cc261b51a2806eb0db80d6",
+      "parameters": [
+        "at"
+      ]
+    },
+    "settings.update.ui.backupMissing": {
+      "sourceHash": "9f3f51d2081d80ce74892ed2f33694f2716e199655f666eb51847f8598a823d6"
+    },
+    "settings.update.ui.switchSafeHint": {
+      "sourceHash": "f0b9adf07ff1c0b702a3217fde05a6ff7b5aa4bd233f03453353cb43545ed028"
+    },
+    "settings.members.access.unlimited": {
+      "sourceHash": "f203d577d14268cd853ce37418cb14f8e268c2bce88220ae131c761e2255954a"
+    },
+    "library.directory.pathPlaceholder": {
+      "sourceHash": "8553cb4f526585cb4b08157ac18f6ae9e9e4f7134130916689cdffc54a9ad416"
+    },
+    "library.directory.noChildren": {
+      "sourceHash": "dc0f43ea789f8d265d180deaff2613e35305a06fb6fd9bd9d8cf49aad8767e43"
+    },
+    "library.directory.title": {
+      "sourceHash": "ef6df80166d794ae6a5e4f3c1b0fdfc910b8324cee60212337008138827efd98"
+    },
+    "library.directory.manual": {
+      "sourceHash": "b8e26bdd04734fa76d491f708cf8ead83118c7d5f31c97dadf207090b190cce6"
+    },
+    "library.directory.select": {
+      "sourceHash": "98cad41ee407c265f19d8cbadb98487488a2a77ad53db6197ee3ec361857b510"
+    },
+    "settings.mcp.controls.description": {
+      "sourceHash": "4262c45dc797bb0cd5008331ef25b684413859f55b73c71fb4e2c01b645dbbb7"
+    },
+    "settings.devices.labels.never": {
+      "sourceHash": "458529e0622823f96f62e6a0e92c24f7cce0a6013d200001c17b68add1eb12bf"
+    },
+    "settings.devices.labels.unknownTime": {
+      "sourceHash": "4d8c1c5b42830791a4ce99f630fb9f02ba08c67c5299d46d6cf76661bfd03584"
+    },
+    "settings.devices.labels.justNow": {
+      "sourceHash": "a994662e71e0f0468aa9e13cb78f269660740221836faaefd898bdf983ef28bc"
+    },
+    "settings.devices.labels.minutes": {
+      "sourceHash": "435835e8f42b521a70ac5025be6a9e6fc1c810b88855f3c0ea055af3e8fb1a41",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.devices.labels.hours": {
+      "sourceHash": "9d7b6e89134515224de46dbf2a15de1a6bb8f234ed07da776a4b0ac79b889cec",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.devices.labels.days": {
+      "sourceHash": "8627eb47207096efe0e2f704cdf9851bd306d3176926173edd5f944bfd5fc7b0",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.ai.ui.agentLabel": {
+      "sourceHash": "d43bbd3cc8d127335168137f2dee36b4e696ce4dc25eaf3f0f6e055381b74bb2"
+    },
+    "settings.ai.ui.subtitleLabel": {
+      "sourceHash": "724cac844e51cd5adce858c39307121e5c93147863f5270c210cd52221ca1f53"
+    },
+    "settings.ai.ui.agentHint": {
+      "sourceHash": "04ad8fa586ce808337edaa5acf0c2bccbbef265134d3d511d9698f9712708043"
+    },
+    "settings.ai.ui.subtitleHint": {
+      "sourceHash": "68a1fc5ab9e672e497e13ce57038ff48c724da08c4b569309df31df8fd57702d"
+    },
+    "settings.ai.ui.empty": {
+      "sourceHash": "5366ef4873c43764a9936457dedfab6f36571034455f0f0cf14225c8b99a64d7"
+    },
+    "settings.ai.ui.emptyHint": {
+      "sourceHash": "782122c5c243b147454512ba80ff81d11a8f1733320b26d110a1684c6797212b"
+    },
+    "settings.ai.ui.connect": {
+      "sourceHash": "835a8d04af604a7c484feaf404413da67b045d615d3ea3cb55adb80e6e4791cb"
+    },
+    "settings.ai.ui.saved": {
+      "sourceHash": "c5f4d3fc5fc250636e1d969d8d56efb855c92957abd6794bdd3c3659c7185610"
+    },
+    "settings.scrape.discardChanges": {
+      "sourceHash": "9b7824cefa1e8b160881b03eeb1149918e2efa8ed27b4ad71e2671c7e1d7af00"
+    },
+    "settings.sites.days": {
+      "sourceHash": "019f5da8699e9aeb36b641c8abd7115af0b42a9a99108ebf1ef27c21bc69de9a",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.devices.manual.full": {
+      "sourceHash": "074a0eb777853b60b54d5f609329b57468c6c294669d4967d6aa73aaa6a07728"
+    },
+    "settings.devices.manual.transcode": {
+      "sourceHash": "597dd11db9f755d2fe9752cbf2eadeff6fa8801b16762f7008bf7be38c726bb9"
+    },
+    "settings.devices.manual.saved": {
+      "sourceHash": "0e1df87d773cceb4977c84ec20aac6b24f6f0b20f621de70505c59ccc2d1778f"
+    },
+    "settings.devices.manual.created": {
+      "sourceHash": "d2c138202cb4128b58b73c85f605fede30de7506e046104ba5559c99c8d22dff",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.mcp.controls.copyToken": {
+      "sourceHash": "856566e0e69dfd3ea24ed8ec6670d4044d60bbe67730f4c43321970ee954526e"
+    },
+    "settings.mcp.controls.accessToken": {
+      "sourceHash": "7013328537a0f605602eea124ec5852a4412886cc4a780c23f7a9c9e99b87920"
+    },
+    "settings.network.proxy.env": {
+      "sourceHash": "ae27b474ea4d6ee6c1e77ead957a2b7db3f866e0aafbfa2a5ebc636b55b036cd"
+    },
+    "settings.devices.ui.approve": {
+      "sourceHash": "ef58a049250c5759b9a40c1ef802cd64ac4013d5e0864ef96eddeea5c0294cd9"
+    },
+    "settings.devices.ui.all": {
+      "sourceHash": "0f47166651beae76c1cfe7f2e6ac404feddc7c607ca2d838edd0a261598b576f"
+    },
+    "settings.devices.ui.current": {
+      "sourceHash": "c68978537cf3b65cfe6afb4c4ed0d0773a10fea9552fb0412f9af1b73a0c9be2"
+    },
+    "settings.devices.ui.online": {
+      "sourceHash": "b9086662b1df1f201abb3c367862af46ffb4dd98d9d748e12e9649a3d58f9e0c"
+    },
+    "settings.pushChannels.name": {
+      "sourceHash": "d44e9b3d3b31d37b4f0cd94f7861383519f9ec0cf59b953596627a3e7706bfbc"
+    },
+    "settings.devices.approval.type": {
+      "sourceHash": "ba40014ff496f64e755492a5c6243cc0222a5d3e4b795ecfea7c9bed809adaab"
+    },
+    "settings.devices.approval.version": {
+      "sourceHash": "5f76b2bf82dd2c5d820c26010d44246643f3010308e8821e7054c6c44f6c9f95"
+    },
+    "settings.drives.rename": {
+      "sourceHash": "83c37e8a4a5f2c360b3e2d059866f96b5fa1758040129b617a83a542ecb28989"
+    },
+    "settings.devices.ui.renameTitle": {
+      "sourceHash": "bb8ed22b009d4c5b4f5a1f6c874a4972fb62ecc630f9bcd7c79bdb90cd000534"
+    },
+    "settings.devices.ui.revokeTitle": {
+      "sourceHash": "6bb7553fa88de3975ec03064846d81706f79029008ee46e8ea53832a80c0f4f0",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.devices.ui.revoke": {
+      "sourceHash": "a48fa6108b579f91c71d47171a7a78f4c1e05027e8819d8d5636ed14bac8e455"
+    },
+    "settings.devices.labels.groupBrowser": {
+      "sourceHash": "e19c3b9e266c69c952f9f265334bb14bceeb2f6869305d1a44447c5e09e64105"
+    },
+    "settings.devices.labels.groupPaired": {
+      "sourceHash": "fa9fe2111f8ad31cd9d57beb4cda490f0e99e2b8ee3668763da4c5e7384a47dd"
+    },
+    "settings.devices.labels.groupPlayer": {
+      "sourceHash": "deed64d8463284a0eda6cd7369f4cf99c71b6ead2f896c43c313c54ab19feaf8"
+    },
+    "settings.devices.labels.worker": {
+      "sourceHash": "f5d59f70983ce2e599282faf8a6755f2d9c2cf38e4f8aae5a546becc4646c5fc"
+    },
+    "settings.devices.labels.cli": {
+      "sourceHash": "a78397064ad9b7e55261d63287818c75955908824db9f5fe0c06800aa96f8817"
+    },
+    "settings.devices.labels.manual": {
+      "sourceHash": "c76e80ccce3f1fc24f51d0a40cc6b53475b4bca783b641728688f4675d0a6e56"
+    },
+    "settings.devices.labels.unknown": {
+      "sourceHash": "fb8761798475d1d85cbfc06cd406abda6772df6ad3b0a0d68537777d5b329697"
+    },
+    "settings.devices.labels.transcodeTitle": {
+      "sourceHash": "efda6d1fc1ab6b5f574d3c947a072dcbbe6f7449f50f67d6b9f2cc62191aedb0"
+    },
+    "settings.devices.labels.workerBody": {
+      "sourceHash": "5d9ccb0572f89a5bb1a071e6f8cee6996d52454964dbc487c7fcd247ee984eb7"
+    },
+    "settings.devices.labels.androidtvAdmin": {
+      "sourceHash": "0faa592d3ee1301fcd2ef3764dba487966bb9905511aac1b34f4bf0a993f7d88"
+    },
+    "settings.devices.labels.androidtvMember": {
+      "sourceHash": "d499bcd30fa544a88393112f705f54ff98ff960e6969077bc81f5b2dffed5914"
+    },
+    "settings.devices.labels.tvBody": {
+      "sourceHash": "21e6c58c294eaab34d144ce5dbe1de84091829eea0352e4855589717f22be19a"
+    },
+    "settings.devices.labels.tvosAdmin": {
+      "sourceHash": "52b02ceafe2b2b0ce73590b6b05c3cd8d0875ec46bf84844608f6fcef8ebebc3"
+    },
+    "settings.devices.labels.tvosMember": {
+      "sourceHash": "10585f84119875ffeed3ce62524aba33b6dc4df9c4cf8b07e8a44117230bbcb8"
+    },
+    "settings.devices.labels.macosAdmin": {
+      "sourceHash": "e2cc8683f46a69a84ef62326e8bffcb29aecb7694ea908925700080cdb97dd70"
+    },
+    "settings.devices.labels.macosMember": {
+      "sourceHash": "b42fd82984985e1380592ffd2ea9a0027200449e192b8a4c94598486fd3f02e4"
+    },
+    "settings.devices.labels.macBody": {
+      "sourceHash": "bcd81679a604d397abf654af14f439ee43978618f90f9ff250068ae26768f5b3"
+    },
+    "settings.devices.labels.adminTitle": {
+      "sourceHash": "c6b8fb03af9fbc4e1cc8f4bb7dfd7bff212df5dfd213478df89203c5cbd969ab"
+    },
+    "settings.devices.labels.adminBody": {
+      "sourceHash": "765ae7336f1142ffc85bbdbcf8f2098550186c993c9453fe16212efad62d577b"
+    },
+    "settings.devices.labels.memberTitle": {
+      "sourceHash": "25ddea7e0ded0daa50254b94618dec0a3f6ef87a03363008d4fabb53fe09f4b0"
+    },
+    "settings.devices.labels.manualFullBody": {
+      "sourceHash": "f2167d86d1c8f927f4ae25cf7c30d1888964868afc85162d6ef5c6bafda501c6"
+    },
+    "settings.devices.labels.badgeTranscode": {
+      "sourceHash": "98ae9825aca73b2f3b6767595885ecf834c4c67ef1e51177cd75be1b06afc2fe"
+    },
+    "settings.devices.labels.version": {
+      "sourceHash": "8d180c91a2b143a176de047d32d7eb7f5545ad0b1b27d2b8957f2c47437e2b78",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.llm.ui.addTitle": {
+      "sourceHash": "e8d71c622336bd3494efb84109da0c66159e09633b860aef10be3d2b24d8b845"
+    },
+    "settings.llm.ui.emptyIntro": {
+      "sourceHash": "7e3c04feca4e2e6802f66e8dde887df675e10623bb1de3d37f02ea3254414e2f"
+    },
+    "settings.llm.ui.connectedIntro": {
+      "sourceHash": "718c9c970621a1aca24336bd5e76aff8875f336074597205fd8a3df8ef875643"
+    },
+    "settings.llm.ui.empty": {
+      "sourceHash": "d6a7b1e037a9d56a10f398c9e1a87344c55179c5d3a106e5c920c7e8a6be68e3"
+    },
+    "settings.webhook.ui.deleteTitle": {
+      "sourceHash": "4cc05355992bc6183f740abc92560df7868a2e7c64ad6736cb7bf6301bc8dbad",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.llm.ui.deleteHint": {
+      "sourceHash": "8a2568989e413756df49f4146ea605e3115a3ccc9b782ca4a76676688a2f6908"
+    },
+    "settings.logs.viewer.historical": {
+      "sourceHash": "e5aedf6ea939f07a853769e3d41fa478c07847c5af26c6ae27eda59f9fede306"
+    },
+    "settings.mcp.controls.all": {
+      "sourceHash": "5c55a67935af8f4508ba05d6d81c9eb240a2ea0ba886d8428b985e305470da3f"
+    },
+    "settings.logs.viewer.errors": {
+      "sourceHash": "0bc1fb72ae1be5c5f95031df7a72d2dd795c5405548e9098e81f90c64190f52d"
+    },
+    "settings.logs.viewer.warnings": {
+      "sourceHash": "a8b7a4480407ac8afc27e1bb8a2a1384003aaf3b3b16407d5fade778ec2c8d39"
+    },
+    "settings.logs.viewer.info": {
+      "sourceHash": "e7028601e7da793d0c5f2f539c5654e24b2c1db4b0d20d08f8c5d952a748ebf8"
+    },
+    "settings.logs.viewer.debug": {
+      "sourceHash": "a3ba53fadbaed9d7db0dfdf1cd51190b942d09fc2b2c95ce17267b83a50c0a71"
+    },
+    "settings.logs.viewer.noLogs": {
+      "sourceHash": "10fafbeaa7fddd33324b0cfd0127247670c711f0244bbe84720bd8786a2e8339"
+    },
+    "settings.logs.viewer.day": {
+      "sourceHash": "40e0e6f1779164ff0782f538c8205001fb7400e942036f91a7cf6f4c00f49baf"
+    },
+    "settings.logs.viewer.lines": {
+      "sourceHash": "5048eb69a0eca80151e6c58b94223d11119581932c486c4d05afab0fb0f709ab",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.logs.viewer.autoRefresh": {
+      "sourceHash": "98073e15fa0329d0abe00ccba9683a1266baee6ae15de7b3e37aa950c3142467"
+    },
+    "settings.logs.viewer.frequency": {
+      "sourceHash": "9a77066e4a208459458a6915a883a46bc2a122c3c00855b4e0015615d867bff8"
+    },
+    "settings.logs.viewer.searchPlaceholder": {
+      "sourceHash": "f7113b53886a1660875b5348d613ad521421e4807abdeeb81584d20169927e1b"
+    },
+    "settings.logs.viewer.exitFullscreen": {
+      "sourceHash": "0f1505b6ad3fafe48456efa68ff7d6ea746fc140ed10ac822b016ea9247d3f82"
+    },
+    "settings.logs.viewer.fullscreen": {
+      "sourceHash": "11423aad226b048207d5e073e7642f740efa771b9c280a0a3eb932bff3a87314"
+    },
+    "settings.logs.viewer.loadAll": {
+      "sourceHash": "8bd2e69ed6659095a8dc1167192d1a1f8d992cd9442b88fe86f0da776f1ced8e"
+    },
+    "settings.logs.viewer.newLogs": {
+      "sourceHash": "30d60392eb05eb679c8bfe3fc9a611203286424f52b411becbddaf6634904986",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.logs.viewer.loadingLogs": {
+      "sourceHash": "8e88dddf09d7c59ce4ea9970de299934753604ae911ea25ac1135288ee7b70b0"
+    },
+    "settings.logs.viewer.noFiles": {
+      "sourceHash": "b9906d7a4767a7c69cd5fafbe00699ee30321ca47d2ac1b8aacb270eda9d751a"
+    },
+    "settings.logs.viewer.emptyDay": {
+      "sourceHash": "cfc22a964c71db1e8b35cb8e6e1094b86ae0db3f56cdcc6b030fd66612a80939"
+    },
+    "settings.logs.viewer.noMatch": {
+      "sourceHash": "a079b1ecc60713e4f4061a0785c10db0f7389b992faecd2dacf006177b8aecb3"
+    },
+    "settings.mcp.controls.new": {
+      "sourceHash": "8228a95a764fdaf56fad835fe093697d0676a5573b3b06b51cfb38ff84992d83"
+    },
+    "settings.mcp.controls.enableService": {
+      "sourceHash": "e36607f106ae9791e362e939201094ac9d7bc8b92da6b31566470e245bdd0805"
+    },
+    "settings.mcp.controls.disabledHint": {
+      "sourceHash": "74db0331dada342fc7ef9012a0090c273f852361783ac06f698eac3e8950b8b0"
+    },
+    "settings.mcp.controls.emptyTitle": {
+      "sourceHash": "3ed6aead3fe2813fe42f5e34895242d5d9eb988901be4c35c531628cc2a8df10"
+    },
+    "settings.mcp.controls.endpoints": {
+      "sourceHash": "52fff1680de153af928da8eb4bd43ebe0b00ec535ba56a763d7a99545f76b12c"
+    },
+    "settings.members.credentials.username": {
+      "sourceHash": "1a3f0617d6de8e52b118615b380a998dcf5b35642b485c26a44d2fc3e87a50ba"
+    },
+    "settings.members.credentials.initialPassword": {
+      "sourceHash": "df387080f986297c9741f5aa0b209567dce5c49563737e85f932d804ebf9e2c1"
+    },
+    "settings.members.credentials.regenerate": {
+      "sourceHash": "2f283e643c1b1ad555f4455831f08cf93b77dda6ae6d89c1f645745eea04b273"
+    },
+    "settings.members.ui.add": {
+      "sourceHash": "ad9737dafdbfbc00ea89958ae22c4606cb20d4a28d28fc2a9b40203f1a7f0b8f"
+    },
+    "settings.devices.ui.done": {
+      "sourceHash": "c0b3fbff51ccc40b8bf1a81666e7ecced016187cbe2ac6f1d627e0d7a287e04d"
+    },
+    "settings.members.credentials.created": {
+      "sourceHash": "30ff883f31516bead89c90688211267b4faf93a9d07aaf5a19cef2dfe179e18b"
+    },
+    "settings.members.credentials.allDetails": {
+      "sourceHash": "f27af12ee2d70d6eecd2f79bb42ebf109314ebba8eece134d85a2273cd994b6f",
+      "parameters": [
+        "username",
+        "password"
+      ]
+    },
+    "settings.members.credentials.copyAll": {
+      "sourceHash": "2edb852c8e7744922721827c1f511069be6e9ff228f51f90d2756c3fcfac7536"
+    },
+    "settings.members.access.allSites": {
+      "sourceHash": "79e4c47e561de17a2c199e66975667095aaedcf12fccfcadbbdb87348f5fa1ef"
+    },
+    "settings.pushChannels.coveredCount": {
+      "sourceHash": "1345af3b41da461f3078c07f5876d90deda133022cdee55a7e7d0dde2cf2e2db",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.members.ui.neverSignedIn": {
+      "sourceHash": "ece1a8c76de37ca814f7b425c09a64f0193d0b39333771333d55b35a80123e03"
+    },
+    "settings.members.actions.reset": {
+      "sourceHash": "d70928debc2e80cdf099d55b89103a8549e714ba74cc5d72e7fc6ac5c32cff12"
+    },
+    "settings.members.actions.disable": {
+      "sourceHash": "fe5263bfd4d8cb325ff94822856452212448b18b506b1cbe10d5ec7ef70cf067"
+    },
+    "settings.members.actions.enable": {
+      "sourceHash": "bdde0e4684274a5bb8ce57451ff15192fe3f7eb85756cf2b76f9e30c97585a25"
+    },
+    "settings.members.actions.delete": {
+      "sourceHash": "fa5d8135ce42933a2ee8e97860fb35a872bef44ad24bccb9657ae2217942a2d2"
+    },
+    "settings.members.ui.subscribe": {
+      "sourceHash": "cf8efc450f718fbfd2ee60e9871ef625b47c2ef58d2e31635ed848de846a79f8"
+    },
+    "settings.members.ui.download": {
+      "sourceHash": "4673a2306165612576462979eee34149329ab42aad9b580e726a1fae1ce7ab64"
+    },
+    "settings.members.ui.browseOnly": {
+      "sourceHash": "ea1febb207d63480c3e409bc5d732f2eac5351b351b858af76429853a4515f08"
+    },
+    "settings.members.actions.resetTitle": {
+      "sourceHash": "c5f1c8182f4e99df53816b88cd8f112e31d68e972f400c168737b75818774c0c",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.members.credentials.reset": {
+      "sourceHash": "95f9dfb3208b7701a1582b332531555280d5d4c1d8c3febe931e43fa513dbdb0"
+    },
+    "settings.members.actions.signOut": {
+      "sourceHash": "5c535ffa78291dda5b7da62f548f6d14a47f04d5d9a656e5f441ed1dd8b7fec0"
+    },
+    "settings.members.actions.disableTitle": {
+      "sourceHash": "f2499a39b15de267e70cca669aa40d226dc769856cf672dea0e547af8705a2f7",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.members.actions.deleteTitle": {
+      "sourceHash": "4b87e1946e38fd0f0cd1c1b4160f1056f117065f6c749d6fb1b1dc39c2cd79a3",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.members.actions.deleteHint": {
+      "sourceHash": "fca8c22199328f21038aab96746e4145800eff972eb2e8f320fad8770a666492"
+    },
+    "settings.members.ui.basic": {
+      "sourceHash": "e8df058725699a17c279f209cc6b37487f5e0a96e81b1ea3710e45cba354bf90"
+    },
+    "settings.members.ui.permissions": {
+      "sourceHash": "df0752fa82921c4b470052a6817b1eee9b027bd8b303b641bb3451fc87826aca"
+    },
+    "settings.members.access.contentRating": {
+      "sourceHash": "11674b63fd9a9276e096f0a333048fd640c0c2f91b1a427dbcd5ac1442ad35a6"
+    },
+    "settings.members.ui.libraries": {
+      "sourceHash": "37ffac5bf20fcc5137e62ca206a6095abc7e90aee9f0ca089cb055c8ee4d5b6a"
+    },
+    "settings.members.access.searchableSites": {
+      "sourceHash": "5df95df9fbdf7e6b3348d9345543a22f5f29cd100275d9446860af3ae27f5876"
+    },
+    "library.manage.search": {
+      "sourceHash": "b8dfc42a1404a04fda6041c7fd8d6bd71b182689e4d36fda81bc41c03db5eb09"
+    },
+    "search.preferences.sites": {
+      "sourceHash": "86f38dcd61db81ee831f4b5d5d82a5dc9ef770c3ffa7f7a6d479132307371127"
+    },
+    "settings.members.access.subscribe": {
+      "sourceHash": "a6dd4137453149f80dc9d003f01d0846dcd00aed96879278866fb1412bd6ac71"
+    },
+    "settings.members.ui.search": {
+      "sourceHash": "3868b2488531183ba1e36607b37932241d2661f415b8c522dda4228f62e074ee"
+    },
+    "settings.members.access.directDownload": {
+      "sourceHash": "489bfca57068c0f89555fbb20668cd02e38be7fa3d52a239c6dedc1a2934e7d0"
+    },
+    "settings.members.access.underAge": {
+      "sourceHash": "233fa592ef8e791f9603a9b2507101d70799e19adb165ce3260f7dc5a87e76f5",
+      "parameters": [
+        "age"
+      ]
+    },
+    "settings.members.access.shared": {
+      "sourceHash": "4a64c9b90a843a66a8a131848729a97543c296aef8037aacd47c7e7b7ac57080"
+    },
+    "settings.members.access.selectedLibraries": {
+      "sourceHash": "67599942be16d5c78f938edaedd60ce8b6d0c6f1353ccd969b0de39f6e59ffa7"
+    },
+    "settings.members.access.selectedSites": {
+      "sourceHash": "ed5a8ea0f10ffe52600315ca42e73ef855a3f434b410be25aaedfcd3094beb96"
+    },
+    "common.notSelected": {
+      "sourceHash": "1182c5454f113db566b4120738cfc51bdd839f3ee3649f6d37d93ee8b838f9db"
+    },
+    "settings.network.proxy.loading": {
+      "sourceHash": "2e3a3cc736eec46f129ae72d64587415badacdcc67499740636b19a5b3746d76"
+    },
+    "settings.network.proxy.loadFailed": {
+      "sourceHash": "6cace5645cd6b0d8420b67c28456685d176da5dde9bc33349fd1e450fb5fb627"
+    },
+    "settings.network.proxy.sites": {
+      "sourceHash": "1e8e9200049e9e4b10ce1499a68cdb22f5bad73d992292f0f390d74f0b18435f"
+    },
+    "download.config.connection": {
+      "sourceHash": "a5574109f0208e899feb6b620feb3f1f686aded4ec939631420afc1bec51c400"
+    },
+    "settings.network.external.title": {
+      "sourceHash": "9b500b772a9d9e694a717eb1b2df6118f1311185a709f40a9fb5a03de5eca136"
+    },
+    "settings.appearance.defaultBackdrop": {
+      "sourceHash": "844b8cc8dff7c1d87b0f840c0a1271b227b332288a1a947f24fd376bfd12c1c9"
+    },
+    "settings.scrape.custom": {
+      "sourceHash": "4eafa9e925b30bcdc99faefeb4a833b47194b0d4f6d7753cecfebea31a61d01a"
+    },
+    "settings.llm.ui.testing": {
+      "sourceHash": "458748c7478ef72d6eb2b9e7af162f8676770ec09a4da4c5e758352083d37252"
+    },
+    "settings.network.proxy.connected": {
+      "sourceHash": "10b3db51e4cb75f270f17131b07034641405cd67c0ab5c273c475843a275fee8"
+    },
+    "settings.network.proxy.unreachable": {
+      "sourceHash": "7badfabc6ef183f15ca0d989d01dc53420c421baa56f2371bf0753286cf05147"
+    },
+    "settings.network.proxy.manual": {
+      "sourceHash": "962f41ef825b7266ca5b73c2de89524538ee104475c480ffac2cf8656062a29e"
+    },
+    "settings.network.proxy.off": {
+      "sourceHash": "dd21dd9bdd9aa129a834d98a65b49395e7a97bfa65fdb49b84f379ed8d63abe4"
+    },
+    "settings.network.proxy.mode": {
+      "sourceHash": "6d1876364ac6457db95c0e13302016ec4dbc68fa4d0d62ab7d496152f92921d9"
+    },
+    "settings.network.proxy.address": {
+      "sourceHash": "b9af2de88d903be72f690976346c173d10797e812360dbafd3bff16ed4a543c5"
+    },
+    "settings.network.proxy.apiAddress": {
+      "sourceHash": "03b11112dc970014229c7aea60abcb0dc1270309a86fd7e6ba616961cb2143d9"
+    },
+    "settings.network.proxy.imageAddress": {
+      "sourceHash": "76777963027a26dd5e9a3f07736766acde3ba010acb8cbc16fb9f0bd1eb2f6c7"
+    },
+    "settings.network.external.address": {
+      "sourceHash": "88ebdba04bdb3d059f2aeae349c81425f45065e92978d291b535b45c8e736ea2"
+    },
+    "settings.network.external.port": {
+      "sourceHash": "284e621702aca42bc9faa6570824a8fd5695fad832d016ca84fd4aea632ba242"
+    },
+    "settings.devices.approval.source": {
+      "sourceHash": "a488e93d69cc12961ea26e97b7d246d03a9af7334d2d84881dd7f702e801bf74"
+    },
+    "settings.network.external.settingSource": {
+      "sourceHash": "fa94b12e7160230e96ed6e91ef0905b348c89cf1b8e00fe160d643bf05e1aeb6"
+    },
+    "settings.playback.controls.disableClipsTitle": {
+      "sourceHash": "9b487509629d31a36b1f87b0f468db4a730c959ee2c46f00ed16e7427b72cc15"
+    },
+    "settings.playback.controls.clipsTitle": {
+      "sourceHash": "7d964f3d53d760f8286773ae786c16f6940997397bc1d58be70ca118b58eade1"
+    },
+    "settings.playback.controls.remoteTitle": {
+      "sourceHash": "2e14513e7a456952f0cb57b8c8c900528cc0999cf20cc631f949541d447f0972"
+    },
+    "settings.members.ui.enabled": {
+      "sourceHash": "dfb802238b38fbd49560b461d3ff1ee5cef3a72077c37a1325cb4892c10fd1c8"
+    },
+    "settings.playback.controls.off": {
+      "sourceHash": "6744b4c6a9aa00381ffea2b3d229778b0724b073bd46e13f4e73868667eeb44f"
+    },
+    "settings.playback.controls.disconnected": {
+      "sourceHash": "3d52574ce15005618ef3b4bf96659abef1f47436f67dca9e33f6b3d73daab238"
+    },
+    "settings.playback.controls.draining": {
+      "sourceHash": "243de599288f9c56f45d10f18fe5d821cf76bd343872a5fee0cb4fafa84542de"
+    },
+    "settings.playback.controls.offline": {
+      "sourceHash": "c599740114595021e60a87d61a840ac4e383af57ead8c3efb88fb1076ad32ace"
+    },
+    "settings.playback.controls.preparing": {
+      "sourceHash": "2ac3d5cf54e7b4a8d188ab488188ccbcb34a4927385e84a5d0ffcfc4dfe5fe8e"
+    },
+    "settings.playback.controls.clipsDone": {
+      "sourceHash": "1ec3be219ac9d6fed0062108393374aa424972eeae118b692d6cdac8db02ece3",
+      "parameters": [
+        "ready"
+      ],
+      "pluralParameter": "ready"
+    },
+    "settings.playback.controls.clipsPaused": {
+      "sourceHash": "821ff3b118a414e8297aefe0d2ee26c477a8a2e683b61ff034acb44a43f768d6",
+      "parameters": [
+        "ready",
+        "total"
+      ]
+    },
+    "settings.playback.controls.clipsRunning": {
+      "sourceHash": "89df3f7f7cb94799f2598afdc72426b0843159a6a8d079131cece515fefba4ef",
+      "parameters": [
+        "ready",
+        "total"
+      ]
+    },
+    "settings.playback.controls.enableRemote": {
+      "sourceHash": "5d533b5fa210a2e6d5a5819f84882c6751cb3c4a624385d846fdc95ccab03dff"
+    },
+    "settings.playback.controls.address": {
+      "sourceHash": "d72a0325a7992a89c39c9e2b52695968565558835e0d7be3b5fc9987b34c3a49"
+    },
+    "settings.playback.controls.jobs": {
+      "sourceHash": "95a359bbd208008e67d7927f22346bbca2bbae7016e5e143b0b744eeaf1b8f5b",
+      "parameters": [
+        "active",
+        "max"
+      ]
+    },
+    "settings.playback.controls.seen": {
+      "sourceHash": "9cbd69e75691235ce446b38fac348062e7319baeebae1e769b48b3e9952714fb",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.profile.nicknameEmpty": {
+      "sourceHash": "702f83ff44f34ece602a79c60b6e4810e0193aeca715f71f315389fc4c503e41"
+    },
+    "settings.profile.passwordMismatch": {
+      "sourceHash": "c5575a2e4b0311b834f3d92374b6a3c71e1fb318fb45e52bcdc6c37bb87f7f7c"
+    },
+    "settings.profile.changePassword": {
+      "sourceHash": "08d00806241183c58ef770495677f91c3b18544d8e69ce83a618b8dfb6dba7e8"
+    },
+    "settings.profile.changeAvatar": {
+      "sourceHash": "42ece898483ffce723dc8cc2c069cf2291f709026dd8d21c0d841d838c37c23c"
+    },
+    "settings.imageUpload.readFailed": {
+      "sourceHash": "c72ad3f4aa4ef83f3eda05660b82cbf4e30600fb88e621a6afc89d8d8f2ba236"
+    },
+    "settings.imageUpload.decodeFailed": {
+      "sourceHash": "bf9d2fddf4bbf9b3d0237bf0a0323dbc7cbf55542c6846c6c79712bb02477b28"
+    },
+    "settings.appearance.uploadFailed": {
+      "sourceHash": "9a5fc6f32695b793f52537477f67d4070ea83e5d96f7c918746bbe3634f12188"
+    },
+    "settings.profile.clearHistoryTitle": {
+      "sourceHash": "3339c3d09a919082145c9b9edd6c151c3233bb5f3d53b2e4b636603fd6c358ee"
+    },
+    "settings.profile.clearHistoryDescription": {
+      "sourceHash": "a391ea24e3708612bda32fd5b155fc16e73884bc5abed3a9db63d1ae2e575081"
+    },
+    "settings.scrape.loading": {
+      "sourceHash": "aa742bde9e61e51fa2749db3886dc1cb9c555f04b7f02d6deb7deae4234c51b3"
+    },
+    "settings.scrape.metadataSection": {
+      "sourceHash": "aeae1c799c943ce9f4f7a0dab148170ff513e8451433d99dbdeabaf4a0ff414c"
+    },
+    "settings.scrape.imagesSection": {
+      "sourceHash": "d24c10d37db0feea7bd73498118e280e6b33ca93f53f34d5e1cca1ba3e83730d"
+    },
+    "settings.scrape.saveFailed": {
+      "sourceHash": "f42a1238b44a48586672e0be5f46a46a7886d9b408b2626dc0a174810ac69368"
+    },
+    "settings.scrape.resetTemplates": {
+      "sourceHash": "b19acac770d485b48c6f6475943b285984a1e2d3b738786b015e024ea6320735"
+    },
+    "settings.scrape.regionOptions": {
+      "sourceHash": "0b5daa927681e86358f4cd3b74e55df326f598e68980e27f282662529e309c40"
+    },
+    "settings.network.services.webSearchLabel": {
+      "sourceHash": "e369180d1c13449e881371f1199045510115164c3a67cd185e812539816fd80b"
+    },
+    "settings.webSearch.ui.connected": {
+      "sourceHash": "fa1876770899f29b15b7cf4083e604db799c18f160ce9908376600749ec48fcd"
+    },
+    "settings.webSearch.ui.add": {
+      "sourceHash": "413d640aafc546ea5eafad0af97a2323a4f656ddc5a61353dc89bcc55f8a268a"
+    },
+    "settings.webSearch.ui.notConnected": {
+      "sourceHash": "af33de3507b4c2391ba968a6d89bd7ad8ba399b97792bf1d044f684206265944"
+    },
+    "settings.webSearch.ui.connectedProvider": {
+      "sourceHash": "93ce87d7894e28c6c726c36fe255f73285d9afbe6b1b4786c656ebd6576735e0",
+      "parameters": [
+        "provider"
+      ]
+    },
+    "settings.webSearch.ui.saved": {
+      "sourceHash": "1f6ec353ace6a53a3e408a79229cd659b5e8d5664a22b3b1c96813e327ea4b95"
+    },
+    "settings.webSearch.ui.retest": {
+      "sourceHash": "e9291da9e89a77071e92135cd7b012c304be142e52696050b7fdc91f28791e53"
+    },
+    "settings.webSearch.ui.disable": {
+      "sourceHash": "9b041f4b68e8f3065afa6547422b485045cbbb3076c88a20fe05b6134db26171"
+    },
+    "settings.webSearch.ui.disableTitle": {
+      "sourceHash": "c8510661f932112fa9f588dc9f5b4cfcabaac4f251b19315b0757bed00cceb47"
+    },
+    "settings.webSearch.ui.disableHint": {
+      "sourceHash": "eca858be659b057e4c3c9c0cb0a642e93d61cb198c9475471cf4d313007085c7"
+    },
+    "settings.webSearch.ui.disabled": {
+      "sourceHash": "15673740e415da62fbdaa55e5be7fb08ed416c098aedbb9f3cff7e3dfecd94fc"
+    },
+    "settings.webSearch.ui.verifySave": {
+      "sourceHash": "474cbd48a871d6864f882a80f3fada23b2985c448d02161d914774a151eb0fe7"
+    },
+    "settings.webSearch.ui.provider": {
+      "sourceHash": "9eb591385b2eb8b1fe1d9908a5c3482ec6def3c0a04e4dc6f00860d8365f6ad5"
+    },
+    "settings.llm.ui.hide": {
+      "sourceHash": "145219e726b87790e7b498ab08dc15f50d1261ce1be942999aa42a87b8bc79df"
+    },
+    "settings.llm.ui.show": {
+      "sourceHash": "4e1449e7d5e505938ac1d0b7c392f67850ade1cd95cc7daa4e276889fa70a1f5"
+    },
+    "settings.llm.ui.hideKey": {
+      "sourceHash": "86b7355ec3bd55ef00274fafd243ba7e1b1f18aad6d55e07f33be98bfde1ea3b"
+    },
+    "settings.llm.ui.showKey": {
+      "sourceHash": "f2bdc88464c51c2e5a76599b4cf84a33dc592b5f096685ccb6fe074a7d1738b8"
+    },
+    "settings.webSearch.ui.signup": {
+      "sourceHash": "eebc4d314717a1605a92d6dccf932a812af510a4305e2f45fc36c1f8a66345ca",
+      "parameters": [
+        "provider"
+      ]
+    },
+    "settings.scrape.fanartPlaceholder": {
+      "sourceHash": "ac33827a85efec03ad40cb479a7ef042de4cb828d2baaf7131d793935cc12734"
+    },
+    "settings.webSearch.ui.verifyHint": {
+      "sourceHash": "409ccfc7af34d44d1a5563fc8cf705d4c3859866101edc8066cca615957fcffc"
+    },
+    "settings.webSearch.ui.changedProvider": {
+      "sourceHash": "d6f80863b18f93eb2c6cc5cacb181bf079dd6f2f132e924d4045c0bc8a943b8c"
+    },
+    "settings.webhook.ui.revealedTitle": {
+      "sourceHash": "550a814fa1e441f7435461b485af021a14ebabb86accf558f6a86893377361b3",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.devices.manual.savedClose": {
+      "sourceHash": "d8c7d57e39650dffad622f128a77603ac465c0e9442510efd5984bc20bd554c5"
+    },
+    "settings.webhook.ui.enable": {
+      "sourceHash": "e153c8615ae8fb8eaae2ddd91a60ca1332517342dc61f8bb6fd6055bc5fe5556"
+    },
+    "settings.webhook.ui.empty": {
+      "sourceHash": "5148e9618372fc10de44b1db45125b8d2467b3bf62e0018ac0e6bf31cbad1ab6"
+    },
+    "settings.webhook.ui.add": {
+      "sourceHash": "61e9e30810b06829c5aeaa14af5a030efbfc7c786cde8d71650a2b16b8aa9e22"
+    },
+    "settings.webhook.ui.nativeFormat": {
+      "sourceHash": "cc81fb28ec6f41211fe1330fdd0531e8659366b26b89038c39cca9d55d420c44"
+    },
+    "settings.webhook.ui.jellyfinFormat": {
+      "sourceHash": "dc57d3a9fdc4868128b4ee68cb65b05b92d96501bbab54cb2cab3813bc1f1091"
+    },
+    "settings.webhook.ui.enableEndpoint": {
+      "sourceHash": "b1f38f9b4c89181cc547f9f06a64818082e6f0a8edb731148bf905dde5e4816e",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.webhook.ui.sendTest": {
+      "sourceHash": "a49d32136de15e77a5ecbf7e4873cc57953088ba26b128a4b6de7267670e794d"
+    },
+    "settings.members.ui.disabled": {
+      "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+    },
+    "settings.webhook.ui.neverDelivered": {
+      "sourceHash": "a551319a143aa61f78013edeeb80d380983125c9234db4db5be15a8b3705221a"
+    },
+    "settings.webhook.ui.deliveredAt": {
+      "sourceHash": "4be0c3ec218f63d8eb72ebc4e6b6f20b6eb1743ba6eb7665a59de9cb62cb1126",
+      "parameters": [
+        "time"
+      ]
+    },
+    "settings.webhook.ui.failedAt": {
+      "sourceHash": "eb54371b2c306c7644af9fdeb20c2d1099aee44d21ccc9b3d00e4d9fbfd97e92",
+      "parameters": [
+        "time"
+      ]
+    },
+    "settings.webhook.ui.noRecords": {
+      "sourceHash": "a295dc991f1f60d389ad03f10e74d32a92bbfabaa57d4b3cb1c2771f1086ba38"
+    },
+    "settings.webhook.ui.urlRequired": {
+      "sourceHash": "96616e9032022f531ca88b4c4a84f283fd5dc6efcc8eeef34190d52d40d852f8"
+    },
+    "settings.scheduledTasks.ui.saveFailed": {
+      "sourceHash": "6309a3bb5ba4c71474ed20228224f29ea2d56302a7e37c5eac9adb6113d66197"
+    },
+    "settings.webhook.ui.testFailed": {
+      "sourceHash": "bfe48b024041a366f37ee27ecf27d275719517fca82ba5127c6c9374cc2f1d12"
+    },
+    "settings.webhook.ui.name": {
+      "sourceHash": "4587cc06a981e3cd5eb8b805554176b49aa31af0d5f9fe76a727471a9e1215fa"
+    },
+    "settings.webhook.ui.namePlaceholder": {
+      "sourceHash": "bc678318d2a7f02a798f8194f5ade1f02f3a0f1682109055400672e19036af3f"
+    },
+    "settings.webhook.ui.url": {
+      "sourceHash": "fb60c9043c7ab1ccef549aa7c74954af61f1d1eb7787ca16af1c58436981a9f2"
+    },
+    "settings.pluginDetail.enable": {
+      "sourceHash": "f4f0ead1116b5b6262acd34416ca92f9896a706976973b14218484693f28a437"
+    },
+    "settings.webhook.ui.format": {
+      "sourceHash": "5d272407307724da487c6263a77051df85d6e58b9b45a1f5d2daea36d71b4ecd"
+    },
+    "settings.webhook.ui.nativeTab": {
+      "sourceHash": "8a2f2aec1e8f8be7d2387a818611e990d04da5027a296e390b44457c224b07bb"
+    },
+    "settings.webhook.ui.jellyfinTab": {
+      "sourceHash": "ab8268de3cf625cc12068f729ce6c802c8663a5611be879a3cb338978d0eaacd"
+    },
+    "settings.webhook.ui.jellyfinHint": {
+      "sourceHash": "46343c6b0b63e2b1c0b178c6df72c5a8c7167dad40cef17ef5cc1e3ec7abbcf5"
+    },
+    "settings.webhook.ui.headersLabel": {
+      "sourceHash": "afae3eebf484378c8431cd1bbbd927f717450911eceff9e49f65abe4417255dc"
+    },
+    "settings.webhook.ui.egress": {
+      "sourceHash": "5c2e637cd4bc84c5b3ab1568376b6b6c9a384c010726bce0742a38da0f625f08"
+    },
+    "settings.webhook.ui.lan": {
+      "sourceHash": "44f5bbdb1b5b05a51e538c39ac4bffc3321086c511b8b5297642010eb7f2ecd2"
+    },
+    "settings.webhook.ui.wan": {
+      "sourceHash": "9ed57782c11e5600d4d6ac5e8aea36eaa10b1fa6fdd3d246a00ce6e880fd28e9"
+    },
+    "settings.webhook.ui.none": {
+      "sourceHash": "c7bcc6d27f3abaaa5410e40c17f0c5ca79781a74e176695193c22aa4a8064d62"
+    },
+    "settings.webhook.ui.rotate": {
+      "sourceHash": "9b6963e8b30902e8c8bea31c6f09e1cbb29b0adc32188e985e189d2fa4dbbd6d"
+    },
+    "settings.webhook.ui.edit": {
+      "sourceHash": "ed5bb27f57c6bd73ce7502ef24b893b6dc36343fb65c1fd799dca43586bd753c"
+    },
+    "settings.webhook.ui.rotateTitle": {
+      "sourceHash": "f692b30d834ccbef1168e94936137d53efd20f9c4223029dfd19379a3e7e0ce7"
+    },
+    "settings.webhook.ui.rotateHint": {
+      "sourceHash": "f404b063f6696b469573c97e4dbb187bd24d0797fc0db167c0fa74d01e703578"
+    },
+    "settings.webhook.ui.rotateConfirm": {
+      "sourceHash": "6f6110b40397d0ed4b7f70661d0e15ddb39af9bdca1bec0ab87f7805997de462"
+    },
+    "settings.webhook.ui.deleteHint": {
+      "sourceHash": "b5e44d37db355865f91cd5e3b925fcd4ec28e9c3a8ead8821c3bfaa3dea1de5b"
+    },
+    "settings.llm.ui.provider": {
+      "sourceHash": "033ed59452549c51e60665c88116f46ce24c62d9cb04983537906ae50199dd11"
+    },
+    "settings.llm.ui.endpoint": {
+      "sourceHash": "3d1ab62be024ea01c9d7066fbfce35f2612ad08148aa1a4fdea08c1dfee27ce3"
+    },
+    "settings.llm.ui.officialDefault": {
+      "sourceHash": "3ef4f7b886bd78988c424128faec791fd4bae759d01da6727dacee6e16edfb57"
+    },
+    "settings.llm.ui.testModel": {
+      "sourceHash": "775368ce7c17b38fe307274ea0b3eeea2dc7b80af00d0d7f14f275fc85a48e06"
+    },
+    "settings.llm.ui.protocol": {
+      "sourceHash": "aa946ad4ec4c58f9e3887fc0cb7946257c4c4a2b99a7c94a34f0307e96b430fe"
+    },
+    "settings.llm.ui.nameInvalid": {
+      "sourceHash": "ee17526ab4afd6a8afad07ca0818a84ff3d011d0bf1bc2787a357df28cc16786"
+    },
+    "settings.llm.ui.keyRequired": {
+      "sourceHash": "d4fbf5d1c42540e00db50114506a1ad25df3a5e29afb1e93c1e093a8e2bf3c28"
+    },
+    "settings.llm.ui.keyChanged": {
+      "sourceHash": "72680b6f4b2ba368e065d98a58979f27b86ec1a36eb0aec079895fdd6be647c2"
+    },
+    "settings.llm.ui.endpointInvalid": {
+      "sourceHash": "ff532585f35eb463b91d437035c03fa415c64fd4c06b0bc5ad2e2f02993051b8"
+    },
+    "settings.llm.ui.uaInvalid": {
+      "sourceHash": "f10a3e212e2c9ec8e0587a63331d6b1fb73a4aca0fc4fa86946062acae01627c"
+    },
+    "settings.llm.ui.save": {
+      "sourceHash": "2a07662bba578124fc049d4e6b90a693bfd6af070cd77dbdc0a21b2dee242cc8"
+    },
+    "settings.llm.ui.loadingProviders": {
+      "sourceHash": "f1f224c742a6df9569cf8e68d34a595cd4bb46d61b8efc78263ce97c3359e701"
+    },
+    "settings.llm.ui.autoTest": {
+      "sourceHash": "be6650c79d6f6aaa6328a3749a1b82958cb4f445946d293167c192e4be18c965"
+    },
+    "settings.llm.ui.name": {
+      "sourceHash": "3ff319bab915512f215f2231b2c118cd5f3bd97c08a8db491cfc35e8d907519d"
+    },
+    "settings.llm.ui.namePlaceholder": {
+      "sourceHash": "ceb047abc6907249d582c6f3f868e20926d63d398c71e31d31d48330aaa96fea"
+    },
+    "settings.llm.ui.nameHint": {
+      "sourceHash": "81ad9bf67d58c8102c4d1db5fab05903df1469da273e4108aa7ac402daa0a8ae"
+    },
+    "settings.llm.ui.optional": {
+      "sourceHash": "3d5c3c3dbaca6b32f06dc2ccae82ed33e789defd80ba23d707dd8722f892647a"
+    },
+    "settings.llm.ui.defaultSuffix": {
+      "sourceHash": "a10f79ad92e6ebc88b88047602618611676ff7e31c8d50a87de4c86fb63b0503"
+    },
+    "settings.llm.ui.userAgent": {
+      "sourceHash": "5c41924d56101862dff5d700a3cc26b4e2eee9a4cc65c8f275f1f78a50ea8499"
+    },
+    "settings.llm.ui.uaPlaceholder": {
+      "sourceHash": "102c21aa81d51bbb37e06d44ddc58e11a94321e75f62b04fe866597deac7357c"
+    },
+    "settings.llm.ui.uaHint": {
+      "sourceHash": "3e2bf2d78a5598f9ee552f42e1e530a037e0ebb29ce8ad14c5f969203b16c72a"
+    },
+    "settings.llm.ui.uaAscii": {
+      "sourceHash": "ec40e8f8d86e2f4259998d45d884b88834056e653f401d3357877708847bc055"
+    },
+    "settings.llm.ui.advanced": {
+      "sourceHash": "44455611b9108b91ef0e694daeb4b2257e7c08e4630b32864bfeb9c67eb5f6be"
+    },
+    "settings.llm.ui.advancedSummary": {
+      "sourceHash": "ee3328aafc23fff0b4953d57e39179e18525c6fb97fcb050423f027561001120"
+    },
+    "settings.llm.ui.keepKey": {
+      "sourceHash": "ff48ab930b152e57e360f8d00c033fec0f76cb4c5fd89103e95d25cf154292a6"
+    },
+    "settings.llm.ui.keyChangedHint": {
+      "sourceHash": "65197479ca177ab7829ddcff042447106aa2483b2c54197845648f4bb559b44c"
+    },
+    "settings.llm.ui.keyPrivacy": {
+      "sourceHash": "ba1b7c4a2b54dfd549e3d6644819cc63de4120be98f0c52501353c4a6353ff9d"
+    },
+    "settings.llm.ui.specsFallback": {
+      "sourceHash": "473dbfd289ce2e8ad7d28e99666ef88112029c211fc5d2f1e59b6a4ac23d8985"
+    },
+    "settings.drives.remove": {
+      "sourceHash": "6135d4159e8925413f3341383615f2995299a536c2a7e15b74035d6d8593c03d"
+    },
+    "settings.llm.ui.borrowedCatalog": {
+      "sourceHash": "556edc1f892be53d77f815153c15cdc7b7d47a03d80268f88acb6de2fb62a93e",
+      "parameters": [
+        "provider"
+      ]
+    },
+    "settings.llm.ui.customModelOption": {
+      "sourceHash": "d4461220c43170e684da01cfc64bf30a8c76eada86be625c1c313bf5a9310933"
+    },
+    "settings.llm.ui.modelId": {
+      "sourceHash": "cf94e8180219acf547fa85714622e2224e4f97bdb5b3ec3ea4c02e7f7bac686e"
+    },
+    "settings.llm.ui.modelPlaceholder": {
+      "sourceHash": "254688511dbb06593ba1adf635f8f2d24c70313a43631fa01f94a574c9746256"
+    },
+    "settings.llm.ui.contextWindow": {
+      "sourceHash": "8411127672b49389367a0adf11283acf16cd782b249f0b64a72b0f1b4cf90fde"
+    },
+    "settings.llm.ui.maxOutput": {
+      "sourceHash": "beb0fe43191c6c7954246c51462e0b1e451edb1b841d1e217351a3b26b3c83e8"
+    },
+    "settings.llm.ui.maxInput": {
+      "sourceHash": "9562e71010a85f48a622f71665380319ae9fa078c5d45fd038851a9d7a63e357"
+    },
+    "settings.llm.ui.inputPlaceholder": {
+      "sourceHash": "8125f7566b09d635e9a5a2619f9988ea52272091f5175e98d3296a8d96f278a8"
+    },
+    "settings.llm.ui.tools": {
+      "sourceHash": "c9954fa45c7dab8817cd72d6a952af8d1576ffdeb8d5014208352ab1d47a103f"
+    },
+    "settings.llm.ui.parallelTools": {
+      "sourceHash": "73f8112cd8fb8bd21e0567bbca3ada9d1cd3e7d86c517a3724e11ea726f2d5db"
+    },
+    "settings.llm.ui.thinkingOutput": {
+      "sourceHash": "945377676513612ae152c5ccf300cc9bac432c3cfb247309b08c68cee5f9b010"
+    },
+    "settings.llm.ui.imageInput": {
+      "sourceHash": "f1fff850de6df26a4ddb6a0631ee5b246c8d80bb217c7436f1279ec17ab31e81"
+    },
+    "settings.llm.ui.videoInput": {
+      "sourceHash": "84436f9d852fc1aa6a0b2a7c5b4427ab8af419337193619cda6abd6c01f9d32f"
+    },
+    "settings.llm.ui.budgetPlaceholder": {
+      "sourceHash": "c866c6cb34cd0f1b57432c97c05dcef94c7325c79fb386a4c11755ea2cfa04c7"
+    },
+    "settings.llm.ui.budgetHint": {
+      "sourceHash": "efa430e95d85f8c0c5e7cd9538a1a3264c0e3c1896c3c4a4b8e623951486f452"
+    },
+    "settings.llm.ui.thinkingControl": {
+      "sourceHash": "1ad5983e2641a375406b0d681059b6359ea98adabaff34de7eb67959f23fdde4"
+    },
+    "settings.llm.ui.supportsOff": {
+      "sourceHash": "eaa46e78c38c5764f4334e05854a1b4b6a6916d312f7ba7b1f784536f8e0cb35"
+    },
+    "settings.llm.ui.addToCatalog": {
+      "sourceHash": "a38e78d83c8010d68f073c842677fd6262108b2338b858c37bf2f41ae6017d1c"
+    },
+    "settings.llm.ui.customParameters": {
+      "sourceHash": "1fded70024af28972595873bb750e3ea1b2a47207e4ff14444b4a66cc61bb832"
+    },
+    "settings.llm.ui.customParametersHint": {
+      "sourceHash": "8bbcb2616b0297b930662e8265aaf517c3ddac77a95df57a9fde1c6862009a24"
+    },
+    "settings.llm.ui.pending": {
+      "sourceHash": "04f06469dc0cc21289953ac654c0ad454eef222048e3d5087f24ab5b14538e07"
+    },
+    "settings.llm.ui.failed": {
+      "sourceHash": "89c4766afc85125fd76d094df949fa730f06eedd32a667900893e6e0c590ee6a"
+    },
+    "settings.llm.ui.thinking": {
+      "sourceHash": "8cf0105d35ee8db8f069297f5f0af193e96c7d68ced8c4da00aa8edd0da86c50"
+    },
+    "settings.llm.ui.adjustable": {
+      "sourceHash": "bef834a8a147b78684e7620c962ad67cbc6cc542c441fb64ae44d76e17f63d89"
+    },
+    "settings.llm.ui.vision": {
+      "sourceHash": "209c47b5910f631d5ef8a22e9f24f619d5f7b3e101529571ecb4c317ea2b1ad9"
+    },
+    "settings.llm.ui.video": {
+      "sourceHash": "c20f7618d330a854e70c918789c8028a6ef3e642e7e6abac8e337aba741b3716"
+    },
+    "settings.llm.ui.contextSpec": {
+      "sourceHash": "ec52a576d9c248062dbf194ac01aa37c74b8d19e2b9e24170501ba20427a4703",
+      "parameters": [
+        "tokens"
+      ]
+    },
+    "settings.llm.ui.outputSpec": {
+      "sourceHash": "35185e7e809128327dda9803b26864ae640655dbaed0b88018792ef6fc5f572f",
+      "parameters": [
+        "tokens"
+      ]
+    },
+    "settings.llm.ui.budgetSpec": {
+      "sourceHash": "e4beb54736511d3d34925e88ead30d967e58c025705c0b4209ac2f4d0b135d94",
+      "parameters": [
+        "tokens"
+      ]
+    },
+    "settings.llm.ui.bailianHint": {
+      "sourceHash": "7fd372b18aac978ad60a1828a41c52bf3dcb735009a2639cc78c8edf0a609f15"
+    },
+    "settings.llm.ui.compatHint": {
+      "sourceHash": "62c7945264c56d97af8ef7e99605590246cb9b8722349e9c2738c07607cca1ef"
+    },
+    "settings.llm.ui.officialEndpoint": {
+      "sourceHash": "5b720c77a568a28b40a3774f8352a3eef1802bf9545d5c7b5cf63a77c8aff5dc"
+    },
+    "settings.llm.ui.effortControl": {
+      "sourceHash": "1b16e06765bd68068bfdfc6a2356a88b4191d84e16b246393b5bb10a25df0fe7"
+    },
+    "settings.llm.ui.budgetControl": {
+      "sourceHash": "964e7f5ca06d5c502c5a3ac19765cdca11a5bb6a552535583ef0daa1da885289"
+    },
+    "settings.llm.ui.toggleControl": {
+      "sourceHash": "32098e2dcff2b18afdfb917b481122968b7ca43707877fef11bf5cf6f1b7afe6"
+    },
+    "settings.llm.ui.minimal": {
+      "sourceHash": "477e3eac404332b3fbe0c0dd41b6d8ea0c4394414ad925e316bbf012da5cc6db"
+    },
+    "settings.llm.ui.low": {
+      "sourceHash": "aa9e366f68d3d097d4890b65882090beea51c8bcec6eece03c78c007fd81c8d1"
+    },
+    "settings.llm.ui.medium": {
+      "sourceHash": "a567bdaa11367f260f0708391f4d10766b5962f565d9e432f17981a3584fe1e2"
+    },
+    "settings.llm.ui.high": {
+      "sourceHash": "b1c27820fec23edbd70cecde2f968ad3f392c5be332a7606c7ea8d9fa75c846f"
+    },
+    "settings.llm.ui.xhigh": {
+      "sourceHash": "8696c49ac55b8c71559a13f0c0e052a582e3a4dcec40477818362f9c2724924b"
+    },
+    "settings.llm.ui.max": {
+      "sourceHash": "8672864e9041713891eb1fdddfa13fc6450905ece015347bc68e45e2904634f0"
+    },
+    "settings.llm.ui.effortRequired": {
+      "sourceHash": "00d33cd4394d1e1af7e1e12bd9d4b3d9d196ae2fd4e0733d15f03d71e3bf180b"
+    },
+    "settings.llm.ui.draftRequired": {
+      "sourceHash": "cb65d709bf8c26e26bb6d0e82fc018c378b6d212f9ba7155db4703c2d83ad836"
+    },
+    "settings.mcp.controls.tools": {
+      "sourceHash": "5ca6730d441522017552bf309fcddbed161b77440dc3a11d9945788d802afdb3"
+    },
+    "settings.metadata.title": {
+      "sourceHash": "df3d58c7d84b85f2037cdd20ffca0f386668645ea53008c11b0c8887182b0356"
+    },
+    "settings.mcp.controls.loadingCatalog": {
+      "sourceHash": "2c3c5a8491481e090b640e21bad8f30900ba56b30319b4441b53dd2a095741c3"
+    },
+    "settings.mcp.controls.copyAddress": {
+      "sourceHash": "4c6de01bbe86b3d8eb1a8358aaefa0a2137ca32f66061feadbd902b1ad6f9e8a"
+    },
+    "settings.mcp.controls.externalHint": {
+      "sourceHash": "8b4418426a8ea140d81496c48048e1471161db8e4d23ef92fa66d9e03711a190"
+    },
+    "settings.mcp.controls.address": {
+      "sourceHash": "66fb194a2c48a5fe0509eaaad4f30698a7134c7441f9ba4837b88c5c2575a360"
+    },
+    "settings.mcp.controls.authHeader": {
+      "sourceHash": "2e1f7392cd756ef695c993765c3f63b0aee6f1ebeca9a4d45684b68ac844e1c7"
+    },
+    "settings.mcp.controls.services": {
+      "sourceHash": "ec309ab207ef7fa31b139a743e5bf864ae84aa1ae2cdebb5d304ac05a67c58fd"
+    },
+    "settings.mcp.controls.calculating": {
+      "sourceHash": "1b7d5b1a9315fc64f950319bd2b0a7b3434468f5025e764af49049556cbe4f54"
+    },
+    "settings.plugins.loadFailed": {
+      "sourceHash": "d1d044826a45ef6533a4744d171d4a8808dec292f57ade9f3878f1f8f7eed278"
+    },
+    "settings.mcp.controls.mode": {
+      "sourceHash": "83a1e0d7f958a23155fa21b2ce06c37bbaa4a43290022489ca4daa0a44d46df2"
+    },
+    "settings.mcp.controls.token": {
+      "sourceHash": "735da237b6da18549a2c55a0efef66bf7398a4e615fc67a63b2a6a0516e446d6"
+    },
+    "settings.mcp.controls.lastCalled": {
+      "sourceHash": "90c70831c051f048190a537ec31d7a3a6b1dd574147e10bf8f9a9db02fdd87e6"
+    },
+    "settings.mcp.controls.neverCalled": {
+      "sourceHash": "d3fd7cb6aadd1222e7003d008999b6b9c5bb1578e50372ca973574cfabc8efdd"
+    },
+    "settings.mcp.controls.checkTitle": {
+      "sourceHash": "de94f8b3ec85cda6f85db09d5d5bf9414fb6e79b211ac16bca325597e2adbec0"
+    },
+    "settings.mcp.controls.checkHint": {
+      "sourceHash": "82b892f8006a4ff64bb118956018569c25b997aee5dce147eac60a244b25ea56"
+    },
+    "settings.mcp.controls.checking": {
+      "sourceHash": "c534d0a894fcc17f0644fe8b441ad313e28a12ad18725e7f97f4960a2db88b76"
+    },
+    "settings.mcp.controls.runCheck": {
+      "sourceHash": "6732bfb7a297f032351af512ee2f7aaa6a42db4fdbb0f537bb4d069be1263cf3"
+    },
+    "settings.mcp.controls.checkAgain": {
+      "sourceHash": "a9e3a18e45b132f31a944dc466bd5032f67e19d06c3e087b5d92c2dc9b639b4d"
+    },
+    "settings.mcp.controls.protocol": {
+      "sourceHash": "ab2f31f30acf7fdaf2cabc1bc4d5df9ffcb1b3b25575727b1617c42ea2ae0a3a"
+    },
+    "settings.mcp.controls.probe": {
+      "sourceHash": "65c915ecc14d59d00f1fffd66d25fed49b95efcfbda083e59e44489f527240ec"
+    },
+    "settings.mcp.controls.checkRequestFailed": {
+      "sourceHash": "c181f0779157e9f24f03278b7b4770f551e7f18a3d77f17fdfd1382c40ac08da",
+      "parameters": [
+        "detail"
+      ]
+    },
+    "settings.mcp.controls.rotateTitle": {
+      "sourceHash": "e8b6603664ea2aba5cef15071ba8d8c9a5de5f48cdb788108a31ca519e670fa9"
+    },
+    "settings.mcp.controls.rotateDescription": {
+      "sourceHash": "8b554b4832172059583889decb2fdd745b7b9d991876c9c1f42bf685566f6032"
+    },
+    "settings.mcp.controls.generateToken": {
+      "sourceHash": "6734e548096e73c55335d91083bac47b61dce097a472d7e78937c0d0760c3b43"
+    },
+    "settings.mcp.controls.slugInvalid": {
+      "sourceHash": "7cd849474f135820ee261bd342f4336f6c45717dda93262cc132f7bb0933659b"
+    },
+    "settings.mcp.controls.slugTaken": {
+      "sourceHash": "eeb5d3c3035eb48161e6066edf3fff195201e4a1927da11b7e7a5a098139732f"
+    },
+    "settings.mcp.controls.timeout": {
+      "sourceHash": "fc5cfa112fdaed8bde0b8b9fffb452f9d39fba2b73a45bf5f953b9cca5241a3a"
+    },
+    "settings.mcp.controls.name": {
+      "sourceHash": "fffaddf8cc06d37f2eec4a107a86cc9a507abaf07b1a4c250d318b16af196e62"
+    },
+    "settings.mcp.controls.namePlaceholder": {
+      "sourceHash": "975a3d2f093911b2eee94d58562a09ef1871fea8b1bfe9b4126bd1d583f97b1f"
+    },
+    "settings.mcp.controls.slug": {
+      "sourceHash": "ff46e51ec778ae33f3b3a750e4d7286653a0b1586ec9f31cc037d92135491395"
+    },
+    "settings.mcp.controls.slugFixed": {
+      "sourceHash": "950c94233b71bdb23d333fac79b81fbb65bbb6d9c043c4d06ff6665a194003ae"
+    },
+    "settings.mcp.controls.collapsed": {
+      "sourceHash": "84a07f292f1f78cc4d24cfe118da88225195e44636ff8608db4ac874e3d6d347"
+    },
+    "settings.mcp.controls.searchServices": {
+      "sourceHash": "c2256d99ad6f9a5a1258c53b2a9cd7eb0c8e88a9673dc2c6557d3bedb79b1600"
+    },
+    "settings.mcp.controls.commandsCount": {
+      "sourceHash": "2778a25a1335174618c5f72cae975f1516f898cda3d3d1022f5d2ce520a2e6f9",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.mcp.controls.selectedServices": {
+      "sourceHash": "3d1d64b33f03bf3e23b4c028b9c4bdc6e2aa1361afb6bcde8834bc915921c6bb",
+      "parameters": [
+        "count",
+        "total"
+      ]
+    },
+    "settings.mcp.controls.clientSees": {
+      "sourceHash": "5c9ca822b3bf1f0fe46bd6c94c1e44046c8429ead06e302f11f377333fbe8608"
+    },
+    "settings.mcp.controls.previewEmpty": {
+      "sourceHash": "e48c00a2b605400b8f925b6dcc5d1c4b2e7e87f6d8654411598f9792b4705fb5"
+    },
+    "settings.mcp.controls.moreTools": {
+      "sourceHash": "b04a65ffdf312f9c6904cc1b407a40ab4162313780976bcb79c1c62d7d231fde",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.mcp.controls.calculatingNow": {
+      "sourceHash": "e1fa1bf0cd786284412133e1d2ca77bff4b04415ce761d5b36fbc2fba4bdf585"
+    },
+    "settings.mcp.controls.create": {
+      "sourceHash": "2432e75587514627983db633bcfb6176fc37c5ee1d3f4cf559bc5276368008c0"
+    },
+    "settings.mcp.controls.commandMode": {
+      "sourceHash": "266563eff184cd328616cb493a88d1a2e8844d6e1cd375735d3701682f8593e5"
+    },
+    "settings.mcp.controls.serviceMode": {
+      "sourceHash": "dd52b6623039be1999aba262776e96bb2446971d3fc6ef93d1bf3fb2f6b2c401"
+    },
+    "settings.mcp.controls.running": {
+      "sourceHash": "1f0eb99b7ed094bed9583489cc2d82772e8abc4b520bb49eeb62182357d1296e"
+    },
+    "settings.mcp.controls.noServices": {
+      "sourceHash": "f081d3f914c0d4fcf309f7df5ecb3ad197dc2fac4ce9d9e39ab993009eb06271"
+    },
+    "settings.mcp.controls.saveTokenTitle": {
+      "sourceHash": "084b5ee1cae39fb690b39db0ac5fdab1b52e9440497298aa69bc68166044d40e",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.mcp.controls.readOnly": {
+      "sourceHash": "3b5ec3533b0e44856a0266eff1dcdc2886fa48be4a8c34aaf43c4bec211383e3"
+    },
+    "settings.mcp.controls.write": {
+      "sourceHash": "eaac2a1ac7becfb90e08c4d2ac7b5cf9a67072e0f8f16008f99d1aa4c23cefd6"
+    },
+    "settings.mcp.controls.searchTools": {
+      "sourceHash": "257f845abc1bfdf066748893d9f9d95adb2c28b4bf81b71dcce58c9faccf1fad"
+    },
+    "settings.mcp.controls.clearSearch": {
+      "sourceHash": "b6f00afa6537489b272a69159dd57f7360d34d2a53251dcee7e51920af80920a"
+    },
+    "settings.mcp.controls.toolsCount": {
+      "sourceHash": "50e0a3f54262763ffb1ca6f5df63d4e151c60d1d40712a42ec32a36cea277bb4",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.mcp.controls.toolFraction": {
+      "sourceHash": "5d43cfafef2083a10a33e72795b4c71febb43f97cf70791cc4c374d18623733e",
+      "parameters": [
+        "shown",
+        "total"
+      ],
+      "pluralParameter": "total"
+    },
+    "settings.mcp.controls.noMatchingTools": {
+      "sourceHash": "45c9c78de3e9469e26021ee14583c29ce54e8be6f69707377c1399a94a3d4d7c",
+      "parameters": [
+        "query"
+      ]
+    },
+    "settings.mcp.controls.destructive": {
+      "sourceHash": "17a7770cdfbc06187474d8f5399424825e98218326fdf32b90d089024d4c7af3"
+    },
+    "settings.mcp.controls.parameterBadge": {
+      "sourceHash": "87fd054e866214ac5147540e45d985bc874db137f2479a35084153d375f0ffb0",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.mcp.controls.commandBadge": {
+      "sourceHash": "6cd9587fe36c9e06da98d01a89cdd8260bf861a504b56a17b42da3b27b166c01",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.mcp.controls.noParameters": {
+      "sourceHash": "4c80fe3c8ae00499cd1b034f0632ee35f7fa1bb0f86f5cd69371c20153a7e8df"
+    },
+    "settings.mcp.controls.copyToolName": {
+      "sourceHash": "199e52e435f24e97ef76d23419999c6bcc20ac2c4e44f3996ed85e173cc7a50a"
+    },
+    "settings.mcp.controls.copyExample": {
+      "sourceHash": "6053135b27f7c93d239e0587842ee4e9bba0fd6de069067269e4bd08e3a68be8"
+    },
+    "settings.mcp.controls.commandCaption": {
+      "sourceHash": "8f83313a3b55dd675c33da2f6b9972cb858d0f98de9995666663d36b84071406",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.mcp.controls.matchingCommands": {
+      "sourceHash": "6e7ebdbd2d99f05a99ef9810d3db5cfcf50c385b350f852a408de144cae89095",
+      "parameters": [
+        "query",
+        "shown",
+        "total"
+      ]
+    },
+    "settings.mcp.controls.destructiveHint": {
+      "sourceHash": "1b143abdf1d616b2f3996b2625f47320b7f11b8884d17b9acf60ffddaa35e181"
+    },
+    "settings.mcp.controls.clearHint": {
+      "sourceHash": "02f209dd9f3ceadc60d90e52173ccdaf80f9c7666b88c680d7291398bb0d9c59"
+    },
+    "settings.imChannels.bindTitle": {
+      "sourceHash": "868ea7b039cfd6b27429615efbffd22324c4c51572c770bb9dfa8ada0c511062",
+      "parameters": [
+        "channel"
+      ]
+    },
+    "settings.imChannels.enterValue": {
+      "sourceHash": "60120ff05f5c62b9d56632189b72cf32381346eb477427b2ae11c4e21705f07e"
+    },
+    "settings.imChannels.confirm": {
+      "sourceHash": "36f33adaf0942634a8ece1eec4a6f30d44dec73e1ef8704b29d983a57f2e09ae"
+    },
+    "settings.imChannels.oneMoreStep": {
+      "sourceHash": "e2eb4eca0178902915ad98e1c646c401f6986b5fdba7e9ee583117bedef77fea"
+    },
+    "settings.imChannels.qrAlt": {
+      "sourceHash": "4d04179c8fbb790db92d2e5b2175135d39a6678e7d1bd36c4d8d5458b8b04d8c",
+      "parameters": [
+        "channel"
+      ]
+    },
+    "settings.imChannels.incomplete": {
+      "sourceHash": "2e401ba9bd79e127a11c7ecd34efa1e43be39c180baa5097ba04a43529a3b76d"
+    },
+    "settings.imChannels.waitingScan": {
+      "sourceHash": "3b9e0bf954bab6799d6871a46cb530ab64205e4d92e2941e6bd471811808ad1b"
+    },
+    "settings.imChannels.scanned": {
+      "sourceHash": "db810b1db5e4250ed293fc81ca77f9530b8e58eb89201bd238383e1836ec7dc0"
+    },
+    "settings.imChannels.restart": {
+      "sourceHash": "808a98b21808b0d0a67053cc47406261798dfe22501c3d7c9080c72ff386c709"
+    },
+    "settings.imChannels.startFailed": {
+      "sourceHash": "398f9152ad743d5fd3f0ca0af524fc305fb70dadb95a1a2c704daf595e52596c"
+    },
+    "settings.cloudConnect.getCode": {
+      "sourceHash": "1f834a31683fe486fc579f86e159ff0de846eb7592a00f9fe6c2725d454b76cf"
+    },
+    "settings.imChannels.finishLinking": {
+      "sourceHash": "6efdcc41c075a92d51709a46d9a368aefe46b3dc55e4e293f7b6006c225f9671"
+    },
+    "settings.imChannels.codeHelp": {
+      "sourceHash": "7121a7f3a5b1918e9d3ee77dc712ba7f5f6cec7ce9cc6ff52124b84c2fdb22fe"
+    },
+    "settings.imChannels.boundChat": {
+      "sourceHash": "19c588f1413d1f43ad2408df4e71f0eead2b11f8450419f47f8ceb9c2e3ade9f",
+      "parameters": [
+        "channel"
+      ]
+    },
+    "settings.imChannels.boundPush": {
+      "sourceHash": "c52bdf910306c9ea207f4ddd4df911df1ddf0af90e83367215d0195e20130e31",
+      "parameters": [
+        "channel"
+      ]
+    },
+    "settings.imChannels.testLabel": {
+      "sourceHash": "8a83d4d64fc327be82d643a7ebdc1cc261bb0a2f426fab9228ca4dbef72d68f5"
+    },
+    "settings.imChannels.testDescription": {
+      "sourceHash": "6fa64b657f70c87b3e662afce48648b8882cbc352de9631fcf8ccf089f6c7532"
+    },
+    "settings.imChannels.addNamed": {
+      "sourceHash": "73009ba88ce0be70752e202cf7cbc776fd2a1ebb9736ea4051cd65d9e97aa24c",
+      "parameters": [
+        "channel"
+      ]
+    },
+    "settings.imChannels.add": {
+      "sourceHash": "c62bb0106bd5954197fd664144da6e0d77d6081f310bcf27f6b72381a1222360"
+    },
+    "settings.imChannels.empty": {
+      "sourceHash": "4dba9fa85b3086b9f5368d03b5056f3ef87f77227e74516430118390810c7e76"
+    },
+    "settings.imChannels.pluginDisabled": {
+      "sourceHash": "189f19b8d826d939592aca6291f3840b21bee6b0284c403c9db17a7d68f70e84"
+    },
+    "settings.imChannels.stale": {
+      "sourceHash": "ac7a4475b82c88d061fe38f53e06282d94a9becc830deb3abacaf40a509931ce"
+    },
+    "settings.imChannels.stopped": {
+      "sourceHash": "62cdc8713bcf7667b6c2bb302ce59dee80c82f65835062bcb09e88917bd5acae"
+    },
+    "settings.imChannels.disabledDescription": {
+      "sourceHash": "d78229eb54881d21a3a07b650f7ba12070372b10219a996c549ef63342425d51"
+    },
+    "settings.imChannels.staleDescription": {
+      "sourceHash": "06c9b2e1031c704d39c36e4678ccedda0d9bb0da3fd0af8bfe43278b3ce96ec2"
+    },
+    "settings.imChannels.boundAt": {
+      "sourceHash": "27ac26d2f723c56f085ed7baa9e443d51774bc9364e01db15df5774d6e2f919a",
+      "parameters": [
+        "who",
+        "time"
+      ]
+    },
+    "settings.imChannels.unbind": {
+      "sourceHash": "3ba0a291df80b3bc96d5df7d28a73105cb04c10ceb0f9d932c5849af7a6680ae"
+    },
+    "settings.imChannels.unbindTitle": {
+      "sourceHash": "3f75e45ff2291db1347d4360a3ec7f1587ce2bebf7b3984408d89c1202e10cb2",
+      "parameters": [
+        "channel"
+      ]
+    },
+    "settings.imChannels.unbindDescription": {
+      "sourceHash": "2d987f154e672cfcfec9c33955f58919138170c415c3e122f694674bce491255"
+    },
+    "settings.scrape.metadataLanguage": {
+      "sourceHash": "9f7aa00e49cd6e930e634b54de73f2a89b93b20263e08ed15275bf8d16e84e74"
+    },
+    "settings.scrape.imageSources": {
+      "sourceHash": "fec044928641fed3beef10045862b66c0081c8c9cf075b4f80e7c12f168807c6"
+    },
+    "settings.scrape.titleLogo": {
+      "sourceHash": "0631abda0bca6be8ff73c05619dfb8545b1785b96e513f022ce400f89f4e18af"
+    },
+    "settings.scrape.poster": {
+      "sourceHash": "c60789cc44e89b26b124aba9ecda78b818c9cc094fb52a1951b5dbc14f224e49"
+    },
+    "settings.appearance.backdropTab": {
+      "sourceHash": "75bde8e3bba4a3cde7fe2e93b82f48c1a61818c77b150ccb5efb3b64d9038a03"
+    },
+    "settings.scrape.contentRatingHint": {
+      "sourceHash": "d1c8a224a540eeab0a273e0f10f1e2fdd2a0ee905d56970ba61d4ab41218898c"
+    },
+    "settings.scrape.posterHint": {
+      "sourceHash": "e11ea9daf366ec49c27e909dcb314a85d9b7db06ca71e1f3444abd105ce06370"
+    },
+    "settings.scrape.namingHint": {
+      "sourceHash": "c7378f0286c2b7adb9b5e8b548f438ff28b773eb6a29fa9e0fd83b78f2860e8c"
+    },
+    "settings.scrape.tmdbDefault": {
+      "sourceHash": "132bc4c6369a12999fb8b383bfff2b206bb894fc10b1870002d7211d818f0e9d"
+    },
+    "settings.scrape.defaultPosterDescription": {
+      "sourceHash": "b982c959d26101960518d32090dcfdce29770076070d42e0f1d721876df001fc"
+    },
+    "settings.scrape.languagePoster": {
+      "sourceHash": "7a36311cbc21cf1d5a6a5cd0e2a98d39fb83386e544c890a3036e527ef341d14"
+    },
+    "settings.scrape.languagePosterDescription": {
+      "sourceHash": "49dcf7e39c67f161021af61353c922960854e6d01a74f02f21d8a73563e8795b"
+    },
+    "settings.scrape.localQuality": {
+      "sourceHash": "38906ea1d69c1e41d487df980295e750479313b247e1fad7c3ab0a02ebbab6c1"
+    },
+    "settings.scrape.backdrop": {
+      "sourceHash": "f4b669c55756180ee9457b358a5132c298359a5dd46896e00a2aab9cb86b74e2"
+    },
+    "settings.scrape.still": {
+      "sourceHash": "6a0d4732be6bcaade76908029441a1c7999444f6c690d3a9c7138647f996a6b1"
+    },
+    "settings.scrape.minResolution": {
+      "sourceHash": "f5b95e57b02cb6c15197e382484d38ce0b5a10b81a9c566b9ba4f2d2ca108212"
+    },
+    "settings.scrape.followValue": {
+      "sourceHash": "7602d411e0fb40a3cc052cf3ce7fec0f56758acf9716cd7c50793568af08e2cb",
+      "parameters": [
+        "value"
+      ]
+    },
+    "settings.scrape.livePreview": {
+      "sourceHash": "a76fdaad75198128293ce885d292aa6fae6d0da2c864d87b877246c63641df7e"
+    },
+    "settings.scrape.templateValid": {
+      "sourceHash": "cbf73f8d3afc7b9205ba29e8746a945438ba608a75c54b4d1a027e2790850847"
+    },
+    "settings.scrape.templateInvalid": {
+      "sourceHash": "b8db30f259b16f7febd6e0255d6b5109ed0f60458735c84a16fd1267d0609721"
+    },
+    "settings.scrape.movieExample": {
+      "sourceHash": "3261906533cc80478fa6161c3631b54d859e54c1d7019b4f482099e0ef793a71"
+    },
+    "settings.scrape.movieExampleRoot": {
+      "sourceHash": "8997b0163f0677d8ccbddcf6f0c9c693f51577c3cef03ce0bb0a40be626fbed2"
+    },
+    "settings.scrape.episodeExample": {
+      "sourceHash": "a9d4965f410eaa130166f6fa2558c61e1b03387a04f2e20e12522029ce4ea328"
+    },
+    "settings.scrape.episodeExampleRoot": {
+      "sourceHash": "d843d6769de85065f9f06c9874533da795abf7b5925122e40bcce8c3afb1e182"
+    },
+    "settings.scrape.seasonPoster": {
+      "sourceHash": "1f2f51e0d134778123935810b3fc62844a47419b68e7ac9f67c62f3ac77924d1"
+    },
+    "settings.playback.controls.saving": {
+      "sourceHash": "6bdb4435095e5d285aa21be60ab343f9e489a314c6e132874dc0fa5ce6b4f5bb"
+    },
+    "settings.scrape.alwaysEnabled": {
+      "sourceHash": "6dceff73f657dbd5fce026b64f60b9773d3409c1f24012e726c9c028d961faa3"
+    },
+    "settings.scrape.simplifiedChinese": {
+      "sourceHash": "4eaa632ed77649199e0b0b80f5240bf72d1c6a9edf0367097a52593ba481ceee"
+    },
+    "settings.scrape.traditionalChinese": {
+      "sourceHash": "058a30bd5559943ed26f91efa297b7c6cd008d6271a81a0453c99cfd5e8a2da8"
+    },
+    "settings.scrape.japaneseLanguage": {
+      "sourceHash": "77710aedc74ecfa33685e33a6c7df5cc83004da1bdcef7fb280f5c2b2e97e0a5"
+    },
+    "settings.scrape.metadataPrimary": {
+      "sourceHash": "9fdca54a411dfa7d456004b54c51ea4531c5ec6c68015aa8abd7ef4663eb1f8e"
+    },
+    "settings.scrape.metadataPrimaryHint": {
+      "sourceHash": "60c170665f92a0334e8a18db55d4bf1b5fc2870fdec1472804e78e71984a7612"
+    },
+    "settings.scrape.originalLanguage": {
+      "sourceHash": "7a53753d3e7a0e125e9d8743b7970e37c91f19d09f45f1efb86e320e6cdaf001"
+    },
+    "settings.scrape.originalLanguageHint": {
+      "sourceHash": "21665c1d1ef69b58d5e4c70421236789fe175a729a72a75df4b4f98b6a2bd5f7"
+    },
+    "settings.scrape.textless": {
+      "sourceHash": "3c9bbffe58507bbdcd6f9a20d90ec526dbe652339d67c6b8a55ccf1800199dbe"
+    },
+    "settings.scrape.textlessHint": {
+      "sourceHash": "ed5d320bd890a68a5430d3b603aaeff897f37e589a72e653c8f2eec0a2c98efe"
+    },
+    "settings.scrape.china": {
+      "sourceHash": "f0e9521611bb290d7b09b8cd14a63c3fe7cbf9a2f4e0090d8238d22403d35182"
+    },
+    "settings.scrape.unitedStates": {
+      "sourceHash": "58857e5318f3090b61e8b0944298c0cb60fa0e2cfb89a34e50da12915a3efeb4"
+    },
+    "settings.scrape.japan": {
+      "sourceHash": "cf2abf0c5be326cb922a70f8163f91079c4d9aa8655c60ead89ad545c9de2e92"
+    },
+    "settings.scrape.unitedKingdom": {
+      "sourceHash": "d055c3998f13e70ea26810e935dbb4bb44aa7edaeb42eea0ff5abbc2b9aa75f7"
+    },
+    "settings.scrape.originalDefault": {
+      "sourceHash": "6a55490b8f1f05f3e6c413c1f1fc9b68cff0ac4354d051692dafe090ec1ea1ff"
+    },
+    "settings.scrape.originalHint": {
+      "sourceHash": "0b464f6603c00f17c82a0427077d50fb82d4c93987f207aa8961d3db3d9fbc6c"
+    },
+    "settings.appearance.standard": {
+      "sourceHash": "6bea77acefb364ac3d4024c2fd7d82b1426d931cf25274abdc9e2d77969e24d9"
+    },
+    "settings.scrape.standardHint": {
+      "sourceHash": "af8a326fb0b7510fd16bc8a9fa1e82945dc3697e4e9c6588b42e14b4a3422c73"
+    },
+    "settings.scrape.compact": {
+      "sourceHash": "e4f989b87319322db59e76152683279bb321063c251525d1a85ff15dbd1771fb"
+    },
+    "settings.scrape.compactHint": {
+      "sourceHash": "2cf7e7bd1a60edcd163a96d75b85a2e3847ad97b3be3286d1771ec8f4ac9c208"
+    },
+    "settings.scrape.originalSummary": {
+      "sourceHash": "4b1db520af460460fad75331a7d5709327077803731095310ffc49fc732f9c42"
+    },
+    "settings.scrape.languageSummary": {
+      "sourceHash": "7757373960fdc8ad5bc068054b2a930437f8c93f4eb712de6c2034437cd66639",
+      "parameters": [
+        "languages"
+      ]
+    },
+    "settings.scrape.posterWidth": {
+      "sourceHash": "855e60ca201e25a4db27dd4f99066bc53012a0c9af393a24d14509d358baf3f1",
+      "parameters": [
+        "width"
+      ]
+    },
+    "settings.scrape.posterUnlimited": {
+      "sourceHash": "4a4d0f5904e9674f6a6a9846aad8e79eb34026a6917f772b97cba3e4f8f6946a"
+    },
+    "settings.scrape.backdropWidth": {
+      "sourceHash": "d62e16bb5f9ad2c5c406e5b33d0b6b0b33fb3fb25379489462ac2cdf19bf9b48",
+      "parameters": [
+        "width"
+      ]
+    },
+    "settings.scrape.backdropUnlimited": {
+      "sourceHash": "919f2d94ec6076251d67ca70d2c4c49d1a6c299f361403533b57fb82358ff4ab"
+    },
+    "settings.scrape.allDefaultTemplates": {
+      "sourceHash": "8af05dbe322611b875b6a4fae4cbc918243c40ed39cbd7dad6f83c815326de79"
+    },
+    "settings.scrape.allMirrorsEnabled": {
+      "sourceHash": "4ae8ad16d04049b806b76984cdcebadad3847c525bb0a1ec07492d61b5246efa"
+    },
+    "settings.scrape.entryImages": {
+      "sourceHash": "0459c0c247f44ce0ba7c72a777e711832c6aa9c5fce2487ac006e27f34d03b85"
+    },
+    "settings.scrape.nfoMetadata": {
+      "sourceHash": "254698942c3ecd8420d0b044061b4fe6ab9ddd95fca02ec64e00a3ce5485319c"
+    },
+    "settings.scrape.nfoHint": {
+      "sourceHash": "7f635055818046f89ca45714ec881480c921a93e512ea008418e5f725576b98f"
+    },
+    "settings.scrape.episodeStills": {
+      "sourceHash": "e194c68a16a071bcce18f48ac5375ff5d4910bfccb5326d95c34101d2159401c"
+    },
+    "settings.scrape.episodeStillsHint": {
+      "sourceHash": "fd5656e6b4144546bcc7ecb54a8cf502e4959571675774735bde3ea10711d8e0"
+    },
+    "settings.scrape.titleTokens": {
+      "sourceHash": "428ac7c3c4b9665f4c6bf9406dfc0ab0d68fafb837c85aa992a427856597860b"
+    },
+    "settings.scrape.titleToken": {
+      "sourceHash": "01af64fe79479dafa6618e112f1eee8dc435d14fff66a15f56b62281f939e288"
+    },
+    "settings.scrape.originalTitle": {
+      "sourceHash": "26bb0e770f72128a48de04d04cb08ae7c0db320a470c81128c00996eee16398b"
+    },
+    "settings.scrape.englishTitle": {
+      "sourceHash": "952401dfd98d1580bc52bfbd0086ae46de47627b4e6d45f5cc058617cfc6aa69"
+    },
+    "settings.scrape.year": {
+      "sourceHash": "bff0b9e4a39310eeb470b8608699c89597b052cb817f5286d1b065480572812b"
+    },
+    "settings.scrape.doubanId": {
+      "sourceHash": "ac1ad2a9edb57602a53906273dceadcdbcab5e0e448b61db5b17c9bc5c7c7998"
+    },
+    "settings.scrape.episodeTokens": {
+      "sourceHash": "912b779c6b20225b881c8cf7ade7aa869f0bcd35fa95a43f8b59ffc0113978b3"
+    },
+    "settings.scrape.seasonNumber": {
+      "sourceHash": "cf495625659854e177e6503818189d2f0f30fa3d8e10aeb87e9a28482384341f"
+    },
+    "settings.scrape.seasonName": {
+      "sourceHash": "cfd5f7950556e0bc3d91324425bbb42faeb76503f7992117ec24a4fba4241d64"
+    },
+    "settings.scrape.episodeNumber": {
+      "sourceHash": "0c6c565a6f1472e306ea48dda70d009361ebc06d4a9072b771723a4deb8315d7"
+    },
+    "settings.scrape.episodeTitle": {
+      "sourceHash": "1d83f10c7a67d3cbf5d17fa40e64835fb04df899d03e2a58016f777070876a11"
+    },
+    "settings.scrape.fileTokens": {
+      "sourceHash": "50db6e5c020724b344581b25cd78d3541f2986a22988047cfdf3015ced83161f"
+    },
+    "settings.scrape.resolution": {
+      "sourceHash": "b92421822c213c2b02eb15434c2002336b66b63de6a418b98fbb7f4f6872218b"
+    },
+    "settings.scrape.videoCodec": {
+      "sourceHash": "780da4f960961e1490dc0222f0ce9fd5d32d705f39a9b6ff026c4fa3629fadc0"
+    },
+    "settings.scrape.bitDepth": {
+      "sourceHash": "09220325fb3e68929f8d7dfa4dcc2fd45babea253461c04f05946c2a6b0899fc"
+    },
+    "settings.scrape.audio": {
+      "sourceHash": "b6dd16ff52ebd549e21c3c698949ece2295c5a6c23bcf7df2e800e08366749dc"
+    },
+    "settings.scrape.mediaSource": {
+      "sourceHash": "bf54866b0ddc5c6d1fcfc386c3ee1c52b4f6fd92edf60eb6eb9c87dabef5075a"
+    },
+    "settings.scrape.releaseGroup": {
+      "sourceHash": "55d2f512c20b47ffdbd79e3545cd55417073a5b151980ca0fa66c4e1dfa13e29"
+    },
+    "settings.scrape.site": {
+      "sourceHash": "a59fe62777ff25aec42c337fccbf5929af9c9b45bc42ee17131f5900889f4534"
+    },
+    "settings.scrape.releaseName": {
+      "sourceHash": "4adaf4626babdc55a1d253100e2dc3bcbb7f8d6a04840dba7dc5408ce900f7c2"
+    },
+    "settings.scrape.sharedNamingHint": {
+      "sourceHash": "b45a5166de551db8e5ba16e966fa6bf343a8242daf5511751ee2949342df1875"
+    },
+    "settings.scrape.sampleMovieTitle": {
+      "sourceHash": "2ffdefd07d62c7a08bbb72d1da433a71c92369e9dac3fec3873f821bd335c14c"
+    },
+    "settings.scrape.sampleTvTitle": {
+      "sourceHash": "0bb3d79ae784a560775b9361cabbbc56db1c2b8b7684012f057cb628caac0804"
+    },
+    "settings.scrape.sampleSeason": {
+      "sourceHash": "2a7fd78a12bc5f97f5263c6bae80d7720d5ffa6ba6a928d1cbfb205ce68c8536"
+    },
+    "settings.scrape.sampleEpisodeTitle": {
+      "sourceHash": "5e30b64bb172e92e8e3dd70c6961bf6a63fab8097cc031691faa536f66755b10"
+    },
+    "settings.scrape.noMatchingOptions": {
+      "sourceHash": "a060c1fc77107b8846b877a7d7e1dd34b66dcfcc3a7cccf2444fe664e62408f2",
+      "parameters": [
+        "label"
+      ]
+    },
+    "settings.cloud.connectionActions": {
+      "sourceHash": "a5fb3c142f89a67244ff42b9362ad2cac21c5fdf1be799f04e72218ef3bd3584"
+    },
+    "settings.cloud.connectionDetails": {
+      "sourceHash": "7d9f51408c51ed018b84f0d5c97b2ef79c6b1dcf137fa5f43449f7969f97855f"
+    },
+    "settings.cloud.serverLabel": {
+      "sourceHash": "2388cbc6a486af9f56f73bad1c5d31e115c3f4a7cc89ded13144e857aab74dc2"
+    },
+    "settings.cloud.connectedAt": {
+      "sourceHash": "893ecfbfb1be21cb343036559aad7443db83f4ac4569e9a6f42cb42ab57a79bc"
+    },
+    "settings.cloud.cloudUrl": {
+      "sourceHash": "ed3049b1b498f2d27e8167217310edb7926bb3091d32ce343791a11265a939bd"
+    },
+    "settings.cloud.grantedPermissions": {
+      "sourceHash": "3caedace45c205ca344375f72ed37f73c65ef53d13045672e18fb1ec044243b0"
+    },
+    "settings.cloud.connectedToast": {
+      "sourceHash": "703f4340a32464587f4c851788f84c08914e8337b805aa61fa85003d4ddff96f"
+    },
+    "settings.cloud.connectAccount": {
+      "sourceHash": "4786800f6f67bbc0fe3f909868255fd2383684884a3e6207f0fedc91d61d9411"
+    },
+    "settings.cloud.connectPitch": {
+      "sourceHash": "87a3d6630d33841be742e57bcccb53b7732adf25bab789b426159d484305ad09"
+    },
+    "settings.cloud.disconnectedNotice": {
+      "sourceHash": "5c802812c6dc54307b6dfda5dda076ac02bc3ac8d01c376855a53cf0f921c211"
+    },
+    "settings.cloud.awaitingWebsite": {
+      "sourceHash": "c9804cfd625431686ccd79651a03b7a4bc659b8ec71fa33ec6847d9a7e0c0b97"
+    },
+    "settings.cloud.pendingHint": {
+      "sourceHash": "c8df5dac85f404eca90bc03e3ceb2cdc953f70db3c29f67c890bd8ea2e39ecab"
+    },
+    "settings.cloud.connectButton": {
+      "sourceHash": "9d9348850984d0aa4d597205cede620a618632c456ab998d7b896ccac765c789"
+    },
+    "settings.cloud.adminOnlyHint": {
+      "sourceHash": "62175fe2465076d397f7767392ee2af26dfc3085aa48a58766063ae427cfeaf8"
+    },
+    "settings.cloud.privacyLink": {
+      "sourceHash": "85d41124656725e837fb84c4a5abd1226e0229897c3d4e35e5b91d9262d35858"
+    },
+    "settings.cloud.manageAccount": {
+      "sourceHash": "85585b86968429aa6b8353d6905a5ce028c858f0e91587acbb602eeb945322de"
+    },
+    "settings.cloud.imHint": {
+      "sourceHash": "4a00e3cb08d01b9f624b042b4856643c93850e0657868abb690bdea3b24926bf"
+    },
+    "settings.cloud.accountFallback": {
+      "sourceHash": "fb00a6c88d2671bc8d7c7187747b97abeb4568c7d9f11256186661b7fc389e0e"
+    },
+    "settings.cloud.services": {
+      "sourceHash": "8e2b557022e152a68c3ad34c046ba66c1a4f483bbc99f5da7376c530337992a7"
+    },
+    "settings.cloud.privacy": {
+      "sourceHash": "86651d17a401c55b251a5a6750b0b26222bdc56238cdce7106f890dd1eb619f2"
+    },
+    "settings.cloud.statsOffHint": {
+      "sourceHash": "bb087c9a37541b4c62131beb38e8c3b43c3be4fce8950bdb0cd325dfe343d415"
+    },
+    "settings.cloud.disconnectTitle": {
+      "sourceHash": "246291cfa683023b70248845f61d4bd7cdc7ba6aad3e6fe7cddb4486529113cb"
+    },
+    "settings.cloud.disconnectHint": {
+      "sourceHash": "e543a5411d9f1d88defbce5efe0a75c3eb21a4b5ca05b4b1a887d7d42e849a3c"
+    },
+    "settings.cloud.disconnectedToast": {
+      "sourceHash": "01bcac2c6467a63d9beb68412c50fa21d9bb31dc7230bf219a40ebe103f159d1"
+    },
+    "settings.cloud.forceTitle": {
+      "sourceHash": "112ac553a7255662fb6b879e27f266edf56e1654ff61ecc2b6153be0a2e86b1a"
+    },
+    "settings.cloud.forceHint": {
+      "sourceHash": "542dce8520e19a3ed8f37a8f9f40e9bed63035f443e4e12b0bb197ec4535cde3"
+    },
+    "settings.cloud.forceToast": {
+      "sourceHash": "1094a88d37cbcaf21d11b7666d294ea7a2db28aaedd9f4d93829ce6b7766dc54"
+    },
+    "settings.cloud.healthUnreachable": {
+      "sourceHash": "b57dacb09e00fe047200c6268df2d4250ad9a3e016462b59c3b354f430dbf2ab"
+    },
+    "settings.cloud.healthExpired": {
+      "sourceHash": "1ea2e850804bad167d39ba9d22c5388c0a32378ab464226138050dff2b86c8ef"
+    },
+    "settings.cloud.healthUnsupported": {
+      "sourceHash": "f58fcd3fabd8ef4148f2515c3fd302d0421a798cb7ec86c655f02960c5f27ed3"
+    },
+    "settings.cloud.healthError": {
+      "sourceHash": "428fb8bfeecf7f9188c27cf685122d2d25e62bfea68d587a88a9f7637dc53e9e"
+    },
+    "settings.cloud.pushScope": {
+      "sourceHash": "394e121736b9142dcce8684ad0ad51aba0d36c6dac3aaeeb2cb16937aa2ba909"
+    },
+    "settings.cloud.nameHint": {
+      "sourceHash": "f2cf75ac2d5a15942b67c666f33f5aa493b21920e42716e08dd009f5e1485473"
+    },
+    "settings.cloud.requestedPermissions": {
+      "sourceHash": "5a91c6690b18423d7381d32883da882813b9cfa2a596618c4aef3b4b042c7dc1"
+    },
+    "settings.cloud.continueHint": {
+      "sourceHash": "bd3eb704cdc09ca4a07db46510da400b8b8df3fc76e2b767bcadc9973d703c1c"
+    },
+    "settings.cloud.discardTitle": {
+      "sourceHash": "5212f295357978978da5d8b71bffce656639f86dc0d43a951986864cae12a058"
+    },
+    "settings.cloud.openWebsite": {
+      "sourceHash": "f4d373ea83ea5086e6c382937d58e240704a7e9ddc485b3afdad6d35c87b9542"
+    },
+    "settings.cloud.waitingEllipsis": {
+      "sourceHash": "b7dcc31d6baf6797ab22ffc10733bddad2f5497d1f4a92b4b52750b2b07b2628"
+    },
+    "settings.cloud.cancelPairing": {
+      "sourceHash": "a3ed03ecc80983b47b2dde6fd69bd2c45d690557ffabb7cd9f063ab4d4fca844"
+    },
+    "settings.cloud.endedDenied": {
+      "sourceHash": "029e54df68f2357b18f12da451de2abd3d5f5469e8e77c7d63e4032a699b7d86"
+    },
+    "settings.cloud.endedOther": {
+      "sourceHash": "7f5a3719b901f85fefb8d52b74aeaaab783ddd60ba24208ef197498b533c9605"
+    },
+    "settings.cloud.codeExpired": {
+      "sourceHash": "23a9517e135546440c6ecf85e4333af7cdc7a2b0e2f2cf9eed8dad8bcb094d4a"
+    },
+    "settings.cloud.pushScopeDaily": {
+      "sourceHash": "9908e5807306d9ebe41a26e8f1f32bc331c200ad612bd5b5b3be8b9a76e13de4",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.cloud.codeExpiresIn": {
+      "sourceHash": "1eff94672400e898de6e398c812c60e8178c1083ff62725ca842493c5afa978c",
+      "parameters": [
+        "time"
+      ]
+    },
+    "settings.form.discardTitle": {
+      "sourceHash": "01aeaa37eedefb79426938b665114e95f74aed3faab48591b1e439557239e5ae"
+    },
+    "settings.form.keepEditing": {
+      "sourceHash": "fd4b9e3b6c685bae8320db0d59bf2cc60f927288988d98b5e53ca7aeba370bfc"
+    },
+    "settings.playback.clips.offKeep": {
+      "sourceHash": "dd32ee2cb238943bec9f7c370cd7480248a814d24702948a2fbf8414c01828f5"
+    },
+    "settings.playback.clips.offHint": {
+      "sourceHash": "019a2ba3dcc4a53d8907a191bb0646cc27a2037575f8740e8856dcd994f14d64"
+    },
+    "settings.playback.worker.connect": {
+      "sourceHash": "e152a262d2786ddb7678f03881714816544bdc1cd0a52587566fbe09db0cf1fa"
+    },
+    "settings.playback.worker.step1": {
+      "sourceHash": "f7834705de6c031294b0303045cef1abfbc663d14eceb3f5b9c64e3b214647ca"
+    },
+    "settings.playback.worker.step2": {
+      "sourceHash": "f3180c5e06bac4458cc930a54f97bef74127b44507445df21fc26df26661f66d"
+    },
+    "settings.playback.worker.step3": {
+      "sourceHash": "660444f96893309af166b65b1f417fbde77a51821de1004c9f53a29f29d3669d"
+    },
+    "settings.playback.worker.footer": {
+      "sourceHash": "01598ada542fd8f1b199b58be82711e94d29ab5f3bb0ce7ad2ddcc42f1f0349b"
+    },
+    "settings.playback.worker.openDevices": {
+      "sourceHash": "939ebf62847f1dee96cabd17fe38cba90c7b03acd8767a575e712225cecbdca6"
+    },
+    "settings.playback.trickplay.title": {
+      "sourceHash": "544d38c33ed980bf5d15da9512daa75fff46870ce2fcec669078beb6c7b4aa92"
+    },
+    "settings.playback.trickplay.on": {
+      "sourceHash": "ffe97e10a915e76941969db725ad7f736fad46ef132b9b67a4316309b857d5e7"
+    },
+    "settings.playback.trickplay.off": {
+      "sourceHash": "5ec377e602bc54de2771f5dfac7119f3972dda2a3797c05475f4e74490093739"
+    },
+    "settings.playback.cache.title": {
+      "sourceHash": "0446f52a6b777a6d9d92ae61883f1505e40b24c7e6e91cd1df00053fa721bb0e"
+    },
+    "settings.playback.cache.on": {
+      "sourceHash": "dc7edb126ee387d8dc3e85f20fc2085d11cb27f1496d3ab5161aa7420822c112"
+    },
+    "settings.playback.cache.off": {
+      "sourceHash": "e801dfb3b4ba759ad6405467efbeadeb2b0d740bb05f9f778002a09e18056331"
+    },
+    "settings.playback.remote.settings": {
+      "sourceHash": "294665db0ae805e21b5ebd08db2a443eaafd1dd1da26977e730204b662b7d5b1"
+    },
+    "settings.playback.remote.onHint": {
+      "sourceHash": "37ae9bf73c962a63d40d45db45a3d7d79422d9373ae49b100d565828cd2a7cff"
+    },
+    "settings.playback.remote.offHint": {
+      "sourceHash": "beec97dc9bfb24c4238905aab2861710bb9c49d2ece629dc4bfa7dfd162e2435"
+    },
+    "settings.playback.remote.noneConnected": {
+      "sourceHash": "76c874ba0914824142e13c870058c1da4d751b10c641493672168d0c994e0829"
+    },
+    "settings.playback.remote.enableFirst": {
+      "sourceHash": "eddc38ef120de8c1e76e6bee749a81999249aaa12ff078cce76cc1a0cedc784c"
+    },
+    "settings.playback.remote.loading": {
+      "sourceHash": "a69363fa01f127a90928503fcb9e0a27f4bc8d830d68e41297aacbfb8850fa37"
+    },
+    "settings.playback.remote.manageDevices": {
+      "sourceHash": "bc6514d1e22ce44555ee535b77d0f992fa821c244d950c6c18e1b9880fbab7c5"
+    },
+    "settings.playback.remote.statusHint": {
+      "sourceHash": "7a01eb9760d7e1cc2c114d0eb89a2d384384cfbacd60053b5b96390dad4858d7"
+    },
+    "settings.playback.remote.saveOnHint": {
+      "sourceHash": "610e76ce3d99eb58cce228e4aec315f756d794aa77d098fecf6bf3b065c7e3ad"
+    },
+    "settings.playback.remote.saveOffHint": {
+      "sourceHash": "6c1d77b82d3010d3d7ba9bd9be8a40eb20104ced4aa4c5c3ed30dbcd706944e0"
+    },
+    "settings.playback.remote.autoAddress": {
+      "sourceHash": "3a171f590373662b285665c0e1c00e7e3c93263110d08280dbcac8e3e31d887f"
+    },
+    "settings.playback.remote.addressHint": {
+      "sourceHash": "7fa99b3f6b08a23397f20985ca474a9af18cdecef15f97d5a8b79599fcfc9c06"
+    },
+    "settings.playback.remote.addressInvalid": {
+      "sourceHash": "fd5b33568bdb90c5a1caaed3ef8c46f167f36f68c02a12250f2d73e7a92f34d9"
+    },
+    "settings.playback.remote.disableTitle": {
+      "sourceHash": "fd1059e3e90e1d21a7fdec4606adac8d8ea32d14e804c119dcf416ba5344fc04"
+    },
+    "settings.playback.remote.disableSave": {
+      "sourceHash": "f8e2430f84127bc4ea0850e0abe4303f8c05ce35b5e2b1b3722f9763a540263d"
+    },
+    "settings.playback.remote.disableHint": {
+      "sourceHash": "2859baba2d091987af7b605406d170c72503238307baad46b2225b8b0cede8d6"
+    },
+    "settings.networkUi.proxy": {
+      "sourceHash": "18c3e368a059cd25d32780a1f610a3013224028d7fe195b97505951cd13167b8"
+    },
+    "settings.networkUi.services": {
+      "sourceHash": "9152b763c17234836d61d1d24e197a4731599e38220ab90f89d06ac18f1bfc07"
+    },
+    "settings.networkUi.servicesTests": {
+      "sourceHash": "5eb4ada4cf3e58ebd6945cd1ae1c21378055d2b1d7ec195d6c43d233f074da1c"
+    },
+    "settings.networkUi.servicesHint": {
+      "sourceHash": "b49184bfcb6400be6f0f3b33c11ff4ddefb3d5081800e7bbd68f1e8595674b67"
+    },
+    "settings.networkUi.mirrors": {
+      "sourceHash": "bf260deb9d4cd035fbf0040a425f0756aae14fbde713f56c37401de66cf7518f"
+    },
+    "settings.networkUi.test": {
+      "sourceHash": "0a98a48eaaac417549f71ebe7afd2fd02c97d101930377385641726f2c8fc183"
+    },
+    "settings.networkUi.servicesFooter": {
+      "sourceHash": "6645a9dc69d90bf1abcd6afae4767856a8a7907a9e2c26fde508d3834f1455d0"
+    },
+    "settings.networkUi.noProxy": {
+      "sourceHash": "5cc8d4f118198aa03508f80db78babb44cdcb6646e204b94213520bc75dddf81"
+    },
+    "settings.networkUi.noEnvProxy": {
+      "sourceHash": "87809a30a367d22db694f91b77ef1604a9632d830f82c914a89de20fcbdb2787"
+    },
+    "settings.networkUi.manualHint": {
+      "sourceHash": "714f1645ab52be8e22cfea8feee3514bb425ee4545d55e18d79662542e0de1f2"
+    },
+    "settings.networkUi.envHint": {
+      "sourceHash": "7c68de805026c13c1e1814903d100921f5550e11dffc9869546c13ec30891c4d"
+    },
+    "settings.networkUi.mirrorHint": {
+      "sourceHash": "47da9506eebbbe7539b79a5b374e05a417dccba596ca1ae585b6b407c2bbd629"
+    },
+    "settings.networkUi.addressInvalid": {
+      "sourceHash": "44fed6fb797bc21dc882beda4f27081096c28e913de403ac852d1b7a7795a519"
+    },
+    "settings.networkUi.restartingNewPort": {
+      "sourceHash": "5cffa139db2b8a19fe264b4dba0919325f43a7691c0b3fb9b86025c43856988f"
+    },
+    "settings.networkUi.externalHint": {
+      "sourceHash": "8c50597c2d1994adb121d1d7cc82d960024bcbcd574cc478e0b140ec6adc7da3"
+    },
+    "settings.networkUi.portHint": {
+      "sourceHash": "e7798285bda726ff89fa447d0d9bed569092b8055e56b8a31d0a1bf4b4cdf84a"
+    },
+    "settings.networkUi.portExternal": {
+      "sourceHash": "cf1cdabef681886efe95c9dffad161853d8391b502e6664a1f216d6605c940a6"
+    },
+    "settings.networkUi.portField": {
+      "sourceHash": "e71ac32b544b0ebff4abbe29d710ff1629ab64ff1e82f9d04ad593a74658d66a"
+    },
+    "settings.networkUi.useCurrent": {
+      "sourceHash": "8432fed0e68c73826146777cb655763200f6b5faea17cbaaf1d5dc7fee068ff2"
+    },
+    "settings.networkUi.currentPort": {
+      "sourceHash": "ffd887becf2b867f4fb8a7e473446dd9c93aef2a3f1bce179ccec85ef92ce322"
+    },
+    "settings.networkUi.urlHint": {
+      "sourceHash": "a18577cda3bf75df2d6d207eaa6e352906ddbcc7afb10020cd67e0f4138f3673"
+    },
+    "settings.networkUi.portRangeHint": {
+      "sourceHash": "148e08c15d827bfe4f39250f2e52bf6c7f3d8b4e3d6b98e3b0d3c7943fc4629e"
+    },
+    "settings.networkUi.urlInvalid": {
+      "sourceHash": "6e442a20efd3ac0774d9377ac3f8a98a07afdbd9fc36672733dd537ebf781db0"
+    },
+    "settings.networkUi.portInvalid": {
+      "sourceHash": "1af0125affcf5146828dbc2f9b68ecc998b07cd3016285e4c9fdbd9ba294cf5e"
+    },
+    "settings.networkUi.confirmPortTitle": {
+      "sourceHash": "6c92d1a77a3dd063fd896121caefebd9ee382612188f958ce8e6e2c36484bef4"
+    },
+    "settings.networkUi.changeRestart": {
+      "sourceHash": "334f9b32f4b995f86afa4f2b86287f5dbbfb03d7a110c3beede4bd14fc926d6e"
+    },
+    "settings.playback.clips.offPurge": {
+      "sourceHash": "47d508f91380b26c1134c600ddc306f237f54df17b3c7921ae1e349bb3eb477f",
+      "parameters": [
+        "count",
+        "size"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.playback.clips.offPitch": {
+      "sourceHash": "0e1fd2106ca199034b3328197acdf2bfe0b92d0e2017f48fa7b3bce07a2d4d89"
+    },
+    "settings.playback.remote.statusFailed": {
+      "sourceHash": "01605f31289d5da3860b68e2bcd0391e395fbe93e5c9e33db8cb330759b3688c",
+      "parameters": [
+        "error"
+      ]
+    },
+    "settings.playback.remote.authorizedSeen": {
+      "sourceHash": "fe66d26986fb409998ee698f6d45c0eee34094778990368d1d83fd7b45ab240a",
+      "parameters": [
+        "time"
+      ]
+    },
+    "settings.networkUi.portChanged": {
+      "sourceHash": "ebc048b3fcf9e096ded40bacf05f0de0092af61ae0aad7c3911d00d66dff57cb",
+      "parameters": [
+        "port"
+      ]
+    },
+    "settings.networkUi.restartHint": {
+      "sourceHash": "2ea15390c7f952efcad15f90cf0a28d203324a261532ec891ba2a27fda046695",
+      "parameters": [
+        "port"
+      ]
+    },
+    "settings.networkUi.portFallback": {
+      "sourceHash": "64cef97ead8ee45a62d8baecff0e627a6940eb84d6fb3955eeb0e1df2de47830",
+      "parameters": [
+        "rejected",
+        "port"
+      ]
+    },
+    "settings.networkUi.portLabel": {
+      "sourceHash": "c92db876a4518f7fb4f6e7924e97da4e1a0916a2e6fea3976a99049298ce29bd",
+      "parameters": [
+        "port"
+      ]
+    },
+    "settings.networkUi.mappingNote": {
+      "sourceHash": "76d70e72bfc6270d7c7883b978113a800cccb7c1333cef21e12d8b4443575b85",
+      "parameters": [
+        "seen",
+        "port"
+      ]
+    },
+    "settings.networkUi.restartConfirm": {
+      "sourceHash": "33aec507a1be769face68fdd5c362fd81bbd816e307f43eb2f3156d902b7bae7",
+      "parameters": [
+        "port",
+        "mapping"
+      ]
+    },
+    "settings.networkUi.restoreDefaultPort": {
+      "sourceHash": "f48a2970b11b921fde505c3d62619852f644560348e041012674c4e9d81faed1",
+      "parameters": [
+        "port"
+      ]
+    },
+    "settings.devicesUi.createToken": {
+      "sourceHash": "fd820dfc12c917f5c2fa053c705178df32b3d6cf81c5ca02bb2666943c4ead25"
+    },
+    "settings.devicesUi.scope": {
+      "sourceHash": "f3f918d0d2ee2935f97835465db6140a0ed5fb09174302691d762ee38d7cd3a0"
+    },
+    "settings.devicesUi.mine": {
+      "sourceHash": "0542b7f63404edefd492491d084d9264585fdf979a69665fc9810d60de371040"
+    },
+    "settings.devicesUi.allMembers": {
+      "sourceHash": "c9f2fc8eb112a1b67a4fecbbe62faeec48cc3d2972e538356c6da7708dbeefca"
+    },
+    "settings.devicesUi.listHint": {
+      "sourceHash": "3bbc686ebdb3199e99222105590d5342fdacdbe4f0b5ece26894bbbf55069326"
+    },
+    "settings.devicesUi.emptyHint": {
+      "sourceHash": "b5a10e2e7f1c945e47c637638e0f79284c291a7841b4d30553d4b3e5e7d037af"
+    },
+    "settings.devicesUi.searchAll": {
+      "sourceHash": "0ee942211ca307ee783c0aef9220aec977e3ea50351b80cf998bad791e69a58d"
+    },
+    "settings.devicesUi.search": {
+      "sourceHash": "c21e12d69e053e639ab5eda14c1177da7300f72d0bd87d99eef5ae7f84980de5"
+    },
+    "settings.devicesUi.cleanup": {
+      "sourceHash": "9d2998cca51723193ae7d2f6dc9440d9cb144fc433f2460e7c7e8e11cbab5e4e"
+    },
+    "settings.devicesUi.thisDevice": {
+      "sourceHash": "26d53b679d0298f505b744e69f1d140f0c56e86979134c9c315ff5c47f25bc74"
+    },
+    "settings.devicesUi.offline": {
+      "sourceHash": "be1b4f3c6c1cda1e6f4989ef1258bab7ceb0361f2fafc0ba9620e3ace8ff8360"
+    },
+    "settings.devicesUi.status": {
+      "sourceHash": "6320b4a8722a851fb99566e4eac1cfd4b93bc684b3a33d9f5cae37a116b8c734"
+    },
+    "settings.devicesUi.owner": {
+      "sourceHash": "2ff5ad68176b89c3a229995c105a4f0827e59311ea9863214d848a6e026646cc"
+    },
+    "settings.devicesUi.lastUsed": {
+      "sourceHash": "39a9046f9c8c993d394353430177a86b1124feb9e6d68a4d5e9d3bf0688c278a"
+    },
+    "settings.devicesUi.sourceIp": {
+      "sourceHash": "27284d95287f151a7c69f4ef91a11ecb3f00a85e8049ecc65871a1e42badf443"
+    },
+    "settings.devicesUi.firstSignIn": {
+      "sourceHash": "5fbdef3c108c8a3566e4c7d8d02a4dcb12a84a38603d83e8a00c8dcc10d10f75"
+    },
+    "settings.devicesUi.access": {
+      "sourceHash": "93f0f38887a80db3082257e982a7d1f3e49c981e54eda046bd0d6683e07dfe77"
+    },
+    "settings.devicesUi.sameAsOwner": {
+      "sourceHash": "e4ee017e4b05450947fabf0a86b11c021452d3b6349aa8ce922d544f97b7197d"
+    },
+    "settings.devicesUi.dormantHint": {
+      "sourceHash": "d154e98d2328addacbeeaffc3d97e5de95bc77456324c3976352c345b5b10bcb"
+    },
+    "settings.devicesUi.signOutThis": {
+      "sourceHash": "bce4dc12b956e44408f3820a302a4857a8e1a78e6a1e1c9bdfcd237814dd2340"
+    },
+    "settings.devicesUi.revokeWorkerFooter": {
+      "sourceHash": "b35d05b73e0bdef4eb300035d0b24d10085ffbf3d2004931b0dd1d8dab1e8bff"
+    },
+    "settings.devicesUi.revokeFooter": {
+      "sourceHash": "7ebb819291fe2566ec864036c765e454f4e2162560fe9a446a4e9e6530e28876"
+    },
+    "settings.devicesUi.details": {
+      "sourceHash": "7be3a5a40bdeecf76a35678ade5a96f73d25858404c916ffc8645bf52b76fde2"
+    },
+    "settings.devicesUi.renameExample": {
+      "sourceHash": "2a0de6b1af071a2f10aa63450d7b6bc23914749a47b084d2bfaac375f7e3f7fd"
+    },
+    "settings.devicesUi.signOutTitle": {
+      "sourceHash": "b6af1a5049fca19d33bf058d1ea48e297792d464dd83c6044eaec738b4d2179c"
+    },
+    "settings.devicesUi.signOutHint": {
+      "sourceHash": "db910f4f20163c3b252308b79ae266f9a771d3444eeeb68487661dbf740018d7"
+    },
+    "settings.devicesUi.revokeWorkerHint": {
+      "sourceHash": "65d3523d0f062c947427427485718947dbf7f999766324df07b3d64728835ed5"
+    },
+    "settings.devicesUi.revokeHint": {
+      "sourceHash": "f5a45a4888696c83a03f473d5a7bce943f8f8b7b7ca139ed2ac17bb1ceb63e82"
+    },
+    "settings.devicesUi.adminTokenBody": {
+      "sourceHash": "b167b789b4f68277180d94ef28c61088268eb31edab193a0d577c8885eeaab4e"
+    },
+    "settings.devicesUi.transcodeTokenBody": {
+      "sourceHash": "15c67912acfc209d7a631fc2c3d7d8cecfacc298010042fe9a535acc46045162"
+    },
+    "settings.updateUi.maintenanceActions": {
+      "sourceHash": "8d206d16ed2eda233157b776b02a73bd6382e17d77f923b1471a72d5a4c43bf2"
+    },
+    "settings.updateUi.stillDown": {
+      "sourceHash": "75785bf30f3ac01521d6f3bdeaceb858adcb54f2c001fd09976d4cf24f87d97d"
+    },
+    "settings.updateUi.recovered": {
+      "sourceHash": "a3a41de9cb937ea29d1f6d4baff16efabd89db8025caa72a45c9907783ab8fd3"
+    },
+    "settings.updateUi.sourceOverlay": {
+      "sourceHash": "a9d32cec69691ec32adda4efb236e57a5cb996d7c0f3dad35e7bb4e09bffbb59"
+    },
+    "settings.updateUi.serverTitle": {
+      "sourceHash": "98b9a1b0636eac5bb91d5647f12381ca8141b3cbcdfaaa967a2f0597bfb31c02"
+    },
+    "settings.updateUi.latest": {
+      "sourceHash": "bc310480b4ce9236e5a8b5a628129dde591d1160b55d39b183821a285336d72c"
+    },
+    "settings.updateUi.sourceHint": {
+      "sourceHash": "fd8e560089a86467173e2d9dd9523e3d5e3887a2ac5196fd779cf667ab88f7af"
+    },
+    "settings.updateUi.available": {
+      "sourceHash": "d10d9a99d6e941ab47e120ad27d150c73713bfab8504d1c5f1a5dba8e0b08c23"
+    },
+    "settings.updateUi.newVersion": {
+      "sourceHash": "47ceaf502c5a05d6bb1917d2d2e3f31354ae1ac99ae75842deb9205e457cb16f"
+    },
+    "settings.updateUi.dependencyHint": {
+      "sourceHash": "09330d80d6e50ef18e6249ed49a7511b9afc14bc701a2bcdde727272a2d1becf"
+    },
+    "settings.updateUi.failedBefore": {
+      "sourceHash": "acbe21f7d4c9155a485d7178f6c8d81714a045cb7f1278c06848cc86d301b1eb"
+    },
+    "settings.updateUi.notes": {
+      "sourceHash": "00ed9eef1b6e07586c6563d8ef7f5ebb969631c51b7e8dd01c18461af287c6e2"
+    },
+    "settings.updateUi.updateRestart": {
+      "sourceHash": "ce55c3c9fd287b1da0248bc12fefaff6620d30519ab63f23172ef1e4052baaa6"
+    },
+    "settings.updateUi.currentModel": {
+      "sourceHash": "52f79fed15ec2723e16f0748df9dc02ae8facf17927037141db1f97f95cbb247"
+    },
+    "settings.updateUi.unknownModel": {
+      "sourceHash": "31278c26908888c69182a747c53ee7a66374c3ff34a589feee30a29465bb05f9"
+    },
+    "settings.updateUi.newModel": {
+      "sourceHash": "9666804fabc2e933ced1c7a068d9593a33c130b38cf2014a9943e41e5c07f87a"
+    },
+    "settings.updateUi.modelRestart": {
+      "sourceHash": "f9a9138370d3a4218d1352ff0db6e174f6ab599a59ddb7da93ae2ae2aa0c10d3"
+    },
+    "settings.updateUi.modelNotInstallable": {
+      "sourceHash": "44b464d43767d081f322815552ac1583347285421e54178adac6b4e51592ff1b"
+    },
+    "settings.updateUi.modelLatest": {
+      "sourceHash": "6c810c6921d2e49ad0a0e7f6968fcacd9f5bf198599e11a2bf003d14d032c72e"
+    },
+    "settings.updateUi.modelSection": {
+      "sourceHash": "1e03c4307b96c22cbeab0efaac4713a6a57878a3e297c98ab1c2fa0433ba422c"
+    },
+    "settings.updateUi.modelHint": {
+      "sourceHash": "8be9834b4e8134b5761644dcc755dabf6b19d30d093fa92c8d9d101b9a0f2078"
+    },
+    "settings.updateUi.history": {
+      "sourceHash": "6fd29579ab66d263eefe74db0720937e2b50c57d4a7a5d31bea70fe1b076d854"
+    },
+    "settings.updateUi.keepVersions": {
+      "sourceHash": "83ca83229db2187fbd78e243ec54506b202cf08b1753957bebe5f90227b0aff4"
+    },
+    "settings.updateUi.noHistory": {
+      "sourceHash": "5b4ba75544628779a10e3adfc7bb1b9b2009e41512d47b4bc14386b10c4b6372"
+    },
+    "settings.updateUi.rollbackHint": {
+      "sourceHash": "1e07fd36818d0ce701770d68497510ee0c6dfc6595f694eecb22b25413408d0a"
+    },
+    "settings.updateUi.noBackup": {
+      "sourceHash": "705d23a5161f52f4ed6f00816464e43a7a27282b16096aa1a3253c1cff267f49"
+    },
+    "settings.devicesUi.onlineCount": {
+      "sourceHash": "cd6e22b79b5eea92f46fe03f0f41d330c91aa09e1ca8fddb261e951014ff5dae",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.devicesUi.onlineSection": {
+      "sourceHash": "3fb058838b96e4e39c7e58144bbe08cbc3e5b676bf1fad04d72522cb4ac0ae08",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.devicesUi.offlineSection": {
+      "sourceHash": "2f7980a43ebccda90be5cd806bcb1ced1637a3336b2799ea66a906f8757062e1",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.devicesUi.emptyGroup": {
+      "sourceHash": "a1f71846041fc197c7c0cd1dfdee5a54911f715599c1bd8cdfb211fea22c8d6b",
+      "parameters": [
+        "group"
+      ]
+    },
+    "settings.devicesUi.cleanupAria": {
+      "sourceHash": "da69ce282edbbd05353b49fdff7cd17077e8d185bdeb5d3aab817077e7862b98",
+      "parameters": [
+        "group"
+      ]
+    },
+    "settings.updateUi.inactiveInstalled": {
+      "sourceHash": "ec26fa9f3fd89b54fffb6b37a21d12a1849595a74866eb23b22ee054f524c30d",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.updateUi.reasonSuffix": {
+      "sourceHash": "e83e454b557b9913214471edd366bffe77e4f0c7459d2aaadcf98dfb72922c9f",
+      "parameters": [
+        "reason"
+      ]
+    },
+    "settings.updateUi.badVersionsList": {
+      "sourceHash": "60e23badf10bf3c182960d1570d0413f8db60f59f5bab51d31fe46caf4dadfca",
+      "parameters": [
+        "versions"
+      ]
+    },
+    "settings.updateUi.lastFailed": {
+      "sourceHash": "e4f652ce042d6dcd87f98fb95cca6f299c0b28286d621c56e3420616bfe5ec52",
+      "parameters": [
+        "error"
+      ]
+    },
+    "settings.updateUi.lastFailedVersion": {
+      "sourceHash": "51f5c362dc8bab5c57568b3c45e90ba925ec0f1d2bd7930f056d5111f87aa4a6",
+      "parameters": [
+        "version",
+        "error"
+      ]
+    },
+    "settings.updateUi.baselineVersion": {
+      "sourceHash": "a275b089bc8c1737aecd3082a5acf122876c14516beb026a090e1e5332c076fa",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.updateUi.storageHint": {
+      "sourceHash": "b24722f344d28e937aea2fd8d4bb6700fa25cc7233c123177706818bc1ee026f",
+      "parameters": [
+        "size"
+      ]
+    },
+    "settings.updateUi.restoreHint": {
+      "sourceHash": "5bbce57e43e9f45aa771a980107b8f49504a526c32cb124b0e37796b4f2fcddc",
+      "parameters": [
+        "time"
+      ]
+    },
+    "settings.playback.clips.doneSkipped": {
+      "sourceHash": "415d3401f6c77f79fa2fb89983d3a97b5074d5cadfe886afff66bd195aa611ad",
+      "parameters": [
+        "ready",
+        "skipped"
+      ]
+    },
+    "settings.imageSources.overriddenLibraries": {
+      "sourceHash": "43371300b23e7998a0e1c95c71e26ad5d901ad253fab03a5ded72380ae4de327"
+    },
+    "settings.imageSources.overriddenHint": {
+      "sourceHash": "64f4f614808c964577950090debecd90daefebe57777fbb41997e521639c8ea0"
+    },
+    "settings.imageSources.ok": {
+      "sourceHash": "f867f34178594f891eb70a4260f62b1d9289cfa60394f9fee1cbbe4a8b4bf436"
+    },
+    "settings.imageSources.checkingKey": {
+      "sourceHash": "5f61c40a8f074bcbec9458c856c6bd0f160e191cdb28457c8ac96bebddcfeead"
+    },
+    "settings.imageSources.reverifyKey": {
+      "sourceHash": "48fb1fb35425925ff6415af9c0ef7e6e64070a1f95921286460055935d22d211"
+    },
+    "settings.imageSources.changeKey": {
+      "sourceHash": "3add3416c24d3c688e7dcee6d519387e2923ae312958ea34d7a133a9039c07d0"
+    },
+    "settings.imageSources.configureKey": {
+      "sourceHash": "25fdc6ea08321dbb278a40e8e8170b81806732ae6fbada3b8f4ebe1dc450766d"
+    },
+    "settings.imageSources.keyInvalid": {
+      "sourceHash": "220f5e0eb494adb1af836b97654b7faf134003203856c2fde0f486ec173ddac1"
+    },
+    "settings.imageSources.verifyToEnable": {
+      "sourceHash": "9c3ad599c0ee69022c1a35e75f91326804e66489dc019602dfbaba02799b7bbf"
+    },
+    "settings.imageSources.services": {
+      "sourceHash": "4cc04384b3d12c0f914d7e9ec4771706e8a75869e99f59779012930fe5a8cd87"
+    },
+    "settings.imageSources.fanartHint": {
+      "sourceHash": "7abb8088d2eadf78007c1c624480eb525170d322bc1f3736865f72e71d8a36df"
+    },
+    "settings.imageSources.priority": {
+      "sourceHash": "764ddc1ee9215ad360f580945d3301a8366dd4c2f4a33a0c37496990f75220fd"
+    },
+    "settings.imageSources.autosaveHint": {
+      "sourceHash": "caa5a944f23d792be5aeb013f22dbdeb62c9ac7b927c13359a6227000f5c8cf0"
+    },
+    "settings.imageSources.checkToSave": {
+      "sourceHash": "5db64685e27efaba02f5b334b7de902bd9ff4f60ebac452b8eedd301d5ee91f7"
+    },
+    "settings.imageSources.changeFanartKey": {
+      "sourceHash": "03d04e5dd3f77e875683c86f6abb1943afd67c2bd9cba69a9179aa18d3b607c5"
+    },
+    "settings.imageSources.verify": {
+      "sourceHash": "154723a1aa0a09a4c3f2a99bfa83494e54a27c6b372b3040d68b4a713f12b2f2"
+    },
+    "settings.imageSources.currentKey": {
+      "sourceHash": "711ef4aa4ce2f82ef889fe6211d8f7395f224cfcf9a1be9e9bdd4041a4830962"
+    },
+    "settings.imageSources.keyInvalidRedo": {
+      "sourceHash": "e03ad5d4a1b368c151883a32043b2f11ac47c68a081f03398d681d3dbff60fef"
+    },
+    "settings.imageSources.keyStored": {
+      "sourceHash": "498e711e85ce90199e775b73eb24fb63d088f26b0459a9d90ecab6aa15a0cacf"
+    },
+    "settings.imageSources.keyMaskHint": {
+      "sourceHash": "9e0235415586933fd47b7b4be7d57099721105429aa9fdc073b928190cb2e795"
+    },
+    "settings.imageSources.newKey": {
+      "sourceHash": "23a6346083ac91f3827e5abd0f53ae2f00f0bad526c86b80fd118d649df6ba31"
+    },
+    "settings.imageSources.enterKey": {
+      "sourceHash": "ca478c91d3839a4446b1e9dd09da8d47f8494bccf3f0ce7f2558d70d430c5dc7"
+    },
+    "settings.imageSources.getKey": {
+      "sourceHash": "edb32627e0979f43273809fc11b536864575f998b849ce3813e12f1133bef436"
+    },
+    "settings.imageSources.verifyHint": {
+      "sourceHash": "a1f6b9ed08013dd83b4e657c1c637128e1d350e97594f2067f16aa1256431a19"
+    },
+    "settings.imageSources.discardKey": {
+      "sourceHash": "464395329c683b9846036a99a4b82836f6d2f1364c3fdb6f87fb895e7c79ab24"
+    },
+    "settings.imageSources.discard": {
+      "sourceHash": "cc26c3570bb560e454f4d49abee0a876d6a5affac1d97da57f00d76d9449880d"
+    },
+    "settings.phonePush.enabled": {
+      "sourceHash": "6436e8b10b3832c49740496f04d49d9c696bf0c150cf11d0d4bebce2d8a0090f"
+    },
+    "settings.phonePush.system": {
+      "sourceHash": "94b7513eaddb2f53c057be54dcecef1aa53274daae0640c66f7e98838f11cbea"
+    },
+    "settings.phonePush.openSettings": {
+      "sourceHash": "ce6ab3e63df717baf81d6dcce864f029485990c3139023af2fe3c1d7b476150b"
+    },
+    "settings.phonePush.allow": {
+      "sourceHash": "3834f9cf9f9baee78cb4a8b1a51b4e8ed26f37b38442358a9233243ad679c216"
+    },
+    "settings.phonePush.sideloaded": {
+      "sourceHash": "12d355e0c216295d5fdce883c628e6da87070e19c69547f66e764e67e38f29b9"
+    },
+    "settings.phonePush.deniedHint": {
+      "sourceHash": "c8635da5aa0e84bfdfa32bbeafb32aea99eb5a9066403aa46331e2117e817a19"
+    },
+    "settings.phonePush.adminPending": {
+      "sourceHash": "616a03c37accfe828e632f2c820b01d08643cc8f55605e0325fe9b7619265d77"
+    },
+    "settings.phonePush.noChannel": {
+      "sourceHash": "7ce713439d37de40527a3e5ebac59e2200e886d64845c489210bb285ffa13b9e"
+    },
+    "settings.phonePush.relayHint": {
+      "sourceHash": "0e54c63d16ef0096b64901be8d01c8a623373ad1020cc990ef86bdfec8c593bb"
+    },
+    "settings.phonePush.turnOn": {
+      "sourceHash": "fb4a6f1c5808994c3e66e778dda124006b73be600bddf332d7b8f10e71c88156"
+    },
+    "settings.phonePush.thisServer": {
+      "sourceHash": "dbdf7fa5ec983e7a42850d9c3bec82bad31a0586651e61133a7a6db30e33003b"
+    },
+    "settings.phonePush.enableButton": {
+      "sourceHash": "8da97ddda990e7c4a3388944ecb73ebf5b5b5f88c68ee7b78b80f77ec69e22b0"
+    },
+    "settings.phonePush.accountHint": {
+      "sourceHash": "1b789e681b1c6557a9397acbc71da2b303caa0b8d8c04d43c163d7037959db66"
+    },
+    "settings.phonePush.togglesSaved": {
+      "sourceHash": "0ce846ce0646a6b9bffbe9b5d8c6d7a777a727bbe32622b3c9cf9517dab81857"
+    },
+    "settings.phonePush.mutedHint": {
+      "sourceHash": "8777017c369ba7aca0dd69a17e417fe5ef08d476351da693c4f1f1b2391308a9"
+    },
+    "settings.phonePush.oneUnreachable": {
+      "sourceHash": "ba6af424116e1add495fee6a094eb139aabebe6edd8497fda376fd1ee317696c"
+    },
+    "settings.phonePush.checkDevices": {
+      "sourceHash": "ad2bca5ae3acf7ec3841a9651fd21a999ff1d43f5c319fa4584ffec90bd2b017"
+    },
+    "settings.phonePush.serverFirst": {
+      "sourceHash": "c18cdfcbc2405936b181ba38e73044077a80ba42e312414db5256a103dd399ad"
+    },
+    "settings.phonePush.noneReachable": {
+      "sourceHash": "0379e430dde95e8629ec9e6281de637f7b1e260912df31c1fcf13dded3e65ff4"
+    },
+    "settings.phonePush.noDevices": {
+      "sourceHash": "c9f1017daea65ab157cbdfff4c18c1a826f214a7d0f079f9aa01bc4925a45a40"
+    },
+    "settings.mcpUi.missing": {
+      "sourceHash": "db5142719996212e1600373ee33ce47863cf38e0ecebe31c280249387d287051"
+    },
+    "settings.mcpUi.missingHint": {
+      "sourceHash": "63ac9f688c6a9f07286b43256def5f3dbc71953934487df7001b86175a86a347"
+    },
+    "settings.mcpUi.edit": {
+      "sourceHash": "41187c12911e9558fd9bf20857528d6b0d0cacf91f6da042bc2bd081e3097757"
+    },
+    "settings.mcpUi.rotate": {
+      "sourceHash": "a5acb450005608d8face13601c46189e52e74d99e51ad60a144031bc9a3ea380"
+    },
+    "settings.mcpUi.delete": {
+      "sourceHash": "fa53783725167788fff965a325963fc1fdbfdb302eebeeac43b57631d3130ecb"
+    },
+    "settings.mcpUi.actions": {
+      "sourceHash": "da03a41d64a15eb4b0a59d3cf54e9200c4dc7b94e9b179ed170630d0f9eac63c"
+    },
+    "settings.mcpUi.reloadTools": {
+      "sourceHash": "3db89523098b4de5b1ba8df8c7d9c86376c3a4b3c6d7a3255570f15b1b7f8a81"
+    },
+    "settings.mcpUi.tools": {
+      "sourceHash": "19174faac42344d58a1584a0b975428415ed83c1d4b0cddc97a7446f399b279e"
+    },
+    "settings.mcpUi.headerExample": {
+      "sourceHash": "845a9e7e0f4688c47973ed44707b34f36ccd9f69f370d6997ef10574a8ecac30"
+    },
+    "settings.mcpUi.connectHelp": {
+      "sourceHash": "3dc98cf48188643fb42f59f85035c3e52685225cb82c429009c7e87550129a30"
+    },
+    "settings.mcpUi.connectHelpText": {
+      "sourceHash": "33808273b22a7c745b3efd4e15ff3ac424cd498814e64da882e337676befe13e"
+    },
+    "settings.mcpUi.toolDefinitions": {
+      "sourceHash": "2433800bfcbec9407d1e9d21e2f529faa64ecb8587fbaf84d886548239ad1c26"
+    },
+    "settings.imageSources.priorityHint": {
+      "sourceHash": "0e85181d06d6ea756c606dcca63464e5b4c57e58885cdc6b5bb4a33c53a1421d"
+    },
+    "settings.imageSources.enableFanartForOrder": {
+      "sourceHash": "94eb37041602dda3052359756fea7ee6e1dae09bd4ed71fcd5ba51c5aba1101d"
+    },
+    "settings.imageSources.keyConfigured": {
+      "sourceHash": "e816768626df0dbfbe9bb2d24fad0951fc42261d9165420c0e1651b46336bb79",
+      "parameters": [
+        "hint"
+      ]
+    },
+    "settings.imageSources.enableFailed": {
+      "sourceHash": "259ba11fee50157c21af3c92264c81de3c51f0540c67b282adb249de2199a362",
+      "parameters": [
+        "error"
+      ]
+    },
+    "settings.imageSources.disableFailed": {
+      "sourceHash": "69a799929addd574ba1485e61e1e1894ef5b7f82d0bd82343a36944e2b207314",
+      "parameters": [
+        "error"
+      ]
+    },
+    "settings.imageSources.sourcesTitle": {
+      "sourceHash": "0151758907e52f81c8e187f2c513a87e08b5870827f435824afbbd417e32093d",
+      "parameters": [
+        "kind"
+      ]
+    },
+    "settings.imageSources.savedButEnableFailed": {
+      "sourceHash": "577662904794181c725af4fd6a44f601a5980bd491f6ea73e91ed5a7ee0d02a7",
+      "parameters": [
+        "error"
+      ]
+    },
+    "settings.phonePush.connectedTo": {
+      "sourceHash": "8593eb9ac61e68d3f11f3e80e3190b3cd1c8cba867058cddfd461bec4b3053e1",
+      "parameters": [
+        "server",
+        "account"
+      ]
+    },
+    "settings.phonePush.connectPitch": {
+      "sourceHash": "e02fecdcc5b64741a29c9885140d839d3687db77e04708079b28ead71f057e8f",
+      "parameters": [
+        "server"
+      ]
+    },
+    "settings.phonePush.manyUnreachable": {
+      "sourceHash": "d3bc7290df78054b46dd7a82a07188259a77b7ed81cbc1bec8cca78880272610",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.phonePush.sendTo": {
+      "sourceHash": "07674db61909a66d1723f5e4a99b8259f73fd23ecdfed8f48006a860f8831699",
+      "parameters": [
+        "targets"
+      ]
+    },
+    "settings.phonePush.sentTo": {
+      "sourceHash": "aa6597361f8a07f4f9652709625f2dc9cfb8a820e42e969f6d5cf67bc6862df5",
+      "parameters": [
+        "targets"
+      ]
+    },
+    "settings.phonePush.targetJoin": {
+      "sourceHash": "70369a6d0fcbbf81eece49c83e6228695c088341e26ad394289c026eebcd08b4"
+    },
+    "settings.mcpUi.missingServices": {
+      "sourceHash": "19932f0893e3bf96c79f785b9018709150eec0ace0a35963dc7b08c3d73a4a8a",
+      "parameters": [
+        "count",
+        "services"
+      ]
+    },
+    "settings.mcpUi.deleteHint": {
+      "sourceHash": "faa5c267334a41d954a56bceb5a4ebfd5f842fbf847f97d6120d677ab43f2bdc",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.mcpUi.typeSlug": {
+      "sourceHash": "284ccbb2a091a9f21ea6a8fe2cb27e3843816c760271da1ff3d5b41264488336",
+      "parameters": [
+        "slug"
+      ]
+    },
+    "settings.form.create": {
+      "sourceHash": "cde2cd071d25bbab4fab3c1956d3034b08c979a25c65bef0c816999e355f6561"
+    },
+    "settings.form.keepSaving": {
+      "sourceHash": "9db8e0fe4f029855b039a0432f8622717d69641481c37cf78e60638711570074"
+    },
+    "settings.memberEdit.nameHint": {
+      "sourceHash": "90f6f89fb5a98a6b40adde7c53bfd7a757daeda0b2059297749902f7462047f4"
+    },
+    "settings.memberEdit.subscribeHint": {
+      "sourceHash": "5f5e180f62d744f9d0e8717c52f7c8bc88b9a6625a5da08cbbeec0efa828477e"
+    },
+    "settings.memberEdit.searchHint": {
+      "sourceHash": "7411f9431e8537e8b733d45ebdd1e950c655dc598b10eb55ee25e32e82ce8458"
+    },
+    "settings.memberEdit.ageLimit": {
+      "sourceHash": "3454cef34c563b14f1cc5cb3a1a9a783abf0d7e64f054b189d0e3b041a9cdd65"
+    },
+    "settings.memberEdit.ageHint": {
+      "sourceHash": "879f6ee2621574ef43c97d336103b02d9fef62098260a10f8d569e52d47b5d2e"
+    },
+    "settings.memberEdit.allowUnrated": {
+      "sourceHash": "db5074ef3deab7d0d9b2270f96d444c45d70bbbff4f4b6de37a6ad60ac5a257a"
+    },
+    "settings.memberEdit.unratedHint": {
+      "sourceHash": "a21cd23e938a963bb167a85b1a351e960ee3877ade3baf848d6da432110b8048"
+    },
+    "settings.memberEdit.scope": {
+      "sourceHash": "b3e8912ac6e115e5c1c697e5b4aa1f748d3149f17c674761ffcc23e12f6c50de"
+    },
+    "settings.memberEdit.librariesHint": {
+      "sourceHash": "bed6946465c3d301f62f1771fa79be59273236fadc00fcb1fa7c3e3ebcb23aef"
+    },
+    "settings.memberEdit.individual": {
+      "sourceHash": "070d74d2b7c4bdd979a2eeca3ef2de374568b1eef144d0d97dd5c1e12525d6c8"
+    },
+    "settings.memberEdit.chooseLibraries": {
+      "sourceHash": "e27d55d25dd44d54322bd805b202367d102ac8a8e9e7249f7f42cb9720e659a0"
+    },
+    "settings.memberEdit.noLibraries": {
+      "sourceHash": "f4c0aa22575be98de88a678a1f9c7666dcedc900cb01ec2425047f88a2627e77"
+    },
+    "settings.memberEdit.noLibraryMatches": {
+      "sourceHash": "02058b4e0a4034e503638b51622c552e72e8713b702bae791b4d64fafdb82ae0"
+    },
+    "settings.memberEdit.sitesHint": {
+      "sourceHash": "ba4d544778ce353150182b4b475dd95aad5cb14c70c0614b83d34fde776be853"
+    },
+    "settings.memberEdit.chooseSites": {
+      "sourceHash": "7303d7d283d579327a43f265c522e13c6de627a1854d50a79d0b15cd6dc89aca"
+    },
+    "settings.memberEdit.noSites": {
+      "sourceHash": "51998a402c6414c9905015e5462c9dbd9b98d7b7a013a7319e763268f335a933"
+    },
+    "settings.memberEdit.noSiteMatches": {
+      "sourceHash": "1525ed520e17fd4bdb63464f0cd81a72087e15c89c690facf387b37a7d562e55"
+    },
+    "settings.memberEdit.selected": {
+      "sourceHash": "3f4ebc4aad9793b6c696340af9d5852dcfae4195a4e7b41441bd4765a04bb048"
+    },
+    "settings.memberNew.usernameHint": {
+      "sourceHash": "d531eb21fdc5e085d68570eed2bfbef7d50896306e29bf12d84ebcbd841cc42e"
+    },
+    "settings.memberNew.nickname": {
+      "sourceHash": "3773bfcf17f3649d0a1414f5f5a41500cc63293cce509713a7f5b85dc352094f"
+    },
+    "settings.memberNew.nicknameHint": {
+      "sourceHash": "34b81898c968557c708331faaff776b242d5aa8fbd1596d0e2e3d5c977b67cab"
+    },
+    "settings.memberNew.defaultsHint": {
+      "sourceHash": "c14e221ed4f547b1cd39b0db650d5ec3599f30c74cec1f8d0b3239ab791ec3a3"
+    },
+    "settings.memberNew.saveCredentials": {
+      "sourceHash": "94b8c335aa5bfc41b24b8c79601e7d78bc863c47ba35e6453c8c0b7c310a05f4"
+    },
+    "settings.memberNew.savedTitle": {
+      "sourceHash": "ac91895333e6cf434cf62b55f14b13eaed85eaec4b8aad1f38f8a856cf9bcb9d"
+    },
+    "settings.memberNew.savedHint": {
+      "sourceHash": "9235809b8b9ba8de19ba73323ccbf7635f23399e8ed148814d2342ffbb53cbb1"
+    },
+    "settings.memberNew.discard": {
+      "sourceHash": "d9d04823cb5156acff7d68c0e15d4435c6aa6886c7ade9e787fd0bb243e45339"
+    },
+    "settings.memberNew.saveFirst": {
+      "sourceHash": "ffd1f6311bd7499535d8eb857fc6841b2aa8948b7173bfea5b2678029a632328"
+    },
+    "settings.memberNew.copyUsername": {
+      "sourceHash": "ac859f1f273832bfd3c4f384f87052354eceb91d2c858f9e84ffb9ee4ceb2f67"
+    },
+    "settings.memberNew.copyPassword": {
+      "sourceHash": "c49aca3e41e21a30f13cefb37a251327e43214d037d28992e75c1292be7084b7"
+    },
+    "settings.scrapeCards.quality": {
+      "sourceHash": "c22b230c49ca96c3fae5b8f6caa202ec9611a7d1f04a5eaa76f419fa74ac008f"
+    },
+    "settings.scrapeCards.languagesHint": {
+      "sourceHash": "d57ac2234098c21af82ec152ed1b412ab3833e2cf2730c52094c190745031619"
+    },
+    "settings.scrapeCards.imagesHint": {
+      "sourceHash": "7df95cc3eacf625a062bd542331425b578bf13d33dfe960cd9e4143da9703226"
+    },
+    "settings.scrapeCards.logoHint": {
+      "sourceHash": "745efa0d4b1f16b4c886d12e0a2548101ca81917a212b7cc4940cda28e29268b"
+    },
+    "settings.scrapeCards.backdropHint": {
+      "sourceHash": "8e816da13de89304b87de618196efb5951e4f16a8341c51c2f5a935eb8290508"
+    },
+    "settings.scrapeCards.qualityHint": {
+      "sourceHash": "4226aff28fb8e50079204ff5a4faa7bae39c36ca839a6788692cc0549cc04e8b"
+    },
+    "settings.scrapeCards.mirrorHint": {
+      "sourceHash": "09e8553332386d82291a8e489e9acab436c400c274c05fa181c94de2407de753"
+    },
+    "settings.scrapeCards.sourcesBoth": {
+      "sourceHash": "646965d698976fd86a753b55c8844ffe0309e5137da08525dfb6bbe86584dd8e"
+    },
+    "settings.scrapeCards.sourcesTmdb": {
+      "sourceHash": "f84ebee6de02686181b962f32eb2806f648d1c9f0ff7defed5cad206b0a01dde"
+    },
+    "settings.scrapeCards.posterCompare": {
+      "sourceHash": "d2f2eb4c01a91fd51f1468d9567c6b4b65664d305ed3aafc8124f6dbe0de8ee5"
+    },
+    "settings.scrapeCards.qualityPickerHint": {
+      "sourceHash": "e8e8313def96a956e25e6629e297823c15d63c409749715719295fad237ea504"
+    },
+    "settings.scrapeCards.thresholdHint": {
+      "sourceHash": "4e1577cd408c4850f7d218409e2ec20b35201c6ba1d350eee825576af05d1824"
+    },
+    "settings.scrapeCards.followEnv": {
+      "sourceHash": "27b5a24412e291e807fb95e5e6d5a6b3e22d46dba14b7d12a169a5bb3541c666"
+    },
+    "settings.scrapeCards.namingHint": {
+      "sourceHash": "4ab2b1f70fde929d24f760d63efd22c1683ee82d199e633b0772a7d20d7426e0"
+    },
+    "settings.scrapeCards.siteWide": {
+      "sourceHash": "92ad14acbea23c32cecba7d1198887ac89a60280c33df5c6dd43fd8dbdf6db4b"
+    },
+    "settings.tokenSheet.namePlaceholder": {
+      "sourceHash": "bd3872d54706758fc6bc88b297a84f4a118a45a3b3d411fe9750fcbd16ec7839"
+    },
+    "settings.tokenSheet.name": {
+      "sourceHash": "b5fb7047aef2ecbb064dc2a92851b227d759047c6b8166263fec6fe5559d81c9"
+    },
+    "settings.tokenSheet.nameHint": {
+      "sourceHash": "fbb14437825394576a041837fc7d4780f73f043b643123ad013920b53e0e1d83"
+    },
+    "settings.tokenSheet.access": {
+      "sourceHash": "93f0f38887a80db3082257e982a7d1f3e49c981e54eda046bd0d6683e07dfe77"
+    },
+    "settings.tokenSheet.usageHint": {
+      "sourceHash": "bbd47f7d7a48cc28876b76ae83403d084a8db371ce101ae83bb8980563a241d9"
+    },
+    "settings.tokenSheet.createTitle": {
+      "sourceHash": "fd820dfc12c917f5c2fa053c705178df32b3d6cf81c5ca02bb2666943c4ead25"
+    },
+    "settings.tokenSheet.saveTitle": {
+      "sourceHash": "382590e774aa6823633d81c42c79a2836575c6cbf411e32bbd1b24682bb843c8"
+    },
+    "settings.tokenSheet.savedTitle": {
+      "sourceHash": "0d9a0ea230522ac05bb6655238122c47b16a1b9fc977774ed6533ef133de64fb"
+    },
+    "settings.tokenSheet.savedHint": {
+      "sourceHash": "dcea882c013162ab1619fb64067edf8ccb1e8e6fa3f637be3085de0f638d4173"
+    },
+    "settings.tokenSheet.copyFirst": {
+      "sourceHash": "9edb79a5f0063ebc20430515082d2b775b3f9356be7d6658cb8ed777f411a77f"
+    },
+    "settings.tokenSheet.copyArgs": {
+      "sourceHash": "7412dd932e4b905e86a8ad85b98a44938f0a1c32c474c38a120e99d4be5f5b7e"
+    },
+    "settings.tokenSheet.copyEnv": {
+      "sourceHash": "f7b9d3015e3449f4907258e12a9315f615c8e5b594ec0032746c7c0c29cfc98c"
+    },
+    "settings.tokenSheet.args": {
+      "sourceHash": "d46bd8fa57140f8becb19f60ae585aca04f481abf8887ecb63759f00d30777ec"
+    },
+    "settings.tokenSheet.argsHint": {
+      "sourceHash": "ebd12968375d228179897018e0d9792b1cb41a507a62b27a20a49a77a0903c1f"
+    },
+    "settings.tokenSheet.reachHint": {
+      "sourceHash": "e35813e996102a1f41d60ed7b730b68dfe314c4e8f11058bc667ba8849e6b2fe"
+    },
+    "settings.scrapeCards.estimate": {
+      "sourceHash": "dc0f46e4ce663027c6f74cf530e483d24f22422a38ad07c8c736827b24109203",
+      "parameters": [
+        "scope",
+        "size"
+      ]
+    },
+    "settings.scrapeCards.minWidth": {
+      "sourceHash": "44a49569c7ce46b236ff7cbbce03b23ebbf746f7ed5e2a4a7e9016cbbc89842a",
+      "parameters": [
+        "kind"
+      ]
+    },
+    "settings.scrapeCards.minWidthAria": {
+      "sourceHash": "8c84717642c112e140302fae0c970442167adb454aeefae1ad3e1c41c2cd5cff",
+      "parameters": [
+        "kind"
+      ]
+    },
+    "settings.scrapeCards.followEnvValue": {
+      "sourceHash": "0afb2ed8692c5794af6a3f10a708e9b2a687963b22967c3a484fbccc96d4fdd3",
+      "parameters": [
+        "value"
+      ]
+    },
+    "settings.scrapeCards.insertToken": {
+      "sourceHash": "d11d9fe9807db0d27ce3b41a12b1e0971b3b881fba506e4e0a9a209b30c47602",
+      "parameters": [
+        "field"
+      ]
+    },
+    "settings.cleanup.checking": {
+      "sourceHash": "92424890ea6a8543c2ed117178955b4bf1d9436f472a9496f45291ad9ca4b4ff"
+    },
+    "settings.cleanup.none": {
+      "sourceHash": "d9f52da8e4986809131e30dd1a0079aef8d46dc1f42d7951f5ab202fe0570f8d"
+    },
+    "settings.cleanup.review": {
+      "sourceHash": "84d25520bde890b0897ad07c79b08b5c1485fc6364f60d3f671bdb6fa2409a34"
+    },
+    "settings.cleanup.hint": {
+      "sourceHash": "6fe71ec5f436346abe4ac7dffe4d65930d87db51057be4bc617da82f0a242619"
+    },
+    "settings.cleanup.inactiveFor": {
+      "sourceHash": "5bcba911bcdb079ba32f2e6f5aa59786c6f37780c4d8886e614f9850a6eccda3"
+    },
+    "settings.cleanup.noneLeft": {
+      "sourceHash": "d7e579d0361bc4fcb5942a770686e5854dc7c6c1341cfa965c9356788dd2f28a"
+    },
+    "settings.webhookUi.intro": {
+      "sourceHash": "44b6244d8e6ff5af6b1063d7b1449963a6bf71930a9ca393870146b83e59bc31"
+    },
+    "settings.webhookUi.offHint": {
+      "sourceHash": "a446951d1b8c77f18a44ff2bc1611cd8d4dd5ef50ff50de849c0a893b8cce2cc"
+    },
+    "settings.webhookUi.emptyHint": {
+      "sourceHash": "b2a2949769e1f917ec6cf072f1ef7e1415861a98e809473cf2258e6f7bf6a913"
+    },
+    "settings.webhookUi.noTargets": {
+      "sourceHash": "e008af5afe6eb59a4a64835247840e3be26dc3b77833aece29980987e1f0a813"
+    },
+    "settings.webhookUi.hideLog": {
+      "sourceHash": "955fa391e1c99a30c764b7e33449fd3e47e0a4f1fc174cb8a81d40daa895eeb9"
+    },
+    "settings.webhookUi.log": {
+      "sourceHash": "9fad24e2c377ee89a4eafece1f2d252243911209f7c737564a81780e64abfb40"
+    },
+    "settings.webhookUi.notDelivered": {
+      "sourceHash": "0421e4dbe3acd2404934d1c3ed4b81b3df959084b931c9c67dc170ab1ba10dc1"
+    },
+    "settings.webhookUi.notLoaded": {
+      "sourceHash": "6af864e98c06d843a985b529e6fa079da5dc6da3290acc9f4055e0a4c77c6c22"
+    },
+    "settings.webhookUi.selectNone": {
+      "sourceHash": "ab9084a640fbb86405913a7959cdc4af7ac0552390c59c90ab1ec5e1e5fd545a"
+    },
+    "settings.webhookUi.secret": {
+      "sourceHash": "9dee388ad8b9608fcc79fb1448ab1bda6fd8a632ce9b19191276db92918e665b"
+    },
+    "settings.webhookUi.newSecret": {
+      "sourceHash": "bdfd5cbc4d8bcf638b3945e9f74ca10d457ca8231ccc935881a34abb6bdcc88c"
+    },
+    "settings.webhookUi.secretHint": {
+      "sourceHash": "865959f45a28d2e89a04721441c8c6d3a90765e745c2b06cf63a154d71ebe936"
+    },
+    "settings.memberDetail.profile": {
+      "sourceHash": "ef91c4eb591627884d48db11d80591942b45ff64e5be024c63e7eac46a43bbd1"
+    },
+    "settings.memberDetail.permissions": {
+      "sourceHash": "9ef81946a19500502fc95ffe1686b99f93d5b49178a737ce42b3d72f48d80d18"
+    },
+    "settings.memberDetail.security": {
+      "sourceHash": "dfe0487d70d727df18e002bb8ec928c3fafa28382aebc2fa942fc3c85a555b8d"
+    },
+    "settings.memberDetail.devices": {
+      "sourceHash": "cd438f5d0cca898be13529519f22e1382f82d50c52be7fc76c1cd94b73aef647"
+    },
+    "settings.memberDetail.lastSignIn": {
+      "sourceHash": "c85b3a16f0c811af72b5635f2cc0655555283824fe7137c34ff8efc840f20742"
+    },
+    "settings.memberDetail.title": {
+      "sourceHash": "738ebb63047337af989f41163486fe62a3101e7343c9f8b956cde33d7a029ecf"
+    },
+    "settings.memberDetail.signOutAll": {
+      "sourceHash": "736459bd5ecb3ac17907dfefd62b499397c223ba4afe0d8f3f77f4848edd3f3c"
+    },
+    "settings.memberDetail.actions": {
+      "sourceHash": "02e41ccc07457745ca9c1a690c866bb63b47232379d09dd4b0f59831ff76ca4c"
+    },
+    "settings.memberDetail.resetHint": {
+      "sourceHash": "20b9a84461437f09997ee98e10a8a232f77b22a1d3acc727219a8e51a3e9f293"
+    },
+    "settings.memberDetail.signOutHint": {
+      "sourceHash": "07ea5968b6dbddacb8c6cf927741092a5f310e04d4ce934d0ed01762c8847b9c"
+    },
+    "settings.memberDetail.signedOut": {
+      "sourceHash": "56c816268363b1ed343cfe1ecbfb35e1f103a1eec775f49bb61c200b7037e09a"
+    },
+    "settings.memberDetail.disableHint": {
+      "sourceHash": "668879bdf0e4589472d014e6e3e4f8b93caa5299f8528f233e139d9c22091f24"
+    },
+    "settings.memberDetail.enabled": {
+      "sourceHash": "dfb802238b38fbd49560b461d3ff1ee5cef3a72077c37a1325cb4892c10fd1c8"
+    },
+    "settings.memberDetail.disabled": {
+      "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+    },
+    "settings.orderChips.dragHint": {
+      "sourceHash": "cef6ccc0030f2f0d725b250760be05e93c3515678e249bd8279d5701b8ed0a39"
+    },
+    "settings.orderChips.first": {
+      "sourceHash": "87c29738ef9636ba1d25850fecf4e1c7beb66dce31383b2c49db24b53b1b7049"
+    },
+    "settings.orderChips.fallback": {
+      "sourceHash": "aecaf67cb029712c647aac3ed1733ef927906091c6ef83307800365c78fe1ce0"
+    },
+    "settings.orderChips.sourcesHint": {
+      "sourceHash": "1572bc508e4aab372be93401751c500993a03d4662f0ad1f7e9bff38f05d2e6e"
+    },
+    "settings.profileEdit.nicknameTooLong": {
+      "sourceHash": "a0b26cd405475666fe28735e80f5dc58d9fddebb7621f665704623c4af5eac83"
+    },
+    "settings.profileEdit.currentTooLong": {
+      "sourceHash": "4acca7ea065cffedf697ba60ce3b2296bbcc9bf7438c695eb15b3919273446db"
+    },
+    "settings.profileEdit.newLength": {
+      "sourceHash": "58c9349c191ba913f02bd104c1c98dc0b35473f925f11258a48a8288aeec7deb"
+    },
+    "settings.profileEdit.nicknameTitle": {
+      "sourceHash": "8634d262cf9dee6d81b3cd29df486218793b1766ae135e38045d9eb2be807a01"
+    },
+    "settings.profileEdit.nicknameHint": {
+      "sourceHash": "85fa523e12f4d44fd792bdb1a2c84f3bb49f0f1b17eb5ed28b07c8bb398d1f5f"
+    },
+    "settings.profileEdit.current": {
+      "sourceHash": "e0499346b818149edf0b64358a99db8f27e2072208407c755321ee2d4a709446"
+    },
+    "settings.profileEdit.newPlaceholder": {
+      "sourceHash": "dee14c65d8fce0552514d8bf4cb61b0ffef6df944c30ec7e34d999d9e2d963b8"
+    },
+    "settings.profileEdit.confirm": {
+      "sourceHash": "b3c58fe4d450cf7a379949501ac1aa1c0d79265936d7a808a30e092384492233"
+    },
+    "settings.profileEdit.passwordHint": {
+      "sourceHash": "fbc06d8910ccbd0c98160784f27718663fb12ae52c200605ce644320de43bc89"
+    },
+    "settings.profileEdit.signOutPaired": {
+      "sourceHash": "8f1af6ec04db25cbec91d07a36c61424d5f4bcd7fd510cddcc053f3ab715fe63"
+    },
+    "settings.cleanup.title": {
+      "sourceHash": "d10c5c23e2ecfb5aa8dd3ddc7a2343a7d421be1ca4069028ff3d4023925c608c",
+      "parameters": [
+        "group"
+      ]
+    },
+    "settings.cleanup.scopeAll": {
+      "sourceHash": "84d2c9823c01979edb7b6ac2075d10e0a1f42c4df31d96cb0dd92b29a39b5d41",
+      "parameters": [
+        "group"
+      ]
+    },
+    "settings.cleanup.scopeMine": {
+      "sourceHash": "91c1b3e4ff97d758821c315db10edce2ac5903b4fb095644f3c296f6cad88709",
+      "parameters": [
+        "group"
+      ]
+    },
+    "settings.cleanup.found": {
+      "sourceHash": "f19b2f35eb3352ab8901eea13dbdfb4bcfd151cf517150a6d31a26dbf56c34dd",
+      "parameters": [
+        "count",
+        "days"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.cleanup.progress": {
+      "sourceHash": "bcd57d3ef8057abe15e6f63dd5a71bf3650895731531fae37216497c20c332ce",
+      "parameters": [
+        "done"
+      ]
+    },
+    "settings.cleanup.action": {
+      "sourceHash": "a0ebc67c923103e275352989ab8ddf95f1a8404f472831c5990ae54d2ce04f2d",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.cleanup.confirmTitle": {
+      "sourceHash": "82eb5b8c7db333c20c82e421d08c933ef121d1da40e472a1a2ce1aa8ffb560f5",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.cleanup.confirmHint": {
+      "sourceHash": "e71f4f98ed58de8c1c83d1fc09f84df85c60d7bb2273043542c93335d3601e8b",
+      "parameters": [
+        "group",
+        "days"
+      ]
+    },
+    "settings.cleanup.doneCount": {
+      "sourceHash": "282151e1e9ed66c45a1da1279df64a55bf400463957c17088a3472e060cebbb2",
+      "parameters": [
+        "count",
+        "group"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.cleanup.partial": {
+      "sourceHash": "60a7dc80cb55d1ac5ebef48600244839b8f2c82e53fdd400bd6d5e72b890a347",
+      "parameters": [
+        "count",
+        "error"
+      ]
+    },
+    "settings.webhookUi.targets": {
+      "sourceHash": "5e4c3341107c8421a225c1257fc4820ed81a8bb53a053d0d582d634e608bbb17",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.webhookUi.deliveryRow": {
+      "sourceHash": "1d5b7f1b3e32521a2d17e6196594d31fb451b9edd34dc5562980a3a975832dcc",
+      "parameters": [
+        "status",
+        "duration",
+        "attempts"
+      ],
+      "pluralParameter": "attempts"
+    },
+    "settings.webhookUi.testDelivered": {
+      "sourceHash": "bd678e9f06f94fd25823a4eb12d92146dbd5f1aa836bec608a25e6ea2b353757",
+      "parameters": [
+        "status",
+        "duration"
+      ]
+    },
+    "settings.webhookUi.templateSection": {
+      "sourceHash": "82bb95591c1f7a7ab2a96ff9708a815b0261d9cce91aa47ca77edd8eebb03036"
+    },
+    "settings.webhookUi.nativeOnly": {
+      "sourceHash": "aeb3345e11e2439a5143198ea86c48f69046d0d2430a3c28e326e200f6f9be17",
+      "parameters": [
+        "event"
+      ]
+    },
+    "settings.memberDetail.siteCount": {
+      "sourceHash": "3aa35aeed8c1ec55b13ffef3608fc96ccc7ab6149630a9ef64a9b8eb59daacb4",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.memberDetail.aria": {
+      "sourceHash": "e6303d93eccfc91ce9c1b398ea0a1267220c1eca13e737a926fa8aff48f8cbfd",
+      "parameters": [
+        "status"
+      ]
+    },
+    "settings.memberDetail.signOutTitle": {
+      "sourceHash": "e85d4fc3ed9d8138d1cda4d5d99f6f1043dc42ed4049bc3ff16f0f7c90df5684",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.orderChips.adjust": {
+      "sourceHash": "42037b69bb6afb2c7c023f0fa8278c2450a2032d3164d8758051ee1000322e1f",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.orderChips.drag": {
+      "sourceHash": "c358d16bc2fa1b08c375ff2e83793a4c0e2a8769bf694f75b34061f89840286c",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.orderChips.add": {
+      "sourceHash": "e11ad796fbf033ac168bfc776d22589a83213ebe39b8b593661b38df985a333f",
+      "parameters": [
+        "kind"
+      ]
+    },
+    "settings.orderChips.limitHint": {
+      "sourceHash": "2140895cb9507a87a29297f63d3eb2af907df2901ba5c89137ea08c0e9454c77",
+      "parameters": [
+        "max"
+      ]
+    },
+    "settings.orderChips.search": {
+      "sourceHash": "bda9fb6abd87230a5667e0162dfeba91961e5a78759341b2cd6ec3097e2cfd70",
+      "parameters": [
+        "kind"
+      ]
+    },
+    "settings.profileEdit.pairedCount": {
+      "sourceHash": "6f1070a7d88cd6e5891b9958a3daf47f3dbc57275b6036160a702ce50de1f261",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.profileEdit.pairedHint": {
+      "sourceHash": "441431e9804c532cc17a4f8737c89b0c7ff7cba923e3164359fd7083a1055b03"
+    },
+    "settings.kit.parentFolder": {
+      "sourceHash": "8e7847be62b68c2be851a8e91a584035920900a7beb359668bb23dcb8a0589df"
+    },
+    "settings.aiDefaults.modelsHint": {
+      "sourceHash": "4ba550f504613b0bcbd478d3be8ffed9c4b530c7f512f72a5243eb7e14878274"
+    },
+    "settings.aiDefaults.chooseModel": {
+      "sourceHash": "1afed6a81a2512d29377567beffd90e1a5017efc5b334dcb99c481390eca9126"
+    },
+    "settings.aiDefaults.subtitles": {
+      "sourceHash": "eed32fffd393db8b22c3d2d135a650b86eb2d94f084d1b1bf770740b4333f1c6"
+    },
+    "settings.aiDefaults.search": {
+      "sourceHash": "7e2299398b19fc3166ae372907f02040568cb29f27775d2dc549a599495dc2bb"
+    },
+    "settings.aiDefaults.noMatch": {
+      "sourceHash": "4b5e0ae1288a9695abeaa656243974266c8f6b53cda8ab6614bfbd13bf2dbe39"
+    },
+    "settings.aiDefaults.thinkingSuffix": {
+      "sourceHash": "e1ae47326e74d328b066fb8c23605b594fbb82227022b95f3bf5e85682ccfebf"
+    },
+    "settings.llmUi.providersSection": {
+      "sourceHash": "4044def8b0b3b2ae876111f4cf741d736e19b38f74787b140d240c2b7f8475b3"
+    },
+    "settings.llmUi.supportedHint": {
+      "sourceHash": "715b2dfc1becf2f7e889a42db08464255b46c060efe5e91881391a2048d9f964"
+    },
+    "settings.logsUi.storageHint": {
+      "sourceHash": "948d0376c2a5de7df292c4817d532dbbc02bc2f80a8dfff2c2b04e22baea7d50"
+    },
+    "settings.mcpUi.intro": {
+      "sourceHash": "080a4ffb073aa4abdb3b160a67650472ec8c891f608f4cf43a093b3c78bbe343"
+    },
+    "settings.mcpUi.createHint": {
+      "sourceHash": "d0af1cbaf438f9cf52cdc1ebf224ed3512f247df90b83338b361dff4f93f3a07"
+    },
+    "settings.mcpUi.listHint": {
+      "sourceHash": "bc0786578e23f27a2f77b8e07f4295a96b3b87e40e63a1d0f06af82cc1f86ae2"
+    },
+    "settings.mcpUi.noExternal": {
+      "sourceHash": "d03b3b2e47b13768b11d88e06a450d9df053336068938374373a07b20f3434b4"
+    },
+    "settings.mcpUi.enabled": {
+      "sourceHash": "dfb802238b38fbd49560b461d3ff1ee5cef3a72077c37a1325cb4892c10fd1c8"
+    },
+    "settings.mcpUi.disabled": {
+      "sourceHash": "a8c3698b5b8c485d8bd403c226a3dc594cd3196b8229ebc02338bab31a7bea44"
+    },
+    "settings.membersUi.none": {
+      "sourceHash": "e234ab88ce2be11da6ef81de61a6094258026c5ff82ccbbf68a0203f53778249"
+    },
+    "settings.membersUi.noneHint": {
+      "sourceHash": "9574363bed4a225dc9716b35ac0f1968b055d636baa0fa89d3767bc926e1d231"
+    },
+    "settings.membersUi.searchMembers": {
+      "sourceHash": "6f607951d2eb74352f2078e8999af1d11ce2dca3088af542b4892da112ac878f"
+    },
+    "settings.membersUi.sharedPlus": {
+      "sourceHash": "962786b49b02fa7e1003bbbfa5075a42d55e8a54608f71bf493f16afd0b0796e"
+    },
+    "settings.membersUi.unassigned": {
+      "sourceHash": "52496e5aeff433534c45a563acd5f474e97d4578cc29b44b0b503cea7c015d07"
+    },
+    "settings.membersUi.noDevices": {
+      "sourceHash": "3779c653fdb7b826248e5d387e29a499d1784c8b774d5fc11405a1cf875816dd"
+    },
+    "settings.profileUi.account": {
+      "sourceHash": "872ee15ad04aa2e543f5f96647d9e1e02b7d041c78a7d76b2e7966c7dd8b0521"
+    },
+    "settings.profileUi.switchHint": {
+      "sourceHash": "cdb4b80bd4f33df6559b8c105e2bc0aee3623d1ba33ceb6a2ea6d289a6f17b94"
+    },
+    "settings.profileUi.actions": {
+      "sourceHash": "0f43d53c96f3f16ec2128f65edf8e271aea8a5054fc3d15ffc361fc3cf32cc11"
+    },
+    "settings.profileUi.nicknameSaved": {
+      "sourceHash": "bc2087d43933ba5f7e75b8f8f3c36e02ae28aac826a07dba15d869547af60db1"
+    },
+    "settings.profileUi.passwordChangedPaired": {
+      "sourceHash": "a6290f6761a771db25322acc729e713c57c0512d29655a5cedcd969abd128241"
+    },
+    "settings.profileUi.passwordChanged": {
+      "sourceHash": "2d0b0ff90c93d8829408c0feb1a87d69c63d6fef5aae90ce6546c9147c4f612f"
+    },
+    "settings.profileUi.uploading": {
+      "sourceHash": "6148b38691e3018e1d7bee7ab486775ae62131b20a53f24427509cdcdde2f841"
+    },
+    "settings.profileUi.uploadingAvatar": {
+      "sourceHash": "fa042c6895c50886c7ae4331f5e1a96d69c2a981ec7be69eec0ba15c323e198d"
+    },
+    "settings.profileUi.signOutTitle": {
+      "sourceHash": "db139b4f724b47ea5cb0cbefe646f90ee4b0ee21afdba2de13fb372cd98f5f75"
+    },
+    "settings.profileUi.historyCleared": {
+      "sourceHash": "01e17adcca83bfb117087421bbbf9af8c6b1eaaf96c27bd749c5ac69042d3f99"
+    },
+    "settings.scrapeUi.defaultsHint": {
+      "sourceHash": "47423fa6e242e7893b82e96dd0571e0074398d429be860195df949b1ba466d8c"
+    },
+    "settings.scrapeUi.organizeWrite": {
+      "sourceHash": "654c0792ebf9c761c50b03b7b291d8d2564d8d34b401d1a5afccde53bc92aaf3"
+    },
+    "settings.scrapeUi.saveHint": {
+      "sourceHash": "afb440b1de520bd1abbd07ab8069f2b308f5fa0de4557e95e3ba49478895d52d"
+    },
+    "settings.scrapeUi.namingActions": {
+      "sourceHash": "9975e0649c1e2c186f4fadc9aeb16b7a1dedd8e4181861a63c785750485a3f3c"
+    },
+    "settings.scrapeUi.resetTitle": {
+      "sourceHash": "7ae89e3c6e558265a6f84dd9469c861b8060a0c2a983498666c3af16ab7a0ba5"
+    },
+    "settings.scrapeUi.resetHint": {
+      "sourceHash": "9023c8a7f7452f002265f83950e1e0855e7e5e29c14048e141626d4269c82ffe"
+    },
+    "settings.webSearchUi.offHint": {
+      "sourceHash": "386d7c98f08e80532fda1c2d30adee3ebadf98e70b0d27030614370f11f3d529"
+    },
+    "settings.webSearchUi.onHint": {
+      "sourceHash": "1137d5c2e0f6de7662547b829755b14dffbf6f8caec5da13ade379346883362a"
+    },
+    "settings.webSearchUi.change": {
+      "sourceHash": "9bfd28f88a305d816fe6bc7fc3bc4091cb47d6d7d6cdd190cae6bbbe3a6366b6"
+    },
+    "settings.webSearchUi.serverOnly": {
+      "sourceHash": "cd3c459c03e79d09a3c51fb2840ba9ff93e569f47a51ae08858785f2de12f3e7"
+    },
+    "settings.webSearchUi.keepHint": {
+      "sourceHash": "ad17c593a725cd72c7450363b7e9147fb878cdc3856b7bdd40a09a2ed5ab5d18"
+    },
+    "settings.llmCard.status": {
+      "sourceHash": "b8f945ea49ff3774c03d6f331c9f9e9e071b687f093c0ad91b37ac74e0c8d49f"
+    },
+    "settings.llmCard.serverManaged": {
+      "sourceHash": "8917cb2a1787e9d9b6051b4153f39c3ab4223b8991923bed80b2b3bc60f23cef"
+    },
+    "settings.llmCard.lastChecked": {
+      "sourceHash": "08ca39f060d6b9e3bf09eca0f7f9631b1f1d859c05a67ef08271fedf0b616cc3"
+    },
+    "settings.llmCard.neverChecked": {
+      "sourceHash": "cdbc0434f568fc9e0689318110199a0f3067afe553087c48800d8547b9f218ce"
+    },
+    "settings.llmCard.serverHint": {
+      "sourceHash": "a3e92bc4d9f9158553898b829cdc595410930ab88be9762cb3116603ffca0710"
+    },
+    "settings.llmCard.connection": {
+      "sourceHash": "82479cb6ca73042d507cefc4d982dd6080f8ba5ed8e0a7a8c81a08938e3b2275"
+    },
+    "settings.llmCard.availableModels": {
+      "sourceHash": "000f03156ea9642be966c7396c3fc8ea17a1f630b192d16e291a3c195c8c9a74"
+    },
+    "settings.llmCard.customModels": {
+      "sourceHash": "ff8b0d734b03b1a43018a1386cca1d6dfc58282138e97d1990d8539b268cb80a"
+    },
+    "settings.llmCard.edit": {
+      "sourceHash": "b2b5b9fafa31cb71a3f8e668ea445f5ba216f148d88837c00ce47bb5d0b814e0"
+    },
+    "settings.llmCard.delete": {
+      "sourceHash": "4256f8b835ecf7c404d83e8cd8dd2779c3ffabb7543264d237098545dc1f2a9a"
+    },
+    "settings.llmCard.actions": {
+      "sourceHash": "00944980481c34b6a576ecdf26f016535b91a80ac556c9a7001aa05d90c9e602"
+    },
+    "settings.llmForm.needModel": {
+      "sourceHash": "68252b48f6630e8b5d1257716c308569aa47f52fbdee05ec81ad1c544f681d51"
+    },
+    "settings.llmForm.editTitle": {
+      "sourceHash": "372f063628a01ef5bd00097875aac99c9587d9ec149a06e392b7a7305a8c5f53"
+    },
+    "settings.llmForm.officialEndpoint": {
+      "sourceHash": "f1dc30725f747461cb83bf4b4364620e8fc73a51fb154dc3c1e3b2a08a29e434"
+    },
+    "settings.llmForm.endpointHint": {
+      "sourceHash": "6325239386de6057dff7fec99fc512f51f66ba1ba45fbd46ff77d845d3f4c284"
+    },
+    "settings.llmForm.apiHint": {
+      "sourceHash": "78a545e5e09afb580c06844f1a4e03632e7396950ba1c0511d0ae432ba202444"
+    },
+    "settings.llmForm.addModel": {
+      "sourceHash": "820559f6b007577cfcd2a4caaf2621c1f220ac6679a06cd8e153d7d338ed8c34"
+    },
+    "settings.llmForm.catalog": {
+      "sourceHash": "628b0a685c1916e5007580db93c6b591c45a66a2d3fb678d61683c6c93ae71fd"
+    },
+    "settings.llmForm.customCatalogHint": {
+      "sourceHash": "a53d434ce7d2fab2beaf0990266f99fc8a1fe5ec332e72be8158acc1ee3535bd"
+    },
+    "settings.llmForm.thinkingBudget": {
+      "sourceHash": "3f6bb6cc5a2d11f953fc5c715ede9ea70594a46d8fd41a5e84099f2ef9fe9b01"
+    },
+    "settings.llmForm.thinkingHint": {
+      "sourceHash": "a1727f31eb84781059bae54b1bec1486ab76c8904887c0fc537413f14d00c408"
+    },
+    "settings.llmForm.offHint": {
+      "sourceHash": "43d75662c086b51959317e75486aabfd1c303758dc1534f11266d2b09775e8c2"
+    },
+    "settings.llmSupport.official": {
+      "sourceHash": "b84ce1b1fcd3a46d49dc1627779ea15f8a64b48b32c9bc36f35bb61951ccbbb9"
+    },
+    "settings.llmSupport.uncontrolled": {
+      "sourceHash": "37f33033208286171e1baeac2b22103f6fb29b47466744f6180e132a063bf9c9"
+    },
+    "settings.mcpForm.timeoutHint": {
+      "sourceHash": "50f2e68cf5248a3c1d12e99bd5850b4f9d5961b8d9099de48d914c265de2f380"
+    },
+    "settings.mcpForm.timeoutInvalid": {
+      "sourceHash": "1488f8fb7911e66e34fcb25f8870fee14bf5197681c7fdfa8836fa4d55693346"
+    },
+    "settings.mcpForm.toolCount": {
+      "sourceHash": "599f77bf3ddacddc6176c05ab37b73b4e695c2b50fbef9d0e04b243df628b5b2"
+    },
+    "settings.mcpForm.definitionSize": {
+      "sourceHash": "e16b1e2ed8fc97caedebd4545e9f2d6c2020706ad80a80f0335f7fc24f94f93c"
+    },
+    "settings.mcpForm.expandedHint": {
+      "sourceHash": "b76b376f49981080dcb5670980ffa5315ef6f672d814e5765fda1e40b31d30ac"
+    },
+    "settings.mcpForm.collapsedHint": {
+      "sourceHash": "edec6826a2351a605fa638cc5bfec4dce791b1e49e8df579c469a76a84808857"
+    },
+    "settings.mcpForm.riskHint": {
+      "sourceHash": "eb0f607685b5bfe6d36aee03c034ccd39d69dd935109bc514d2f6e6961552a3f"
+    },
+    "settings.mcpForm.toolsUnit": {
+      "sourceHash": "e43b2a10830f3eeb9dfd149ee780237f0850dd0507756d7d6a7f87e83052ac3a"
+    },
+    "settings.mcpKit.addressPlaceholder": {
+      "sourceHash": "a6e7ba8f4ebdfae54c677048b41a178e1deb1d0f073eca2fde8d13c639fda9c3"
+    },
+    "settings.mcpKit.tokenOnce": {
+      "sourceHash": "c8321c9c2c1973f8840fa39418adedf1b81b3f6dcc92d55386515fff07bbebfe"
+    },
+    "settings.mcpKit.clientConfig": {
+      "sourceHash": "f92335ddcd15e29e2bd66b394602fac5961dfb79a7c053aa8a39389ba8afa439"
+    },
+    "settings.pushChannels.needModel": {
+      "sourceHash": "b5f312b542d48f975e79745a41b4fba0245087da4c3519a6838574d19766fc77"
+    },
+    "settings.pushChannels.which": {
+      "sourceHash": "5dffcc4259bba8337e2ba70fc1a823fd70df68358adbfc2438f2527685537784"
+    },
+    "settings.pushChannels.none": {
+      "sourceHash": "b4b646e7dbb520cfd15f53a54bbaaad2f897fb87d8ffaf5c1f7461c049e1cd02"
+    },
+    "settings.pushChannels.noneAvailable": {
+      "sourceHash": "dabf56cd00a3af11b1a927cc9cb7825fc867915346193a897d730e4114a620c5"
+    },
+    "settings.pushChannels.serverOld": {
+      "sourceHash": "e243ae1bcfc8657d4f4d8fea10af31cb27557d2dd95da9e7161a0df4034378f4"
+    },
+    "settings.scrapeModel.customQualityHint": {
+      "sourceHash": "43a5cd230c88cb8cccdbd66ecc01496a7e3d1e7ac48bfa9cc49d22e22a651b7d"
+    },
+    "settings.scrapeModel.qualityOriginal": {
+      "sourceHash": "08d78fa59c6b74eaa8266ba5396b1f063287a14f5f4c81449102ac878591a2a4"
+    },
+    "settings.scrapeModel.env": {
+      "sourceHash": "904dd029c768820dedff355f6c98fc425858b7a7d9e6eb1a7bef2ad8657bdae9"
+    },
+    "settings.scrapeModel.imagesHint": {
+      "sourceHash": "2a867a51eb5646cb1bba592d334906c6c2f7c98e7b78780126bd54e411e1f318"
+    },
+    "settings.index.serverSettings": {
+      "sourceHash": "31cd6f52797339054d2d35862ea00e51c3b913e37b079757698f9e76c14d7882"
+    },
+    "settings.index.about": {
+      "sourceHash": "5cbbe37cf8933ede3e04eb78cada2d62528e125b11db45b062a26d98defa07fe"
+    },
+    "settings.section.openInBrowser": {
+      "sourceHash": "bfcf57d4bef3c3fca3d4ef25b324e74eabfa292d6ff6a86a828531a62120290a"
+    },
+    "settings.kit.copyLabel": {
+      "sourceHash": "7c39d528680839a08c7fa107808662fb21504dd94c5d21d945114638092d4262",
+      "parameters": [
+        "label"
+      ]
+    },
+    "settings.aiDefaults.autoValue": {
+      "sourceHash": "3f1950285fcac6b7b3e01544571a806201d10445299fbb66c8fd570cdcd25cf1",
+      "parameters": [
+        "model"
+      ]
+    },
+    "settings.aiDefaults.staleModel": {
+      "sourceHash": "06cbfed1a52f5a4eb3bd1d236f2a251a2f9806b484d4c4c4c441abbf24450982",
+      "parameters": [
+        "model"
+      ]
+    },
+    "settings.aiDefaults.none": {
+      "sourceHash": "484d55613910eb8c0917fe308b499d474115ced993cd002a17d7cc75254330a4"
+    },
+    "settings.logsUi.truncated": {
+      "sourceHash": "f52b0926cc2990b1d96a28e4045f2396b87f4ba756e10e69200f88212522f9bd",
+      "parameters": [
+        "lines",
+        "total"
+      ]
+    },
+    "settings.mcpUi.addressTemplate": {
+      "sourceHash": "c8d9cd1e594a41c7a600784bd83909ced6e72feaca2953fde2b1e8d48b0ca9e7",
+      "parameters": [
+        "base"
+      ]
+    },
+    "settings.mcpUi.endpointSummary": {
+      "sourceHash": "44d2961ae46d1376d5641d1e4c9371b1cf0653af2b81d6349a41221a00254d07",
+      "parameters": [
+        "count",
+        "state"
+      ]
+    },
+    "settings.membersUi.libraryCount": {
+      "sourceHash": "f7d21f88bcd11eb2da88c5bf564c91cdecb7214a9bd90b900c5dbf10c212b52b",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.membersUi.deviceCount": {
+      "sourceHash": "56d4d9256a8d8973cefa8752ef25ccbc53b32c2c7fe91a5c50c5e761567d973a",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.profileUi.signOutHint": {
+      "sourceHash": "2aff2354dec1309b7e664080e3bd1f41a230cd58f8a48855bcbf041fd35663cf",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.scrapeUi.overrides": {
+      "sourceHash": "a871fe871588743c64d2c1369730c6b3c9bff8f41bc1ba5cfca3c5f34ec95018",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.webSearchUi.connectedHint": {
+      "sourceHash": "aa07ccbc95e0279550a1f85287bc416254b4506ede38f9ad9f92750006326523",
+      "parameters": [
+        "hint"
+      ]
+    },
+    "settings.webSearchUi.currentKey": {
+      "sourceHash": "0e134f758b2caf7060218b6302e6d01db90f43cd9a4d8cd8fca50701f7a17eab",
+      "parameters": [
+        "hint"
+      ]
+    },
+    "settings.llmForm.presetCatalog": {
+      "sourceHash": "c96008de8f2caf712a36257b12159618ed968fca8d5dafa5ce3e600b7c02f0b0",
+      "parameters": [
+        "preset",
+        "count"
+      ]
+    },
+    "settings.mcpForm.summary": {
+      "sourceHash": "66c54f4bafe777e348dace8e433790f1e9a88991d4af98f743c2f4cf7c8e6070",
+      "parameters": [
+        "services",
+        "commands",
+        "size"
+      ]
+    },
+    "settings.mcpForm.tooMany": {
+      "sourceHash": "7df5acea9d1d377ee6eb5d106f0da17a502ee64c6c102227037a6b050d9b903c",
+      "parameters": [
+        "threshold",
+        "count",
+        "size"
+      ]
+    },
+    "settings.mcpKit.options": {
+      "sourceHash": "e1ab54aa9ee03139c4d9ecb9913471e03b7ea5e50fbcbc217dd31efe9d380f8b",
+      "parameters": [
+        "options"
+      ]
+    },
+    "settings.mcpKit.optional": {
+      "sourceHash": "a3c2a8d82079df24513538302f22e7ef710437dfcb824baa43d69627df9eb02b",
+      "parameters": [
+        "label"
+      ]
+    },
+    "settings.pushChannels.accounts": {
+      "sourceHash": "2f9b6f6f1f6b13b3a760a9ca778274bacfa6bfec42e4c18b6874890df4efeb22",
+      "parameters": [
+        "count"
+      ],
+      "pluralParameter": "count"
+    },
+    "settings.pushChannels.introLead": {
+      "sourceHash": "f695a77690e7a7afabb7b422b89f69760c34ffff672d179bd13b662cdde3dedd"
+    },
+    "settings.pushChannels.introMiddle": {
+      "sourceHash": "56866612e903b6f87d69abb85e3579244b4361aa1c8268f1b101683c49a3bf3f"
+    },
+    "settings.pushChannels.introTail": {
+      "sourceHash": "18bb9804750a88b452d7a4f2534902be123fa8a6f7999506e32f4cbacfd7cde9"
+    },
+    "settings.pushChannels.addHint": {
+      "sourceHash": "0da3f701ed39ef0c05712d320e1b89ea7c45777966018996467225f2ec27136b",
+      "parameters": [
+        "channels"
+      ]
+    },
+    "settings.pushChannels.testSent": {
+      "sourceHash": "592de247b5427e5515e24cb93de8428c7502b035d5dd143a976d1857f0b081ef",
+      "parameters": [
+        "count"
+      ]
+    },
+    "settings.scrapeModel.qualityNamed": {
+      "sourceHash": "e85c34767c80722a2cd2b3606ca638653ab46e5df524f9cbbefec92514c0d53c",
+      "parameters": [
+        "name"
+      ]
+    },
+    "settings.scrapeModel.qualityCustom": {
+      "sourceHash": "ac43117a3da6ebcc78530bd9f96ca2f09ebe883cae073f450bfd5fccf44471e0",
+      "parameters": [
+        "sizes"
+      ]
+    },
+    "settings.scrapeModel.changed": {
+      "sourceHash": "bda43afa015ac25aac244dbdb15d25c1ef6de26f742da97ca2e3a874a56bab1c",
+      "parameters": [
+        "items"
+      ]
+    },
+    "settings.scrapeModel.notWritten": {
+      "sourceHash": "67e3202363c32c2c9fcd4795197aaed556caeca1d28df969ff815c1a8b855bf9",
+      "parameters": [
+        "items"
+      ]
+    },
+    "settings.scrapeModel.unknownTokens": {
+      "sourceHash": "2da91e1ab2aeeac47d1d8abd7d9edf3f88c2b4eb2e9a6576c41c23ca67eb8fa1",
+      "parameters": [
+        "tokens"
+      ]
+    },
+    "settings.index.currentServer": {
+      "sourceHash": "b7fb23f49da618e468303b9530228fdc4b8858f72c9d789a8b7eaabf7b4257c2",
+      "parameters": [
+        "server"
+      ]
+    },
+    "settings.section.webOnly": {
+      "sourceHash": "4e0dc6603c2c379d7db54751f1f6c27169864dce3a276196d786f7ef2ef169cb",
+      "parameters": [
+        "section"
+      ]
+    },
+    "settings.scrape.noPathSeparators": {
+      "sourceHash": "39c78940a3d5130ce198d5a0e55a71ae3887ec4b716f6598faa5406047a846e7"
     }
   },
   "MovieClaw/InfoPlist.xcstrings": {

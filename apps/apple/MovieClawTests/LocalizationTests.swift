@@ -226,4 +226,18 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertFalse(segments[1].diff)
     }
 
+    @MainActor func testEnglishSettingsSummaries() {
+        let setting = API.MetadataScrapeSetting(
+            languagePriority: [], certCountryPriority: [], posterMode: "default",
+            posterLanguagePriority: [], backdropLanguagePriority: [],
+            posterMinWidth: 0, backdropMinWidth: 1920, posterSize: "", backdropSize: "",
+            stillSize: "", profileSize: "", imageQuality: "",
+            logoLanguagePriority: [], fanartEnabled: false,
+            posterSourceOrder: [], backdropSourceOrder: [], logoSourceOrder: [], seasonPosterSourceOrder: [],
+            namingEntryDir: "", namingMovieFile: "", namingSeasonDir: "", namingEpisodeFile: "",
+            mirrorImages: false, mirrorNfo: false, mirrorEpisodeThumbs: false
+        )
+        XCTAssertEqual(SettingsBScrapeSummary.quality(setting), "Quality: original · No poster width limit · Backdrop ≥1920")
+    }
+
 }

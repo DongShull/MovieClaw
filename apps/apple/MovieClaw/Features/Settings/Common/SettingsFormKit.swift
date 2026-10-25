@@ -54,7 +54,7 @@ struct SettingsNotice: View {
 /// iPhone 上 popover 默认会变成全屏 sheet，这里强制保持气泡形态，读完点空白即关。
 struct SettingsHelpTip: View {
     let text: String
-    var label: String = "说明"
+    var label: String = String(localized: .settingsMcpControlsDescription)
     @State private var shown = false
 
     var body: some View {
@@ -86,7 +86,7 @@ struct SettingsLabelWithHelp: View {
     var body: some View {
         HStack(spacing: 6) {
             Text(label)
-            SettingsHelpTip(text: help, label: "\(label)的说明")
+            SettingsHelpTip(text: help, label: String(localized: .libraryFormAboutSetting(label)))
         }
     }
 }
@@ -216,14 +216,14 @@ struct SettingsLoadingRow: View {
 enum SettingsTime {
     /// 设备分区的相对时间口径（Web lib/devices-display.ts relativeTime）：分钟粒度、宁粗勿假
     static func deviceRelative(_ raw: String?, now: Date = .now) -> String {
-        guard let raw else { return "从未使用" }
-        guard let date = Formatters.date(raw) else { return "未知" }
+        guard let raw else { return String(localized: .settingsDevicesLabelsNever) }
+        guard let date = Formatters.date(raw) else { return String(localized: .settingsDevicesLabelsUnknownTime) }
         let minutes = Int(now.timeIntervalSince(date) / 60)
-        if minutes < 1 { return "刚刚活跃" }
-        if minutes < 60 { return "\(minutes) 分钟前" }
+        if minutes < 1 { return String(localized: .settingsDevicesLabelsJustNow) }
+        if minutes < 60 { return String(localized: .settingsDevicesLabelsMinutes(minutes)) }
         let hours = minutes / 60
-        if hours < 24 { return "\(hours) 小时前" }
-        return "\(hours / 24) 天前"
+        if hours < 24 { return String(localized: .settingsDevicesLabelsHours(hours)) }
+        return String(localized: .settingsDevicesLabelsDays(hours / 24))
     }
 
     /// 最近 5 分钟内用过算在线（Web isLive）
