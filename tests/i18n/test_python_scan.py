@@ -12,7 +12,7 @@ HAN = re.compile(r"[㐀-鿿]")
 
 def counted(source):
     tree = ast.parse(source)
-    skipped = check.api_doc_nodes(tree) | check.keyed_fallback_nodes(tree)
+    skipped = check.excluded_nodes(tree)
     return [
         node.value
         for node in ast.walk(tree)
@@ -37,3 +37,14 @@ raise JobRetry("稍后重试", message_key="library.x.retry")
 raise JobRetry("仍未迁移")
 '''
     assert sorted(counted(source)) == ["仍未迁移", "删除旧记录"]
+
+
+def test_bare_strings_logs_and_regex_patterns_are_not_interface_text():
+    source = '''
+TIMEOUT = 5
+"""单个参与方预览的时限（秒）。"""
+logger.info("扫描完成：%s", path)
+SEASON = re.compile(r"第\\s*(\\d+)\\s*季")
+label = "未知规格"
+'''
+    assert counted(source) == ["未知规格"]

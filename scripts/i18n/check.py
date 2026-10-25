@@ -335,30 +335,34 @@ def keyed_fallback_nodes(tree: ast.AST) -> set[int]:
     return found
 
 
+REGEX_FUNCTIONS = {"compile", "search", "match", "fullmatch", "sub", "subn", "findall", "finditer", "split"}
+LOG_NAMES = {"logger", "logging", "log", "_logger", "_log"}
+
+
+def excluded_nodes(tree: ast.AST) -> set[int]:
+    """String constants that are not interface text: docstrings and bare string statements,
+    log calls, regex patterns (parsing data), OpenAPI documentation and keyed fallbacks."""
+    found = api_doc_nodes(tree) | keyed_fallback_nodes(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+            found.add(id(node.value))
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        owner = node.func.value
+        if isinstance(owner, ast.Name) and owner.id.lower() in LOG_NAMES:
+            found.update(id(child) for child in ast.walk(node))
+        if isinstance(owner, ast.Name) and owner.id == "re" and node.func.attr in REGEX_FUNCTIONS and node.args:
+            found.update(id(child) for child in ast.walk(node.args[0]))
+    return found
+
+
 def baseline() -> dict[str, int]:
     counts = json.loads(
         subprocess.check_output(["node", str(ROOT / "scripts/i18n/web-baseline.mjs")])
     )
     for path in (ROOT / "src/movieclaw_api").rglob("*.py"):
         tree = ast.parse(path.read_text())
-        docstrings = {
-            id(node.body[0].value)
-            for node in ast.walk(tree)
-            if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
-            and node.body
-            and isinstance(node.body[0], ast.Expr)
-            and isinstance(node.body[0].value, ast.Constant)
-        }
-        for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id.lower() in {"logger", "logging", "log", "_logger", "_log"}
-            ):
-                docstrings.update(id(child) for child in ast.walk(node))
-        docstrings.update(api_doc_nodes(tree))
-        docstrings.update(keyed_fallback_nodes(tree))
+        docstrings = excluded_nodes(tree)
         lines = path.read_text().splitlines()
         count = sum(
             1
