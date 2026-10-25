@@ -30,6 +30,7 @@ from movieclaw_api.exceptions import (
     UnauthorizedException,
 )
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import source_text
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.transcode_worker import (
     RemoteTranscodeConfigPayload,
@@ -276,7 +277,10 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
         user_agent=websocket.headers.get("user-agent"),
     )
     if principal is None:
-        reason = t("errors.workers.credentialRevoked")
+        # 关闭原因是转码器协议的一部分：Mac / Windows 转码器按这两句的措辞区分「凭证失效」
+        # 与「远程转码没开」，所以固定用中文原文，不跟请求语言走
+        # i18n-ignore: worker protocol
+        reason = "凭证无效或已被吊销，请在网页「设置 → 设备」重新配对"
         _warn_throttled(
             # i18n-ignore: throttled server log
             ("ws-auth", client), "拒绝远程转码 Worker 连接（来自 %s）：%s", client, reason
@@ -284,7 +288,8 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
         await _reject_before_hello(websocket, reason)
         return
     if not remote_worker_enabled():
-        reason = t("errors.workers.remoteDisabled")
+        # i18n-ignore: worker protocol (see above)
+        reason = "服务端尚未启用远程转码，请在网页「应用 → 远程转码」打开开关并确认地址"
         _warn_throttled(
             # i18n-ignore: throttled server log
             ("ws-disabled", client), "拒绝远程转码 Worker 连接（来自 %s）：%s", client, reason
@@ -305,14 +310,14 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
                 "远程转码 Worker 握手超时（来自 %s）：10 秒内没发 hello",
                 client,
             )
-            await websocket.close(code=1008, reason=t("errors.workers.helloTimeout"))
+            await websocket.close(code=1008, reason=source_text("errors.workers.helloTimeout"))
             return
         reason = None
         if not isinstance(hello, dict) or hello.get("type") != "worker.hello":
-            reason = t("errors.workers.helloInvalid")
+            reason = source_text("errors.workers.helloInvalid")
         elif hello.get("protocol_version") != REMOTE_WORKER_PROTOCOL_VERSION:
             # 版本不一致单独说清楚：笼统的「格式错误」会让人以为是 Worker 坏了
-            reason = t(
+            reason = source_text(
                 "errors.workers.protocolMismatch",
                 worker=str(hello.get("protocol_version")),
                 server=str(REMOTE_WORKER_PROTOCOL_VERSION),

@@ -175,7 +175,7 @@
       "videotoolbox": "Apple 芯片（VideoToolbox）"
     },
     "noFfmpeg": "系统中未找到 ffmpeg，无法检测硬件加速。",
-    "remoteWorker": "已连接远程 Worker，并通过其 VideoToolbox 能力声明。",
+    "remoteWorker": "已连接远程 Worker，按它在握手中申报的能力执行。",
     "macOnly": "这是 macOS 专有的加速方式，Linux 上不存在，属正常情况。",
     "buildHint": "官方镜像已内置支持；自行编译或使用发行版 ffmpeg 时可能缺少。",
     "missingEncoder": "当前 ffmpeg 构建不含 {encoder} 编码器。{hint}",
@@ -195,15 +195,16 @@
     "noReason": "（ffmpeg 未给出原因）",
     "lowPower": "{encoder}（低功耗）",
     "withHevc": "{base}HEVC 编码也已验证，离线下载出 HEVC。",
-    "hevcProbeTimeout": "探测超时"
+    "hevcProbeTimeout": "探测超时",
+    "remoteLabel": "远程转码器 · {backend}"
   },
   "worker": {
     "waiterMissing": "远程任务等待器不存在",
     "acceptTimeout": "远程 Worker 接单超时",
     "jobExists": "远程任务已存在",
-    "discTooOld": "在线的 Worker 版本过旧，不支持原盘，请把 MovieClaw 转码器更新到与服务端相同的版本",
-    "segmentTooOld": "在线的 Worker 版本过旧，不支持 {type} 分片，请把 MovieClaw 转码器更新到与服务端相同的版本",
-    "noneIdle": "没有在线且空闲的 Apple VideoToolbox Worker",
+    "discTooOld": "在线的 Worker 版本过旧或不支持原盘（Windows 转码器不读原盘；Mac 转码器请更新到与服务端相同的版本）",
+    "segmentTooOld": "在线的 Worker 版本过旧或不支持 {type} 分片（Windows 转码器不接 TS 分片；Mac 转码器请更新到与服务端相同的版本）",
+    "noneIdle": "没有在线且空闲的远程转码 Worker（{backend}）",
     "dispatchFailed": "无法向远程 Worker 下发任务",
     "disconnected": "远程 Worker 已断开连接",
     "replaced": "远程 Worker 连接已替换",

@@ -117,7 +117,8 @@
     "cacheQuota": "The transcoding cache has reached its quota ({quota} GB, set automatically from free disk space). Wait for active sessions to finish and be cleaned up. Freeing disk space also increases the quota automatically.",
     "processStart": "The transcoding process failed to start: {reason}",
     "remoteSeekUnavailable": "Remote seeking is unavailable: {reason}",
-    "remoteSeekStart": "Could not start remote seeking: {reason}"
+    "remoteSeekStart": "Could not start remote seeking: {reason}",
+    "remoteBackendMissing": "The remote session has no execution backend (the playback decision did not provide one)"
   },
   "subscription": {
     "episodeMissing": "This episode was not found",

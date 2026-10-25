@@ -117,7 +117,8 @@
     "cacheQuota": "转码缓存已达配额上限（{quota} GB，按磁盘剩余空间自动设定）。请稍候——正在播放的会话结束后会自动清理，清理磁盘腾出空间也会自动调高配额。",
     "processStart": "转码进程启动失败：{reason}",
     "remoteSeekUnavailable": "远程 seek 不可用：{reason}",
-    "remoteSeekStart": "远程 seek 启动失败：{reason}"
+    "remoteSeekStart": "远程 seek 启动失败：{reason}",
+    "remoteBackendMissing": "远程会话缺少执行后端（决策层未给出）"
   },
   "subscription": {
     "episodeMissing": "没有找到该单集",

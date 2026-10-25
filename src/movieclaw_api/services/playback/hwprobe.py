@@ -118,6 +118,8 @@ class HwBackendStatus:
     label: dict | str
     available: bool
     detail: dict | str
+    #: 远程 Worker 的能力（不是 NAS 本机探测的）。同名后端两边可以并存，各是各的
+    remote: bool = False
 
 
 _cache: list[HwBackendStatus] | None = None
@@ -176,9 +178,9 @@ def remote_backend_statuses() -> list[HwBackendStatus]:
     return [
         HwBackendStatus(
             name=name,
-            label=f"远程转码器 · {BACKEND_LABELS.get(name, name)}",
+            label=reference("player.hw.remoteLabel", backend=BACKEND_LABELS.get(name, name)),
             available=True,
-            detail="已连接远程 Worker，按它在握手中申报的能力执行。",
+            detail=reference("player.hw.remoteWorker"),
             remote=True,
         )
         for name in remote_backends_available()
@@ -224,31 +226,6 @@ def reset_probe_cache() -> None:
 
 async def probe_backends_async(*, force: bool = False) -> list[HwBackendStatus]:
     return await asyncio.to_thread(probe_backends, force=force)
-
-
-def _with_remote_backend(statuses: list[HwBackendStatus]) -> list[HwBackendStatus]:
-    """把在线远程 Worker 映射为决策层可识别的 VideoToolbox 后端。
-
-    远程 Worker 不参与 NAS 容器内的一秒探测；它在连接 hello 中已经完成了
-    ffmpeg 能力探测。动态追加而不是写入本地缓存，保证 Worker 断线后下一次
-    决策立即回到真实的本机结果。
-    """
-    if not remote_worker_available("videotoolbox"):
-        return statuses
-    remote_status = HwBackendStatus(
-        name="videotoolbox",
-        label=BACKEND_LABELS["videotoolbox"],
-        available=True,
-        detail=reference("player.hw.remoteWorker"),
-    )
-    # Linux 探测矩阵也会包含 videotoolbox=False；在线 Worker 应覆盖这个
-    # “本机没有该后端”的诊断，而不是重复返回两个同名后端。
-    if any(status.name == "videotoolbox" for status in statuses):
-        return [
-            remote_status if status.name == "videotoolbox" else status
-            for status in statuses
-        ]
-    return [*statuses, remote_status]
 
 
 def _probe_one(name: str, encoders: frozenset[str]) -> HwBackendStatus:

@@ -882,7 +882,7 @@
       "overridden": "Overridden with {url}",
       "limitCount": "{count, plural, one {# job} other {# jobs}}",
       "load": "CPU {cpu}% · Memory pressure: {pressure, select, 0 {normal} 1 {elevated} 2 {high} other {unknown}}{hot, select, yes { · Cooling down} other {}}",
-      "offlineHint": "Authorized · {time}{ready, select, yes { · Expected when the Mac is off or offline} other {}}",
+      "offlineHint": "Authorized · {time}{ready, select, yes { · Expected when the computer is off or offline} other {}}",
       "clipsOff": "Pre-encode each title’s highlights as small 1080p files. TV hero trailers and reels start faster and play smoothly, including outside your home without live transcoding. Initial processing takes time and pauses while anyone is watching. Each title uses about 20 MB.",
       "deleteClips": "Also delete {count, plural, one {# prepared clip} other {# prepared clips}} ({bytes})",
       "preparing": "Preparing…",
@@ -903,7 +903,7 @@
       "invalidOverride": "The override address under Advanced is invalid. Remote transcoding jobs will not be assigned.",
       "noConnection": "Configuration is ready. No worker is connected yet.",
       "deviceLink": "Approve new transcoders, review access or revoke it in Devices",
-      "remoteHint": "Only jobs requiring remote hardware are sent to compatible workers. The NAS handles authorization, playback sessions and HLS caching. Changes take effect immediately without restarting. Workers currently run on macOS with Apple Silicon.",
+      "remoteHint": "Only jobs requiring remote hardware are sent to compatible workers. The NAS handles authorization, playback sessions and HLS caching. Changes take effect immediately without restarting. Workers are available for macOS (Apple Silicon) and Windows (NVIDIA graphics).",
       "enableRemote": "Enable remote hardware transcoding",
       "fallbackHint": "When no worker is online, playback automatically falls back to local NAS transcoding.",
       "disabledRemoteHint": "Turning this off disconnects paired workers. All playback uses local NAS transcoding.",
@@ -947,7 +947,7 @@
       "tipHint": "Someone has been watching reels or TV hero trailers at home. Turn on clip preparation to encode highlights as small 1080p files in the background for faster, smoother playback.",
       "tipOpen": "Turn it on",
       "closeTip": "Dismiss tip",
-      "pairHint": "Open MovieClaw Transcoder on your Mac. Choose the MovieClaw server found on your network, or enter its address, then select Connect and pair. It shows a pairing code and opens an approval page. Verify the code and approve it. If the page does not open, enter the code in Settings → Devices. You never need to enter a token: approval sends the worker credential directly to that Mac without displaying it.",
+      "pairHint": "Pair on the computer with MovieClaw Transcoder installed: open the transcoder, choose the MovieClaw server found on your network (or enter its address), then select Connect and pair. It shows a pairing code and opens an approval page. Verify the code and approve it. If the page does not open, enter the code in Settings → Devices. You never need to enter a token: approval sends the worker credential directly to that computer without displaying it.",
       "advancedHint": "The server tells each worker where to fetch source video and upload HLS files. By default, it uses the address the worker connected through, which is reachable and usually the fastest local path. Override it only if a reverse proxy rewrites Host to an upstream address (such as 127.0.0.1:8000) that the worker cannot reach."
     }
   },

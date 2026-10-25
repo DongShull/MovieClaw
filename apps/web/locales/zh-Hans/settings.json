@@ -882,7 +882,7 @@
       "overridden": "已覆盖为 {url}",
       "limitCount": "{count} 路",
       "load": "CPU {cpu}% · 内存压力 {pressure, select, 0 {正常} 1 {偏高} 2 {很高} other {}}{hot, select, yes { · 正在降温} other {}}",
-      "offlineHint": "已授权 · 最近活跃 {time}{ready, select, yes { · Mac 没开机或没联网时属正常} other {}}",
+      "offlineHint": "已授权 · 最近活跃 {time}{ready, select, yes { · 电脑没开机或没联网时属正常} other {}}",
       "clipsOff": "后台把每部影片的精彩片段提前转成 1080p 小文件。开启后，电视首页和详情页的大图预告起播快、不卡顿，刷片更流畅，外网刷片也不用实时转码。首次开启要在后台处理一段时间（有人观看时自动暂停），每部约占 20 MB。",
       "deleteClips": "同时删除已切好的 {count} 个片段（{bytes}）",
       "preparing": "正在准备……",
@@ -903,7 +903,7 @@
       "invalidOverride": "「高级」里的覆盖地址不合法，暂不会分配远程转码任务",
       "noConnection": "配置已就绪，但还没有 Worker 连上来",
       "deviceLink": "在「设备」里批准新的转码器、查看授权或注销",
-      "remoteHint": "只把需要远程硬件能力的转码任务交给兼容 Worker。NAS 仍负责鉴权、播放会话和 HLS 缓存；修改后立即生效，不需要重启应用。当前可用的 Worker 实现为 macOS Apple Silicon 版本。",
+      "remoteHint": "只把需要远程硬件能力的转码任务交给兼容 Worker。NAS 仍负责鉴权、播放会话和 HLS 缓存；修改后立即生效，不需要重启应用。当前可用的 Worker 实现为 macOS（Apple Silicon）与 Windows（NVIDIA 显卡）版本。",
       "enableRemote": "启用远程硬件转码",
       "fallbackHint": "没有 Worker 在线时，播放自动回落到 NAS 本地转码，不会失败",
       "disabledRemoteHint": "关闭后已配对的 Worker 也会断开连接，所有播放走 NAS 本地转码",
@@ -947,7 +947,7 @@
       "tipHint": "家里已经有人在刷片或看电视大图预告了。打开后服务器会在后台把精彩片段提前转成 1080p 小文件，起播更快、不卡顿。",
       "tipOpen": "去开启",
       "closeTip": "关闭提示",
-      "pairHint": "在 Mac 上打开 MovieClaw 转码器，选择它在局域网里找到的 movieclaw（或直接填地址）， 点「连接并配对」；它会显示一段配对码并打开网页上的批准页，核对后批准即可。 批准页没打开的话，到「设置 → 设备」输入它显示的配对码。全程不需要在任何一边输入 令牌——Worker 的凭证是批准时签发的，直接回到那台 Mac，不经过屏幕。",
+      "pairHint": "在装了 MovieClaw 转码器的电脑上配对：打开转码器，选它在局域网里找到的 movieclaw（或直接填地址），点「连接并配对」。它会显示一段配对码并打开网页上的批准页，核对后批准即可。批准页没打开的话，到「设置 → 设备」输入它显示的配对码。全程不需要在任何一边输入令牌——Worker 的凭证是批准时签发的，直接回到那台电脑，不经过屏幕。",
       "advancedHint": "服务端下发任务时要告诉 Worker「去哪儿取源视频、往哪儿传 HLS 产物」，默认自动取用这台 Worker 连上来时用的地址——它刚从那儿握上手，必然够得着，而且通常就是最快的那条内网路径。只有当反向代理把 Host 改写成了上游地址（如 127.0.0.1:8000），导致 Worker 拿到的地址回不来时，才需要指定一个 Worker 够得着的地址。"
     }
   },

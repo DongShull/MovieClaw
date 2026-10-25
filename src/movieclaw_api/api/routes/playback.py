@@ -281,8 +281,9 @@ def _diagnostic_encoder(session: TranscodeSession) -> str | None:
     if session.hw_backend:
         backend = HW_BACKENDS.get(session.hw_backend)
         if backend is not None:
-            # 低功耗编码要标出来：同一块核显两种模式表现可能天差地别（issue #763）
-            low_power = encoder_options(backend) == VAAPI_LOW_POWER
+            # 低功耗编码要标出来：同一块核显两种模式表现可能天差地别（issue #763）。
+            # 远程会话不看：本机自检的结论说的是 NAS 这块核显
+            low_power = not session.remote and encoder_options(backend) == VAAPI_LOW_POWER
             return (
                 t("player.hw.lowPower", encoder=backend.encoder) if low_power else backend.encoder
             )
@@ -3201,6 +3202,7 @@ async def probe_playback_hardware(
                     label=render_value(s.label),
                     available=s.available,
                     detail=render_value(s.detail),
+                    remote=s.remote,
                 )
                 for s in statuses
             ],

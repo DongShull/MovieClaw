@@ -26,7 +26,11 @@ from typing import Any
 from starlette.websockets import WebSocket
 
 from movieclaw_api.i18n.stored import reference, source_render
-from movieclaw_api.services.playback.ffmpeg_args import WorkerVideoCaps
+from movieclaw_api.services.playback.ffmpeg_args import (
+    HW_BACKENDS,
+    WorkerVideoCaps,
+    effective_hw_backend,
+)
 from movieclaw_api.services.playback.remote_config import (
     RemoteTranscodeRuntimeConfig,
     remote_transcode_issues,
@@ -523,7 +527,7 @@ class RemoteWorkerRegistry:
                     raise RemoteWorkerUnavailable(
                         "player.worker.segmentTooOld", type=segment_type
                     )
-                raise RemoteWorkerUnavailable("player.worker.noneIdle")
+                raise RemoteWorkerUnavailable("player.worker.noneIdle", backend=backend)
             self._job_workers[job_id] = connection.worker_id
             self._job_attempts[job_id] = (
                 attempt_id if isinstance(attempt_id, str) and attempt_id else job_id

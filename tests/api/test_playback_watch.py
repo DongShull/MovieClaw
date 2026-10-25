@@ -313,9 +313,11 @@ def test_judging_reported_tracks_adds_no_queries(client, tmp_path):
     from sqlalchemy import event
 
     from movieclaw_api.services.library.search_index import close_search_index
+    from movieclaw_api.services.server_addresses import address_book
 
-    # 只统计播放心跳；名称索引的独立后台读写不能混进这三次请求的 SQL 条数。
+    # 只统计播放心跳；名称索引、访问地址簿首次读取这类独立后台读写不能混进这三次请求的 SQL 条数。
     client.portal.call(close_search_index)
+    client.portal.call(address_book.preload)
     _, item_id = seed(client, tmp_path)
     client.portal.call(  # type: ignore[attr-defined]
         partial(

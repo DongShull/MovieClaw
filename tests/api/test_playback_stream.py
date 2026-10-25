@@ -615,8 +615,12 @@ def test_direct_play_releases_the_db_connection_before_streaming(client, tmp_pat
     若取流期间一直占着连接，十几条并发流就会耗尽连接池，整个服务的接口一起超时
     （2026-09-27 NAS 实测）。
     """
+    from movieclaw_api.services.server_addresses import address_book
+
     file_id = seed(client, tmp_path, container="mp4")
     url = start_session(client, file_id)["stream_url"]
+    # 访问地址簿首次查询时会在后台读一次库；先读完，量到的才是取流请求自己占的连接
+    client.portal.call(address_book.preload)
     pool = get_database().engine.sync_engine.pool
     checked_out: list[int] = []
     original = routes_playback.DisconnectAwareFileResponse

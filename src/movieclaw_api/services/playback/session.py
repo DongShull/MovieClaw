@@ -1293,7 +1293,7 @@ class TranscodeSessionManager:
         # 先占位再拼 URL：得先知道是谁接单，才能用它连上来的地址拼。
         try:
             if not session.hw_backend:
-                raise SessionStartError("远程会话缺少执行后端（决策层未给出）")
+                raise SessionStartError(reference("errors.playback.remoteBackendMissing"))
             connection = registry.reserve(
                 job_id,
                 backend=session.hw_backend,
@@ -2257,7 +2257,7 @@ class TranscodeSessionManager:
                 # 另一台从不同入口连进来的 Worker 接走。
                 await self._evict_export_for_remote(session)
                 if not session.hw_backend:
-                    raise SessionStartError("远程会话缺少执行后端（决策层未给出）")
+                    raise SessionStartError(reference("errors.playback.remoteBackendMissing"))
                 connection = registry.reserve(
                     job_id,
                     backend=session.hw_backend,

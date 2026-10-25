@@ -14,7 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from movieclaw_api.i18n.stored import source_render
+from movieclaw_api.i18n import use_locale
+from movieclaw_api.i18n.stored import render_value, source_render
 from movieclaw_api.services.playback import hwprobe
 from movieclaw_api.services.playback.ffmpeg_args import (
     HW_BACKENDS,
@@ -469,11 +470,14 @@ def test_remote_backend_does_not_overwrite_the_local_status_of_the_same_name(mon
 
     local = {s.name: s for s in hwprobe.probe_backends()}
     assert local["nvenc"].available is False
-    assert "未找到 ffmpeg" in local["nvenc"].detail
+    assert "未找到 ffmpeg" in source_render(local["nvenc"].detail)
     assert not any(s.remote for s in local.values())
 
     remote = hwprobe.remote_backend_statuses()
     assert [(s.name, s.available, s.remote) for s in remote] == [("nvenc", True, True)]
+    assert source_render(remote[0].label) == "远程转码器 · NVIDIA 显卡（NVENC）"
+    with use_locale("en"):
+        assert render_value(remote[0].label) == "Remote transcoder · NVIDIA graphics (NVENC)"
     # 决策层看到的是并集：本机没有、远程有，也算「有这种硬件链」
     assert hwprobe.available_backends() == ("nvenc",)
     assert hwprobe.available_local_backends() == ()

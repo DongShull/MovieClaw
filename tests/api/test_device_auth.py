@@ -679,6 +679,34 @@ def test_transcoder_shows_connected_while_its_control_link_is_up(client: TestCli
     assert _paired_devices(client)[0]["connected"] is False
 
 
+def test_worker_rejections_stay_in_the_protocol_wording_whatever_the_language(
+    client: TestClient,
+) -> None:
+    """Mac / Windows 转码器按 1008 关闭原因的中文措辞区分「凭证失效」与「远程转码没开」：
+    连接带英文语言头时原因也不能跟着翻译，否则转码器认不出该提示重新配对还是去开开关。"""
+    from starlette.websockets import WebSocketDisconnect
+
+    english = {"Accept-Language": "en"}
+
+    def rejection(headers: dict[str, str]) -> tuple[int, str]:
+        with (
+            client.websocket_connect("/api/v1/transcode-worker/ws", headers=headers) as ws,
+            pytest.raises(WebSocketDisconnect) as closed,
+        ):
+            ws.receive_json()
+        return closed.value.code, closed.value.reason
+
+    token = _pair(client, client_type="worker", name="mac-mini")
+    assert rejection({**english, **_bearer(token)}) == (
+        1008,
+        "服务端尚未启用远程转码，请在网页「应用 → 远程转码」打开开关并确认地址",
+    )
+    assert rejection({**english, **_bearer("mc_not-a-real-token")}) == (
+        1008,
+        "凭证无效或已被吊销，请在网页「设置 → 设备」重新配对",
+    )
+
+
 @pytest.mark.parametrize("paired", [True, False])
 def test_worker_rename_updates_only_its_paired_device(client: TestClient, paired: bool) -> None:
     """同一凭证改名重连后仍是原设备；手工令牌的管理名称保留。"""

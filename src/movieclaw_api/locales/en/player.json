@@ -175,7 +175,7 @@
       "videotoolbox": "Apple silicon (VideoToolbox)"
     },
     "noFfmpeg": "ffmpeg wasn’t found, so hardware acceleration can’t be checked.",
-    "remoteWorker": "A remote worker is connected and reports VideoToolbox support.",
+    "remoteWorker": "A remote worker is connected; transcoding follows the capabilities it declared when connecting.",
     "macOnly": "This acceleration is macOS-only and doesn’t exist on Linux; that’s expected.",
     "buildHint": "The official image includes it; self-built or distribution ffmpeg builds may lack it.",
     "missingEncoder": "This ffmpeg build doesn’t include the {encoder} encoder. {hint}",
@@ -195,15 +195,16 @@
     "noReason": "(ffmpeg gave no reason)",
     "lowPower": "{encoder} (low power)",
     "withHevc": "{base} HEVC encoding was also verified, so offline downloads use HEVC.",
-    "hevcProbeTimeout": "probe timed out"
+    "hevcProbeTimeout": "probe timed out",
+    "remoteLabel": "Remote transcoder · {backend}"
   },
   "worker": {
     "waiterMissing": "The remote job waiter doesn’t exist",
     "acceptTimeout": "The remote worker didn’t accept the job in time",
     "jobExists": "The remote job already exists",
-    "discTooOld": "The online worker is too old to support discs. Update the MovieClaw transcoder to the server’s version",
-    "segmentTooOld": "The online worker is too old to support {type} segments. Update the MovieClaw transcoder to the server’s version",
-    "noneIdle": "No Apple VideoToolbox worker is online and idle",
+    "discTooOld": "The online worker is too old or doesn’t support discs (the Windows transcoder can’t read discs; update the Mac transcoder to the server’s version)",
+    "segmentTooOld": "The online worker is too old or doesn’t support {type} segments (the Windows transcoder doesn’t accept TS segments; update the Mac transcoder to the server’s version)",
+    "noneIdle": "No remote transcoding worker is online and idle ({backend})",
     "dispatchFailed": "Couldn’t send the job to the remote worker",
     "disconnected": "The remote worker disconnected",
     "replaced": "The remote worker connection was replaced",

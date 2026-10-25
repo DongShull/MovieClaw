@@ -41,7 +41,9 @@ def test_worker_unavailable_carries_reference():
     exc = RemoteWorkerUnavailable("player.worker.segmentTooOld", type="mpegts")
     assert "不支持 mpegts 分片" in str(exc)
     with use_locale("en"):
-        assert render_value(exc.ref).startswith("The online worker is too old to support mpegts")
+        assert render_value(exc.ref).startswith(
+            "The online worker is too old or doesn’t support mpegts"
+        )
 
 
 def test_qoe_labels_follow_reader_and_keep_spec_names():
