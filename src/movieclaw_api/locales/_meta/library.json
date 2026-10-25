@@ -1459,5 +1459,41 @@
   },
   "batchTransfer.failureLine": {
     "sourceHash": "7bd738f5d341a1f4dc988601a23d38a2a05d2403da5a9ab5b25b51fc1b87afe0"
+  },
+  "segments.pausedForPlayback": {
+    "sourceHash": "c6442c89e9e966045cbca19b94966c459c60f404dce5bb6c46daf98d1621a480"
+  },
+  "segments.resumedAfterPlayback": {
+    "sourceHash": "a04790201e26395f93c3da8bf28a827dbe96d4ddbf371fbafc3141f2c809ad16"
+  },
+  "segments.untitledItem": {
+    "sourceHash": "0d2129fceb0f58ecc285d03ebf190cbb1b4092771bf3581ff230eff4f4b581c5"
+  },
+  "segments.queued": {
+    "sourceHash": "7975a3c42a3d2a2dc7ded4f46021ace9a9b8e6ae22516165573cb82148e25f3a"
+  },
+  "segments.queuedTitle": {
+    "sourceHash": "96696a9172c682e7b853b2ca1d2c360d12946ce52f28b762a5f633d91447ba1a"
+  },
+  "segments.cancelledDisabled": {
+    "sourceHash": "eb19ef742815d4eb923d37c8ddb33ee1bc2b40559855008c7a4e42010e90d21f"
+  },
+  "segments.progress": {
+    "sourceHash": "5cf61794736c57050cb93ac8025b3d804fb05951302d77719fb0d7b9de0f2be4"
+  },
+  "segments.summary": {
+    "sourceHash": "e0a5ab2cd838a84cf9d202fcb4e2a87922ac29b49062e422778b19a71a18b457"
+  },
+  "segments.unsupported": {
+    "sourceHash": "167cec3a6427e205968b6305cd3c78f8aca50e3ad8ad6ee715549564b8435b19"
+  },
+  "segments.pathsChanging": {
+    "sourceHash": "3fe1e1f2d71d0ecbf5705bb47e759dc56cecf36adfba8a687f5cfb3690ff1d96"
+  },
+  "segments.libraryMissing": {
+    "sourceHash": "7cb1542d1b9dc4f589fbc87019162f2f0d022f43c7563e1cdcc38364ee72afdf"
+  },
+  "segments.disabled": {
+    "sourceHash": "919b7c7c0b34f98744e427de6a3bab4cfbffe32f140aa3eb924dc425d6e962b7"
   }
 }

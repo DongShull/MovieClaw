@@ -24,6 +24,7 @@ from sqlmodel import select
 
 from jellyfin.helpers import AUTH_HEADER
 from movieclaw_api.core.config import get_settings
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.services import jobs
 from movieclaw_api.services.auth import reset_auth_state
 from movieclaw_api.services.library import skip_segments
@@ -536,7 +537,13 @@ class _Ctx:
         return None
 
     async def update_progress(self, **kwargs) -> None:
-        self.messages.append(str(kwargs.get("message")))
+        key = kwargs.get("message_key")
+        text = (
+            stored_fields(key, **(kwargs.get("message_params") or {}))["message"]
+            if key
+            else kwargs.get("message")
+        )
+        self.messages.append(str(text))
 
     def progress_due(self, **_kwargs) -> bool:
         return True

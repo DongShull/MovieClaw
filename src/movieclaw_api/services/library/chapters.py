@@ -212,8 +212,9 @@ def still_plan(
     if len(chapters) > _MAX_STILLS:
         return (
             [],
+            # i18n-ignore: log text
             f"有效章节 {len(chapters)} 个，超过 {_MAX_STILLS} 张上限",
-        )  # i18n-ignore: log text
+        )
     if len(chapters) >= 2:
         gaps = [b.start_ms - a.start_ms for a, b in zip(chapters, chapters[1:], strict=False)]
         if sum(gaps) / len(gaps) < _MIN_AVG_GAP_MS:

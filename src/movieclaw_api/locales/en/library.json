@@ -549,5 +549,19 @@
     "progress": "Processed {index} / {total, plural, one {# title} other {# titles}} ({moved, number} moved, {skipped, number} skipped, {failed, number} failed)",
     "summary": "Transferred {moved} / {total, plural, one {# title} other {# titles}}{skipped, plural, =0 {} other {, {skipped} skipped}}{failed, plural, =0 {} other {, {failed} failed}}",
     "failureLine": "{title}: {reason}"
+  },
+  "segments": {
+    "pausedForPlayback": "Transcoded playback is running, so intro and credits detection is paused; it resumes when playback ends.",
+    "resumedAfterPlayback": "Transcoded playback ended; resuming intro and credits detection.",
+    "untitledItem": "Title #{id}",
+    "queued": "Waiting to detect intros and credits",
+    "queuedTitle": "Waiting to detect intros and credits for “{title}”",
+    "cancelledDisabled": "“{name}” turned off intro and credits detection, so unfinished detection was cancelled.",
+    "progress": "Detecting intros and credits: season {done}/{total}",
+    "summary": "Intro and credits detection finished: {seasons, plural, one {# season} other {# seasons}} processed, {fingerprinted, plural, one {# new fingerprint} other {# new fingerprints}}{failed, plural, =0 {} one {; # episode could not be analyzed (usually no audio or an unreadable file)} other {; # episodes could not be analyzed (usually no audio or unreadable files)}}{errors, plural, =0 {} one {; # season failed (see the log)} other {; # seasons failed (see the log)}}",
+    "unsupported": "The current ffmpeg does not support audio fingerprints (chromaprint), so intro and credits detection was skipped. The jellyfin-ffmpeg bundled with the Docker image supports it; source installs should switch to jellyfin-ffmpeg.",
+    "pathsChanging": "The library is changing file paths. Intro and credits detection will continue automatically.",
+    "libraryMissing": "The library no longer exists, so intros and credits cannot be detected.",
+    "disabled": "Intro and credits detection is off for “{name}”; nothing was processed."
   }
 }
