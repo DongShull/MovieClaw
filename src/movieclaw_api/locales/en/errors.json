@@ -652,7 +652,8 @@
     "partInteger": "part must be an integer",
     "uploadTooLarge": "The remote transcoding segment exceeds the upload size limit",
     "contentLengthInvalid": "Invalid Content-Length",
-    "unknownAddress": "unknown address"
+    "unknownAddress": "unknown address",
+    "deviceRevoked": "The transcoder’s credentials were revoked; pair it again"
   },
   "recycle": {
     "selectionConflict": "Provide exactly one of ids or filter",

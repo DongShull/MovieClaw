@@ -652,7 +652,8 @@
     "partInteger": "part 必须是整数",
     "uploadTooLarge": "远程转码分片超过上传大小限制",
     "contentLengthInvalid": "Content-Length 无效",
-    "unknownAddress": "未知地址"
+    "unknownAddress": "未知地址",
+    "deviceRevoked": "转码器凭证已被注销，请重新配对"
   },
   "recycle": {
     "selectionConflict": "需要且只能提供 ids 或 filter 之一",

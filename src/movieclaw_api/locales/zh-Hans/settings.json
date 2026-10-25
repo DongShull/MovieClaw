@@ -385,7 +385,9 @@
       "elseOutside": "模板的 {tag} 不在任何块助手内",
       "duplicateElse": "同一个块助手里出现了重复的 {tag}",
       "unclosed": "模板存在未闭合的块助手（缺少 {tag}）"
-    }
+    },
+    "sampleTitle": "示例剧集",
+    "sampleClient": "MovieClaw 设置页"
   },
   "update": {
     "verifying": "正在校验下载文件的完整性……",

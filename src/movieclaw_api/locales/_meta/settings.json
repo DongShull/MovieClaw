@@ -1171,5 +1171,11 @@
   },
   "validation.searchProvider": {
     "sourceHash": "81c848dafee119abb3637605c65e8a66fdd4e4c26217ee7ab894b08959e046d3"
+  },
+  "webhook.sampleTitle": {
+    "sourceHash": "fc03996421ccf723fca4d91c28ca3f63ca301df846e2b476a8ea8b128834e947"
+  },
+  "webhook.sampleClient": {
+    "sourceHash": "b0c44055395a57237c13f469d6a1c78f7628c1d2a6af645ab0dea21bcbcf8dce"
   }
 }

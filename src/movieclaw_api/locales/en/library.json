@@ -317,7 +317,13 @@
     "detailsInLog": "See server logs for details",
     "readFailed": "Could not read embedded subtitles: {filename}, subtitle track {index} ({reason}). An unchanged video is not read again automatically. Replace the file or restart MovieClaw to retry.",
     "ffmpegMissing": "ffmpeg was not found, so embedded subtitles cannot be extracted. Install ffmpeg or add external subtitles and retry. Official Docker images include ffmpeg.",
-    "graphicReference": "Embedded track {index} contains image subtitles ({format}) and cannot be used directly as reference text"
+    "graphicReference": "Embedded track {index} contains image subtitles ({format}) and cannot be used directly as reference text",
+    "readError": "An error occurred while reading (see the server logs)",
+    "ffmpegError": "ffmpeg error: {error}",
+    "ffmpegExit": "ffmpeg exited unexpectedly (exit code {code})",
+    "noContent": "No subtitle content was read, or writing the cache failed (see the server logs)",
+    "startFailed": "ffmpeg couldn’t start: {error}",
+    "timeout": "Reading timed out: the video wasn’t fully read within {minutes} minutes (a limit estimated at 20 MB/s). Slow storage or a damaged file can cause this"
   },
   "subtitlePreflight": {
     "addSidecar": "Add SRT, ASS or VTT subtitles that match this video",

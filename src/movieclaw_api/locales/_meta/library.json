@@ -2272,5 +2272,23 @@
   },
   "reels.clips.finished": {
     "sourceHash": "97dd97fa6095a0d40a7b836a07d075bbbf4e9d099bba58abfd33134d67902eea"
+  },
+  "subtitleSource.readError": {
+    "sourceHash": "005dc887fdc1336e6a87da132536c139eed0cadcb612c59e242a34ac704da3f8"
+  },
+  "subtitleSource.ffmpegError": {
+    "sourceHash": "87f1c9b8ce65181664f163e0696b207d49e24543cac6f4f9dd77febb3393658f"
+  },
+  "subtitleSource.ffmpegExit": {
+    "sourceHash": "9fab9fb03c9e8aa597065ebc2979805e5e2302203f79ce53e65fe99c7b94c793"
+  },
+  "subtitleSource.noContent": {
+    "sourceHash": "39b3099c9282130e89e4edaa3f409dd43f76347263706c14c3ad2d13c7d0a883"
+  },
+  "subtitleSource.startFailed": {
+    "sourceHash": "6d5631b72f27b16ee3a98a93bd20825aa3c46e4209b4d1823bc582d64f4dd3ac"
+  },
+  "subtitleSource.timeout": {
+    "sourceHash": "293535706d3c09d6aab17c7ab42dbfab4c469c13c8d1da7532bb4c6dfa67ccbc"
   }
 }

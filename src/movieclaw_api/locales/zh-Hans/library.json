@@ -317,7 +317,13 @@
     "detailsInLog": "具体原因见服务端日志",
     "readFailed": "内封字幕读取失败：{filename} 字幕轨 {index}（{reason}）。视频文件没变就不会自动重读，以免反复白读整片；替换文件或重启 MovieClaw 后可以再试",
     "ffmpegMissing": "系统中未找到 ffmpeg，无法抽取内封字幕轨——请安装 ffmpeg，或为该影片放置外挂字幕后重试（官方 Docker 镜像已内置 ffmpeg）",
-    "graphicReference": "内封轨 {index} 是图形字幕（{format}），不能直接当作参考文本"
+    "graphicReference": "内封轨 {index} 是图形字幕（{format}），不能直接当作参考文本",
+    "readError": "读取过程中出错（详见服务端日志）",
+    "ffmpegError": "ffmpeg 报错：{error}",
+    "ffmpegExit": "ffmpeg 异常退出（退出码 {code}）",
+    "noContent": "没有读出任何字幕内容，或写入缓存失败（详见服务端日志）",
+    "startFailed": "ffmpeg 无法启动：{error}",
+    "timeout": "读取超时：{minutes} 分钟内没读完整个视频（按每秒 20 MB 估算的上限），存储读取太慢或文件损坏都会这样"
   },
   "subtitlePreflight": {
     "addSidecar": "添加与当前片源匹配的 SRT、ASS 或 VTT 外挂字幕",

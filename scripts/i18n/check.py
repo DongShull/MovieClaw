@@ -368,14 +368,19 @@ LOG_NAMES = {"logger", "logging", "log", "_logger", "_log"}
 
 def excluded_nodes(tree: ast.AST) -> set[int]:
     """String constants that are not interface text: docstrings and bare string statements,
-    log calls, regex patterns (parsing data), OpenAPI documentation, setting-domain titles and
-    keyed fallbacks."""
+    log calls, regex patterns (parsing data), OpenAPI documentation, setting-domain and built-in
+    plugin titles, and keyed fallbacks."""
     found = api_doc_nodes(tree) | keyed_fallback_nodes(tree)
     for node in ast.walk(tree):
         if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
             found.add(id(node.value))
-        # A setting domain's title only labels the descriptor in code; no view renders it
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "register_setting":
+        # A setting domain's title only labels the descriptor in code; no view renders it. A
+        # built-in plugin's declared title is its identity: views render plugins.builtins.*
+        # (BUILTIN_MESSAGE_KEYS, guarded by test_i18n_builtin_metadata)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in (
+            "register_setting",
+            "plugin",
+        ):
             for keyword in node.keywords:
                 if keyword.arg == "title":
                     found.add(id(keyword.value))

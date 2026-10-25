@@ -23,7 +23,8 @@ from typing import Any
 
 import httpx
 
-from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import reference, source_text
 from movieclaw_api.services.webhook.catalog import event_types, normalize
 from movieclaw_api.services.webhook.deliveries import DeliveryRecord, record_delivery
 from movieclaw_api.services.webhook.handlebars import TemplateError
@@ -107,7 +108,7 @@ async def post(
     except Exception as exc:  # noqa: BLE001 -- 网络错误统一进投递记录
         return (
             None,
-            f"请求失败：{exc}"[:200],
+            source_text("settings.webhook.errors.requestFailed", reason=str(exc))[:200],
             "settings.webhook.errors.requestFailed",
             {"reason": str(exc)},
         )
@@ -115,7 +116,7 @@ async def post(
         return response.status_code, "", None, None
     return (
         response.status_code,
-        f"目标返回 HTTP {response.status_code}",
+        source_text("settings.webhook.errors.http", status=response.status_code),
         "settings.webhook.errors.http",
         {"status": response.status_code},
     )
@@ -133,7 +134,7 @@ async def deliver(endpoint: WebhookEndpoint, info: DeliveryInfo, payload: Any) -
     try:
         if endpoint.format == "jellyfin":
             if not endpoint.template.strip():
-                record.error = "jellyfin 格式的地址没有配置模板（请粘贴下游文档提供的模板）"
+                record.error = source_text("settings.webhook.errors.templateMissing")
                 record.error_key = "settings.webhook.errors.templateMissing"
                 record_delivery(endpoint.id, record)
                 return record
@@ -145,7 +146,7 @@ async def deliver(endpoint: WebhookEndpoint, info: DeliveryInfo, payload: Any) -
             agent = f"MovieClaw/{server.get('version', '')}"
             requests = [movieclaw_request(message, endpoint.secret, agent)]
     except ValueError as exc:
-        record.error = f"模板渲染失败：{exc}"
+        record.error = f"模板渲染失败：{exc}"  # i18n-ignore: source beside error_key
         record.error_key = "settings.webhook.errors.templateFailed"
         record.error_params = {
             "reason": (
@@ -206,13 +207,19 @@ async def deliver_test(endpoint: WebhookEndpoint) -> DeliveryRecord:
     )
     sample = PlaybackStopped(
         member_id=0,
-        media=MediaRef(id=0, kind="tv", title="示例剧集", original_title="Sample Show", year=2011),
+        media=MediaRef(
+            id=0,
+            kind="tv",
+            title=t("settings.webhook.sampleTitle"),
+            original_title="Sample Show",
+            year=2011,
+        ),
         unit=UnitRef(season=2, episode=4),
         position_ms=3_120_000,
         duration_ms=3_300_000,
         played=True,
         play_count=1,
-        client=ClientRef(name="MovieClaw 设置页"),
+        client=ClientRef(name=t("settings.webhook.sampleClient")),
         completed=True,
     )
     return await deliver(endpoint, info, sample)

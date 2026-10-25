@@ -385,7 +385,9 @@
       "elseOutside": "Template tag {tag} is outside a block helper",
       "duplicateElse": "Duplicate {tag} in the same block helper",
       "unclosed": "Unclosed template block helper (missing {tag})"
-    }
+    },
+    "sampleTitle": "Sample Show",
+    "sampleClient": "MovieClaw Settings"
   },
   "update": {
     "verifying": "Verifying the downloaded files…",

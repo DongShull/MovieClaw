@@ -286,7 +286,7 @@ class RemoteWorkerRegistry:
                 c.login_device_id for c in self._workers.values() if c.login_device_id is not None
             }
 
-    async def disconnect_device(self, login_device_id: int, reason: str) -> int:
+    async def disconnect_device(self, login_device_id: int, reason: dict) -> int:
         """断开用某台登录设备的凭证连上来的 Worker（注销转码器时调用），返回断开数。"""
         with self._lock:
             victims = [
@@ -297,7 +297,9 @@ class RemoteWorkerRegistry:
                 self._workers.pop(connection.worker_id, None)
         for connection in victims:
             logger.warning("远程转码 Worker %s 的凭证已被注销，断开连接", connection.worker_id)
-            await self._close_quietly(connection.websocket, code=1008, reason=reason)
+            await self._close_quietly(
+                connection.websocket, code=1008, reason=source_render(reason)
+            )
         return len(victims)
 
     async def disconnect_all(self, reason: dict) -> None:

@@ -2671,5 +2671,8 @@
   },
   "discover.collectionMissing": {
     "sourceHash": "0a6f9f1953c10272c32aa85d7eba4c7a54ca6017bf76b705caf6854f04c272ff"
+  },
+  "workers.deviceRevoked": {
+    "sourceHash": "ca871120ccdabdd34dc6cd79b01d9b6aee9e0c75d477192100e99fcd341f71ce"
   }
 }
