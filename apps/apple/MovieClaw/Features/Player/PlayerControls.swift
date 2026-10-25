@@ -267,7 +267,7 @@ struct PlayerSettingsMenu: View {
         .menuStyle(.button)
         .buttonStyle(PlayerIconButtonStyle(highlighted: menu == .settings, pressFeedback: true))
         .accessibilityLabel(String(localized: .playerControlsSettings))
-        .accessibilityIdentifier("player-设置")
+        .accessibilityIdentifier("player-设置") // i18n-ignore: UI test identifier
     }
 }
 
@@ -321,11 +321,11 @@ struct PlayerBottomBar: View {
                     // 不加内边距：两端按钮与胶囊端头同心，按下的高亮圆正好嵌在端头里
                     HStack(spacing: 0) {
                         if !controller.audioOptions.isEmpty {
-                            PlayerIconButton(systemImage: "waveform", label: String(localized: .playerControlsAudio), identifier: "player-音轨", highlighted: menu == .audio) { toggle(.audio) }
+                            PlayerIconButton(systemImage: "waveform", label: String(localized: .playerControlsAudio), identifier: "player-音轨", highlighted: menu == .audio) { toggle(.audio) } // i18n-ignore: UI test identifier
                         }
                         PlayerIconButton(
                             systemImage: controller.selectedSubtitle == nil ? "captions.bubble" : "captions.bubble.fill",
-                            label: String(localized: .playerControlsSubtitles), identifier: "player-字幕", highlighted: menu == .subtitles
+                            label: String(localized: .playerControlsSubtitles), identifier: "player-字幕", highlighted: menu == .subtitles // i18n-ignore: UI test identifier
                         ) { toggle(.subtitles) }
                         PlayerSettingsMenu(controller: controller, menu: $menu)
                     }

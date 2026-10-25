@@ -7,7 +7,7 @@ import Foundation
 /// 与 Web 端 `lib/http.ts` 的兜底文案保持一致，避免用户对着英文系统错误猜原因。
 nonisolated enum APIError: LocalizedError, Sendable {
     /// 服务器返回了非 2xx；message 取自响应体 `message`，没有则给通用文案
-    case http(status: Int, message: String, code: String?)
+    case http(status: Int, message: String, code: String?, messageKey: String? = nil)
     /// 连不上 / 被中断
     case network(String)
     /// 超时
@@ -17,15 +17,21 @@ nonisolated enum APIError: LocalizedError, Sendable {
 
     var errorDescription: String? {
         switch self {
-        case let .http(_, message, _): message
+        case let .http(_, message, _, _): message
         case let .network(message): message
         case .timeout: String(localized: .errorsNetworkTimeout)
         case let .decoding(detail): String(localized: .errorsNetworkDecoding(detail))
         }
     }
 
+    /// 服务端错误目录里的稳定键（`message_key`），按错误类型分支用它，不随界面语言变化
+    var messageKey: String? {
+        if case let .http(_, _, _, key) = self { return key }
+        return nil
+    }
+
     var status: Int? {
-        if case let .http(status, _, _) = self { return status }
+        if case let .http(status, _, _, _) = self { return status }
         return nil
     }
 
@@ -47,6 +53,7 @@ nonisolated struct Empty: Codable, Sendable {}
 nonisolated struct APIErrorBody: Decodable, Sendable {
     let message: String?
     let code: String?
+    let messageKey: String?
     /// 请求校验失败（422 `VALIDATION_ERROR`）时逐条说是哪个字段、为什么
     let details: [Detail]?
 
@@ -76,10 +83,16 @@ nonisolated struct APIErrorBody: Decodable, Sendable {
         }
     }
 
-    init(message: String?, code: String?, details: [Detail]?) {
+    private enum CodingKeys: String, CodingKey {
+        case message, code, details
+        case messageKey = "message_key"
+    }
+
+    init(message: String?, code: String?, details: [Detail]?, messageKey: String? = nil) {
         self.message = message
         self.code = code
         self.details = details
+        self.messageKey = messageKey
     }
 
     /// 给用户看的一句话。请求校验失败时服务端的 message 只是一句英文的「request validation failed」，
@@ -427,7 +440,7 @@ nonisolated struct APIClient: Sendable {
                 // 也可能还有请求在路上——它们的 401 不能把当前会话踢下线
                 NotificationCenter.default.post(name: .apiUnauthorized, object: server, userInfo: token.map { ["token": $0] })
             }
-            throw APIError.http(status: http.statusCode, message: message, code: body?.code)
+            throw APIError.http(status: http.statusCode, message: message, code: body?.code, messageKey: body?.messageKey)
         }
         var headers: [String: String] = [:]
         for (key, value) in http.allHeaderFields {

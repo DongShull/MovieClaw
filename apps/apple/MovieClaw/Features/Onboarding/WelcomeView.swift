@@ -298,18 +298,18 @@ private struct FilmSubtitle: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text(scene.line)
+            Text(scene.headline)
                 .font(.welcomeSerif(size: 18))
                 .lineSpacing(7)
                 .foregroundStyle(Theme.text)
-            if let original = scene.original {
+            if let original = scene.subline {
                 Text(original)
                     .font(.system(size: 13, weight: .regular, design: .serif))
                     .italic()
                     .lineSpacing(3)
                     .foregroundStyle(Theme.textMuted)
             }
-            Text(verbatim: "——《\(scene.film)》\(scene.year)")
+            Text(verbatim: "—— " + scene.source)
                 .font(.welcomeSerif(size: 11))
                 .tracking(2)
                 .foregroundStyle(Theme.textFaint)

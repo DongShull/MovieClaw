@@ -193,7 +193,7 @@ struct MacWindowReader: NSViewRepresentable {
             super.init(frame: .zero)
         }
 
-        required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
+        required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") } // i18n-ignore: developer message
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()

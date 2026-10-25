@@ -162,7 +162,7 @@ struct MacPairingLogin: View {
                 // 轮询过快：退避，不重置配对
                 interval += 2
             } catch let error as APIError where error.status == 400 {
-                if case let .http(_, _, code) = error, code == "AUTHORIZATION_DENIED" {
+                if case let .http(_, _, code, _) = error, code == "AUTHORIZATION_DENIED" {
                     status = .failed(String(localized: .authPairingRejectedMac))
                 } else {
                     status = .failed(String(localized: .authPairingExpiredMac))

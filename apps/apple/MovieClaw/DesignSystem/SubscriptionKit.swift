@@ -310,7 +310,7 @@ struct SubsTriChip: View {
             .overlay(Capsule().strokeBorder(stroke))
         }
         .buttonStyle(.plain)
-        .accessibilityValue(state == .include ? "只要" : state == .exclude ? "排除" : "不限")
+        .accessibilityValue(state == .include ? String(localized: .subscriptionRulesTriInclude) : state == .exclude ? String(localized: .subscriptionRulesTriExclude) : String(localized: .mediaFiltersUnlimited))
     }
 
     private var fill: Color {

@@ -262,6 +262,28 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(String(localized: .libraryPositionOfTotal(3, 120)), "3 of 120")
     }
 
+    @MainActor func testEnglishWelcomeQuotes() throws {
+        XCTAssertEqual(WelcomeScene.all.count, 68)
+        let casablanca = try XCTUnwrap(WelcomeScene.all.first { $0.film == "卡萨布兰卡" })
+        XCTAssertEqual(casablanca.headline, "We'll always have Paris.")
+        XCTAssertNil(casablanca.subline)
+        XCTAssertEqual(casablanca.source, "Casablanca, 1942")
+        let bullets = try XCTUnwrap(WelcomeScene.all.first { $0.film == "让子弹飞" })
+        XCTAssertEqual(bullets.headline, "Let the bullets fly a while.")
+        XCTAssertEqual(bullets.subline, "让子弹飞一会儿。")
+    }
+
+    @MainActor func testEnglishShellAndShareCopy() {
+        XCTAssertEqual(ShareLinkKit.copyText(title: "Dune", url: "https://x/s/1", password: "abcd"),
+                       "“Dune” Link: https://x/s/1 Password: abcd")
+        XCTAssertEqual(MoreConversationPeriod.earlier.label, "Earlier")
+        XCTAssertEqual(APIError.http(status: 503, message: "x", code: nil, messageKey: "errors.playback.transcodeLimit").messageKey,
+                       "errors.playback.transcodeLimit")
+        XCTAssertTrue(ReelPlayer.isTranscodeLimit(.http(status: 503, message: "All transcoding slots are in use", code: nil,
+                                                        messageKey: "errors.playback.transcodeLimit")))
+        XCTAssertTrue(ReelPlayer.isTranscodeLimit(.http(status: 503, message: "当前转码会话已满（2/2）", code: nil)))
+    }
+
     @MainActor func testEnglishSearchAndOfflineCopy() {
         XCTAssertEqual(OfflineDownloader.transcodeWaitNote(wait: "queue", ahead: 2), "Waiting to transcode; 2 ahead")
         XCTAssertEqual(OfflineDownloader.transcodeWaitNote(wait: "transcoder", ahead: 0), "Waiting for a free transcoder")

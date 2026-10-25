@@ -927,13 +927,13 @@ public final class AetherPlayback {
                 subtitleView.cues = cues.compactMap(OverlayCue.init)
                 if Self.logsCues {
                     for cue in cues where cue.text != nil {
-                        let place = cue.placement.map { "an=\($0.alignment.map(String.init) ?? "-") pos=\($0.position.map { "\(String(format: "%.2f", $0.x)),\(String(format: "%.2f", $0.y))" } ?? "-")" } ?? "无定位"
+                        let place = cue.placement.map { "an=\($0.alignment.map(String.init) ?? "-") pos=\($0.position.map { "\(String(format: "%.2f", $0.x)),\(String(format: "%.2f", $0.y))" } ?? "-")" } ?? "无定位" // i18n-ignore: developer diagnostics
                         FileHandle.standardError.write(Data("[AetherCue] \(String(format: "%.2f", cue.startTime))-\(String(format: "%.2f", cue.endTime)) \(place) \(cue.text ?? "")\n".utf8))
                     }
                     // 位图字幕（PGS / VobSub / DVB）没有文字：记下有几张图、画布多大，确认它确实上屏了
                     let bitmaps = cues.filter { $0.text == nil }
                     if let first = bitmaps.first {
-                        FileHandle.standardError.write(Data("[AetherCue] \(String(format: "%.2f", first.startTime))-\(String(format: "%.2f", first.endTime)) 位图字幕 \(bitmaps.count) 张\n".utf8))
+                        FileHandle.standardError.write(Data("[AetherCue] \(String(format: "%.2f", first.startTime))-\(String(format: "%.2f", first.endTime)) 位图字幕 \(bitmaps.count) 张\n".utf8)) // i18n-ignore: developer diagnostics
                     }
                 }
                 refreshSubtitles()
@@ -1253,9 +1253,9 @@ final class SubtitleLayerView: AetherPlatformView {
         if AetherPlayback.logsCues, active.map(\.id) != loggedActiveIDs {
             // 真机无人值守验证时确认字幕确实画上了屏（[AetherCue] 只说明拿到了字幕）
             loggedActiveIDs = active.map(\.id)
-            let shown = active.isEmpty ? "清空" : active.map { cue -> String in
+            let shown = active.isEmpty ? "清空" : active.map { cue -> String in // i18n-ignore: developer diagnostics
                 if case let .text(text, _, _) = cue.content { return "「\(text.prefix(24))」" }
-                return "位图"
+                return "位图" // i18n-ignore: developer diagnostics
             }.joined(separator: " ")
             FileHandle.standardError.write(Data("[AetherShow] \(String(format: "%.2f", time)) \(shown)\n".utf8))
         }

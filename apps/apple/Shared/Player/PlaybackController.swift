@@ -893,7 +893,7 @@ final class PlaybackController {
     private static func isTransient(_ error: Error) -> Bool {
         switch error as? APIError {
         case .network, .timeout: true
-        case let .http(status, _, _): [502, 503, 504].contains(status)
+        case let .http(status, _, _, _): [502, 503, 504].contains(status)
         default: error is URLError
         }
     }
@@ -1104,7 +1104,7 @@ final class PlaybackController {
                     request(startMs: positionMs, phase: .sessionStarting)
                     return
                 }
-                if case let .http(status, _, _) = error as? APIError, status == 404 {
+                if case let .http(status, _, _, _) = error as? APIError, status == 404 {
                     failSourceMissing()
                     return
                 }

@@ -132,32 +132,32 @@ enum Formatters {
         func round(_ value: Double) -> Int { Int(value.rounded()) }
         let text: String
         if round(seconds) <= 44 {
-            text = "几秒"
+            text = "几秒" // i18n-ignore: Chinese-only branch; English returns earlier
         } else if round(seconds) <= 89 {
-            text = "1 分钟"
+            text = "1 分钟" // i18n-ignore: Chinese-only branch; English returns earlier
         } else if round(seconds / 60) <= 44 {
-            text = "\(max(1, round(seconds / 60))) 分钟"
+            text = String(localized: .libraryCloudReportMinutes(max(1, round(seconds / 60))))
         } else if round(seconds / 60) <= 89 {
-            text = "1 小时"
+            text = "1 小时" // i18n-ignore: Chinese-only branch; English returns earlier
         } else if round(seconds / 3600) <= 21 {
-            text = "\(max(1, round(seconds / 3600))) 小时"
+            text = String(localized: .libraryRecycleShortHours(max(1, round(seconds / 3600))))
         } else if round(seconds / 3600) <= 35 {
-            text = "1 天"
+            text = "1 天" // i18n-ignore: Chinese-only branch; English returns earlier
         } else if round(seconds / 86400) <= 25 {
-            text = "\(max(1, round(seconds / 86400))) 天"
+            text = String(localized: .libraryShareDays(max(1, round(seconds / 86400))))
         } else if round(seconds / 86400) <= 45 {
-            text = "1 个月"
+            text = "1 个月" // i18n-ignore: Chinese-only branch; English returns earlier
         } else {
             let months = monthDiff(from: min(date, now), to: max(date, now))
             if round(months) <= 10 {
-                text = "\(max(1, round(months))) 个月"
+                text = "\(max(1, round(months))) 个月" // i18n-ignore: Chinese-only branch; English returns earlier
             } else if round(months) <= 17 {
-                text = "1 年"
+                text = "1 年" // i18n-ignore: Chinese-only branch; English returns earlier
             } else {
-                text = "\(max(1, round(months / 12))) 年"
+                text = String(localized: .mediaFiltersYearValue(String(max(1, round(months / 12)))))
             }
         }
-        return delta >= 0 ? "\(text)前" : "\(text)内"
+        return delta >= 0 ? "\(text)前" : "\(text)内" // i18n-ignore: Chinese-only branch; English returns earlier
     }
 
     /// 两个时刻相差的月数（带小数，同 dayjs monthDiff：整月数 + 余下部分占下一个整月的比例）

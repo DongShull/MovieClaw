@@ -196,7 +196,7 @@ private struct MacPlayerContent: View {
                 // 每个单元出画面时窗口贴合它的比例（换集、降档换了片源比例也跟着变）
                 if let video = controller.engine?.videoSize { window.fit(to: video) }
             }
-            debugLog("状态 \(phase) 位置 \(controller.positionMs / 1000) 秒")
+            debugLog("状态 \(phase) 位置 \(controller.positionMs / 1000) 秒") // i18n-ignore: debug log
         }
         .onChange(of: controller.paused, initial: true) { _, paused in
             sleepGuard.update(playing: !paused)
@@ -209,7 +209,7 @@ private struct MacPlayerContent: View {
             volume.apply(to: controller.engine)
         }
         .onChange(of: controller.session?.segments?.count) {
-            debugLog("片段标记 \(controller.session?.segments?.map { "\($0.type) \($0.startMs / 1000)～\($0.endMs / 1000) 秒" } ?? [])")
+            debugLog("片段标记 \(controller.session?.segments?.map { "\($0.type) \($0.startMs / 1000)～\($0.endMs / 1000) 秒" } ?? [])") // i18n-ignore: debug log
         }
         .onAppear {
             // 接过键盘：空格、方向键直接给播放器（侧边栏搜索框之前拿着焦点时也一样）

@@ -622,7 +622,7 @@ enum TVPlayerDebug {
                 guard let value = Double(spec) else { return }
                 let relative = spec.hasPrefix("+") || spec.hasPrefix("-")
                 let target = relative ? controller.positionMs + Int(value * 1000) : Int(value * 1000)
-                log("跳转 → \(target / 1000) 秒")
+                log("跳转 → \(target / 1000) 秒") // i18n-ignore: debug log
                 controller.seek(toFileMs: target, source: .auto)
             }
         }
@@ -638,7 +638,7 @@ enum TVPlayerDebug {
         if closeAt > 0 {
             Task {
                 try? await Task.sleep(for: .seconds(closeAt))
-                log("自动退出播放器")
+                log("自动退出播放器") // i18n-ignore: debug log
                 exit()
             }
         }

@@ -261,10 +261,10 @@ struct MainTabView: View {
                 try? await Task.sleep(for: .seconds(reopenAfter))
                 let request = router.player
                 router.player = nil
-                FileHandle.standardError.write(Data("[AutoTest] 关闭播放器\n".utf8))
+                FileHandle.standardError.write(Data("[AutoTest] 关闭播放器\n".utf8)) // i18n-ignore: debug log
                 try? await Task.sleep(for: .seconds(2))
                 if let request {
-                    FileHandle.standardError.write(Data("[AutoTest] 重新打开播放器\n".utf8))
+                    FileHandle.standardError.write(Data("[AutoTest] 重新打开播放器\n".utf8)) // i18n-ignore: debug log
                     router.play(request)
                 }
             }

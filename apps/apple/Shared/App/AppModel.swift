@@ -610,12 +610,12 @@ final class AppModel {
 
         var errorDescription: String? {
             switch self {
-            case .notMovieClaw: "该地址能访问，但不是 MovieClaw 服务器（请填写浏览器打开 MovieClaw 时地址栏里的地址）"
-            case let .unhealthy(status): "服务器状态异常：\(status)"
-            case .alreadyInitialized: "这台服务器刚刚已在别处完成初始化，请用已有的账号登录"
+            case .notMovieClaw: String(localized: .authServerNotMovieClaw)
+            case let .unhealthy(status): String(localized: .authServerUnhealthy(status))
+            case .alreadyInitialized: String(localized: .authServerAlreadyInitialized)
             case let .serverTooOld(version):
-                "服务器版本\(version.map { " v\($0) " } ?? "")太旧，App 需要 v\(AppModel.minimumServerVersion) 或更新版本。"
-                    + "请先在网页「设置 → 更新与维护」里把服务器升级到最新版"
+                version.map { String(localized: .authServerTooOldVersion($0, AppModel.minimumServerVersion)) }
+                    ?? String(localized: .authServerTooOld(AppModel.minimumServerVersion))
             }
         }
     }
@@ -626,7 +626,7 @@ final class AppModel {
 
         var errorDescription: String? {
             switch self {
-            case let .needsPassword(_, username): "「\(username)」的登录已失效，请重新输入密码"
+            case let .needsPassword(_, username): String(localized: .authLoginExpiredPassword(username))
             }
         }
     }

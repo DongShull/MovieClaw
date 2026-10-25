@@ -101,7 +101,7 @@ struct DiscoverLightbox: View {
                         }
                         .buttonStyle(.plain)
                         .id(i)
-                        .accessibilityLabel("查看第 \(i + 1) 张图片")
+                        .accessibilityLabel(Self.thumbnailLabel(i))
                         .accessibilityAddTraits(i == index ? .isSelected : [])
                     }
                 }
@@ -115,6 +115,8 @@ struct DiscoverLightbox: View {
         }
         .accessibilityIdentifier("lightbox-thumbnails")
     }
+
+    private static func thumbnailLabel(_ index: Int) -> String { String(localized: .mediaImagesViewIndex(index + 1)) }
 }
 
 /// 可缩放的单张图：双指缩放、放大后拖动、双击在 1× / 2.5× 之间切换；

@@ -135,7 +135,7 @@ struct TVWhoIsWatchingView: View {
             try await model.switchAccount(to: saved.account.username, on: saved.server)
         } catch AppModel.AccountError.needsPassword {
             // 这个账号的登录失效了：打开登录（服务器与用户名预填）
-            error = "「\(saved.account.nickname)」的登录已失效，请在「添加账号」里重新登录"
+            error = String(localized: .authAccountsExpiredUseAdd(saved.account.nickname))
         } catch {
             self.error = error.localizedDescription
         }

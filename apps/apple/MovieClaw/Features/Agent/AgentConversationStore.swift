@@ -208,7 +208,7 @@ final class AgentConversation {
                             return
                         }
                     }
-                } catch let APIError.http(status, message, _) {
+                } catch let APIError.http(status, message, _, _) {
                     self?.flush()
                     self?.updateTurn(turnId) {
                         $0.status = .error

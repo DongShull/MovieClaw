@@ -22,8 +22,8 @@ struct NoticeCenterView: View {
             let visible = Self.visible(notices)
             if visible.isEmpty {
                 EmptyState(
-                    systemImage: "checkmark.seal", title: "暂无待处理事项",
-                    message: "这里只列需要你处理的运行时问题，修复后会自动消失。"
+                    systemImage: "checkmark.seal", title: String(localized: .notifyNoticesNoneTitle),
+                    message: String(localized: .notifyCenterDescription)
                 )
                 .accessibilityIdentifier("notices-empty")
             } else {
@@ -42,7 +42,7 @@ struct NoticeCenterView: View {
                 }
             }
         }
-        .navigationTitle("待处理事项")
+        .navigationTitle(String(localized: .notifyCenterTitle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let count = state.value.map({ Self.visible($0).count }), count > 0 {

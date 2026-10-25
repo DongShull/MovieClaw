@@ -84,17 +84,17 @@ struct TVWelcomeView: View {
             if !scenes.isEmpty {
                 let scene = scenes[sceneIndex % scenes.count]
                 VStack(spacing: 18) {
-                    Text(scene.line)
+                    Text(scene.headline)
                         .font(.welcomeSerif(size: 40))
                         .multilineTextAlignment(.center)
-                    if let original = scene.original {
+                    if let original = scene.subline {
                         Text(original)
                             .font(.callout)
                             .italic()
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
-                    Text("《\(scene.film)》\(scene.year)")
+                    Text(verbatim: scene.source)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

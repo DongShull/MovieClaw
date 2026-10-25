@@ -247,17 +247,17 @@ private struct SubtitleStyleEditor: View {
         let style = controller.subtitleStyle
         // 行距 12：32pt 的步进键各向外扩 6pt 成 44pt 触控区，上下两行正好首尾相接、互不抢点
         VStack(spacing: 12) {
-            StepRow(id: "subtitle-时间轴-value", label: String(localized: .playerSubtitlesOffset), value: String(localized: .playerSubtitlesSignedOffset(style.offsetSeconds > 0 ? "+" : "", style.offsetSeconds))) {
+            StepRow(id: "subtitle-时间轴-value", label: String(localized: .playerSubtitlesOffset), value: String(localized: .playerSubtitlesSignedOffset(style.offsetSeconds > 0 ? "+" : "", style.offsetSeconds))) { // i18n-ignore: UI test identifier
                 controller.subtitleStyle.offsetSeconds = SubtitleStyle.clampOffset(style.offsetSeconds - SubtitleStyle.offsetStep)
             } plus: {
                 controller.subtitleStyle.offsetSeconds = SubtitleStyle.clampOffset(style.offsetSeconds + SubtitleStyle.offsetStep)
             }
-            StepRow(id: "subtitle-字号-value", label: String(localized: .playerSubtitlesFontSize), value: String(format: "%.1f", style.fontScale)) {
+            StepRow(id: "subtitle-字号-value", label: String(localized: .playerSubtitlesFontSize), value: String(format: "%.1f", style.fontScale)) { // i18n-ignore: UI test identifier
                 controller.subtitleStyle.fontScale = max(2, style.fontScale - 0.4)
             } plus: {
                 controller.subtitleStyle.fontScale = min(10, style.fontScale + 0.4)
             }
-            StepRow(id: "subtitle-位置-value", label: String(localized: .playerSubtitlesPosition), value: "\(Int(style.bottomPercent))%") {
+            StepRow(id: "subtitle-位置-value", label: String(localized: .playerSubtitlesPosition), value: "\(Int(style.bottomPercent))%") { // i18n-ignore: UI test identifier
                 controller.subtitleStyle.bottomPercent = max(0, style.bottomPercent - 2)
             } plus: {
                 controller.subtitleStyle.bottomPercent = min(40, style.bottomPercent + 2)
