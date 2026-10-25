@@ -25,9 +25,8 @@ from sqlmodel import select
 # 注册种子索引检索文本（site_torrent.match_text）的写入维护：订阅链路的写入与
 # 发布预测的预筛都依赖它与源字段一致（见 services/torrent_match_text.py）
 import movieclaw_api.services.torrent_match_text  # noqa: F401
-from movieclaw_api.i18n.stored import reference
-from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api import hooks
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services.subscription.identity_recheck import (
     fetch_external_ids,
     needs_external_id_recheck,
@@ -1203,7 +1202,6 @@ async def _log_rejection(
             and activity.payload.get("reason_code") == verdict.reason_code
         ):
             return  # 已经解释过这个候选为什么被拒，不重复刷屏
-    units_label = units_text(covered)
     reason_note = f"{verdict.reason_text}——来自 {candidate.site_id} 的「{candidate.title[:60]}」"
     # 单集履历注解：最近一次被拒原因冻结在工单上，详情页里程碑链的搜索站
     # 直接读。covered 行与本 repo 同一 session，setattr 进 dirty 集、随下方
@@ -1212,13 +1210,23 @@ async def _log_rejection(
     for w in covered:
         w.last_reject_reason = reason_note
     await repo.add_activity(
-        SubscriptionActivity(subscription_id=subscription_id, wanted_item_id=covered[0].id, type=ActivityType.MATCH_REJECTED, payload={
+        SubscriptionActivity(
+            subscription_id=subscription_id,
+            wanted_item_id=covered[0].id,
+            type=ActivityType.MATCH_REJECTED,
+            payload={
                 "site_id": candidate.site_id,
                 "torrent_id": candidate.torrent_id,
                 "reason_code": verdict.reason_code,
                 "source": source,
                 "units": [[w.season_number, w.episode_number] for w in covered],
-            }, **stored_fields('activity.subscription.candidatesRejected', units=units_reference(covered), reason=reason_note))
+            },
+            **stored_fields(
+                "activity.subscription.candidatesRejected",
+                units=units_reference(covered),
+                reason=reason_note,
+            ),
+        )
     )
 
 

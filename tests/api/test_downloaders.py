@@ -2574,3 +2574,100 @@ def test_season_pack_is_kept_after_local_release_until_every_unit_lands(client) 
     status, note = asyncio.run(attempt_state())
     assert status == DownloadAttemptStatus.CANCELLED
     assert note is not None and "自动清理" in note and "用户" not in note
+
+
+def test_task_center_rescue_texts_follow_reader_language(client) -> None:
+    """换源解释与清理原因：中文原文落库，任务中心按请求语言渲染。"""
+    from movieclaw_api.i18n.stored import reference
+    from movieclaw_api.services.subscription.attempt_notes import set_note
+    from movieclaw_db.engine import get_database
+    from movieclaw_db.models import (
+        DownloadAttemptStatus,
+        MediaItem,
+        RuleSet,
+        Subscription,
+        SubscriptionDownloadAttempt,
+        WantedItem,
+        WantedStatus,
+        utcnow,
+    )
+
+    c, _ = client
+    downloader_id = c.post("/api/v1/downloaders", json=_PAYLOAD).json()["data"]["id"]
+    retained_hash, stalled_hash = "e" * 40, "f" * 40
+    _fake_torrents.extend(
+        TorrentBrief(
+            name=name,
+            content_name=name,
+            completed=False,
+            info_hash=info_hash,
+            progress=0.1,
+            state="downloading",
+        )
+        for name, info_hash in (("Kept.S01E01", retained_hash), ("Slow.S01E02", stalled_hash))
+    )
+
+    async def seed() -> None:
+        async with get_database().session() as session:
+            rule = RuleSet(name="救援文案规则", is_default=True)
+            media = MediaItem(kind="tv", tmdb_id=4242, title="救援剧", original_title="Rescue")
+            session.add_all([rule, media])
+            await session.flush()
+            subscription = Subscription(
+                media_item_id=media.id, kind="tv", selected_seasons=[1], rule_set_id=rule.id
+            )
+            session.add(subscription)
+            await session.flush()
+            for episode, info_hash in ((1, retained_hash), (2, stalled_hash)):
+                session.add(
+                    WantedItem(
+                        subscription_id=subscription.id,
+                        media_item_id=media.id,
+                        season_number=1,
+                        episode_number=episode,
+                        status=WantedStatus.GRABBED,
+                        info_hash=info_hash,
+                    )
+                )
+            kept = SubscriptionDownloadAttempt(
+                subscription_id=subscription.id,
+                downloader_id=downloader_id,
+                info_hash=retained_hash,
+                units=[[1, 1]],
+                status=DownloadAttemptStatus.RETAINED,
+                last_progress_at=utcnow(),
+            )
+            set_note(kept, reference("subscription.attempt.oldHitAndRun"))
+            session.add_all(
+                [
+                    kept,
+                    SubscriptionDownloadAttempt(
+                        subscription_id=subscription.id,
+                        downloader_id=downloader_id,
+                        info_hash=stalled_hash,
+                        units=[[1, 2]],
+                        status=DownloadAttemptStatus.ACTIVE,
+                        last_progress_at=utcnow() - timedelta(minutes=16),
+                    ),
+                ]
+            )
+            await session.commit()
+            assert kept.cleanup_note == "旧任务存在 H&R 风险或考核状态未知，未自动删除"
+
+    asyncio.run(seed())
+
+    def messages(language: str) -> dict[str, str | None]:
+        response = c.get("/api/v1/downloaders/tasks", headers={"Accept-Language": language})
+        assert response.status_code == 200
+        return {
+            item["info_hash"]: item["rescue_message"] for item in response.json()["data"]["items"]
+        }
+
+    chinese, english = messages("zh-Hans"), messages("en")
+    assert chinese[retained_hash] == "旧任务存在 H&R 风险或考核状态未知，未自动删除"
+    assert english[retained_hash] == (
+        "The old task may be subject to H&R or its status is unknown, "
+        "so it wasn’t deleted automatically"
+    )
+    assert chinese[stalled_hash].startswith("已连续 15 分钟没有下载进度")
+    assert english[stalled_hash].startswith("No download progress for 15 minutes.")

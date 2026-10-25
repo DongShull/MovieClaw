@@ -527,3 +527,8 @@ class SubscriptionDownloadAttempt(TimestampMixin, table=True):
     search_attempts: int = Field(default=0, description="成功执行但没找到替代源的次数")
     last_search_at: datetime | None = Field(default=None)
     cleanup_note: str | None = Field(default=None, description="旧任务清理或保留原因")
+    cleanup_note_ref: dict | None = Field(
+        default=None,
+        sa_column=Column(JSON, nullable=True),
+        description="清理/保留原因的文案引用（按读者语言渲染）；NULL=旧记录，只有中文原文",
+    )

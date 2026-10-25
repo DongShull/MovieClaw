@@ -41,8 +41,8 @@ from sqlalchemy import delete, insert, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.core.config import get_settings
+from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.services import jobs
 from movieclaw_api.services.library.series import (
     build_series_key,
@@ -1521,7 +1521,14 @@ async def _grow_and_sync(
         first = to_add[0]
         label = f"S{first.season_number:02d}E{first.episode_number:02d}"
         await repo.add_activity(
-            SubscriptionActivity(subscription_id=subscription.id, type=ActivityType.WANTED_ADDED, payload={"units": [[w.season_number, w.episode_number] for w in to_add]}, **stored_fields('activity.subscription.metadataNewEpisodes', count=len(to_add), first=label))
+            SubscriptionActivity(
+                subscription_id=subscription.id,
+                type=ActivityType.WANTED_ADDED,
+                payload={"units": [[w.season_number, w.episode_number] for w in to_add]},
+                **stored_fields(
+                    "activity.subscription.metadataNewEpisodes", count=len(to_add), first=label
+                ),
+            )
         )
         logger.info("《%s》发现 %d 个新集，已补工单", item.title, len(to_add))
     else:

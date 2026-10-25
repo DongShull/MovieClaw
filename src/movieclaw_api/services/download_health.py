@@ -24,6 +24,7 @@ from datetime import timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import reference, reference_fields, source_render
 from movieclaw_api.services.downloader_paths import PathProbe
 from movieclaw_api.services.system_notice import resolve_notices, upsert_notice
 from movieclaw_db.models import ActivityType, SubscriptionActivity, utcnow
@@ -240,7 +241,7 @@ async def record_stalled(
     info_hash: str,
     units: list,
     reason: str,
-    message: str,
+    message: dict,
 ) -> None:
     """记一条停滞事件，同订阅、同单元、同原因在 24 小时内折叠为一条并计数。
 
@@ -275,7 +276,17 @@ async def record_stalled(
             continue
         occurrences = int(payload.get("occurrences") or 1) + 1
         base = payload.get("base_message") or row.message
-        row.message = f"{base}（24 小时内已发生 {occurrences} 次）"
+        # 旧记录只有中文原文：按原文折叠，读时反查
+        folded = reference_fields(
+            reference(
+                "activity.subscription.stalledRepeated",
+                base=payload.get("base_ref") or base,
+                count=occurrences,
+            )
+        )
+        row.message = folded["message"]
+        row.message_key = folded["message_key"]
+        row.message_params = folded["message_params"]
         row.payload = {
             **payload,
             "info_hash": info_hash,
@@ -290,13 +301,14 @@ async def record_stalled(
         SubscriptionActivity(
             subscription_id=subscription_id,
             type=ActivityType.DOWNLOAD_STALLED,
-            message=message,
+            **reference_fields(message),
             payload={
                 "info_hash": info_hash,
                 "reason": reason,
                 "units": [list(u) for u in unit_key],
                 "occurrences": 1,
-                "base_message": message,
+                "base_message": source_render(message),
+                "base_ref": message,
             },
         )
     )

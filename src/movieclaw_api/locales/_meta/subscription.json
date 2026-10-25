@@ -388,5 +388,152 @@
   },
   "health.noRootNarrative": {
     "sourceHash": "e95aba03edc3354360b3baf44de7c48d525497924c3be9b187817606c5287f8c"
+  },
+  "attempt.outOfScopeNoReplacement": {
+    "sourceHash": "581ff5c837802868b55f9e96ed2cc50f825a837c3614c84b758681fef6fc4e7b"
+  },
+  "attempt.importedNoReplacement": {
+    "sourceHash": "a8f8920c9231b1fa9d5016ab34e61537cc37f297f24d24910a1b9cc807e7e432"
+  },
+  "attempt.outOfScopeBeforeSearch": {
+    "sourceHash": "99d8f2e88d4182dcffb5e81f0f02dd5a3ce95e80381ced75e11eaddfb124f9b7"
+  },
+  "attempt.outOfScopeBackoff": {
+    "sourceHash": "502c9683d5874e555da46e755862cb2cbbf84e1b242ded85deb5b144b90c288b"
+  },
+  "attempt.outOfScopeKeepTrial": {
+    "sourceHash": "f08bd6c3aa8182f9ca4d8830b51c1fd98e48c70a470f962d5fcdc9ef916d14a1"
+  },
+  "attempt.targetSatisfied": {
+    "sourceHash": "4391719f1d2d73b1566e19c6ebe650ffa2bc9cf2a8a0ee845ecbb999e63ef680"
+  },
+  "attempt.outOfScopeKeepOld": {
+    "sourceHash": "371bdda47d5bc002150e503f521ec0e0ae332ce0bcb9d174613862b86682d08e"
+  },
+  "attempt.outOfScopeBeforePromotion": {
+    "sourceHash": "04ec9d0510d6852f08ecf2c88b12d9a6cda3b861b451fb8d002a6a17f5619746"
+  },
+  "attempt.satisfiedBeforePromotion": {
+    "sourceHash": "dce97f19e139cdb233f044cac17ebd09b27c5a311eb5ee7cc44bf7e8937e98f6"
+  },
+  "attempt.awaitingOldCleanup": {
+    "sourceHash": "37a5d721311b8269ede740a339acd0803f9523e4149936a0a75dc7a3060b1bad"
+  },
+  "attempt.awaitingOldCleanupResume": {
+    "sourceHash": "227c8548d4d145104b2858e85e410ed9f06f502fa71406ca27568a4d44ae7a26"
+  },
+  "attempt.outOfScopeTrialKept": {
+    "sourceHash": "766fc47764e859af0ec584b4ed07feae2f6355972de9f9d892e4a65eff30c31c"
+  },
+  "attempt.outOfScopeFailedTrialKept": {
+    "sourceHash": "164d659f5c063b6dd43b0d08a2afba661b0af6ddb3fb5b5260361582ca9b6091"
+  },
+  "attempt.trialPreexisting": {
+    "sourceHash": "1d39a552ebf04ed49ffe9e7230c02eda227da0dffa1c0aada614551973c94070"
+  },
+  "attempt.trialHitAndRun": {
+    "sourceHash": "1477dc856e192f743d4243bbdd3434df9e69abc64984d2a2a9ad074d9fedbea7"
+  },
+  "attempt.trialNoDownloader": {
+    "sourceHash": "25e4151ab206ecf3664ab262d74a0faa57ec49bc0781ced6afbf0aaa14544466"
+  },
+  "attempt.trialDownloaderGone": {
+    "sourceHash": "5c3c12eda0a4bb35bca4a2bc9d0f51c3f19ea6bfc1aa0f94f4da7e7edd17548e"
+  },
+  "attempt.outOfScopeBeforeTrialRemoval": {
+    "sourceHash": "7b65709a0d2c100b809ed0b998dbe29fd35e5bce035b0e5f8f10678833da0a82"
+  },
+  "attempt.trialRemoved": {
+    "sourceHash": "f87930d6f327c2fe2498902704c8a83d04f723054e9a7aa8b593a979f86c564e"
+  },
+  "attempt.trialRemoveFailed": {
+    "sourceHash": "f8c3610ba95f1cc0078224d546698227cd03b7d8ff8e864e8399c8ed7b87c6e8"
+  },
+  "attempt.outOfScopeOldUntouched": {
+    "sourceHash": "ed5fe8f21c6eff55ec67b9ada7d6c5ab36bc91544ea11b8a07a18c7d43b86a27"
+  },
+  "attempt.outOfScopeReplacementStopped": {
+    "sourceHash": "805cb25e48ae2fe5a4f85dacdeb2464023932f8bbd7f6b08c115b381a330beaf"
+  },
+  "attempt.oldPreexisting": {
+    "sourceHash": "434e6c1a2af43fe3fad6753508f836b6371bd01d67ca56dc8497e33b7e7d38e2"
+  },
+  "attempt.oldHitAndRun": {
+    "sourceHash": "c45363c07977cb81b49c47c148a52ef3465b588e154da5b4719476df6691f06c"
+  },
+  "attempt.oldNoDownloader": {
+    "sourceHash": "52686c1d7460b040ee3e38f4a030c262e2763583f8066b322377a704750a4a8c"
+  },
+  "attempt.oldDownloaderGone": {
+    "sourceHash": "fbdba5c3faf3f4b045e6bcfaa57cdb01cee5b3d7900b599fa72221daab8a41fe"
+  },
+  "attempt.oldGone": {
+    "sourceHash": "510c7c97607d39e4c3cbf15e553598d66fe693a46733afdc6fbbe7982492afa5"
+  },
+  "attempt.cleanupFailed": {
+    "sourceHash": "e589f34eaccf7c049417f5e48d06752eb41d1625cd7becd7c0bc9e1134a8e48f"
+  },
+  "attempt.oldDeletedWithFiles": {
+    "sourceHash": "ef880e745ef340c9111aad18eb5a1c50fc9170d7e61e3fd9d9f999e4201f8bac"
+  },
+  "attempt.oldDeletedKeepFiles": {
+    "sourceHash": "b6c690f3f897cdb78111b465639259f447e064c8a7cd3e05001558e500be3492"
+  },
+  "attempt.upgradeNoDownloader": {
+    "sourceHash": "ad19fc9c41f3fee70380a92ad7b7bc5ad8385b135923acc87c0433b60db71eae"
+  },
+  "attempt.upgradeOldQueryFailed": {
+    "sourceHash": "8f1449b171540fb39c9f34ed4c8a0896f47d0927cb0522ff2556537e8e90951b"
+  },
+  "attempt.upgradeOldKept": {
+    "sourceHash": "7928af2035be7d307784b1dd92977b3c7cb033f75a99c7c60f4aa6636707f3fa"
+  },
+  "attempt.trialTargetSatisfied": {
+    "sourceHash": "c5bb594bc379e7b6cad0a0430b5fce4e95a52d1d14dc0ca1d99b8ba2fa150eec"
+  },
+  "attempt.trialMissing": {
+    "sourceHash": "70830afe6ac9ffe4219ed14679234a289f0dd92ce3efb109d3c32c0874629300"
+  },
+  "attempt.trialTimeout": {
+    "sourceHash": "893e96fea0cde2efef6d9d39d7c2158e0c51c87de3b5122a70347b7e0c4fa673"
+  },
+  "attempt.trialOldRecovered": {
+    "sourceHash": "94a6496d65b80e0ec321bccabb7d70d8bb1e351efce689db7756cc97e09c494c"
+  },
+  "attempt.outOfScopeStopObserving": {
+    "sourceHash": "0eeb94418037c265726f99d86cccbfd3aa94bb6017fb739af15cc0646b4f5ab9"
+  },
+  "attempt.deletedByUser": {
+    "sourceHash": "0655009f7a6d8a975dc8c73b15e767e0eac0e23138983d788dd84b85beca2921"
+  },
+  "attempt.missingEverywhere": {
+    "sourceHash": "d870ea22c0cb1bde70865bb15e14bd7f36f7c7ef54e4fb76f428efcf1d0860a0"
+  },
+  "attempt.userDeletedOutOfScope": {
+    "sourceHash": "6146c89516035d912f84a0585f3be18018ac62b102ce4a873224a8496b25063b"
+  },
+  "attempt.cloudVacated": {
+    "sourceHash": "dd7784347468d56132045070d523ed49832141e1c0d9c040f342438dd9f988dc"
+  },
+  "attempt.upgradeSettled": {
+    "sourceHash": "18b2810166fcb3c9dbdf800cec43521a4fa1e1dd86302af47d451abf7d91b88a"
+  },
+  "attempt.upgradeDone": {
+    "sourceHash": "9d65ff280bbc1b0f20d613f33d9b2ba88a2f55eae2038663ad7b54e649c4ace8"
+  },
+  "attempt.upgradeSeasonRetained": {
+    "sourceHash": "7f0d1a790770be4147d412ff633f5c33adedf72ffe2676e1cff848bb1809378b"
+  },
+  "attempt.manualVersionKept": {
+    "sourceHash": "fed2997175ae9682b12d9e7602c232f42585f1f637cd86a63497af730fbaa9ca"
+  },
+  "attempt.upgradePreempted": {
+    "sourceHash": "d26cc59a06fb40ae87816bcecfac954148740eed7ed8ac064922c3d0afb3c501"
+  },
+  "attempt.upgradeDisproved": {
+    "sourceHash": "4d4cc5b18fddc9d5bf00442ae4b634bd36a82a3396351aa394adeb7dee4169e3"
+  },
+  "attempt.networkOutOfScope": {
+    "sourceHash": "9a6ac73a9d5e2ae01c79de50d6accf8d23c70bbf630d17a9df8895faf17953fe"
   }
 }

@@ -80,7 +80,18 @@
     "searchKeywords": "Keywords {entries}",
     "searchCompleted": "Searched for “{title}” ({keywords}): {sites, plural, one {# site returned} other {# sites returned}} {results, plural, one {# result} other {# results}}, {hits, number} identity matches, {rejected, number} rejected by rules, {dispatched, plural, one {# unit covered by dispatches} other {# units covered by dispatches}}{hasRemaining, select, yes {; {remaining, plural, one {# remaining unit scheduled with backoff} other {# remaining units scheduled with backoff}}} other {; all missing units in this group have been arranged}}",
     "smartCandidateRequested": "Requested an immediate download of the current candidate",
-    "smartWaitExtended": "The user extended the wait"
+    "smartWaitExtended": "The user extended the wait",
+    "landingBrake": "Automatic replacement is paused: {group}. It resumes once fixed; you can still replace it now from Activity",
+    "downloaderErrorDefault": "The downloader reported an error for this task",
+    "downloaderError": "{reason}. This isn’t a dead torrent, so replacement checks are paused. Recheck or delete the task in the downloader; watching resumes afterwards",
+    "noProgress": "No download progress for 15 minutes. You can replace it now from Activity; at 30 minutes a same-quality replacement is searched automatically",
+    "stalledRepeated": "{base} ({count, plural, one {# time} other {# times}} in the last 24 hours)",
+    "deletedByUserRequeued": "Deleted the download task as requested; {units} went back to searching. You can also search now or pick a release from the subscription details",
+    "missingRequeued": "The download task disappeared from every reachable downloader ({count} checks in a row; it may have been deleted manually or cleaned up by the downloader). {units} went back to searching. You can also search now or pick a release from the subscription details",
+    "contentMissing": "“{name}” finished downloading but has no files for {units} (its declared coverage doesn’t match its content). Those went back to searching; episodes actually in the torrent are imported as usual",
+    "oldRetained": "Replacement finished. {reason}",
+    "upgradeNoDownloader": "The upgrade finished, but the old task’s downloader couldn’t be confirmed, so it keeps seeding",
+    "upgradeOldQueryFailed": "The upgrade finished, but checking the old task failed: {error}. It keeps seeding"
   },
   "jobActions": {
     "dismissAll": "{count, plural, one {Dismissed # failed task} other {Dismissed # failed tasks}}",

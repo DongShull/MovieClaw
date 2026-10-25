@@ -35,6 +35,7 @@ from movieclaw_api.services.library.profile import kind_reference
 from movieclaw_api.services.media_library import MediaLibraryService
 from movieclaw_api.services.rule_sets import RuleSetService, rule_set_name_reference
 from movieclaw_api.services.subscription import events as subscription_events
+from movieclaw_api.services.subscription.attempt_notes import set_note
 from movieclaw_api.services.subscription.cleanup import (
     CleanupPlan,
     build_cleanup_plan,
@@ -979,7 +980,7 @@ class SubscriptionService:
             if not targets and attempt.status in active_statuses:
                 attempt.status = DownloadAttemptStatus.CANCELLED
                 attempt.next_search_at = None
-                attempt.cleanup_note = "关联单元已退出当前订阅范围；保留下载器任务，不再观察或换源"
+                set_note(attempt, reference("subscription.attempt.outOfScopeStopObserving"))
                 self._session.add(attempt)
                 cancelled += 1
                 cancelled_hashes.add(attempt.info_hash.lower())
@@ -995,7 +996,7 @@ class SubscriptionService:
                 attempt.last_progress_at = now
                 attempt.missing_observations = 0
                 attempt.next_search_at = None
-                attempt.cleanup_note = None
+                set_note(attempt, None)
                 self._session.add(attempt)
                 resumed += 1
         return cancelled, resumed, cancelled_hashes

@@ -28,7 +28,10 @@ from movieclaw_api.exceptions import (
     UpstreamServiceException,
     exception_fields,
 )
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import reference, render_value, stored_message
 from movieclaw_api.services.network_egress import effective_tmdb_image_base_url
+from movieclaw_api.services.subscription import render_note, set_note
 from movieclaw_db.models import (
     BoostTaskState,
     ConfigStatus,
@@ -354,7 +357,7 @@ async def _relations(
             "_attempt_downloader_id": attempt.downloader_id,
             "_last_progress_at": attempt.last_progress_at,
             "_next_search_at": attempt.next_search_at,
-            "_cleanup_note": attempt.cleanup_note,
+            "_cleanup_note": render_note(attempt.cleanup_note, attempt.cleanup_note_ref),
             # 内容核验证明本种子不含的集：下载完成 ≠ 这一集会到手，卡片必须
             # 说"内容不符"而不是继续挂"等待下载完成"
             "_content_missing": content_missing_units,
@@ -757,25 +760,25 @@ def _rescue_message(
     next_search_at,
     cleanup_note: str | None,
 ) -> str | None:
-    """把换源状态渲染成任务中心可直接显示的中文解释。"""
+    """把换源状态渲染成任务中心可直接显示的解释（按请求语言）。"""
     if state == DownloadAttemptStatus.TRIAL:
-        return "正在验证同品质替代源；新源产生至少 1 MiB 真实进度后才会切换旧源"
+        return t("download.rescue.trial")
     if state == DownloadAttemptStatus.REPLACEMENT_PENDING:
         if next_search_at is None:
-            return "已投递同品质替代源，正在等待真实下载进度"
+            return t("download.rescue.submitted")
         if next_search_at <= datetime.now(UTC).replace(tzinfo=None):
-            return "旧源仍保留，正在跨站寻找同品质替代源"
-        return "暂未找到同品质替代源，旧源继续保留；系统会按退避计划重新跨站搜索"
+            return t("download.rescue.searching")
+        return t("download.rescue.backoff")
     if state == DownloadAttemptStatus.RETAINED:
-        return cleanup_note or "换源已完成；旧任务因安全条件不足而保留"
+        return cleanup_note or t("download.rescue.retained")
     if state == DownloadAttemptStatus.CLEANUP_PENDING:
-        return cleanup_note or "替代源已接管，正在安全清理旧任务"
+        return cleanup_note or t("download.rescue.cleanupPending")
     if (
         state == DownloadAttemptStatus.ACTIVE
         and no_progress_seconds is not None
         and no_progress_seconds >= 15 * 60
     ):
-        return "已连续 15 分钟没有下载进度；可立即换种，30 分钟时系统会自动处理"
+        return t("download.rescue.noProgress")
     return None
 
 
@@ -1105,10 +1108,11 @@ async def delete_download_task(
             continue
         attempt.status = DownloadAttemptStatus.CANCELLED
         attempt.next_search_at = None
-        attempt.cleanup_note = (
-            "关联单元不在当前订阅范围；用户删除下载器任务后停止观察"
+        set_note(
+            attempt,
+            reference("subscription.attempt.userDeletedOutOfScope")
             if by_user
-            else "下载任务已在文件传到网盘、本地腾空后自动清理，停止观察"
+            else reference("subscription.attempt.cloudVacated"),
         )
         attempt.updated_at = utcnow()
         session.add(attempt)
@@ -1183,7 +1187,9 @@ async def _landing_errors(session: AsyncSession) -> dict[tuple[int, str], str]:
         subscription_id = payload.get("subscription_id")
         info_hash = payload.get("info_hash")
         if isinstance(subscription_id, int) and isinstance(info_hash, str):
-            result[(subscription_id, info_hash.lower())] = notice.message
+            result[(subscription_id, info_hash.lower())] = stored_message(
+                notice.message, notice.message_key, notice.message_params
+            )
     return result
 
 
@@ -1210,9 +1216,17 @@ async def download_task_snapshot(session: AsyncSession) -> dict[str, list[dict[s
             "task_count": 0,
         }
         if not row.enabled:
-            return {**base, "status": "disabled", "message": "下载器已停用"}, [], {}
+            return (
+                {**base, "status": "disabled", "message": t("download.rescue.downloaderDisabled")},
+                [],
+                {},
+            )
         if row.status != ConfigStatus.ACTIVE:
-            message = row.last_error or "下载器尚未通过连接验证"
+            message = (
+                render_value(row.last_error_ref)
+                if row.last_error_ref
+                else row.last_error or t("download.rescue.downloaderUnverified")
+            )
             return {**base, "status": "unavailable", "message": message}, [], {}
 
         adapter = None
@@ -1255,7 +1269,7 @@ async def download_task_snapshot(session: AsyncSession) -> dict[str, list[dict[s
                 {
                     **base,
                     "status": "error",
-                    "message": "读取任务失败，请检查下载器连接",
+                    "message": t("download.rescue.listFailed"),
                 },
                 [],
                 {},

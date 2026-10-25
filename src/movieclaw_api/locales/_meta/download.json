@@ -61,5 +61,35 @@
   },
   "operations.routedLibrary": {
     "sourceHash": "09612e70408ebff4c4fa43d290caff2e661362f28f9a221a5a213116ad62e538"
+  },
+  "rescue.trial": {
+    "sourceHash": "064cdd8c9434fe2c52899117a380239e60f51d66069798e4b2d7e1c860a54d96"
+  },
+  "rescue.submitted": {
+    "sourceHash": "3af7ce67b0fcbaee90d5dd58ebe1a5ba5e94499e031993557a005830648da0a5"
+  },
+  "rescue.searching": {
+    "sourceHash": "73ed124b7735589b8786b8572fc602e3a3e2ac8bbeb0d4f4a660ff40fa0a5865"
+  },
+  "rescue.backoff": {
+    "sourceHash": "dba0b10b0c26352319ab9e06078241c911fafa6917de120ac6c73e737913b5a1"
+  },
+  "rescue.retained": {
+    "sourceHash": "8569f6ae8f8686ee804a2055c38e17e00cecbba45ad7e07c5f1b6aab26b43d93"
+  },
+  "rescue.cleanupPending": {
+    "sourceHash": "217abfed5808fd52ed6a142f2f7120dc4c6caf4a44b40f3bb94839426bfac449"
+  },
+  "rescue.noProgress": {
+    "sourceHash": "1078717b2f56fc26dcbe645207ea341fb239182aeb58e2b1796872b08455a739"
+  },
+  "rescue.downloaderDisabled": {
+    "sourceHash": "79e6c6329d1e7a9823ace184026aa04c6edbc153b763d2924d147043ca224cdd"
+  },
+  "rescue.downloaderUnverified": {
+    "sourceHash": "c23369e55b81a072db10f31fa837a4d2eebe296525c0e945c8666028e0c7a79c"
+  },
+  "rescue.listFailed": {
+    "sourceHash": "7c6a68cb9e62acc19d531e9487a2e5dc6eae54402d4047a799f827ba7c68626d"
   }
 }

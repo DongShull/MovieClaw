@@ -94,7 +94,6 @@ async def close_fulfilled_wanted(session: AsyncSession, media_item_id: int) -> i
 
     # 时间线与派生状态：逐订阅补记（对账可能一次关闭多个订阅的工单）
     from movieclaw_api.services.subscription import recompute_subscription_status
-    from movieclaw_api.services.subscription.matching import units_text
 
     item = await session.get(MediaItem, media_item_id)
     repo = SubscriptionRepository(session)
@@ -117,7 +116,15 @@ async def close_fulfilled_wanted(session: AsyncSession, media_item_id: int) -> i
             ],
         )
         await repo.add_activity(
-            SubscriptionActivity(subscription_id=subscription_id, wanted_item_id=wanted_rows[0].id, type=ActivityType.IMPORTED, payload={"units": [[w.season_number, w.episode_number] for w in wanted_rows]}, **stored_fields('activity.subscription.reconciledImport', units=units_reference(wanted_rows)))
+            SubscriptionActivity(
+                subscription_id=subscription_id,
+                wanted_item_id=wanted_rows[0].id,
+                type=ActivityType.IMPORTED,
+                payload={"units": [[w.season_number, w.episode_number] for w in wanted_rows]},
+                **stored_fields(
+                    "activity.subscription.reconciledImport", units=units_reference(wanted_rows)
+                ),
+            )
         )
         await recompute_subscription_status(session, subscription, item)
         # 内容已进库，该订阅在途种子的落点告警（若有）自动熄灭
@@ -209,7 +216,6 @@ async def reopen_unfulfilled_wanted(
     await session.commit()
 
     from movieclaw_api.services.subscription import recompute_subscription_status
-    from movieclaw_api.services.subscription.matching import units_text
 
     item = await session.get(MediaItem, media_item_id)
     repo = SubscriptionRepository(session)
@@ -218,7 +224,15 @@ async def reopen_unfulfilled_wanted(
         if subscription is None or item is None:
             continue
         await repo.add_activity(
-            SubscriptionActivity(subscription_id=subscription_id, wanted_item_id=wanted_rows[0].id, type=ActivityType.REOPENED, payload={"units": [[w.season_number, w.episode_number] for w in wanted_rows]}, **stored_fields('activity.subscription.identityCorrected', units=units_reference(wanted_rows)))
+            SubscriptionActivity(
+                subscription_id=subscription_id,
+                wanted_item_id=wanted_rows[0].id,
+                type=ActivityType.REOPENED,
+                payload={"units": [[w.season_number, w.episode_number] for w in wanted_rows]},
+                **stored_fields(
+                    "activity.subscription.identityCorrected", units=units_reference(wanted_rows)
+                ),
+            )
         )
         await recompute_subscription_status(session, subscription, item)
     logger.info("库存对账：条目 #%s 退回了 %d 个工单", media_item_id, len(lost))

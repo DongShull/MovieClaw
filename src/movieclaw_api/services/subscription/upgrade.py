@@ -40,6 +40,7 @@ from movieclaw_api.i18n.quality_labels import quality_reference, upgrade_target_
 from movieclaw_api.i18n.stored import reference, render_value, stored_fields
 from movieclaw_api.services.library.quality import file_sort_key as _file_sort_key
 from movieclaw_api.services.library.quality import snapshot_from_file
+from movieclaw_api.services.subscription.attempt_notes import set_note
 from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_db.engine import get_database
 from movieclaw_db.models import (
@@ -596,9 +597,7 @@ async def settle_outdated_upgrade_attempt(
         return False
     attempt.status = DownloadAttemptStatus.CANCELLED
     attempt.next_search_at = None
-    attempt.cleanup_note = (
-        "该洗版单元的在库版本已不低于本任务的标称档位，无需再等待入库；保留下载器任务"
-    )
+    set_note(attempt, reference("subscription.attempt.upgradeSettled"))
     attempt.updated_at = now
     session.add(attempt)
     await session.commit()
@@ -872,7 +871,7 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
             if attempt is not None and _file_from_attempt(best_file, attempt, stamps):
                 wanted.info_hash = attempt.info_hash
                 attempt.status = DownloadAttemptStatus.IMPORTED
-                attempt.cleanup_note = "洗版完成：新版本已入库"
+                set_note(attempt, reference("subscription.attempt.upgradeDone"))
                 attempt.updated_at = now
                 # 旧任务交给换源清理状态机（H&R/所有权/文件重叠证据齐备才删）。
                 # 前置硬条件：旧 attempt 必须**不再服务任何其他单元**——旧
@@ -912,9 +911,9 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                             # CLEANUP_PENDING 只会永远等不到清理。其余旧任务
                             # 保守保留做种（与"证据不足不删数据"的换源铁律一致）
                             old_attempt.status = DownloadAttemptStatus.RETAINED
-                            old_attempt.cleanup_note = (
-                                "洗版整季替换：多个旧任务无法自动比对文件重叠，"
-                                "保留做种，可在活动页手动清理"
+                            set_note(
+                                old_attempt,
+                                reference("subscription.attempt.upgradeSeasonRetained"),
                             )
                         old_attempt.updated_at = now
             # 旧版本文件进回收站（quality-upgrade.md §7.1 / library-file-recycle.md），
@@ -1004,10 +1003,7 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                 # 基线刷新为实测最优——手选常常是给"无法确认"单元补一个
                 # 命名可信的版本，新文件档位可知时基线随之修复
                 attempt.status = DownloadAttemptStatus.RETAINED
-                attempt.cleanup_note = (
-                    "手动选种版本已入库：实测未能证明优于原版本，新旧版本共存"
-                    "保留（未自动替换）；不需要的版本可在库详情删除"
-                )
+                set_note(attempt, reference("subscription.attempt.manualVersionKept"))
                 attempt.updated_at = now
                 wanted.quality = best_snapshot.model_dump()
                 wanted.updated_at = now
@@ -1055,9 +1051,7 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
             honest = any(not _better(claimed, m, spec) for m in attempt_measured)
             if honest:
                 attempt.status = DownloadAttemptStatus.CANCELLED
-                attempt.cleanup_note = (
-                    "洗版下载完成时基线已被更优版本抢先，本次结果不再需要；保留下载器任务"
-                )
+                set_note(attempt, reference("subscription.attempt.upgradePreempted"))
                 attempt.updated_at = now
                 await session.commit()
                 logger.info(
@@ -1067,7 +1061,7 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                 )
                 continue
             attempt.status = DownloadAttemptStatus.FAILED
-            attempt.cleanup_note = "洗版证伪：实测档位不高于当前版本，候选已排除"
+            set_note(attempt, reference("subscription.attempt.upgradeDisproved"))
             attempt.updated_at = now
             wanted.upgrade_verify_failures += 1
             fused = wanted.upgrade_verify_failures >= UPGRADE_FUSE_LIMIT

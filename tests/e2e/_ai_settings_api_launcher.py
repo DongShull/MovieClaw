@@ -76,10 +76,16 @@ async def site_http_fixture(payload: dict[str, str]):
     for site_id in ("mteam", "ttg"):
         url = payload[site_id]
         assert urlsplit(url).hostname in {"127.0.0.1", "localhost"}
-        register_site(replace(
-            get_site_config(site_id), base_url=url, web_base_url=url,
-            min_request_interval=0, max_retries=1, timeout=3,
-        ))
+        register_site(
+            replace(
+                get_site_config(site_id),
+                base_url=url,
+                web_base_url=url,
+                min_request_interval=0,
+                max_retries=1,
+                timeout=3,
+            )
+        )
     return {"ok": True}
 
 
@@ -150,7 +156,9 @@ async def im_http_fixture(payload: dict[str, str]):
     upstream = payload["url"].rstrip("/")
     assert urlsplit(upstream).hostname == "127.0.0.1"
     weixin_binding.DEFAULT_BASE_URL = upstream + "/weixin"
-    original_poll = getattr(weixin_binding.poll_qr_status, "_fixture_original", weixin_binding.poll_qr_status)
+    original_poll = getattr(
+        weixin_binding.poll_qr_status, "_fixture_original", weixin_binding.poll_qr_status
+    )
 
     async def poll(base_url, qrcode, verify_code=None):
         return await original_poll(upstream + "/weixin", qrcode, verify_code)
@@ -166,16 +174,25 @@ async def im_http_fixture(payload: dict[str, str]):
 
         async def handle_async_request(self, request):
             assert request.url.host in {"api.telegram.org", "open.feishu.cn"}
-            return await self.transport.handle_async_request(httpx.Request(
-                request.method, upstream + "/" + self.service + request.url.raw_path.decode(),
-                headers=request.headers, content=await request.aread(), extensions=request.extensions,
-            ))
+            return await self.transport.handle_async_request(
+                httpx.Request(
+                    request.method,
+                    upstream + "/" + self.service + request.url.raw_path.decode(),
+                    headers=request.headers,
+                    content=await request.aread(),
+                    extensions=request.extensions,
+                )
+            )
 
         async def aclose(self):
             await self.transport.aclose()
 
     def transport(service=None, **kwargs):
-        return ImTransport(service) if service in {"telegram", "feishu"} else original(service, **kwargs)
+        return (
+            ImTransport(service)
+            if service in {"telegram", "feishu"}
+            else original(service, **kwargs)
+        )
 
     transport._fixture_original = original
     net.http_transport = transport

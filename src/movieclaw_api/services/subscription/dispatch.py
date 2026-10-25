@@ -21,7 +21,8 @@ from sqlmodel import select
 
 from movieclaw_api import hooks
 from movieclaw_api.core.config import get_settings
-from movieclaw_api.i18n.stored import localize_fields, stored_fields
+from movieclaw_api.i18n.stored import localize_fields, reference, stored_fields
+from movieclaw_api.services.subscription.attempt_notes import note_fields
 from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_db.models import (
     ActivityType,
@@ -489,10 +490,10 @@ async def dispatch(
                 # 心跳基线一起清零，不能让旧记忆压住新任务的救援判定
                 "completed_at": None,
                 "next_search_at": None,
-                "cleanup_note": (
+                **note_fields(
                     None
                     if attempt_alive
-                    else "网络投递完成前关联单元已退出订阅范围；保留下载器任务"
+                    else reference("subscription.attempt.networkOutOfScope")
                 ),
                 "updated_at": now,
             }

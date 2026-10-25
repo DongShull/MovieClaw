@@ -265,5 +265,38 @@
   },
   "playbackLabels.member": {
     "sourceHash": "0e64070390e71f4b2dad4733c90d1a180ba17a3cee3bfb524824b4463f0eea7d"
+  },
+  "subscription.landingBrake": {
+    "sourceHash": "beb7af059f31daee8088129234f58d495d5d41cd82967d580a70aaf59214b863"
+  },
+  "subscription.downloaderErrorDefault": {
+    "sourceHash": "4ff30684536de386bfc1120f4e55af2a1348b0b01aca9ecbfc6294ac18d846ff"
+  },
+  "subscription.downloaderError": {
+    "sourceHash": "684e123ab452e05736e66f811e3cf48549a7a3a1daab534e81ff7436afc701fa"
+  },
+  "subscription.noProgress": {
+    "sourceHash": "b0b83ae29ec1d3fc5b46a1b7d61e48c7216b6ff370d6146d0720673a1bc7a020"
+  },
+  "subscription.stalledRepeated": {
+    "sourceHash": "7bf3e8075c44ebe9ab73153a69dce2db0036ba702f993547b5ca4603736a52c6"
+  },
+  "subscription.deletedByUserRequeued": {
+    "sourceHash": "3abddac2ad1b0332ec674cb6860138d3da1a03e6be63511c97c859ec39a8b3a7"
+  },
+  "subscription.missingRequeued": {
+    "sourceHash": "f4aa57f8e1554100125f56bec28ceddd445cc715110d4b156ae6701ca843eafd"
+  },
+  "subscription.contentMissing": {
+    "sourceHash": "332818d7d80d52e28ad804823d0603dcb030d63b6a9cde9c667466038536b9af"
+  },
+  "subscription.oldRetained": {
+    "sourceHash": "91744583a5b3ca500823b33722e2818fa4e86a616cac9aecc21dd29b8af7ade4"
+  },
+  "subscription.upgradeNoDownloader": {
+    "sourceHash": "bf6f23ee8434685fe81cb0fa5737da33bf7b4bc5f174ac75502ea45513e95ca4"
+  },
+  "subscription.upgradeOldQueryFailed": {
+    "sourceHash": "b2ec83340278d1a621c9afac881bd6d4a4767ceeec4dc3dd11b25ad942a85626"
   }
 }

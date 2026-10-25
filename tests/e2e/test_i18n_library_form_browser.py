@@ -158,7 +158,7 @@ def test_library_forms_and_metadata_settings_in_english(stack, browser, tmp_path
     naming_header = page.get_by_role("button", name=re.compile("^Naming templates"))
     naming_header.click()
     naming_header.evaluate(
-        "e => Promise.all(e.parentElement.getAnimations({subtree: true}).filter(a => a instanceof CSSTransition).map(a => a.finished.catch(() => {})))"
+        "e => Promise.all(e.parentElement.getAnimations({subtree: true}).filter(a => a instanceof CSSTransition).map(a => a.finished.catch(() => {})))"  # noqa: E501
     )
     naming_header.scroll_into_view_if_needed()
     _snapshot(page, artifacts / "naming-mobile-en.png")

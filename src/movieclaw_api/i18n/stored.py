@@ -72,6 +72,11 @@ def stored_fields(key: str, **params) -> dict:
     return {"message": source, "message_key": key, "message_params": params}
 
 
+def reference_fields(ref: dict) -> dict:
+    """``stored_fields`` for a reference built earlier with ``reference()``."""
+    return stored_fields(ref["message_key"], **ref["params"])
+
+
 def localize_fields(value):
     """Copy marked JSON history; never change a cached or ORM-owned dictionary."""
     if isinstance(value, list):

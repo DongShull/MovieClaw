@@ -80,7 +80,18 @@
     "searchKeywords": "关键词{entries}",
     "searchCompleted": "搜索《{title}》（{keywords}）：{sites} 个站点返回 {results} 个结果，身份命中 {hits}，规则拒绝 {rejected}，投递覆盖 {dispatched} 个单元{hasRemaining, select, yes {；剩余 {remaining} 个缺口按退避曲线排期} other {；本组缺口已全部安排}}",
     "smartCandidateRequested": "已请求立即下载当前候选",
-    "smartWaitExtended": "用户延长了等待时间"
+    "smartWaitExtended": "用户延长了等待时间",
+    "landingBrake": "自动换源已暂停：{group}。修好后自动恢复；确认要换也可在活动页手动立即换种",
+    "downloaderErrorDefault": "下载器报告该任务出错",
+    "downloaderError": "{reason}。这不是死种，已暂停换源判定；请在下载器中重新校验或删除该任务，处理后自动恢复观察",
+    "noProgress": "下载已连续 15 分钟没有进度，可在活动页立即换种；30 分钟时将自动寻找同品质替代源",
+    "stalledRepeated": "{base}（24 小时内已发生 {count} 次）",
+    "deletedByUserRequeued": "已按你的操作删除下载任务，{units} 已退回重新寻找资源；也可在订阅详情页立即搜索或手动选种",
+    "missingRequeued": "原下载任务已从所有可达的下载器中消失（连续 {count} 次确认，可能被手动删除或被下载器清理），{units} 已退回重新寻找资源；也可在订阅详情页立即搜索或手动选种",
+    "contentMissing": "「{name}」已下载完成，但内容里没有 {units} 对应的文件（声明的覆盖范围与实际内容不符），这部分退回重新寻找资源；种子内实际存在的集数不受影响，照常入库",
+    "oldRetained": "已完成换种，但{reason}",
+    "upgradeNoDownloader": "洗版已完成，但无法确认旧任务所在下载器，旧任务保留做种",
+    "upgradeOldQueryFailed": "洗版已完成，但旧任务状态查询失败：{error}；旧任务保留做种"
   },
   "jobActions": {
     "dismissAll": "已忽略 {count} 个失败任务",

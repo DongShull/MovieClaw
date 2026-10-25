@@ -238,7 +238,18 @@ async def record_episode_overflow(
             hint_title=title,
         )
         await repo.add_activity(
-            SubscriptionActivity(subscription_id=subscription.id, type=ActivityType.EPISODE_HINT, payload={"season": latest, "site_episode": seen, "tmdb_count": known_max[latest]}, **stored_fields('activity.subscription.siteEpisodeEvidence', season=latest, seen=seen, title=title, known=known_max[latest]))
+            SubscriptionActivity(
+                subscription_id=subscription.id,
+                type=ActivityType.EPISODE_HINT,
+                payload={"season": latest, "site_episode": seen, "tmdb_count": known_max[latest]},
+                **stored_fields(
+                    "activity.subscription.siteEpisodeEvidence",
+                    season=latest,
+                    seen=seen,
+                    title=title,
+                    known=known_max[latest],
+                ),
+            )
         )
         logger.info(
             "《%s》站点出现 S%02dE%02d，超出 TMDB 的 %d 集，已记为集数证据",
@@ -316,7 +327,17 @@ async def refresh_douban_evidence(
             source="douban",
         )
         await SubscriptionRepository(session).add_activity(
-            SubscriptionActivity(subscription_id=subscription.id, type=ActivityType.EPISODE_HINT, payload={"season": season_number, "douban_count": count}, **stored_fields('activity.subscription.doubanEpisodeEvidence', season=season_number, count=count, known=known_max.get(season_number, 0)))
+            SubscriptionActivity(
+                subscription_id=subscription.id,
+                type=ActivityType.EPISODE_HINT,
+                payload={"season": season_number, "douban_count": count},
+                **stored_fields(
+                    "activity.subscription.doubanEpisodeEvidence",
+                    season=season_number,
+                    count=count,
+                    known=known_max.get(season_number, 0),
+                ),
+            )
         )
     return True
 
