@@ -205,7 +205,7 @@ class TitleDiscoveryService:
             None,
         )
         if descriptor is None:
-            raise LookupError("该片单不存在或当前来源未开放浏览")
+            raise LookupError(t("errors.discover.collectionMissing"))
 
         service = self._provider(provider)
         total_pages = 1
@@ -222,7 +222,7 @@ class TitleDiscoveryService:
                 if discover_page is not None:
                     result_page = await discover_page(media_type, collection_id, page)
                     if result_page is None:
-                        raise LookupError("该片单不存在或当前来源未开放浏览")
+                        raise LookupError(t("errors.discover.collectionMissing"))
                     cards = result_page.items
                     current_page = result_page.page
                     total_pages = result_page.total_pages
@@ -230,7 +230,7 @@ class TitleDiscoveryService:
                 else:
                     row = await service.discover_row(media_type, collection_id)
                     if row is None:
-                        raise LookupError("该片单不存在或当前来源未开放浏览")
+                        raise LookupError(t("errors.discover.collectionMissing"))
                     cards = row.items
                     total_results = len(cards)
         else:
@@ -240,7 +240,7 @@ class TitleDiscoveryService:
             else:
                 row = await service.discover_row(media_type, f"douban-{collection_id}")
                 if row is None:
-                    raise LookupError("该片单不存在或当前来源未开放浏览")
+                    raise LookupError(t("errors.discover.collectionMissing"))
             cards = row.items
             total_results = len(cards)
 
@@ -397,19 +397,18 @@ def parse_collection_ref(value: str) -> tuple[MediaSource, MediaKind, str]:
     """解析 ``provider:media_type:collection_id``，错误信息直接面向 API 用户。"""
     parts = value.split(":", 2)
     if len(parts) != 3 or not parts[2]:
-        raise ValueError("collection_ref 格式无效；请使用 list-collections 返回的引用原样调用")
+        raise ValueError(t("errors.discover.collectionRefInvalid"))
     try:
         return MediaSource(parts[0]), MediaKind(parts[1]), parts[2]
     except ValueError:
-        raise ValueError(
-            "collection_ref 格式无效；请使用 list-collections 返回的引用原样调用"
-        ) from None
+        raise ValueError(t("errors.discover.collectionRefInvalid")) from None
 
 
 def make_title_ref(provider: MediaSource, external_id: str, media_type: MediaKind | None) -> str:
     """构造影视条目稳定引用；TMDB 的电影/剧集号段独立，必须携带类型。"""
     if provider is MediaSource.TMDB:
         if media_type is None:
+            # i18n-ignore: developer error
             raise ValueError("TMDB 条目缺少 movie/tv 类型，无法构造 title_ref")
         return f"tmdb:{media_type.value}:{external_id}"
     return f"douban:{external_id}"
@@ -425,7 +424,7 @@ def parse_title_ref(value: str) -> tuple[MediaSource, MediaKind | None, str]:
             return MediaSource.DOUBAN, None, parts[1]
     except ValueError:
         pass
-    raise ValueError("title_ref 格式无效；请使用搜索或片单接口返回的引用原样调用")
+    raise ValueError(t("errors.discover.titleRefInvalid"))
 
 
 def title_from_card(card: MediaCard, *, provider: MediaSource | None = None) -> DiscoveredTitleView:

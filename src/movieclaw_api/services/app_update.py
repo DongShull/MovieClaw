@@ -51,7 +51,13 @@ import httpx
 from movieclaw_api import __version__
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import AppException, BadRequestException
-from movieclaw_api.i18n.stored import reference, render_value, stored_fields, stored_message
+from movieclaw_api.i18n.stored import (
+    reference,
+    render_value,
+    source_render,
+    stored_fields,
+    stored_message,
+)
 from movieclaw_api.schemas.app_update import (
     GithubTokenView,
     LastAbnormalExitView,
@@ -489,13 +495,18 @@ def _describe_github_error(exc: httpx.HTTPError, what: str, *, has_token: bool =
     return render_value(_github_error_reference(exc, what, has_token=has_token))
 
 
+#: 检查的是哪类更新（GitHub 报错文案里的主语）：消息键
+APP_SCOPE = "settings.updates.applicationScope"
+MODEL_SCOPE = "settings.updates.modelScope"
+CLIENT_SCOPE = "settings.updates.clientScope"
+
+
+def _scope(what: str) -> dict | str:
+    return reference(what) if what.startswith("settings.updates.") else what
+
+
 def _github_error_reference(exc: httpx.HTTPError, what: str, *, has_token: bool = False) -> dict:
-    scope_keys = {
-        "应用更新": "settings.updates.applicationScope",
-        "模型更新": "settings.updates.modelScope",
-        "客户端更新": "settings.updates.clientScope",
-    }
-    scope = reference(scope_keys[what]) if what in scope_keys else what
+    scope = _scope(what)
     proxy = _proxy_reference()
     if isinstance(exc, httpx.HTTPStatusError):
         response = exc.response
@@ -620,7 +631,7 @@ async def _github_get(path: str, what: str, *, missing_ok: bool = False) -> obje
                 delay = _RETRY_BACKOFF_SECONDS[attempt]
                 logger.info(
                     "检查%s时连接 GitHub 失败（第 %d 次：%s），%.0f 秒后重试",
-                    what,
+                    source_render(_scope(what)),
                     attempt + 1,
                     exc,
                     delay,
@@ -699,8 +710,8 @@ def _latest_app_release(releases: list[dict]) -> dict | None:
 async def _fetch_latest_release() -> tuple[dict, dict]:
     """取最新应用 Release 与其 manifest。返回 (release_json, manifest_dict)。"""
     release = await _find_release(
-        "v", _STABLE_APP_TAG_RE, lambda tag: tuple(int(p) for p in tag[1:].split(".")), "更新"
-    ) or _latest_app_release(await _fetch_releases("更新"))
+        "v", _STABLE_APP_TAG_RE, lambda tag: tuple(int(p) for p in tag[1:].split(".")), APP_SCOPE
+    ) or _latest_app_release(await _fetch_releases(APP_SCOPE))
     if release is None:
         raise BadRequestException(message_key="errors.appUpdate.noRelease")
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "movieclaw-updater"}
@@ -1271,8 +1282,8 @@ def _parse_model_manifest(raw: bytes) -> dict:
 
 async def _fetch_latest_model_release() -> dict:
     release = await _find_release(
-        "torrent-ner-v", _MODEL_TAG_RE, _model_tag_num, "模型更新"
-    ) or _latest_model_release(await _fetch_releases("模型更新"))
+        "torrent-ner-v", _MODEL_TAG_RE, _model_tag_num, MODEL_SCOPE
+    ) or _latest_model_release(await _fetch_releases(MODEL_SCOPE))
     if release is None:
         raise BadRequestException(message_key="errors.appUpdate.noModelRelease")
     return release
@@ -1874,7 +1885,7 @@ def rollback_to(target: str, restore_backup: bool) -> str:
         if not running:
             raise BadRequestException(message_key="errors.appUpdate.builtinRunning")
         target_dir: Path | None = None
-        target_label = "镜像内置版本"
+        target_label = "镜像内置版本"  # i18n-ignore: only logged by the restore step
         # 恢复源按记录过的基线版本号对时；没记录过就找不到（选项接口已把
         # 这种情况标为 unknown，正常流程不会带着 restore_backup 走到这里）
         restore_version = None

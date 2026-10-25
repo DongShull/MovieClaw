@@ -2635,5 +2635,41 @@
   },
   "torrent.stateUnconfirmed": {
     "sourceHash": "ab66e77dcfbebdab092d21d37fec38f066b1ed1c89955670251774b48912c50c"
+  },
+  "downloaderInput.mappingAbsolute": {
+    "sourceHash": "fe2be82ea6a550bccaacd40e568f8c161fe631090ab0d92446a899c05f05034b"
+  },
+  "downloaderInput.urlScheme": {
+    "sourceHash": "f44844f07cd9f37b52c976d445a82bc2308318441d018e4e91d183335b2b3fd7"
+  },
+  "downloaderInput.mappingLocalDuplicate": {
+    "sourceHash": "850a3e32f796b59f1d8b6b2c1871010cccea0af662f2022ecfdd80ce847aae93"
+  },
+  "downloaderInput.mappingRemoteDuplicate": {
+    "sourceHash": "203b82f963b585e6cea28cada1024db54961bb2833219eecfd092a90e459df8c"
+  },
+  "downloaderInput.savePathAbsolute": {
+    "sourceHash": "72b972fe458694b8be89718b68c1cf55b4e2cc00f8d7d8240724f4b68fe3cea7"
+  },
+  "downloaderInput.autoRouteIdentity": {
+    "sourceHash": "307cb7c42f82402923837a17eb52ff56ed198f4cfa05dd1c5eea49ad62c1a8f1"
+  },
+  "downloaderInput.autoRouteExclusive": {
+    "sourceHash": "f42460a03661860f2e06d0b87b4aaba2c3e65ca954477848a9e86777a391cb26"
+  },
+  "downloaderInput.clueMissing": {
+    "sourceHash": "61302a3d5481922927a1208ea472abfb2bffb0b797ca11b63b540eb739505a70"
+  },
+  "downloaderInput.candidateKind": {
+    "sourceHash": "7f62f1fc122b95c908c375410c858c059be64ac7207cfa2ec2a9dc316f06ee2e"
+  },
+  "discover.titleRefInvalid": {
+    "sourceHash": "2a97c5520d06e8fcada2818482c74f927d5a53124c1c15bcab1703cf9880e5f8"
+  },
+  "discover.collectionRefInvalid": {
+    "sourceHash": "509fd9099811f3ffe53ac6526dedeb32dde95afa143a861a55ca6d1130e580f2"
+  },
+  "discover.collectionMissing": {
+    "sourceHash": "0a6f9f1953c10272c32aa85d7eba4c7a54ca6017bf76b705caf6854f04c272ff"
   }
 }

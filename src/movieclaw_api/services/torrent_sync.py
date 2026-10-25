@@ -174,7 +174,7 @@ def _validate_page_times(
     """在写库前验证一页发布时间，解析失效或时区错误时整页熔断。"""
     values = [item.upload_time for item in items if item.upload_time is not None]
     if not values:
-        raise TrackerParseError(
+        raise TrackerParseError(  # i18n-ignore: diagnostic; users see errors.siteDiagnostic.parse
             f"站点 {site_id} 第 {page_num} 页未解析到任何种子发布时间，"
             "可能是页面结构已变化；本页已拒绝写入以保护同步游标"
         )
@@ -194,7 +194,7 @@ def _validate_page_times(
             else value
         )
         if normalized > ceiling:
-            raise TrackerParseError(
+            raise TrackerParseError(  # i18n-ignore: diagnostic, not shown
                 f"站点 {site_id} 第 {page_num} 页发布时间晚于当前时间超过 15 分钟，"
                 "可能是站点时区未正确归一化；本页已拒绝写入"
             )
@@ -506,6 +506,7 @@ async def sync_site_torrents() -> None:
     due, soonest_wait = await _plan_sync(sites)
     if not due:
         # 明说"为什么没同步"：都没到期，以及最近一个还差多久——避免"看着像没干活"
+        # i18n-ignore: log text
         wait_hint = f"，最近一个约 {soonest_wait} 秒后" if soonest_wait is not None else ""
         logger.info("本轮 tick：%d 个活跃站点均未到期%s", len(sites), wait_hint)
         return

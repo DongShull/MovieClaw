@@ -999,5 +999,21 @@
     "tmdbHint": "Configure a proxy or mirror for TMDB in Settings → Network, save, then verify with the connectivity test",
     "doubanHint": "Configure a proxy or reverse proxy for Douban in Settings → Network, save, then verify with the connectivity test",
     "fanartHint": "Enable a proxy for Fanart.tv in Settings → Network & proxy, then try again"
+  },
+  "downloaderInput": {
+    "mappingAbsolute": "Both sides of a path mapping must be absolute paths starting with /",
+    "urlScheme": "The downloader address must start with http:// or https://",
+    "mappingLocalDuplicate": "Path mappings can’t repeat a movieclaw path",
+    "mappingRemoteDuplicate": "Path mappings can’t repeat a downloader path",
+    "savePathAbsolute": "The save folder must be an absolute path starting with /",
+    "autoRouteIdentity": "Smart import needs a media type, TMDB ID and title",
+    "autoRouteExclusive": "Smart import can’t also set a library or save folder",
+    "clueMissing": "Missing identification clues: give a type, title and year, or a search keyword",
+    "candidateKind": "Confirming a candidate also needs that candidate’s media type"
+  },
+  "discover": {
+    "titleRefInvalid": "Invalid title_ref; pass the reference exactly as returned by search or a collection",
+    "collectionRefInvalid": "Invalid collection_ref; pass the reference exactly as returned by list-collections",
+    "collectionMissing": "This collection doesn’t exist or can’t be browsed from this source"
   }
 }

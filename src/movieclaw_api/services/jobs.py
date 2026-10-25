@@ -169,6 +169,7 @@ def contribute_job_handlers(ctx: Context, *modules: ModuleType) -> None:
     for module in modules:
         declared = declared_job_handlers(module)
         if not declared:
+            # i18n-ignore: developer error
             raise ValueError(f"模块 {module.__name__} 没有声明任何后台任务处理器")
         for job_type, registration in declared:
             ctx.contribute(JOB_HANDLERS, job_type, registration)
@@ -181,11 +182,13 @@ def register_job_handler(
     """注册稳定任务类型的处理器；重复注册立即失败，避免升级后路由不确定。"""
     supported = frozenset(definition_versions)
     if not supported or any(version < 1 for version in supported):
+        # i18n-ignore: developer error
         raise ValueError(f"后台任务定义版本不合法：{job_type}")
 
     def decorator(handler: JobHandler) -> JobHandler:
         existing = _handlers.get(job_type)
         if existing is not None and existing.handler is not handler:
+            # i18n-ignore: developer error
             raise RuntimeError(f"后台任务处理器重复注册：{job_type}")
         _handlers[job_type] = RegisteredJobHandler(handler, supported)
         # 标记在函数上：插件据此把「本模块声明的处理器」贡献进内核注册表
@@ -280,9 +283,11 @@ async def create_job(
     if subject is None and subject_ref is not None:
         subject = source_render(subject_ref)
     if conflict_policy not in {"return_existing", "reject", "queue"}:
+        # i18n-ignore: developer error
         raise ValueError(f"不支持的任务冲突策略：{conflict_policy}")
     secret_path = _secret_input_path(input_data)
     if secret_path is not None:
+        # i18n-ignore: developer error
         raise ValueError(f"后台任务输入不能包含凭据字段：{secret_path}；请保存配置引用而不是密钥")
     if dedupe_key and conflict_policy != "queue":
         existing = (
@@ -887,7 +892,7 @@ class JobContext:
             ).one_or_none()
             if row is None or row.lease_owner != self._lease_token:
                 self._lease_lost.set()
-                return default_progress("任务执行租约已失效")
+                return default_progress(message_key="activity.jobs.leaseLost")
             return dict(row.progress or {})
 
     async def cancel_requested(self) -> bool:
@@ -988,6 +993,7 @@ class JobContext:
     ) -> None:
         """给当前任务补充只用于聚合/导航的非锁定资源关系。"""
         if relation == "target":
+            # i18n-ignore: developer error
             raise ValueError("目标资源必须通过 acquire_target_resource 获取")
         db = get_database()
         created = False

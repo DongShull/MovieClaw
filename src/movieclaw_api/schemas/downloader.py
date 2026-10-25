@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import Field, field_serializer, field_validator, model_validator
 
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import localize_fields, render_value
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_db.models.downloader_client import DownloaderClient
@@ -27,7 +28,7 @@ class PathMapping(BaseModel):
     def _validate_abs(cls, value: str) -> str:
         value = value.strip().rstrip("/")
         if not value.startswith("/"):
-            raise ValueError("路径映射两端都必须是以 / 开头的绝对路径")
+            raise ValueError(t("errors.downloaderInput.mappingAbsolute"))
         return value
 
 
@@ -381,7 +382,7 @@ class DownloaderPayload(BaseModel):
     @classmethod
     def _validate_url(cls, value: str) -> str:
         if not value.startswith(("http://", "https://")):
-            raise ValueError("下载器地址必须以 http:// 或 https:// 开头")
+            raise ValueError(t("errors.downloaderInput.urlScheme"))
         return value.rstrip("/")
 
     @field_validator("path_mappings")
@@ -397,10 +398,10 @@ class DownloaderPayload(BaseModel):
             return None
         locals_ = [m.local for m in value]
         if len(set(locals_)) != len(locals_):
-            raise ValueError("路径映射中 movieclaw 路径不能重复")
+            raise ValueError(t("errors.downloaderInput.mappingLocalDuplicate"))
         remotes = [m.remote for m in value]
         if len(set(remotes)) != len(remotes):
-            raise ValueError("路径映射中下载器路径不能重复")
+            raise ValueError(t("errors.downloaderInput.mappingRemoteDuplicate"))
         return value
 
 
@@ -459,7 +460,7 @@ class DownloadSubmitPayload(BaseModel):
             return None
         value = value.strip().rstrip("/")
         if not value.startswith("/"):
-            raise ValueError("保存目录必须是以 / 开头的绝对路径")
+            raise ValueError(t("errors.downloaderInput.savePathAbsolute"))
         return value
 
     @model_validator(mode="after")
@@ -468,9 +469,9 @@ class DownloadSubmitPayload(BaseModel):
         if not self.auto_route:
             return self
         if self.media_kind is None or self.tmdb_id is None or not self.title:
-            raise ValueError("智能入库必须提供媒体类型、TMDB ID 和标题")
+            raise ValueError(t("errors.downloaderInput.autoRouteIdentity"))
         if self.library_id is not None or self.save_path is not None:
-            raise ValueError("智能入库不能同时指定媒体库或保存目录")
+            raise ValueError(t("errors.downloaderInput.autoRouteExclusive"))
         return self
 
 
@@ -527,9 +528,9 @@ class ManualDownloadTargetPayload(BaseModel):
     @model_validator(mode="after")
     def _validate_clues(self) -> ManualDownloadTargetPayload:
         if not self.has_identity and self.hint is None:
-            raise ValueError("缺少识别线索：请提供类型 + 标题 + 年份，或搜索关键词")
+            raise ValueError(t("errors.downloaderInput.clueMissing"))
         if self.selected_tmdb_id is not None and (self.selected_kind or self.kind) is None:
-            raise ValueError("确认候选时必须同时提供该候选的媒体类型")
+            raise ValueError(t("errors.downloaderInput.candidateKind"))
         return self
 
 

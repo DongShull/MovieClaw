@@ -379,5 +379,8 @@
   },
   "subscription.releaseCleared": {
     "sourceHash": "d3eb9e9d0d939260348379b8e36c91672c1309c0ebc85b839a7e1247912b4435"
+  },
+  "jobs.leaseLost": {
+    "sourceHash": "75891498427d87ceda0f78d58871a97719aaf53c073aaa58945ea4b766aedfaf"
   }
 }

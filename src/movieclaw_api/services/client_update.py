@@ -62,13 +62,16 @@ def _version_key(tag: str, prefix: str) -> tuple[int, ...]:
 async def _latest_release(spec: _Product) -> dict:
     pattern = re.compile(rf"^{re.escape(spec.tag_prefix)}\d+(?:\.\d+)*$")
     release = await app_update._find_release(
-        spec.tag_prefix, pattern, lambda tag: _version_key(tag, spec.tag_prefix), "客户端更新"
+        spec.tag_prefix,
+        pattern,
+        lambda tag: _version_key(tag, spec.tag_prefix),
+        app_update.CLIENT_SCOPE,
     )
     if release is None:
         # 反代不认 matching-refs 时退回整页列表
         candidates = [
             r
-            for r in await app_update._fetch_releases("客户端更新")
+            for r in await app_update._fetch_releases(app_update.CLIENT_SCOPE)
             if pattern.match(r.get("tag_name") or "")
             and not r.get("draft")
             and not r.get("prerelease")
@@ -119,7 +122,7 @@ async def _latest_with_apk(product: str, *, force: bool = False) -> tuple[Client
             info = resp.json()
         except httpx.HTTPError as exc:
             raise BadRequestException(
-                **app_update._github_error_reference(exc, "客户端更新")
+                **app_update._github_error_reference(exc, app_update.CLIENT_SCOPE)
             ) from exc
     try:
         view = ClientReleaseView(
@@ -159,7 +162,9 @@ async def open_apk(product: str) -> tuple[ClientReleaseView, AsyncIterator[bytes
         resp.raise_for_status()
     except httpx.HTTPError as exc:
         await client.aclose()
-        raise BadRequestException(**app_update._github_error_reference(exc, "客户端更新")) from exc
+        raise BadRequestException(
+            **app_update._github_error_reference(exc, app_update.CLIENT_SCOPE)
+        ) from exc
 
     async def body() -> AsyncIterator[bytes]:
         try:

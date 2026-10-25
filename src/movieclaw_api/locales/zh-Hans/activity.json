@@ -23,7 +23,8 @@
     "retryAfterUpdate": "更新后重试",
     "conflict": "相同任务已在进行中",
     "dismissFailedOnly": "只有失败的任务可以忽略；进行中的任务请使用取消",
-    "retryFinishedOnly": "只有失败、已取消或需要处理的任务可以重试"
+    "retryFinishedOnly": "只有失败、已取消或需要处理的任务可以重试",
+    "leaseLost": "任务执行租约已失效"
   },
   "library": {
     "walking": "正在盘点文件",

@@ -23,7 +23,8 @@
     "retryAfterUpdate": "Retry after updating",
     "conflict": "An identical task is already running",
     "dismissFailedOnly": "Only failed tasks can be dismissed. Cancel tasks that are still running.",
-    "retryFinishedOnly": "Only failed, cancelled or blocked tasks can be retried"
+    "retryFinishedOnly": "Only failed, cancelled or blocked tasks can be retried",
+    "leaseLost": "The task’s execution lease expired"
   },
   "library": {
     "walking": "checking files",

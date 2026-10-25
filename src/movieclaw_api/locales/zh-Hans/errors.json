@@ -999,5 +999,21 @@
     "tmdbHint": "到「设置 → 网络」为 TMDB 配置代理或镜像地址，保存后用连通性测试验证",
     "doubanHint": "到「设置 → 网络」为豆瓣配置代理或反代地址，保存后用连通性测试验证",
     "fanartHint": "到「设置 → 网络与代理」为「Fanart.tv」开启代理后再试"
+  },
+  "downloaderInput": {
+    "mappingAbsolute": "路径映射两端都必须是以 / 开头的绝对路径",
+    "urlScheme": "下载器地址必须以 http:// 或 https:// 开头",
+    "mappingLocalDuplicate": "路径映射中 movieclaw 路径不能重复",
+    "mappingRemoteDuplicate": "路径映射中下载器路径不能重复",
+    "savePathAbsolute": "保存目录必须是以 / 开头的绝对路径",
+    "autoRouteIdentity": "智能入库必须提供媒体类型、TMDB ID 和标题",
+    "autoRouteExclusive": "智能入库不能同时指定媒体库或保存目录",
+    "clueMissing": "缺少识别线索：请提供类型 + 标题 + 年份，或搜索关键词",
+    "candidateKind": "确认候选时必须同时提供该候选的媒体类型"
+  },
+  "discover": {
+    "titleRefInvalid": "title_ref 格式无效；请使用搜索或片单接口返回的引用原样调用",
+    "collectionRefInvalid": "collection_ref 格式无效；请使用 list-collections 返回的引用原样调用",
+    "collectionMissing": "该片单不存在或当前来源未开放浏览"
   }
 }
