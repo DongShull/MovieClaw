@@ -652,5 +652,38 @@
   },
   "twins.noticeBody": {
     "sourceHash": "218601af0d9188e861c4f71d2468b8412898fbe84526eda2e75a4c0c88efdef5"
+  },
+  "spec.resolution": {
+    "sourceHash": "b92421822c213c2b02eb15434c2002336b66b63de6a418b98fbb7f4f6872218b"
+  },
+  "spec.videoCodec": {
+    "sourceHash": "780da4f960961e1490dc0222f0ce9fd5d32d705f39a9b6ff026c4fa3629fadc0"
+  },
+  "spec.resolutionViolation": {
+    "sourceHash": "d038abd8b2f21f4b9c45585614efbf31e7f1a6887a84cba8be7226d4a4d022d6"
+  },
+  "spec.codecViolation": {
+    "sourceHash": "d004862fd6badfe87736966ea9e1407e55e559a890d74e2496da04da30a19890"
+  },
+  "spec.detail": {
+    "sourceHash": "58468bce083f5b0fafabc19aae55fc3f7c5377887e52895541deb6e50e76f884"
+  },
+  "matching.idConflict": {
+    "sourceHash": "a94768242aa214183da5e430476d0fdbc4d4bbcfbc55bd535f31d551e393fe03"
+  },
+  "matching.absurdSize": {
+    "sourceHash": "ff1191d016f7d905e13ef44a8ab9a6c62ec79fc3530c92d4e863052671728de5"
+  },
+  "matching.recheckFailed": {
+    "sourceHash": "e8f237f0a1f5fd6346c7f7d7e8d0d444f5719542971946c23f5107a10d76a7de"
+  },
+  "matching.identityRejected": {
+    "sourceHash": "7bd738f5d341a1f4dc988601a23d38a2a05d2403da5a9ab5b25b51fc1b87afe0"
+  },
+  "matching.idMismatch": {
+    "sourceHash": "766ac0bc163f3806c4f4c85280674609ab37de303a430a082ae3b1b4465fc70e"
+  },
+  "matching.rejectNote": {
+    "sourceHash": "c3b99cd3cb9554760edb48be7ba13185dd88067cf3c556998a3052662dccf6b6"
   }
 }

@@ -16,5 +16,8 @@
   },
   "list.dotSeparator": {
     "sourceHash": "588da410532073f8daec0cc62c6904f9d8a150b41ae3b1565c10069742cb18fc"
+  },
+  "list.paragraphSeparator": {
+    "sourceHash": "75a11da44c802486bc6f65640aa48a730f0f684c5c07a42ba3cd1735eb3fb070"
   }
 }

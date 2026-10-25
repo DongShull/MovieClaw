@@ -114,7 +114,9 @@
     "targetNoRoot": "Library “{library}” has no root folder, so it goes to the downloader’s default folder and won’t be imported",
     "targetNoLibrary": "No library is set up, so it won’t be imported automatically after downloading",
     "seeders": "{count, plural, one {# seeder} other {# seeders}}",
-    "specUnknown": "unknown spec"
+    "specUnknown": "unknown spec",
+    "specMismatchViolation": "{unit}: the imported file doesn’t match the torrent’s claimed spec: {detail}. Since {violation}, the file shouldn’t have been imported; review it, delete it manually and search again",
+    "specMismatchOk": "{unit}: the imported file doesn’t match the torrent’s claimed spec: {detail}. It still meets the rule set, so it was imported as usual; this is just a heads-up"
   },
   "jobActions": {
     "dismissAll": "{count, plural, one {Dismissed # failed task} other {Dismissed # failed tasks}}",

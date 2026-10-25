@@ -26,7 +26,7 @@ from sqlmodel import select
 # 发布预测的预筛都依赖它与源字段一致（见 services/torrent_match_text.py）
 import movieclaw_api.services.torrent_match_text  # noqa: F401
 from movieclaw_api import hooks
-from movieclaw_api.i18n.stored import reference, stored_fields
+from movieclaw_api.i18n.stored import reference, source_render, source_text, stored_fields
 from movieclaw_api.services.subscription.identity_recheck import (
     fetch_external_ids,
     needs_external_id_recheck,
@@ -557,9 +557,8 @@ def _id_conflict_verdict(match: IdentityMatch) -> RuleVerdict:
     return RuleVerdict(
         accepted=False,
         reason_code="identity_id_conflict",
-        reason_text=(
-            f"站点信息与本条目不符（{match.id_conflict}）；若确认是站点标错，可在搜索页手动选种投递"
-        ),
+        # matcher 的裁决只收字符串：落中文原文，展示侧按读者语言另给引用
+        reason_text=source_text("subscription.matching.idConflict", conflict=match.id_conflict),
     )
 
 
@@ -581,7 +580,7 @@ def _absurd_size_verdict(reason: str) -> RuleVerdict:
     return RuleVerdict(
         accepted=False,
         reason_code="size_absurd_for_runtime",
-        reason_text=f"{reason}；若确认这就是你要的资源，可在搜索页手动选种投递",
+        reason_text=source_text("subscription.matching.absurdSize", reason=reason),
     )
 
 
@@ -591,7 +590,9 @@ def _recheck_mismatch_verdict(candidate: TorrentCandidate) -> RuleVerdict:
     return RuleVerdict(
         accepted=False,
         reason_code="identity_recheck_failed",
-        reason_text=(f"投递前复核后无法确认「{candidate.title[:60]}」属于本条目，已跳过"),
+        reason_text=source_text(
+            "subscription.matching.recheckFailed", title=candidate.title[:60]
+        ),
     )
 
 
@@ -835,7 +836,13 @@ async def evaluate_and_dispatch(
                 if ctx.item.kind == "movie":
                     identity_rejections_by_media.setdefault(media_id, {})[
                         candidate_key(candidate)
-                    ] = f"{candidate.title}：{_id_conflict_verdict(match).reason_text}"
+                    ] = reference(
+                        "subscription.matching.identityRejected",
+                        title=candidate.title,
+                        reason=reference(
+                            "subscription.matching.idConflict", conflict=match.id_conflict
+                        ),
+                    )
                 # 外部 ID 反证：站点明确说了这是另一部片。当下没有别的上下文
                 # 可以推翻它（时长/体积反证与孪生条目探测尚未落地），按保守
                 # 口径否决——但**必须留下解释**：站点的 IMDb 是上传者手填的，
@@ -951,8 +958,8 @@ async def evaluate_and_dispatch(
                             else _recheck_mismatch_verdict(enriched),
                             source,
                         )
-                        identity_rejections[candidate_key(candidate)] = (
-                            f"{candidate.title}：影片编号与订阅不符，已跳过"
+                        identity_rejections[candidate_key(candidate)] = reference(
+                            "subscription.matching.idMismatch", title=candidate.title
                         )
                         continue
                     # 证据变强了：候选与判定一起换成复核后的版本，投递台账
@@ -983,7 +990,11 @@ async def evaluate_and_dispatch(
                         _ambiguous_verdict(outcome, reason),
                         source,
                     )
-                    identity_rejections[candidate_key(candidate)] = f"{candidate.title}：{reason}"
+                    identity_rejections[candidate_key(candidate)] = reference(
+                        "subscription.matching.identityRejected",
+                        title=candidate.title,
+                        reason=reason,
+                    )
                     continue
             verified.append((candidate, match, verdict, rank))
         entries = verified
@@ -1202,13 +1213,18 @@ async def _log_rejection(
             and activity.payload.get("reason_code") == verdict.reason_code
         ):
             return  # 已经解释过这个候选为什么被拒，不重复刷屏
-    reason_note = f"{verdict.reason_text}——来自 {candidate.site_id} 的「{candidate.title[:60]}」"
+    reason_note = reference(
+        "subscription.matching.rejectNote",
+        reason=verdict.reason_text,
+        site=candidate.site_id,
+        title=candidate.title[:60],
+    )
     # 单集履历注解：最近一次被拒原因冻结在工单上，详情页里程碑链的搜索站
     # 直接读。covered 行与本 repo 同一 session，setattr 进 dirty 集、随下方
     # add_activity 的 commit 一起落库。同一种子的重复评估在上方去重 return，
     # 不会用旧闻覆盖更新的拒绝原因。
     for w in covered:
-        w.last_reject_reason = reason_note
+        w.last_reject_reason = source_render(reason_note)
     await repo.add_activity(
         SubscriptionActivity(
             subscription_id=subscription_id,
@@ -1231,14 +1247,8 @@ async def _log_rejection(
 
 
 def units_text(rows: list[WantedItem]) -> str:
-    """工单列表 → 可读单元描述："正片" / "S02E01" / "S02E01 等 8 集"。"""
-    first = rows[0]
-    if first.season_number == 0 and first.episode_number == 0:
-        return "正片"
-    label = f"S{first.season_number:02d}E{first.episode_number:02d}"
-    if len(rows) == 1:
-        return label
-    return f"{label} 等 {len(rows)} 集"
+    """工单列表 → 可读单元描述（中文原文，日志用）："正片" / "S02E01" / "S02E01 等 8 集"。"""
+    return source_render(units_reference(rows))
 
 
 def units_reference(rows: list[WantedItem]) -> dict | str:

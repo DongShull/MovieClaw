@@ -242,5 +242,20 @@
     "skip": "A movie with the same name exists and the release has no distinguishing ID, so it was skipped. The subscription keeps searching; nothing to do",
     "noticeTitle": "Still looking for “{title}”",
     "noticeBody": "Found movies with the same name, so some releases couldn’t be confirmed and were skipped. The subscription keeps searching; you don’t need to do anything."
+  },
+  "spec": {
+    "resolution": "resolution",
+    "videoCodec": "video codec",
+    "resolutionViolation": "the measured resolution {value} isn’t allowed by the rule set ({allowed})",
+    "codecViolation": "the measured video codec {value} isn’t allowed by the rule set ({allowed})",
+    "detail": "measured {dimension} {measured}, the torrent claims {claimed}"
+  },
+  "matching": {
+    "idConflict": "The site’s info doesn’t match this title ({conflict}). If the site labeled it wrong, pick it manually from Search",
+    "absurdSize": "{reason}. If this is the release you want, pick it manually from Search",
+    "recheckFailed": "A recheck before submitting couldn’t confirm that “{title}” belongs to this title, so it was skipped",
+    "identityRejected": "{title}: {reason}",
+    "idMismatch": "{title}: the ID doesn’t match the subscription, so it was skipped",
+    "rejectNote": "{reason} (“{title}” from {site})"
   }
 }

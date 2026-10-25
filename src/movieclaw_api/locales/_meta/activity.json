@@ -367,5 +367,11 @@
   },
   "subscription.specUnknown": {
     "sourceHash": "b616b9f6bbaa269763e38a906aa905ec80e411fc7c4b34722ba33301e76a6c79"
+  },
+  "subscription.specMismatchViolation": {
+    "sourceHash": "5ae77c922ec9141c310b7e6ca73e80a4a75bd33fd5a0d8e37ae6ef63364b1c55"
+  },
+  "subscription.specMismatchOk": {
+    "sourceHash": "4739d92c52863f03d582a3f2afdd2c0d01697d90210b969506ec28ad7de01380"
   }
 }

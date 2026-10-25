@@ -9,7 +9,7 @@ from sqlalchemy import update
 from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.i18n.stored import source_render, stored_fields
 from movieclaw_api.services.subscription.smart_profiles import conflict
 from movieclaw_db.models import (
     SiteTorrent,
@@ -460,6 +460,8 @@ async def plan_selection(session, ctx, entries, *, identity_rejections=None):
         )
         result = decide(ctx.spec, choices, **arguments)
         if not choices and identity_rejections and result.action != "stop":
+            # 同一句话只说一次（多个候选可能因同一原因被拒）
+            explained = {source_render(ref): ref for ref in identity_rejections.values()}
             result = SelectionDecision(
                 action="no_candidate", reason="identity_unconfirmed",
                 state=(state or SelectionState(
@@ -468,9 +470,13 @@ async def plan_selection(session, ctx, entries, *, identity_rejections=None):
                     "reason": "identity_unconfirmed",
                     "candidate_key": None, "candidate_title": None, "forced_candidate": None,
                     "choice_explanation": None, "wait_explanation": None, "prediction": None,
-                    "identity_explanation": "\n\n".join(
-                        dict.fromkeys(identity_rejections.values())
-                    ),
+                    "identity_explanation": "\n\n".join(explained),
+                    "messages": {
+                        "identity_explanation": {
+                            "message_list": list(explained.values()),
+                            "separator_key": "common.list.paragraphSeparator",
+                        }
+                    },
                 }),
             )
         decisions[unit] = result

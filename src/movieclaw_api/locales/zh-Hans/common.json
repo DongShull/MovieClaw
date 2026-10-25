@@ -4,7 +4,8 @@
     "emptySeparator": "",
     "issueSeparator": "；",
     "slashSeparator": " / ",
-    "dotSeparator": " · "
+    "dotSeparator": " · ",
+    "paragraphSeparator": "\n\n"
   },
   "value": {
     "missing": "（缺失）"

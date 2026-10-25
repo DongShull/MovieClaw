@@ -706,13 +706,20 @@ def _describe_forecast(item: MediaItem, wanted: WantedItem, forecast: dict[str, 
     for name, entry in forecast.get("experiments", {}).items():
         shadow_at = _parse_utc_text(entry.get("predicted_at"))
         if shadow_at is not None:
+            # i18n-ignore: forecast log summary
             shadows.append(f"{name}={round((shadow_at - predicted).total_seconds() / 60):+d}分")
+    # i18n-ignore: forecast log summary
     sites = "、".join(site["site_id"] for site in forecast["sites"][:2]) or "无"
     return (
+        # i18n-ignore: forecast log summary
         f"《{item.title}》S{wanted.season_number:02d}E{wanted.episode_number:02d} "
+        # i18n-ignore: forecast log summary
         f"预测 {_local_text(predicted)}（窗口 {_local_text(start)}～{_local_text(end)}，"
+        # i18n-ignore: forecast log summary
         f"{forecast['confidence']}，样本 {forecast['basis_units']}，"
+        # i18n-ignore: forecast log summary
         f"当日第 {forecast['slot'] + 1} 集），首探 {sites}；"
+        # i18n-ignore: forecast log summary
         f"影子相对偏差 {' '.join(shadows) or '无'}"
     )
 
@@ -886,9 +893,12 @@ def _describe_evaluation(item: MediaItem, wanted: WantedItem, evaluation: dict[s
 
     def scored(score: object) -> str:
         if not isinstance(score, dict):
+            # i18n-ignore: forecast log summary
             return "无"
         hit = score.get("in_window")
+        # i18n-ignore: forecast log summary
         mark = "" if hit is None else ("窗内" if hit else "窗外")
+        # i18n-ignore: forecast log summary
         return f"{score['error_minutes']:+d}分{mark}"
 
     shadows = " ".join(
@@ -898,17 +908,26 @@ def _describe_evaluation(item: MediaItem, wanted: WantedItem, evaluation: dict[s
     grabbed = evaluation.get("grabbed_minutes")
     top = evaluation.get("top_site")
     top_text = (
+        # i18n-ignore: forecast log summary
         f"首探 {top} {scored(evaluation.get('top_site_score'))}"
         if evaluation.get("top_site_published")
+        # i18n-ignore: forecast log summary
         else f"首探 {top} 未发"
     )
     return (
+        # i18n-ignore: forecast log summary
         f"《{item.title}》S{wanted.season_number:02d}E{wanted.episode_number:02d}："
+        # i18n-ignore: forecast log summary
         f"实际首发 {_local_text(actual)}（{evaluation['first_site']}，共 "
+        # i18n-ignore: forecast log summary
         f"{evaluation['site_count']} 站），{evaluation['algorithm']} 误差 "
+        # i18n-ignore: forecast log summary
         f"{scored(evaluation)}（{evaluation['confidence']}），首次预测 "
+        # i18n-ignore: forecast log summary
         f"{scored(evaluation.get('first_forecast'))}；{top_text}；发现延迟 "
+        # i18n-ignore: forecast log summary
         f"{'未知' if discovery is None else f'{discovery} 分'}，投递 "
+        # i18n-ignore: forecast log summary
         f"{'未投递' if grabbed is None else f'{grabbed} 分'}；影子 {shadows or '无'}"
     )
 

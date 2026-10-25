@@ -242,5 +242,20 @@
     "skip": "存在同名影片，资源缺少可区分的影片编号，已跳过；订阅会继续寻找，无需处理",
     "noticeTitle": "《{title}》仍在寻找资源",
     "noticeBody": "发现同名影片，部分资源暂时无法确认，已跳过。订阅会继续寻找，无需你处理。"
+  },
+  "spec": {
+    "resolution": "分辨率",
+    "videoCodec": "视频编码",
+    "resolutionViolation": "实测分辨率 {value} 不在规则组允许范围（{allowed}）",
+    "codecViolation": "实测视频编码 {value} 不在规则组允许范围（{allowed}）",
+    "detail": "实测{dimension} {measured}，种子声称 {claimed}"
+  },
+  "matching": {
+    "idConflict": "站点信息与本条目不符（{conflict}）；若确认是站点标错，可在搜索页手动选种投递",
+    "absurdSize": "{reason}；若确认这就是你要的资源，可在搜索页手动选种投递",
+    "recheckFailed": "投递前复核后无法确认「{title}」属于本条目，已跳过",
+    "identityRejected": "{title}：{reason}",
+    "idMismatch": "{title}：影片编号与订阅不符，已跳过",
+    "rejectNote": "{reason}——来自 {site} 的「{title}」"
   }
 }

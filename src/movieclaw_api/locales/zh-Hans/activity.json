@@ -114,7 +114,9 @@
     "targetNoRoot": "媒体库「{library}」未配置根路径，将落至下载器默认目录，不会自动入库",
     "targetNoLibrary": "未配置媒体库，下载完成后不会自动整理入库",
     "seeders": "{count} 做种",
-    "specUnknown": "规格未知"
+    "specUnknown": "规格未知",
+    "specMismatchViolation": "{unit}入库文件与种子声称的规格不符：{detail}。{violation}，这个文件本不该入库，建议复查后手工删除并重新寻源",
+    "specMismatchOk": "{unit}入库文件与种子声称的规格不符：{detail}。文件仍满足规则组要求，已照常入库，仅作提醒"
   },
   "jobActions": {
     "dismissAll": "已忽略 {count} 个失败任务",
