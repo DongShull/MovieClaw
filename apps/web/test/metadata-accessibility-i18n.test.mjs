@@ -7,6 +7,7 @@ import * as jsx from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { appTranslator } from "../lib/i18n/translate.ts";
+import * as welcomeScenes from "../lib/welcome-scenes.ts";
 
 const noop = () => {};
 function load(path, locale, states = []) {
@@ -14,12 +15,13 @@ function load(path, locale, states = []) {
   const imports = {
     "react/jsx-runtime": jsx,
     "react": { ...React, useState: (initial) => [index < states.length ? states[index++] : initial, noop], useEffect: noop },
-    "next-intl": { useTranslations: () => appTranslator(locale) },
+    "next-intl": { useTranslations: () => appTranslator(locale), useLocale: () => locale },
     "next-intl/server": { getTranslations: async () => appTranslator(locale) },
     "next/font/local": { default: () => ({ variable: "font" }) },
     "@/lib/image-width": { responsiveImage: (src) => ({ src }) },
     "@/lib/session": { initialsOf: (name) => name[0] },
     "@/components/icons": { XIcon: () => null },
+    "@/lib/welcome-scenes": welcomeScenes,
   };
   const source = readFileSync(new URL(path, import.meta.url), "utf8") + (path.includes("welcome-screen") ? "\nexport { FilmSubtitles };" : "");
   const exports = {};
@@ -49,14 +51,17 @@ test("server metadata keeps original Chinese titles and renders reader-local Eng
 });
 
 test("avatar and quote accessibility translate instructions while retaining source names and dialogue", () => {
-  const quote = { line: "作者\n原句", original: null, film: "作者片名", year: 2024 };
+  const quote = { line: "作者\n原句", original: null, film: "作者片名", filmEnglish: "Author Film", year: 2024, english: "Author\nline" };
   const before = JSON.stringify(quote);
   for (const locale of ["zh-Hans", "en"]) {
     const avatar = render(load("../components/avatar-badge.tsx", locale).AvatarBadge, { nickname: "原始昵称", avatarUrl: "/api/v1/auth/avatar?v=source" });
     assert.match(avatar, /src="\/api\/v1\/auth\/avatar\?v=source"/);
     assert.match(avatar, locale === "en" ? /alt="原始昵称’s avatar"/ : /alt="原始昵称 的头像"/);
     const html = render(load("../components/welcome-screen.tsx", locale, [[quote], 0, 0, null]).FilmSubtitles);
-    assert.match(html, locale === "en" ? /aria-label="“作者原句” — 作者片名\. Tap for another quote\."/ : /aria-label="作者原句——《作者片名》。轻点换一句台词"/);
+    assert.match(html, locale === "en" ? /aria-label="“Author line” — Author Film\. Tap for another quote\."/ : /aria-label="作者原句——《作者片名》。轻点换一句台词"/);
+    // 英文界面里华语片仍附中文原句；中文界面不出英文
+    if (locale === "en") assert.match(html, /作者\n原句/);
+    else assert.doesNotMatch(html, /Author/);
     const empty = render(load("../components/welcome-screen.tsx", locale, [null, 0, 0, null]).FilmSubtitles);
     assert.match(empty, locale === "en" ? /aria-label="Quote"/ : /aria-label="台词"/);
   }

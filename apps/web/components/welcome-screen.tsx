@@ -220,7 +220,11 @@ function FilmSubtitles() {
         onClick={next}
         aria-label={
           text
-            ? t("auth.welcome.quoteAria", { line: text.headline.replace(/\n/g, " "), film: text.film })
+            ? t("auth.welcome.quoteAria", {
+                // 断行处：中文直接连上，英文补一个空格
+                line: text.headline.replace(/\n/g, locale === "zh-Hans" ? "" : " "),
+                film: text.film,
+              })
             : t("auth.welcome.quoteLabel")
         }
         className="relative grid min-h-[150px] w-full cursor-pointer items-end text-center"
