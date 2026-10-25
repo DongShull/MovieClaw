@@ -115,7 +115,7 @@ struct SettingsBMCPEndpointFields: View {
             if let slugError {
                 Text(slugError).foregroundStyle(Theme.danger).accessibilityIdentifier("mcp-form-slug-error")
             } else {
-                Text("\(baseUrl)/mcp/\(draft.slug.isEmpty ? "<地址标识>" : draft.slug)").font(.caption.monospaced())
+                Text("\(baseUrl)/mcp/\(draft.slug.isEmpty ? String(localized: .settingsMcpControlsSlugPlaceholder) : draft.slug)").font(.caption.monospaced())
             }
         }
     }

@@ -15,6 +15,7 @@ from pyicumessageformat import Parser
 # The checker is also imported directly by its tests.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apple_catalogs import check_apple  # noqa: E402
+from swift_strings import literals as swift_literals  # noqa: E402
 from metadata_sources import (  # noqa: E402
     check_builtin_sources,
     check_channel_sources,
@@ -329,8 +330,6 @@ def baseline() -> dict[str, int]:
         )
         if count:
             counts[str(path.relative_to(ROOT))] = count
-    # Match Swift strings before comments so URLs and comment syntax inside text stay intact.
-    tokens = re.compile(r'"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|//[^\n]*|/\*[\s\S]*?\*/')
     for path in (ROOT / "apps/apple").rglob("*.swift"):
         if any(part in path.parts for part in (".build", "DerivedData", "SourcePackages")) or any(
             part.endswith("Tests") for part in path.parts
@@ -338,16 +337,13 @@ def baseline() -> dict[str, int]:
             continue
         source = path.read_text()
         count = 0
-        for match in tokens.finditer(source):
-            line_start = source.rfind("\n", 0, match.start()) + 1
+        for literal in swift_literals(source):
+            line_start = source.rfind("\n", 0, literal.start) + 1
             previous_start = source.rfind("\n", 0, max(0, line_start - 1)) + 1
-            line_end = source.find("\n", match.end())
-            if (
-                match[0].startswith('"')
-                and HAN.search(match[0])
-                and "i18n-ignore"
-                not in source[previous_start : line_end if line_end >= 0 else None]
-            ):
+            line_end = source.find("\n", literal.end)
+            if HAN.search(literal.text) and "i18n-ignore" not in source[
+                previous_start : line_end if line_end >= 0 else None
+            ]:
                 count += 1
         if count:
             counts[str(path.relative_to(ROOT))] = count

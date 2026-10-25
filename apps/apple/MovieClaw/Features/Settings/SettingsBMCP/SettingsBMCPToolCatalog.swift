@@ -206,7 +206,7 @@ private struct SettingsBMCPToolDetail: View {
                                 .accessibilityLabel(command.dangerous == "destructive" ? String(localized: .settingsMcpControlsDestructiveHint) : String(localized: .settingsMcpControlsClearHint))
                         }
                     }
-                    Text("\(command.summary.isEmpty ? "—" : command.summary)\(command.isJob ? Text("（后台任务，返回 job_id）").foregroundStyle(Theme.textFaint) : Text(verbatim: ""))")
+                    Text("\(command.summary.isEmpty ? "—" : command.summary)\(command.isJob ? Text(String(localized: .settingsMcpControlsBackgroundJob)).foregroundStyle(Theme.textFaint) : Text(verbatim: ""))")
                     .font(.caption)
                     .foregroundStyle(Theme.textMuted)
                     .fixedSize(horizontal: false, vertical: true)

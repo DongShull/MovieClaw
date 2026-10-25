@@ -608,7 +608,7 @@ struct LibraryDetailView: View {
     private func workingLabel(_ item: API.LibraryItemView) -> String? {
         if let phase = metaRefresh?.active.first(where: { $0.mediaItemId == item.mediaItemId })?.phase { return phase }
         if let job = activeJobs.first(where: { $0.resources.contains { $0.resourceType == "media_item" && $0.resourceId == String(item.mediaItemId) } }) {
-            return "\(job.status == "blocked" ? "需要处理" : "后台任务") · \(job.progress.message)"
+            return (job.status == "blocked" ? String(localized: .libraryDetailNeedsAttention) : String(localized: .libraryDetailBackgroundTasks)) + " · " + job.progress.message
         }
         return probing && item.probePendingCount > 0 ? String(localized: .libraryDetailReadingSpecs) : nil
     }

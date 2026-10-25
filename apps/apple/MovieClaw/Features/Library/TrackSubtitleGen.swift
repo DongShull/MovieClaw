@@ -105,7 +105,7 @@ struct TrackSubtitleGenButton: View {
         .buttonStyle(.plain)
         .disabled(model.previewing)
         .opacity(model.previewing ? 0.5 : 1)
-        .accessibilityLabel(model.running ? "\(text)，\(model.job?.progress.message.nonEmpty ?? "正在运行")" : text)
+        .accessibilityLabel(model.running ? "\(text)，\(model.job?.progress.message.nonEmpty ?? String(localized: .librarySubtitleGenerationRunning))" : text)
     }
 }
 
@@ -756,7 +756,7 @@ private struct TrackGenSheet: View {
                 Label {
                     VStack(alignment: .leading, spacing: 4) {
                         // 结束态也报一句目标输出：Agent、CLI 发起的任务用户没在这里选过语言
-                        Text("\(model.activeOutputLabel)\(succeeded ? "字幕生成完成" : "字幕生成未完成")")
+                        Text(succeeded ? String(localized: .librarySubtitleGenerationCompleted(model.activeOutputLabel)) : String(localized: .librarySubtitleGenerationIncomplete(model.activeOutputLabel)))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Theme.text)
                         Text(resultMessage)

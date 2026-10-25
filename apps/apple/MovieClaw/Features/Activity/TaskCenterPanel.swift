@@ -111,7 +111,10 @@ struct TaskSourceWarning: View {
         let failed = store.sources.filter { $0.status != "active" }
         if !failed.isEmpty || store.downloadsError != nil {
             let message = store.downloadsError
-                ?? failed.map { "「\($0.name)」\($0.message.flatMap { $0.isEmpty ? nil : $0 } ?? "当前不可用")" }.joined(separator: "；")
+                ?? AppFormatting.clauses(failed.map { source in
+                    source.message.flatMap { $0.isEmpty ? nil : String(localized: .activityTaskCenterSourceMessage(source.name, $0)) }
+                        ?? String(localized: .activityTaskCenterSourceUnavailable(source.name))
+                })
             ActivityWarningBanner(message: message) {
                 Button { router.open(.settingsSection(.downloaders)) } label: {
                     Text(String(localized: .activityTaskCenterCheckSettings))
@@ -353,7 +356,8 @@ struct ActiveJobFeedItem: View {
             if let amount = TaskCenter.feedProgressAmount(job) {
                 Text(amount).font(.caption).monospacedDigit().foregroundStyle(Theme.textFaint)
             }
-            Text("\(TaskCenter.feedOriginLabel(job)) · \(job.startedAt.map { "\(ActivityFormat.clock($0)) 开始" } ?? "\(ActivityFormat.clock(job.createdAt)) 发起")")
+            Text(TaskCenter.feedOriginLabel(job) + " · " + (job.startedAt.map { String(localized: .activityTaskCenterStartedAt(ActivityFormat.clock($0))) }
+                ?? String(localized: .activityTaskCenterCreatedAt(ActivityFormat.clock(job.createdAt)))))
                 .font(.caption)
                 .foregroundStyle(Theme.textFaint.opacity(0.8))
                 .padding(.top, 2)

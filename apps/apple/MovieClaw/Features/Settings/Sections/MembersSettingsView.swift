@@ -20,7 +20,7 @@ struct MembersSettingsView: View {
                 ForEach([true, false], id: \.self) { active in
                     let group = matches.filter { ($0.status == "active") == active }
                     if !group.isEmpty {
-                        SettingsFormSection("\(active ? "已启用" : "已停用") · \(group.count)") {
+                        SettingsFormSection((active ? String(localized: .settingsMembersUiEnabled) : String(localized: .settingsMembersUiDisabled)) + " · \(group.count)") {
                             ForEach(group) { member in
                                 Button { selectedID = member.id } label: { MemberListRow(member: member) }
                                     .accessibilityIdentifier("member-row-\(member.username)")

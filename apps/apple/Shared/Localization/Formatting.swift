@@ -29,6 +29,11 @@ nonisolated enum AppFormatting {
         items.joined(separator: AppLanguage.identifier == "zh-Hans" ? "、" : ", ")
     }
 
+    /// Independent clauses in one line: Chinese 「；」, other languages "; ".
+    static func clauses(_ items: [String]) -> String {
+        items.joined(separator: AppLanguage.identifier == "zh-Hans" ? "；" : "; ")
+    }
+
     /// Consecutive sentences: Chinese runs them together, other languages separate them with a space.
     static func sentences(_ items: [String]) -> String {
         items.filter { !$0.isEmpty }.joined(separator: AppLanguage.identifier == "zh-Hans" ? "" : " ")

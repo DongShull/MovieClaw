@@ -271,7 +271,7 @@ struct SettingsBMCPEndpointDetail: View {
                         if !check.probeTool.isEmpty {
                             GridRow(alignment: .firstTextBaseline) {
                                 Text(String(localized: .settingsMcpControlsProbe)).foregroundStyle(Theme.textFaint)
-                                Text("\(Text(check.probeTool).monospaced().foregroundStyle(Theme.accent))  \(Text(check.probeOk ? "成功" : "失败").foregroundStyle(check.probeOk ? Theme.text : Theme.danger))  \(Text(String(check.probeMessage.prefix(60))).foregroundStyle(Theme.textFaint))")
+                                Text("\(Text(check.probeTool).monospaced().foregroundStyle(Theme.accent))  \(Text(check.probeOk ? String(localized: .settingsMcpControlsSucceeded) : String(localized: .settingsMcpControlsFailed)).foregroundStyle(check.probeOk ? Theme.text : Theme.danger))  \(Text(String(check.probeMessage.prefix(60))).foregroundStyle(Theme.textFaint))")
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }

@@ -237,7 +237,7 @@ struct ManageCreateLibraryForm: View {
             }
             Section {
                 Label {
-                    Text("\(Text("已按推荐值设好：").foregroundStyle(Theme.text).fontWeight(.medium))\(ManageKindCard.defaults(kind))")
+                    (Text(String(localized: .libraryFormDefaultsIntro)).foregroundStyle(Theme.text).fontWeight(.medium) + Text(ManageKindCard.defaults(kind)))
                         .font(.caption)
                         .foregroundStyle(Theme.textMuted)
                 } icon: {

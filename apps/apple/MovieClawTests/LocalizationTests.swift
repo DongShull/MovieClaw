@@ -251,4 +251,10 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(SubscriptionsHome.weekday(of: "2026-09-26"), "Sat")
     }
 
+    @MainActor func testEnglishSearchAndOfflineCopy() {
+        XCTAssertEqual(OfflineDownloader.transcodeWaitNote(wait: "queue", ahead: 2), "Waiting to transcode; 2 ahead")
+        XCTAssertEqual(OfflineDownloader.transcodeWaitNote(wait: "transcoder", ahead: 0), "Waiting for a free transcoder")
+        XCTAssertEqual(TorrentSearchLogic.elapsedText(1234), "1.2 s")
+    }
+
 }

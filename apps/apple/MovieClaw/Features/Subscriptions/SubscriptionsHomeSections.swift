@@ -274,7 +274,9 @@ struct SubsHomeSchedule: View {
         .buttonStyle(SubsHomePressStyle(scale: 0.92))
         .disabled(day.entries.isEmpty)
         .opacity(day.entries.isEmpty ? 0.36 : 1)
-        .accessibilityLabel("\(day.weekday)，\(day.dateLabel)，\(day.entries.isEmpty ? "没有更新" : "\(day.entries.count) 部更新")")
+        .accessibilityLabel(day.entries.isEmpty
+            ? String(localized: .subscriptionFeedDayEmpty(day.weekday, day.dateLabel))
+            : String(localized: .subscriptionFeedDayReleases(day.weekday, day.dateLabel, day.entries.count)))
         .accessibilityAddTraits(on ? .isSelected : [])
         .accessibilityIdentifier("schedule-day-\(day.daysAhead)")
     }
@@ -356,7 +358,7 @@ private struct SubsHomeAgendaRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("《\(entry.title)》\(entry.episodeLabel)，\(entry.status)，\(entry.time ?? "时间待定")")
+        .accessibilityLabel("《\(entry.title)》\(entry.episodeLabel)，\(entry.status)，\(entry.time ?? String(localized: .subscriptionFeedTimePending))")
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("schedule-row")
     }
