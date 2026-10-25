@@ -2613,7 +2613,6 @@ async def _ingest_entry(
         reference(
             "library.ingest.pilotSkipped",
             names=_quoted(pilot_skipped),
-            count=len(pilot_skipped),
         )
         if pilot_skipped
         else None
@@ -2692,7 +2691,6 @@ async def _ingest_entry(
                     "library.ingest.pilotSkippedOf",
                     title=item.title,
                     names=_quoted(pilot_skipped),
-                    count=len(pilot_skipped),
                 )
             )
         return await conclude(
@@ -3371,6 +3369,7 @@ async def _ingest_collection(
     # 堆在一起反而看不清），有问题的那部才展开它自己的完整说明
     added = [o for o in outcomes if o.status is IngestStatus.IMPORTED and o.imported]
     present = [o for o in outcomes if o.status is IngestStatus.IMPORTED and not o.imported]
+
     def titles(group: list[_GroupOutcome]) -> dict:
         return _quoted(
             [o.item.title for o in group if o.item is not None],

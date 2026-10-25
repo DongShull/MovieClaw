@@ -88,8 +88,8 @@ async def test_partial_season_pack_keeps_parser_gap_marker(db, tmp_path, monkeyp
     english = _view(row, "en")
     assert english.startswith("Identified as “某剧”. Hardlinked 1 file to ")
     assert english.endswith(
-        "; “Some.Show.S01E00.1080p.mkv” is episode 0 (pilot or special) "
-        "and won’t be imported automatically"
+        "; Episode 0 (pilot or special) won’t be imported automatically: "
+        "“Some.Show.S01E00.1080p.mkv”"
     )
 
 
