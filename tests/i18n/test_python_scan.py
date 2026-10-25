@@ -1,0 +1,39 @@
+import ast
+import importlib.util
+import re
+from pathlib import Path
+
+SPEC = importlib.util.spec_from_file_location("i18n_check", Path(__file__).resolve().parents[2] / "scripts/i18n/check.py")
+check = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(check)
+
+HAN = re.compile(r"[㐀-鿿]")
+
+
+def counted(source):
+    tree = ast.parse(source)
+    skipped = check.api_doc_nodes(tree) | check.keyed_fallback_nodes(tree)
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and HAN.search(node.value) and id(node) not in skipped
+    ]
+
+
+def test_openapi_documentation_is_not_interface_text():
+    source = '''
+name: str = Field(description="库的展示名")
+@router.get("/x", summary="列出库", description="说明")
+def route(): ...
+raise BadRequestException("库名重复")
+'''
+    assert counted(source) == ["库名重复"]
+
+
+def test_chinese_fallback_beside_its_key_is_migrated():
+    source = '''
+register_task("a", title="清理历史", title_key="settings.x.title", description="删除旧记录")
+raise JobRetry("稍后重试", message_key="library.x.retry")
+raise JobRetry("仍未迁移")
+'''
+    assert sorted(counted(source)) == ["仍未迁移", "删除旧记录"]

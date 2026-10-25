@@ -294,6 +294,47 @@ def unused_keys() -> list[str]:
     return warnings
 
 
+API_DOC_CALLS = {"Field", "Query", "Path", "Body", "Header", "Form", "File", "Cookie", "APIRouter", "FastAPI"}
+ROUTE_METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "api_route", "websocket"}
+API_DOC_ARGUMENTS = {"description", "summary", "examples", "response_description"}
+
+
+def api_doc_nodes(tree: ast.AST) -> set[int]:
+    """OpenAPI documentation (schema field and route descriptions) is developer- and model-facing.
+
+    It feeds the API docs and the generated agent tool catalog, which stay in the source language
+    (docs/design/i18n.md §8.4), so it is not counted as untranslated interface text.
+    """
+    found: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
+        if name not in API_DOC_CALLS and not (isinstance(func, ast.Attribute) and name in ROUTE_METHODS):
+            continue
+        for keyword in node.keywords:
+            if keyword.arg in API_DOC_ARGUMENTS:
+                found.update(id(child) for child in ast.walk(keyword.value))
+    return found
+
+
+def keyed_fallback_nodes(tree: ast.AST) -> set[int]:
+    """Chinese fallback text passed beside its catalog key (`title=` with `title_key=`,
+    a message with `message_key=`) is the rollback copy of a migrated message."""
+    found: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        names = {keyword.arg for keyword in node.keywords if keyword.arg}
+        for keyword in node.keywords:
+            if keyword.arg and f"{keyword.arg}_key" in names:
+                found.update(id(child) for child in ast.walk(keyword.value))
+        if "message_key" in names and node.args:
+            found.update(id(child) for child in ast.walk(node.args[0]))
+    return found
+
+
 def baseline() -> dict[str, int]:
     counts = json.loads(
         subprocess.check_output(["node", str(ROOT / "scripts/i18n/web-baseline.mjs")])
@@ -316,6 +357,8 @@ def baseline() -> dict[str, int]:
                 and node.func.value.id.lower() in {"logger", "logging", "log", "_logger", "_log"}
             ):
                 docstrings.update(id(child) for child in ast.walk(node))
+        docstrings.update(api_doc_nodes(tree))
+        docstrings.update(keyed_fallback_nodes(tree))
         lines = path.read_text().splitlines()
         count = sum(
             1
