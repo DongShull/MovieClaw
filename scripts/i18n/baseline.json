@@ -30,6 +30,5 @@
   "apps/web/lib/session.tsx": 1,
   "apps/web/lib/theme-runtime.ts": 13,
   "apps/web/lib/tips/engine.ts": 1,
-  "apps/web/lib/ui-prefs.tsx": 3,
-  "apps/web/lib/welcome-scenes.ts": 136
+  "apps/web/lib/ui-prefs.tsx": 3
 }

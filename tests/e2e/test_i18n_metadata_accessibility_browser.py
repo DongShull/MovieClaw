@@ -34,9 +34,18 @@ def test_metadata_and_accessibility_preserve_author_content(stack, browser, them
     expect(quote).to_be_visible()
     previous = quote.get_attribute("aria-label")
     assert previous and "轻点换一句台词" not in previous
+    # English readers get the original line (or the English translation) and the English title
+    assert not re.search(r"[㐀-鿿]", previous), previous
     quote.click()
     expect(quote).not_to_have_attribute("aria-label", previous)
     visitor.close()
+    chinese_visitor = browser.new_context(locale="zh-CN", viewport={"width": width, "height": 1000})
+    chinese_welcome = chinese_visitor.new_page()
+    chinese_welcome.goto(base + "/login")
+    chinese_quote = chinese_welcome.get_by_role("button", name=re.compile(r"轻点换一句台词$"))
+    expect(chinese_quote).to_be_visible()
+    assert re.search(r"——《.+》。", chinese_quote.get_attribute("aria-label") or "")
+    chinese_visitor.close()
 
     context = browser.new_context(
         locale="en-US",

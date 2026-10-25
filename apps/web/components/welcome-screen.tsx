@@ -1,13 +1,13 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import localFont from "next/font/local";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { CosmosBackdrop } from "@/components/cosmos-backdrop";
 import { XIcon } from "@/components/icons";
-import { shuffledScenes, type WelcomeScene } from "@/lib/welcome-scenes";
+import { sceneText, shuffledScenes, type WelcomeScene } from "@/lib/welcome-scenes";
 
 /**
  * 欢迎页的宋体：思源宋体（Noto Serif SC，SIL OFL 1.1）子集，与原生 App 同一份
@@ -184,6 +184,7 @@ function WelcomeMasthead({ compact }: { compact: boolean }) {
  */
 function FilmSubtitles() {
   const t = useTranslations();
+  const locale = useLocale();
   const [scenes, setScenes] = useState<WelcomeScene[] | null>(null);
   const [index, setIndex] = useState(0);
   // 第几次换句：给进出两句各自一个新 key，让 CSS 动画每次都重新播放
@@ -211,23 +212,29 @@ function FilmSubtitles() {
   }, [next, scenes]);
 
   const scene = scenes?.[index];
+  const text = scene && sceneText(scene, locale);
   return (
     <div className="welcome-reveal welcome-reveal--quote relative">
       <button
         type="button"
         onClick={next}
-        aria-label={scene ? t("auth.welcome.quoteAria", { line: scene.line.replace(/\n/g, ""), film: scene.film }) : t("auth.welcome.quoteLabel")}
+        aria-label={
+          text
+            ? t("auth.welcome.quoteAria", { line: text.headline.replace(/\n/g, " "), film: text.film })
+            : t("auth.welcome.quoteLabel")
+        }
         className="relative grid min-h-[150px] w-full cursor-pointer items-end text-center"
       >
         {leaving && (
           <FilmSubtitle
             key={`out-${leaving.key}`}
             scene={leaving.scene}
+            locale={locale}
             className="welcome-quote-out"
             onDone={() => setLeaving(null)}
           />
         )}
-        {scene && <FilmSubtitle key={`in-${turn}`} scene={scene} className="welcome-quote-in" />}
+        {scene && <FilmSubtitle key={`in-${turn}`} scene={scene} locale={locale} className="welcome-quote-in" />}
       </button>
     </div>
   );
@@ -235,13 +242,18 @@ function FilmSubtitles() {
 
 function FilmSubtitle({
   scene,
+  locale,
   className,
   onDone,
 }: {
   scene: WelcomeScene;
+  locale: string;
   className: string;
   onDone?: () => void;
 }) {
+  const { headline, subline, source } = sceneText(scene, locale);
+  // 小字：外语原句用拉丁衬线斜体；英文界面里华语片附的中文原句用宋体正体
+  const sublineFont = scene.original === null ? WELCOME_SERIF : LATIN_SERIF;
   return (
     <span
       aria-hidden="true"
@@ -249,21 +261,23 @@ function FilmSubtitle({
       className={`${className} col-start-1 row-start-1 flex flex-col items-center gap-2.5 whitespace-pre-line [text-shadow:0_0_10px_rgba(0,0,0,0.6)]`}
     >
       <span className="text-[18px] leading-[1.7] text-[var(--text)] md:text-[21px]" style={{ fontFamily: WELCOME_SERIF }}>
-        {scene.line}
+        {headline}
       </span>
-      {scene.original && (
+      {subline && (
         <span
-          className="text-[13px] italic leading-[1.45] text-[var(--text-muted)] md:text-[15px]"
-          style={{ fontFamily: LATIN_SERIF }}
+          className={`text-[13px] leading-[1.45] text-[var(--text-muted)] md:text-[15px] ${
+            scene.original === null ? "" : "italic"
+          }`}
+          style={{ fontFamily: sublineFont }}
         >
-          {scene.original}
+          {subline}
         </span>
       )}
       <span
         className="pt-1.5 text-[11px] tracking-[2px] text-[var(--text-faint)]"
         style={{ fontFamily: WELCOME_SERIF }}
       >
-        ——《{scene.film}》{scene.year}
+        {locale === "zh-Hans" ? `——${source}` : `— ${source}`}
       </span>
     </span>
   );
