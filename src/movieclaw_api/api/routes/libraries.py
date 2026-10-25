@@ -776,7 +776,7 @@ def _metadata_refresh_view(library_id: int) -> MetadataRefreshView | None:
         failed=state.failed,
         stopping=state.stopping,
         active=[
-            RefreshActiveView(media_item_id=item_id, title=title, phase=phase)
+            RefreshActiveView(media_item_id=item_id, title=title, phase=render_value(phase))
             for item_id, (title, phase) in list(state.active.items())
         ],
     )

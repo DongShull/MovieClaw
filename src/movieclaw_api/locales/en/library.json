@@ -804,5 +804,41 @@
     "restored": "Restored. Waiting to be processed (after the download completion check)",
     "claimedFile": "Claimed “{file}” as “{title}”. Waiting to be organized in the background",
     "claimed": "Claimed as “{title}”. Waiting to be organized in the background"
+  },
+  "scrape": {
+    "phase": {
+      "queued": "Queued",
+      "fetch": "Fetching TMDB details",
+      "metadata": "Writing metadata",
+      "localNfo": "Reading local NFO",
+      "images": "Downloading images",
+      "mediaDir": "Writing to the media folder",
+      "readNfo": "Reading NFO",
+      "cover": "Generating cover"
+    },
+    "images": {
+      "grabbing": "Capturing episode stills from video · {count, plural, one {# captured} other {# captured}}",
+      "counting": "Downloading images {done} / {total}",
+      "countingBytes": "Downloading images {done} / {total} · {size} downloaded",
+      "downloaded": "{count, plural, one {# new image} other {# new images}} ({size})",
+      "reused": "{count} kept",
+      "adopted": "{count} taken from the media folder",
+      "derived": "{count} resized locally",
+      "grabbed": "{count} captured from video",
+      "failed": "{count} failed and will be retried on the next refresh"
+    },
+    "libraryBusy": "A metadata refresh for this library is finishing",
+    "progressDone": "Refreshed {done} / {total} items",
+    "progressItem": "Refreshing “{title}”: {phase}{others, plural, =0 {} one { (# more in progress)} other { (# more in progress)}}",
+    "finished": "Metadata refresh finished: {total, plural, one {# item} other {# items}}{failed, plural, =0 {} other {, # unfinished}}",
+    "imagesSummary": "; images: {summary}",
+    "itemFallback": "Item #{id}",
+    "itemBusy": "A scrape of “{title}” is finishing",
+    "itemFailed": "The metadata refresh of “{title}” didn’t finish; check the TMDB settings or the server logs",
+    "itemFinished": "Metadata refresh of “{title}” finished",
+    "checkSettings": "Check settings",
+    "queuedLibrary": "Waiting to refresh library metadata",
+    "queuedItem": "Waiting to refresh item metadata",
+    "withImages": "{head}{images}"
   }
 }

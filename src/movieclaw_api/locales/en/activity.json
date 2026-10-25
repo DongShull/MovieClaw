@@ -116,7 +116,9 @@
     "seeders": "{count, plural, one {# seeder} other {# seeders}}",
     "specUnknown": "unknown spec",
     "specMismatchViolation": "{unit}: the imported file doesn’t match the torrent’s claimed spec: {detail}. Since {violation}, the file shouldn’t have been imported; review it, delete it manually and search again",
-    "specMismatchOk": "{unit}: the imported file doesn’t match the torrent’s claimed spec: {detail}. It still meets the rule set, so it was imported as usual; this is just a heads-up"
+    "specMismatchOk": "{unit}: the imported file doesn’t match the torrent’s claimed spec: {detail}. It still meets the rule set, so it was imported as usual; this is just a heads-up",
+    "releaseScheduled": "The release date of “{title}” was updated; searching starts {date}",
+    "releaseCleared": "The release date of “{title}” was withdrawn; searching resumes once it’s rescheduled or released"
   },
   "jobActions": {
     "dismissAll": "{count, plural, one {Dismissed # failed task} other {Dismissed # failed tasks}}",

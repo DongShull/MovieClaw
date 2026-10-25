@@ -116,7 +116,9 @@
     "seeders": "{count} 做种",
     "specUnknown": "规格未知",
     "specMismatchViolation": "{unit}入库文件与种子声称的规格不符：{detail}。{violation}，这个文件本不该入库，建议复查后手工删除并重新寻源",
-    "specMismatchOk": "{unit}入库文件与种子声称的规格不符：{detail}。文件仍满足规则组要求，已照常入库，仅作提醒"
+    "specMismatchOk": "{unit}入库文件与种子声称的规格不符：{detail}。文件仍满足规则组要求，已照常入库，仅作提醒",
+    "releaseScheduled": "《{title}》档期更新，{date} 起开始搜索资源",
+    "releaseCleared": "《{title}》档期撤销，重新定档/上映后再安排搜索"
   },
   "jobActions": {
     "dismissAll": "已忽略 {count} 个失败任务",
