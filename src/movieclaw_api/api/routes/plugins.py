@@ -340,7 +340,7 @@ async def exit_safe_mode(request: Request) -> ApiResponse[SafeModeExitView]:
     try:
         safe_mode.exit_safe_mode(settings, ids)
     except PermissionError as exc:
-        raise ConflictException(str(exc)) from exc
+        raise ConflictException(**exception_fields(exc)) from exc
     await publish_safe_mode(safe_mode.current())
     mounted: dict[str, str] = {}
     for entry in (*load_local_entries(settings), *packages.load_package_entries(settings)):
@@ -367,7 +367,7 @@ async def replay_dead_letter(letter_id: int, request: Request) -> ApiResponse[No
     try:
         await store.replay(letter_id)
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     except ReplayError as exc:
         raise ConflictException(
             message_key="errors.plugins.replayFailed", params={"error": exc}
@@ -387,7 +387,7 @@ async def dismiss_dead_letter(letter_id: int, request: Request) -> ApiResponse[N
     try:
         await store.dismiss(letter_id)
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     return ok(None, message=t("plugins.operations.eventIgnored"))
 
 
@@ -668,7 +668,7 @@ async def upload_package(
     try:
         view = await _packages(request).upload(data)
     except PackageError as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     return ok(
         PackageRequestView.model_validate(view), message=t("plugins.operations.uploadPending")
     )
@@ -701,9 +701,9 @@ async def approve_package(
             allow_theme=body.allow_theme,
         )
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     except PackageError as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     view = PackageResultView.model_validate(result)
     message = (
         t("plugins.operations.installed")
@@ -727,9 +727,9 @@ async def retry_package_dependencies(
     try:
         result = await _packages(request).retry_dependencies(entry_id)
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     except PackageError as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     return ok(
         PackageResultView.model_validate(result), message=t("plugins.operations.dependenciesReady")
     )
@@ -746,7 +746,7 @@ async def discard_package(entry_id: str, request: Request) -> ApiResponse[None]:
     try:
         await _packages(request).discard(entry_id)
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     return ok(None, message=t("plugins.operations.installAbandoned"))
 
 
@@ -763,9 +763,9 @@ async def rollback_package(entry_id: str, request: Request) -> ApiResponse[Packa
     try:
         result = await _packages(request).rollback(entry_id)
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     except PackageError as exc:
-        raise ConflictException(str(exc)) from exc
+        raise ConflictException(**exception_fields(exc)) from exc
     return ok(PackageResultView.model_validate(result), message=t("plugins.operations.rolledBack"))
 
 
@@ -786,7 +786,7 @@ async def uninstall_package(
     try:
         result = await _packages(request).uninstall(entry_id, purge_data=purge_data)
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     return ok(
         PackageUninstallView.model_validate(result), message=t("plugins.operations.uninstalled")
     )
@@ -943,7 +943,7 @@ async def rotate_callback(key_id: int) -> ApiResponse[CallbackIssuedView]:
     try:
         issued = await _callbacks().rotate(key_id)
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     view = CallbackIssuedView(
         id=issued.id,
         endpoint=issued.endpoint,
@@ -965,7 +965,7 @@ async def revoke_callback(key_id: int) -> ApiResponse[None]:
     try:
         await _callbacks().revoke_id(key_id)
     except LookupError as exc:
-        raise NotFoundException(str(exc)) from exc
+        raise NotFoundException(**exception_fields(exc)) from exc
     return ok(None, message=t("plugins.operations.endpointRevoked"))
 
 
@@ -1366,7 +1366,7 @@ async def install_from_market(
     except plugin_market.MarketError as exc:
         raise _market_error(exc) from exc
     except PackageError as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     return ok(
         PackageRequestView.model_validate(view), message=t("plugins.operations.downloadPending")
     )

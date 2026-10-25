@@ -72,6 +72,28 @@ def stored_fields(key: str, **params) -> dict:
     return {"message": source, "message_key": key, "message_params": params}
 
 
+def keyed_error(cls: type[Exception], key: str, /, *args, **params) -> Exception:
+    """An exception whose text is the Chinese source and that carries its catalog reference.
+
+    ``exception_fields`` passes ``message_key``/``message_params`` on, so the HTTP error is
+    rendered in the reader's language while logs and ``str()`` keep the source text.
+    """
+    fields = stored_fields(key, **params)
+    error = cls(fields["message"], *args)
+    error.message_key = key  # type: ignore[attr-defined]
+    error.message_params = fields["message_params"]  # type: ignore[attr-defined]
+    return error
+
+
+def exception_reference(error: BaseException) -> dict | str:
+    """An exception as a message parameter: its reference when keyed, else its own text."""
+    key = getattr(error, "message_key", None)
+    if key:
+        params = getattr(error, "message_params", None) or getattr(error, "params", None) or {}
+        return reference(key, **params)
+    return getattr(error, "message", None) or str(error)
+
+
 def reference_fields(ref: dict) -> dict:
     """``stored_fields`` for a reference built earlier with ``reference()``."""
     return stored_fields(ref["message_key"], **ref["params"])

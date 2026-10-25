@@ -215,7 +215,9 @@ async def set_enabled(
             if enabled:
                 await kernel.enable(entry_id)
             else:
-                cancelled = await cancel_plugin_jobs(kernel, entry_id, reason="插件已停用")
+                cancelled = await cancel_plugin_jobs(
+                    kernel, entry_id, reason_key="plugins.switches.disabled"
+                )
                 await kernel.disable(entry_id, source=SOURCE)
                 logger.info("插件 %s 已停用（%s），取消任务 %d 个", entry_id, actor, cancelled)
         except Exception:
@@ -257,7 +259,9 @@ async def uninstall_bundled(
         removed = {**before.removed, entry_id: _stamp(actor)}
         disabled = {k: v for k, v in before.disabled.items() if k != entry_id}
         _save(settings, Switches(disabled, removed))
-        cancelled = await cancel_plugin_jobs(kernel, entry_id, reason="插件已卸载")
+        cancelled = await cancel_plugin_jobs(
+            kernel, entry_id, reason_key="plugins.package.uninstalled"
+        )
         if fiber is not None:
             await kernel.unmount(entry_id)
         purged = await _purge(kernel, settings, entry_id) if purge_data else 0
@@ -320,7 +324,7 @@ async def _purge(kernel: Any, settings: object, entry_id: str) -> int:
 
 
 # ---------------------------------------------------------------------- 任务
-async def cancel_plugin_jobs(kernel: Any, entry_id: str, *, reason: str) -> int:
+async def cancel_plugin_jobs(kernel: Any, entry_id: str, *, reason_key: str) -> int:
     """取消插件的全部活动任务。类型取自它在 ``JOB_HANDLERS`` 里的贡献，加上带它前缀的类型
     （插件已经不在、贡献已撤下时靠前缀认）。"""
     from sqlalchemy import or_, select
@@ -348,7 +352,7 @@ async def cancel_plugin_jobs(kernel: Any, entry_id: str, *, reason: str) -> int:
         )
         for job_id in ids:
             job, changed = await request_cancel(
-                session, job_id, requested_by="system", reason=reason
+                session, job_id, requested_by="system", reason_key=reason_key
             )
             cancelled += int(changed)
         await session.commit()

@@ -59,8 +59,15 @@ def parameters(message: str) -> set[str]:
 
 def call_parameters(node: ast.Call) -> tuple[str, set[str]] | None:
     """Check explicit call arguments; dynamic **params remain runtime-validated."""
-    if getattr(node.func, "id", "") in {"t", "stored_fields", "reference"} and node.args:
+    name = getattr(node.func, "id", "")
+    if name in {"t", "stored_fields", "reference", "source_text"} and node.args:
         key = node.args[0]
+        if any(kw.arg is None for kw in node.keywords):
+            return None
+        names = {kw.arg for kw in node.keywords}
+    elif name in {"keyed_error", "keyed"} and len(node.args) >= 2:
+        # keyed_error(ExceptionClass, "key", *constructor_args, **params)
+        key = node.args[1]
         if any(kw.arg is None for kw in node.keywords):
             return None
         names = {kw.arg for kw in node.keywords}

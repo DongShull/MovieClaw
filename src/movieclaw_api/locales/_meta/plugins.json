@@ -583,5 +583,290 @@
   },
   "builtins.appUpdateStartupCheckDescription": {
     "sourceHash": "ff138914ab3f3011bb9e60a4bd50611fd12db8e5e0c5e363d7b7fd2052bd544a"
+  },
+  "package.idRule": {
+    "sourceHash": "62837892fd410d3260e4b312179318fc66ca832027fca18624982739933bf929"
+  },
+  "package.idInvalid": {
+    "sourceHash": "5cbd13c98745e9ff7aebf47372c1bcaa452202eb357cebf3bdd3288aa9820dbc"
+  },
+  "package.versionInvalid": {
+    "sourceHash": "03915b4d59dd1c9818dbd6488947fb70f286a6eb20d2f734136abb58c772da2a"
+  },
+  "package.entryInvalid": {
+    "sourceHash": "cc22c846a311a15ea47b5fff4870df221058b2ffb33844e0b3e81103e008895e"
+  },
+  "package.execCommand": {
+    "sourceHash": "19fcb83be2ef37cab95262b8f99955da625048200cb85b3640bf1d0edeb0a61c"
+  },
+  "package.execPlatforms": {
+    "sourceHash": "089c639380e15cbb71f061f325567f23ba9e784b35bdf2d857110814833b61a9"
+  },
+  "package.callbackNames": {
+    "sourceHash": "c197ab7bb4ff1748a84ba55381c66f74639187da9de74af49f7132903deb87f0"
+  },
+  "package.callbackDuplicate": {
+    "sourceHash": "fb88dda146ac28050e9b96592bb86373e6a7fcdef72fbfe91fca43ffc2a6324b"
+  },
+  "package.lockPath": {
+    "sourceHash": "f7545e48b1c07377393d89b28c33147c27b68cef71f0b9847b620363b24d17e3"
+  },
+  "package.color": {
+    "sourceHash": "56640c0af07b1c481ae4e8b15ff97ae098965aeadcd7593bf664f6ad9a9a36bc"
+  },
+  "package.tooLarge": {
+    "sourceHash": "f522f2c9ba181f4279e5e6739c39087848d2180507105c388b2050403b6b3511"
+  },
+  "package.notZip": {
+    "sourceHash": "2457b4f346b7b69912162b267996e79c47e576dabe0ce22e65779e99ebfc52a6"
+  },
+  "package.tooManyFiles": {
+    "sourceHash": "f17c44f0806929ada7745ee4cf72072f6466f5bd85b4dc9d80bbfa175cb8e3e4"
+  },
+  "package.unsafePath": {
+    "sourceHash": "98d0d38c785b4553b87471eb3549c533616edd8c8cdb3d874e281b49c7990258"
+  },
+  "package.symlink": {
+    "sourceHash": "2c131b678c152ea5ce28228470059c5cbabdeb5ced115ec32252f72dd33b8caa"
+  },
+  "package.unpackedTooLarge": {
+    "sourceHash": "2946c7cb9db7c632b7abb2a9eb8a2c496b2d2c5519a9abdced56421f140aee8a"
+  },
+  "package.manifestMissing": {
+    "sourceHash": "f444467f80ec0f94099b0bf75010e9ebca085407e2a2f41b36a84b195daa8807"
+  },
+  "package.manifestToml": {
+    "sourceHash": "0a81719504bd6e0dfacf4d645476751123816dc6a159e79a571e3dad7b8b20be"
+  },
+  "package.manifestField": {
+    "sourceHash": "3bca8a94732a6c5dc924be036c17cb92a0c3551b431cc74b1cf5db58394c92e9"
+  },
+  "package.entryRequired": {
+    "sourceHash": "f5ccb11ff6cd73840abf93212cf7fb6a68cfd7fad1c880d56e5925ddb673c28c"
+  },
+  "package.webNoDependencies": {
+    "sourceHash": "9b2d6dd2d167ac04a007d69fdb49b665db6e97cb9620dbd29d19c3dd8a19e64c"
+  },
+  "package.commandMissing": {
+    "sourceHash": "4715c61681ccd7a5ee752d6ee300d33fb281fb59138a6efcade3e0ffdb6b2baa"
+  },
+  "package.platformUnsupported": {
+    "sourceHash": "af2110f28d1546a9edad4a7dbf2e8ccf4a9cc427a5286c9d84a901484e8872fc"
+  },
+  "package.entryMissing": {
+    "sourceHash": "2915a5280a79ad13680a7aab146caf83e34b3fff377d9ee6380abe1c2ac26654"
+  },
+  "package.dependenciesNeedProcess": {
+    "sourceHash": "72f13f95571ce902d3f80e8cd8e9330b5f39545610c2971e395f7f94ba220c44"
+  },
+  "package.lockMissing": {
+    "sourceHash": "afae67a00e0be71742a3c65daf654cb9a5e786a8b1c37e1861c036fd747af48b"
+  },
+  "package.lockNotUtf8": {
+    "sourceHash": "3b51058ca92db11cec9c9ac7d751e2039beacdcbdc05a9354f71369b4d5e9c0d"
+  },
+  "package.lockInvalid": {
+    "sourceHash": "f44868a1da0ed7f7fd775b19e32e67405d6a7505938364f1c2072c6b2832c28a"
+  },
+  "package.idReserved": {
+    "sourceHash": "39fd1e15289f11b5529d4856e688e0ac860fda740461613979ce2428a0e2f7e2"
+  },
+  "package.sdkRequirement": {
+    "sourceHash": "d853c2ee18275a62ceebc1a47d0105318c3d35a25a04a94a5febff2e71e6a333"
+  },
+  "package.sdkIncompatible": {
+    "sourceHash": "7ce7fe2c288f1386a1956da3443c0ff7fc086589f4db15c60ba7be23d9ff36bc"
+  },
+  "package.contractIncompatible": {
+    "sourceHash": "de18f1c1ec47b05cf736895f634002452ffbe079f653002e4cbd228aa515d20e"
+  },
+  "package.declarationsInvalid": {
+    "sourceHash": "3480b9cb4b544950b7a7fbd54e34798e292ee9fb68be049f9db39c7da974fc63"
+  },
+  "package.grantsInvalid": {
+    "sourceHash": "208aaa3b59399d25c3e17fcef0ac2c78cbdd35511730bf354fe5745e88009e41"
+  },
+  "package.agentTier": {
+    "sourceHash": "2592bf466773c354a61b2e5505263a70b065c68ef114a4e8c6211a2b47fef9e5"
+  },
+  "package.operationDomainMissing": {
+    "sourceHash": "c5e89b79ca632c90059d614ca9a2be60ec80958fb5092899e03896adcd854e1a"
+  },
+  "package.operationMissing": {
+    "sourceHash": "572453c059245a7f4258c35ed87766b6134c5c4312a8e9eba5f991a4534ca981"
+  },
+  "package.themeSectionMissing": {
+    "sourceHash": "bf177194eda9a4210f4bfdf744716eb69fe6bdac627ba32775e2e5cc4ac6a897"
+  },
+  "package.themeCssMissing": {
+    "sourceHash": "762d61bb5da200d8ba3baf195f829ccbb600eb9c775258a3c3868c872a58d25c"
+  },
+  "package.themeShellContract": {
+    "sourceHash": "90f200f783047c387c1ef335564647c838febe5c94fc2e442558680b4d985ff3"
+  },
+  "package.cinemaNeedsShell": {
+    "sourceHash": "a547667b82b0fc8d0817466897191b08d69227a9e51e27d3b7671b45e945fed1"
+  },
+  "package.packageTitle": {
+    "sourceHash": "613e7fe4d52cb96f7f1996297d495c4d0b1b3be32e1f49f6189ec8b35751a64c"
+  },
+  "package.moduleMissing": {
+    "sourceHash": "3c72973b082fb69705f40793efd09b195952ded18ca7a16be4d168c450af07c7"
+  },
+  "package.dependenciesPending": {
+    "sourceHash": "0f4bfb45ac89cb0d36c12e0a9c077b29e0f072ebd6ba0b8adc1b903aa9cf8573"
+  },
+  "package.processSuffix": {
+    "sourceHash": "8a5caaec06f885a384f6aaf446d88fbcdc4b9232203e4025dab2ee79dbb5ab2f"
+  },
+  "package.agentNone": {
+    "sourceHash": "53d9ff179beafae0a92481471db60d1d381915b1ec7f4260a7ae3b1f9ba9c006"
+  },
+  "package.agentMclaw": {
+    "sourceHash": "33298e8734586381883417bd12fd542ec8e63a7b8474b262afc70a16519dd634"
+  },
+  "package.agentFull": {
+    "sourceHash": "c3adc97c3af6db879f248a2f4a3ab7a290dc1516262bafe33e3ede3b960d240a"
+  },
+  "package.agentSummary": {
+    "sourceHash": "dd97f11fa63ef020c51d6b3d603c36cec6dcb18832cd307449a21572f874ac72"
+  },
+  "package.domainSummary": {
+    "sourceHash": "76aa8da890e99848f51fb9cc19144c5d61f04df1d910e3df8c71ad3bfebb7c1f"
+  },
+  "package.audienceAdmins": {
+    "sourceHash": "e19796712f1cf0de97d54a6617d8e8fc4f451b195268cd9f149129c90bb959f0"
+  },
+  "package.audienceMember": {
+    "sourceHash": "8101a3a477b8d9380b23f862002e63a5982006d6be5af5a5cddd9dc02ab314fc"
+  },
+  "package.audienceMedia": {
+    "sourceHash": "aa7167e1ec981e728873133b4422185c372214dd611c084a719e3d1b12182251"
+  },
+  "package.legacyId": {
+    "sourceHash": "bd3ae2788096441b00294948ac003c68ce9d33e107a2b7217113d0834403ca5d"
+  },
+  "package.alreadyInstalled": {
+    "sourceHash": "512af98f22992ef1467839a1218fe6278af27d3dcb2e50144cb7387172d04b9f"
+  },
+  "package.notInstalled": {
+    "sourceHash": "c5d50ebdb9c4d106078a6f99b986e7781484b567a6f5e26c13eef3cfd853e99a"
+  },
+  "package.noPending": {
+    "sourceHash": "aaece30be985bcdcb2eef428dfa3f60fb20dcc7ad7bace84fb03a637463fa8f9"
+  },
+  "package.noPendingVersion": {
+    "sourceHash": "8882d66887a8d58dfd9bfc0d8f2c011632b89304206ded97157b4b361d5c2b49"
+  },
+  "package.operationsMismatch": {
+    "sourceHash": "07b72e3ef731cf00533899c700b3737ed5af514b5f6ca2b8d9ad62d195b148cb"
+  },
+  "package.noOperations": {
+    "sourceHash": "47e20871891589d32488675a33ff6971bc3cb8e08a2e0fa5f010e237f77bfab3"
+  },
+  "package.pathsMismatch": {
+    "sourceHash": "34ad5784e02c3b9d2d58133a2e307297d166033b99634f8df40d703e84adaf71"
+  },
+  "package.pathGrant": {
+    "sourceHash": "300c20e57bd9358b9ea9f5d07ba8bd774948b6fe4a9ed7160bf4d89bd78f281e"
+  },
+  "package.noPaths": {
+    "sourceHash": "77e3d349dda7df7eb0a3350f6c7ec5d042e3a1c1e62e5e2de72017e9803fad3c"
+  },
+  "package.inlineConsent": {
+    "sourceHash": "f4260973dbd48f22e8b3e92066094ac395c71e467dbaad08fb14f4d0dceab874"
+  },
+  "package.memberNotifyConsent": {
+    "sourceHash": "8455789cfa7da7207c2904364a461754137933528018165439622773f717af00"
+  },
+  "package.webConsent": {
+    "sourceHash": "c577bd076b46cc69573793c0a5da8f0485adad139d4129ad36ac3c22cf116cdb"
+  },
+  "package.themeShellConsent": {
+    "sourceHash": "e178b3fd37c23f96f6ccd3dda69e7a3bc0804b4c1d2f030deb42a1a65fa77d90"
+  },
+  "package.activationState": {
+    "sourceHash": "948a20b07f29af249d3142561868a34950aac8c8c698d122a4e286da0f2b6256"
+  },
+  "package.dependencyInstallFailed": {
+    "sourceHash": "eed8b7ae2f09c6da4c09dadc9722a762cd074f44ea25cd53595839edb2216010"
+  },
+  "package.noDependencies": {
+    "sourceHash": "3b442d319f6eafbd11259b065ed01ba81dad927c44865f274d59e42bb0b40400"
+  },
+  "package.dependencyRetryFailed": {
+    "sourceHash": "07d976423e721f4df12a3a5c3e8ca9cbb01cd08efb94e93ad3b0796f82b754a0"
+  },
+  "package.waitingServices": {
+    "sourceHash": "f504d46efc8ae8bb1635217cc8b4d7c5db3f572e6567e1ee76b455702d348c2d"
+  },
+  "package.rolledBackTo": {
+    "sourceHash": "11840972eefba98346c4457a6178c443c8488ed47ff4b3caf077b29c2644afc3"
+  },
+  "package.installReverted": {
+    "sourceHash": "f116466be09540b6f025cf7898fc160ba129085064b09096af54f99ad8162568"
+  },
+  "package.noPrevious": {
+    "sourceHash": "ef180e73bb118145277ed722077588aff56746750f2c0454b8f08ff6ca33e0b2"
+  },
+  "package.uninstalled": {
+    "sourceHash": "ff84188642191dd020d877a75d4ab95dccef79d194117acce85e974ff8b5b290"
+  },
+  "package.runFailed": {
+    "sourceHash": "7e53786684a1b59879f94087675ec249a8be6461e5caf4c8479d404aeb6f1761"
+  },
+  "package.dependencyChanges": {
+    "sourceHash": "b8b65b063a79879bb21512bb58aa7db94adefb274a69c33bb522140b9aca537f"
+  },
+  "package.dependencyAdded": {
+    "sourceHash": "ee9a9eb2cbb9db302b9086f9717ab723f50ee0eaacb6ec7f1a7e6f7ebdb82869"
+  },
+  "package.dependencyChanged": {
+    "sourceHash": "629960c0c41d91ac291082e3b0fe67785dc44fd0edb0319740a850d4236cbb52"
+  },
+  "package.dependencyRemoved": {
+    "sourceHash": "db47e72197b958d9955c544d2d3aa0f0e0ec9d1cc256b430f66f6430a706dfab"
+  },
+  "package.dependencyConsent": {
+    "sourceHash": "57ed2c31a5cd3248f6aa0511b0717a286618f7415118dafd180c250d6c349a01"
+  },
+  "dependencies.summary": {
+    "sourceHash": "2b7453eb1a2158ce5bc4cf574945e3499d543aea2beffd5e41fb009b0395387c"
+  },
+  "dependencies.package": {
+    "sourceHash": "d269047baded107541e286078cdc7c41568130921e9fedc27c99d599d6974da4"
+  },
+  "dependencies.nativePackage": {
+    "sourceHash": "6253c20a5a7ac8e91e289d8fc252b630861caca9713929c76a5376403f8695b8"
+  },
+  "switches.disabled": {
+    "sourceHash": "64781d85bdee66f3ea3cc3749c5141bcb62efdc56bc32c692f0f7930525d72f2"
+  },
+  "dependencies.tsinghua": {
+    "sourceHash": "18f91e2faf39c30062b5894847ee0a25b3c5194fc0efc5d7c72dab7b7548a476"
+  },
+  "dependencies.noWheels": {
+    "sourceHash": "57787cea1aafc2014cb1f73e1332ac94ce7bf9b49b6a80fdfcf38b0b724b7d69"
+  },
+  "dependencies.bundledHash": {
+    "sourceHash": "95229055e99edb5de0665f74dda1658b06370b6da286e1d1e7e264c90c6c09c9"
+  },
+  "dependencies.notOnIndex": {
+    "sourceHash": "f8e843cd691d42e073535a58af46f59f47f6197a374bd1df4ffe17b82f57c8a7"
+  },
+  "dependencies.downloadHash": {
+    "sourceHash": "30022501de081a3581d4f9326eee14f19b165bbc134b0391f5dc005a24902b17"
+  },
+  "dependencies.downloadStatus": {
+    "sourceHash": "3913a202fabbeed8b09bbe618a3f0c16834789c79f98811dc2bb6e0ad480dcf9"
+  },
+  "dependencies.downloadUnreachable": {
+    "sourceHash": "c574a10fe2dc37520640b6dbdbf00d9f2ced59fab908916b4f5e0595d8c6e235"
+  },
+  "dependencies.timeout": {
+    "sourceHash": "e277e233d8db0671ce5abaf5e20ba862ff189ebc1d3f3831765026a85c87ae33"
+  },
+  "dependencies.pipFailed": {
+    "sourceHash": "b7f05e4d68c2c4e41c7df55c6adb406f94a1f0ace4ee2c7c31f9391a4f74caba"
   }
 }
