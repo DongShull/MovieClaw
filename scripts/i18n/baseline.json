@@ -104,8 +104,6 @@
   "src/movieclaw_api/services/import_watch_config.py": 2,
   "src/movieclaw_api/services/jobs.py": 15,
   "src/movieclaw_api/services/lan_discovery.py": 1,
-  "src/movieclaw_api/services/library/ingest.py": 206,
-  "src/movieclaw_api/services/library/units.py": 2,
   "src/movieclaw_api/services/llm_config.py": 1,
   "src/movieclaw_api/services/login_devices.py": 6,
   "src/movieclaw_api/services/mclaw_tool.py": 35,

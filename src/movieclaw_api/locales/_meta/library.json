@@ -1711,5 +1711,359 @@
   },
   "searchIndex.progress": {
     "sourceHash": "2ce1942bf0a0a82811c6ffb4ed83410d3862d2f0dca655e432bb78a18d23eb0a"
+  },
+  "ingest.summary": {
+    "sourceHash": "ef898fa98f0a08884df077f173f8fa85804d46ab52df3229a10b4e8056eff265"
+  },
+  "ingest.quotedName": {
+    "sourceHash": "a19b3b97600c0e5ee672690def1755a8a5a3575ef4b89f212968760591effbde"
+  },
+  "ingest.quotedTitle": {
+    "sourceHash": "a22d8a07d09a29d3817ae370d75f9672ca6cde4284d289e3e15cc87ecd54a596"
+  },
+  "ingest.nameSeparator": {
+    "sourceHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "ingest.noWorkNeeded": {
+    "sourceHash": "803c8ee81ebc59cd782e850403fc93aa530fa950e0af514c3d17ffaa95731772"
+  },
+  "ingest.queued": {
+    "sourceHash": "0127c26cf57d705b9f4f187d671e4bd217496ae9b6199e83dfabbafdd1146fa1"
+  },
+  "ingest.upgradeActor": {
+    "sourceHash": "24ae2e102c14385de314caf765a4e9485b849220f0459e793bbd8d824f23a6d8"
+  },
+  "ingest.sweepActor": {
+    "sourceHash": "12e68a007d930b317bb6266bae38cdf96b73721ea5de1d20acf06dc5badf38d0"
+  },
+  "ingest.listActor": {
+    "sourceHash": "acf3285482576421f2cafa2190d7b630740f2c430f18d236564903bb896a914a"
+  },
+  "ingest.baselineIgnored": {
+    "sourceHash": "e89c6d00ff8aab9ef688b6ff9b58176a2d6d400885e6eaf514b6aa6bb3d47816"
+  },
+  "ingest.progress.checking": {
+    "sourceHash": "78270a5735777f983d5afa92e24c5b4c117a6ea670710e6a6f076dd6b5e64ac6"
+  },
+  "ingest.progress.identifying": {
+    "sourceHash": "ec48600a4ec29bae83a14badade554c6a317c8f7d78d79221d1a6907c7346cc7"
+  },
+  "ingest.progress.waitingLibrary": {
+    "sourceHash": "9c30588393cd6e10b3f9ff4bfdf4e3ae4871574276fe02798f88b814c932fc54"
+  },
+  "ingest.progress.transferDisc": {
+    "sourceHash": "4e1292ab06322630f27fdb5e947bcc5224ac662752ccdf2752a531bb955282f2"
+  },
+  "ingest.progress.transferFile": {
+    "sourceHash": "e3ef16060343ce680f82f74be69612ffe97295c8353d32447fe98a1d51402e1d"
+  },
+  "ingest.progress.assets": {
+    "sourceHash": "64800978512409f7d741c3e68d6361d5eebe35c7f8dde4547309b71fdec663da"
+  },
+  "ingest.progress.cover": {
+    "sourceHash": "4b52899221e3e982672c49766087cb399ec29fdbbf2ccd3d9a2b11aee200aeed"
+  },
+  "ingest.progress.waitingCollection": {
+    "sourceHash": "cc1c640a18375d05a002645664a63ebe38d2af7c4fecbf32852a268d828f7829"
+  },
+  "ingest.progress.waitingStable": {
+    "sourceHash": "d03aa9ac96b36f55fba1d30830f65e30f70980828e41a53b7b9bdd1f629f3765"
+  },
+  "ingest.progress.verifying": {
+    "sourceHash": "ee25b440617a5759a6eadce7b522b227c7efb2d24a208d09533c1d0f0c2a1fb0"
+  },
+  "ingest.noAutoLibrary": {
+    "sourceHash": "44a178a3586c7f3fba78f2f20989f403687d85d52c9a67c2cbf3f4cdcb0c3d0c"
+  },
+  "ingest.tvDisc": {
+    "sourceHash": "6fae5cabaecfd72a8e1c1b3af6effd7062e77dd42499953c3b11d4a0cf864fa6"
+  },
+  "ingest.discAtRoot": {
+    "sourceHash": "1a0296efed516e189447a30afe1d9a58bc726b710738d71db560298798c724a5"
+  },
+  "ingest.mixedDiscs": {
+    "sourceHash": "4f594c9d8c1c9bfa0982a7f1c3e005430dbc26a979bdb87b6f3f8b691b9deacd"
+  },
+  "ingest.discNoStream": {
+    "sourceHash": "8c82351fa1f164c02265bc366dc94a297a2dc4baf0e5849340e817821c3e3eb5"
+  },
+  "ingest.noVideo": {
+    "sourceHash": "6333c4c55d19bebfcffab8402f21387b9b43b3103387dbe1248c3f41435c796a"
+  },
+  "ingest.strmUnusable": {
+    "sourceHash": "3f8cb17ec072f0bc14f76ed57f59c884eeef0d6a8c9d09e04baf93be77d51d9d"
+  },
+  "ingest.probeFailed": {
+    "sourceHash": "b5150a712142d37ddb21d9d2a71c192bf35842416a81f5a6825f996faba5ac3a"
+  },
+  "ingest.claimRebuildFailed": {
+    "sourceHash": "ab6a7b0f8fa362c2b6663ba176aa0817e6545fa9b07d9bb5f76e6708a2a2b6dc"
+  },
+  "ingest.identifyInterrupted": {
+    "sourceHash": "3d8715f88837e63545c70e31331657b812a8a02133209a923742c0b049a1944f"
+  },
+  "ingest.unidentified": {
+    "sourceHash": "2a286c4054d04899317d09857e4bef4effc7503b02f03150d4c1ed93067526e1"
+  },
+  "ingest.routeSubscription": {
+    "sourceHash": "87cb0781221133465750a66420e287c8aa9f145bd760514887db484349d55f77"
+  },
+  "ingest.routeManual": {
+    "sourceHash": "98be7b872404421e04e92f482399cf8af2081a66e6d5b4360e014ed74841eb34"
+  },
+  "ingest.noRouteLibrary": {
+    "sourceHash": "c52058424c7ffe769189fc586d9e2b2f453d6a07ff001372ad91ddef21cb7a84"
+  },
+  "ingest.libraryNoRoot": {
+    "sourceHash": "82ca04c76fd7c2ed5f3aee54f1560e73c96613dc44a9d2aa833d8bccbd384ef5"
+  },
+  "ingest.stagedDisc": {
+    "sourceHash": "c50274a065984f04389929c3bc0f5413c61430c08478b0886bf850c6f5284daf"
+  },
+  "ingest.importedDisc": {
+    "sourceHash": "a93589ba5e854870c8f4a426ca7e97f51229270cc3e3391dd68a24ecc81e9ef3"
+  },
+  "ingest.importedDiscRouted": {
+    "sourceHash": "6443a63b0edab1133ff5d480642a1842a36824c4a0ca21249bb113273e254787"
+  },
+  "ingest.largestOnly": {
+    "sourceHash": "c65415593ea9763f039622ee8e0fef8da17e67aca14ff4d667ad4d337d0efed7"
+  },
+  "ingest.noEpisode": {
+    "sourceHash": "ff1d4b727122abba80d6b4fac8efdbe0b693bda073af76f033932c57f3e4be35"
+  },
+  "ingest.noSeason": {
+    "sourceHash": "3f15fe917962462841a1580c0bb7d6222b9d22f218eb7f68d21f585525592c80"
+  },
+  "ingest.noSeasonBecause": {
+    "sourceHash": "16244900232f6264ef07e59066b6abaf0f05779df2ed520ecb741a3af0ebc22e"
+  },
+  "ingest.seasonRejected": {
+    "sourceHash": "ff1a832f527e231e2d15ce96e30ee7c7d5872c8e4897b8cd95efe8715b7c5545"
+  },
+  "ingest.strmSkipped": {
+    "sourceHash": "f3b1e855742287ec16279227b7ea703b22ee665cd4d947bfc1289b9ad1f3fcd2"
+  },
+  "ingest.probeSkipped": {
+    "sourceHash": "ea1af16d5b00cd369ddc604879d7dfa6f6b015ae67d6932562fab0257917109d"
+  },
+  "ingest.importedFiles": {
+    "sourceHash": "d3fa05c365da301860aad1c815fe03b6c92775954f2999fb5b9c8a729fdfc55f"
+  },
+  "ingest.importedFilesRouted": {
+    "sourceHash": "098b90e5972e448e5c3a81867bde1c1439625975570b8b9a7ebde21d687e5f20"
+  },
+  "ingest.stagedPending": {
+    "sourceHash": "d212b3ae73a698a7d26f04bf21b304d9a5592f60a06d0b6b00ef5076a94aba64"
+  },
+  "ingest.ownedSkipped": {
+    "sourceHash": "55495464e19704966589e5031c5c938d321365986b1cc16db712a669dbd54347"
+  },
+  "ingest.dupSkipped": {
+    "sourceHash": "a178399ed04593d0cf7b859e2d124b665b5a9e1488aa02b52f172e8556aaa708"
+  },
+  "ingest.pilotSkipped": {
+    "sourceHash": "2668e77c76de0d9bb2961d3aa8620bf3e48d3b21dea1b406dea7029b509b914c"
+  },
+  "ingest.pilotSkippedOf": {
+    "sourceHash": "927eae0a30acaea7d541df35feed190aed633de5f4a6b396e9863cb37b2d56a8"
+  },
+  "ingest.previouslyImported": {
+    "sourceHash": "6ab537a502e45ec803d572799c549fc74cd9a7680a81e17cfd70bf67d3715fcc"
+  },
+  "ingest.dupAll": {
+    "sourceHash": "cff6fe04c126b72db4e782be7b97ca5a42d2031f2a6dfc801333f3b6ed6038f0"
+  },
+  "ingest.ownedAll": {
+    "sourceHash": "9964b566cc9c4796f2c23d4a76c3a7c845ea7a65f2007f6d70e8e4b838c8bb70"
+  },
+  "ingest.stagedAll": {
+    "sourceHash": "e8bf59905c26a37c2afd615b527812022a2a950014d2097618b1a3b94c6a2e49"
+  },
+  "ingest.libraryAll": {
+    "sourceHash": "30053bbf23e2674be801e4a0da40196e5ee3171d1672aa7b87f6ff9f3a123bef"
+  },
+  "ingest.rawDisc": {
+    "sourceHash": "9912105edbd2c778d0f090fabcbdcf13ef7db10ebbc31cd0eb1822ec2fd1b67e"
+  },
+  "ingest.customNoTarget": {
+    "sourceHash": "3562f439a84e22d9ec51588cd335982f5991ac27db3b63b5a99fa241d150442e"
+  },
+  "ingest.rawCustom": {
+    "sourceHash": "c8d9ac44fa2016590a69a696b7f60cfed64e45fdf2d3b21e02311b262b842035"
+  },
+  "ingest.rawConflict": {
+    "sourceHash": "431a6be4393a771d4ed10449e8a78e6088cff316b7a160813c760cfb6b2adafc"
+  },
+  "ingest.rawFailed": {
+    "sourceHash": "fc096714ef7265ad281d77738cf812e8c0ac43b80300a5d35212fe65a395f466"
+  },
+  "ingest.rawCustomAll": {
+    "sourceHash": "cd76ef19e4d8139918953c5d78b3834972b6ee5e293fe416092061a9aa6d56be"
+  },
+  "ingest.rawLibrary": {
+    "sourceHash": "16f283a992ed3308f21d5acfd84689300b0761c22c01bcaafa5694420db86cb9"
+  },
+  "ingest.rawLibraryAll": {
+    "sourceHash": "99b8553efa36aba073a5a8c6e1ea2bed89cd586d38a92b6f87fc77c3482d47db"
+  },
+  "ingest.nfoTmdbFailed": {
+    "sourceHash": "d9f83e39b5b49b6053f505dd3a305f599e64faaa27d09c8b5363fdf3b5d57c81"
+  },
+  "ingest.tmdbUnavailable": {
+    "sourceHash": "7eddbe9e5283f3c9edaa0ba642d5f6629582f09c1781bec4c9020305252175f4"
+  },
+  "ingest.claimCreateFailed": {
+    "sourceHash": "206c0af5a694c28e8872cc044835e786a2261c32ba7eedc9dd81f86a79a0b772"
+  },
+  "ingest.collection": {
+    "sourceHash": "0c59ec121464353575184739cc5320021b98285fccf727323cbd9b722035cbee"
+  },
+  "ingest.collectionAdded": {
+    "sourceHash": "7c452e81327f57e5d02ec22c3a90216d0c46ec7f71ce5a70ef4730e48bf59152"
+  },
+  "ingest.collectionPresent": {
+    "sourceHash": "0fa67eb3ed04ac7d31e8c95fd6c77fe7a68b99fea4cc182add145da2c5e9ccfb"
+  },
+  "ingest.collectionUnresolved": {
+    "sourceHash": "4f556001ed068e86c2a16f53e77c9fe0eb6b9a199830fe5d3b2b95b24b1d3cf9"
+  },
+  "ingest.collectionExtras": {
+    "sourceHash": "db6ff5c226f559ef103c7aeb1d908b42daec826473a7fe12b1deced205396480"
+  },
+  "ingest.discMkdirFailed": {
+    "sourceHash": "05e85176d58f917fef0582d09ab9723a9ff3b4a2c0d82466e3b0ef5051730738"
+  },
+  "ingest.discSymlink": {
+    "sourceHash": "c9ec61fcfe2ab3a0a36a228209cd13daec9427fb216127ded5ada5b47b9e7963"
+  },
+  "ingest.discCrossDevice": {
+    "sourceHash": "b0cc75a261f1390d42a1257975ceba20297f93874164ec1ed7122d00ad457764"
+  },
+  "ingest.discEmpty": {
+    "sourceHash": "d975115affbbbf2f8e428ec653b85a2c6502e790bc6ac3190e3936e0ea31170c"
+  },
+  "ingest.discOccupied": {
+    "sourceHash": "eacf8885b2407a247106efc5405116fb5084af954755c2fedbb031905a650e38"
+  },
+  "ingest.discTransferFailed": {
+    "sourceHash": "b38f2bcdec669607ea7ef104c045b91f192bfa765ac716295106254caa9a6b1f"
+  },
+  "ingest.discTransferIncomplete": {
+    "sourceHash": "e7eac9d4166cfb1dcb51981983a24b50c8f5d8d2e768044cc5a56c38e62ebd76"
+  },
+  "ingest.targetExists": {
+    "sourceHash": "20397c7d75ea58158d6240c0a6c0b16ad0f611d7620b7e60b48d9da094dd38e7"
+  },
+  "ingest.mkdirFailed": {
+    "sourceHash": "8cbfb1472af596e0f90cfb8f99a0f0c02b539ef5b3505b58643257788c3db271"
+  },
+  "ingest.copyFailed": {
+    "sourceHash": "433eac84c0f85c1fb4232c8b57d50a67870b3eacbdf1c688c2c07c0e089f0703"
+  },
+  "ingest.crossDevice": {
+    "sourceHash": "04597ccfc6bedbdae2ccc9dcd4fe1dd296e365290527b52ff742a20037668541"
+  },
+  "ingest.hardlinkFailed": {
+    "sourceHash": "719b692eeee8bbcb30cc18d9b285e8ca0e555841708932204bda8a96ee77b11d"
+  },
+  "ingest.copyIncomplete": {
+    "sourceHash": "8526a313ed161a8f80f9f28d242a0002d7e655e16fe46d7da7319a3f1457a070"
+  },
+  "ingest.readyMissing": {
+    "sourceHash": "a0ef41ed3289cd516a08eecb2cc9834a26a72203c4432635814a8bf86b3f3eb2"
+  },
+  "ingest.readyUnreadable": {
+    "sourceHash": "4ea00b80cb5338b0f15b32f8e0494b963f8644962402a703e1fcb7d0f4980902"
+  },
+  "ingest.readyResized": {
+    "sourceHash": "70159365f728e03ce0092b3a2dfb7ba35fd3d8743c4ca01afc0431bee1fce0e8"
+  },
+  "ingest.readyMarker": {
+    "sourceHash": "c9ee3a5e4d259fe4ba0abffb9932b922caadeeebf0a434325aae25f4276a3740"
+  },
+  "ingest.sourceChanging": {
+    "sourceHash": "791133d65ef72b096ee1c76a7e7438d992bd9b13e922ab66a448c03af9e0549b"
+  },
+  "ingest.retry.unstable": {
+    "sourceHash": "201ae7cc4ca427c7c33786288306c4aec2fa06556d603a9117acd604e650e412"
+  },
+  "ingest.failed.readyInvalid": {
+    "sourceHash": "f1afe977e18d764017d3341f76df3b619dc8be98b69d53e3c6922c8469a3b120"
+  },
+  "ingest.result.ruleDeleted": {
+    "sourceHash": "14f50c2300acb82a6d2d210f3cf8ee58c319683786b91a4d9bc280e260304e57"
+  },
+  "ingest.failed.outsideRule": {
+    "sourceHash": "ac1e2b2551dd12c574e80fe761e9e89d1f673bc23d18c9a03b04d229e7b95d90"
+  },
+  "ingest.result.entryRemoved": {
+    "sourceHash": "66296cf052b99752b8cadef94f1873a83d1f3f26a8859363b736c5c48e5f5221"
+  },
+  "ingest.retry.downloaderUnreachable": {
+    "sourceHash": "93e7690f772db94808e3b3532aaff3755d4b1deb84b2ea0b30acb2128e304c79"
+  },
+  "ingest.retry.taskMissing": {
+    "sourceHash": "d14a64243781140868f1f699acfa40ce31c694897ab0f80fe65ca3c462dda6ed"
+  },
+  "ingest.retry.evidenceChanged": {
+    "sourceHash": "acf1ebaecc240801dafafb7a6d16756d226b84cfdf41f6a84a6981699087a66b"
+  },
+  "ingest.retry.downloading": {
+    "sourceHash": "4f03a57916790fa51a7e2d27c6e545a529cfd589870ee5989c1c67ced8220f64"
+  },
+  "ingest.retry.marker": {
+    "sourceHash": "fb614278f50acbf78a4188eae2e34d6be0688599bbfe2244d2c349e0e76cabcd"
+  },
+  "ingest.result.ignored": {
+    "sourceHash": "1cf8948f5d2b7ea0ea57c2eefd8d65a279b71b61822b253a5a4d400836e46c4f"
+  },
+  "ingest.result.processed": {
+    "sourceHash": "eb0c9084920b7ee0f453ed31b8254fb58f1e9012d07b45ee49b7caeb6f2945d2"
+  },
+  "ingest.blocked.identity": {
+    "sourceHash": "cca410a33f0c66a2822441f215df1cc77bbb3d063800c6b09e981d442f62ce38"
+  },
+  "ingest.blocked.review": {
+    "sourceHash": "a4a5076f49e11167b689713ce1b412aac0ebdd7b47c53f9636a8785f0c5b0ce6"
+  },
+  "ingest.retry.incomplete": {
+    "sourceHash": "7fdf5f26c1ea131248cb550c8926f4c11570649a8b535e70e9770af47bf74b0e"
+  },
+  "ingest.result.done": {
+    "sourceHash": "ee9b407c4681f8afc440b53abd18249694b829ae2920c61e1117c0c08707884a"
+  },
+  "ingest.action.view": {
+    "sourceHash": "2e258532fb19bb211ac840a352a7d913e7d25048250c3e246e4419f32d2436e2"
+  },
+  "ingest.action.claim": {
+    "sourceHash": "8ffcc7adde17afd9c795d55e0f1927b6915a964e74d0b996f13d51a981b360d9"
+  },
+  "ingest.ignoredManually": {
+    "sourceHash": "58a8d21b35c6a03217e4ef69a47fd97e9c6ec0f3d716c7bd12a73ae79de6fbe9"
+  },
+  "ingest.cancelIgnored": {
+    "sourceHash": "4d904c5ebb30c1dbd9c2752c04465126931ac7cd6a7ebd0afa52ba844d0c92bf"
+  },
+  "ingest.cancelIgnoredStartup": {
+    "sourceHash": "da207e4b13d1bf0bc3a4069dde6d243745b7a3980dced7d692bafbcc57bb67e8"
+  },
+  "ingest.batchSuperseded": {
+    "sourceHash": "b40778cf767de934772954abfa330353e3bbd057e85a25bd60a7ba8bedcf55bb"
+  },
+  "ingest.cancelDiscSegment": {
+    "sourceHash": "2dd6496e66806bfaeb586fe9363b60c92e1907cd6d03c28a29f792d7a0cb041f"
+  },
+  "ingest.legacyDiscReconciled": {
+    "sourceHash": "6c85e5d9cebaf0a57a77a3bd240d25578c7b04ce6b472c3c4ca8632133733940"
+  },
+  "ingest.restored": {
+    "sourceHash": "a1bff280a134e500667b4b2f118cfad7b952d64a7e6d4a5e8579c5942e9fa5a3"
+  },
+  "ingest.claimedFile": {
+    "sourceHash": "3a7671573e4728bb045c7a9ec0b1abf72dcf9b24d4067b1ed41b5e732b8632d2"
+  },
+  "ingest.claimed": {
+    "sourceHash": "a2d89716d50f72688bdd2cbbd81e71d1fcaed55e40b44986ae0ac5f5c60b032b"
   }
 }

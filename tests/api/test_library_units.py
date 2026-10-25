@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 import movieclaw_api.services.library.units as units_mod
+from movieclaw_api.i18n.stored import source_render
 from movieclaw_api.services.library.layout import explicit_episode
 from movieclaw_api.services.library.units import resolve_units
 from movieclaw_enrich.models import TorrentAttrs
@@ -127,7 +128,8 @@ def test_hallucinated_season_never_reaches_disk(tmp_path, monkeypatch) -> None:
     unit = resolve_units(files, known_seasons={1, 2})[files[0]]
     assert unit.season is None
     assert unit.episode == 5
-    assert "第 36 季" in (unit.rejected_reason or "")
+    assert unit.rejected_reason is not None
+    assert "第 36 季" in source_render(unit.rejected_reason)
 
 
 def test_model_season_outranks_single_season_ledger(tmp_path, monkeypatch) -> None:
@@ -270,7 +272,8 @@ def test_vetoed_season_without_unique_fallback_stays_pending(tmp_path, monkeypat
     _, files = _pack(tmp_path, "Show Pack", ["Show.Episode.Five.mkv"])
     unit = resolve_units(files, known_seasons={1, 2})[files[0]]
     assert unit.season is None
-    assert "第 36 季" in (unit.rejected_reason or "")
+    assert unit.rejected_reason is not None
+    assert "第 36 季" in source_render(unit.rejected_reason)
 
 
 def test_explicit_pilot_is_not_a_parser_gap(tmp_path) -> None:

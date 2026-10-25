@@ -93,9 +93,9 @@ def _job_view(job: Job, resources: list[JobResource], *, slim_input: bool = Fals
         ],
         origin=job.origin,
         actor_kind=job.actor_kind,
-        # 系统发起者的名字存的是中文原文：按读者语言反查渲染；成员名是数据，原样给
+        # 系统/界面入口发起者的名字存的是中文原文：按读者语言反查渲染；成员名是数据，原样给
         actor_name=stored_message(job.actor_name)
-        if job.actor_kind == "system" and job.actor_name
+        if job.actor_kind in {"system", "user"} and job.actor_name
         else job.actor_name,
         parent_job_id=job.parent_job_id,
         root_job_id=job.root_job_id,
