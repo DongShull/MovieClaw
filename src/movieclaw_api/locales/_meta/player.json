@@ -556,5 +556,23 @@
   },
   "watch.browser": {
     "sourceHash": "e19c3b9e266c69c952f9f265334bb14bceeb2f6869305d1a44447c5e09e64105"
+  },
+  "subtitleName.chinese": {
+    "sourceHash": "72726d8818f693066ceb69afa364218b692e62ea92b385782363780f47529c21"
+  },
+  "subtitleName.english": {
+    "sourceHash": "348ea84c60466c775ef76b536818a2148fa706b722e60373969b9291703275d9"
+  },
+  "subtitleName.japanese": {
+    "sourceHash": "ffb5f47363d4eeddd56535279f99dd80122586b7c78f889c943571ecaa860baa"
+  },
+  "subtitleName.korean": {
+    "sourceHash": "9adb531f355ad086199d3474ab5e4818b94ab56f457e76770e50147dbddb15b9"
+  },
+  "subtitleName.generic": {
+    "sourceHash": "60033a3bf561e656bd4d70070fba680e0fc1ecd08117e38656e14dad3a1b0a60"
+  },
+  "hw.lowPower": {
+    "sourceHash": "fc67c77611bc70ee13a63660999e916d89c0c29dc259adf866eb5a90d0d6d663"
   }
 }

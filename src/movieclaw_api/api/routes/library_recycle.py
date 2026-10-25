@@ -29,7 +29,13 @@ from sqlmodel import select
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.i18n import t
-from movieclaw_api.i18n.stored import reference, render_value, stored_fields, stored_message
+from movieclaw_api.i18n.stored import (
+    reference,
+    render_value,
+    source_text,
+    stored_fields,
+    stored_message,
+)
 from movieclaw_api.schemas.library import (
     TrashedBatchFailureView,
     TrashedBatchResultView,
@@ -80,7 +86,7 @@ _AUDIO_CODEC_TOKENS = {
 # 这些 profile 只是编码内部档次，单独展示反而让人困惑；只有 DTS-HD MA 这类
 # "比 codec 更有信息量"的 profile 才顶替 codec（与详情页同一判断）
 _GENERIC_PROFILES = {"lc", "main", "high", "baseline", "main 10"}
-_CHANNEL_LABELS = {1: "单声道", 2: "2.0", 6: "5.1", 7: "6.1", 8: "7.1"}
+_CHANNEL_LABELS = {2: "2.0", 6: "5.1", 7: "6.1", 8: "7.1"}
 
 
 # ---------------------------------------------------------------------------
@@ -148,15 +154,24 @@ def _audio_label(streams: list | None) -> str | None:
     if layout[:1].isdigit():
         chan: str | None = layout
     elif isinstance(channels, int):
-        chan = _CHANNEL_LABELS.get(channels, f"{channels} 声道")
+        chan = (
+            t("library.recycle.mono")
+            if channels == 1
+            else _CHANNEL_LABELS.get(channels) or t("library.recycle.channels", count=channels)
+        )
     else:
         chan = None
     return " ".join(part for part in (name, chan) if part) or None
 
 
 def _tier(row: LibraryFile) -> str:
-    """品质档位「分辨率 片源」，两者都没探到时写「未知规格」。"""
-    return " ".join(part for part in (row.resolution, row.media_source) if part) or "未知规格"
+    """品质档位「分辨率 片源」，两者都没探到时写「未知规格」。
+
+    这是分组键（不随读者语言变），展示名由 tier_labels 另行渲染。
+    """
+    return " ".join(part for part in (row.resolution, row.media_source) if part) or source_text(
+        "library.recycle.unknownSpec"
+    )
 
 
 def _snapshot_text(context: dict, field: str) -> str | None:

@@ -21,6 +21,7 @@ from movieclaw_api.exceptions import (
     ServiceUnavailableException,
     exception_fields,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.offline import (
     OfflineExportRequest,
     OfflineExportView,
@@ -314,7 +315,10 @@ async def download_offline_export(
         )
     if state.status == exports.STATUS_FAILED:
         return Response(
-            content=f"转码失败：{state.error or '未知原因'}".encode(),
+            content=t(
+                "errors.offline.transcodeFailed",
+                reason=state.error or t("errors.offline.unknownReason"),
+            ).encode(),
             status_code=422,
             media_type="text/plain; charset=utf-8",
         )

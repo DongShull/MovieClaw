@@ -192,7 +192,8 @@
     "driverUnsupported": "驱动不支持这种编码，可能是显卡代次过旧或驱动版本过低。",
     "driverInitFailed": "驱动初始化失败，通常是宿主机显卡驱动缺失或版本不匹配。",
     "probeFailed": "硬件编码探测失败：{summary}",
-    "noReason": "（ffmpeg 未给出原因）"
+    "noReason": "（ffmpeg 未给出原因）",
+    "lowPower": "{encoder}（低功耗）"
   },
   "worker": {
     "waiterMissing": "远程任务等待器不存在",
@@ -216,5 +217,12 @@
   },
   "watch": {
     "browser": "浏览器"
+  },
+  "subtitleName": {
+    "chinese": "中文",
+    "english": "英文",
+    "japanese": "日文",
+    "korean": "韩文",
+    "generic": "字幕"
   }
 }

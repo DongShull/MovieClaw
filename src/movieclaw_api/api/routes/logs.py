@@ -82,6 +82,7 @@ async def list_log_days() -> ApiResponse[LogDayList]:
     operation_id="logs.read",
 )
 async def read_log_day(
+    # i18n-ignore: OpenAPI parameter description
     day: str = PathParam(pattern=r"^\d{4}-\d{2}-\d{2}$", description="日期，如 2026-07-18"),
     tail: int = Query(
         default=DEFAULT_TAIL_LINES,

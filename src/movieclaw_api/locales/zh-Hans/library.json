@@ -86,7 +86,20 @@
     "mergeRootsStarted": "已开始把 {count} 个条目并入「{target}」，可在任务中心继续观察",
     "mergeRootsRunning": "「{name}」的根路径归并作业已在进行中",
     "itemTransferStarted": "已开始把「{title}」转移到「{target}」，可在任务中心继续观察",
-    "itemTransferRunning": "「{title}」的转移作业已在进行中"
+    "itemTransferRunning": "「{title}」的转移作业已在进行中",
+    "watchStatesKept": "{count} 条观看记录已保留，同一部作品重新入库后自动接回",
+    "scanStartedScope": "已开始扫描「{name}」{scoped, select, yes {的 {count} 个目录} other {}}",
+    "repairRootsStarted": "已开始修复「{name}」的历史根路径台账",
+    "identityPinned": "（身份由目录名的 tmdbid 标记或 NFO 指定——若确属错挂，请先修改/删除该标记或 NFO 后重试，或人工认领）",
+    "unidentifiedFiles": "{count} 个文件未识别，已进入待识别清单",
+    "keptOnError": "{count} 个文件因 TMDB 查询失败保留原身份",
+    "crossDeviceCount": "（其中 {count} 个需要跨盘复制，耗时取决于体积）",
+    "crossDevice": "（跨盘转移需要完整复制文件，耗时取决于体积）",
+    "emptyRecords": "台账为空",
+    "configChangedActor": "媒体库配置变更",
+    "configChangedCancel": "媒体库配置已变更或已删除，按旧配置进行的扫描不再适用，系统自动取消",
+    "scanStopActor": "媒体库扫描停止入口",
+    "libraryPageActor": "媒体库页面"
   },
   "collections": {
     "orderSaved": "顺序已保存",
@@ -165,7 +178,9 @@
     "triggerUpgrade": "订阅洗版",
     "noteDuplicateIdentical": "重复清理：与「{name}」一模一样，已保留后者",
     "noteDuplicateVersion": "重复清理：留下「{name}」（{kept}），移除本版本（{removed}）",
-    "qualityLabel": "{base}{hdr}"
+    "qualityLabel": "{base}{hdr}",
+    "mono": "单声道",
+    "channels": "{count} 声道"
   },
   "artwork": {
     "autoRestored": "已恢复{kind}的自动选图（下次刷新元数据时重新挑选）",
@@ -611,7 +626,8 @@
     "rootDir": "根目录",
     "overlap": "「{a}」和「{b}」重叠了，选外层的一个就行",
     "overlapLibrary": "「{path}」与媒体库《{library}》的网盘目录「{other}」重叠，同一份文件只能在一个库里",
-    "syncActor": "网盘变化同步"
+    "syncActor": "网盘变化同步",
+    "defaultTitle": "网盘"
   },
   "deleteOptions": {
     "previewUnavailable": "暂时无法预览，这次不能勾选",

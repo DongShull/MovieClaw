@@ -301,7 +301,8 @@
     "fileMissing": "文件不存在",
     "settingsInvalid": "设置不合规：{detail}",
     "noLongerExists": "插件已不存在",
-    "startupFailed": "启动失败"
+    "startupFailed": "启动失败",
+    "callbacksDisabled": "插件回调未启用"
   },
   "share": {
     "passwordLength": "分享密码长度须在 {minimum}–{maximum} 位之间",
@@ -582,7 +583,9 @@
     "fileOffDisk": "文件已不在磁盘上",
     "exportMissing": "导出不存在或已回收",
     "exportRemoved": "导出文件已回收",
-    "strmUnavailable": "strm 用不了：{error}"
+    "strmUnavailable": "strm 用不了：{error}",
+    "transcodeFailed": "转码失败：{reason}",
+    "unknownReason": "未知原因"
   },
   "themes": {
     "missing": "没有这个主题",
@@ -627,7 +630,17 @@
     "urlSchemeRequired": "远程转码覆盖地址必须以 http:// 或 https:// 开头，当前填写的是「{url}」",
     "urlProtocolInvalid": "远程转码覆盖地址必须使用 HTTP 或 HTTPS",
     "urlCredentialsForbidden": "远程转码覆盖地址不能包含账号或密码",
-    "urlComponentsForbidden": "远程转码覆盖地址不能包含查询参数或片段"
+    "urlComponentsForbidden": "远程转码覆盖地址不能包含查询参数或片段",
+    "credentialRevoked": "凭证无效或已被吊销，请在网页「设置 → 设备」重新配对",
+    "remoteDisabled": "服务端尚未启用远程转码，请在网页「应用 → 远程转码」打开开关并确认地址",
+    "helloTimeout": "Worker hello 超时",
+    "helloInvalid": "Worker hello 格式错误",
+    "protocolMismatch": "Worker 协议版本（{worker}）与服务端（{server}）不一致，请把 Worker 与服务端更新到同一版本",
+    "maxJobsRange": "并发上限必须为 1～4",
+    "partInteger": "part 必须是整数",
+    "uploadTooLarge": "远程转码分片超过上传大小限制",
+    "contentLengthInvalid": "Content-Length 无效",
+    "unknownAddress": "未知地址"
   },
   "recycle": {
     "selectionConflict": "需要且只能提供 ids 或 filter 之一",
@@ -950,5 +963,10 @@
     "inUse": "媒体库《{names}》还在用这个账号的网盘目录，先在编辑库里拿掉它们",
     "librarySeparator": "》《",
     "backendUnavailable": "没有安装能连接「{type}」网盘的存储插件"
+  },
+  "upstream": {
+    "tmdbHint": "到「设置 → 网络」为 TMDB 配置代理或镜像地址，保存后用连通性测试验证",
+    "doubanHint": "到「设置 → 网络」为豆瓣配置代理或反代地址，保存后用连通性测试验证",
+    "fanartHint": "到「设置 → 网络与代理」为「Fanart.tv」开启代理后再试"
   }
 }

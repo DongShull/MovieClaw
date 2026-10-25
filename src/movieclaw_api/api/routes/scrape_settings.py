@@ -235,7 +235,7 @@ async def save_fanart_key(payload: FanartKeyPayload) -> ApiResponse[FanartStatus
         raise UpstreamUnreachableException(
             str(exc),
             service="fanart",
-            hint="到「设置 → 网络与代理」为「Fanart.tv」开启代理后再试",
+            hint=t("errors.upstream.fanartHint"),
         ) from exc
     except FanartError as exc:
         raise BadRequestException(str(exc)) from exc
@@ -248,8 +248,10 @@ async def save_fanart_key(payload: FanartKeyPayload) -> ApiResponse[FanartStatus
 
 # 内置常用表：TMDB 不可用（未配 Key / 断网）时设置页仍能工作的最小集合
 _BUILTIN_LANGUAGES = [
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "zh", "name": "中文", "english_name": "Chinese"},
     {"code": "en", "name": "English", "english_name": "English"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "ja", "name": "日本語", "english_name": "Japanese"},
     {"code": "ko", "name": "한국어", "english_name": "Korean"},
     {"code": "fr", "name": "Français", "english_name": "French"},
@@ -262,15 +264,25 @@ _BUILTIN_LANGUAGES = [
     {"code": "hi", "name": "हिन्दी", "english_name": "Hindi"},
 ]
 _BUILTIN_COUNTRIES = [
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "CN", "name": "中国"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "US", "name": "美国"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "JP", "name": "日本"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "KR", "name": "韩国"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "GB", "name": "英国"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "FR", "name": "法国"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "DE", "name": "德国"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "HK", "name": "香港"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "TW", "name": "台湾"},
+    # i18n-ignore: endonym and builtin fallback data; English via Babel
     {"code": "IN", "name": "印度"},
 ]
 

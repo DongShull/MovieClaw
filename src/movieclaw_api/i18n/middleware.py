@@ -1,5 +1,5 @@
 from starlette.datastructures import MutableHeaders
-from starlette.requests import Request
+from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from movieclaw_api.i18n import current_locale, negotiate, normalize_locale
@@ -10,12 +10,12 @@ class LocaleMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
+        if scope["type"] not in ("http", "websocket"):
             await self.app(scope, receive, send)
             return
-        request = Request(scope)
-        locale = normalize_locale(request.cookies.get("mc_locale", "")) or negotiate(
-            request.headers.get("accept-language")
+        connection = HTTPConnection(scope)
+        locale = normalize_locale(connection.cookies.get("mc_locale", "")) or negotiate(
+            connection.headers.get("accept-language")
         )
         token = current_locale.set(locale)
 
@@ -27,6 +27,7 @@ class LocaleMiddleware:
             await send(message)
 
         try:
-            await self.app(scope, receive, localized_send)
+            # WebSocket（远程转码 Worker 等）同样按握手请求的语言说话，只是没有响应头可写
+            await self.app(scope, receive, localized_send if scope["type"] == "http" else send)
         finally:
             current_locale.reset(token)

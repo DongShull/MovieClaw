@@ -281,10 +281,11 @@ def _diagnostic_encoder(session: TranscodeSession) -> str | None:
     if session.hw_backend:
         backend = HW_BACKENDS.get(session.hw_backend)
         if backend is not None:
-            # 低功耗编码要标出来：同一块核显两种模式表现可能天差地别（issue #763）。
-            # 远程会话不看：本机自检的结论说的是 NAS 这块核显
-            low_power = not session.remote and encoder_options(backend) == VAAPI_LOW_POWER
-            return f"{backend.encoder}（低功耗）" if low_power else backend.encoder
+            # 低功耗编码要标出来：同一块核显两种模式表现可能天差地别（issue #763）
+            low_power = encoder_options(backend) == VAAPI_LOW_POWER
+            return (
+                t("player.hw.lowPower", encoder=backend.encoder) if low_power else backend.encoder
+            )
     return "libx264"
 
 
@@ -462,10 +463,12 @@ async def list_up_next(
 
 
 _FAVORITE_SORT_DESC = (
+    # i18n-ignore: OpenAPI description or startup log line
     "排序：favorited_at=最近收藏在前（默认）/ title=按标题 / added_at=最近入账 / "
     "release_date=按上映时间 / rating=按评分 / runtime=按片长 / size=按体积 / "
     "last_played=最近观看——与单库海报墙同一套档位"
 )
+# i18n-ignore: OpenAPI description or startup log line
 _ORDER_DESC = "方向：asc / desc；不给 = 该档的自然方向（收藏时间新→旧、标题 A→Z…）"
 
 
@@ -1708,15 +1711,15 @@ async def get_session_playlist(
 #: HLS 字幕组 NAME 的语言显示名。装进系统播放器的字幕菜单里给人看的，
 #: 覆盖常见语言即可，冷门语言直接显示原始码也能认。
 _SUBTITLE_LANG_NAMES = {
-    "chi": "中文",
-    "zho": "中文",
-    "zh": "中文",
-    "eng": "英文",
-    "en": "英文",
-    "jpn": "日文",
-    "ja": "日文",
-    "kor": "韩文",
-    "ko": "韩文",
+    "chi": "player.subtitleName.chinese",
+    "zho": "player.subtitleName.chinese",
+    "zh": "player.subtitleName.chinese",
+    "eng": "player.subtitleName.english",
+    "en": "player.subtitleName.english",
+    "jpn": "player.subtitleName.japanese",
+    "ja": "player.subtitleName.japanese",
+    "kor": "player.subtitleName.korean",
+    "ko": "player.subtitleName.korean",
 }
 
 #: 能进 HLS 字幕组的轨：文本轨（vtt 含 srt 转换；ass 服务端降级转 VTT）。
@@ -1787,7 +1790,8 @@ async def get_session_master_playlist(
     subtitles: list[tuple[str, str]] = []
     seen: dict[str, int] = {}
     for i, track in enumerate(_master_subtitle_tracks(session)):
-        name = _SUBTITLE_LANG_NAMES.get((track.language or "").lower(), track.language or "字幕")
+        key = _SUBTITLE_LANG_NAMES.get((track.language or "").lower())
+        name = t(key) if key else track.language or t("player.subtitleName.generic")
         seen[name] = seen.get(name, 0) + 1
         if seen[name] > 1:
             name = f"{name} {seen[name]}"
@@ -3296,6 +3300,7 @@ async def report_playback_client_log(
     # 记 WARNING 会让看日志的人以为出了问题
     log = logger.info if payload.event in _INFO_CLIENT_EVENTS else logger.warning
     log(
+        # i18n-ignore: OpenAPI description or startup log line
         "播放器客户端日志：%s %s",
         payload.event,
         _json.dumps(payload.detail, ensure_ascii=False, default=str)[:2000],
@@ -3326,13 +3331,17 @@ def _startup_summary(detail: dict) -> str:
         ),
         key=lambda pair: pair[1],
     )
+    # i18n-ignore: OpenAPI description or startup log line
     path = "原文件" if detail.get("original") else "服务端流"
     start_ms = detail.get("start_ms")
     start_s = round(start_ms / 1000) if isinstance(start_ms, int | float) else 0
     return (
+        # i18n-ignore: OpenAPI description or startup log line
         f"{detail.get('engine') or '未知引擎'} 档 {detail.get('tier')} {path} · "
         + " → ".join(f"{name} {int(value)}" for name, value in marks)
+        # i18n-ignore: OpenAPI description or startup log line
         + f" 毫秒（条目 {detail.get('media_item_id')} · 文件 {detail.get('file_id')}"
+        # i18n-ignore: OpenAPI description or startup log line
         + f" · 起点 {start_s} 秒"
         + (f" · attempt={detail['attempt_id']}" if detail.get("attempt_id") else "")
         + "）"

@@ -192,7 +192,8 @@
     "driverUnsupported": "The driver doesn’t support this encoding; the GPU may be too old or the driver outdated.",
     "driverInitFailed": "The driver failed to initialize, usually because the host driver is missing or mismatched.",
     "probeFailed": "The hardware encoding probe failed: {summary}",
-    "noReason": "(ffmpeg gave no reason)"
+    "noReason": "(ffmpeg gave no reason)",
+    "lowPower": "{encoder} (low power)"
   },
   "worker": {
     "waiterMissing": "The remote job waiter doesn’t exist",
@@ -216,5 +217,12 @@
   },
   "watch": {
     "browser": "Browser"
+  },
+  "subtitleName": {
+    "chinese": "Chinese",
+    "english": "English",
+    "japanese": "Japanese",
+    "korean": "Korean",
+    "generic": "Subtitles"
   }
 }

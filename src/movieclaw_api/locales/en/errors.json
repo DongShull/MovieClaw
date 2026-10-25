@@ -301,7 +301,8 @@
     "fileMissing": "This file does not exist",
     "settingsInvalid": "Invalid settings: {detail}",
     "noLongerExists": "The plugin no longer exists",
-    "startupFailed": "Startup failed"
+    "startupFailed": "Startup failed",
+    "callbacksDisabled": "Plugin callbacks are not enabled"
   },
   "share": {
     "passwordLength": "The share password must be between {minimum} and {maximum} characters",
@@ -582,7 +583,9 @@
     "fileOffDisk": "This file is no longer on disk",
     "exportMissing": "This export does not exist or has been cleaned up",
     "exportRemoved": "The exported file has been cleaned up",
-    "strmUnavailable": "The strm source is unavailable: {error}"
+    "strmUnavailable": "The strm source is unavailable: {error}",
+    "transcodeFailed": "Transcoding failed: {reason}",
+    "unknownReason": "unknown reason"
   },
   "themes": {
     "missing": "This theme does not exist",
@@ -627,7 +630,17 @@
     "urlSchemeRequired": "The remote transcoding override address must begin with http:// or https://. Current value: \"{url}\"",
     "urlProtocolInvalid": "The remote transcoding override address must use HTTP or HTTPS",
     "urlCredentialsForbidden": "The remote transcoding override address cannot contain a username or password",
-    "urlComponentsForbidden": "The remote transcoding override address cannot contain query parameters or a fragment"
+    "urlComponentsForbidden": "The remote transcoding override address cannot contain query parameters or a fragment",
+    "credentialRevoked": "The credential is invalid or revoked. Pair again from Settings → Devices on the web",
+    "remoteDisabled": "Remote transcoding isn’t enabled on the server. Turn it on in Apps → Remote transcoding on the web and check the address",
+    "helloTimeout": "Worker hello timed out",
+    "helloInvalid": "Invalid worker hello",
+    "protocolMismatch": "The worker protocol version ({worker}) doesn’t match the server ({server}). Update both to the same version",
+    "maxJobsRange": "The concurrency limit must be 1–4",
+    "partInteger": "part must be an integer",
+    "uploadTooLarge": "The remote transcoding segment exceeds the upload size limit",
+    "contentLengthInvalid": "Invalid Content-Length",
+    "unknownAddress": "unknown address"
   },
   "recycle": {
     "selectionConflict": "Provide exactly one of ids or filter",
@@ -950,5 +963,10 @@
     "inUse": "Libraries “{names}” still use this account’s cloud drive folders. Remove those folders in the library editor first.",
     "librarySeparator": "”, “",
     "backendUnavailable": "No storage plugin is installed for the “{type}” cloud drive"
+  },
+  "upstream": {
+    "tmdbHint": "Configure a proxy or mirror for TMDB in Settings → Network, save, then verify with the connectivity test",
+    "doubanHint": "Configure a proxy or reverse proxy for Douban in Settings → Network, save, then verify with the connectivity test",
+    "fanartHint": "Enable a proxy for Fanart.tv in Settings → Network & proxy, then try again"
   }
 }

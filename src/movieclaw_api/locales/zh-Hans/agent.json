@@ -18,5 +18,8 @@
     "image": "[图片]",
     "images": "[图片 ×{count}]",
     "defaultInstruction": "用户未附加说明，按上述技能指令执行。"
+  },
+  "attachments": {
+    "imageName": "图片"
   }
 }

@@ -29,7 +29,7 @@ from movieclaw_api.api.routes.images import WIDTH_QUERY, requested_width, sized_
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
 from movieclaw_api.i18n import t
 from movieclaw_api.i18n.media_labels import routing_options_labels
-from movieclaw_api.i18n.stored import localize_fields, reference, stored_message
+from movieclaw_api.i18n.stored import localize_fields, reference, source_text, stored_message
 from movieclaw_api.schemas.library import (
     ActorView,
     ArtworkCandidatesView,
@@ -575,7 +575,11 @@ async def _delete_cloud_view(session: AsyncSession, file_ids: list[int]) -> Dele
     for account_id in {r.account_id for r in live}:
         account = accounts.get(account_id)
         backend = available.get(account.backend) if account is not None else None
-        title = backend.title if backend is not None else (account.backend if account else "网盘")
+        title = (
+            backend.title
+            if backend is not None
+            else (account.backend if account else t("library.cloud.defaultTitle"))
+        )
         if title not in titles:
             titles.append(title)
         recycle = recycle and bool(backend is not None and backend.capabilities.recycle_bin)
@@ -1440,8 +1444,8 @@ async def _quiesce_scan_for_mutation(
         await jobs.request_cancel(
             session,
             row.id,
-            requested_by="媒体库配置变更",
-            reason="媒体库配置已变更或已删除，按旧配置进行的扫描不再适用，系统自动取消",
+            requested_by=source_text("library.operations.configChangedActor"),
+            reason_key="library.operations.configChangedCancel",
         )
     if phase is not None and not active:
         request_stop_scan(library_id)  # 文件监听/定时对账触发的兼容扫描
@@ -1726,7 +1730,9 @@ async def delete_library(
     await media_scrape.cleanup_orphan_items(affected, defer_assets=True)
     message = t("library.operations.configDeleted")
     if kept_states:
-        message += f"；{kept_states} 条观看记录已保留，同一部作品重新入库后自动接回"
+        message += t("common.list.issueSeparator") + t(
+            "library.operations.watchStatesKept", count=kept_states
+        )
     return ok({}, message=message)
 
 
@@ -1785,7 +1791,12 @@ async def start_scan(
     return ok(
         ScanResultView(
             started=True,
-            message=f"已开始扫描「{library.name}」" + (f"的 {len(scope)} 个目录" if scope else ""),
+            message=t(
+                "library.operations.scanStartedScope",
+                name=library.name,
+                scoped="yes" if scope else "no",
+                count=len(scope or ()),
+            ),
             job_id=created.job.id,
             created=created.created,
         ),
@@ -1882,7 +1893,7 @@ async def start_path_reconcile(
     return ok(
         ScanResultView(
             started=True,
-            message=f"已开始修复「{library.name}」的历史根路径台账",
+            message=t("library.operations.repairRootsStarted", name=library.name),
             job_id=created.job.id,
             created=created.created,
         ),
@@ -1917,7 +1928,7 @@ async def stop_scan(
     )
     if active:
         job, accepted = await jobs.request_cancel(
-            session, active[0].id, requested_by="媒体库扫描停止入口"
+            session, active[0].id, requested_by=source_text("library.operations.scanStopActor")
         )
         if job is not None and accepted:
             return ok(
@@ -2082,7 +2093,9 @@ async def stop_metadata_refresh(
         limit=1,
     )
     if active:
-        await jobs.request_cancel(session, active[0].id, requested_by="媒体库页面")
+        await jobs.request_cancel(
+            session, active[0].id, requested_by=source_text("library.operations.libraryPageActor")
+        )
     elif not media_scrape.request_stop_library_refresh(library_id):
         raise ConflictException(
             message_key="errors.library.noMetadataRefresh", params={"name": library.name}
@@ -2858,7 +2871,9 @@ async def _attach_cloud_views(
         backend = available.get(account.backend) if account is not None else None
         view.cloud = FileCloudView(
             backend_title=(
-                backend.title if backend is not None else (account.backend if account else "网盘")
+                backend.title
+                if backend is not None
+                else (account.backend if account else t("library.cloud.defaultTitle"))
             ),
             account_name=account.name if account is not None else "",
             remote_path=replica.remote_path,
@@ -3977,16 +3992,17 @@ async def reidentify_library_item(
     elif summary.identified == summary.total and summary.total > 0:
         message = t("library.operations.identityUnchanged")
         if summary.pinned_identity:
-            message += (
-                "（身份由目录名的 tmdbid 标记或 NFO 指定——若确属错挂，"
-                "请先修改/删除该标记或 NFO 后重试，或人工认领）"
-            )
+            message += t("library.operations.identityPinned")
     else:
         message = t("library.operations.identityNotFound")
     if summary.unidentified and summary.identified:
-        message += f"；{summary.unidentified} 个文件未识别，已进入待识别清单"
+        message += t("common.list.issueSeparator") + t(
+            "library.operations.unidentifiedFiles", count=summary.unidentified
+        )
     if summary.kept_on_error and summary.kept_on_error != summary.total:
-        message += f"；{summary.kept_on_error} 个文件因 TMDB 查询失败保留原身份"
+        message += t("common.list.issueSeparator") + t(
+            "library.operations.keptOnError", count=summary.kept_on_error
+        )
     return ok(
         ReidentifyResultView(
             total=summary.total,
@@ -4246,7 +4262,7 @@ async def start_batch_transfer(
         else t("library.operations.batchTransferRunning", name=source.name)
     )
     if result.cross_device_items:
-        message += f"（其中 {result.cross_device_items} 个需要跨盘复制，耗时取决于体积）"
+        message += t("library.operations.crossDeviceCount", count=result.cross_device_items)
     return ok(
         TransferStartView(
             started=True,
@@ -4394,7 +4410,7 @@ async def start_consolidate_roots(
         else t("library.operations.mergeRootsRunning", name=library.name)
     )
     if result.cross_device_items:
-        message += f"（其中 {result.cross_device_items} 个需要跨盘复制，耗时取决于体积）"
+        message += t("library.operations.crossDeviceCount", count=result.cross_device_items)
     return ok(
         TransferStartView(
             started=True,
@@ -4478,9 +4494,11 @@ async def transfer_library_item(
     )
     plan = await build_transfer_plan(session, source, target, item, rows)
     if plan.blocked:
-        raise ConflictException("；".join(plan.blocked))
+        raise ConflictException(t("common.list.issueSeparator").join(plan.blocked))
     if not plan.moves and not plan.missing_file_ids:
-        detail = "；".join(s.reason for s in plan.skips) or "台账为空"
+        detail = t("common.list.issueSeparator").join(s.reason for s in plan.skips) or t(
+            "library.operations.emptyRecords"
+        )
         raise BadRequestException(
             message_key="errors.library.itemUnmovable",
             params={"title": item.title, "detail": detail},
@@ -4497,7 +4515,7 @@ async def transfer_library_item(
         else t("library.operations.itemTransferRunning", title=item.title)
     )
     if plan.cross_device:
-        message += "（跨盘转移需要完整复制文件，耗时取决于体积）"
+        message += t("library.operations.crossDevice")
     return ok(
         TransferStartView(
             started=True,

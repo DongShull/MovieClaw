@@ -364,7 +364,9 @@ async def upload_session_attachment(
     await asyncio.to_thread(store.cleanup_staging)
     # 只读到限额 +1 字节就停：uvicorn 默认不限请求体，不能无脑全量读
     data = await file.read(MAX_IMAGE_BYTES + 1)
-    meta = await asyncio.to_thread(store.save_staging, data, file.filename or "图片")
+    meta = await asyncio.to_thread(
+        store.save_staging, data, file.filename or t("agent.attachments.imageName")
+    )
     return ok(
         AttachmentUploadView(
             attachment_id=meta.attachment_id,

@@ -18,5 +18,8 @@
     "image": "[Image]",
     "images": "[Images ×{count}]",
     "defaultInstruction": "No extra instructions; follow the selected skill."
+  },
+  "attachments": {
+    "imageName": "Image"
   }
 }

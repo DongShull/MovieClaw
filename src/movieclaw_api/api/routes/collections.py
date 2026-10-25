@@ -82,11 +82,13 @@ CollectionSort = Literal[
     "title", "added_at", "release_date", "rating", "runtime", "size", "last_played", "random"
 ]
 _SORT_DESC = (
+    # i18n-ignore: OpenAPI parameter description
     "排序：不给=合集自己的顺序（自定顺序 / 合集默认序）；title=按标题 / "
     "added_at=最近入账 / release_date=按上映时间 / rating=按评分 / runtime=按片长 / "
     "size=按体积 / last_played=最近观看 / random=随便看看（按天换一批，首页自定义行用）"
     "——与单库海报墙同一套档位"
 )
+# i18n-ignore: OpenAPI parameter description
 _ORDER_DESC = "方向：asc / desc；不给 = 该档的自然方向（自定顺序即名单序）"
 
 

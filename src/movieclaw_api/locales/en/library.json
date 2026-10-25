@@ -86,7 +86,20 @@
     "mergeRootsStarted": "Started merging {count, plural, one {# item} other {# items}} into \"{target}\". Follow progress in the task center.",
     "mergeRootsRunning": "The root-path merge for \"{name}\" is already running",
     "itemTransferStarted": "Started moving \"{title}\" to \"{target}\". Follow progress in the task center.",
-    "itemTransferRunning": "The move for \"{title}\" is already running"
+    "itemTransferRunning": "The move for \"{title}\" is already running",
+    "watchStatesKept": "{count, plural, one {# watch record was} other {# watch records were}} kept and reattach when the same title is imported again",
+    "scanStartedScope": "Started scanning “{name}”{scoped, select, yes { ({count, plural, one {# folder} other {# folders}})} other {}}",
+    "repairRootsStarted": "Started repairing the legacy root path records of “{name}”",
+    "identityPinned": " (The identity comes from a tmdbid tag in the folder name or an NFO. If it’s wrong, edit or remove the tag or NFO and retry, or claim it manually.)",
+    "unidentifiedFiles": "{count, plural, one {# file wasn’t} other {# files weren’t}} identified and went to the unidentified list",
+    "keptOnError": "{count, plural, one {# file kept its} other {# files kept their}} identity because the TMDB lookup failed",
+    "crossDeviceCount": " ({count} of them must be copied across drives, which takes time depending on size)",
+    "crossDevice": " (Moving across drives copies the files in full, which takes time depending on size)",
+    "emptyRecords": "no records",
+    "configChangedActor": "Library settings change",
+    "configChangedCancel": "The library settings changed or the library was deleted, so the scan for the old settings was cancelled",
+    "scanStopActor": "Library scan stop",
+    "libraryPageActor": "Library page"
   },
   "collections": {
     "orderSaved": "Order saved",
@@ -165,7 +178,9 @@
     "triggerUpgrade": "Subscription upgrade",
     "noteDuplicateIdentical": "Duplicate cleanup: identical to “{name}”, which was kept",
     "noteDuplicateVersion": "Duplicate cleanup: kept “{name}” ({kept}) and removed this version ({removed})",
-    "qualityLabel": "{base}{hdr}"
+    "qualityLabel": "{base}{hdr}",
+    "mono": "Mono",
+    "channels": "{count} channels"
   },
   "artwork": {
     "autoRestored": "Automatic selection for {kind} restored. A new image will be chosen at the next metadata refresh.",
@@ -611,7 +626,8 @@
     "rootDir": "Root folder",
     "overlap": "“{a}” and “{b}” overlap. Choose only the outer one.",
     "overlapLibrary": "“{path}” overlaps the cloud folder “{other}” of library “{library}”. A file can belong to only one library.",
-    "syncActor": "Cloud change sync"
+    "syncActor": "Cloud change sync",
+    "defaultTitle": "Cloud storage"
   },
   "deleteOptions": {
     "previewUnavailable": "Preview is unavailable right now, so this option cannot be selected this time",

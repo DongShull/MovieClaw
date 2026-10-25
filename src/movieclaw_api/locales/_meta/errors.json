@@ -2494,5 +2494,53 @@
   },
   "driveLogin.backendUnavailable": {
     "sourceHash": "6b02bcb642821639fca43361abace246c8816b2fe162c1bc130d428608a39671"
+  },
+  "workers.credentialRevoked": {
+    "sourceHash": "bb3bd8a5a208bebdfda5fe01d42bb62e09a863de9ce3a3f635f46824354510f8"
+  },
+  "workers.remoteDisabled": {
+    "sourceHash": "d0e2cfbca65e82e874d4565abb8a44afefd32fec1588e352a9947c85468c799d"
+  },
+  "workers.helloTimeout": {
+    "sourceHash": "b3baa69a8a9e1f316667fd25fe169c1183168dadae2e548c4953af03276a1b90"
+  },
+  "workers.helloInvalid": {
+    "sourceHash": "cca3245e35f21279a1bebe3a95ad27f2f4eb6b65a4df364a94e11c26bd2c6c78"
+  },
+  "workers.protocolMismatch": {
+    "sourceHash": "14c37d487d82a1aae0a19da6096a929517b774718471f8951a2bd7420fafde1b"
+  },
+  "workers.maxJobsRange": {
+    "sourceHash": "28e4c214044f9e7577b738d63f0f79c3886dc26aad93904a3d4f22c064d91a55"
+  },
+  "workers.partInteger": {
+    "sourceHash": "b7c4af199504221647add78907cc5cf17b5928f2db2a5aab1e8a07ad3f798cd0"
+  },
+  "workers.uploadTooLarge": {
+    "sourceHash": "78ab21429d27187b192a8869aea917bee090deb3d797a7976f758134bef791d9"
+  },
+  "workers.contentLengthInvalid": {
+    "sourceHash": "7ae2a2490634b42218be4ee9ef0652143b818b8e880151e7a5e44e87ff6dcb7d"
+  },
+  "workers.unknownAddress": {
+    "sourceHash": "f4a131451fce95b3ad3b8d8a8cd7bba506315d57fbf63966835b0b2f8892073a"
+  },
+  "upstream.tmdbHint": {
+    "sourceHash": "93ac458029762eb1a990d17033dea294185f07be6bb66bedae54c230425b5db3"
+  },
+  "upstream.doubanHint": {
+    "sourceHash": "0be316e5271a9c8ca6c34def21b499828c2226f61a997306f90abf502946ba46"
+  },
+  "upstream.fanartHint": {
+    "sourceHash": "42d16e785f4f8a24f1728472c246792853ab0787cded75eb6fcbdac2be84af60"
+  },
+  "offline.transcodeFailed": {
+    "sourceHash": "d01111a34d8569de8fc2a92f548887fe36067f09ac7dcf7655ce573a5762dabc"
+  },
+  "offline.unknownReason": {
+    "sourceHash": "a1a9da9ee6ed040160b2b2f44e64c9c097cb7c728b575c49fbfee17b256b67f1"
+  },
+  "plugins.callbacksDisabled": {
+    "sourceHash": "ca129c271c06a92dfb2b7a129004db32627f917eb42516cdcc2744b0ab6a86c9"
   }
 }

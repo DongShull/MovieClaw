@@ -2074,5 +2074,53 @@
   },
   "subtitleJob.autoActor": {
     "sourceHash": "b8190db007e8c35362d8a6f0aba2b13869b150833de8eb19fbe0f783dcb866b4"
+  },
+  "operations.watchStatesKept": {
+    "sourceHash": "85f8761c4e8584169988e653e58b19af1e6b6d45de61863a8dfc8a2cda63498c"
+  },
+  "operations.scanStartedScope": {
+    "sourceHash": "4bf5c8924d227a5519a1cfae9c9728129c4aab67ce6ec00090c50c894dd477ae"
+  },
+  "operations.repairRootsStarted": {
+    "sourceHash": "68deb94654e4bcc4a0285c29170e8353bb6d401905495c70ee7fc35f9e721399"
+  },
+  "operations.identityPinned": {
+    "sourceHash": "6dd1bac0a06c0aaf442a2570788e79a8cf3c43ac906cd98be4e211023d732dfc"
+  },
+  "operations.unidentifiedFiles": {
+    "sourceHash": "5de111b4c0fd2bd74f8b1b71dbd0035d5f16f1cb26b27ee1bd7a2adf49ddae30"
+  },
+  "operations.keptOnError": {
+    "sourceHash": "2ba98d66d2dc0b5b0e93875ff1f18c2b5f2130adaad463c1bb3fcbbc97777ff5"
+  },
+  "operations.crossDeviceCount": {
+    "sourceHash": "b8fca2b6299a38b8e858bdbd55d7b5ce2ecb53eb36060810d32ab9f3afc94aa4"
+  },
+  "operations.crossDevice": {
+    "sourceHash": "d623de991e43158ca0fab6afaba806f720b46ce561622ccb3adcbdf4cb037daf"
+  },
+  "operations.emptyRecords": {
+    "sourceHash": "ff695295d8ad80747cd9eb9600deabc41681cb026937ad87cfeea229cb07b43f"
+  },
+  "operations.configChangedActor": {
+    "sourceHash": "248f382ef2febd2f2edd5f399077958397bd22e445fd4df14f1ed7ac21dea6cd"
+  },
+  "operations.configChangedCancel": {
+    "sourceHash": "a8b8c4116c1dc84f3eeb8ebf5196b24478a4ddad89b341f3e515ccd3535fd531"
+  },
+  "operations.scanStopActor": {
+    "sourceHash": "8cf99a36b223f1c864fb4f5b3c17f366c3c2cf4bb4f762140b374dc3ddab3fe7"
+  },
+  "operations.libraryPageActor": {
+    "sourceHash": "662103756976246663f43dd253a45c75a376d51168c97885de8282b88625fd0d"
+  },
+  "cloud.defaultTitle": {
+    "sourceHash": "be9ef9541278d58b15d120cc0ef413a37c9b8669c195312fb7eee1446bcd95f4"
+  },
+  "recycle.mono": {
+    "sourceHash": "d64650de26d2e470d79a1f63bce90619d3733d724b77e3bdaa5c31c9cf9d63b9"
+  },
+  "recycle.channels": {
+    "sourceHash": "c966bbb51d56c8e5e728bb7ba5168021c4eaab74084da8bd91fb776bf273e856"
   }
 }

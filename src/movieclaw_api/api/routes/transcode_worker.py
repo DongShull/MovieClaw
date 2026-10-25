@@ -29,6 +29,7 @@ from movieclaw_api.exceptions import (
     ServiceUnavailableException,
     UnauthorizedException,
 )
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.transcode_worker import (
     RemoteTranscodeConfigPayload,
@@ -112,7 +113,7 @@ def _warn_throttled(key: tuple[str, ...], message: str, *args: object) -> None:
 
 
 def _client_host(websocket: WebSocket) -> str:
-    return websocket.client.host if websocket.client else "未知地址"
+    return websocket.client.host if websocket.client else t("errors.workers.unknownAddress")
 
 
 async def _reject_before_hello(websocket: WebSocket, reason: str) -> None:
@@ -275,15 +276,17 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
         user_agent=websocket.headers.get("user-agent"),
     )
     if principal is None:
-        reason = "凭证无效或已被吊销，请在网页「设置 → 设备」重新配对"
+        reason = t("errors.workers.credentialRevoked")
         _warn_throttled(
+            # i18n-ignore: throttled server log
             ("ws-auth", client), "拒绝远程转码 Worker 连接（来自 %s）：%s", client, reason
         )
         await _reject_before_hello(websocket, reason)
         return
     if not remote_worker_enabled():
-        reason = "服务端尚未启用远程转码，请在网页「应用 → 远程转码」打开开关并确认地址"
+        reason = t("errors.workers.remoteDisabled")
         _warn_throttled(
+            # i18n-ignore: throttled server log
             ("ws-disabled", client), "拒绝远程转码 Worker 连接（来自 %s）：%s", client, reason
         )
         await _reject_before_hello(websocket, reason)
@@ -298,22 +301,25 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
         except TimeoutError:
             _warn_throttled(
                 ("ws-hello", client),
+                # i18n-ignore: throttled server log
                 "远程转码 Worker 握手超时（来自 %s）：10 秒内没发 hello",
                 client,
             )
-            await websocket.close(code=1008, reason="Worker hello 超时")
+            await websocket.close(code=1008, reason=t("errors.workers.helloTimeout"))
             return
         reason = None
         if not isinstance(hello, dict) or hello.get("type") != "worker.hello":
-            reason = "Worker hello 格式错误"
+            reason = t("errors.workers.helloInvalid")
         elif hello.get("protocol_version") != REMOTE_WORKER_PROTOCOL_VERSION:
             # 版本不一致单独说清楚：笼统的「格式错误」会让人以为是 Worker 坏了
-            reason = (
-                f"Worker 协议版本（{hello.get('protocol_version')}）与服务端"
-                f"（{REMOTE_WORKER_PROTOCOL_VERSION}）不一致，请把 Worker 与服务端更新到同一版本"
+            reason = t(
+                "errors.workers.protocolMismatch",
+                worker=str(hello.get("protocol_version")),
+                server=str(REMOTE_WORKER_PROTOCOL_VERSION),
             )
         if reason is not None:
             _warn_throttled(
+                # i18n-ignore: throttled server log
                 ("ws-hello", client), "拒绝远程转码 Worker 连接（来自 %s）：%s", client, reason
             )
             await websocket.close(code=1008, reason=reason)
@@ -334,6 +340,7 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
             )
         except ValueError as exc:
             _warn_throttled(
+                # i18n-ignore: throttled server log
                 ("ws-register", client), "拒绝远程转码 Worker 连接（来自 %s）：%s", client, exc
             )
             await websocket.close(code=1008, reason=str(exc))
@@ -370,7 +377,10 @@ async def transcode_worker_websocket(websocket: WebSocket) -> None:
                             )
                         except ValueError:
                             await connection.send(
-                                {"type": "worker.config.error", "error": "并发上限必须为 1～4"}
+                                {
+                                    "type": "worker.config.error",
+                                    "error": t("errors.workers.maxJobsRange"),
+                                }
                             )
                         else:
                             await save_worker_limit(connection.login_device_id, payload.max_jobs)
@@ -466,6 +476,7 @@ def _missing_source(session_id: str, file: LibraryFile, path: Path) -> NotFoundE
     NAS 这一侧（文件被移走/删除，或媒体目录的挂载静默失效），必须在这里说出来。"""
     _warn_throttled(
         ("source-missing", str(file.id)),
+        # i18n-ignore: throttled server log
         "远程转码源文件不在磁盘上：session=%s file_id=%s path=%s"
         "（文件已被移动或删除，或媒体目录挂载失效）",
         session_id,
@@ -771,7 +782,8 @@ async def _append_progressive_part(
         part = int(part_text)
     except ValueError:
         raise HTTPException(
-            status_code=400, detail={"code": "BAD_REQUEST", "message": "part 必须是整数"}
+            status_code=400,
+            detail={"code": "BAD_REQUEST", "message": t("errors.workers.partInteger")},
         ) from None
     partial = playback_session.partials.get(index)
     if partial is None or partial.job != job or partial.done:
@@ -803,7 +815,7 @@ async def _append_progressive_part(
                             status_code=413,
                             detail={
                                 "code": "PAYLOAD_TOO_LARGE",
-                                "message": "远程转码分片超过上传大小限制",
+                                "message": t("errors.workers.uploadTooLarge"),
                             },
                         )
                     await output.write(chunk)
@@ -863,6 +875,7 @@ async def put_transcode_artifact(
         if token and await verify_remote_grant(token, session_id=session_id, kind="artifact"):
             _warn_throttled(
                 ("artifact-name", session_id),
+                # i18n-ignore: throttled server log
                 "远程转码产物名不在服务端白名单内，已拒收：session=%s name=%s"
                 "（Worker 可能比服务端新，请把两边更新到同一版本）",
                 session_id,
@@ -891,6 +904,7 @@ async def put_transcode_artifact(
     if not directory.is_dir():
         _warn_throttled(
             ("artifact-dir", session_id),
+            # i18n-ignore: throttled server log
             "远程转码产物无处落盘：session=%s 的缓存目录不存在（被删除，或数据目录挂载失效）",
             session_id,
         )
@@ -919,13 +933,13 @@ async def put_transcode_artifact(
                     status_code=413,
                     detail={
                         "code": "PAYLOAD_TOO_LARGE",
-                        "message": "远程转码分片超过上传大小限制",
+                        "message": t("errors.workers.uploadTooLarge"),
                     },
                 )
         except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail={"code": "BAD_REQUEST", "message": "Content-Length 无效"},
+                detail={"code": "BAD_REQUEST", "message": t("errors.workers.contentLengthInvalid")},
             ) from None
 
     temporary = directory / f".{name}.{new_ulid()}.upload"
@@ -942,7 +956,7 @@ async def put_transcode_artifact(
                         status_code=413,
                         detail={
                             "code": "PAYLOAD_TOO_LARGE",
-                            "message": "远程转码分片超过上传大小限制",
+                            "message": t("errors.workers.uploadTooLarge"),
                         },
                     )
                 await output.write(chunk)

@@ -40,5 +40,8 @@
   },
   "session.defaultInstruction": {
     "sourceHash": "c6cf789703f862c7780e04b2791ba4242466a8115ec830a763a6b5006b880004"
+  },
+  "attachments.imageName": {
+    "sourceHash": "d24c10d37db0feea7bd73498118e280e6b33ca93f53f34d5e1cca1ba3e83730d"
   }
 }
