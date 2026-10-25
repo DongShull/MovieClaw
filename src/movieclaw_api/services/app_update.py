@@ -501,7 +501,16 @@ MODEL_SCOPE = "settings.updates.modelScope"
 CLIENT_SCOPE = "settings.updates.clientScope"
 
 
+#: 旧调用方传的中文主语（兼容）
+_LEGACY_SCOPES = {
+    "应用更新": APP_SCOPE,  # i18n-ignore: legacy argument value
+    "模型更新": MODEL_SCOPE,  # i18n-ignore: legacy argument value
+    "客户端更新": CLIENT_SCOPE,  # i18n-ignore: legacy argument value
+}
+
+
 def _scope(what: str) -> dict | str:
+    what = _LEGACY_SCOPES.get(what, what)
     return reference(what) if what.startswith("settings.updates.") else what
 
 

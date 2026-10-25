@@ -16,5 +16,5 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table("subscription_download_attempt") as batch:
-        batch.drop_column("cleanup_note_ref")
+    # 原生 DROP COLUMN：batch 会重建整表，撞上引用它的触发器
+    op.drop_column("subscription_download_attempt", "cleanup_note_ref")

@@ -14,5 +14,5 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table("library_file_replica") as batch:
-        batch.drop_column("error_ref")
+    # 原生 DROP COLUMN：batch 会重建整表，撞上引用它的触发器
+    op.drop_column("library_file_replica", "error_ref")

@@ -14,5 +14,5 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table("strm_probe_state") as batch:
-        batch.drop_column("last_error_ref")
+    # 原生 DROP COLUMN：batch 会重建整表，撞上引用它的触发器
+    op.drop_column("strm_probe_state", "last_error_ref")
