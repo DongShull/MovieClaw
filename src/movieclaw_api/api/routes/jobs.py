@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.exceptions import BadRequestException, NotFoundException, exception_fields
 from movieclaw_api.i18n import t
-from movieclaw_api.i18n.stored import localize_fields
+from movieclaw_api.i18n.stored import localize_fields, stored_message
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.schemas.jobs import (
     JobCancelView,
@@ -93,7 +93,10 @@ def _job_view(job: Job, resources: list[JobResource], *, slim_input: bool = Fals
         ],
         origin=job.origin,
         actor_kind=job.actor_kind,
-        actor_name=job.actor_name,
+        # 系统发起者的名字存的是中文原文：按读者语言反查渲染；成员名是数据，原样给
+        actor_name=stored_message(job.actor_name)
+        if job.actor_kind == "system" and job.actor_name
+        else job.actor_name,
         parent_job_id=job.parent_job_id,
         root_job_id=job.root_job_id,
         retry_of_job_id=job.retry_of_job_id,
@@ -448,9 +451,7 @@ async def dismiss_job_row(
     else:
         message = t("activity.jobActions.dismissed")
     return ApiResponse(
-        data=JobDismissView(
-            dismissed=dismissed, muted=muted, job=await job_view(session, row)
-        ),
+        data=JobDismissView(dismissed=dismissed, muted=muted, job=await job_view(session, row)),
         message=message,
     )
 

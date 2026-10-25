@@ -1498,5 +1498,128 @@
   },
   "duplicateScan.subject": {
     "sourceHash": "3b0db02d8063b59fbb5e338a36280391ea27c27c127c807b5587143611c8dc2e"
+  },
+  "scan.progress": {
+    "sourceHash": "3ea2b8b6877a22102703844054d35bcd1697d241af9eed69da6cac9d11de76fa"
+  },
+  "scan.progressFound": {
+    "sourceHash": "c653931406eca5ff4b2249676498922ef414432ed556305becfe37b2db86f0d5"
+  },
+  "scan.statsFailed": {
+    "sourceHash": "ff1a70bc5e4cfc7aaff49612b5c7baecde60c9d8a1ac969e9aadac8fce061444"
+  },
+  "scan.queued": {
+    "sourceHash": "e4d465d2a795447c6a464499b69ae80c1db094a133e9c60fd81a792b8129edff"
+  },
+  "scan.postponed": {
+    "sourceHash": "9bf511a97a96912c9a761c44115224e74b72fbf151b0107d31417ab875a21a7d"
+  },
+  "scan.alreadyRunning": {
+    "sourceHash": "4102526505c5ae6b8d3bd70341164e8ea044c0e9d4b3d563685a2a1c939a91dc"
+  },
+  "scan.organizingSkipped": {
+    "sourceHash": "96356e72ca2883c38a7a2b92acf7dc648af71da3d08d4164b4358662213fd8be"
+  },
+  "scan.transferringSkipped": {
+    "sourceHash": "413ebe2efec819f2e73b0d79e0a92d7953cbca0d83307c7637106de6baf990c6"
+  },
+  "scan.unexpected": {
+    "sourceHash": "91528cce25b9a346bf1eb84356689f5e4e2c94cfe031454bb989f0f70ca81d8f"
+  },
+  "scan.libraryMissingJob": {
+    "sourceHash": "d8461b43369f8e305a30003d2a544bbc221f04bc3f44e25e8b855acc4c39ba1e"
+  },
+  "scan.busyRetry": {
+    "sourceHash": "fab9264efa1003f7349ce051232c9c2245a59cc211b1fb4d01a1612581fa1783"
+  },
+  "scan.pathsChanging": {
+    "sourceHash": "96a469b818876bfc2b385b22ad1d3749b25bfecec5c3a15fe1190517c928a8aa"
+  },
+  "scan.done": {
+    "sourceHash": "6668f8c21742073f13956a9e7a789babc20c2c10306fecbb819e4b6458fc9feb"
+  },
+  "scan.absolutePath": {
+    "sourceHash": "a14538a2dde9a364029994faae4b5a248f3089b77a718f72d83c151ae8704fb4"
+  },
+  "scan.outsideRoots": {
+    "sourceHash": "dcf7cdd8719f15ae203cf75cfc56a72036042185fb9ced22ac81cd1796fa6058"
+  },
+  "scan.libraryMissing": {
+    "sourceHash": "577d2ea99daa3c497f9028a42785fc1dc64508518b5d4e0c3ef2df8a9f82b94b"
+  },
+  "scan.rootMissing": {
+    "sourceHash": "d282508ea4a68d8a43344876b72c1ca7726991efc27a59dcddacb23db6b0297b"
+  },
+  "scan.verifyFailed": {
+    "sourceHash": "15e87acacdc5d7dea4bd8bd0aeba36ae3d5c3711875633cbf8e52d1bf59c007e"
+  },
+  "scan.cloudCopyFailed": {
+    "sourceHash": "a8b5dd1cab2e91279110a5aadfc83ac532f8a93312e72cd71cff51e3928d2154"
+  },
+  "scan.nfoFailed": {
+    "sourceHash": "d9e6883030762bf448af0e40734dc236fd87481c97d17b8dd33b026298217dc0"
+  },
+  "scan.fileFailed": {
+    "sourceHash": "484436d914ec9f08460a6b9e5e4c77b25bff9d2879b1a51365aa3523a037eeb8"
+  },
+  "scan.removedRootSubtitleBusy": {
+    "sourceHash": "99f934a36cbc6fcea1678d6e09fbb5533842b19a1523c77721dfe6b01645416f"
+  },
+  "scan.removedRootConflict": {
+    "sourceHash": "1ed00cb8712bb65df5af8664c18b75242296e7c638fca78d2fc4a21142bb3314"
+  },
+  "scan.removedRootAmbiguous": {
+    "sourceHash": "d08077517cefac111e5cebfcac691530f9b289470987c809dcbf378796a51583"
+  },
+  "scan.conflictingRecords": {
+    "sourceHash": "602008998d61d1b161cf5288a7c02a8ccbd85f53b045c76bf5ce6e96b1950c71"
+  },
+  "scan.duplicateSubtitleBusy": {
+    "sourceHash": "01ef54f7ac99fb6b0d2c2abbd6f5269fa3bb4e56fe1cdaa470ca5991717e17f0"
+  },
+  "scan.moreIssues": {
+    "sourceHash": "30cdb55d39789c43743cb5fb163caf03be1e51cac447a765e352dd5ba70b688f"
+  },
+  "scan.localLibrary": {
+    "sourceHash": "59ced62f4796ddce6ce2d96e184c45dd9ed498f03f0bc4e79d216b4781d95f6a"
+  },
+  "scan.reidentifyBusy": {
+    "sourceHash": "b6dd393264595c29eb9a521fd8e58553b91bf9c86f4e236307cf53e45d9be1f7"
+  },
+  "scan.reidentifyOrganizing": {
+    "sourceHash": "7061bec168c7b62f1cfed156f89e7a21f882b55778bc735d2ff3c8b13f0f1778"
+  },
+  "scan.reidentifyTransferring": {
+    "sourceHash": "4a7905bc6ba3f8c80e94bd1cef687242467f75c9088d6be5148c5bb1bfb7da02"
+  },
+  "scan.reidentifyUnexpected": {
+    "sourceHash": "162c4ff517ff4392b841ff3ab28f3a6420cb4d3172a89010cc6c971aa235f206"
+  },
+  "scan.noLedgerFiles": {
+    "sourceHash": "be8d160c7379f5871bbd88b5ebb5366e3cb25ce1d72566651380cc550cd8a02e"
+  },
+  "cloud.listFailed": {
+    "sourceHash": "1acc8c3b79f1f2de91e96bb00ceac7e4fa014c8d377ff5f9ad3069b0532279b7"
+  },
+  "cloud.onePrimary": {
+    "sourceHash": "249b1179e1b7f11d9231bf4b28df11b07226bb106fbb957e80687b21e811b355"
+  },
+  "cloud.missingId": {
+    "sourceHash": "78118a8b848fd3a52a879cbd9fcda662631eaf1bfc464404502cf4ee9d3cea9d"
+  },
+  "cloud.accountMissing": {
+    "sourceHash": "58c26f4fdcfa7c0274d427601b88d4bb3d343c24676c59c82e7b4da37451f165"
+  },
+  "cloud.rootDir": {
+    "sourceHash": "42ee2863b6d776ffdd152c2b10998745c88982692a5d0bc3e9edbdcb7b144dae"
+  },
+  "cloud.overlap": {
+    "sourceHash": "4cc5523b6e3758ed3a591e88693c8794c845a329a33d61e08f21ed14d5a2a502"
+  },
+  "cloud.overlapLibrary": {
+    "sourceHash": "1c7041b10064cb3750c9d67949a3f41fd3a66c1de9e8c0539d76e49faffbd124"
+  },
+  "cloud.syncActor": {
+    "sourceHash": "62c147f5dde5a2d0b8de131a74d920d5fb936e6601a54b9e3105989c1fafca2d"
   }
 }

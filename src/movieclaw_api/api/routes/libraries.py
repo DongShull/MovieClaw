@@ -639,7 +639,7 @@ def _last_scan_view(library_id: int) -> LastScanView | None:
         deferred=summary.deferred,
         retried=summary.retried,
         cancelled=summary.cancelled,
-        errors=list(summary.errors),
+        errors=render_organize_errors(summary.errors, summary.error_messages),
     )
 
 
@@ -669,7 +669,9 @@ def _job_last_scan_view(job: Job) -> LastScanView | None:
         deferred=int(payload.get("deferred") or 0),
         retried=int(payload.get("retried") or 0),
         cancelled=job.status is JobStatus.CANCELLED or bool(payload.get("cancelled")),
-        errors=errors if isinstance(errors, list) else [],
+        errors=render_organize_errors(errors, list(payload.get("error_messages") or []))
+        if isinstance(errors, list)
+        else [],
     )
 
 
@@ -3960,7 +3962,11 @@ async def reidentify_library_item(
 
     summary = await reidentify_item(library_id, media_item_id)
     if summary.errors:
-        raise ConflictException("；".join(summary.errors))
+        raise ConflictException(
+            t("common.list.issueSeparator").join(
+                render_organize_errors(summary.errors, summary.error_messages)
+            )
+        )
 
     if summary.kept_on_error == summary.total and summary.total > 0:
         message = t("library.operations.reidentifyNetworkFailed")

@@ -63,6 +63,7 @@ from sqlalchemy import delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services import jobs
 from movieclaw_api.services.drives.registry import active as drives_active
@@ -176,11 +177,17 @@ _IGNORE_DIRS = {
     "scenes",
     "trailers",
     # 中文圈常见叫法
+    # i18n-ignore: file-name keywords and log labels
     "花絮",
+    # i18n-ignore: file-name keywords and log labels
     "幕后花絮",
+    # i18n-ignore: file-name keywords and log labels
     "预告片",
+    # i18n-ignore: file-name keywords and log labels
     "制作特辑",
+    # i18n-ignore: file-name keywords and log labels
     "删减片段",
+    # i18n-ignore: file-name keywords and log labels
     "特典",
 }
 # 文件名含这些标记不入库（子串匹配，历来只挡样片）
@@ -219,6 +226,7 @@ _EXTRAS_SUFFIXES = (
 )
 # 中文圈没有后缀惯例，花絮通常直接写进名字（「花絮01.mkv」「【花絮】…」），
 # 只能子串匹配。因此只取歧义最小的两个词——正片片名里几乎不会出现它们
+# i18n-ignore: file-name keywords and log labels
 _EXTRAS_KEYWORDS = ("花絮", "预告片")
 
 # 路径里的显式 tmdb id 标记（Emby/Jellyfin/TMM 通行惯例，用户手写的身份声明）：
@@ -298,13 +306,18 @@ def extras_marker(name: str) -> str | None:
 
 # 身份来源的中文名（日志与提示用）
 _ID_SOURCE_NAMES = {
+    # i18n-ignore: file-name keywords and log labels
     IdentitySource.PATH_TAG: "目录名 tmdbid 标记",
     IdentitySource.NFO: "NFO",
 }
 _KIND_NAMES = {
+    # i18n-ignore: file-name keywords and log labels
     MediaKind.MOVIE: "电影",
+    # i18n-ignore: file-name keywords and log labels
     MediaKind.TV: "剧集",
+    # i18n-ignore: file-name keywords and log labels
     MediaKind.VIDEO: "其他",
+    # i18n-ignore: file-name keywords and log labels
     MediaKind.PHOTO: "图片",
 }
 
@@ -372,16 +385,6 @@ class ScanPhase(StrEnum):
     PROBING = "probing"  # 补探缺规格的在位行（分母 = 待补探的台账行数）
     ASSETS = "assets"  # 收尾补齐图片资产（分母 = 本轮新挂锚的条目数）
     REIDENTIFYING = "reidentifying"  # 单条目重识别（与扫描共用同一把库级锁）
-
-
-# 阶段的中文名：接口冲突提示与日志共用，避免"正在重新识别"被说成"正在扫描"
-PHASE_LABELS: dict[ScanPhase, str] = {
-    ScanPhase.WALKING: "正在盘点文件",
-    ScanPhase.INGESTING: "正在扫描",
-    ScanPhase.PROBING: "正在补探介质规格",
-    ScanPhase.ASSETS: "正在补齐图片资产",
-    ScanPhase.REIDENTIFYING: "正在重新识别条目",
-}
 
 
 def phase_reference(phase: ScanPhase) -> dict:
@@ -454,6 +457,7 @@ class ScanSummary:
     yield_seconds: float = 0.0  # 给前台请求让路累计等了多少秒（services/foreground.py）
     cancelled: bool = False  # 用户手动停止：已入账的保留，未处理的留待下次扫描
     errors: list[str] = field(default_factory=list)
+    error_messages: list[dict] = field(default_factory=list)
     # 暂缓文件的最近到期秒数（补扫的等待时长；对外接口不暴露）
     recheck_delay_seconds: float = 0.0
     # 本轮暂缓的文件 → 所在的根下第一级条目（补扫只扫这些条目；对外接口不暴露）
@@ -471,6 +475,11 @@ class ScanSummary:
     # 本轮新入账的文件（新文件与失联回归）：(行 id, 条目, 季, 集, 是否 strm)；扫描收尾
     # 发一次 ``library.files.added`` 给插件（对外接口不暴露）
     added_files: list[tuple[int, int | None, int, int, bool]] = field(default_factory=list)
+
+    def add_error(self, message: dict) -> None:
+        """Keep the Chinese rollback text and the reference rendered for each reader."""
+        self.errors.append(message["message"])
+        self.error_messages.append(message)
 
 
 @dataclass
@@ -538,9 +547,18 @@ def scan_summary_payload(summary: ScanSummary) -> dict[str, object]:
         e if len(e) <= _PAYLOAD_ERROR_CHARS else f"{e[:_PAYLOAD_ERROR_CHARS]}…"
         for e in summary.errors[:_PAYLOAD_ERRORS]
     ]
+    messages = [
+        m
+        if len(m["message"]) <= _PAYLOAD_ERROR_CHARS
+        else {"message": f"{m['message'][:_PAYLOAD_ERROR_CHARS]}…"}
+        for m in summary.error_messages[:_PAYLOAD_ERRORS]
+    ]
     if len(summary.errors) > _PAYLOAD_ERRORS:
-        errors.append(f"另有 {len(summary.errors) - _PAYLOAD_ERRORS} 个问题，详见后端日志")
+        more = stored_fields("library.scan.moreIssues", count=len(summary.errors) - _PAYLOAD_ERRORS)
+        errors.append(more["message"])
+        messages.append(more)
     payload["errors"] = errors
+    payload["error_messages"] = messages
     payload.pop("recheck_delay_seconds", None)
     payload.pop("deferred_scopes", None)
     payload.pop("awaiting_downloader", None)
@@ -636,10 +654,17 @@ class _ScanJobBridge:
             await self.context.update_progress(
                 mode="determinate" if determinate else "indeterminate",
                 phase=state.phase.value,
-                message=(
-                    f"{PHASE_LABELS[state.phase]}：{state.processed} / {state.total}"
+                message_key="library.scan.progress"
+                if determinate
+                else "library.scan.progressFound",
+                message_params=(
+                    {
+                        "phase": phase_reference(state.phase),
+                        "processed": state.processed,
+                        "total": state.total,
+                    }
                     if determinate
-                    else f"{PHASE_LABELS[state.phase]}：已发现 {state.processed} 个文件"
+                    else {"phase": phase_reference(state.phase), "count": state.processed}
                 ),
                 current=state.processed,
                 total=state.total if determinate else None,
@@ -901,9 +926,9 @@ async def _refresh_stats_snapshot(library_id: int, summary: ScanSummary) -> None
         await refresh_query_statistics(db)
     except Exception:  # noqa: BLE001 -- 统计失败不应把已完成的入库事务回滚
         logger.exception("媒体库 #%s 库存统计刷新失败", library_id)
-        message = "库存统计刷新失败，将在下次扫描时重试"
-        if message not in summary.errors:
-            summary.errors.append(message)
+        message = stored_fields("library.scan.statsFailed")
+        if message["message"] not in summary.errors:
+            summary.add_error(message)
 
 
 async def enqueue_scan_job(
@@ -963,7 +988,7 @@ async def enqueue_scan_job(
         actor_name=actor_name,
         actor_id=actor_id,
         origin=origin,
-        progress=jobs.default_progress("等待扫描媒体库"),
+        progress=jobs.default_progress(message_key="library.scan.queued"),
     )
 
 
@@ -1055,12 +1080,14 @@ async def scan_library(
     if queued_jobs or (
         lock_owner is not None and (job_context is None or lock_owner != job_context.job_id)
     ):
-        summary.errors.append("该库有后台作业正在执行，扫描已顺延到下一次触发")
+        summary.add_error(stored_fields("library.scan.postponed"))
         summary.postponed = True
         return summary
     running = _scan_tasks.state_of(library_id)
     if running is not None:
-        summary.errors.append(f"该库已有任务在进行中（{PHASE_LABELS[running.phase]}）")
+        summary.add_error(
+            stored_fields("library.scan.alreadyRunning", phase=phase_reference(running.phase))
+        )
         summary.postponed = True
         return summary
     # 与整理互斥：整理在批量改名，扫描此刻介入会把刚搬走的旧路径标 missing、
@@ -1068,7 +1095,7 @@ async def scan_library(
     # 去抖、6 小时对账三个入口都收敛到这里，统一挡下（整理中台账已同步
     # 更新，无需扫描补账，漏掉的变更由下轮对账兜底）
     if is_organizing(library_id):
-        summary.errors.append("该库正在整理文件名，扫描已跳过（整理完成后可重新扫描）")
+        summary.add_error(stored_fields("library.scan.organizingSkipped"))
         summary.postponed = True
         return summary
     # 与条目转移互斥，理由与整理完全相同：转移正在把整个条目目录搬进/搬出
@@ -1076,7 +1103,7 @@ async def scan_library(
     # 重走识别链。转移期间台账已同步随迁，无需扫描补账。搬运本身产生的
     # watchdog 事件也在这里被挡下
     if is_transferring(library_id):
-        summary.errors.append("该库正在转移条目，扫描已跳过（转移完成后可重新扫描）")
+        summary.add_error(stored_fields("library.scan.transferringSkipped"))
         summary.postponed = True
         return summary
     # 状态先立起来再干活：从这一行到 finally 之间的任何路径，"在跑"与
@@ -1119,7 +1146,7 @@ async def scan_library(
         await _refresh_stats_snapshot(library_id, summary)
         if raise_unexpected:
             raise
-        summary.errors.append("扫描中断：发生未知错误（详见后端日志）")
+        summary.add_error(stored_fields("library.scan.unexpected"))
         finished_normally = True
         return summary
     finally:
@@ -1146,21 +1173,19 @@ async def _run_scan_job(
     async with db.session() as session:
         library = await session.get(Library, library_id)
     if library is None:
-        raise jobs.JobFailed(
-            "媒体库已不存在，无法继续扫描",
-            code="LIBRARY_NOT_FOUND",
-        )
+        raise jobs.JobFailed(message_key="library.scan.libraryMissingJob", code="LIBRARY_NOT_FOUND")
     running = _scan_tasks.state_of(library_id)
     if running is not None:
         raise jobs.JobRetry(
-            f"媒体库{PHASE_LABELS[running.phase]}，扫描作业稍后自动继续",
+            message_key="library.scan.busyRetry",
+            message_params={"phase": phase_reference(running.phase)},
             delay_seconds=10,
         )
     from movieclaw_api.services.library.organize import is_organizing
     from movieclaw_api.services.library.transfer import is_transferring
 
     if is_organizing(library_id) or is_transferring(library_id):
-        raise jobs.JobRetry("媒体库正在变更文件路径，扫描作业稍后自动继续", delay_seconds=10)
+        raise jobs.JobRetry(message_key="library.scan.pathsChanging", delay_seconds=10)
     scan_kwargs: dict[str, object] = {
         "backfill_existing_specs": bool(input_data.get("backfill_existing_specs", True)),
         "job_context": context,
@@ -1205,13 +1230,13 @@ async def _run_scan_job(
 
     await enqueue_after_library_change(library.name)
     payload = scan_summary_payload(summary)
-    message = (
-        f"扫描完成：新入账 {summary.scanned - summary.relinked} 个文件，"
-        f"识别 {summary.identified} 个"
+    message = stored_fields(
+        "library.scan.done",
+        added=summary.scanned - summary.relinked,
+        identified=summary.identified,
+        errors=len(summary.errors),
     )
-    if summary.errors:
-        message += f"，{len(summary.errors)} 个问题已记录"
-    return {"message": message, **payload}
+    return {**payload, **message}
 
 
 def scope_entries(library: Library, paths: list[str]) -> list[str]:
@@ -1221,10 +1246,10 @@ def scope_entries(library: Library, paths: list[str]) -> list[str]:
     for raw in paths:
         target = Path(raw)
         if not target.is_absolute():
-            raise ValueError(f"必须是绝对路径：{raw}")
+            raise ValueError(t("library.scan.absolutePath", path=raw))
         root = next((r for r in roots if target != r and target.is_relative_to(r)), None)
         if root is None:
-            raise ValueError(f"不在「{library.name}」的任何根路径之下：{raw}")
+            raise ValueError(t("library.scan.outsideRoots", library=library.name, path=raw))
         entries.add(str(root / target.relative_to(root).parts[0]))
     return sorted(entries)
 
@@ -1300,7 +1325,7 @@ async def _scan(
     async with db.session() as session:
         library = await session.get(Library, library_id)
         if library is None:
-            summary.errors.append("媒体库不存在（可能已被删除）")
+            summary.add_error(stored_fields("library.scan.libraryMissing"))
             return summary
         repo = LibraryFileRepository(session)
         # 台账快照（路径 → 行）：遍历完成、知道本轮看到了哪些文件之后才装载，见 _load_known
@@ -1395,7 +1420,7 @@ async def _scan(
                 if not only_top:
                     continue  # 本根不在事件范围内：不遍历，也不参与丢失标记
             if not await asyncio.to_thread(root_path.exists):
-                summary.errors.append(f"根路径不存在，已跳过：{root}")
+                summary.add_error(stored_fields("library.scan.rootMissing", path=str(root)))
                 continue
             scanned_roots.append(str(root_path))
             walker = (
@@ -1476,7 +1501,7 @@ async def _scan(
             )
             if cloud_folders:
                 cloud = await library_cloud.collect(
-                    session, library, profile, cloud_folders, summary.errors
+                    session, library, profile, cloud_folders, summary.add_error
                 )
                 for cloud_root, cloud_file, cloud_disc in cloud.pending:
                     if str(cloud_file) in seen_paths:
@@ -1628,7 +1653,11 @@ async def _scan(
                     except Exception as exc:  # noqa: BLE001 -- 单文件失败不断整轮
                         await recover_failed_session()
                         logger.exception("身份复核失败：%s", file)
-                        summary.errors.append(f"「{file.name}」身份复核失败：{exc}")
+                        summary.add_error(
+                            stored_fields(
+                                "library.scan.verifyFailed", name=file.name, detail=str(exc)
+                            )
+                        )
                 else:
                     summary.skipped_known += 1
                 if cloud_entry is not None:
@@ -1638,7 +1667,11 @@ async def _scan(
                     except Exception as exc:  # noqa: BLE001 -- 单文件失败不断整轮
                         await recover_failed_session()
                         logger.exception("纳管文件更新副本失败：%s", file)
-                        summary.errors.append(f"「{file.name}」更新网盘副本失败：{exc}")
+                        summary.add_error(
+                            stored_fields(
+                                "library.scan.cloudCopyFailed", name=file.name, detail=str(exc)
+                            )
+                        )
                     await advance(done)
                     continue
                 # mtime 一次性回填：ETag 落库特性上线前的旧行没有 mtime，
@@ -1679,7 +1712,9 @@ async def _scan(
                     except Exception as exc:  # noqa: BLE001 -- 单文件失败不断整轮
                         await recover_failed_session()
                         logger.exception("本地条目重读 NFO 失败：%s", file)
-                        summary.errors.append(f"「{file.name}」重读 NFO 失败：{exc}")
+                        summary.add_error(
+                            stored_fields("library.scan.nfoFailed", name=file.name, detail=str(exc))
+                        )
                 await advance(done)
                 continue
             # 完整性检测：mtime 太新 = 疑似写入中（下载/拷贝进行时），本轮
@@ -1747,7 +1782,9 @@ async def _scan(
             except Exception as exc:  # noqa: BLE001 -- 单文件失败不断整轮
                 await recover_failed_session()
                 logger.exception("扫描文件失败：%s", file)
-                summary.errors.append(f"「{file.name}」处理失败：{exc}")
+                summary.add_error(
+                    stored_fields("library.scan.fileFailed", name=file.name, detail=str(exc))
+                )
             await advance(done)
 
         # 手动停止/提前收尾时窗口里可能还挂着几个预取任务：取消掉，别让
@@ -2412,9 +2449,12 @@ async def _reconcile_removed_root_ledger_rows(
                 )
                 if merged is None:
                     summary.removed_root_conflicts += 1
-                    summary.errors.append(
-                        "旧根重复台账各有一个字幕任务在运行，暂不合并："
-                        f"{old.file_path} ↔ {target_path}"
+                    summary.add_error(
+                        stored_fields(
+                            "library.scan.removedRootSubtitleBusy",
+                            source=old.file_path,
+                            target=target_path,
+                        )
                     )
                     continue
                 survivor, duplicate_id = merged
@@ -2427,8 +2467,10 @@ async def _reconcile_removed_root_ledger_rows(
                 continue
             if _has_identity_conflict(old, current):
                 summary.removed_root_conflicts += 1
-                summary.errors.append(
-                    f"已移除根存在身份冲突台账，未自动合并：{old.file_path} ↔ {target_path}"
+                summary.add_error(
+                    stored_fields(
+                        "library.scan.removedRootConflict", source=old.file_path, target=target_path
+                    )
                 )
                 logger.warning(
                     "媒体库 #%s：已移除根的同相对路径台账身份冲突，已保留两行：%s ↔ %s",
@@ -2439,8 +2481,8 @@ async def _reconcile_removed_root_ledger_rows(
                 continue
         elif len(current_rows) > 1:
             summary.removed_root_conflicts += 1
-            summary.errors.append(
-                f"已移除根在多个新根有同相对路径记录，未自动合并：{old.file_path}"
+            summary.add_error(
+                stored_fields("library.scan.removedRootAmbiguous", path=old.file_path)
             )
             continue
 
@@ -3006,7 +3048,11 @@ async def _relink_legacy_root_paths(
         # （或一边还未识别）才自动合并；互相冲突时宁可保留两行并记问题，不能
         # 静默吞掉用户人工认领的结论。
         if not _can_merge_same_file_rows(old, current):
-            summary.errors.append(f"同一文件存在冲突台账，未自动合并：{old.file_path} ↔ {path_str}")
+            summary.add_error(
+                stored_fields(
+                    "library.scan.conflictingRecords", source=old.file_path, target=path_str
+                )
+            )
             logger.warning(
                 "根路径变更发现同一文件的台账身份冲突，未自动合并：%s ↔ %s",
                 old.file_path,
@@ -3035,7 +3081,7 @@ async def _relink_legacy_root_paths(
             )
         )
         if old_running and current_running:
-            summary.errors.append(f"同一文件的重复台账有两个字幕任务在运行，暂不合并：{path_str}")
+            summary.add_error(stored_fields("library.scan.duplicateSubtitleBusy", path=path_str))
             continue
         survivor, duplicate = (current, old) if current_running else (old, current)
         assert duplicate.id is not None
@@ -4924,7 +4970,7 @@ async def preview_reidentify(
         library_id=library.id, media_item_id=media_item_id, movie=kind is MediaKind.MOVIE
     )
     if not profile.scraped:
-        preview.errors.append(f"「{library.name}」是本地内容库，没有识别链可重跑")
+        preview.errors.append(t("library.scan.localLibrary", name=library.name))
         return preview
     media_service = MediaLibraryService(session, get_tmdb_client(), scrape_library_id=library.id)
     resolve_cache: dict[tuple, tuple] = {}
@@ -5023,6 +5069,12 @@ class ReidentifySummary:
     # 身份被显式钉死（目录名 tmdbid 标记或 NFO）：结果不满意得先改标记/NFO
     pinned_identity: bool = False
     errors: list[str] = field(default_factory=list)
+    error_messages: list[dict] = field(default_factory=list)
+
+    def add_error(self, message: dict) -> None:
+        """Keep the Chinese rollback text and the reference rendered for each reader."""
+        self.errors.append(message["message"])
+        self.error_messages.append(message)
 
 
 async def reidentify_item(library_id: int, media_item_id: int) -> ReidentifySummary:
@@ -5040,13 +5092,15 @@ async def reidentify_item(library_id: int, media_item_id: int) -> ReidentifySumm
 
     running = _scan_tasks.state_of(library_id)
     if running is not None:
-        summary.errors.append(f"该库{PHASE_LABELS[running.phase]}，请等当前任务完成后再重新识别")
+        summary.add_error(
+            stored_fields("library.scan.reidentifyBusy", phase=phase_reference(running.phase))
+        )
         return summary
     if is_organizing(library_id):
-        summary.errors.append("该库正在整理文件名，请等整理完成后再重新识别")
+        summary.add_error(stored_fields("library.scan.reidentifyOrganizing"))
         return summary
     if is_transferring(library_id):
-        summary.errors.append("该库正在转移条目，请等转移完成后再重新识别")
+        summary.add_error(stored_fields("library.scan.reidentifyTransferring"))
         return summary
     # 与扫描互斥：重识别正在改身份锚，此刻扫描介入会打架。占的是同一把库级
     # 锁，但阶段标成 REIDENTIFYING——接口据此如实说"正在重新识别"，不会
@@ -5057,7 +5111,7 @@ async def reidentify_item(library_id: int, media_item_id: int) -> ReidentifySumm
         return await _reidentify(library_id, media_item_id, summary, state)
     except Exception:  # noqa: BLE001 -- 面向用户的操作，兜底转成可读错误
         logger.exception("媒体库 #%s 条目 #%s 重新识别时发生未知错误", library_id, media_item_id)
-        summary.errors.append("重新识别中断：发生未知错误（详见后端日志）")
+        summary.add_error(stored_fields("library.scan.reidentifyUnexpected"))
         return summary
     finally:
         _scan_tasks.finish(library_id)
@@ -5070,7 +5124,7 @@ async def _reidentify(
     async with db.session() as session:
         library = await session.get(Library, library_id)
         if library is None:
-            summary.errors.append("媒体库不存在（可能已被删除）")
+            summary.add_error(stored_fields("library.scan.libraryMissing"))
             return summary
         repo = LibraryFileRepository(session)
         rows = [
@@ -5079,7 +5133,7 @@ async def _reidentify(
             if row.media_item_id == media_item_id
         ]
         if not rows:
-            summary.errors.append("该条目在本库已没有台账文件")
+            summary.add_error(stored_fields("library.scan.noLedgerFiles"))
             return summary
         media_service = MediaLibraryService(
             session, get_tmdb_client(), scrape_library_id=library.id
@@ -5087,7 +5141,7 @@ async def _reidentify(
         profile = profile_of(library)
         kind = profile.kind
         if not profile.scraped:
-            summary.errors.append(f"「{library.name}」是本地内容库，没有识别链可重跑")
+            summary.add_error(stored_fields("library.scan.localLibrary", name=library.name))
             return summary
         resolve_cache: dict[tuple, tuple] = {}
         episodes_cache: dict[Path, int | None] = {}
