@@ -668,7 +668,8 @@
     "otherFilesInFolder": "「{path}」目录内还有其他在案文件（可能是新入库的版本），已跳过整目录删除",
     "folderFailed": "删除目录失败：{path}（{error}）",
     "fileFailed": "删除文件失败：{path}（{error}）",
-    "sidecarFailed": "删除附属文件失败：{path}（{error}）"
+    "sidecarFailed": "删除附属文件失败：{path}（{error}）",
+    "followUpSubject": "{label}：{title}"
   },
   "cover": {
     "unrecognized": "无法识别这个文件，请上传 JPG / PNG / WebP 等常见格式的图片",

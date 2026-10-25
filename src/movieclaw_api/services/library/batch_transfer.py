@@ -34,7 +34,7 @@ from pathlib import Path
 from sqlmodel import select
 
 from movieclaw_api.i18n import t
-from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.i18n.stored import reference, stored_fields
 from movieclaw_api.services import jobs
 
 # 与 transfer.py 的内部件共用：批量是单条目的泛化，不是第二套搬运实现。
@@ -193,7 +193,7 @@ async def enqueue_consolidate_job(
     return await jobs.create_job(
         session,
         job_type=CONSOLIDATE_JOB_TYPE,
-        subject=t(
+        subject_ref=reference(
             "library.batchTransfer.consolidateSubject", library=library.name, count=total, into=into
         ),
         input_data={
@@ -256,7 +256,9 @@ async def enqueue_batch_transfer_job(
     return await jobs.create_job(
         session,
         job_type=JOB_TYPE,
-        subject=t("library.batchTransfer.transferSubject", count=total, target=target.name),
+        subject_ref=reference(
+            "library.batchTransfer.transferSubject", count=total, target=target.name
+        ),
         input_data={
             "source_library_id": source.id,
             "target_library_id": target.id,

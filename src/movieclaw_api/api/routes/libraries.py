@@ -5063,7 +5063,7 @@ async def list_library_kind_genres(
     principal: Principal = Depends(require_login),
 ) -> ApiResponse[list[LibraryKindGenreView]]:
     """每个类型一格：``value`` 是 TMDB genre id（点进去带 ``g=value`` 开墙），
-    ``label`` 是中文名，``count`` 是跨库去重后的部数，``cover_*`` 是贴在卡片上的
+    ``label`` 是按读者语言的类型名，``count`` 是跨库去重后的部数，``cover_*`` 是贴在卡片上的
     最近入库那部片的剧照（部数多的类型先挑，不重复）。只回有片的类型，按部数倒序；
     这一类型一个可见库都没有时回空清单，前端据此不画这一区。
 

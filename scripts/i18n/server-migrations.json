@@ -1285,6 +1285,7 @@
   "library.cover.unrecognized": "无法识别这个文件，请上传 JPG / PNG / WebP 等常见格式的图片",
   "library.delete.fileFailed": "删除文件失败：{path}（{error}）",
   "library.delete.folderFailed": "删除目录失败：{path}（{error}）",
+  "library.delete.followUpSubject": "{label}：{title}",
   "library.delete.otherFilesInFolder": "「{path}」目录内还有其他在案文件（可能是新入库的版本），已跳过整目录删除",
   "library.delete.outsideRoots": "「{path}」不在库根路径之内，已跳过（不删库外文件）",
   "library.delete.sidecarFailed": "删除附属文件失败：{path}（{error}）",

@@ -26,6 +26,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 
 from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import reference
 from movieclaw_kernel import Registry, RegistryKey, Stability
 
 logger = logging.getLogger("movieclaw_api.library.delete_participants")
@@ -214,7 +215,13 @@ async def enqueue_follow_ups(
             session,
             job_type=participant.job_type,
             input_data={"option": key, "request": request.model_dump(mode="json")},
-            subject=f"{participant.label}：{request.title}",
+            subject_ref=reference(
+                "library.delete.followUpSubject",
+                label=reference(participant.label_key)
+                if participant.label_key
+                else participant.label,
+                title=request.title,
+            ),
             origin="library.delete",
             conflict_policy="queue",
             commit=False,

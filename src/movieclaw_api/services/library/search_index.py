@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import source_text
+from movieclaw_api.i18n.stored import reference
 from movieclaw_api.services import jobs
 from movieclaw_api.services.library.search_matching import (
     compact,
@@ -204,7 +204,7 @@ async def _enqueue_refresh() -> None:
                 session,
                 job_type="library.search-index.refresh",
                 input_data={},
-                subject=source_text("library.searchIndex.subject"),
+                subject_ref=reference("library.searchIndex.subject"),
                 dedupe_key="library.search-index.refresh",
                 resources=[jobs.ResourceRef("library_search", "index", "lock")],
                 priority=-10,

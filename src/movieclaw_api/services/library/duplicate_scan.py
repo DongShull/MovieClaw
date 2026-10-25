@@ -36,8 +36,7 @@ from sqlalchemy import delete, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n import t
-from movieclaw_api.i18n.stored import localize_fields, source_text, stored_fields
+from movieclaw_api.i18n.stored import localize_fields, reference, source_text, stored_fields
 from movieclaw_api.services import jobs
 from movieclaw_api.services.foreground import yield_to_foreground
 from movieclaw_api.services.library import acquisition
@@ -690,7 +689,7 @@ async def enqueue_duplicate_scan_job(
     return await jobs.create_job(
         session,
         job_type=JOB_TYPE,
-        subject=t("library.duplicateScan.subject"),
+        subject_ref=reference("library.duplicateScan.subject"),
         input_data={},
         dedupe_key=JOB_TYPE,
         conflict_policy="return_existing",

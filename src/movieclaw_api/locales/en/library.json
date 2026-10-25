@@ -668,7 +668,8 @@
     "otherFilesInFolder": "Skipped deleting the folder “{path}”: it still holds other recorded files (possibly a newly added version)",
     "folderFailed": "Could not delete the folder {path} ({error})",
     "fileFailed": "Could not delete the file {path} ({error})",
-    "sidecarFailed": "Could not delete the associated file {path} ({error})"
+    "sidecarFailed": "Could not delete the associated file {path} ({error})",
+    "followUpSubject": "{label}: {title}"
   },
   "cover": {
     "unrecognized": "This file could not be recognized. Upload a JPG, PNG, WebP or other common image format.",

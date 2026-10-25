@@ -23,13 +23,15 @@ async def test_duplicate_scan_messages_keep_facts_and_raw_storage(client, db, tm
     async with db.session() as session:
         created = await duplicate_scan.enqueue_duplicate_scan_job(session)
         job_id = created.job.id
-    for language, expected in (
-        ("en", "Waiting to scan duplicate files"),
-        ("zh-Hans", "等待扫描重复文件"),
+    for language, expected, subject in (
+        ("en", "Waiting to scan duplicate files", "Duplicate files"),
+        ("zh-Hans", "等待扫描重复文件", "重复文件"),
     ):
         response = await client.get(f"/api/v1/jobs/{job_id}", headers={"Accept-Language": language})
         assert response.status_code == 200, response.text
         assert response.json()["data"]["progress"]["message"] == expected
+        # 任务名按读者语言（库里仍存中文原文供旧客户端）
+        assert response.json()["data"]["subject"] == subject
     outcome = await duplicates._scan(db)
     assert outcome["message_key"] == (
         "library.duplicateScan.completed" if populated else "library.duplicateScan.empty"

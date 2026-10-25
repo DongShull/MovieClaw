@@ -1781,14 +1781,17 @@ async def build_kind_genres(
         "genres",
         content_limit=content_limit,
     )
-    own = genre_names(kind)
-    other = genre_names("tv" if kind == "movie" else "movie")
+    other_kind = "tv" if kind == "movie" else "movie"
+    own, other = genre_names(kind), genre_names(other_kind)
     views: list[LibraryKindGenreView] = []
     for value, count in sorted(rows, key=lambda r: (-r[1], r[0])):
         if count <= 0 or not value.lstrip("-").isdigit():
             continue
-        label = own.get(int(value)) or other.get(int(value))
-        if label:
+        genre_id = int(value)
+        # 名字按读者语言（与筛选面板同一张目录）；两张表都不认的 id 丢掉
+        source = kind if genre_id in own else other_kind if genre_id in other else None
+        if source is not None:
+            label = genre_label(source, genre_id)
             views.append(LibraryKindGenreView(value=value, label=label, count=count))
     await _assign_genre_covers(session, library_ids, views, member_id, content_limit)
     return views
