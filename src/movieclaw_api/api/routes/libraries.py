@@ -29,7 +29,13 @@ from movieclaw_api.api.routes.images import WIDTH_QUERY, requested_width, sized_
 from movieclaw_api.exceptions import BadRequestException, ConflictException, NotFoundException
 from movieclaw_api.i18n import t
 from movieclaw_api.i18n.media_labels import routing_options_labels
-from movieclaw_api.i18n.stored import localize_fields, reference, source_text, stored_message
+from movieclaw_api.i18n.stored import (
+    localize_fields,
+    reference,
+    render_value,
+    source_text,
+    stored_message,
+)
 from movieclaw_api.schemas.library import (
     ActorView,
     ArtworkCandidatesView,
@@ -2880,7 +2886,7 @@ async def _attach_cloud_views(
             local=bool(local.get(view.id, True)),
             origin=replica.origin,
             state=replica.state,
-            error=replica.error,
+            error=render_value(replica.error_ref) if replica.error_ref else replica.error,
         )
 
 

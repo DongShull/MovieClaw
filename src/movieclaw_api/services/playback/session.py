@@ -40,6 +40,7 @@ from urllib.parse import quote, urlsplit
 
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.i18n.stored import reference, source_render
+from movieclaw_api.services.drives.messages import error_reference
 from movieclaw_api.services.playback.cache import (
     Manifest,
     cache_components,
@@ -1114,8 +1115,9 @@ class TranscodeSessionManager:
                 await sources.take_slot(item.account_id, f"transcode:{session.id}", pinned=True)
             await sources.prefetch(session.source_path)
         except sources.SlotsFull as exc:
-            _set_error(session, exc.message)
-            raise SessionStartError(exc.message) from exc
+            error = error_reference(exc)
+            _set_error(session, error)
+            raise SessionStartError(error) from exc
         except DriveError as exc:
             error = reference("player.session.cloudFileUnavailable", reason=exc.message)
             _set_error(session, error)

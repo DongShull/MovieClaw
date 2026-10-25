@@ -15,6 +15,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
+from movieclaw_api.i18n.stored import source_text
 from movieclaw_kernel import Context, Registry
 from movieclaw_sdk.drives import DRIVE_BACKENDS, DriveBackend
 
@@ -67,7 +68,8 @@ def backend(backend_type: str) -> DriveBackend:
     found = backends().get(backend_type)
     if found is None:
         raise BackendUnavailable(
-            f"没有安装能连接「{backend_type}」网盘的存储插件", backend_type=backend_type
+            source_text("errors.driveLogin.backendUnavailable", type=backend_type),
+            backend_type=backend_type,
         )
     return found
 

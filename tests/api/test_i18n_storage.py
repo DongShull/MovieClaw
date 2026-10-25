@@ -93,3 +93,20 @@ def test_unknown_registration_text_and_cleanup_facts_remain_raw(data_root):
         "skipped_busy": 0,
         "freed_bytes": 23,
     }
+
+
+@pytest.mark.parametrize("field", ["title", "summary", "description"])
+def test_every_registered_directory_text_has_an_identical_catalog_source(field):
+    """登记表里的中文是回滚默认值：每条都必须有同文目录键，读取时才真的按读者语言渲染。"""
+    import re
+
+    from movieclaw_api.i18n import messages
+
+    chinese, english = messages("zh-Hans"), messages("en")
+    for directory in registry.DATA_DIRS:
+        identity = "".join(part.title() for part in re.split(r"[._-]", directory.key))
+        key = f"settings.storage.directories.{identity[:1].lower()}{identity[1:]}{field.title()}"
+        assert chinese.get(key) == getattr(directory, field), key
+        assert english.get(key), key
+        with use_locale("en"):
+            assert registry.directory_text(directory.key, field, "") == english[key]

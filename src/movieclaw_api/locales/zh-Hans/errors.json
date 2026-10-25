@@ -690,7 +690,22 @@
   "drives": {
     "accountMissing": "网盘账号不存在",
     "loginExpired": "登录不存在或已过期，请重新扫码",
-    "qrStartFailed": "发起扫码失败：{error}"
+    "qrStartFailed": "发起扫码失败：{error}",
+    "backgroundBudget": "「{name}」今天的后台调用额度已用到 {percent}%，余量留给播放，明天继续",
+    "timeout": "「{name}」响应超时",
+    "backendTimeout": "{name}响应超时",
+    "signInExpired": "「{name}」的登录已失效，需要重新登录",
+    "disabled": "「{name}」已停用",
+    "apiChanged": "「{name}」的接口有变化，插件暂时不认识，请更新插件",
+    "rateLimitedFor": "「{name}」被网盘限流，约 {minutes} 分钟后恢复",
+    "slotsFull": "网盘「{name}」同时播放数已满（{limit}），稍后再试，或在「设置 → 网盘」里调整",
+    "cloudOnlyUnavailable": "这个文件只在网盘上，但网盘副本现在不可用",
+    "reloginNeeded": "网盘需要重新登录：{reason}",
+    "fileUnavailable": "网盘取不到这个文件：{reason}",
+    "streamFailed": "网盘取流失败：{reason}",
+    "deleteFailed": "网盘上的文件没删掉：{reason}",
+    "partSizeInvalid": "网盘给的分片大小不合理（{size} 字节）",
+    "rangeInvalid": "网盘要校验的字节段不合理（{range}）"
   },
   "appearance": {
     "imageFormatUnsupported": "不支持的图片格式，请上传 JPG / PNG / WebP / GIF / AVIF 图片",

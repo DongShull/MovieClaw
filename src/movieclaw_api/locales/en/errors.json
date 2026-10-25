@@ -690,7 +690,22 @@
   "drives": {
     "accountMissing": "This cloud drive account does not exist",
     "loginExpired": "This login does not exist or has expired. Scan the QR code again.",
-    "qrStartFailed": "Could not start QR sign-in: {error}"
+    "qrStartFailed": "Could not start QR sign-in: {error}",
+    "backgroundBudget": "“{name}” has used {percent}% of today’s background call budget; the rest is kept for playback. It resumes tomorrow",
+    "timeout": "“{name}” timed out",
+    "backendTimeout": "{name} timed out",
+    "signInExpired": "The sign-in for “{name}” expired; sign in again",
+    "disabled": "“{name}” is disabled",
+    "apiChanged": "The API of “{name}” changed and the plugin doesn’t recognize it yet; update the plugin",
+    "rateLimitedFor": "“{name}” is rate-limited by the provider; it recovers in about {minutes, plural, one {# minute} other {# minutes}}",
+    "slotsFull": "Cloud storage “{name}” has reached its concurrent playback limit ({limit}). Try again later or adjust it in Settings → Cloud storage",
+    "cloudOnlyUnavailable": "This file exists only in cloud storage, and the cloud copy isn’t available right now",
+    "reloginNeeded": "Cloud storage needs you to sign in again: {reason}",
+    "fileUnavailable": "Cloud storage couldn’t provide this file: {reason}",
+    "streamFailed": "Streaming from cloud storage failed: {reason}",
+    "deleteFailed": "The file in cloud storage wasn’t deleted: {reason}",
+    "partSizeInvalid": "The provider returned an invalid part size ({size} bytes)",
+    "rangeInvalid": "The provider requested an invalid byte range to verify ({range})"
   },
   "appearance": {
     "imageFormatUnsupported": "Upload a JPG, PNG, WebP, GIF or AVIF image",

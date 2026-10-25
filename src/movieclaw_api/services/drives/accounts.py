@@ -20,6 +20,7 @@ from typing import Any
 
 from movieclaw_api.i18n.stored import stored_fields
 from movieclaw_api.services.drives import gateway
+from movieclaw_api.services.drives.messages import keyed
 from movieclaw_api.services.drives.registry import BackendUnavailable
 from movieclaw_api.services.drives.registry import backend as get_backend
 from movieclaw_db.engine import get_database
@@ -138,6 +139,7 @@ async def begin_login(
     )
     await _apply(item, flow)
     _logins[item.login_id] = item
+    # i18n-ignore: task name for logs; stored login marker rendered by the route
     _spawn(_watch(item), "网盘扫码登录")
     return item
 
@@ -240,6 +242,7 @@ async def import_cookie(
         ) from exc
     except dv.DriveError as exc:
         raise ValueError(exc.message) from exc
+    # i18n-ignore: task name for logs; stored login marker rendered by the route
     return await _commit(backend_type, result, "cookie", "网页端", relogin=relogin)
 
 
@@ -362,7 +365,7 @@ async def refresh_profile(account_id: int) -> DriveAccount:
         repo = DriveAccountRepository(session)
         row = await repo.get(account_id)
         if row is None:
-            raise dv.NotFound("网盘账号不存在")
+            raise keyed(dv.NotFound, "errors.drives.accountMissing")
         row.vip = info.vip
         row.quota_total = info.quota_total
         row.quota_used = info.quota_used
@@ -384,7 +387,7 @@ async def update_settings(
         repo = DriveAccountRepository(session)
         row = await repo.get(account_id)
         if row is None:
-            raise LookupError("网盘账号不存在")
+            raise keyed(LookupError, "errors.drives.accountMissing")
         if name is not None:
             name = name.strip()
             if not name:

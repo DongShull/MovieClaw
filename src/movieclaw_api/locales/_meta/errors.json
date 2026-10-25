@@ -2542,5 +2542,50 @@
   },
   "plugins.callbacksDisabled": {
     "sourceHash": "ca129c271c06a92dfb2b7a129004db32627f917eb42516cdcc2744b0ab6a86c9"
+  },
+  "drives.backgroundBudget": {
+    "sourceHash": "77b17a17916827baf529052f83f8b2b121f0d51939be3485fa1f982c7ed88eaf"
+  },
+  "drives.timeout": {
+    "sourceHash": "0d6e0dac383ace253ec9626bc4851d9aab7425ee1f4a372ae2532a08684a5671"
+  },
+  "drives.backendTimeout": {
+    "sourceHash": "306f5634169b15d8c2bffbfe303a9a23f11507dda9ee1c35810b1ffa9b9e3e16"
+  },
+  "drives.signInExpired": {
+    "sourceHash": "9b6de434f711b9ec9d0854e1263382e57088868f723635e53af3f1cd2dcac9b6"
+  },
+  "drives.disabled": {
+    "sourceHash": "0d894364b2d32b61a9f8ef7b0ad1fd57c62dec1ee006e768522581bdfa3a86bb"
+  },
+  "drives.apiChanged": {
+    "sourceHash": "6aaa19a3f248b3686894a3d9a6fb938206471ef5a7ad53445cb88f6b1c0a031a"
+  },
+  "drives.rateLimitedFor": {
+    "sourceHash": "afac907aff68d8a4a8f1a6e99a419fe0df1f5683c86307ec15a42bd09681dc1d"
+  },
+  "drives.slotsFull": {
+    "sourceHash": "576c660110613b183b283811c8f432a3cee28d8feae5145467a102884833ac1e"
+  },
+  "drives.cloudOnlyUnavailable": {
+    "sourceHash": "520fb646f61827f0ced917d584331ec56a961136dc4642a062217cd86fda230e"
+  },
+  "drives.reloginNeeded": {
+    "sourceHash": "3b92151c44cf2b6822756e4f5521d4e1e5d7c59df8da22c20d5b59a7f53512c8"
+  },
+  "drives.fileUnavailable": {
+    "sourceHash": "dcd4f76a3efffb398b5e294263b2ff228d49ebd6d0589544f005248b309025f1"
+  },
+  "drives.streamFailed": {
+    "sourceHash": "5486f12be903fda686bc864c52223f50a56136b52fba553dad119e03c9529630"
+  },
+  "drives.deleteFailed": {
+    "sourceHash": "d7e8a9185269310ba9f84963cab2069b2ba4854c051c219b2cdbdc4cbf6ce659"
+  },
+  "drives.partSizeInvalid": {
+    "sourceHash": "c052c3e2ce561e46ecd23151ca27ca30a1873b3a9e3ae37bf3944b45d206c50f"
+  },
+  "drives.rangeInvalid": {
+    "sourceHash": "8767684e80cd74e30075a39cdb251f5869aba761a25ab5d274f2cbd9919ccfcd"
   }
 }
