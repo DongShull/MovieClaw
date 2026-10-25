@@ -840,5 +840,29 @@
     "queuedLibrary": "Waiting to refresh library metadata",
     "queuedItem": "Waiting to refresh item metadata",
     "withImages": "{head}{images}"
+  },
+  "reels": {
+    "other": "Other",
+    "decade2020s": "2020s",
+    "decade2010s": "2010s",
+    "decade2000s": "2000s",
+    "decade1990s": "1990s",
+    "runtimeLte60": "Under 60 min",
+    "runtime60to90": "60–90 min",
+    "runtime90to120": "90–120 min",
+    "runtimeGt120": "Over 120 min",
+    "ratingAtLeast": "{rating}+",
+    "clips": {
+      "subject": "Clip precutting",
+      "subjectOther": "Clip precutting (Other)",
+      "queued": "Waiting to precut clips",
+      "disabled": "Clip precutting is off; nothing was processed",
+      "turnedOff": "Clip precutting was turned off",
+      "pausedTranscoding": "A transcoded stream is playing",
+      "pausedWatching": "Someone is watching",
+      "progress": "Cut {ready} / {total}",
+      "paused": "{reason}; precutting is paused (cut {ready} / {total})",
+      "finished": "Cut {cut, plural, one {# new title} other {# new titles}}; {ready} / {total} have clips{failed, plural, =0 {} one {; # source couldn’t be cut} other {; # sources couldn’t be cut}}"
+    }
   }
 }

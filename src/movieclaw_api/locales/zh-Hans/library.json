@@ -840,5 +840,29 @@
     "queuedLibrary": "等待刷新媒体库元数据",
     "queuedItem": "等待刷新条目元数据",
     "withImages": "{head}{images}"
+  },
+  "reels": {
+    "other": "其他",
+    "decade2020s": "2020 年代",
+    "decade2010s": "2010 年代",
+    "decade2000s": "2000 年代",
+    "decade1990s": "1990 年代",
+    "runtimeLte60": "60 分钟以内",
+    "runtime60to90": "60～90 分钟",
+    "runtime90to120": "90～120 分钟",
+    "runtimeGt120": "120 分钟以上",
+    "ratingAtLeast": "{rating} 分以上",
+    "clips": {
+      "subject": "片段预切",
+      "subjectOther": "片段预切（其他）",
+      "queued": "等待开始预切片段",
+      "disabled": "片段预切没有打开，本次未处理",
+      "turnedOff": "片段预切已关闭",
+      "pausedTranscoding": "正在转码播放",
+      "pausedWatching": "有人在观看",
+      "progress": "已切 {ready} / {total} 部",
+      "paused": "{reason}，预切暂停中（已切 {ready} / {total} 部）",
+      "finished": "新切 {cut} 部，共 {ready} / {total} 部有片段{failed, plural, =0 {} other {；# 部片源切不了}}"
+    }
   }
 }
