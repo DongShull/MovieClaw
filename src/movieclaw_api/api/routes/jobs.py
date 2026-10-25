@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from movieclaw_api.api.deps import require_admin
 from movieclaw_api.exceptions import BadRequestException, NotFoundException, exception_fields
 from movieclaw_api.i18n import t
-from movieclaw_api.i18n.stored import localize_fields, stored_message
+from movieclaw_api.i18n.stored import localize_fields, render_value, stored_message
 from movieclaw_api.schemas.base import utc_isoformat
 from movieclaw_api.schemas.jobs import (
     JobCancelView,
@@ -72,7 +72,7 @@ def _job_view(job: Job, resources: list[JobResource], *, slim_input: bool = Fals
         id=job.id,
         job_type=job.job_type,
         job_type_label=jobs.job_type_label(job.job_type),
-        subject=job.subject,
+        subject=render_value(job.subject_ref) if job.subject_ref else job.subject,
         definition_version=job.definition_version,
         handler_revision=job.handler_revision,
         prompt_revision=job.prompt_revision,

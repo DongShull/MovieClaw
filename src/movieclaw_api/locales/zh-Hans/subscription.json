@@ -60,7 +60,18 @@
     "editLanguageQuestion": "{language}看得懂吗？",
     "languageQuestion": "这是{language}片，要{acceptable}字幕吗？",
     "asap": "尽快下载",
-    "bluray": "蓝光"
+    "bluray": "蓝光",
+    "replacementEnded": "替代目标已结束，或候选与原任务相同",
+    "duplicateAttempt": "候选与本订阅已有下载记录相同",
+    "unsatisfiedRetry": "{reason}；已改为寻找其他资源",
+    "unsatisfiedPartial": "{reason}；这些集已退回重找，其余集继续提交",
+    "unsatisfiedAll": "{reason}；已退回重找，下载器中的任务保留未删除",
+    "recoverPending": "提交待恢复：{reason}",
+    "submitPending": "提交尚未完成：{reason}；重试同一任务，不自动改为全量下载。",
+    "ambiguousSelection": "无法安全选择文件：{name} 的季集范围不明确或不可拆分",
+    "duplicateEpisodeFile": "同一集存在多个视频文件，需确认版本：{name}",
+    "missingEpisodes": "种子文件里没有 {units}",
+    "foreignLanguage": "外语"
   },
   "upgrade": {
     "summaryUpgradable": "{count} 个单元可洗版，已排入立即搜索",
@@ -197,5 +208,39 @@
     "upgradePreempted": "洗版下载完成时基线已被更优版本抢先，本次结果不再需要；保留下载器任务",
     "upgradeDisproved": "洗版证伪：实测档位不高于当前版本，候选已排除",
     "networkOutOfScope": "网络投递完成前关联单元已退出订阅范围；保留下载器任务"
+  },
+  "cleanup": {
+    "unsubscribeLabel": "取消订阅清理",
+    "seasonLabel": "{seasons}退出追踪清理",
+    "subject": "《{title}》{label}",
+    "itemFallback": "条目 #{id}",
+    "titleFallback": "订阅",
+    "downloaderFallback": "下载器",
+    "queued": "等待清理订阅关联内容",
+    "torrentFailed": "种子「{name}」删除失败：{error}",
+    "fileFailed": "文件「{path}」回收失败：{error}",
+    "progressTorrents": "正在删除下载任务（{done}/{total}）",
+    "progressFiles": "正在回收媒体库文件（{done}/{total}）",
+    "removedTorrents": "删除 {count} 个下载任务",
+    "recycledFiles": "回收 {count} 个媒体库文件",
+    "nothing": "无可清理内容",
+    "done": "《{title}》清理完成：{parts}{failed, plural, =0 {} other {；# 项失败，详见任务结果}}",
+    "trigger": "《{title}》取消订阅",
+    "recycleNote": "取消订阅时选择了一并删除媒体库资源"
+  },
+  "outcome": {
+    "unfollowed": "已取消关注；订阅本身不受影响",
+    "handedOver": "你已退出；订阅转由其他关注的家人继续追更",
+    "unsubscribed": "已取消订阅",
+    "nothingToClean": "没有可清理的内容",
+    "cleaning": "正在后台清理{parts}（可在任务中心查看进度）",
+    "deleted": "订阅已永久删除；已下载内容不受影响",
+    "deletedCleaning": "订阅已永久删除；正在后台清理{parts}（可在任务中心查看进度）"
+  },
+  "twins": {
+    "reject": "体积与片长更像同名同年的《{title}》（{year}，tmdb={id}），不像本条目",
+    "skip": "存在同名影片，资源缺少可区分的影片编号，已跳过；订阅会继续寻找，无需处理",
+    "noticeTitle": "《{title}》仍在寻找资源",
+    "noticeBody": "发现同名影片，部分资源暂时无法确认，已跳过。订阅会继续寻找，无需你处理。"
   }
 }

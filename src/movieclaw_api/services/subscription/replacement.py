@@ -431,6 +431,7 @@ async def run_replacement_search(attempt_id: int, *, force: bool = False) -> boo
                 return False
 
             rows = await _persist_hits(session, list(hits_by_key.values()))
+            # i18n-ignore: audit source label for logs and activity payload
             if await _try_candidates(session, attempt, rows, source="死种主动换源"):
                 return True
             await _postpone_after_empty_search(session, attempt, result_count=len(rows))
@@ -464,6 +465,7 @@ async def _try_passive_replacement_candidates(
     for attempt in attempts:
         if attempt.id is None or await _has_trial(session, attempt.id):
             continue
+        # i18n-ignore: audit source label for logs and activity payload
         if await _try_candidates(session, attempt, torrents, source="新种被动换源"):
             submitted += 1
     return submitted

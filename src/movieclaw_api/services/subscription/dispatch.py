@@ -21,8 +21,14 @@ from sqlmodel import select
 
 from movieclaw_api import hooks
 from movieclaw_api.core.config import get_settings
-from movieclaw_api.i18n.stored import localize_fields, reference, stored_fields
-from movieclaw_api.services.subscription.attempt_notes import note_fields
+from movieclaw_api.i18n.stored import (
+    localize_fields,
+    reference,
+    reference_fields,
+    source_render,
+    stored_fields,
+)
+from movieclaw_api.services.subscription.attempt_notes import note_fields, set_note
 from movieclaw_api.services.subscription.matching import units_reference
 from movieclaw_db.models import (
     ActivityType,
@@ -139,7 +145,8 @@ async def dispatch(
     skipped_files = 0
     all_targets = claimed + upgrade_rows
     units_label = units_text(all_targets)
-    spec_text = _describe(candidate)
+    spec_ref = _describe(candidate)
+    spec_text = source_render(spec_ref)  # 日志与事件载荷（外部契约）用中文原文
 
     # 选择性下载：候选呈整季包/多集包形态且覆盖明显多于本次要下的单元时，
     # 投递后只在下载器里保留缺口单元对应的文件（包里"已有集"不再重下，
@@ -189,20 +196,19 @@ async def dispatch(
     # 整理到该目录后由外部流转，文件回到库根时才入账关单
     staging = getattr(decision.rule, "target_path", None)
     if library is not None and decision.mode == "watch" and staging:
-        target_text = (
-            f"；已投递到监听导入目录，下载完成后将整理到 {staging}，文件进入媒体库根目录后自动入账"
-        )
+        target_ref = reference("activity.subscription.targetStaging", path=staging)
     elif library is not None and decision.mode == "watch":
-        target_text = (
-            f"；已投递到监听导入目录，下载完成后将整理入库到「{library.name}」："
-            f"{decision.entry_dir}"
+        target_ref = reference(
+            "activity.subscription.targetWatch", library=library.name, path=decision.entry_dir
         )
     elif library is not None and decision.mode == "inplace":
-        target_text = f"；将直接下载到「{library.name}」库内目录：{decision.path}，完成后自动入账"
+        target_ref = reference(
+            "activity.subscription.targetInPlace", library=library.name, path=decision.path
+        )
     elif library is not None:
-        target_text = f"；媒体库「{library.name}」未配置根路径，将落至下载器默认目录，不会自动入库"
+        target_ref = reference("activity.subscription.targetNoRoot", library=library.name)
     else:
-        target_text = "；未配置媒体库，下载完成后不会自动整理入库"
+        target_ref = reference("activity.subscription.targetNoLibrary")
 
     extended = None
     if not dry_run:
@@ -293,7 +299,7 @@ async def dispatch(
                 )
 
                 if isinstance(exc, SubmissionRejected):
-                    await reject_intent(session, intent, all_targets, reason)
+                    await reject_intent(session, intent, all_targets, exc.ref)
                     return False
                 if isinstance(exc, UnsatisfiableSelection):
                     # 文件清单的结论不会因重试改变：给满足不了的单元一个终态
@@ -320,7 +326,7 @@ async def dispatch(
                                     "activity.subscription.releaseMissingUnits",
                                     units=units_reference(released),
                                     title=candidate.title,
-                                    reason=str(exc),
+                                    reason=exc.ref,
                                 ),
                             )
                         )
@@ -350,14 +356,17 @@ async def dispatch(
                     "retry_at": (utcnow() + retry_after).isoformat(),
                 }
                 intent.updated_at = utcnow()
-                intent.cleanup_note = f"提交待恢复：{reason}"
+                set_note(intent, reference("subscription.smart.recoverPending", reason=reason))
+                explanation = reference("subscription.smart.submitPending", reason=reason)
                 for row in all_targets:
                     row.selection_state = {
                         **(row.selection_state or {}),
                         "reason": "reconciling",
-                        "choice_explanation": (
-                            f"提交尚未完成：{reason}；重试同一任务，不自动改为全量下载。"
-                        ),
+                        "choice_explanation": source_render(explanation),
+                    }
+                    row.selection_messages = {
+                        **(row.selection_messages or {}),
+                        "choice_explanation": explanation,
                     }
                 await session.commit()
                 logger.warning(
@@ -578,6 +587,7 @@ async def dispatch(
     resource_first_seen_at = torrent_row.created_at if torrent_row is not None else None
     submitted_at = utcnow()
 
+    # i18n-ignore: log prefix
     mode = "【模拟投递】" if dry_run else ""
     logger.info(
         "%s已投递（%s）：《%s》%s ← %s 的「%s」（%s）",
@@ -591,37 +601,55 @@ async def dispatch(
     )
     # 洗版投递用专属活动类型与"从 X 洗到 Y"文案；混合投递（缺口+洗版）
     # 仍是 GRABBED，文案附注洗版单元数
-    selective_note = (
-        f"；选择性下载：跳过包内 {skipped_files} 个不需要的文件，仅下载缺口单元"
-        if skipped_files
-        else ""
-    )
+    units_ref = units_reference(all_targets)
+    tail = [target_ref]
+    if skipped_files:
+        tail.append(reference("activity.subscription.selective", count=skipped_files))
     if is_trial:
         activity_type = ActivityType.REPLACEMENT_TRIAL
-        message = (
-            f"已提交同品质替代源验证{units_label}：{candidate.title[:60]}；确认新源有进度后再切换"
-        )
-    elif upgrade_rows and not claimed:
-        activity_type = ActivityType.UPGRADE_GRABBED
-        label_text = (
-            f"{upgrade_labels[1]}（当前 {upgrade_labels[0]}）" if upgrade_labels else spec_text
-        )
-        message = (
-            f"{units_label}发现更高版本，已提交洗版下载：来自 {candidate.site_id} 的"
-            f"「{candidate.title[:60]}」（{label_text}）"
-            + target_text
-            + selective_note
-            + ("——模拟投递，未真实提交下载器" if dry_run else "")
+        message = reference(
+            "activity.subscription.trialSubmitted", units=units_ref, title=candidate.title[:60]
         )
     else:
-        activity_type = ActivityType.GRABBED
-        message = (
-            f"已投递{units_label}：来自 {candidate.site_id} 的"
-            f"「{candidate.title[:60]}」（{spec_text}）"
-            + (f"；其中 {units_text(upgrade_rows)}为洗版" if upgrade_rows else "")
-            + target_text
-            + selective_note
-            + ("——模拟投递，未真实提交下载器" if dry_run else "")
+        if upgrade_rows and not claimed:
+            activity_type = ActivityType.UPGRADE_GRABBED
+            head = [
+                reference(
+                    "activity.subscription.upgradeGrabbed",
+                    units=units_ref,
+                    site=candidate.site_id,
+                    title=candidate.title[:60],
+                    label=reference(
+                        "activity.subscription.upgradeLabel",
+                        new=upgrade_labels[1],
+                        old=upgrade_labels[0],
+                    )
+                    if upgrade_labels
+                    else spec_ref,
+                )
+            ]
+        else:
+            activity_type = ActivityType.GRABBED
+            head = [
+                reference(
+                    "activity.subscription.grabbed",
+                    units=units_ref,
+                    site=candidate.site_id,
+                    title=candidate.title[:60],
+                    spec=spec_ref,
+                )
+            ]
+            if upgrade_rows:
+                head.append(
+                    reference(
+                        "activity.subscription.grabbedUpgradeUnits",
+                        units=units_reference(upgrade_rows),
+                    )
+                )
+        message = reference(
+            "activity.subscription.dispatched",
+            parts={"message_list": [*head, *tail], "separator_key": "common.list.issueSeparator"},
+            dryRun="yes" if dry_run else "no",
         )
     # 单集履历注解：把「这集靠哪个种子拿到」冻结在工单上，详情页里程碑链的
     # 投递站直接读，不再回活动流水里按季集捞。只写认领的缺口单元——洗版
@@ -661,7 +689,7 @@ async def dispatch(
             subscription_id=subscription.id,
             wanted_item_id=all_targets[0].id,
             type=activity_type,
-            message=message,
+            **reference_fields(message),
             payload={
                 "site_id": candidate.site_id,
                 "torrent_id": candidate.torrent_id,
@@ -1003,13 +1031,15 @@ async def _submit_real(
     return result, row
 
 
-def _describe(candidate: TorrentCandidate) -> str:
-    """候选的一句话规格描述，进活动与日志。"""
-    parts: list[str] = []
+def _describe(candidate: TorrentCandidate) -> dict:
+    """候选的一句话规格描述（文案引用），进活动与日志。"""
+    parts: list[str | dict] = []
     if candidate.attrs.resolution:
         parts.append(candidate.attrs.resolution)
     if candidate.is_free is True:
         parts.append("free")
     if candidate.seeders is not None:
-        parts.append(f"{candidate.seeders} 做种")
-    return " · ".join(parts) if parts else "规格未知"
+        parts.append(reference("activity.subscription.seeders", count=candidate.seeders))
+    if not parts:
+        return reference("activity.subscription.specUnknown")
+    return {"message_list": parts, "separator_key": "common.list.dotSeparator"}

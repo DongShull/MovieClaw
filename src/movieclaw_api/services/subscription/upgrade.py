@@ -37,7 +37,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api.i18n.quality_labels import quality_reference, upgrade_target_reference
-from movieclaw_api.i18n.stored import reference, render_value, stored_fields
+from movieclaw_api.i18n.stored import (
+    reference,
+    reference_fields,
+    render_value,
+    source_render,
+    stored_fields,
+)
 from movieclaw_api.services.library.quality import file_sort_key as _file_sort_key
 from movieclaw_api.services.library.quality import snapshot_from_file
 from movieclaw_api.services.subscription.attempt_notes import set_note
@@ -730,13 +736,16 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
 
     def _recycle_trigger(w: WantedItem) -> dict:
         """回收审计快照（library-file-recycle.md §4）：存展示用快照不外键。"""
+        label_ref = (
+            reference("library.recycle.triggerTitle", title=item.title)
+            if item is not None
+            else reference("library.recycle.triggerUpgrade")
+        )
         return {
             "kind": "subscription",
             "id": w.subscription_id,
-            "label": f"《{item.title}》订阅洗版" if item is not None else "订阅洗版",
-            "label_ref": reference("library.recycle.triggerTitle", title=item.title)
-            if item is not None
-            else reference("library.recycle.triggerUpgrade"),
+            "label": source_render(label_ref),
+            "label_ref": label_ref,
         }
 
     for wanted in rows:
@@ -757,7 +766,6 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                     file,
                     reason="upgrade_refuted",
                     trigger=_recycle_trigger(wanted),
-                    note="洗版证伪残留隔离：来自已证伪来源的文件不参与版本裁决",
                     note_ref=reference("library.recycle.noteQuarantined"),
                 )
                 if outcome == "already_gone":
@@ -930,7 +938,6 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                         file,
                         reason="upgrade_replaced",
                         trigger=_recycle_trigger(wanted),
-                        note=f"洗版替换：{old_label} → {new_label}",
                         note_ref=reference(
                             "library.recycle.noteUpgraded",
                             old=quality_reference(baseline, spec),
@@ -961,16 +968,16 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                     subscription_id=wanted.subscription_id,
                     wanted_item_id=wanted.id,
                     type=ActivityType.UPGRADED,
-                    message=(
-                        f"{_unit_text(wanted)}已洗版：{old_label} → {new_label}"
-                        + ("，旧版本已移入回收站（保留 7 天）" if trash_paths else "")
-                        + (
-                            "；部分旧版本移入回收站失败，已原地转入待回收"
-                            "（按保留期自动清理）——可在库详情恢复或立即清理"
-                            if kept_in_place
-                            else ""
+                    **reference_fields(
+                        reference(
+                            "activity.subscription.upgraded",
+                            unit=_unit_reference(wanted),
+                            old=quality_reference(baseline, spec),
+                            new=quality_reference(best_snapshot, spec),
+                            trash="yes" if trash_paths else "no",
+                            kept="yes" if kept_in_place else "no",
+                            coexist="yes" if spec.upgrade_keep_old else "no",
                         )
-                        + ("；旧版本按规则保留共存" if spec.upgrade_keep_old else "")
                     ),
                     payload={
                         "from": old_label,
@@ -1033,7 +1040,6 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                         file,
                         reason="upgrade_refuted",
                         trigger=_recycle_trigger(wanted),
-                        note="洗版证伪：实测档位不高于当前版本",
                         note_ref=reference("library.recycle.noteRefuted"),
                     )
                     if outcome == "already_gone":
@@ -1074,15 +1080,16 @@ async def _verify_upgrades_locked(session: AsyncSession, media_item_id: int) -> 
                     subscription_id=wanted.subscription_id,
                     wanted_item_id=wanted.id,
                     type=ActivityType.UPGRADE_VERIFY_FAILED,
-                    message=(
-                        f"{_unit_text(wanted)}洗版候选证伪：标称 "
-                        f"{quality_label(QualitySnapshot.model_validate(attempt.quality or {}))}，"
-                        f"实测为 {quality_label(best_snapshot)}，已排除该资源"
-                        + (
-                            f"；连续 {wanted.upgrade_verify_failures} 次证伪，"
-                            "该单元洗版转入 30 天冷却"
-                            if fused
-                            else ""
+                    **reference_fields(
+                        reference(
+                            "activity.subscription.upgradeRefuted",
+                            unit=_unit_reference(wanted),
+                            claimed=quality_reference(
+                                QualitySnapshot.model_validate(attempt.quality or {})
+                            ),
+                            measured=quality_reference(best_snapshot),
+                            fused="yes" if fused else "no",
+                            count=wanted.upgrade_verify_failures,
                         )
                     ),
                     payload={
@@ -1144,10 +1151,15 @@ def _better(snapshot, baseline, spec) -> bool:
     return compare_ladder(ladder_vector(snapshot, spec), ladder_vector(baseline, spec)) == 1
 
 
-def _unit_text(wanted: WantedItem) -> str:
+def _unit_reference(wanted: WantedItem) -> dict | str:
     if wanted.season_number == 0 and wanted.episode_number == 0:
-        return "正片"
+        return reference("media.kind.feature")
     return f"S{wanted.season_number:02d}E{wanted.episode_number:02d}"
+
+
+def _unit_text(wanted: WantedItem) -> str:
+    """日志用的中文单元描述。"""
+    return source_render(_unit_reference(wanted))
 
 
 # ---------------------------------------------------------------------------

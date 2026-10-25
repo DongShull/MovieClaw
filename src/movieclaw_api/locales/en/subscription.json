@@ -60,7 +60,18 @@
     "editLanguageQuestion": "Do you understand {language}?",
     "languageQuestion": "This title is in {language}. Require {acceptable} subtitles?",
     "asap": "Download as soon as possible",
-    "bluray": "Blu-ray"
+    "bluray": "Blu-ray",
+    "replacementEnded": "The replacement target has ended, or the candidate is the same as the original task",
+    "duplicateAttempt": "The candidate matches an existing download of this subscription",
+    "unsatisfiedRetry": "{reason}; looking for other releases instead",
+    "unsatisfiedPartial": "{reason}; these episodes went back to searching and the rest continue",
+    "unsatisfiedAll": "{reason}; they went back to searching and the downloader task was kept",
+    "recoverPending": "Submission pending recovery: {reason}",
+    "submitPending": "Submission isn’t finished: {reason}. The same task will be retried without switching to a full download.",
+    "ambiguousSelection": "Can’t select files safely: the episode range of {name} is unclear or can’t be split",
+    "duplicateEpisodeFile": "There are several video files for the same episode; confirm the version: {name}",
+    "missingEpisodes": "The torrent has no files for {units}",
+    "foreignLanguage": "Foreign language"
   },
   "upgrade": {
     "summaryUpgradable": "{count, plural, one {# unit ready for an upgrade; search queued} other {# units ready for an upgrade; search queued}}",
@@ -197,5 +208,39 @@
     "upgradePreempted": "A better version arrived before this upgrade finished, so its result isn’t needed. The downloader task is kept",
     "upgradeDisproved": "Upgrade disproved: the measured tier isn’t higher than the current version; the candidate was excluded",
     "networkOutOfScope": "The linked units left the subscription scope before submission finished; the downloader task is kept"
+  },
+  "cleanup": {
+    "unsubscribeLabel": "Unsubscribe cleanup",
+    "seasonLabel": "Cleanup after untracking {seasons}",
+    "subject": "“{title}” · {label}",
+    "itemFallback": "Item #{id}",
+    "titleFallback": "Subscription",
+    "downloaderFallback": "Downloader",
+    "queued": "Waiting to clean up the subscription’s content",
+    "torrentFailed": "Deleting torrent “{name}” failed: {error}",
+    "fileFailed": "Recycling file “{path}” failed: {error}",
+    "progressTorrents": "Deleting download tasks ({done}/{total})",
+    "progressFiles": "Recycling library files ({done}/{total})",
+    "removedTorrents": "deleted {count, plural, one {# download task} other {# download tasks}}",
+    "recycledFiles": "recycled {count, plural, one {# library file} other {# library files}}",
+    "nothing": "nothing to clean up",
+    "done": "Cleanup of “{title}” finished: {parts}{failed, plural, =0 {} one {; # item failed, see the job result} other {; # items failed, see the job result}}",
+    "trigger": "Unsubscribed “{title}”",
+    "recycleNote": "Library files were chosen for deletion when unsubscribing"
+  },
+  "outcome": {
+    "unfollowed": "Unfollowed; the subscription itself is unchanged",
+    "handedOver": "You left; another family member following it now owns the subscription",
+    "unsubscribed": "Unsubscribed",
+    "nothingToClean": "Nothing to clean up",
+    "cleaning": "Cleaning up {parts} in the background (see progress in Tasks)",
+    "deleted": "The subscription was deleted permanently; downloaded content is unaffected",
+    "deletedCleaning": "The subscription was deleted permanently; cleaning up {parts} in the background (see progress in Tasks)"
+  },
+  "twins": {
+    "reject": "Size and runtime fit “{title}” ({year}, tmdb={id}), another title with the same name and year, better than this one",
+    "skip": "A movie with the same name exists and the release has no distinguishing ID, so it was skipped. The subscription keeps searching; nothing to do",
+    "noticeTitle": "Still looking for “{title}”",
+    "noticeBody": "Found movies with the same name, so some releases couldn’t be confirmed and were skipped. The subscription keeps searching; you don’t need to do anything."
   }
 }

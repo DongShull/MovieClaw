@@ -3,7 +3,8 @@
     "separator": ", ",
     "emptySeparator": "",
     "issueSeparator": "; ",
-    "slashSeparator": " / "
+    "slashSeparator": " / ",
+    "dotSeparator": " · "
   },
   "value": {
     "missing": "(missing)"

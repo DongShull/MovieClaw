@@ -26,6 +26,7 @@ from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from movieclaw_api.i18n.stored import reference, source_render
 from movieclaw_api.services.library.layout import VIDEO_EXTS
 from movieclaw_api.services.library.units import resolve_units
 
@@ -37,8 +38,9 @@ class UnsatisfiableSelection(ValueError):
     这些单元一个终态（退回重找并记负面记忆），不能当作网络故障无限重试。
     """
 
-    def __init__(self, message: str, units: Collection[tuple[int, int]]) -> None:
-        super().__init__(message)
+    def __init__(self, ref: dict, units: Collection[tuple[int, int]]) -> None:
+        super().__init__(source_render(ref))
+        self.ref = ref
         self.units = frozenset(units)
 
 
@@ -177,23 +179,22 @@ def plan_strict_file_selection(
         )
         multiple = len(re.findall(r"S\d+E\d+|\d+x\d+", path.stem, re.I)) > 1
         if combined or multiple or key is None or key[1] <= 0:
-            unclear.append(path.name)  # 季集不明确或不可拆分：不选，也不算作任何一集
-            continue
+            raise UnsatisfiableSelection(
+                reference("subscription.smart.ambiguousSelection", name=path.name), needed_units
+            )
         if key in needed_units:
             if key in found:
                 raise UnsatisfiableSelection(
-                    f"同一集存在多个视频文件，需确认版本：{path.name}", {key}
+                    reference("subscription.smart.duplicateEpisodeFile", name=path.name), {key}
                 )
             selected.append(index)
             found.add(key)
     if not needed_units:
+        # i18n-ignore: programming invariant
         raise ValueError("没有需要选择的集")
     if found != needed_units:
         missing = needed_units - found
-        note = (
-            f"（另有 {len(unclear)} 个视频文件无法确定季集或为多集合并，如 {unclear[0]}）"
-            if unclear
-            else ""
+        raise UnsatisfiableSelection(
+            reference("subscription.smart.missingEpisodes", units=_unit_labels(missing)), missing
         )
-        raise UnsatisfiableSelection(f"种子文件里没有 {_unit_labels(missing)}{note}", missing)
     return FileSelectionPlan(selected, [i for i in range(len(paths)) if i not in selected], 0)

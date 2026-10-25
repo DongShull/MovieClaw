@@ -385,6 +385,7 @@ async def _search_one_media(media_id: int, budget: _SearchBudget) -> None:
 
         # 结果沉淀进公共缓存（source=SEARCH），再回读 ORM 行进共享管道
         persisted = await _persist_hits(session, hits)
+        # i18n-ignore: audit source label for logs and activity payload
         summary = await evaluate_and_dispatch(session, persisted, source="主动搜索")
         # 搜索回填的历史单集也属于有效发布时间观测，可帮助同剧后续集从 E2
         # 开始形成预测；限定当前条目，避免一次主动搜索触发无关全量重算。

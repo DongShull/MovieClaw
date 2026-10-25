@@ -255,6 +255,7 @@ async def grab_manual(
         wanted_rows=covered,
         candidate=candidate,
         verdict=RuleVerdict(accepted=True, score=0),
+        # i18n-ignore: audit source label for logs and activity payload
         source="手动选种",
         upgrade_rows=upgrade_covered,
         upgrade_labels=upgrade_labels,

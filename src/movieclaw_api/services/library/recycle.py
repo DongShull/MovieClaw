@@ -29,6 +29,7 @@ from typing import Any, Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import source_render
 from movieclaw_api.services.library.sidecar import find_sidecars
 from movieclaw_db.engine import get_database
 from movieclaw_db.models import FileState, LibraryFile, utcnow
@@ -94,7 +95,7 @@ async def recycle_file(
     *,
     reason: str,
     trigger: dict[str, Any],
-    note: str,
+    note: str | None = None,
     note_ref: dict | None = None,
     purge_after: Any = _AUTO,
 ) -> RecycleOutcome:
@@ -126,6 +127,8 @@ async def recycle_file(
     if file.local_bytes and not src.exists():
         return "already_gone"
 
+    if note is None:
+        note = source_render(note_ref) if note_ref else ""
     context = {"reason": reason, "trigger": trigger, "note": note}
     if note_ref:
         context["note_ref"] = deepcopy(note_ref)

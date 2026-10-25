@@ -9,6 +9,8 @@ from sqlalchemy import update
 from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import reference, source_render
+from movieclaw_api.services.subscription.attempt_notes import set_note
 from movieclaw_api.services.subscription.smart_profiles import conflict
 from movieclaw_db.models import (
     DownloadAttemptStatus,
@@ -31,7 +33,11 @@ SMART_RECOVER_MAX_DELAY = timedelta(hours=1)
 
 
 class SubmissionRejected(Exception):
-    """网络提交前已确定本意图无效，可以结束而无需对账。"""
+    """网络提交前已确定本意图无效，可以结束而无需对账。``ref`` 是原因的文案引用。"""
+
+    def __init__(self, key: str) -> None:
+        self.ref = reference(key)
+        super().__init__(source_render(self.ref))
 
 
 class _ClaimLost(Exception):
@@ -214,7 +220,7 @@ async def prepare_remote(session, intent, info_hash, downloader_id, save_path):
             or parent.status != DownloadAttemptStatus.REPLACEMENT_PENDING
             or parent.info_hash == info_hash
         ):
-            raise SubmissionRejected("替代目标已结束，或候选与原任务相同")
+            raise SubmissionRejected("subscription.smart.replacementEnded")
 
     duplicate = (
         await session.execute(
@@ -226,7 +232,7 @@ async def prepare_remote(session, intent, info_hash, downloader_id, save_path):
         )
     ).first()
     if duplicate:
-        raise SubmissionRejected("候选与本订阅已有下载记录相同")
+        raise SubmissionRejected("subscription.smart.duplicateAttempt")
 
     await ensure_can_submit(session, intent)
     if previous.get("info_hash") not in (None, info_hash) or intent.downloader_id not in (
@@ -317,10 +323,10 @@ async def ensure_can_submit(session, intent):
         raise conflict()
 
 
-async def reject_intent(session, intent, targets, reason):
+async def reject_intent(session, intent, targets, reason: dict):
     intent.status = DownloadAttemptStatus.FAILED
     intent.submission = {**(intent.submission or {}), "stage": "rejected"}
-    intent.cleanup_note = reason
+    set_note(intent, reason)
     intent.updated_at = utcnow()
     for row in targets:
         row.selection_state = {**(row.selection_state or {}), "reason": "candidate_rejected"}
@@ -345,10 +351,15 @@ async def settle_unsatisfiable(session, intent, targets, exc):
     released = [r for r in targets if (r.season_number, r.episode_number) in unusable]
     now = utcnow()
     for row in released:
+        explanation = reference("subscription.smart.unsatisfiedRetry", reason=exc.ref)
         row.selection_state = {
             **(row.selection_state or {}),
             "reason": "candidate_rejected",
-            "choice_explanation": f"{exc}；已改为寻找其他资源",
+            "choice_explanation": source_render(explanation),
+        }
+        row.selection_messages = {
+            **(row.selection_messages or {}),
+            "choice_explanation": explanation,
         }
         if row.id in payload["wanted_ids"] and row.status == WantedStatus.GRABBED:
             row.status = WantedStatus.WANTED
@@ -377,13 +388,11 @@ async def settle_unsatisfiable(session, intent, targets, exc):
     if payload.get("select_units") is not None:
         payload["select_units"] = remaining
     if remaining:
-        intent.cleanup_note = f"{exc}；这些集已退回重找，其余集继续提交"
+        set_note(intent, reference("subscription.smart.unsatisfiedPartial", reason=exc.ref))
     else:
         intent.status = DownloadAttemptStatus.FAILED
         payload["stage"] = "rejected"
-        removed = await remove_own_paused_task(session, intent)
-        kept = "本次新建的暂停任务已从下载器移除" if removed else "下载器中的任务保留未删除"
-        intent.cleanup_note = f"{exc}；已退回重找，{kept}"
+        set_note(intent, reference("subscription.smart.unsatisfiedAll", reason=exc.ref))
     intent.submission = payload
     intent.updated_at = now
     return released

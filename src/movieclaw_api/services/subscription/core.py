@@ -30,7 +30,8 @@ from movieclaw_api.exceptions import (
     ForbiddenException,
     NotFoundException,
 )
-from movieclaw_api.i18n.stored import reference, stored_fields
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import reference, render_value, source_render, stored_fields
 from movieclaw_api.services.library.profile import kind_reference
 from movieclaw_api.services.media_library import MediaLibraryService
 from movieclaw_api.services.rule_sets import RuleSetService, rule_set_name_reference
@@ -428,16 +429,18 @@ async def recompute_subscription_status(
     )
     await repo.save(subscription)
     if new_status == SubscriptionStatus.COMPLETED:
-        message = "订阅已收齐：期望的内容都已安排完毕，且暂无会新增的内容"
+        key = "activity.subscription.completed"
         activity_type = ActivityType.COMPLETED
     elif truncated and not (has_open or growing or hinted):
         message = "本季还有没订到的集，可随时继续订阅"
         activity_type = ActivityType.REOPENED
     else:
-        message = "出现新的缺口，重新进入追踪"
+        key = "activity.subscription.reopened"
         activity_type = ActivityType.REOPENED
     await repo.add_activity(
-        SubscriptionActivity(subscription_id=subscription.id, type=activity_type, message=message)
+        SubscriptionActivity(
+            subscription_id=subscription.id, type=activity_type, **stored_fields(key)
+        )
     )
 
 
@@ -1143,8 +1146,9 @@ class SubscriptionService:
         await self._log(
             subscription,
             ActivityType.ADJUSTED,
-            f"用户触发立即搜索：{reset} 个缺口跳过冷却、重新排队"
-            + (f"（含 {upgrade_reset} 个洗版单元）" if upgrade_reset else ""),
+            **stored_fields(
+                "activity.subscription.searchNow", count=reset, upgrade=upgrade_reset
+            ),
             payload={
                 "reset_count": reset,
                 "upgrade_reset_count": upgrade_reset,
@@ -1232,7 +1236,7 @@ class SubscriptionService:
         if subscription.created_by_member_id != member_id:
             if await self._repo.remove_follower(subscription_id, member_id):
                 logger.info("成员 #%d 已取消关注订阅 #%d", member_id, subscription_id)
-                return "已取消关注；订阅本身不受影响"
+                return t("subscription.outcome.unfollowed")
             raise ForbiddenException(message_key="errors.subscription.deletePermission")
         followers = await self._repo.follower_member_ids(subscription_id)
         if followers:
@@ -1248,11 +1252,11 @@ class SubscriptionService:
             logger.info(
                 "订阅 #%d 发起人 #%d 退出，转移给成员 #%d", subscription_id, member_id, heir
             )
-            return "你已退出；订阅转由其他关注的家人继续追更"
+            return t("subscription.outcome.handedOver")
         await self._record(SUBSCRIPTION_DELETED, subscription, reason="unsubscribed")
         await self._repo.delete(subscription)
         logger.info("成员 #%d 退出并删除无人关注的订阅 #%d", member_id, subscription_id)
-        return "已取消订阅"
+        return t("subscription.outcome.unsubscribed")
 
     async def removal_preview(
         self, subscription_id: int, *, seasons: list[int] | None = None
@@ -1320,7 +1324,10 @@ class SubscriptionService:
             delete_torrents=delete_torrents,
             delete_library_files=delete_library_files,
             origin=origin,
-            label=f"{self._season_text(sorted(scope))}退出追踪清理",
+            label=reference(
+                "subscription.cleanup.seasonLabel",
+                seasons=self._season_reference(sorted(scope)),
+            ),
         )
         reset = await reset_cleaned_wanted(
             self._session,
@@ -1329,18 +1336,20 @@ class SubscriptionService:
             torrents_deleted=delete_torrents and bool(plan.torrents),
             files_deleted=delete_library_files and bool(plan.files),
         )
-        cleaned: list[str] = []
-        if delete_torrents and plan.torrents:
-            cleaned.append(f"{len(plan.torrents)} 个下载任务")
-        if delete_library_files and plan.files:
-            cleaned.append(f"{len(plan.files)} 个媒体库文件")
+        cleaned = self._cleaned_reference(
+            len(plan.torrents) if delete_torrents else 0,
+            len(plan.files) if delete_library_files else 0,
+        )
         if created is not None:
             await self._log(
                 subscription,
                 ActivityType.ADJUSTED,
-                f"{self._season_text(sorted(scope))}退出追踪后清理"
-                + "与".join(cleaned)
-                + (f"；{reset} 个单元退回缺口（重新勾选该季会重新下载）" if reset else ""),
+                **stored_fields(
+                    "activity.subscription.untrackCleanup",
+                    seasons=self._season_reference(sorted(scope)),
+                    parts=cleaned,
+                    reset=reset,
+                ),
                 payload={
                     "seasons": sorted(scope),
                     "torrent_count": len(plan.torrents) if delete_torrents else 0,
@@ -1352,7 +1361,7 @@ class SubscriptionService:
             )
         await self._session.commit()
         if created is None:
-            return DeleteOutcome("没有可清理的内容", None)
+            return DeleteOutcome(t("subscription.outcome.nothingToClean"), None)
         logger.info(
             "订阅 #%d 的%s退出追踪清理已入队：任务 %s，退回 %d 个单元",
             subscription_id,
@@ -1361,7 +1370,7 @@ class SubscriptionService:
             reset,
         )
         return DeleteOutcome(
-            "正在后台清理" + "与".join(cleaned) + "（可在任务中心查看进度）",
+            render_value(reference("subscription.outcome.cleaning", parts=cleaned)),
             created.job.id,
         )
 
@@ -1405,7 +1414,7 @@ class SubscriptionService:
         """
         subscription = await self._get_or_404(subscription_id)
         cleanup_job_id: str | None = None
-        cleaned: list[str] = []
+        cleaned: dict | None = None
         if delete_torrents or delete_library_files:
             plan = await build_cleanup_plan(self._session, subscription)
             created = await enqueue_cleanup_job(
@@ -1417,10 +1426,10 @@ class SubscriptionService:
             )
             if created is not None:
                 cleanup_job_id = created.job.id
-                if delete_torrents and plan.torrents:
-                    cleaned.append(f"{len(plan.torrents)} 个下载任务")
-                if delete_library_files and plan.files:
-                    cleaned.append(f"{len(plan.files)} 个媒体库文件")
+                cleaned = self._cleaned_reference(
+                    len(plan.torrents) if delete_torrents else 0,
+                    len(plan.files) if delete_library_files else 0,
+                )
         await self._record(
             SUBSCRIPTION_DELETED,
             subscription,
@@ -1434,9 +1443,9 @@ class SubscriptionService:
             f"，并发起联动清理任务 {cleanup_job_id}" if cleanup_job_id else "",
         )
         if cleanup_job_id is None:
-            return DeleteOutcome("订阅已永久删除；已下载内容不受影响", None)
+            return DeleteOutcome(t("subscription.outcome.deleted"), None)
         return DeleteOutcome(
-            "订阅已永久删除；正在后台清理" + "与".join(cleaned) + "（可在任务中心查看进度）",
+            render_value(reference("subscription.outcome.deletedCleaning", parts=cleaned)),
             cleanup_job_id,
         )
 
@@ -1839,11 +1848,20 @@ class SubscriptionService:
             },
         )
 
+    @classmethod
+    def _season_text(cls, selected: list[int]) -> str:
+        """日志用的中文季描述。"""
+        return source_render(cls._season_reference(selected))
+
     @staticmethod
-    def _season_text(selected: list[int]) -> str:
-        if not selected:
-            return "（未勾选任何季）"
-        return "第 " + "、".join(str(n) for n in selected) + " 季"
+    def _cleaned_reference(torrents: int, files: int) -> dict:
+        """「N 个下载任务与 M 个媒体库文件」（只列非零项）。"""
+        parts = []
+        if torrents:
+            parts.append(reference("activity.subscription.cleanupTorrents", count=torrents))
+        if files:
+            parts.append(reference("activity.subscription.cleanupFiles", count=files))
+        return {"message_list": parts, "separator_key": "activity.subscription.andSeparator"}
 
     # ------------------------------------------------------------------
     # 内部

@@ -24,7 +24,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from movieclaw_api.i18n.stored import stored_fields
+from movieclaw_api.i18n.stored import source_render, stored_fields
 from movieclaw_db.engine import get_database
 from movieclaw_db.models import (
     ACTIVE_JOB_STATUSES,
@@ -250,6 +250,7 @@ async def create_job(
     job_type: str,
     input_data: dict[str, Any],
     subject: str | None = None,
+    subject_ref: dict | None = None,
     resources: Sequence[ResourceRef] = (),
     dedupe_key: str | None = None,
     conflict_policy: str = "return_existing",
@@ -271,7 +272,13 @@ async def create_job(
     progress: dict[str, Any] | None = None,
     commit: bool = True,
 ) -> CreateJobResult:
-    """创建任务并写入首个事件；可复用调用方事务实现“业务写入 + 入队”原子化。"""
+    """创建任务并写入首个事件；可复用调用方事务实现“业务写入 + 入队”原子化。
+
+    ``subject_ref``：任务名里有固定措辞时给引用（任务中心按读者语言渲染），
+    ``subject`` 缺省时落它的中文原文。
+    """
+    if subject is None and subject_ref is not None:
+        subject = source_render(subject_ref)
     if conflict_policy not in {"return_existing", "reject", "queue"}:
         raise ValueError(f"不支持的任务冲突策略：{conflict_policy}")
     secret_path = _secret_input_path(input_data)
@@ -298,6 +305,7 @@ async def create_job(
         id=_new_job_id(),
         job_type=job_type,
         subject=subject,
+        subject_ref=subject_ref,
         definition_version=definition_version,
         handler_revision=handler_revision,
         prompt_revision=prompt_revision,
@@ -732,6 +740,7 @@ async def retry_job(
         session,
         job_type=source.job_type,
         subject=source.subject,
+        subject_ref=source.subject_ref,
         input_data=source.input_data,
         resources=[
             ResourceRef(item.resource_type, item.resource_id, item.relation)

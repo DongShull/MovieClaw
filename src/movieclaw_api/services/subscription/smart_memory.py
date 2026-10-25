@@ -17,7 +17,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_api.exceptions import BadRequestException
-from movieclaw_api.i18n.stored import reference, stored_fields
+from movieclaw_api.i18n.stored import reference, source_text, stored_fields
 from movieclaw_api.services.subscription.smart_profiles import conflict
 from movieclaw_db.models import (
     ActivityType,
@@ -369,7 +369,9 @@ async def notify_awaiting_subtitles(
             subscription_id=sub.id,
             media=media,
             units=event_refs.units(sorted(states)),
-            language=language_label(facts.language) if facts.language else "外语",
+            language=language_label(facts.language)
+            if facts.language
+            else source_text("subscription.smart.foreignLanguage"),
             acceptable=acceptable_text(policy.watchable_languages),
             language_code=facts.language,
             acceptable_languages=policy.watchable_languages,

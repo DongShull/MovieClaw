@@ -13,5 +13,8 @@
   },
   "list.slashSeparator": {
     "sourceHash": "005e1574a2b5c816304606c9672c7c18a7f1b343917e36fc1ed596dd80984650"
+  },
+  "list.dotSeparator": {
+    "sourceHash": "588da410532073f8daec0cc62c6904f9d8a150b41ae3b1565c10069742cb18fc"
   }
 }
