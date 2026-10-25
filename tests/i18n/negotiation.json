@@ -1,10 +1,18 @@
 [
   {
     "header": null,
-    "locale": "en"
+    "locale": "zh-Hans"
   },
   {
     "header": "",
+    "locale": "zh-Hans"
+  },
+  {
+    "header": "   ",
+    "locale": "zh-Hans"
+  },
+  {
+    "header": "fr",
     "locale": "en"
   },
   {

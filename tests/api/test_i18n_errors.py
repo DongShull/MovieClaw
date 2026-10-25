@@ -27,6 +27,25 @@ def test_collection_missing_is_localized_without_changing_the_error_code(collect
         assert error["code"] == "RESOURCE_NOT_FOUND"
 
 
+def test_callers_without_a_language_header_keep_chinese(collections_client):
+    """还没本地化的客户端（Android、桌面、鸿蒙、CLI、插件）不带语言头，回复保持中文；
+    带了头但都不支持（如 fr）才回落英文。"""
+    collections_client.headers.pop("Accept-Language")
+    for headers, message, language in [
+        ({}, "合集不存在（可能已被删除）", "zh-Hans"),
+        ({"Accept-Language": ""}, "合集不存在（可能已被删除）", "zh-Hans"),
+        (
+            {"Accept-Language": "fr-FR,de;q=0.8"},
+            "This collection does not exist; it may have been deleted",
+            "en",
+        ),
+    ]:
+        reply = collections_client.get("/api/v1/collections/99999", headers=headers)
+        assert reply.status_code == 404
+        assert reply.json()["message"] == message
+        assert reply.headers["Content-Language"] == language
+
+
 def test_invalid_remote_transcode_url_keeps_a_rerenderable_nested_issue(config_client):
     reply = config_client.put(
         "/api/v1/transcode-worker/config",

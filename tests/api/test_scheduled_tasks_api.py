@@ -61,7 +61,7 @@ def client(tmp_path: Path, monkeypatch):
 
 
 def _reconcile(client: TestClient) -> dict:
-    tasks = client.get("/api/v1/scheduled-tasks").json()["data"]
+    tasks = client.get("/api/v1/scheduled-tasks", headers={"Accept-Language": "en"}).json()["data"]
     return next(t for t in tasks if t["key"] == "library_reconcile")
 
 

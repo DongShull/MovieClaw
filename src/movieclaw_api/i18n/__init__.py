@@ -26,6 +26,10 @@ def normalize_locale(value: str) -> str | None:
 
 
 def negotiate(accept_language: str | None) -> str:
+    # 不带语言头的是还没本地化的客户端（Android、桌面、鸿蒙、CLI、插件），保持原来的中文；
+    # 带了头但都不支持（如 fr）才回落英文
+    if not (accept_language or "").strip():
+        return "zh-Hans"
     candidates = []
     for part in (accept_language or "").split(","):
         tag, *parameters = part.strip().split(";")

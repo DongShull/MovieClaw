@@ -10,6 +10,8 @@ export function normalizeLocale(value: string): AppLocale | null {
 }
 
 export function negotiate(acceptLanguage: string | null | undefined): AppLocale {
+  // Same rule as the server: no header at all keeps the source language; unsupported ones fall back to English.
+  if (!(acceptLanguage ?? "").trim()) return "zh-Hans";
   const candidates = (acceptLanguage ?? "").split(",").map((part, index) => {
     const [tag, ...parameters] = part.trim().split(";");
     const quality = parameters.find((p) => p.trim().startsWith("q="));
