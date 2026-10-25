@@ -43,5 +43,17 @@
   },
   "attachments.imageName": {
     "sourceHash": "d24c10d37db0feea7bd73498118e280e6b33ca93f53f34d5e1cca1ba3e83730d"
+  },
+  "attachments.defaultName": {
+    "sourceHash": "d24c10d37db0feea7bd73498118e280e6b33ca93f53f34d5e1cca1ba3e83730d"
+  },
+  "im.visionUnsupported": {
+    "sourceHash": "66785267569f2bc6058e11566bd9b8fd245a40db7673b89b2b87fda6433ff433"
+  },
+  "im.tooManyImages": {
+    "sourceHash": "e163b398fcec5e14820e0ff19514ff9db98c8d9eed011f2659c09d131435c1f2"
+  },
+  "im.imageFailed": {
+    "sourceHash": "24928e2ed5624bd2ce302902476ef0060ef7bf0ebd8dc29387f7fe2b57718cf8"
   }
 }

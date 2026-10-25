@@ -43,6 +43,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.i18n import t
 from movieclaw_llm import ChatMessage, ContentPart, ImagePart, ModelInfo, TextPart
 
 logger = logging.getLogger("movieclaw_api.agent_attachments")
@@ -229,7 +230,7 @@ class AgentAttachmentStore:
             bytes=len(data),
             width=width,
             height=height,
-            original_name=(original_name or "图片").strip()[:120] or "图片",
+            original_name=(original_name or "").strip()[:120] or t("agent.attachments.defaultName"),
             created_at=_now_iso(),
         )
         staging = self._staging_dir()
@@ -411,12 +412,14 @@ class AgentAttachmentStore:
 #: 附件提醒文本的固定前缀。它只存在于请求投影（发给模型的消息副本）里：
 #: 落盘时由 AgentSessionStore 按此前缀剥除，前端永远看不到这段样板文案
 #: （maka 定案："presentation layers never show the folded form"）。
+# i18n-ignore: model-facing text (design §8.4)
 ATTACHMENT_NOTE_PREFIX = "[图片附件]"
 
 
+# 下面几段占位与附件清单都只发给模型（设计稿 §8.4：模型侧文案保持中文）
 def _gate_placeholder(part: ImagePart) -> str:
-    name = part.name or "未命名"
-    return (
+    name = part.name or "未命名"  # i18n-ignore: model-facing text
+    return (  # i18n-ignore: model-facing text
         f"[用户发送了图片 {name}，当前模型不支持图片输入，无法查看。"
         "请告知用户：可在设置中切换视觉模型（如 qwen3-vl-plus）；"
         "若当前模型实际支持视觉，请在供应商设置的「补录模型」中为它声明"
@@ -425,21 +428,22 @@ def _gate_placeholder(part: ImagePart) -> str:
 
 
 def _missing_placeholder(part: ImagePart) -> str:
-    name = part.name or "未命名"
-    return f"[图片 {name} 已过期或被清理，无法查看；如需请让用户重新发送。]"
+    name = part.name or "未命名"  # i18n-ignore: model-facing text
+    return f"[图片 {name} 已过期或被清理，无法查看；如需请让用户重新发送。]"  # i18n-ignore
 
 
+# i18n-ignore: model-facing text
 _BUDGET_PLACEHOLDER = "[更早的一张图片因请求体积限制已省略；如仍需要请让用户重发。]"
 
 
 def _attachment_note(images: list[ImagePart], has_user_text: bool) -> str:
     """带图 user 消息的附件清单（确定性生成，跨请求稳定，永不落库）。"""
-    listing = "、".join(
+    listing = "、".join(  # i18n-ignore: model-facing text
         f"{p.name or '未命名'}（{p.media_type or 'image'}）" for p in images
     )
-    note = f"{ATTACHMENT_NOTE_PREFIX} 本条消息附带 {len(images)} 张图片：{listing}。"
+    note = f"{ATTACHMENT_NOTE_PREFIX} 本条消息附带 {len(images)} 张图片：{listing}。"  # i18n-ignore
     if not has_user_text:
-        note += "用户未附文字，请直接查看图片内容并回应。"
+        note += "用户未附文字，请直接查看图片内容并回应。"  # i18n-ignore: model-facing text
     return note
 
 

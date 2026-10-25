@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 
 from movieclaw_agent import AgentEvent, AgentRunner, AgentStartParams
 from movieclaw_api.exceptions import BadRequestException, NotFoundException
+from movieclaw_api.i18n.stored import source_text
 
 logger = logging.getLogger("movieclaw_api.agent_runs")
 
@@ -108,6 +109,7 @@ class AgentRunRegistry:
     ) -> str:
         """分配运行编号并把 runner 放入后台执行，立即返回编号。"""
         if self._closing:
+            # i18n-ignore: developer error
             raise RuntimeError("Agent 运行注册表正在关闭，无法创建新运行")
         self._prune_expired()
         run_id = uuid.uuid4().hex[:12]
@@ -268,7 +270,7 @@ class AgentRunRegistry:
                     AgentEvent(
                         type="agent_error",
                         run_id=run.run_id,
-                        error="Agent 运行异常结束，未返回终态事件",
+                        error=source_text("errors.agent.run.noTerminal"),
                         error_ref={"message_key": "errors.agent.run.noTerminal", "params": {}},
                     ),
                 )
@@ -287,7 +289,7 @@ class AgentRunRegistry:
                     AgentEvent(
                         type="agent_error",
                         run_id=run.run_id,
-                        error=f"Agent 运行发生未知错误：{exc}",
+                        error=source_text("errors.agent.run.unexpected", error=str(exc)),
                         error_ref={
                             "message_key": "errors.agent.run.unexpected",
                             "params": {"error": str(exc)},
@@ -351,7 +353,7 @@ class AgentRunRegistry:
             AgentEvent(
                 type="agent_error",
                 run_id=run.run_id,
-                error="运行未留下终态事件",
+                error=source_text("errors.agent.run.noTerminalRecord"),
                 error_ref={"message_key": "errors.agent.run.noTerminalRecord", "params": {}},
             ),
         )
@@ -426,6 +428,7 @@ def init_agent_run_registry() -> AgentRunRegistry:
 def get_agent_run_registry() -> AgentRunRegistry:
     """取得已初始化的运行注册表；仅供 lifespan 启动后的请求使用。"""
     if _registry is None:
+        # i18n-ignore: developer error
         raise RuntimeError("Agent 运行注册表尚未初始化")
     return _registry
 

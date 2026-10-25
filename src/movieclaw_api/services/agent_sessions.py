@@ -55,12 +55,15 @@ PREVIEW_MAX_CHARS = 80
 #: 中断收尾的来源分级（决定合成回执的文案，见 seal_pending_tool_calls）
 SealReason = Literal["user_cancelled", "service_interrupted"]
 
+# i18n-ignore: model-facing tool receipts (design §8.4)
 _SEAL_TEXTS: dict[str, str] = {
     "user_cancelled": (
+        # i18n-ignore: model-facing tool receipt
         "用户停止了本次运行，此工具调用被中断。它可能已产生部分效果；"
         "如需确认实际结果，请先用查询类操作核实，不要盲目重发。"
     ),
     "service_interrupted": (
+        # i18n-ignore: model-facing tool receipt
         "运行被中断（服务重启或异常），此工具调用的结果未知。"
         "继续任务前请先查询相关状态确认它是否已生效，避免重复执行有副作用的操作。"
     ),
@@ -263,14 +266,14 @@ def message_preview(message: ChatMessage) -> str:
     if text:
         skill_names, rest = strip_skill_blocks(text)
         if skill_names:
-            return f"[技能] {rest}".strip()
+            return f"[技能] {rest}".strip()  # i18n-ignore: source beside the preview reference
         return text
     if isinstance(message.content, list):
         images = sum(1 for p in message.content if isinstance(p, ImagePart))
         if images == 1:
-            return "[图片]"
+            return "[图片]"  # i18n-ignore: source beside the preview reference
         if images > 1:
-            return f"[图片 ×{images}]"
+            return f"[图片 ×{images}]"  # i18n-ignore: source beside the preview reference
     return ""
 
 
@@ -306,10 +309,10 @@ def continuation_title(
         return None, None
     if source_ref and source_ref.get("message_key") == "agent.session.continued":
         return source_title[:PREVIEW_MAX_CHARS], source_ref
-    if source_title.startswith("续："):
+    if source_title.startswith("续："):  # i18n-ignore: legacy title prefix
         return source_title[:PREVIEW_MAX_CHARS], None
     return (
-        f"续：{source_title}"[:PREVIEW_MAX_CHARS],
+        f"续：{source_title}"[:PREVIEW_MAX_CHARS],  # i18n-ignore: source beside the reference
         reference(
             "agent.session.continued",
             title={**source_ref, "message": source_title} if source_ref else source_title,
@@ -337,6 +340,7 @@ def _repair_unpaired_tool_messages(
 
 
 #: 空助手消息的占位正文：只有思考、没有正文与工具调用的助手消息（流式中途被取消落盘的半截）
+# i18n-ignore: model-facing history placeholder
 INTERRUPTED_REPLY_TEXT = "（这一轮回复被中断，没有产出内容）"
 
 
@@ -401,8 +405,9 @@ def _repair_handoff_history(history: list[ChatMessage]) -> list[ChatMessage]:
             repaired.append(
                 ChatMessage(
                     role="tool",
+                    # i18n-ignore: model-facing tool receipt
                     content=(
-                        f"会话在此处异常中断，工具「{tool_call.name}」的结果未知。"
+                        f"会话在此处异常中断，工具「{tool_call.name}」的结果未知。"  # i18n-ignore
                         "继续前请先查询实际状态，避免重复操作。"
                     ),
                     tool_call_id=tool_call.id,
@@ -428,6 +433,7 @@ def _repair_handoff_history(history: list[ChatMessage]) -> list[ChatMessage]:
                     ChatMessage(
                         role="user",
                         content=(
+                            # i18n-ignore: model-facing history text
                             f"【历史中的孤立工具回执：{message.name or '未知工具'}】\n"
                             f"{message.text()}"
                         ),
