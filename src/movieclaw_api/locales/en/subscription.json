@@ -71,7 +71,10 @@
     "ambiguousSelection": "Can’t select files safely: the episode range of {name} is unclear or can’t be split",
     "duplicateEpisodeFile": "There are several video files for the same episode; confirm the version: {name}",
     "missingEpisodes": "The torrent has no files for {units}",
-    "foreignLanguage": "Foreign language"
+    "foreignLanguage": "Foreign language",
+    "missingEpisodesUnclear": "The torrent has no files for {units} ({count, plural, one {# more video file has} other {# more video files have}} an unclear episode or several episodes combined, such as {example})",
+    "unsatisfiedAllRemoved": "{reason}; they went back to searching and the paused task created for them was removed from the downloader",
+    "extensionRefused": "Couldn’t add these episodes from the existing pack: {error}"
   },
   "upgrade": {
     "summaryUpgradable": "{count, plural, one {# unit ready for an upgrade; search queued} other {# units ready for an upgrade; search queued}}",
@@ -257,5 +260,10 @@
     "identityRejected": "{title}: {reason}",
     "idMismatch": "{title}: the ID doesn’t match the subscription, so it was skipped",
     "rejectNote": "{reason} (“{title}” from {site})"
+  },
+  "cap": {
+    "latest": "Season {season}: the latest {count, plural, one {# episode} other {# episodes}} for now (from episode {start}; new episodes are added as they air)",
+    "until": "Season {season}: through episode {end} for now ({total} episodes in the season)",
+    "unlimited": "Episode limit removed"
   }
 }

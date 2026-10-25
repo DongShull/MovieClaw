@@ -10,11 +10,11 @@ guard arguments.count == 4,
       let key = Data(base64Encoded: arguments[1]),
       let signature = Data(base64Encoded: arguments[2]),
       let data = FileManager.default.contents(atPath: arguments[3]) else {
-    FileHandle.standardError.write(Data("用法：verify-update-signature.swift <公钥> <签名> <文件>\n".utf8))
+    FileHandle.standardError.write(Data("用法：verify-update-signature.swift <公钥> <签名> <文件>\n".utf8))  // i18n-ignore: developer tool output
     exit(2)
 }
 guard let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: key),
       publicKey.isValidSignature(signature, for: data) else {
-    FileHandle.standardError.write(Data("签名和 App 里的公钥对不上\n".utf8))
+    FileHandle.standardError.write(Data("签名和 App 里的公钥对不上\n".utf8))  // i18n-ignore: developer tool output
     exit(1)
 }

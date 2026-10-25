@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from movieclaw_api.i18n import t
+from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.services.media_probe import probe_keyframe_interval
 from movieclaw_api.services.playback.disc_source import disc_source_for_file
 from movieclaw_api.services.playback.ffmpeg_args import (
@@ -316,11 +318,7 @@ def dolby_vision_caveat(
         or not tonemap_ignores_dolby_vision(hw_used)
     ):
         return None
-    return (
-        "杜比视界 P5 的色彩要按动态元数据还原，"
-        f"但本机的 {BACKEND_LABELS.get(hw_used, hw_used)}色调映射做不到，画面会偏绿或偏紫；"
-        "连接转码器可正确转码"
-    )
+    return t("player.plan.dvP5Caveat", backend=render_value(BACKEND_LABELS.get(hw_used, hw_used)))
 
 
 def _best(decisions: list[tuple[PlaybackDecision, int | None]]) -> PlaybackDecision:

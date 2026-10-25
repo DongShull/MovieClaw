@@ -290,7 +290,11 @@
       "minutes": "{count} 分钟前",
       "hours": "{count} 小时前",
       "days": "{count} 天前",
-      "connected": "已连接"
+      "connected": "已连接",
+      "windows": "Windows",
+      "windowsMember": "将获得：这台 Windows 电脑以你的身份登录",
+      "windowsAdmin": "将获得：这台 Windows 电脑以你的超级管理员身份登录",
+      "windowsBody": "等同你在这台 Windows 电脑上输入账号密码登录：它能看到你能看到的媒体库、记录你的观看进度。只批准你面前这台 Windows 电脑上显示的配对码。"
     },
     "push": {
       "unsupportedBuild": "这个安装包收不到推送：侧载版没有推送权限，改用 TestFlight 或 App Store 版",

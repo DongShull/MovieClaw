@@ -193,7 +193,9 @@
     "driverInitFailed": "驱动初始化失败，通常是宿主机显卡驱动缺失或版本不匹配。",
     "probeFailed": "硬件编码探测失败：{summary}",
     "noReason": "（ffmpeg 未给出原因）",
-    "lowPower": "{encoder}（低功耗）"
+    "lowPower": "{encoder}（低功耗）",
+    "withHevc": "{base}HEVC 编码也已验证，离线下载出 HEVC。",
+    "hevcProbeTimeout": "探测超时"
   },
   "worker": {
     "waiterMissing": "远程任务等待器不存在",
@@ -235,5 +237,8 @@
     "nasGpu": "NAS 显卡",
     "nasSoftware": "NAS 软件",
     "original": "原画"
+  },
+  "plan": {
+    "dvP5Caveat": "杜比视界 P5 的色彩要按动态元数据还原，但本机的 {backend}色调映射做不到，画面会偏绿或偏紫；连接转码器可正确转码"
   }
 }

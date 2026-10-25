@@ -73,6 +73,7 @@ KINDS: dict[str, KindSpec] = {
     "macos": KindSpec("Mac App", interactive=True, family="login"),
     "android": KindSpec("Android App", interactive=True, family="login"),
     "androidtv": KindSpec("Android TV App", interactive=True, family="login"),
+    "windows": KindSpec("Windows App", interactive=True, family="login"),
     "cli": KindSpec("命令行", interactive=False, family="paired"),  # i18n-ignore
     "worker": KindSpec("转码器", interactive=False, family="paired"),  # i18n-ignore
     "manual": KindSpec("手工令牌", interactive=False, family="paired"),  # i18n-ignore

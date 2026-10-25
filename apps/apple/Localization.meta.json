@@ -14069,7 +14069,7 @@
       "sourceHash": "fa90869af244b81ea3282dcc2cd5583b31d3acd759a74aa35141d8d5603a3a22"
     },
     "subscription.rules.hdrHint": {
-      "sourceHash": "5593faf4877a05c0c648f31856e184665562265ef161f15325827ddcc6b0c5fb"
+      "sourceHash": "a86baa1a0b831f3531344c66e15ab3e743db392e5b5f23aad42e2e2fa33778d5"
     },
     "subscription.rules.groupsAllow": {
       "sourceHash": "b93f933d4e97864dd13c3e75efa8a98bf07bf69f5a55ac8ff70b0ba518da494f"
@@ -20170,6 +20170,108 @@
     },
     "reels.playerFailed": {
       "sourceHash": "7fb620e89a88fd6c3d772419a2fdf7f1a437a3e498fb32f04c0ca9f36d55e38a"
+    },
+    "settings.macInstall.title": {
+      "sourceHash": "c4cf0c4d83af1f5c9583bc57c88eeba99746525a7295a61789974982d21f5a8c"
+    },
+    "settings.macInstall.quit": {
+      "sourceHash": "c19d6938ae33f569ee0dc80cbbb61af3b318dd7af82fb6ae253e041506663f9e"
+    },
+    "settings.macInstall.fromDiskImage": {
+      "sourceHash": "ac3d9610a5cf0b5bd01fa53e6fe2432064cfd4aceec49cde20103c0975f602ef"
+    },
+    "settings.macInstall.elsewhere": {
+      "sourceHash": "2762591967d1fccc859a23ca6f0b6cd9c47ef22d69054ad0b089fa81fbea0f83"
+    },
+    "settings.macUpdate.generalTab": {
+      "sourceHash": "835b700e028c9b20ed2af3f3dcaac3ec92697377c637f492707e6eb3077b105f"
+    },
+    "settings.macUpdate.section": {
+      "sourceHash": "651f274470153a05c0e577821eb61b854c0e9622c2ef01d5bef372a0c9fd9c9c"
+    },
+    "settings.macUpdate.autoCheck": {
+      "sourceHash": "c42a3dd9c2e40ba0025a7cccef0f18e2b0698ce79086027c7420ee5349c41ad0"
+    },
+    "settings.macUpdate.autoCheckHint": {
+      "sourceHash": "392a30ef01b6f4438134c4d3714e4d7b26644af02c592c171db254aeca1b251e"
+    },
+    "settings.macUpdate.autoInstall": {
+      "sourceHash": "0fb3f8d554ca9941a3627f1c3182cb8be0094c1a1caf2a7647cd9b64288af0fe"
+    },
+    "settings.macUpdate.autoInstallHint": {
+      "sourceHash": "4a40994020505db003be3bbc926fd417c3795c327b3d88f1e022eea663b906b8"
+    },
+    "settings.macUpdate.testFlight": {
+      "sourceHash": "060c65f30cef85938127655a4b03852991fdbbc00f45609e42484f52d0f7bc03"
+    },
+    "settings.macUpdate.development": {
+      "sourceHash": "a131478f3d5977e29162fe3ea5dfa65aee3dc5fcaacf4e37e70329dfe217f46f"
+    },
+    "settings.macUpdate.needsApplications": {
+      "sourceHash": "9a3d828d023c66573941c2fd32d25d73ad8bda22a64a288cec77835d57eed826"
+    },
+    "settings.macUpdate.allReleases": {
+      "sourceHash": "9790b5ba7e5e45fba15d230ef8e281a321f05629d05d666016fdb75ad2f89833"
+    },
+    "settings.macUpdate.menuRestart": {
+      "sourceHash": "f6e3d6c514a3975f31d8d41d40ab2acab131218eea0062eb44b0fe967aa9cb45",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.macUpdate.menuCheck": {
+      "sourceHash": "2ba74de12dbb974abed95f9cb78468e611c72eeb12f748774b5e953b5c64cff4"
+    },
+    "settings.macUpdate.restart": {
+      "sourceHash": "e34937a0294e77cd6ef466196db7d3b0799f6caede3bf822d4081bce971a831b"
+    },
+    "settings.macUpdate.viewNew": {
+      "sourceHash": "7781b0d56016c56e35a52b93385c51e28523536539d89c012b5161d2e8dfcb64"
+    },
+    "settings.macUpdate.check": {
+      "sourceHash": "7f68ebad19ba6bcd2a09ae0cc3c71d9bc2688358f5cc3dc553b08292b64536b1"
+    },
+    "settings.macUpdate.readyStatus": {
+      "sourceHash": "f39c91a90e33039ba3e3660e4baf3ccd500b3de270453376be49edffb9ae8889",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.macUpdate.availableStatus": {
+      "sourceHash": "fc9053582d2d5e83c4ac6f50c4933c2e4517410d1faff20cd626dbfb82b5fac6",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.macUpdate.neverChecked": {
+      "sourceHash": "5d67fab168e1c22dd90dcb672ce42f5895ef25404ca1733bb80a617e9936b3f8"
+    },
+    "settings.macUpdate.upToDate": {
+      "sourceHash": "91604faa34f8028100d15e09ad688cab7e89bc654f5dc5115b6e3963b56394f1",
+      "parameters": [
+        "lastCheck"
+      ]
+    },
+    "settings.macUpdate.updatedNotice": {
+      "sourceHash": "b34d061b1b738135554b3e9d87be65d2153e877ed191886b40a5608e37b6cd7b",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.macUpdate.pillReady": {
+      "sourceHash": "f3837bb06a61ed8213b5ad9512730cfe7ef9ad9cdce395acd3987ff1bdda6a95",
+      "parameters": [
+        "version"
+      ]
+    },
+    "settings.macUpdate.pillReadyHint": {
+      "sourceHash": "1ec56295513e0229ce1c3fa02d85a2ae5c34e51d5ed5a2e2467029fa6ee6cbaa"
+    },
+    "settings.macUpdate.pillAvailableHint": {
+      "sourceHash": "c98a526efc5de66d8a0bdfd09d1493507852980549bef91f1c937c597ce3b55d"
+    },
+    "settings.macUpdate.byTestFlight": {
+      "sourceHash": "d807d8d43b9ee75aece24e9eaa23ab29bf8342915bb2030f254c3be14d6a928b"
     }
   },
   "MovieClaw/InfoPlist.xcstrings": {

@@ -32,20 +32,16 @@ struct AppLanguageSettings: View {
 #endif
 
 #if os(macOS)
-struct MacLanguageSettings: View {
+/// 设置窗口「通用」里的语言一节（Mac 的语言在系统设置里按 App 选，这里只是入口）
+struct MacLanguageSection: View {
     var body: some View {
-        Form {
-            Section {
-                AppLanguageSettings()
-            } header: {
-                Text(.settingsAppearanceGeneral)
-            } footer: {
-                Text(.settingsAppearanceMacHint)
-            }
+        Section {
+            AppLanguageSettings()
+        } header: {
+            Text(.settingsAppearanceGeneral)
+        } footer: {
+            Text(.settingsAppearanceMacHint)
         }
-        .formStyle(.grouped)
-        .frame(width: 500)
-        .padding()
     }
 }
 #endif

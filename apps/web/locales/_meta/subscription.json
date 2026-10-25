@@ -477,7 +477,7 @@
     "sourceHash": "fa90869af244b81ea3282dcc2cd5583b31d3acd759a74aa35141d8d5603a3a22"
   },
   "rules.hdrHint": {
-    "sourceHash": "5593faf4877a05c0c648f31856e184665562265ef161f15325827ddcc6b0c5fb"
+    "sourceHash": "a86baa1a0b831f3531344c66e15ab3e743db392e5b5f23aad42e2e2fa33778d5"
   },
   "rules.groupsAllow": {
     "sourceHash": "b93f933d4e97864dd13c3e75efa8a98bf07bf69f5a55ac8ff70b0ba518da494f"
@@ -1374,7 +1374,7 @@
     "sourceHash": "7a89ed1985cbe3348de2b6a4c8415a7719f93a60cbba0df470c3f99dddbabe8e"
   },
   "adjust.description": {
-    "sourceHash": "88b16b40c31f0a553c12004b3dcf7d45aae93ed6c32b365ebd8d3e0f9adbf976"
+    "sourceHash": "fc1e4bb1d1070864d87857c75e078b5387566f3ebb0fe2bbf7125d79dd2b4da0"
   },
   "adjust.droppedNote": {
     "sourceHash": "49caec68f8fe755bf1bbaa665351d4f8ee59d4b09eaf02015315e3a026898b2d"
@@ -2461,5 +2461,83 @@
   },
   "inspector.pageTitle": {
     "sourceHash": "97bb813ba557ad4a1341f74324e48ee95d25771c42e7c8b9594bb134510a6c96"
+  },
+  "progress.latestWindow": {
+    "sourceHash": "edf80ba093962c33b34ad03e111fad27614c2f7fb715986390bb67966ef472e1"
+  },
+  "progress.untilWindow": {
+    "sourceHash": "7d3ca7949b370b627bf031284ef521ef728a2fa69ab59773c990f4a54b52c34d"
+  },
+  "feed.canContinue": {
+    "sourceHash": "42a3ecb9a89761c229aa94218f0698f342d0b566191c610ce4b36b4015ab298b"
+  },
+  "cap.wholeSeason": {
+    "sourceHash": "7c1f62071c9c7269ac9948b62156631a4fcdd9f59179994e707e9f6c45de3aa3"
+  },
+  "cap.subscribePart": {
+    "sourceHash": "dbaea4915b73422c02b3a3c64118e02c848294fe14d68e3fcdec7723aa713df1"
+  },
+  "cap.firstLabel": {
+    "sourceHash": "181a34c9e398d2ee1f8abd6c62a2de8bd56322da42b577ed17b2c73364314066"
+  },
+  "cap.latestLabel": {
+    "sourceHash": "dcf4cac10a8dbf4539dce9e254ee439ab2ef68b967f0b4ed83fd30373740a4e4"
+  },
+  "cap.inputAria": {
+    "sourceHash": "77c71011b31f2171a7a81fb819aa7181d7e28c4396d6ee565f187e0a5ca26162"
+  },
+  "cap.suffixTotal": {
+    "sourceHash": "6a3e534ca0aa9e83782ac7e2da3b5cf6fe5c70ec3ee636a0190f8583474bbb6a"
+  },
+  "cap.suffixAired": {
+    "sourceHash": "098c92475f7c57aeced13331547af3cec0535e4d998c31587d9cdf732638d66d"
+  },
+  "cap.all": {
+    "sourceHash": "5c55a67935af8f4508ba05d6d81c9eb240a2ea0ba886d8428b985e305470da3f"
+  },
+  "cap.saveFailed": {
+    "sourceHash": "386cb2011f613534c7070755e90a0fa7df421e3378656f93b5fadfb29d90a8af"
+  },
+  "cap.stepEarlier": {
+    "sourceHash": "f750f3d73c0724970191596093d4a0540b4cfcc6f71b4744a713c5c5a2634a58"
+  },
+  "cap.stepEarlierRest": {
+    "sourceHash": "67ea9960a69b7f982ab3ed85fe4db45d7a4a646b1ffdac544d4b3b77a4f3da96"
+  },
+  "cap.stepContinue": {
+    "sourceHash": "10fe4d63f8b3cef7b495567b440c81a11c3e4bc7dbdfb2dd9903f4ce431df389"
+  },
+  "cap.stepRest": {
+    "sourceHash": "8baae067e5cfab3485f9d35bb73e2363b0d89abcac000c693b61d3516d31aafa"
+  },
+  "cap.doneEarlier": {
+    "sourceHash": "e8bcff947a1fb1d04fa4ec37a15b49fbd556777adf074244305bd1885741ccda"
+  },
+  "cap.doneContinue": {
+    "sourceHash": "22409d06929c5bbf16e9996d12a5b048432c4e2231bd31c7267994024946545f"
+  },
+  "cap.doneAll": {
+    "sourceHash": "21c525dbdfe07892572be9f6531fd5aa8f66cb4e8720f33eee92a34ff5dfe40f"
+  },
+  "cap.bannerLatest": {
+    "sourceHash": "bcebe937490d31e17f561c8a119f6e0ae70724115ab76f3095aa5b875fe41f07"
+  },
+  "cap.bannerUntil": {
+    "sourceHash": "19cb470f84c806bbeeebacbeff5a1a4a2188b2552ae0eb572a8d927ccb56e714"
+  },
+  "cap.bannerLatestBody": {
+    "sourceHash": "83ec1ab7172298f4d65742394bae6ce09e0dbe4f1e8c249db55b8485b426f3a8"
+  },
+  "cap.bannerUntilBody": {
+    "sourceHash": "869d09f52c60cea17d176fb8e628523ea895f4d344b6bebd3b804809aa0b3049"
+  },
+  "cap.subscribeAll": {
+    "sourceHash": "3e94db0e7f34956c0a3a85f048782c76171252e27081c161623d8f086700ef99"
+  },
+  "cap.rangeLatest": {
+    "sourceHash": "ee15cc1a8c23fc2911546d94dd7de4f7e6bd3bd90325affffcf6e3d203b72435"
+  },
+  "cap.rangeFirst": {
+    "sourceHash": "a56e70bc1b918b457ca197be02364c5d3becda6e5c80e86e838e1a9e653c7da4"
   }
 }

@@ -685,5 +685,23 @@
   },
   "matching.rejectNote": {
     "sourceHash": "c3b99cd3cb9554760edb48be7ba13185dd88067cf3c556998a3052662dccf6b6"
+  },
+  "cap.latest": {
+    "sourceHash": "f17d03fb72e56260ae09d2a6ea3625f989edea79d646394f6cf319d69254adc9"
+  },
+  "cap.until": {
+    "sourceHash": "3466c5070bf8084fa84229f69e3138082db0b5a3264032474eada6cf2ea37132"
+  },
+  "cap.unlimited": {
+    "sourceHash": "e3fdc6f3bff348c60e3aa0db0a9bb045691d79d0f5d5180d37d6faf3b35f06c7"
+  },
+  "smart.missingEpisodesUnclear": {
+    "sourceHash": "3aad2cb9a56455fa0bad60cb2f1e2ac2ef53bb438fcae78af296b37ee0d0fe6f"
+  },
+  "smart.unsatisfiedAllRemoved": {
+    "sourceHash": "4c88a4aaba52033e55969224c2c05638016f6fc3ef64f9389867c9375ab5697d"
+  },
+  "smart.extensionRefused": {
+    "sourceHash": "e169abcd439a847ca35d77b15352524e2691a6aae925a834f6812163dec98ee4"
   }
 }

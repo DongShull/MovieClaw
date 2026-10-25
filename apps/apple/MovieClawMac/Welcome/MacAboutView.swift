@@ -63,6 +63,7 @@ struct MacAboutView: View {
                 .foregroundStyle(.tertiary)
                 .textSelection(.enabled)
                 .padding(.top, 2)
+            MacAboutUpdateStatus()
             Text(String(localized: .settingsAboutPrivacySummary))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
@@ -191,7 +192,7 @@ private struct MacAboutUpdateStatus: View {
             }
             .padding(.top, 6)
         case .store:
-            Text("由 TestFlight 更新")
+            Text(String(localized: .settingsMacUpdateByTestFlight))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .padding(.top, 6)

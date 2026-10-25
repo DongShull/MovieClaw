@@ -71,7 +71,10 @@
     "ambiguousSelection": "无法安全选择文件：{name} 的季集范围不明确或不可拆分",
     "duplicateEpisodeFile": "同一集存在多个视频文件，需确认版本：{name}",
     "missingEpisodes": "种子文件里没有 {units}",
-    "foreignLanguage": "外语"
+    "foreignLanguage": "外语",
+    "missingEpisodesUnclear": "种子文件里没有 {units}（另有 {count} 个视频文件无法确定季集或为多集合并，如 {example}）",
+    "unsatisfiedAllRemoved": "{reason}；已退回重找，本次新建的暂停任务已从下载器移除",
+    "extensionRefused": "无法在已有的包里补选这些集：{error}"
   },
   "upgrade": {
     "summaryUpgradable": "{count} 个单元可洗版，已排入立即搜索",
@@ -257,5 +260,10 @@
     "identityRejected": "{title}：{reason}",
     "idMismatch": "{title}：影片编号与订阅不符，已跳过",
     "rejectNote": "{reason}——来自 {site} 的「{title}」"
+  },
+  "cap": {
+    "latest": "第 {season} 季先订阅最新 {count} 集（从第 {start} 集起，新集播出后自动纳入）",
+    "until": "第 {season} 季先订阅到第 {end} 集（本季共 {total} 集）",
+    "unlimited": "不再限制订阅的集数"
   }
 }

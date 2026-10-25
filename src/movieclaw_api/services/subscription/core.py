@@ -359,14 +359,23 @@ def movie_schedule(release_date: date | None, status: str | None) -> tuple[datet
     return None, 0  # 明确未上映且未定档：等定档回填
 
 
-def _cap_text(w: EpisodeWindow) -> str:
+def _cap_reference(w: EpisodeWindow) -> dict:
     """活动/创建消息里的一句窗口描述：完结季「前 N 集」，在播季「最新 N 集」。"""
     if w.end is None:
-        return (
-            f"第 {w.season_number} 季先订阅最新 {w.total - w.start + 1} 集"
-            f"（从第 {w.start} 集起，新集播出后自动纳入）"
+        return reference(
+            "subscription.cap.latest",
+            season=w.season_number,
+            count=w.total - w.start + 1,
+            start=w.start,
         )
-    return f"第 {w.season_number} 季先订阅到第 {w.end} 集（本季共 {w.total} 集）"
+    return reference("subscription.cap.until", season=w.season_number, end=w.end, total=w.total)
+
+
+def _caps_reference(windows: list[EpisodeWindow]) -> dict:
+    return {
+        "message_list": [_cap_reference(w) for w in windows],
+        "separator_key": "common.list.separator",
+    }
 
 
 async def recompute_subscription_status(
@@ -432,7 +441,7 @@ async def recompute_subscription_status(
         key = "activity.subscription.completed"
         activity_type = ActivityType.COMPLETED
     elif truncated and not (has_open or growing or hinted):
-        message = "本季还有没订到的集，可随时继续订阅"
+        key = "activity.subscription.truncated"
         activity_type = ActivityType.REOPENED
     else:
         key = "activity.subscription.reopened"
@@ -643,6 +652,7 @@ class SubscriptionService:
                 await apply_to_subscriptions(self._session)
             await self._session.commit()
         created_base = self._created_reference(item, kind, selected, follow_future, rows)
+        windows = windows_of(subscription, known_max_of(episodes))
         await self._record(SUBSCRIPTION_CREATED, subscription)
         await self._log(
             subscription,
@@ -652,6 +662,8 @@ class SubscriptionService:
                 base=created_base,
                 hasOwned="yes" if skipped_owned else "no",
                 owned=len(skipped_owned),
+                hasWindows="yes" if windows else "no",
+                windows=_caps_reference(windows) if windows else "",
                 hasRoute="yes" if route_note else "no",
                 route=route_note or "",
                 hasRule="yes" if rule_note else "no",
@@ -853,6 +865,12 @@ class SubscriptionService:
             if floors_after
             else reference("activity.subscription.tmdbEpisodeCount")
         )
+        window_list = windows_of(subscription, known_max_of(episodes))
+        caps_message = (
+            _caps_reference(window_list)
+            if window_list
+            else reference("subscription.cap.unlimited")
+        )
         await self._log(
             subscription,
             ActivityType.ADJUSTED,
@@ -864,6 +882,8 @@ class SubscriptionService:
                 rule=rule_set_name_reference(new_rule_set) if new_rule_set is not None else "",
                 floorsChanged="yes" if floors_after != floors_before else "no",
                 floors=floors_message,
+                capsChanged="yes" if caps != caps_before else "no",
+                caps=caps_message,
                 added=len(to_add),
                 reactivated=reactivated,
                 deactivated=deactivated,
@@ -1978,24 +1998,29 @@ class SubscriptionService:
         if not caps:
             return None
         if kind is not MediaKind.TV:
-            raise BadRequestException("只有剧集订阅可以设置订阅的集数窗口")
+            raise BadRequestException(message_key="errors.subscriptionCaps.tvOnly")
         valid = {row.season_number for row in seasons}
         known_max = known_max_of(episodes)
         cleaned: dict[str, dict] = {}
         for season, cap in caps.items():
             if season not in valid:
-                raise BadRequestException(f"第 {season} 季不在这部剧的季列表里")
+                raise BadRequestException(
+                    message_key="errors.subscriptionCaps.unknownSeason", params={"season": season}
+                )
             if not 1 <= cap.start <= CAP_MAX or not (
                 cap.end is None or cap.start <= cap.end <= CAP_MAX
             ):
-                raise BadRequestException(f"订阅的集数窗口需在 1～{CAP_MAX} 之间")
-            if cap.start > 1 and cap.end is not None:
                 raise BadRequestException(
-                    "订阅窗口只能是「从第 X 集起」或「订阅到第 N 集」其中一种"
+                    message_key="errors.subscriptionCaps.range", params={"max": CAP_MAX}
                 )
+            if cap.start > 1 and cap.end is not None:
+                raise BadRequestException(message_key="errors.subscriptionCaps.oneShape")
             total = max(known_max.get(season, 0), floors.get(season, 0))
             if cap.start > total:
-                raise BadRequestException(f"第 {season} 季还没有第 {cap.start} 集")
+                raise BadRequestException(
+                    message_key="errors.subscriptionCaps.noEpisode",
+                    params={"season": season, "episode": cap.start},
+                )
             if cap.start == 1 and (cap.end is None or cap.end >= total):
                 continue  # 盖住整季：等于不设，丢弃
             cleaned[str(season)] = {"start": cap.start, "end": cap.end}

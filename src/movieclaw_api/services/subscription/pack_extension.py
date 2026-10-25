@@ -19,6 +19,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from movieclaw_api.i18n.stored import keyed_error
 from movieclaw_api.services.subscription.file_selection import plan_strict_file_selection
 from movieclaw_api.services.subscription.smart_submission import SubmissionRejected
 from movieclaw_db.models import (
@@ -121,7 +122,9 @@ async def extend_owned_pack(
                 known_seasons=subscription.selected_seasons or None,
             )
         except ValueError as exc:
-            raise ExtensionRefused(f"无法在已有的包里补选这些集：{exc}") from exc
+            raise ExtensionRefused(
+                "subscription.smart.extensionRefused", error=getattr(exc, "ref", None) or str(exc)
+            ) from exc
         expected = set(plan.keep_indices)
         if {i for i, f in enumerate(status.files) if f.selected} != expected:
             await adapter.set_file_selection(
@@ -135,7 +138,7 @@ async def extend_owned_pack(
             if verified is None or {
                 i for i, f in enumerate(verified.files) if f.selected
             } != expected:
-                raise RuntimeError("下载器文件选择回读不一致，未恢复下载；稍后重试")
+                raise keyed_error(RuntimeError, "errors.torrent.selectionReadbackMismatch")
         if before_resume is not None:
             await before_resume()
         # 已完成的包在做种：新勾的文件由下载器自动补下；停在暂停/停止态的需要恢复。

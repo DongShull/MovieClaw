@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { useToast } from "@/components/feedback";
 import {
@@ -25,7 +26,6 @@ import {
   EPISODE_CAP_BATCH,
   currentWindows,
   defaultWindow,
-  formatEpisodes,
   seasonTotal,
   windowsAfter,
   type CapWindow,
@@ -56,6 +56,9 @@ export function SeasonCapLine({
   showName: boolean;
   className?: string;
 }) {
+  const t = useTranslations();
+  const seasonName = (n: number) =>
+    n === 0 ? t("media.season.specials") : t("media.season.title", { number: n });
   const total = seasonTotal(season);
   // 完结季的输入是「订阅到第几集」，锚定本季总集数；在播季的输入是「订阅最新几集」，
   // 锚定**已播**集数（TMDB 宣称的集数可能还没播到），提交时换算回窗口的 start，
@@ -82,33 +85,33 @@ export function SeasonCapLine({
     }
   };
 
-  const name = showName ? `${season.season_number === 0 ? "特别篇" : `第 ${season.season_number} 季`} · ` : "";
+  const prefix = showName ? `${seasonName(season.season_number)} · ` : "";
   return (
     <div
       className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sub text-[var(--text-muted)] ${className}`}
     >
       {win === null ? (
         <>
-          <span>
-            {name}订阅整季 {formatEpisodes(total)} 集
-          </span>
+          <span>{t("subscription.cap.wholeSeason", { prefix, count: total })}</span>
           <button
             type="button"
             className={LINK_BUTTON}
             onClick={() => onChange(defaultWindow(season, airing))}
           >
-            先订阅一部分
+            {t("subscription.cap.subscribePart")}
           </button>
         </>
       ) : (
         <>
-          <span>{name}先订阅{isAiringWindow ? "最新" : "前"}</span>
+          <span>
+            {t(isAiringWindow ? "subscription.cap.latestLabel" : "subscription.cap.firstLabel", { prefix })}
+          </span>
           <input
             type="number"
             inputMode="numeric"
             min={1}
             max={total - 1}
-            aria-label={`第 ${season.season_number} 季先订阅的集数`}
+            aria-label={t("subscription.cap.inputAria", { season: season.season_number })}
             value={text}
             onChange={(event) => setText(event.target.value)}
             onBlur={commit}
@@ -121,10 +124,12 @@ export function SeasonCapLine({
             className="w-16 shrink-0 rounded-lg border border-white/[0.1] bg-white/[0.05] px-2 py-1 text-right text-ui tabular-nums text-white/90 outline-none focus:border-white/30"
           />
           <span>
-            集 · 本季{isAiringWindow ? "已播" : "共"} {formatEpisodes(isAiringWindow ? aired : total)} 集
+            {isAiringWindow
+              ? t("subscription.cap.suffixAired", { count: aired })
+              : t("subscription.cap.suffixTotal", { count: total })}
           </span>
           <button type="button" className={LINK_BUTTON} onClick={() => onChange(null)}>
-            全部
+            {t("subscription.cap.all")}
           </button>
         </>
       )}
@@ -155,6 +160,9 @@ export function EpisodeWindowBanner({
   canTune: boolean;
   onChanged: () => void;
 }) {
+  const t = useTranslations();
+  const seasonName = (n: number) =>
+    n === 0 ? t("media.season.specials") : t("media.season.title", { number: n });
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const windows = detail.episode_windows ?? [];
@@ -174,7 +182,7 @@ export function EpisodeWindowBanner({
       toast.success(done);
       onChanged();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "保存失败，请稍后重试");
+      toast.error(e instanceof Error ? e.message : t("subscription.cap.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -183,7 +191,7 @@ export function EpisodeWindowBanner({
   return (
     <div className="space-y-2">
       {windows.map((win) => {
-        const season = win.season_number === 0 ? "特别篇" : `第 ${win.season_number} 季`;
+        const season = seasonName(win.season_number);
         const airing = win.end === null;
         const count = airing ? Math.max(1, airedCount(detail, win) - win.start + 1) : win.end ?? 0;
         // 主按钮这一步：完结季往后加一批，在播季往前挪一批；剩下不足一批就一次
@@ -198,16 +206,17 @@ export function EpisodeWindowBanner({
         const remaining = airing ? win.start - 1 : win.total - (win.end ?? 0);
         const stepLabel = airing
           ? remaining > EPISODE_CAP_BATCH
-            ? `往前再订 ${EPISODE_CAP_BATCH} 集`
-            : `订完前面 ${formatEpisodes(remaining)} 集`
+            ? t("subscription.cap.stepEarlier", { count: EPISODE_CAP_BATCH })
+            : t("subscription.cap.stepEarlierRest", { count: remaining })
           : remaining > EPISODE_CAP_BATCH
-            ? `继续订阅 ${EPISODE_CAP_BATCH} 集`
-            : `订阅剩余 ${formatEpisodes(remaining)} 集`;
+            ? t("subscription.cap.stepContinue", { count: EPISODE_CAP_BATCH })
+            : t("subscription.cap.stepRest", { count: remaining });
+        const doneAll = t("subscription.cap.doneAll", { season, count: win.total });
         const stepDone = next
           ? airing
-            ? `已往前订到第 ${formatEpisodes(next.start)} 集`
-            : `已继续订阅到第 ${formatEpisodes(next.end ?? 0)} 集`
-          : `已订阅${season}全部 ${formatEpisodes(win.total)} 集`;
+            ? t("subscription.cap.doneEarlier", { episode: next.start })
+            : t("subscription.cap.doneContinue", { episode: next.end ?? 0 })
+          : doneAll;
         return (
           <section
             key={win.season_number}
@@ -216,13 +225,13 @@ export function EpisodeWindowBanner({
             <div className="min-w-0 flex-1 basis-64">
               <p className="text-ui font-semibold text-white/90">
                 {airing
-                  ? `已订阅最新 ${formatEpisodes(count)} 集`
-                  : `已订阅到第 ${formatEpisodes(win.end ?? 0)} 集`}
+                  ? t("subscription.cap.bannerLatest", { count })
+                  : t("subscription.cap.bannerUntil", { episode: win.end ?? 0 })}
               </p>
               <p className="mt-0.5 text-sub leading-6 text-[var(--text-muted)]">
                 {airing
-                  ? `${season}从第 ${formatEpisodes(win.start)} 集订阅到最新，之后播出的新集会自动纳入；更早的集没有订阅，也不会下载。`
-                  : `${season}共 ${formatEpisodes(win.total)} 集，现在只订阅了前 ${formatEpisodes(win.end ?? 0)} 集，其余的集不会搜索，也不会下载。`}
+                  ? t("subscription.cap.bannerLatestBody", { season, start: win.start })
+                  : t("subscription.cap.bannerUntilBody", { season, total: win.total, count: win.end ?? 0 })}
               </p>
             </div>
             {canTune && (
@@ -231,12 +240,10 @@ export function EpisodeWindowBanner({
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() =>
-                      void setWindow(win, null, `已订阅${season}全部 ${formatEpisodes(win.total)} 集`)
-                    }
+                    onClick={() => void setWindow(win, null, doneAll)}
                     className="btn-glass h-9 px-4 text-sub font-medium disabled:opacity-40"
                   >
-                    订阅全部
+                    {t("subscription.cap.subscribeAll")}
                   </button>
                 )}
                 <button

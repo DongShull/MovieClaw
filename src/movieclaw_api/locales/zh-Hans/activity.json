@@ -62,7 +62,7 @@
     "reconciledImport": "{units}已入库（媒体库对账确认）",
     "identityCorrected": "{units}的文件已不属于本条目（身份被改正），重新开始寻找资源",
     "multipleUnits": "{first} 等 {count} 集",
-    "created": "{base}{hasOwned, select, yes {；库里已有 {owned} 个单元，无需重复下载} other {}}{hasRoute, select, yes {；{route}} other {}}{hasRule, select, yes {；{rule}} other {}}",
+    "created": "{base}{hasOwned, select, yes {；库里已有 {owned} 个单元，无需重复下载} other {}}{hasWindows, select, yes {；{windows}} other {}}{hasRoute, select, yes {；{route}} other {}}{hasRule, select, yes {；{rule}} other {}}",
     "createdMovieEmpty": "创建订阅《{title}》",
     "createdMovieUndated": "创建订阅《{title}》：影片尚未定档，定档/上映后自动安排搜索；期间站点新出的资源仍会被自动匹配",
     "createdMovieScheduled": "创建订阅《{title}》：影片未上映或刚上映，{date} 起开始搜索资源；期间站点新出的资源仍会被自动匹配",
@@ -72,7 +72,7 @@
     "createdFuture": "{count} 集未播出、播出后先等被动匹配",
     "createdUndated": "{count} 集未定档、定档后再安排",
     "createdNoEpisodes": "暂无待办集",
-    "adjusted": "调整订阅：勾选{seasons}，自动续订{follow, select, yes {开} other {关}}{ruleChanged, select, yes {，规则组改为「{rule}」} other {}}{floorsChanged, select, yes {，集数{floors}} other {}}；新增 {added} 个单元，重新纳入 {reactivated} 个，退出范围 {deactivated} 个（下载器任务不会自动删除；退出范围后停止搜索与换源）",
+    "adjusted": "调整订阅：勾选{seasons}，自动续订{follow, select, yes {开} other {关}}{ruleChanged, select, yes {，规则组改为「{rule}」} other {}}{floorsChanged, select, yes {，集数{floors}} other {}}{capsChanged, select, yes {，{caps}} other {}}；新增 {added} 个单元，重新纳入 {reactivated} 个，退出范围 {deactivated} 个（下载器任务不会自动删除；退出范围后停止搜索与换源）",
     "episodeFloor": "第 {season} 季按 {count} 集",
     "tmdbEpisodeCount": "改回以 TMDB 为准",
     "noVerifiedSites": "当前没有可用的已验证站点",
@@ -119,7 +119,8 @@
     "specMismatchViolation": "{unit}入库文件与种子声称的规格不符：{detail}。{violation}，这个文件本不该入库，建议复查后手工删除并重新寻源",
     "specMismatchOk": "{unit}入库文件与种子声称的规格不符：{detail}。文件仍满足规则组要求，已照常入库，仅作提醒",
     "releaseScheduled": "《{title}》档期更新，{date} 起开始搜索资源",
-    "releaseCleared": "《{title}》档期撤销，重新定档/上映后再安排搜索"
+    "releaseCleared": "《{title}》档期撤销，重新定档/上映后再安排搜索",
+    "truncated": "本季还有没订到的集，可随时继续订阅"
   },
   "jobActions": {
     "dismissAll": "已忽略 {count} 个失败任务",

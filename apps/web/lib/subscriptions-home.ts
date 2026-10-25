@@ -878,7 +878,10 @@ export function subscriptionStanding(
     return active(3 + group.daysAhead / 100, { text: t("subscription.feed.updateWhen", { when }), tone: "calm" });
   }
   if (isTV) {
-    return missing > 0 ? active(5, { text: t("subscription.feed.missingEpisodes", { count: missing }), tone: "warn" }) : active(6, null);
+    if (missing > 0) return active(5, { text: t("subscription.feed.missingEpisodes", { count: missing }), tone: "warn" });
+    // 订阅上限截断了本季，这一批已就绪：等用户决定要不要继续订阅
+    if (sub.episode_windows?.length) return active(6, { text: t("subscription.feed.canContinue"), tone: "calm" });
+    return active(6, null);
   }
   return released(sub)
     ? active(5, { text: t("subscription.feed.findingRelease"), tone: "warn" })

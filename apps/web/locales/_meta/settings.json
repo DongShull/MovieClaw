@@ -7257,5 +7257,17 @@
   },
   "imageUpload.encodeFailed": {
     "sourceHash": "77f1184734bb838c9142d72d2216a41a370b68d540ca3190f35571fdae75f2a6"
+  },
+  "devices.labels.windows": {
+    "sourceHash": "d598026a9cbc60505f138ce53ac78088d582100c196d0f70c7e2538d4a8d7e10"
+  },
+  "devices.labels.windowsMember": {
+    "sourceHash": "c98a6f6ff2ab04e4bf74822cf68952548d9a6e600f83dfaf5093d646c3d7f1e4"
+  },
+  "devices.labels.windowsAdmin": {
+    "sourceHash": "7ea28eabed0391f7a0ef04d07185bb8e7e9cfb9dccbbdbb0c8817c9563468615"
+  },
+  "devices.labels.windowsBody": {
+    "sourceHash": "c5f282f55b6a412a5d65d79ce7750b3efb43e6143b6258b9f5cac2b827bcc8b3"
   }
 }

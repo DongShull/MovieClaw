@@ -85,7 +85,9 @@
     "upgrading": "Upgrading {count, number}",
     "wanted": "Missing {count, number}",
     "importedLegend": "Imported {count, number}",
-    "downloadingLegend": "Downloading {count, number}"
+    "downloadingLegend": "Downloading {count, number}",
+    "latestWindow": "Latest {count, plural, one {# episode} other {# episodes}} subscribed · earlier ones available",
+    "untilWindow": "Subscribed through episode {end, number} · more available"
   },
   "ribbon": {
     "followFuture": "Auto-renew"
@@ -253,7 +255,7 @@
     "codecHint": "Select codec families, including equivalent names such as x265 / HEVC. Leave empty for any codec.",
     "platform": "Streaming platform",
     "platformHint": "Tap to require, tap again to exclude, and a third time to clear. Requiring platforms also excludes releases with an unrecognized platform, as with resolution and codec restrictions.",
-    "hdrHint": "Tap to require, tap again to exclude, and a third time to clear. “SDR” means no HDR format is declared. Leave empty for no restriction.",
+    "hdrHint": "Tap to require, tap again to exclude, and a third time to clear. “SDR” means no HDR format is declared. “DV P5” is Dolby Vision without an HDR10 fallback layer (colors shift when transcoded); it can only be excluded, so one tap excludes it. Leave empty for no restriction.",
     "groupsAllow": "Allowed release groups",
     "groupsAllowHint": "Accept only these release groups, separated by commas or spaces (e.g. FRDS, WiKi). Leave empty for any group.",
     "blankAny": "Leave empty for any",
@@ -493,7 +495,7 @@
     "saving": "Saving…",
     "watchPreview": "Downloads go to the watched directory {path} and are imported automatically when complete",
     "libraryPreview": "Downloads go directly to the library directory {path} and are recorded when complete",
-    "description": "“{title}” — Adding seasons restores or creates tracking. Removing a season stops tracking it, while downloader tasks, downloaded files and library content are kept.",
+    "description": "“{title}” — Adding seasons restores or creates tracking. Removing seasons or lowering the subscribed episode count stops tracking that part, while downloader tasks, downloaded files and library content are kept.",
     "droppedNote": "Season{count, plural, one {} other {s}} {seasons} already {count, plural, one {has} other {have}} download progress. Saving stops progress linking, missing-release searches and automatic source replacement. Files are kept.{canClean, select, yes { After saving, you can choose whether to clean up the removed content.} other {}}"
   },
   "seasonCleanup": {
@@ -806,7 +808,8 @@
     "relativeYears": "{future, select, yes {in {count, plural, one {# year} other {# years}}} other {{count, plural, one {# year} other {# years}} ago}}",
     "relativeFewSeconds": "{future, select, yes {in a few seconds} other {a few seconds ago}}",
     "statusProgress": "{status} {percent, number}%",
-    "updatesToday": "Releasing today"
+    "updatesToday": "Releasing today",
+    "canContinue": "More to subscribe"
   },
   "pipeline": {
     "ok": "Healthy",
@@ -871,5 +874,30 @@
   "wall": {
     "moviePageTitle": "Movie subscriptions",
     "tvPageTitle": "Series subscriptions"
+  },
+  "cap": {
+    "wholeSeason": "{prefix}Whole season: {count, plural, one {# episode} other {# episodes}}",
+    "subscribePart": "Subscribe to part first",
+    "firstLabel": "{prefix}First",
+    "latestLabel": "{prefix}Latest",
+    "inputAria": "Episodes to subscribe first in season {season}",
+    "suffixTotal": "episodes · {count, plural, one {# episode} other {# episodes}} in this season",
+    "suffixAired": "episodes · {count, number} aired in this season",
+    "all": "All",
+    "saveFailed": "Couldn’t save. Try again later.",
+    "stepEarlier": "Add {count, plural, one {# earlier episode} other {# earlier episodes}}",
+    "stepEarlierRest": "Add the {count, plural, one {# remaining earlier episode} other {# remaining earlier episodes}}",
+    "stepContinue": "Continue with {count, plural, one {# more episode} other {# more episodes}}",
+    "stepRest": "Subscribe to the {count, plural, one {# remaining episode} other {# remaining episodes}}",
+    "doneEarlier": "Now subscribed from episode {episode, number}",
+    "doneContinue": "Now subscribed through episode {episode, number}",
+    "doneAll": "Subscribed to all {count, plural, one {# episode} other {# episodes}} of {season}",
+    "bannerLatest": "Latest {count, plural, one {# episode} other {# episodes}} subscribed",
+    "bannerUntil": "Subscribed through episode {episode, number}",
+    "bannerLatestBody": "{season} is subscribed from episode {start, number} to the latest; new episodes are added as they air. Earlier episodes aren’t subscribed and won’t be downloaded.",
+    "bannerUntilBody": "{season} has {total, plural, one {# episode} other {# episodes}}; only the first {count, number} are subscribed. The rest won’t be searched or downloaded.",
+    "subscribeAll": "Subscribe to all",
+    "rangeLatest": "{name} (latest {count, plural, one {# episode} other {# episodes}})",
+    "rangeFirst": "{name} (first {count, plural, one {# episode} other {# episodes}})"
   }
 }

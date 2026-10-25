@@ -92661,19 +92661,19 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "点一下 = 只要，再点 = 排除，第三下取消。\"SDR\" 指资源没标注任何 HDR 格式；都不选 = 不限"
+            "value": "点一下 = 只要，再点 = 排除，第三下取消。\"SDR\" 指资源没标注任何 HDR 格式；\"DV P5\" 是只标了 DV、没有 HDR10 兼容层的杜比视界（转码会偏色），只能排除，点一下即排除；都不选 = 不限"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "点一下 = 只要，再点 = 排除，第三下取消。\"SDR\" 指资源没标注任何 HDR 格式；都不选 = 不限"
+            "value": "点一下 = 只要，再点 = 排除，第三下取消。\"SDR\" 指资源没标注任何 HDR 格式；\"DV P5\" 是只标了 DV、没有 HDR10 兼容层的杜比视界（转码会偏色），只能排除，点一下即排除；都不选 = 不限"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap to require, tap again to exclude, and a third time to clear. “SDR” means no HDR format is declared. Leave empty for no restriction."
+            "value": "Tap to require, tap again to exclude, and a third time to clear. “SDR” means no HDR format is declared. “DV P5” is Dolby Vision without an HDR10 fallback layer (colors shift when transcoded); it can only be excluded, so one tap excludes it. Leave empty for no restriction."
           }
         }
       }
@@ -129790,6 +129790,678 @@
           "stringUnit": {
             "state": "translated",
             "value": "Could not create the player"
+          }
+        }
+      }
+    },
+    "settings.macInstall.title": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把 MovieClaw 装到「应用程序」"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把 MovieClaw 装到「应用程序」"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move MovieClaw to Applications"
+          }
+        }
+      }
+    },
+    "settings.macInstall.quit": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "知道了，退出"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "知道了，退出"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK, Quit"
+          }
+        }
+      }
+    },
+    "settings.macInstall.fromDiskImage": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你现在是直接在安装盘里打开的。请退出后回到安装盘窗口，把 MovieClaw 拖到右边的「应用程序」文件夹，再从「应用程序」或启动台打开。装进去之后才能正常使用，以后也能自动更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你现在是直接在安装盘里打开的。请退出后回到安装盘窗口，把 MovieClaw 拖到右边的「应用程序」文件夹，再从「应用程序」或启动台打开。装进去之后才能正常使用，以后也能自动更新。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You opened MovieClaw directly from the disk image. Quit, return to the disk image window, drag MovieClaw to the Applications folder on the right, then open it from Applications or Launchpad. MovieClaw works properly and updates automatically only after it’s installed."
+          }
+        }
+      }
+    },
+    "settings.macInstall.elsewhere": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你现在是在「应用程序」以外的地方打开的（比如「下载」）。请退出后在访达里把它拖进「应用程序」文件夹，再从那里打开。装进去之后才能正常使用，以后也能自动更新。它现在在："
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你现在是在「应用程序」以外的地方打开的（比如「下载」）。请退出后在访达里把它拖进「应用程序」文件夹，再从那里打开。装进去之后才能正常使用，以后也能自动更新。它现在在："
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You opened MovieClaw from outside Applications (for example, Downloads). Quit, drag it into the Applications folder in Finder, then open it from there. MovieClaw works properly and updates automatically only after it’s installed. It’s currently in:"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.generalTab": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通用"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.section": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "软件更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "软件更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Software Update"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.autoCheck": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动检查更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动检查更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatically check for updates"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.autoCheckHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天一次，只向官网查询最新版本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天一次，只向官网查询最新版本"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once a day, asking only the official website for the latest version"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.autoInstall": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动下载并在退出时安装"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动下载并在退出时安装"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatically download and install when quitting"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.autoInstallHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关掉后，有新版本时会先问你"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关掉后，有新版本时会先问你"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When off, you’re asked before a new version is installed"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.testFlight": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这份 App 通过 TestFlight 安装，更新由 TestFlight 负责。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这份 App 通过 TestFlight 安装，更新由 TestFlight 负责。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This app was installed through TestFlight, which handles its updates."
+          }
+        }
+      }
+    },
+    "settings.macUpdate.development": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开发版不检查更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开发版不检查更新。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Development builds don’t check for updates."
+          }
+        }
+      }
+    },
+    "settings.macUpdate.needsApplications": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "装进「应用程序」文件夹后才能自动更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "装进「应用程序」文件夹后才能自动更新。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic updates require MovieClaw to be in the Applications folder."
+          }
+        }
+      }
+    },
+    "settings.macUpdate.allReleases": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 查看所有 Mac 版发布"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 查看所有 Mac 版发布"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View all Mac releases on GitHub"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.menuRestart": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新启动以更新到 %@…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新启动以更新到 %@…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart to Update to %@…"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.menuCheck": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查更新…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查更新…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for Updates…"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.restart": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新启动以更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新启动以更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart to Update"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.viewNew": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看新版本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看新版本"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View New Version"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.check": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check for Updates"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.readyStatus": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 已下载，退出时安装"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 已下载，退出时安装"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ downloaded; installs when you quit"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.availableStatus": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有新版本 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有新版本 %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New version %@ available"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.neverChecked": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有检查过更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有检查过更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not checked for updates yet"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.upToDate": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是最新 · 上次检查：%@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已是最新 · 上次检查：%@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to date · Last checked %@"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.updatedNotice": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已更新到 MovieClaw %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已更新到 MovieClaw %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated to MovieClaw %@"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.pillReady": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新到 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新到 %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update to %@"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.pillReadyHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已下载 · 点这里重新启动"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已下载 · 点这里重新启动"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloaded · Click to restart"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.pillAvailableHint": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点这里查看"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点这里查看"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to view"
+          }
+        }
+      }
+    },
+    "settings.macUpdate.byTestFlight": {
+      "extractionState": "manual",
+      "generatesSymbol": true,
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由 TestFlight 更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由 TestFlight 更新"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated by TestFlight"
           }
         }
       }

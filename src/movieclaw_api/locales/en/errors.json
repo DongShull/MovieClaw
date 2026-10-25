@@ -535,7 +535,13 @@
     "memberInactive": "This member does not exist or is disabled",
     "cursorInvalid": "This cursor is invalid",
     "timezoneRequired": "Times must include a time zone",
-    "futureTime": "Times can’t be in the future"
+    "futureTime": "Times can’t be in the future",
+    "nothingToWrite": "Provide at least one of played, position_ms or is_favorite",
+    "seasonRequired": "An episode number needs a season number",
+    "movieUnits": "Movie season and episode must be 0 or omitted",
+    "episodeFromOne": "Episode numbers start at 1",
+    "favoriteOnly": "Whole series or seasons only accept favorites; write watched state and resume points per episode",
+    "watchedNoPosition": "A watched unit can’t carry a resume position"
   },
   "subtitles": {
     "fileMissing": "File id={id} does not exist or is missing",
@@ -1059,5 +1065,12 @@
   "tmdb": {
     "notConfiguredSubscriptions": "No TMDB API key is configured, so subscriptions are unavailable. Set TMDB_API_KEY in .env (or the environment) and restart the server; get a free key under Account settings → API on themoviedb.org",
     "notConfiguredDiscover": "No TMDB API key is configured, so Discover is unavailable. Set TMDB_API_KEY in .env (or the environment) and restart the server; get a free key under Account settings → API on themoviedb.org"
+  },
+  "subscriptionCaps": {
+    "tvOnly": "Only series subscriptions can limit the subscribed episodes",
+    "unknownSeason": "Season {season} isn’t in this series’ season list",
+    "range": "The subscribed episode range must be between 1 and {max}",
+    "oneShape": "The range can be either “from episode X” or “through episode N”, not both",
+    "noEpisode": "Season {season} has no episode {episode} yet"
   }
 }

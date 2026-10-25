@@ -38,6 +38,17 @@ export function subscriptionProgressNote(sub: Subscription, locale: AppLocale = 
       return imported > 0 ? t("subscription.progress.imported") : inPipeline > 0 ? t("subscription.progress.arranging") : t("subscription.progress.collected");
     }
     if (inPipeline > 0) return t("subscription.progress.pipelineSummary", { count: inPipeline, imported });
+    // 订阅窗口截断了本季：等的是用户，不是片源。完结季「可继续」，在播季「可往前补」
+    const win = sub.episode_windows?.[0];
+    if (sub.status === "active" && win) {
+      // 「最新 N 集」锚定已播集数（宣称的集数可能还没播到），拿不到退回窗口总集数
+      const aired =
+        sub.season_collection.find((s) => s.season_number === win.season_number)?.aired_count ??
+        win.total;
+      return win.end === null
+        ? t("subscription.progress.latestWindow", { count: Math.max(1, aired - win.start + 1) })
+        : t("subscription.progress.untilWindow", { end: win.end });
+    }
     if (sub.status === "active") return t("subscription.progress.waiting");
     return imported > 0 ? t("subscription.progress.allImported", { count: total }) : t("subscription.progress.allScheduled", { count: total });
   }

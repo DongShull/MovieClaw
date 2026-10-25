@@ -165,7 +165,7 @@
     "sourceHash": "6c5cb524c902e327ba631a35f362d4c42d85f16b8c2b1418c524fc96ff77c8ff"
   },
   "subscription.created": {
-    "sourceHash": "b827a2a2ef410476469a947ff34b739ceaeea1f003568fb86f0d2183b10b83ac"
+    "sourceHash": "e57426eec1a53e69cda146fb3a65961ff12706fe0ccfad3c80a61d5aff52bd09"
   },
   "subscription.createdMovieEmpty": {
     "sourceHash": "477d2be73b3917d2d0983410c2139a48000f4b5bb4ec0e998277424c81cb217b"
@@ -195,7 +195,7 @@
     "sourceHash": "b98e40113948acd40b52d23af68ebd9ac33d1577297a0acf330f87be99af29f5"
   },
   "subscription.adjusted": {
-    "sourceHash": "4001abe5384f4e1a6f854233e608d03feaa71fb7dceb2d8e16738e639c40c490"
+    "sourceHash": "4cb61459101e0805079a9d87f6f933bc25c3b9d7bf42f65803a68451cac3192b"
   },
   "subscription.episodeFloor": {
     "sourceHash": "af10cea3552df3ee3018a0b644429b160a8e6e9ff7eab6d65685c69d0aa05c87"
@@ -382,5 +382,8 @@
   },
   "jobs.leaseLost": {
     "sourceHash": "75891498427d87ceda0f78d58871a97719aaf53c073aaa58945ea4b766aedfaf"
+  },
+  "subscription.truncated": {
+    "sourceHash": "4dbc950c066613bc729982a736b39afbc1af8df283d447b6ce60ab1516b9ddbc"
   }
 }

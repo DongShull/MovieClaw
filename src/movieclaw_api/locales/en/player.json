@@ -193,7 +193,9 @@
     "driverInitFailed": "The driver failed to initialize, usually because the host driver is missing or mismatched.",
     "probeFailed": "The hardware encoding probe failed: {summary}",
     "noReason": "(ffmpeg gave no reason)",
-    "lowPower": "{encoder} (low power)"
+    "lowPower": "{encoder} (low power)",
+    "withHevc": "{base} HEVC encoding was also verified, so offline downloads use HEVC.",
+    "hevcProbeTimeout": "probe timed out"
   },
   "worker": {
     "waiterMissing": "The remote job waiter doesn’t exist",
@@ -235,5 +237,8 @@
     "nasGpu": "NAS GPU",
     "nasSoftware": "NAS software",
     "original": "Original"
+  },
+  "plan": {
+    "dvP5Caveat": "Dolby Vision Profile 5 colors need its dynamic metadata, which {backend} tone mapping on this server can’t apply, so the picture looks green or purple; connect a transcoder to convert it correctly"
   }
 }

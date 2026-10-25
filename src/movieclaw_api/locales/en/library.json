@@ -810,7 +810,9 @@
     "legacyDiscReconciled": "The pending record for legacy disc stream segments was closed. Disc folders (BDMV/VIDEO_TS) can’t be imported automatically yet; organize them manually.",
     "restored": "Restored. Waiting to be processed (after the download completion check)",
     "claimedFile": "Claimed “{file}” as “{title}”. Waiting to be organized in the background",
-    "claimed": "Claimed as “{title}”. Waiting to be organized in the background"
+    "claimed": "Claimed as “{title}”. Waiting to be organized in the background",
+    "unreadable": "“{name}” can’t be read (the file is damaged or incomplete). Retrying as is won’t help, so it wasn’t imported; it’s processed again after the download continues or the release is replaced",
+    "unreadableMain": "The main video “{name}” can’t be read (the file is damaged or incomplete). Retrying as is won’t help, so it wasn’t imported; it’s processed again after the download continues or the release is replaced"
   },
   "scrape": {
     "phase": {

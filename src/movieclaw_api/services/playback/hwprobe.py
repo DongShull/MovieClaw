@@ -283,7 +283,10 @@ def _probe_one(name: str, encoders: frozenset[str]) -> HwBackendStatus:
         if low_power is not None and low_power.returncode == 0:
             register_encoder_options(name, VAAPI_LOW_POWER)
             return status(True, reference("player.hw.verifiedLowPower"))
-    proc = _run_probe(backend.encoder, _PROBE_FILTERS.get(name, []))
+    # 带上真实转码会加的 forced_idr：参数不认（过老的 ffmpeg）要在这里探出来，而不是播放时才炸
+    proc = _run_probe(
+        backend.encoder, _PROBE_FILTERS.get(name, []), encoder_args=list(backend.forced_idr)
+    )
     if proc is None:
         return status(False, reference("player.hw.probeTimeout"))
     if proc.returncode == 0:
@@ -312,7 +315,7 @@ def _probe_hevc(status: HwBackendStatus, encoders: frozenset[str]) -> HwBackendS
     )
     if proc is None or proc.returncode != 0:
         reason = (
-            "探测超时"
+            source_text("player.hw.hevcProbeTimeout")
             if proc is None
             else " ".join(proc.stderr.decode(errors="replace").split())[:200]
         )
@@ -323,7 +326,7 @@ def _probe_hevc(status: HwBackendStatus, encoders: frozenset[str]) -> HwBackendS
         )
         return status
     register_hevc_encoder(status.name, options)
-    return replace(status, detail=status.detail + "HEVC 编码也已验证，离线下载出 HEVC。")
+    return replace(status, detail=reference("player.hw.withHevc", base=status.detail))
 
 
 def _run_probe(

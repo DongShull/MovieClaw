@@ -86,7 +86,7 @@ struct MacInstallGateView: View {
                 .resizable()
                 .frame(width: 96, height: 96)
                 .accessibilityHidden(true)
-            Text("把 MovieClaw 装到「应用程序」")
+            Text(String(localized: .settingsMacInstallTitle))
                 .font(.system(size: 22, weight: .bold))
             Text(explanation)
                 .font(.system(size: 13))
@@ -99,7 +99,7 @@ struct MacInstallGateView: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
-            Button("知道了，退出") { NSApp.terminate(nil) }
+            Button(String(localized: .settingsMacInstallQuit)) { NSApp.terminate(nil) }
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .padding(.top, 8)
@@ -114,11 +114,9 @@ struct MacInstallGateView: View {
     private var explanation: String {
         switch problem {
         case .diskImage:
-            "你现在是直接在安装盘里打开的。请退出后回到安装盘窗口，把 MovieClaw 拖到右边的「应用程序」文件夹，再从「应用程序」或启动台打开。"
-                + "装进去之后才能正常使用，以后也能自动更新。"
+            String(localized: .settingsMacInstallFromDiskImage)
         case .elsewhere:
-            "你现在是在「应用程序」以外的地方打开的（比如「下载」）。请退出后在访达里把它拖进「应用程序」文件夹，再从那里打开。"
-                + "装进去之后才能正常使用，以后也能自动更新。它现在在："
+            String(localized: .settingsMacInstallElsewhere)
         }
     }
 }

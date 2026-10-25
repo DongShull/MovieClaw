@@ -170,6 +170,14 @@ test("详情页收录范围标出被截断的季", () => {
     "第 1 季、第 2 季（前 1,020 集）",
   );
   assert.equal(rangeLabel([0, 1], null), "特别篇、第 1 季");
+  assert.equal(
+    rangeLabel([1, 2], [{ season_number: 2, start: 1, end: 1020, total: 1043 }], undefined, "en"),
+    "Season 1, Season 2 (first 1,020 episodes)",
+  );
+  assert.equal(
+    rangeLabel([1], [{ season_number: 1, start: 1100, end: null, total: 1100 }], undefined, "en"),
+    "Season 1 (latest 1 episode)",
+  );
   assert.equal(formatEpisodes(1043), "1,043");
 });
 

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from movieclaw_api.i18n.stored import source_render
 from movieclaw_api.services.playback import hwprobe
 from movieclaw_api.services.playback.ffmpeg_args import (
     HW_BACKENDS,
@@ -38,7 +39,7 @@ def test_missing_ffmpeg_reports_every_backend_with_a_reason(monkeypatch):
     monkeypatch.setattr(hwprobe.shutil, "which", lambda _n: None)
     statuses = hwprobe.probe_backends()
     assert statuses and all(not s.available for s in statuses)
-    assert all("未找到 ffmpeg" in s.detail for s in statuses)
+    assert all("未找到 ffmpeg" in source_render(s.detail) for s in statuses)
     assert hwprobe.hardware_available() is False
 
 
@@ -46,14 +47,14 @@ def test_encoder_missing_from_build_says_so(monkeypatch):
     monkeypatch.setattr(hwprobe.shutil, "which", lambda _n: "/usr/bin/ffmpeg")
     monkeypatch.setattr(hwprobe, "_list_encoders", lambda: frozenset())
     statuses = hwprobe.probe_backends()
-    assert "不含 h264_vaapi 编码器" in status_of(statuses, "vaapi").detail
+    assert "不含 h264_vaapi 编码器" in source_render(status_of(statuses, "vaapi").detail)
 
 
 def test_videotoolbox_absence_on_linux_is_explained_as_normal(monkeypatch):
     """别让 Linux 用户以为自己漏配了什么——VideoToolbox 是 macOS 专有的。"""
     monkeypatch.setattr(hwprobe.shutil, "which", lambda _n: "/usr/bin/ffmpeg")
     monkeypatch.setattr(hwprobe, "_list_encoders", lambda: frozenset())
-    detail = status_of(hwprobe.probe_backends(), "videotoolbox").detail
+    detail = source_render(status_of(hwprobe.probe_backends(), "videotoolbox").detail)
     assert "macOS" in detail and "正常" in detail
 
 
@@ -61,7 +62,7 @@ def test_missing_dri_tells_the_user_to_mount_the_device(monkeypatch, tmp_path):
     monkeypatch.setattr(hwprobe.shutil, "which", lambda _n: "/usr/bin/ffmpeg")
     monkeypatch.setattr(hwprobe, "_list_encoders", lambda: frozenset({"h264_vaapi"}))
     monkeypatch.setattr(hwprobe, "Path", lambda p: tmp_path / "nope")
-    detail = status_of(hwprobe.probe_backends(), "vaapi").detail
+    detail = source_render(status_of(hwprobe.probe_backends(), "vaapi").detail)
     assert "/dev/dri" in detail and "devices:" in detail
 
 
@@ -74,7 +75,7 @@ def test_render_node_without_permission_names_the_group_fix(monkeypatch, tmp_pat
     monkeypatch.setattr(hwprobe, "_list_encoders", lambda: frozenset({"h264_vaapi"}))
     monkeypatch.setattr(hwprobe, "Path", lambda _p: dri)
     monkeypatch.setattr(hwprobe.os, "access", lambda *_a: False)
-    detail = status_of(hwprobe.probe_backends(), "vaapi").detail
+    detail = source_render(status_of(hwprobe.probe_backends(), "vaapi").detail)
     assert "无读写权限" in detail
     assert "group_add" in detail
     assert "GID" in detail  # 要报出宿主机上的实际 GID，用户才知道填什么
@@ -86,14 +87,14 @@ def test_dri_without_render_nodes_points_at_the_host(monkeypatch, tmp_path):
     monkeypatch.setattr(hwprobe.shutil, "which", lambda _n: "/usr/bin/ffmpeg")
     monkeypatch.setattr(hwprobe, "_list_encoders", lambda: frozenset({"h264_vaapi"}))
     monkeypatch.setattr(hwprobe, "Path", lambda _p: dri)
-    assert "renderD" in status_of(hwprobe.probe_backends(), "vaapi").detail
+    assert "renderD" in source_render(status_of(hwprobe.probe_backends(), "vaapi").detail)
 
 
 def test_nvidia_without_device_nodes_names_the_toolkit(monkeypatch, tmp_path):
     monkeypatch.setattr(hwprobe.shutil, "which", lambda _n: "/usr/bin/ffmpeg")
     monkeypatch.setattr(hwprobe, "_list_encoders", lambda: frozenset({"h264_nvenc"}))
     monkeypatch.setattr(hwprobe, "Path", lambda _p: tmp_path / "nope")
-    detail = status_of(hwprobe.probe_backends(), "nvenc").detail
+    detail = source_render(status_of(hwprobe.probe_backends(), "nvenc").detail)
     assert "NVIDIA Container Toolkit" in detail
 
 
@@ -107,12 +108,12 @@ def test_nvidia_without_device_nodes_names_the_toolkit(monkeypatch, tmp_path):
     ],
 )
 def test_driver_errors_are_translated_to_actionable_chinese(stderr, expected):
-    assert expected in hwprobe._explain_failure(stderr)
+    assert expected in source_render(hwprobe._explain_failure(stderr))
 
 
 def test_unrecognised_error_carries_the_original_summary():
     """命中不了就原样带上摘要，别装懂——用户报障时这句话就是全部线索。"""
-    detail = hwprobe._explain_failure("Some brand new driver bug 0xdeadbeef")
+    detail = source_render(hwprobe._explain_failure("Some brand new driver bug 0xdeadbeef"))
     assert "0xdeadbeef" in detail
 
 
@@ -131,7 +132,7 @@ def test_successful_probe_marks_the_backend_available(monkeypatch, tmp_path):
     )
     statuses = hwprobe.probe_backends()
     assert status_of(statuses, "vaapi").available is True
-    assert "真实编码验证" in status_of(statuses, "vaapi").detail
+    assert "真实编码验证" in source_render(status_of(statuses, "vaapi").detail)
     assert "vaapi" in hwprobe.available_backends()
 
 
@@ -159,7 +160,7 @@ def test_vaapi_prefers_low_power_encoding_when_it_works(monkeypatch, tmp_path):
     monkeypatch.setattr(hwprobe.subprocess, "run", fake_run)
     vaapi = status_of(hwprobe.probe_backends(), "vaapi")
     assert vaapi.available is True
-    assert "低功耗" in vaapi.detail
+    assert "低功耗" in source_render(vaapi.detail)
     (argv,) = [a for a in calls if "h264_vaapi" in a]
     after = argv[argv.index("h264_vaapi") + 1 :]
     assert after[:2] == ["-low_power", "1"]
@@ -183,7 +184,7 @@ def test_vaapi_falls_back_to_normal_encoding_without_low_power(monkeypatch, tmp_
     monkeypatch.setattr(hwprobe.subprocess, "run", fake_run)
     vaapi = status_of(hwprobe.probe_backends(), "vaapi")
     assert vaapi.available is True
-    assert "低功耗" not in vaapi.detail
+    assert "低功耗" not in source_render(vaapi.detail)
     assert [("-low_power" in a) for a in calls if "h264_vaapi" in a] == [True, False]
     assert encoder_options(HW_BACKENDS["vaapi"]) == ()
 
@@ -220,7 +221,7 @@ def test_hevc_is_enabled_only_after_a_real_hevc_run(monkeypatch, tmp_path):
 
     monkeypatch.setattr(hwprobe.subprocess, "run", fake_run)
     vaapi = status_of(hwprobe.probe_backends(), "vaapi")
-    assert vaapi.available is True and "HEVC" in vaapi.detail
+    assert vaapi.available is True and "HEVC" in source_render(vaapi.detail)
     (argv,) = [a for a in calls if "hevc_vaapi" in a]
     after = argv[argv.index("hevc_vaapi") + 1 :]
     assert after[:2] == ["-low_power", "1"]
@@ -257,7 +258,7 @@ def test_hevc_failure_keeps_h264_hardware_transcoding(monkeypatch, tmp_path):
 
     monkeypatch.setattr(hwprobe.subprocess, "run", fake_run)
     vaapi = status_of(hwprobe.probe_backends(), "vaapi")
-    assert vaapi.available is True and "HEVC" not in vaapi.detail
+    assert vaapi.available is True and "HEVC" not in source_render(vaapi.detail)
     assert hevc_encoder(HW_BACKENDS["vaapi"]) is None
 
 
@@ -351,7 +352,7 @@ def test_probe_timeout_is_reported_not_swallowed(monkeypatch, tmp_path):
     monkeypatch.setattr(hwprobe, "Path", lambda _p: dri)
     monkeypatch.setattr(hwprobe.os, "access", lambda *_a: True)
     monkeypatch.setattr(hwprobe, "_run_probe", lambda *_a, **_k: None)
-    assert "超时" in status_of(hwprobe.probe_backends(), "vaapi").detail
+    assert "超时" in source_render(status_of(hwprobe.probe_backends(), "vaapi").detail)
 
 
 def _nvenc_ready(monkeypatch, tmp_path):

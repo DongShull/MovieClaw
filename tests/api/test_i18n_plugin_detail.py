@@ -95,6 +95,8 @@ def test_notification_audience_projection_keeps_author_metadata_and_sends_no_eve
         english = next(row for row in result[0] if row["kind"] == "notification")
         chinese = next(row for row in result[1] if row["kind"] == "notification")
         assert english["title"] == "Sends notifications: 站点配额超限"
-        assert english["detail"] == "Sent to Administrators"
+        assert english["detail"] == (
+            "Sent to Administrators; choose whether to receive it under Account → Notifications"
+        )
         assert chinese["title"] == "会发通知：站点配额超限"
-        assert chinese["detail"] == "发给管理员"
+        assert chinese["detail"] == "发给管理员；收不收在「账号 → 通知」里开"

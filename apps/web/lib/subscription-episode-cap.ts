@@ -1,4 +1,7 @@
 import type { EpisodeSeason, EpisodeWindow, SeasonOverview } from "@/lib/api/subscriptions";
+import { formatList } from "./i18n/format.ts";
+import { requestLocale, type AppLocale } from "./i18n/negotiate.ts";
+import { appTranslator } from "./i18n/translate.ts";
 
 /**
  * 订阅窗口：一季上千集时先订阅一部分（docs/design/subscription-episode-cap.md）。
@@ -181,15 +184,17 @@ export function rangeLabel(
   selectedSeasons: readonly number[],
   windows: readonly EpisodeWindow[] | null | undefined,
   airedBySeason?: Readonly<Record<number, number>>,
+  locale: AppLocale = requestLocale() ?? "zh-Hans",
 ): string {
+  const t = appTranslator(locale);
   const bySeason = new Map((windows ?? []).map((win) => [win.season_number, win]));
   const parts = selectedSeasons.map((season) => {
-    const name = season === 0 ? "特别篇" : `第 ${season} 季`;
+    const name = season === 0 ? t("media.season.specials") : t("media.season.title", { number: season });
     const win = bySeason.get(season);
     if (win === undefined) return name;
     return win.end === null
-      ? `${name}（最新 ${formatEpisodes(windowCount(win, airedBySeason))} 集）`
-      : `${name}（前 ${formatEpisodes(win.end)} 集）`;
+      ? t("subscription.cap.rangeLatest", { name, count: windowCount(win, airedBySeason) })
+      : t("subscription.cap.rangeFirst", { name, count: win.end });
   });
-  return parts.join("、");
+  return formatList(parts, locale, { type: "unit", style: "short" });
 }

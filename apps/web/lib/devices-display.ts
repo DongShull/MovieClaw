@@ -17,6 +17,7 @@ const CLIENT_TYPE_LABEL: Record<string, import("./i18n/translate.ts").AppMessage
   cli: "settings.devices.labels.cli",
   tvos: "settings.devices.labels.tvos",
   macos: "settings.devices.labels.macos",
+  windows: "settings.devices.labels.windows",
   androidtv: "settings.devices.labels.androidtv",
   manual: "settings.devices.labels.manual",
 };
@@ -76,10 +77,9 @@ export function grantSummary(type: string, role: ViewerRole = "admin", locale: A
   }
   if (type === "windows") {
     return {
-      title: role === "member" ? "将获得：这台 Windows 电脑以你的身份登录" : "将获得：这台 Windows 电脑以你的超级管理员身份登录",
+      title: role === "member" ? appTranslator(locale)("settings.devices.labels.windowsMember") : appTranslator(locale)("settings.devices.labels.windowsAdmin"),
       body:
-        "等同你在这台 Windows 电脑上输入账号密码登录：它能看到你能看到的媒体库、记录你的观看进度。" +
-        "只批准你面前这台 Windows 电脑上显示的配对码。",
+        appTranslator(locale)("settings.devices.labels.windowsBody"),
     };
   }
   if (role === "member") {

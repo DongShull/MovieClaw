@@ -60,27 +60,27 @@ final class MacUpdater {
 
     /// 菜单栏「MovieClaw」里那一项的文字
     var menuTitle: String {
-        if case let .ready(version) = phase { return "重新启动以更新到 \(version)…" }
-        return "检查更新…"
+        if case let .ready(version) = phase { return String(localized: .settingsMacUpdateMenuRestart(version)) }
+        return String(localized: .settingsMacUpdateMenuCheck)
     }
 
     /// 关于窗口、设置里的按钮文字
     var primaryTitle: String {
         switch phase {
-        case .ready: "重新启动以更新"
-        case .available: "查看新版本"
-        case .idle: "检查更新"
+        case .ready: String(localized: .settingsMacUpdateRestart)
+        case .available: String(localized: .settingsMacUpdateViewNew)
+        case .idle: String(localized: .settingsMacUpdateCheck)
         }
     }
 
     /// 关于窗口、设置里的一行状态
     var statusText: String {
         switch phase {
-        case let .ready(version): return "\(version) 已下载，退出时安装"
-        case let .available(version): return "有新版本 \(version)"
+        case let .ready(version): return String(localized: .settingsMacUpdateReadyStatus(version))
+        case let .available(version): return String(localized: .settingsMacUpdateAvailableStatus(version))
         case .idle:
-            guard let lastCheck else { return "还没有检查过更新" }
-            return "已是最新 · 上次检查：" + lastCheck.formatted(.relative(presentation: .named))
+            guard let lastCheck else { return String(localized: .settingsMacUpdateNeverChecked) }
+            return String(localized: .settingsMacUpdateUpToDate(lastCheck.formatted(.relative(presentation: .named))))
         }
     }
 
@@ -100,7 +100,7 @@ final class MacUpdater {
         let previous = UserDefaults.standard.string(forKey: key)
         UserDefaults.standard.set(current, forKey: key)
         guard let previous, previous != current else { return nil }
-        return "已更新到 MovieClaw \(current)"
+        return String(localized: .settingsMacUpdateUpdatedNotice(current))
     }
 
     #if canImport(Sparkle)

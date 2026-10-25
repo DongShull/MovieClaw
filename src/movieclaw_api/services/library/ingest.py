@@ -428,13 +428,6 @@ def _blocked_code(record: IngestEntry | None, parser_gap: bool) -> str:
     return "INGEST_IDENTITY_REQUIRED"
 
 
-def _blocked_label(record: IngestEntry | None, parser_gap: bool) -> str:
-    # 坏文件等的是换源/继续下载，不是认领身份——别把人引去「认领」
-    if parser_gap or _has_unreadable_file(record):
-        return "查看监听导入"
-    return "去监听导入认领"
-
-
 def _has_new_file_claim(record: IngestEntry) -> bool:
     """合集条目是否有待处理的逐文件认领（认领了、但上一轮结论里还列为识别不出）。
 
@@ -1566,15 +1559,14 @@ def _probe_for_ingest(file: Path):
 # 文件内容不可识别的台账文案片段（issue #1006）。确定性失败：指纹不变时
 # 重试必然同一结论，所以归 pending 而不是 failed——不再按小时重试、不挂
 # 全局红灯；文件一变（继续下载、换源）指纹随之变化，自动重新处理
+# i18n-ignore: matches the Chinese source text kept in ingest_entry.message
 _UNREADABLE_MARKER = "内容无法识别"
 
 
-def _unreadable_note(file: Path, *, main: bool = False) -> str:
-    who = f"主视频「{file.name}」" if main else f"「{file.name}」"
-    return (
-        f"{who}{_UNREADABLE_MARKER}（文件已损坏或未下载完整），原样重试不会成功，未入库；"
-        "继续下载或换源后自动重新处理"
-    )
+def _unreadable_note(file: Path, *, main: bool = False) -> dict:
+    # 中文原文里含 _UNREADABLE_MARKER：台账 message 存原文，_has_unreadable_file 据此判定
+    key = "library.ingest.unreadableMain" if main else "library.ingest.unreadable"
+    return reference(key, name=file.name)
 
 
 def _has_unreadable_file(record: IngestEntry | None) -> bool:
@@ -2391,6 +2383,12 @@ async def _ingest_entry(
             env_error = True
             continue
         if file_spec is None and ffprobe_available() and not _is_strm(file):
+            if probe_found_unreadable(file):
+                # 内容不可识别是确定性的：与同名冲突同档（pending 等文件变化），
+                # 不能当环境故障按小时无限重试（issue #1006）
+                notes.append(_unreadable_note(file))
+                unreadable = True
+                continue
             notes.append(reference("library.ingest.probeSkipped", name=file.name))
             env_error = True
             continue
@@ -4286,10 +4284,8 @@ async def _execute_ingest_job(
                 parser_gap = _has_parser_gap(record)
                 raise jobs.JobBlocked(
                     **_entry_text(record, "library.ingest.blocked.identity"),
-                    code="INGEST_EPISODE_PARSE_REQUIRED"
-                    if parser_gap
-                    else "INGEST_IDENTITY_REQUIRED",
-                    actions=[_settings_action(parser_gap)],
+                    code=_blocked_code(record, parser_gap),
+                    actions=[_settings_action(parser_gap or _has_unreadable_file(record))],
                     details={"entry_id": record.id, "rule_id": rule_id},
                 )
         try:
@@ -4314,8 +4310,8 @@ async def _execute_ingest_job(
         parser_gap = _has_parser_gap(record)
         raise jobs.JobBlocked(
             **_entry_text(record, "library.ingest.blocked.review"),
-            code="INGEST_EPISODE_PARSE_REQUIRED" if parser_gap else "INGEST_IDENTITY_REQUIRED",
-            actions=[_settings_action(parser_gap)],
+            code=_blocked_code(record, parser_gap),
+            actions=[_settings_action(parser_gap or _has_unreadable_file(record))],
             details={"entry_id": record.id, "rule_id": rule_id},
         )
     if record.status == IngestStatus.FAILED:

@@ -188,6 +188,7 @@ _EXPLICIT_EPISODE = re.compile(r"(?:^|[ ._\-])(?:[Ee][Pp]?)(\d{1,4})(?!\d)")
 # 中文集号「第01集」「第十二集」「第3话」（issue #996）。国内资源的单集文件名
 # 普遍这么写，语义与 E01 同样确定。号码后必须紧跟 集/话：「第01-02集」这类
 # 区间整体不中（宁可交回上层，也不从区间里挑一个）；「集」后挡住「集团」「集结」。
+# i18n-ignore: pattern for Chinese episode numerals in file names
 _CN_NUMBER = r"\d{1,4}|[一二两三四五六七八九十]{1,3}"
 _CN_EPISODE = re.compile(rf"第\s*({_CN_NUMBER})\s*[集话話](?![团結结])")
 # 中文季集组合「第10季 第3集」「第01季 第01集」「第十季.第三集」「第1季第01集」。

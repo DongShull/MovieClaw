@@ -35,8 +35,8 @@ SMART_RECOVER_MAX_DELAY = timedelta(hours=1)
 class SubmissionRejected(Exception):
     """网络提交前已确定本意图无效，可以结束而无需对账。``ref`` 是原因的文案引用。"""
 
-    def __init__(self, key: str) -> None:
-        self.ref = reference(key)
+    def __init__(self, key: str, **params) -> None:
+        self.ref = reference(key, **params)
         super().__init__(source_render(self.ref))
 
 
@@ -392,7 +392,13 @@ async def settle_unsatisfiable(session, intent, targets, exc):
     else:
         intent.status = DownloadAttemptStatus.FAILED
         payload["stage"] = "rejected"
-        set_note(intent, reference("subscription.smart.unsatisfiedAll", reason=exc.ref))
+        removed = await remove_own_paused_task(session, intent)
+        key = (
+            "subscription.smart.unsatisfiedAllRemoved"
+            if removed
+            else "subscription.smart.unsatisfiedAll"
+        )
+        set_note(intent, reference(key, reason=exc.ref))
     intent.submission = payload
     intent.updated_at = now
     return released

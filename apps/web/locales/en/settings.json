@@ -290,7 +290,11 @@
       "minutes": "{count, plural, one {# minute} other {# minutes}} ago",
       "hours": "{count, plural, one {# hour} other {# hours}} ago",
       "days": "{count, plural, one {# day} other {# days}} ago",
-      "connected": "Connected"
+      "connected": "Connected",
+      "windows": "Windows",
+      "windowsMember": "Access: This Windows PC signs in as you",
+      "windowsAdmin": "Access: This Windows PC signs in as you, a super administrator",
+      "windowsBody": "This is equivalent to entering your username and password on this Windows PC: it can access the same media libraries and record your viewing progress. Only approve the pairing code shown on the PC in front of you."
     },
     "push": {
       "unsupportedBuild": "This build cannot receive push notifications. Use a TestFlight or App Store build with push support.",

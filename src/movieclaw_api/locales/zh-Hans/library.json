@@ -810,7 +810,9 @@
     "legacyDiscReconciled": "旧版原盘流分段的待处理记录已自动收口；原盘目录（BDMV/VIDEO_TS）暂不支持自动入库，请手动整理",
     "restored": "已恢复，等待处理（需先通过下载完成检测）",
     "claimedFile": "已将「{file}」认领为《{title}》，等待后台整理入库",
-    "claimed": "已认领为《{title}》，等待后台整理入库"
+    "claimed": "已认领为《{title}》，等待后台整理入库",
+    "unreadable": "「{name}」内容无法识别（文件已损坏或未下载完整），原样重试不会成功，未入库；继续下载或换源后自动重新处理",
+    "unreadableMain": "主视频「{name}」内容无法识别（文件已损坏或未下载完整），原样重试不会成功，未入库；继续下载或换源后自动重新处理"
   },
   "scrape": {
     "phase": {

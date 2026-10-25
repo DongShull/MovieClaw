@@ -75,6 +75,7 @@ import { imageUrl } from "@/lib/image-proxy";
 import { seasonsWithIndeterminate } from "@/lib/media-source-annotation";
 import { shouldShowResourceTiming } from "@/lib/resource-timing";
 import { buildSearchPath, titleSearchAlso } from "@/lib/search-url";
+import { rangeLabel } from "@/lib/subscription-episode-cap";
 import { subscriptionStatusMetaFor } from "@/lib/subscription-ui";
 import { formatDateTime, formatRelativeTime } from "@/lib/time";
 import { useVisiblePolling } from "@/lib/use-visible-polling";
@@ -523,7 +524,9 @@ export function SubscriptionInspectorView({
                   isMovie
                     ? t("subscription.inspector.feature")
                     : detail.selected_seasons.length > 0
-                      ? t("subscription.inspector.selectedSeasons", { count: detail.selected_seasons.length, seasons: formatList(detail.selected_seasons.map(String), locale) })
+                      ? detail.episode_windows?.length
+                        ? rangeLabel(detail.selected_seasons, detail.episode_windows, airedBySeason, locale)
+                        : t("subscription.inspector.selectedSeasons", { count: detail.selected_seasons.length, seasons: formatList(detail.selected_seasons.map(String), locale) })
                       : t("subscription.inspector.noSeasons")
                 }
               />

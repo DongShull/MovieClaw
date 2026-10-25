@@ -165,7 +165,7 @@ def test_locale_schema_migration_preserves_existing_devices(tmp_path, monkeypatc
     monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{path}")
     get_settings.cache_clear()
     config = _build_config()
-    command.upgrade(config, "f9b42d6a8e10")
+    command.upgrade(config, "c5f1a8d3e7b2")
     with sqlite3.connect(path) as connection:
         connection.execute(
             "INSERT INTO login_device (member_id,kind,name,token_hash,scope,created_at,updated_at) "

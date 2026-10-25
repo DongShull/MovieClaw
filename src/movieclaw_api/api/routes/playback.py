@@ -1431,7 +1431,10 @@ async def start_playback_session(
             hw_used,
             file.id,
         )
-        view = view.model_copy(update={"reason": "；".join(p for p in (view.reason, caveat) if p)})
+        separator = t("common.list.issueSeparator")
+        view = view.model_copy(
+            update={"reason": separator.join(p for p in (view.reason, caveat) if p)}
+        )
     # 仅把「硬件转码」任务交给远程硬件 Worker；直通/音频单转继续走 NAS，
     # 软件转码也保留本地回路。
     #

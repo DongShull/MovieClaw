@@ -18,6 +18,15 @@ struct MacCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
             Button(String(localized: .settingsAboutWindowTitle)) { openWindow(id: "about") }
+            switch updater.channel {
+            case .sparkle:
+                Button(updater.menuTitle) { updater.primaryAction() }
+            case .store:
+                Button(String(localized: .settingsMacUpdateByTestFlight)) {}
+                    .disabled(true)
+            case .none:
+                EmptyView()
+            }
         }
         // 只有一个主窗口：不要「新建窗口」，避免开出两份播放器、两套导航状态
         CommandGroup(replacing: .newItem) {}

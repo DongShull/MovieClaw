@@ -2755,5 +2755,38 @@
   },
   "tmdb.notConfiguredDiscover": {
     "sourceHash": "a9c459f67db0936a6d6aadac4a6cc5c2d00eaba669a41c1433db2252d37379e3"
+  },
+  "playbackSync.nothingToWrite": {
+    "sourceHash": "7a4c964cb68c5658e1568e38ff9a0aac32072f8518a949d55fb460b0e4f697a5"
+  },
+  "playbackSync.seasonRequired": {
+    "sourceHash": "1e61602de022c6d36af452c323d265e6eaae132445b4d269881e3d075701d732"
+  },
+  "playbackSync.movieUnits": {
+    "sourceHash": "c1a3171f405f251f6d9015b8c1f3b1d97c3cfc6aec500628a1e9fc623b01d14f"
+  },
+  "playbackSync.episodeFromOne": {
+    "sourceHash": "8ea679e8166ead9ca75b007489bbf572d71e8bd9f24cfcdf10d110b36e278b90"
+  },
+  "playbackSync.favoriteOnly": {
+    "sourceHash": "0016da4054b968d48987d7b063ade2c3c3922c3020806e33159755fee78ceffb"
+  },
+  "playbackSync.watchedNoPosition": {
+    "sourceHash": "07ead4fbbed46c86093f867025c700b06797957058cb88d4961ebfd8cd96e147"
+  },
+  "subscriptionCaps.tvOnly": {
+    "sourceHash": "cd5f18070ad357b19ef8a79cecd783624d7060b43b6605e88e343f550cb8db38"
+  },
+  "subscriptionCaps.unknownSeason": {
+    "sourceHash": "a304058e5ccc8ad6e9cae166e17b9b0edb60d2af3199c926a4bf2d101753073c"
+  },
+  "subscriptionCaps.range": {
+    "sourceHash": "07961951800036acbe4399f94f3b0ef2975039776c6240d14f329a2e23b432af"
+  },
+  "subscriptionCaps.oneShape": {
+    "sourceHash": "e5fa416cfabdc4c6996224fb71549d2ce99980338fb45c013399269f056e75eb"
+  },
+  "subscriptionCaps.noEpisode": {
+    "sourceHash": "905f57312c8e8044f9693f07ca1f6184b698c111daf7422a32684f1a490d4947"
   }
 }

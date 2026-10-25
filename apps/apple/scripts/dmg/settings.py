@@ -12,8 +12,9 @@ app_name = os.path.basename(app)
 format = "ULMO"  # LZMA 压缩，macOS 10.15 起都能打开
 filesystem = "HFS+"
 files = [app]
-# 名字用中文：替身不会像真正的「应用程序」文件夹那样按系统语言显示，App 本身只有中文
-symlinks = {"应用程序": "/Applications"}
+# 替身不会像真正的「应用程序」文件夹那样按系统语言显示，只能定一个名字：App 支持中英两种语言，
+# 用英文的系统原名；背景图上的说明中英各一行
+symlinks = {"Applications": "/Applications"}
 icon = defines["icon"]  # noqa: F821
 background = defines["background"]  # noqa: F821
 hide_extension = [app_name]
@@ -30,4 +31,4 @@ arrange_by = None
 icon_size = 112
 text_size = 13
 label_pos = "bottom"
-icon_locations = {app_name: (150, 190), "应用程序": (450, 190)}
+icon_locations = {app_name: (150, 190), "Applications": (450, 190)}

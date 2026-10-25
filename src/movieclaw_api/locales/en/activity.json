@@ -62,7 +62,7 @@
     "reconciledImport": "{units} imported (confirmed by library reconciliation)",
     "identityCorrected": "The files for {units} no longer belong to this title because their identity was corrected. Searching for releases again.",
     "multipleUnits": "{first} and others ({count, plural, one {# episode} other {# episodes}})",
-    "created": "{base}{hasOwned, select, yes {; {owned, plural, one {# unit already in the library; no duplicate download needed} other {# units already in the library; no duplicate downloads needed}}} other {}}{hasRoute, select, yes {; {route}} other {}}{hasRule, select, yes {; {rule}} other {}}",
+    "created": "{base}{hasOwned, select, yes {; {owned, plural, one {# unit already in the library; no duplicate download needed} other {# units already in the library; no duplicate downloads needed}}} other {}}{hasWindows, select, yes {; {windows}} other {}}{hasRoute, select, yes {; {route}} other {}}{hasRule, select, yes {; {rule}} other {}}",
     "createdMovieEmpty": "Created subscription to “{title}”",
     "createdMovieUndated": "Created subscription to “{title}”: no release date is set. Searches will be scheduled after a date or release is confirmed; new site releases will still be matched automatically",
     "createdMovieScheduled": "Created subscription to “{title}”: the movie is unreleased or just released. Searches start on {date}; new site releases will still be matched automatically",
@@ -72,7 +72,7 @@
     "createdFuture": "{count, plural, one {# unaired episode will await passive matching after airing} other {# unaired episodes will await passive matching after airing}}",
     "createdUndated": "{count, plural, one {# episode has no air date; scheduling follows once it is set} other {# episodes have no air date; scheduling follows once they are set}}",
     "createdNoEpisodes": "No pending episodes",
-    "adjusted": "Adjusted subscription: selected {seasons}, following future releases {follow, select, yes {on} other {off}}{ruleChanged, select, yes {, rule set changed to “{rule}”} other {}}{floorsChanged, select, yes {, episode counts: {floors}} other {}}; added {added, plural, one {# unit} other {# units}}, restored {reactivated, number}, removed {deactivated, number} from scope (downloader tasks are kept; searches and source replacement stop for removed units)",
+    "adjusted": "Adjusted subscription: selected {seasons}, following future releases {follow, select, yes {on} other {off}}{ruleChanged, select, yes {, rule set changed to “{rule}”} other {}}{floorsChanged, select, yes {, episode counts: {floors}} other {}}{capsChanged, select, yes {, {caps}} other {}}; added {added, plural, one {# unit} other {# units}}, restored {reactivated, number}, removed {deactivated, number} from scope (downloader tasks are kept; searches and source replacement stop for removed units)",
     "episodeFloor": "season {season, number}: {count, plural, one {# episode} other {# episodes}}",
     "tmdbEpisodeCount": "use TMDB counts again",
     "noVerifiedSites": "No verified sites are currently available",
@@ -119,7 +119,8 @@
     "specMismatchViolation": "{unit}: the imported file doesn’t match the torrent’s claimed spec: {detail}. Since {violation}, the file shouldn’t have been imported; review it, delete it manually and search again",
     "specMismatchOk": "{unit}: the imported file doesn’t match the torrent’s claimed spec: {detail}. It still meets the rule set, so it was imported as usual; this is just a heads-up",
     "releaseScheduled": "The release date of “{title}” was updated; searching starts {date}",
-    "releaseCleared": "The release date of “{title}” was withdrawn; searching resumes once it’s rescheduled or released"
+    "releaseCleared": "The release date of “{title}” was withdrawn; searching resumes once it’s rescheduled or released",
+    "truncated": "This season has episodes not yet subscribed; you can continue the subscription any time"
   },
   "jobActions": {
     "dismissAll": "{count, plural, one {Dismissed # failed task} other {Dismissed # failed tasks}}",

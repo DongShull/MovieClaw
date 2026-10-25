@@ -601,5 +601,14 @@
   },
   "offline.original": {
     "sourceHash": "e890613e4c15b168444cc43eda24eda7672729bd13aeee5c61cb4329e6db1496"
+  },
+  "hw.withHevc": {
+    "sourceHash": "f4ba2d570b1202268f22167e98e87e21f8ebfdfb7b0638b5468c61555e797179"
+  },
+  "hw.hevcProbeTimeout": {
+    "sourceHash": "0d387173a6eec97087e41e95a464f3d29aeeda646a1c093315c3d64a8e5c2bcf"
+  },
+  "plan.dvP5Caveat": {
+    "sourceHash": "2c094c782c5a108c280c382c1118c8e63fc9407a9bd00dbfcd24c0361d0b0151"
   }
 }

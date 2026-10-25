@@ -106,8 +106,8 @@ private struct MacUpdatePill: View {
 
     private var text: (String, String)? {
         switch updater.phase {
-        case let .ready(version): ("更新到 \(version)", "已下载 · 点这里重新启动")
-        case let .available(version): ("有新版本 \(version)", "点这里查看")
+        case let .ready(version): (String(localized: .settingsMacUpdatePillReady(version)), String(localized: .settingsMacUpdatePillReadyHint))
+        case let .available(version): (String(localized: .settingsMacUpdateAvailableStatus(version)), String(localized: .settingsMacUpdatePillAvailableHint))
         case .idle: nil
         }
     }

@@ -347,8 +347,10 @@ async def submit_torrent(
         from movieclaw_api.services.subscription.file_selection import UnsatisfiableSelection
         from movieclaw_api.services.subscription.smart_submission import SubmissionRejected
 
-        if isinstance(exc, UnsatisfiableSelection):
-            raise  # 文件清单的确定结论，调用方要据此收窄投递，不能当网络故障
+        if isinstance(exc, UnsatisfiableSelection | SubmissionRejected):
+            # 文件清单的确定结论 / 提交前钩子的领域拒绝：调用方要据此收窄或
+            # 终止投递，包成上游故障会进入无限退避重试（issue #998）
+            raise
         raise UpstreamServiceException(
             message_key="errors.torrent.submitFailed",
             params={"name": row.name, "error": exception_reference(exc)},

@@ -179,9 +179,8 @@ def plan_strict_file_selection(
         )
         multiple = len(re.findall(r"S\d+E\d+|\d+x\d+", path.stem, re.I)) > 1
         if combined or multiple or key is None or key[1] <= 0:
-            raise UnsatisfiableSelection(
-                reference("subscription.smart.ambiguousSelection", name=path.name), needed_units
-            )
+            unclear.append(path.name)  # 季集不明确或不可拆分：不选，也不算作任何一集
+            continue
         if key in needed_units:
             if key in found:
                 raise UnsatisfiableSelection(
@@ -194,7 +193,14 @@ def plan_strict_file_selection(
         raise ValueError("没有需要选择的集")
     if found != needed_units:
         missing = needed_units - found
-        raise UnsatisfiableSelection(
-            reference("subscription.smart.missingEpisodes", units=_unit_labels(missing)), missing
-        )
+        if unclear:
+            reason = reference(
+                "subscription.smart.missingEpisodesUnclear",
+                units=_unit_labels(missing),
+                count=len(unclear),
+                example=unclear[0],
+            )
+        else:
+            reason = reference("subscription.smart.missingEpisodes", units=_unit_labels(missing))
+        raise UnsatisfiableSelection(reason, missing)
     return FileSelectionPlan(selected, [i for i in range(len(paths)) if i not in selected], 0)

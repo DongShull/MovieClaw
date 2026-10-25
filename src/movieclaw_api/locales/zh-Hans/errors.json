@@ -535,7 +535,13 @@
     "memberInactive": "成员不存在或已停用",
     "cursorInvalid": "游标无效",
     "timezoneRequired": "时间必须包含时区",
-    "futureTime": "不能使用未来时间"
+    "futureTime": "不能使用未来时间",
+    "nothingToWrite": "played、position_ms、is_favorite 至少要给一个",
+    "seasonRequired": "给了集号就必须同时给季号",
+    "movieUnits": "电影的季集只能为 0 或省略",
+    "episodeFromOne": "集号从 1 开始",
+    "favoriteOnly": "整剧 / 整季只能写收藏；已看与续播请逐集写",
+    "watchedNoPosition": "已看的单元不能带续播位置"
   },
   "subtitles": {
     "fileMissing": "文件不存在或已丢失：id={id}",
@@ -1059,5 +1065,12 @@
   "tmdb": {
     "notConfiguredSubscriptions": "尚未配置 TMDB API Key，订阅功能不可用。请在 .env（或环境变量）中设置 TMDB_API_KEY 后重启服务；Key 可在 themoviedb.org 的账户设置 → API 页免费申请",
     "notConfiguredDiscover": "尚未配置 TMDB API Key，发现页暂不可用。请在 .env（或环境变量）中设置 TMDB_API_KEY 后重启服务；Key 可在 themoviedb.org 的账户设置 → API 页免费申请"
+  },
+  "subscriptionCaps": {
+    "tvOnly": "只有剧集订阅可以设置订阅的集数窗口",
+    "unknownSeason": "第 {season} 季不在这部剧的季列表里",
+    "range": "订阅的集数窗口需在 1～{max} 之间",
+    "oneShape": "订阅窗口只能是「从第 X 集起」或「订阅到第 N 集」其中一种",
+    "noEpisode": "第 {season} 季还没有第 {episode} 集"
   }
 }
