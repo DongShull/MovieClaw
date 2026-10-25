@@ -56,6 +56,67 @@ def normalized_translation(localization, record):
     return "{" + control + ", plural, " + " ".join(branches) + "}"
 
 
+PLURAL_ORDER = ("zero", "one", "two", "few", "many", "other")
+
+
+def _closing_brace(text, start):
+    depth = 0
+    for index in range(start, len(text)):
+        if text[index] == "{":
+            depth += 1
+        elif text[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise ValueError("Unbalanced ICU braces")
+
+
+def whole_plural(icu):
+    """Lift one embedded ICU plural to cover the whole message, the shape Apple variations take.
+
+    "Loaded {count, plural, one {# movie} other {# movies}}" becomes
+    "{count, plural, one {Loaded # movie} other {Loaded # movies}}". Messages without exactly one
+    plural, or with exact-match branches, are returned unchanged.
+    """
+    match = re.search(r"\{(\w+), plural, ", icu)
+    if not match:
+        return icu
+    end = _closing_brace(icu, match.start())
+    if match.start() == 0 and end == len(icu) - 1:
+        return icu
+    control = match[1]
+    prefix, suffix = icu[: match.start()], icu[end + 1 :]
+    if re.search(r"\{\w+, plural, ", prefix + suffix):
+        return icu
+    body = icu[match.end() : end]
+    branches = {}
+    position = 0
+    while position < len(body):
+        branch = re.match(r"\s*(\w+)\s*\{", body[position:])
+        if not branch:
+            break
+        open_at = position + branch.end() - 1
+        close_at = _closing_brace(body, open_at)
+        branches[branch[1]] = body[open_at + 1 : close_at]
+        position = close_at + 1
+    if not branches or set(branches) - set(PLURAL_ORDER):
+        return icu
+    own = "{" + control + "}"
+    lifted = [
+        f"{category} {{{prefix.replace(own, '#')}{branches[category]}{suffix.replace(own, '#')}}}"
+        for category in PLURAL_ORDER
+        if category in branches
+    ]
+    return "{" + control + ", plural, " + " ".join(lifted) + "}"
+
+
+def apple_shapes(icu):
+    """Forms a Web message may take in an Apple catalog: number styles become plain printf
+    arguments, and an embedded plural is lifted to whole-message variations."""
+    plain = re.sub(r"\{(\w+), number\}", r"{\1}", icu)
+    return {icu, plain, whole_plural(icu), whole_plural(plain)}
+
+
 def check_apple(root, web_english, web_parameters, terms=None):
     base = root / "apps/apple"
     meta_path = base / "Localization.meta.json"
@@ -114,7 +175,7 @@ def check_apple(root, web_english, web_parameters, terms=None):
                         errors.append(f"Apple printf parameters differ: {context}")
                 normalized_english = english
                 if key in web_english:
-                    if normalized_english != web_english[key]:
+                    if normalized_english not in apple_shapes(web_english[key]):
                         errors.append(f"Apple/Web English differs: {context}")
                     if set(names) != web_parameters.get(key, set()):
                         errors.append(f"Apple/Web logical parameters differ: {context}")

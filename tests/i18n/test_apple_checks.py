@@ -162,3 +162,21 @@ def test_catalog_checks_plural_variations_with_explicit_logical_parameter(catalo
     del entry["localizations"]["en"]["variations"]["plural"]["other"]
     path.write_text(json.dumps(value))
     assert any("other branch" in error for error in apple.check_apple(root, {}, {}))
+
+
+def test_embedded_web_plural_matches_whole_message_apple_variations():
+    web = "Loaded {count, plural, one {# movie} other {# movies}} from {name}"
+    assert apple.whole_plural(web) == (
+        "{count, plural, one {Loaded # movie from {name}} other {Loaded # movies from {name}}}"
+    )
+    whole = "{count, plural, one {# item} other {# items}}"
+    assert apple.whole_plural(whole) == whole
+    assert apple.whole_plural("No plural {name}") == "No plural {name}"
+    exact = "Has {count, plural, =0 {none} other {#}}"
+    assert apple.whole_plural(exact) == exact
+
+
+def test_web_number_style_is_a_plain_apple_argument():
+    shapes = apple.apple_shapes("{done, number}/{total, plural, one {# episode} other {# episodes}}")
+    assert "{total, plural, one {{done}/# episode} other {{done}/# episodes}}" in shapes
+    assert "{count} identified" in apple.apple_shapes("{count, number} identified")

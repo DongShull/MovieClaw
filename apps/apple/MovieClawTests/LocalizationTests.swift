@@ -18,6 +18,38 @@ nonisolated final class LocalizationTests: XCTestCase {
         XCTAssertEqual(AppFormatting.relative(now.addingTimeInterval(-180), now: now, locale: locale), "3 minutes ago")
     }
 
+    @MainActor func testEnglishTaskCenterLabelsAndSummaries() throws {
+        func job(_ type: String, status: String = "succeeded", message: String = "", params: [String: Any]? = nil,
+                 details: [String: Any] = [:], current: Int? = nil, total: Int? = nil) throws -> API.JobView {
+            var progress: [String: Any] = ["mode": "determinate", "phase": "completed", "message": message, "details": details]
+            progress["message_params"] = params
+            progress["current"] = current
+            progress["total"] = total
+            let json: [String: Any] = [
+                "id": "j1", "job_type": type, "job_type_label": NSNull(), "subject": NSNull(), "definition_version": 1,
+                "handler_revision": "x", "status": status, "input_data": [:], "result": NSNull(), "error": NSNull(), "usage": [:],
+                "progress": progress, "resources": [], "origin": "system", "attempt": 1, "max_attempts": 2, "revision": 1,
+                "cancel_requested_by": NSNull(), "dismissed_at": NSNull(),
+                "created_at": "2026-09-25T10:00:00+00:00", "updated_at": "2026-09-25T10:00:00+00:00",
+            ]
+            return try JSONDecoder().decode(API.JobView.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        XCTAssertEqual(TaskCenter.jobTypeLabel(try job("library.scan")), "Scan media library")
+        // Structured titles replace the quote-scraping of Chinese progress messages; source titles stay raw.
+        XCTAssertEqual(TaskCenter.historicalJobTitle(try job("library.ingest", message: "Imported", params: ["title": "深渊无间"])),
+                       "“深渊无间” · Import completed")
+        XCTAssertEqual(TaskCenter.historicalJobTitle(try job("acme:sync", status: "cancelled")), "acme:sync · cancelled")
+        XCTAssertEqual(TaskCenter.cardProgressAmount(try job("library.scan", current: 1, total: 1)), "1 / 1 file")
+        XCTAssertEqual(TaskCenter.feedProgressAmount(try job("library.scan", current: 3, total: 12)), "Processed 3 / 12 files")
+        XCTAssertEqual(TaskCenter.jobDetailItems(try job("library.scan", details: ["identified": 3, "errors": [1]])).map(\.label),
+                       ["3 identified", "1 issue"])
+        XCTAssertEqual(TaskCenter.badge(TaskCenter.Activity()).hint, "No tasks running")
+        XCTAssertEqual(ActivityFormat.duration(seconds: 5400), "1.5 hours")
+        XCTAssertEqual(ActivityFormat.duration(seconds: 1), "1 second")
+        XCTAssertEqual(ActivityFormat.watched(7_560_000), "2 hr 6 min")
+        XCTAssertEqual(ActivityFormat.relative(nil), "Never")
+    }
+
     func testEnglishPluralVariations() {
         XCTAssertEqual(String(localized: .commonInputMaxLength(1)), "Up to 1 character. Shorten the text to continue.")
         XCTAssertEqual(String(localized: .commonInputMaxLength(2)), "Up to 2 characters. Shorten the text to continue.")
