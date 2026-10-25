@@ -95,7 +95,9 @@ def _adds(
                     "kind": "task",
                     "title": f"定时任务「{getattr(c.item, 'title', c.id)}」",
                     "detail": "周期可在「定时任务」里调整",
-                    "href": "/settings/app?tab=tasks",
+                    # 定位键 = TaskDefinition.key，即「定时任务」页每行的 task.key。
+                    # 不能用贡献 id：第三方插件的贡献 id 带「插件id:」前缀，与任务 key 不同
+                    "href": f"/settings/app?tab=tasks&task={c.item.key}",
                     "_title_ref": reference(
                         "plugins.detail.taskTitle", name=str(getattr(c.item, "title", c.id))
                     ),
@@ -277,7 +279,9 @@ def _adds(
                         if allowed
                         else f"发给{who}；没有获得批准，不会发"
                     ),
-                    "href": "/settings/notifications",
+                    # 定位键 = 插件事件名：「账号 → 通知」里这条开关的 key 就是它
+                    # （通知规则的 pref_key = 事件名）。事件名只含字母数字点横线，无需转义。
+                    "href": f"/settings/notifications?event={spec.event}",
                     "_title_ref": reference(
                         "plugins.detail.notificationTitle",
                         name=str(declared.events.get(spec.event, spec.event)),

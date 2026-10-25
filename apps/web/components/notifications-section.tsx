@@ -224,13 +224,15 @@ export function NotificationsSection() {
         <SettingsSection key={group.id ?? group.group} title={group.group}>
           <SettingsList>
             {group.items.map((event) => (
-              <SettingsRow key={event.key} label={event.title} description={event.description}>
-                <Toggle
-                  checked={event.enabled}
-                  label={t("settings.notificationPreferences.eventToggle", { event: event.title })}
-                  onChange={(next) => toggle(event.key, next)}
-                />
-              </SettingsRow>
+              <div key={event.key} data-event-key={event.key} className={ROW_ANCHOR_CLASS}>
+                <SettingsRow label={event.title} description={event.description}>
+                  <Toggle
+                    checked={event.enabled}
+                    label={t("settings.notificationPreferences.eventToggle", { event: event.title })}
+                    onChange={(next) => toggle(event.key, next)}
+                  />
+                </SettingsRow>
+              </div>
             ))}
             {/* 「媒体库有新片」打开、而且能看到不止一个库时，就地选关心哪些库 */}
             {group.items.some((e) => e.key === LIBRARY_EVENT && e.enabled) &&

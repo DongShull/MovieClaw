@@ -26,6 +26,7 @@ function load(locale, values = []) {
     "@/components/settings-ui": { SettingsSection: section, SettingsList: node,
       SettingsRow: ({ label, description, children }) => React.createElement("div", null, label, description, children) },
     "@/lib/api/push": {}, "@/lib/cloud-push-display": display,
+    "@/lib/row-anchor": { ROW_ANCHOR_CLASS: "", useRowAnchor: () => {} },
   };
   const source = readFileSync(new URL("../components/notifications-section.tsx", import.meta.url), "utf8");
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText
