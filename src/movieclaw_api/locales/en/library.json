@@ -609,5 +609,49 @@
     "overlap": "“{a}” and “{b}” overlap. Choose only the outer one.",
     "overlapLibrary": "“{path}” overlaps the cloud folder “{other}” of library “{library}”. A file can belong to only one library.",
     "syncActor": "Cloud change sync"
+  },
+  "deleteOptions": {
+    "previewUnavailable": "Preview is unavailable right now, so this option cannot be selected this time",
+    "previewTimeout": "Preview timed out, so this option cannot be selected this time",
+    "previewError": "Preview failed, so this option cannot be selected this time",
+    "unknown": "Unknown delete option: {keys}",
+    "unavailable": "Unavailable",
+    "notSelectable": "“{label}” cannot be selected this time: {reason}"
+  },
+  "naming": {
+    "field": {
+      "entryDir": "Title folder",
+      "movieFile": "Movie file name",
+      "seasonDir": "Season folder",
+      "episodeFile": "Episode file name"
+    },
+    "empty": "The {field} template cannot be empty",
+    "separator": "The {field} template cannot contain path separators (folder levels are fixed; a template describes one name)",
+    "unknownTokens": "The {field} template has unsupported placeholders: {unknown} (available: {allowed})"
+  },
+  "preflight": {
+    "sameAnchor": "The target already has another version of this title",
+    "differentAnchor": "The target is taken by another title (only the folder name matches)",
+    "unknown": "The target already has content that the library has no record of (added manually or still downloading?)",
+    "noFilesInPlace": "No files are in place (they may all be missing or in the recycle bin); only ownership will move",
+    "outsideRoots": "The files are outside the source library’s root paths (the roots may have changed)",
+    "rootUnavailable": "The target root is not accessible: {path} (is the disk mounted?)",
+    "notEnoughSpace": "Not enough space on the target disk: {required} needed (including headroom), {free} free"
+  },
+  "delete": {
+    "outsideRoots": "Skipped “{path}”: it is outside the library roots (files outside a library are never deleted)",
+    "otherFilesInFolder": "Skipped deleting the folder “{path}”: it still holds other recorded files (possibly a newly added version)",
+    "folderFailed": "Could not delete the folder {path} ({error})",
+    "fileFailed": "Could not delete the file {path} ({error})",
+    "sidecarFailed": "Could not delete the associated file {path} ({error})"
+  },
+  "cover": {
+    "unrecognized": "This file could not be recognized. Upload a JPG, PNG, WebP or other common image format.",
+    "tooLarge": "The image is too large ({width}×{height}). Resize it to {pixels, number} pixels or fewer before uploading.",
+    "processFailed": "This image could not be processed. It may be damaged or in an unsupported format; try another one."
+  },
+  "searchIndex": {
+    "subject": "Update library search index",
+    "progress": "{count, plural, one {# search document} other {# search documents}} updated"
   }
 }

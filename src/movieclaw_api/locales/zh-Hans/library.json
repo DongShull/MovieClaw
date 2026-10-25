@@ -609,5 +609,49 @@
     "overlap": "「{a}」和「{b}」重叠了，选外层的一个就行",
     "overlapLibrary": "「{path}」与媒体库《{library}》的网盘目录「{other}」重叠，同一份文件只能在一个库里",
     "syncActor": "网盘变化同步"
+  },
+  "deleteOptions": {
+    "previewUnavailable": "暂时无法预览，这次不能勾选",
+    "previewTimeout": "暂时无法预览（超时），这次不能勾选",
+    "previewError": "暂时无法预览（出错），这次不能勾选",
+    "unknown": "没有这个删除选项：{keys}",
+    "unavailable": "不可用",
+    "notSelectable": "「{label}」这次不能勾选：{reason}"
+  },
+  "naming": {
+    "field": {
+      "entryDir": "条目目录",
+      "movieFile": "电影文件名",
+      "seasonDir": "季目录",
+      "episodeFile": "剧集文件名"
+    },
+    "empty": "{field}模板不能为空",
+    "separator": "{field}模板不能包含路径分隔符（目录层级是固定的，模板只描述一段名字）",
+    "unknownTokens": "{field}模板里有不可用的占位符：{unknown}（该模板可用：{allowed}）"
+  },
+  "preflight": {
+    "sameAnchor": "目标位置已有这部作品的其他版本",
+    "differentAnchor": "目标位置被另一部作品占着（只是目录重名）",
+    "unknown": "目标位置已有内容，但媒体库里没有它的记录（手工放入或正在下载？）",
+    "noFilesInPlace": "台账里没有在位文件（可能全部缺失或已入回收站），只随迁归属",
+    "outsideRoots": "文件不在源库的根路径之内（根路径可能已变更）",
+    "rootUnavailable": "目标根路径不可访问：{path}（盘未挂载？）",
+    "notEnoughSpace": "目标盘剩余空间不足：需要 {required}（含余量），实际剩余 {free}"
+  },
+  "delete": {
+    "outsideRoots": "「{path}」不在库根路径之内，已跳过（不删库外文件）",
+    "otherFilesInFolder": "「{path}」目录内还有其他在案文件（可能是新入库的版本），已跳过整目录删除",
+    "folderFailed": "删除目录失败：{path}（{error}）",
+    "fileFailed": "删除文件失败：{path}（{error}）",
+    "sidecarFailed": "删除附属文件失败：{path}（{error}）"
+  },
+  "cover": {
+    "unrecognized": "无法识别这个文件，请上传 JPG / PNG / WebP 等常见格式的图片",
+    "tooLarge": "图片尺寸过大（{width}×{height}），请先缩小到 {pixels, number} 像素以内再上传",
+    "processFailed": "这张图片处理失败，可能已损坏或格式不受支持，请换一张试试"
+  },
+  "searchIndex": {
+    "subject": "更新媒体库搜索索引",
+    "progress": "已更新 {count} 个搜索文档"
   }
 }

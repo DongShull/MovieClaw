@@ -196,9 +196,9 @@ from movieclaw_api.services.library.organize import (
 )
 from movieclaw_api.services.library.origin import origin_of
 from movieclaw_api.services.library.preflight import (
-    CONFLICT_LABELS,
     MAX_SELECTION,
     build_preflight,
+    conflict_label,
 )
 from movieclaw_api.services.library.profile import profile_for
 from movieclaw_api.services.library.scan import (
@@ -4222,7 +4222,7 @@ async def start_batch_transfer(
     if not result.movable:
         detail = next(
             (
-                m.reason or CONFLICT_LABELS.get(m.conflict or "", "")
+                m.reason or conflict_label(m.conflict or "")
                 for m in result.members
                 if m.reason or m.conflict
             ),

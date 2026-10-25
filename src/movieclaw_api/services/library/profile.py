@@ -21,7 +21,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from movieclaw_api.exceptions import BadRequestException
-from movieclaw_api.i18n.stored import reference
+from movieclaw_api.i18n.stored import reference, render_value, source_render
 from movieclaw_api.services.library.layout import IMAGE_EXTS, SCAN_VIDEO_EXTS
 from movieclaw_db.models.media_item import MediaSource
 from movieclaw_media.models import MediaKind
@@ -52,7 +52,6 @@ class LibraryProfile:
 
     kind: MediaKind
     source: str
-    label: str  # 创建库时用户看到的名字
     scraped: bool  # 身份来自远程数据源：走识别链、刮削、写 NFO、定时刷新
     naming: bool  # 可按命名模板整理目录与文件名
     ignore_rules: IgnoreProfile
@@ -91,7 +90,6 @@ PROFILES: dict[tuple[str, str], LibraryProfile] = {
     (MediaKind.MOVIE.value, MediaSource.TMDB): LibraryProfile(
         kind=MediaKind.MOVIE,
         source=MediaSource.TMDB,
-        label="电影",
         scraped=True,
         naming=True,
         ignore_rules=IgnoreProfile.SCRAPED,
@@ -107,7 +105,6 @@ PROFILES: dict[tuple[str, str], LibraryProfile] = {
     (MediaKind.TV.value, MediaSource.TMDB): LibraryProfile(
         kind=MediaKind.TV,
         source=MediaSource.TMDB,
-        label="剧集",
         scraped=True,
         naming=True,
         ignore_rules=IgnoreProfile.SCRAPED,
@@ -123,7 +120,6 @@ PROFILES: dict[tuple[str, str], LibraryProfile] = {
     (MediaKind.VIDEO.value, MediaSource.LOCAL): LibraryProfile(
         kind=MediaKind.VIDEO,
         source=MediaSource.LOCAL,
-        label="其他",
         scraped=False,
         naming=False,
         ignore_rules=IgnoreProfile.PLAIN,
@@ -139,7 +135,6 @@ PROFILES: dict[tuple[str, str], LibraryProfile] = {
     (MediaKind.PHOTO.value, MediaSource.LOCAL): LibraryProfile(
         kind=MediaKind.PHOTO,
         source=MediaSource.LOCAL,
-        label="图片",
         scraped=False,
         naming=False,
         ignore_rules=IgnoreProfile.PLAIN,
@@ -154,15 +149,6 @@ PROFILES: dict[tuple[str, str], LibraryProfile] = {
     ),
 }
 
-# 形态的展示名（日志、清单文案共用）
-KIND_LABELS: dict[MediaKind, str] = {
-    MediaKind.MOVIE: "电影",
-    MediaKind.TV: "剧集",
-    MediaKind.VIDEO: "其他",
-    MediaKind.PHOTO: "图片",
-}
-
-
 def kind_reference(kind: MediaKind | str) -> dict:
     return reference(
         {
@@ -172,6 +158,12 @@ def kind_reference(kind: MediaKind | str) -> dict:
             MediaKind.PHOTO: "library.kind.photo",
         }[MediaKind(kind)]
     )
+
+
+# 形态的中文名（日志、落库文案的回滚值共用；给人看的地方用 kind_reference）
+KIND_LABELS: dict[MediaKind, str] = {
+    kind: source_render(kind_reference(kind)) for kind in MediaKind
+}
 
 
 def kind_label(kind: MediaKind | str) -> str:
@@ -238,7 +230,7 @@ def library_kind_options() -> list[dict]:
         {
             "kind": profile.kind.value,
             "source": profile.source,
-            "label": profile.label,
+            "label": render_value(kind_reference(profile.kind)),
             "capabilities": capabilities_of(profile),
         }
         for profile in PROFILES.values()

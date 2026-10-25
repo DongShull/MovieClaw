@@ -783,6 +783,7 @@ async def _run_organize_job(
     # 扫描让它跟上（docs/design/library-duplicate-files.md §9）
     from movieclaw_api.services.library.duplicate_scan import enqueue_after_library_change
 
+    # i18n-ignore: log subject
     await enqueue_after_library_change(f"媒体库 #{library_id}")
     return {
         **stored_fields(

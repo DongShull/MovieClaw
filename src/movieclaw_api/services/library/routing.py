@@ -317,25 +317,17 @@ async def resolve_save_path(
     )
 
 
-def validate_match_rules(raw: list | None, *, label: str = "收藏范围") -> list[dict]:
+def validate_match_rules(raw: list | None, *, scope: str = "collection") -> list[dict]:
     """收藏范围条件的写入侧校验（library_config 保存时调用）。
 
     返回清洗后的条件列表；结构非法抛 BadRequestException（中文报错）。
     值类型按字段收紧：genres 必须是 int（TMDB genre ID），
     origin_countries 必须是非空字符串（国家码，统一大写）。
-    ``label`` 是报错文案里的名词：规则组的适用范围复用本校验时传「适用范围」。
+    ``scope`` 选报错文案里的名词：规则组的适用范围复用本校验时传 ``applicability``。
     """
     from movieclaw_api.exceptions import BadRequestException
 
-    scope = (
-        reference(
-            {"收藏范围": "library.scope.collection", "适用范围": "library.scope.applicability"}[
-                label
-            ]
-        )
-        if label in {"收藏范围", "适用范围"}
-        else label
-    )
+    scope = reference(f"library.scope.{scope}")
     if not raw:
         return []
     cleaned: list[dict] = []

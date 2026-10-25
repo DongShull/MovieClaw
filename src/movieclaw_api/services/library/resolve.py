@@ -213,12 +213,14 @@ def _degraded_evidences(evidence: LocalEvidence) -> list[tuple[LocalEvidence, st
         year = int(match.group("year"))
         if evidence.year in (None, year):
             split_form = replace(evidence, title=match.group("stem"), year=year, alt_title=None)
+            # i18n-ignore: identification log text
             forms.append((split_form, "尾部年份拆分"))
     tokens = spaced.split()
     half = len(tokens) // 2
     if len(tokens) >= 2 and len(tokens) % 2 == 0 and (
         [t.casefold() for t in tokens[:half]] == [t.casefold() for t in tokens[half:]]
     ):
+        # i18n-ignore: identification log text
         forms.append((replace(evidence, title=" ".join(tokens[:half]), alt_title=None), "双写折叠"))
     return forms
 
@@ -409,6 +411,7 @@ async def _verify_pool(
             stored_fields("library.identification.ambiguous", count=len(survivors)),
             candidates=users(survivors),
         )
+    # i18n-ignore: identification log text
     reasons = _corroborations(kind, evidence, picked) or ["唯一过标题门槛"]
     logger.info(
         "扫描收敛命中：「%s」→《%s》(%s, tmdb=%d)，佐证：%s",
@@ -504,6 +507,7 @@ def _counter_evidence(kind: MediaKind, evidence: LocalEvidence, c: _Candidate) -
         and c.year is not None
         and abs(c.year - evidence.year) >= 2
     ):
+        # i18n-ignore: identification log text
         return f"年份反证（本地 {evidence.year} vs 候选 {c.year}）"
     if (
         kind is MediaKind.TV
@@ -512,6 +516,7 @@ def _counter_evidence(kind: MediaKind, evidence: LocalEvidence, c: _Candidate) -
         and c.season_count < evidence.season
         and not _anime_season_exempt(evidence, c)
     ):
+        # i18n-ignore: identification log text
         return f"季数反证（本地 S{evidence.season:02d} vs 候选共 {c.season_count} 季）"
     return None
 
@@ -598,6 +603,7 @@ def _strong_corroborations(kind: MediaKind, evidence: LocalEvidence, c: _Candida
         and c.runtime_seconds
         and abs(c.runtime_seconds - evidence.duration_seconds) <= _RUNTIME_WEAK_SECONDS
     ):
+        # i18n-ignore: identification log text
         reasons.append("时长")
     if kind is MediaKind.TV:
         if (
@@ -606,14 +612,18 @@ def _strong_corroborations(kind: MediaKind, evidence: LocalEvidence, c: _Candida
             and c.season_count is not None
             and c.season_count >= evidence.season
         ):
+            # i18n-ignore: identification log text
             reasons.append(f"季数≥{evidence.season}")
         if evidence.season and evidence.episode and evidence.episode >= 2:
             count = c.episode_counts.get(evidence.season)
             if count is not None and count >= evidence.episode:
+                # i18n-ignore: identification log text
                 reasons.append("集数覆盖")
         if _total_episodes_match(evidence, c):
+            # i18n-ignore: identification log text
             reasons.append(f"全{evidence.total_episodes}集吻合")
         if _local_episodes_match(evidence, c):
+            # i18n-ignore: identification log text
             reasons.append(f"本地 {evidence.local_episodes} 集吻合")
     return reasons
 

@@ -92,7 +92,7 @@ def validate_scope(raw: list | None) -> list[dict]:
         if len(kinds) < len(_KIND_LABELS):
             cleaned.append({"field": _KIND_FIELD, "op": "any_of", "values": kinds})
     rest = [r for r in raw if r.get("field") != _KIND_FIELD]
-    return cleaned + validate_match_rules(rest, label="适用范围")
+    return cleaned + validate_match_rules(rest, scope="applicability")
 
 
 def scope_matches(rules: list, kind: str, facts: RoutingFacts | None) -> bool:

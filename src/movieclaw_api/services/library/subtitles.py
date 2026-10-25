@@ -38,7 +38,9 @@ LANGUAGE_TOKENS: dict[str, str] = {
     # 中文（含字幕组常用中文命名）
     "chs": "chi", "cht": "chi", "zh": "chi", "zh-cn": "chi", "zh-tw": "chi",
     "zh-hans": "chi", "zh-hant": "chi", "chi": "chi", "zho": "chi",
+    # i18n-ignore: subtitle language tags parsed from file names
     "简中": "chi", "简体": "chi", "繁中": "chi", "繁体": "chi",
+    # i18n-ignore: subtitle language tags parsed from file names
     "中字": "chi", "中英": "chi", "双语": "chi", "简繁": "chi",
     # 常见外语
     "en": "eng", "eng": "eng", "english": "eng",
@@ -53,6 +55,7 @@ LANGUAGE_TOKENS: dict[str, str] = {
     "th": "tha", "tha": "tha",
     "hin": "hin", "hindi": "hin",
     "ar": "ara", "ara": "ara",
+    # i18n-ignore: subtitle language tags parsed from file names
     "yue": "yue", "粤语": "yue", "粤": "yue",
 }
 

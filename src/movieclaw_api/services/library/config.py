@@ -38,6 +38,7 @@ def sanitize_folder_name(name: str) -> str:
     """把标题清洗成安全的目录名：替换保留字符、折叠空白、去首尾点与空格。"""
     cleaned = _FORBIDDEN_CHARS.sub(" ", name)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
+    # i18n-ignore: file-system name fallback
     return cleaned or "未命名"
 
 

@@ -1621,5 +1621,95 @@
   },
   "cloud.syncActor": {
     "sourceHash": "62c147f5dde5a2d0b8de131a74d920d5fb936e6601a54b9e3105989c1fafca2d"
+  },
+  "deleteOptions.previewUnavailable": {
+    "sourceHash": "9594c34b23f917fa1bc058aef00e515976d60685932defe1e2e552f1b8e503e4"
+  },
+  "deleteOptions.previewTimeout": {
+    "sourceHash": "bc9fa04e2b956e428a21f89641197f4a2ad3c6e25ad2d7258ae82c0e3da6dfef"
+  },
+  "deleteOptions.previewError": {
+    "sourceHash": "f59ccd1e722060605d177d9c282f5fb7c117c7fa7e0e05609fcda2f09d73d527"
+  },
+  "deleteOptions.unknown": {
+    "sourceHash": "09213fbbc870ece3d7f677ddef91ec07e0bd54da3e9ac654f37526a6c163b305"
+  },
+  "deleteOptions.unavailable": {
+    "sourceHash": "460b3574e4bdb8ca1d4605109904168e010d6a9b81d9bb6960b28fc14b046c83"
+  },
+  "deleteOptions.notSelectable": {
+    "sourceHash": "61d7188383529577668726035adbdf35aedacdcebdf13afdaacbe4af83929343"
+  },
+  "naming.field.entryDir": {
+    "sourceHash": "cf3ebfd24e8d3f67dbb388be607010af495599a70a2f1ecda42059b563b07581"
+  },
+  "naming.field.movieFile": {
+    "sourceHash": "59ff0f61fc56d8cfe1df755441142da9f06179a0ef6b406ddd15ab5db4e6d469"
+  },
+  "naming.field.seasonDir": {
+    "sourceHash": "2e20a94bcbed72dc04d4111e2eaa90b0d5784bf70410ef122a6a2e15bbaf7b80"
+  },
+  "naming.field.episodeFile": {
+    "sourceHash": "2ea9a4a520a9082b09975172b36a6d88b89f9fedf660875899a4930474a607ed"
+  },
+  "naming.empty": {
+    "sourceHash": "ec6812add6fb5bb12677d0f3665e554fd7f3f14f2f009b8f576c6d1b84ba2aad"
+  },
+  "naming.separator": {
+    "sourceHash": "f3d9798ffb40c3a30df91f9e0cc45d37369d96c891823ed32edeace61b2a3477"
+  },
+  "naming.unknownTokens": {
+    "sourceHash": "8ee44f80826db3b6abfd3f664933f2c3324aa091d6332daf451869a4077840a0"
+  },
+  "preflight.sameAnchor": {
+    "sourceHash": "6d01ea7593658f74bc64700322ff23af298574071a3ddd3f5acfe9726bc74950"
+  },
+  "preflight.differentAnchor": {
+    "sourceHash": "dc238c2421d6f1d3b967d606c6f2ca1588bd565452cb3a5bb118017a83481fe4"
+  },
+  "preflight.unknown": {
+    "sourceHash": "47b20c5122708ae16c1b3c977b564eeb27843e031f48f7e53b321337e061033e"
+  },
+  "preflight.noFilesInPlace": {
+    "sourceHash": "0f52f2eaace8e5674b131ca78f046c768a75a83a2a140287e48c615451a67d42"
+  },
+  "preflight.outsideRoots": {
+    "sourceHash": "29a1d1fe8b4e0bd636e417793df409fc31ffae09798e79edeeda7e155c1b738f"
+  },
+  "preflight.rootUnavailable": {
+    "sourceHash": "f1f0505ca8bafd37d0eb097f6272c5a9e10da6c6e3b48f812b2812055df3c0c6"
+  },
+  "preflight.notEnoughSpace": {
+    "sourceHash": "ab6605ab0c4cff0d651d25da11fc0807222e40b947c59cf6915e37e79e32921d"
+  },
+  "delete.outsideRoots": {
+    "sourceHash": "17aec81e51601784b123e5fc7e4bf718a8dac8bc6914345e0c035d3737333478"
+  },
+  "delete.otherFilesInFolder": {
+    "sourceHash": "26d94e515885bd7a6abc9135ef1bb9e2fc7ce0efe5b0b409e15de30a40ce560f"
+  },
+  "delete.folderFailed": {
+    "sourceHash": "d78043b7baf5287a5d63838d3667179acfece03b298886205f31718184ca685e"
+  },
+  "delete.fileFailed": {
+    "sourceHash": "684e82a6461104b2a7c306fb33f93341e91c1b1efb8c8cd50c9b1419162abba6"
+  },
+  "delete.sidecarFailed": {
+    "sourceHash": "d9cfb9919d8f4eb9871a659004b2dbce1c3c39fee4bdd4ce3948ca98efb3c2ba"
+  },
+  "cover.unrecognized": {
+    "sourceHash": "80276eb10ae4b4746b30e44c0a12047f4a606820c6dbcb8ca256a941a091690b"
+  },
+  "cover.tooLarge": {
+    "sourceHash": "4431ffe3c14ade93a0de60c0440cdba9fc5c97c95f219843f695970d49658691"
+  },
+  "cover.processFailed": {
+    "sourceHash": "0df3e604b33d63fe33bf45ed7e713762d6f1f6ee43b2bc30aa3fbe57bf965559"
+  },
+  "searchIndex.subject": {
+    "sourceHash": "797d9edac2e2953a9ee834b9cd54d6939e152fc957a89e72df0cd61a2669c3e8"
+  },
+  "searchIndex.progress": {
+    "sourceHash": "2ce1942bf0a0a82811c6ffb4ed83410d3862d2f0dca655e432bb78a18d23eb0a"
   }
 }

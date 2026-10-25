@@ -91,6 +91,7 @@ LIBRARY_DELETE_PARTICIPANTS: RegistryKey[DeleteParticipant] = RegistryKey(
     "library.delete-participants",
     schema=DeleteParticipant,
     stability=Stability.EXPERIMENTAL,
+    # i18n-ignore: developer registry doc
     doc="删除影片 / 文件时的附加选项：勾选项 + 只读预览 + 勾选后的后续任务",
 )
 
@@ -137,13 +138,13 @@ async def _one(key: str, participant: DeleteParticipant, request: DeleteRequest)
         result = await asyncio.wait_for(participant.preview(request), PREVIEW_TIMEOUT)
     except TimeoutError:
         logger.warning("删除参与方 %s 预览超时", key)
-        return Preview(available=False, reason="暂时无法预览（超时），这次不能勾选")
+        return Preview(available=False, reason=t("library.deleteOptions.previewTimeout"))
     except Exception:  # noqa: BLE001 -- 参与方出错只影响它自己的选项
         logger.exception("删除参与方 %s 预览出错", key)
-        return Preview(available=False, reason="暂时无法预览（出错），这次不能勾选")
+        return Preview(available=False, reason=t("library.deleteOptions.previewError"))
     if not isinstance(result, Preview):
         logger.warning("删除参与方 %s 预览返回了 %r", key, type(result).__name__)
-        return Preview(available=False, reason="暂时无法预览，这次不能勾选")
+        return Preview(available=False, reason=t("library.deleteOptions.previewUnavailable"))
     return result
 
 
@@ -164,7 +165,7 @@ async def preview_options(
         if task in done and not task.cancelled():
             preview = task.result()
         else:
-            preview = Preview(available=False, reason="暂时无法预览（超时），这次不能勾选")
+            preview = Preview(available=False, reason=t("library.deleteOptions.previewTimeout"))
         results.append(
             OptionPreview(
                 key,
@@ -188,11 +189,14 @@ async def check_options(request: DeleteRequest, scope: str, keys: list[str]) -> 
     found = participants(scope)
     unknown = [k for k in keys if k not in found]
     if unknown:
-        raise OptionError(f"没有这个删除选项：{'、'.join(unknown)}")
+        keys_text = t("common.list.separator").join(unknown)
+        raise OptionError(t("library.deleteOptions.unknown", keys=keys_text))
     for option in await preview_options(request, scope, keys):
         if not option.preview.available:
-            reason = option.preview.reason or "不可用"
-            raise OptionError(f"「{option.label}」这次不能勾选：{reason}")
+            reason = option.preview.reason or t("library.deleteOptions.unavailable")
+            raise OptionError(
+                t("library.deleteOptions.notSelectable", label=option.label, reason=reason)
+            )
     return keys
 
 

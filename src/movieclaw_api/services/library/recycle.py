@@ -143,6 +143,7 @@ async def recycle_file(
 
     if not file.local_bytes:
         # 只在网盘上（cloud-storage.md §10）：本地没东西可搬，原地待回收；网盘上的文件留到清理时再删
+        # i18n-ignore: log text
         outcome = _keep_in_place("只在网盘上")
         await _record(session, "trashed", file)
         return outcome
@@ -151,6 +152,7 @@ async def recycle_file(
         # 原盘目录不改名：内部可能住着其他在案文件行（监听导入按站点目录
         # 结构落盘的新版本），移动会让那些行的路径悬空；到期清理走
         # purge_file 的爆炸半径保护，账面未清空的目录会被拒绝
+        # i18n-ignore: log text
         outcome = _keep_in_place("原盘目录不改名")
         await _record(session, "trashed", file)
         return outcome
@@ -167,6 +169,7 @@ async def recycle_file(
         # （行删了而文件还在，扫描会把它当新文件重新收编）。倒计时照常，
         # 不因一次移动失败失去自动清理承诺
         logger.exception("移入回收站失败，降级为原地待回收：%s", src)
+        # i18n-ignore: log text
         outcome = _keep_in_place("移动失败降级")
         await _record(session, "trashed", file)
         return outcome

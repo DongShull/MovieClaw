@@ -799,8 +799,10 @@ async def build_library_index(
         for index, (_, measure) in enumerate(r for r in rows if r[0] is not None):
             if sort == "release_date":
                 fmt = "%Y" if granularity == "year" else "%Y-%m"
+                # i18n-ignore: index bucket protocol values
                 label = measure.strftime(fmt) if measure else "未知"
             elif measure is None:
+                # i18n-ignore: index bucket protocol values
                 label = "未评分"
             elif measure >= 9:
                 label = "9+"
@@ -809,6 +811,7 @@ async def build_library_index(
             elif measure >= 7:
                 label = "7+"
             else:
+                # i18n-ignore: index bucket protocol values
                 label = "更低"
             if buckets and buckets[-1][0] == label:
                 head, count, start = buckets[-1]
@@ -3379,7 +3382,7 @@ async def delete_item_files(
             assert row.id is not None
             files_to_remove[row.id] = path
         else:
-            result.errors.append(f"「{path}」不在库根路径之内，已跳过（不删库外文件）")
+            result.errors.append(t("library.delete.outsideRoots", path=str(path)))
 
     deleted_row_ids: set[int] = set()
     by_id = {row.id: row for row in files}
@@ -3515,7 +3518,7 @@ async def delete_single_file(
     path = Path(row.file_path)
     roots = [Path(p) for p in library.root_paths]
     if not _safe_inside_roots(path, roots):
-        result.errors.append(f"「{path}」不在库根路径之内，已跳过（不删库外文件）")
+        result.errors.append(t("library.delete.outsideRoots", path=str(path)))
         return result
 
     # 原盘目录形态整树删除前查台账：监听导入按站点原始目录结构落盘，
@@ -3523,9 +3526,7 @@ async def delete_single_file(
     if path.is_dir():
         assert row.id is not None
         if await _dir_holds_other_rows(session, library.id, path, row.id):
-            result.errors.append(
-                f"「{path}」目录内还有其他在案文件（可能是新入库的版本），已跳过整目录删除"
-            )
+            result.errors.append(t("library.delete.otherFilesInFolder", path=str(path)))
             return result
 
     if dry_run:
@@ -3646,7 +3647,9 @@ def _discard_tree(directory: Path, staging: _TrashStaging, result: DeleteResult)
     """整删条目目录（同步，放线程池）。"""
     error = _discard_one(directory, staging)
     if error is not None:
-        result.errors.append(f"删除目录失败：{directory}（{error}）")
+        result.errors.append(
+            t("library.delete.folderFailed", path=str(directory), error=str(error))
+        )
         return False
     result.removed_paths.append(str(directory))
     return True
@@ -3674,7 +3677,7 @@ def _discard_file_with_sidecars(path: Path, staging: _TrashStaging, result: Dele
     """
     error = _discard_one(path, staging)
     if error is not None:
-        result.errors.append(f"删除文件失败：{path}（{error}）")
+        result.errors.append(t("library.delete.fileFailed", path=str(path), error=str(error)))
         return False
     result.removed_paths.append(str(path))
 
@@ -3695,7 +3698,9 @@ def _discard_file_with_sidecars(path: Path, staging: _TrashStaging, result: Dele
     for sidecar in sidecars:
         error = _discard_one(sidecar, staging)
         if error is not None:
-            result.errors.append(f"删除附属文件失败：{sidecar}（{error}）")
+            result.errors.append(
+                t("library.delete.sidecarFailed", path=str(sidecar), error=str(error))
+            )
         else:
             result.removed_paths.append(str(sidecar))
     return True
