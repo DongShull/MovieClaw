@@ -32,6 +32,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from movieclaw_api.i18n.stored import keyed_error
 from movieclaw_api.services.auth_factory import build_auth_provider
 from movieclaw_db.engine import get_database
 from movieclaw_db.models.site_credential import ConfigStatus
@@ -88,12 +89,17 @@ class SiteAccessManager:
     def _assert_usable(cred, site_id: str) -> None:
         """校验站点当前是否可访问；不可访问抛 SiteUnavailableError（可读中文）。"""
         if cred is None:
-            raise SiteUnavailableError(f"站点未配置：{site_id}")
+            raise keyed_error(
+                SiteUnavailableError, "errors.sites.accessNotConfigured", site=site_id
+            )
         if not cred.enabled:
-            raise SiteUnavailableError(f"站点已停用：{site_id}")
+            raise keyed_error(SiteUnavailableError, "errors.sites.accessDisabled", site=site_id)
         if cred.status != ConfigStatus.ACTIVE:
-            raise SiteUnavailableError(
-                f"站点尚未验证通过（当前状态 {cred.status.value}）：{site_id}"
+            raise keyed_error(
+                SiteUnavailableError,
+                "errors.sites.accessNotVerified",
+                site=site_id,
+                status=cred.status.value,
             )
 
     def _is_fresh(self, entry: _SiteEntry, stamp: datetime | None) -> bool:
@@ -207,6 +213,7 @@ def init_site_access() -> SiteAccessManager:
 def get_site_access() -> SiteAccessManager:
     """获取全局站点访问管理器；未初始化时抛错，提示检查启动流程。"""
     if _manager is None:
+        # i18n-ignore: developer error
         raise RuntimeError("站点访问管理器尚未初始化，请确认应用启动时已调用 init_site_access()")
     return _manager
 

@@ -12,6 +12,7 @@ from typing import Literal
 
 from pydantic import Field, field_serializer, model_validator
 
+from movieclaw_api.i18n import t
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.services.tmdb_images import MediaFiles, asset_url, tmdb_image_url
 from movieclaw_db.models import (
@@ -391,7 +392,7 @@ class SubscriptionCreatePayload(BaseModel):
     def validate_selection_mode(self):
         if self.selection_mode == "smart":
             if self.rule_set_id is not None or self.smart_profile_revision is None:
-                raise ValueError("智能模式需提供已保存的设置版本，且不能同时指定规则组")
+                raise ValueError(t("errors.subscriptionInput.smartNeedsSettings"))
         elif self.smart_profile_revision is not None or any(
             v is not None
             for v in (
@@ -402,7 +403,7 @@ class SubscriptionCreatePayload(BaseModel):
                 self.smart_memory_revision,
             )
         ):
-            raise ValueError("规则模式不能指定智能设置")
+            raise ValueError(t("errors.subscriptionInput.ruleModeNoSmart"))
         return self
 
 
@@ -1401,7 +1402,7 @@ class SmartMemoryPatch(BaseModel):
     @model_validator(mode="after")
     def validate_change(self):
         if (self.language is None) == (self.remove_habit is None):
-            raise ValueError("一次只改一种语言或删一条习惯")
+            raise ValueError(t("errors.subscriptionInput.languageOneChange"))
         if self.language is not None and self.understood is None:
-            raise ValueError("请说明这种语言看不看得懂")
+            raise ValueError(t("errors.subscriptionInput.languageUnderstood"))
         return self

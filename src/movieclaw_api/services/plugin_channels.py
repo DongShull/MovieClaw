@@ -140,10 +140,12 @@ class RemoteChannelDriver(ChannelDriver):
     async def callback(self, method: str, params: dict[str, Any]) -> None:
         account = self.accounts.get(params["account"])
         if account is None:
+            # i18n-ignore: developer error
             raise LookupError(f"账号 {params['account']} 没有在运行")
         if method == "channel.inbound":
             await account.inbound(ch.message_from(params["message"]))
         elif method == "channel.save_state":
             await account.save_state(dict(params["patch"]))
         else:
+            # i18n-ignore: developer error
             raise ValueError(f"未知的通道回调 {method}")

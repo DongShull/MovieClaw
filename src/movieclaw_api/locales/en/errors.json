@@ -415,7 +415,10 @@
     "requestTimeout": "The site timed out after {seconds}s",
     "connectionFailed": "Could not connect to the site: {error}",
     "authTypeUnsupported": "Site {id} does not support authorization type ''{type}''. Supported types: {supported}",
-    "missing": "Site {id} does not exist or is not supported"
+    "missing": "Site {id} does not exist or is not supported",
+    "accessNotConfigured": "Site not configured: {site}",
+    "accessDisabled": "Site disabled: {site}",
+    "accessNotVerified": "Site not verified yet (status {status}): {site}"
   },
   "agent": {
     "negativeCursor": "The SSE event cursor cannot be negative",
@@ -459,7 +462,8 @@
       "unexpected": "An unexpected error occurred during the agent run: {error}",
       "noTerminalRecord": "The run left no terminal event.",
       "unknown": "The run failed with no reason."
-    }
+    },
+    "specCorrupt": "The server’s CLI baseline spec is damaged ({path}): {detail}. The assistant is unavailable. This usually means an incomplete image or package; update to a new image and redeploy."
   },
   "mcp": {
     "endpointMissing": "This endpoint does not exist or has been deleted",
@@ -1016,5 +1020,32 @@
     "titleRefInvalid": "Invalid title_ref; pass the reference exactly as returned by search or a collection",
     "collectionRefInvalid": "Invalid collection_ref; pass the reference exactly as returned by list-collections",
     "collectionMissing": "This collection doesn’t exist or can’t be browsed from this source"
+  },
+  "sitePath": {
+    "empty": "The path can’t be empty",
+    "protocolRelative": "The path can’t start with // (a protocol-relative address)",
+    "scheme": "The path can’t include a protocol (use a path within the site)",
+    "backslash": "The path can’t contain backslashes",
+    "control": "The path can’t contain control characters"
+  },
+  "llmInput": {
+    "instanceSlash": "The instance name can’t contain a slash (/)",
+    "endpointScheme": "The API endpoint must start with http:// or https://",
+    "userAgent": "User-Agent may only contain printable ASCII characters (no line breaks or non-ASCII text)"
+  },
+  "subscriptionInput": {
+    "languageOneChange": "Change one language or remove one habit at a time",
+    "languageUnderstood": "Say whether you understand this language",
+    "smartNeedsSettings": "Smart mode needs a saved settings version and can’t also set a rule group",
+    "ruleModeNoSmart": "Rule mode can’t set smart settings"
+  },
+  "addresses": {
+    "scheme": "The address must start with http:// or https://",
+    "credentials": "The address can’t include a username or password",
+    "port": "Invalid port"
+  },
+  "agentInput": {
+    "thinkingLevel": "Thinking level “{value}” isn’t supported; use one of {choices}",
+    "emptyMessage": "A message needs text or an image attachment"
   }
 }

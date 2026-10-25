@@ -249,7 +249,7 @@ class LlmProviderPayload(BaseModel):
     def _validate_name(cls, value: str) -> str:
         """实例名是「实例名/模型id」路由引用的前半段，含斜杠会破坏解析。"""
         if "/" in value:
-            raise ValueError("实例名不能包含斜杠 /")
+            raise ValueError(t("errors.llmInput.instanceSlash"))
         return value
 
     @field_validator("base_url")
@@ -258,7 +258,7 @@ class LlmProviderPayload(BaseModel):
         if value is None:
             return None
         if not value.startswith(("http://", "https://")):
-            raise ValueError("API 端点必须以 http:// 或 https:// 开头")
+            raise ValueError(t("errors.llmInput.endpointScheme"))
         return value.rstrip("/")
 
     @field_validator("user_agent")
@@ -272,12 +272,12 @@ class LlmProviderPayload(BaseModel):
         if value is None:
             return None
         if any(ch < " " or ch > "~" for ch in value):
-            raise ValueError("User-Agent 只能包含可打印的 ASCII 字符（不能含换行或中文）")
+            raise ValueError(t("errors.llmInput.userAgent"))
         return value
 
 
 class LlmModelDiscoveryPayload(LlmProviderPayload):
     """查询草稿端点的模型 ID；不保存实例，不要求先填写模型参数。"""
 
-    name: str = "模型查询"
+    name: str = "模型查询"  # i18n-ignore: name of a transient probe instance, never saved
     provider_id: int | None = Field(default=None, gt=0, description="编辑时沿用密钥的实例 id")

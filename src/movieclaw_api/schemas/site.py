@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import Field, field_serializer
 
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_api.services.auth_factory import required_fields
@@ -463,15 +464,15 @@ def proxy_path_error(path: str) -> str | None:
     仍等于站点域名，形态校验只是尽早给出可读错误。
     """
     if not path or not path.strip():
-        return "路径不能为空"
+        return t("errors.sitePath.empty")
     if path.startswith("//"):
-        return "路径不能以 // 开头（协议相对地址）"
+        return t("errors.sitePath.protocolRelative")
     if "://" in path:
-        return "路径不允许包含协议（只能给站内相对路径）"
+        return t("errors.sitePath.scheme")
     if "\\" in path:
-        return "路径不允许包含反斜杠"
+        return t("errors.sitePath.backslash")
     if any(ch in path for ch in ("\r", "\n", "\t")):
-        return "路径不允许包含控制字符"
+        return t("errors.sitePath.control")
     return None
 
 

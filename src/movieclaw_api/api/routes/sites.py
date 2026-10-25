@@ -12,6 +12,7 @@ from movieclaw_api.exceptions import (
     ConflictException,
     NotFoundException,
     ServiceUnavailableException,
+    exception_fields,
 )
 from movieclaw_api.i18n import t
 from movieclaw_api.schemas.response import ApiResponse, ok
@@ -414,7 +415,7 @@ async def proxy_site_request(
     try:
         site = await get_site_access().get(site_id)
     except SiteUnavailableError as exc:
-        raise ConflictException(str(exc)) from exc
+        raise ConflictException(**exception_fields(exc)) from exc
     except TrackerAuthError as exc:
         raise ConflictException(
             message_key="errors.sites.authenticationFailed", params={"error": exc.message}

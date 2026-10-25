@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from movieclaw_api import hooks
-from movieclaw_api.exceptions import BadRequestException, UpstreamServiceException
+from movieclaw_api.exceptions import BadRequestException, UpstreamServiceException, exception_fields
 from movieclaw_api.i18n.stored import exception_reference, keyed_error
 from movieclaw_api.services.site_access import SiteUnavailableError, get_site_access
 from movieclaw_db.models import DownloaderClient, DownloadHint, ManualDownloadIntent, utcnow
@@ -266,7 +266,7 @@ async def submit_torrent(
     try:
         site = await get_site_access().get(site_id)
     except SiteUnavailableError as exc:
-        raise BadRequestException(str(exc)) from exc
+        raise BadRequestException(**exception_fields(exc)) from exc
     try:
         torrent_bytes = await site.download_torrent(download_url)
     except Exception as exc:

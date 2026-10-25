@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field, field_serializer, field_validator, model_validator
 
+from movieclaw_api.i18n import t
 from movieclaw_api.i18n.stored import render_value
 from movieclaw_api.schemas.base import BaseModel
 from movieclaw_db.models import AgentSession
@@ -25,8 +26,11 @@ def _validate_thinking_level(value: str | None) -> str | None:
         return None
     if value not in _THINKING_LEVEL_CHOICES:
         raise ValueError(
-            f"思维链档位「{value}」不在支持的取值里："
-            f"{', '.join(sorted(_THINKING_LEVEL_CHOICES))}"
+            t(
+                "errors.agentInput.thinkingLevel",
+                value=value,
+                choices=", ".join(sorted(_THINKING_LEVEL_CHOICES)),
+            )
         )
     return value
 
@@ -92,7 +96,7 @@ class SessionStartPayload(BaseModel):
     @model_validator(mode="after")
     def _require_content_or_attachments(self) -> SessionStartPayload:
         if not self.content and not self.attachments:
-            raise ValueError("消息正文与图片附件不能同时为空")
+            raise ValueError(t("errors.agentInput.emptyMessage"))
         return self
 
 

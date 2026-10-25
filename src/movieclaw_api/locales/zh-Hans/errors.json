@@ -415,7 +415,10 @@
     "requestTimeout": "站点响应超时（{seconds}s）",
     "connectionFailed": "无法连接站点：{error}",
     "authTypeUnsupported": "站点 {id} 不支持授权类型 ''{type}''，支持的类型为：{supported}",
-    "missing": "站点不存在或未被系统支持：{id}"
+    "missing": "站点不存在或未被系统支持：{id}",
+    "accessNotConfigured": "站点未配置：{site}",
+    "accessDisabled": "站点已停用：{site}",
+    "accessNotVerified": "站点尚未验证通过（当前状态 {status}）：{site}"
   },
   "agent": {
     "negativeCursor": "SSE 事件游标不能为负数",
@@ -459,7 +462,8 @@
       "unexpected": "Agent 运行发生未知错误：{error}",
       "noTerminalRecord": "运行未留下终态事件",
       "unknown": "运行失败，原因未知"
-    }
+    },
+    "specCorrupt": "服务端的 CLI 基线 spec 损坏（{path}）：{detail}。Agent 功能不可用。这通常是镜像或安装包不完整，请更新到新版镜像后重新部署。"
   },
   "mcp": {
     "endpointMissing": "端点不存在或已被删除",
@@ -1016,5 +1020,32 @@
     "titleRefInvalid": "title_ref 格式无效；请使用搜索或片单接口返回的引用原样调用",
     "collectionRefInvalid": "collection_ref 格式无效；请使用 list-collections 返回的引用原样调用",
     "collectionMissing": "该片单不存在或当前来源未开放浏览"
+  },
+  "sitePath": {
+    "empty": "路径不能为空",
+    "protocolRelative": "路径不能以 // 开头（协议相对地址）",
+    "scheme": "路径不允许包含协议（只能给站内相对路径）",
+    "backslash": "路径不允许包含反斜杠",
+    "control": "路径不允许包含控制字符"
+  },
+  "llmInput": {
+    "instanceSlash": "实例名不能包含斜杠 /",
+    "endpointScheme": "API 端点必须以 http:// 或 https:// 开头",
+    "userAgent": "User-Agent 只能包含可打印的 ASCII 字符（不能含换行或中文）"
+  },
+  "subscriptionInput": {
+    "languageOneChange": "一次只改一种语言或删一条习惯",
+    "languageUnderstood": "请说明这种语言看不看得懂",
+    "smartNeedsSettings": "智能模式需提供已保存的设置版本，且不能同时指定规则组",
+    "ruleModeNoSmart": "规则模式不能指定智能设置"
+  },
+  "addresses": {
+    "scheme": "地址要以 http:// 或 https:// 开头",
+    "credentials": "地址里不能带用户名和密码",
+    "port": "端口不正确"
+  },
+  "agentInput": {
+    "thinkingLevel": "思维链档位「{value}」不在支持的取值里：{choices}",
+    "emptyMessage": "消息正文与图片附件不能同时为空"
   }
 }
