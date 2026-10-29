@@ -1,5 +1,14 @@
 import { connection } from '@kit.NetworkKit';
+import { accessibility } from '@kit.AccessibilityKit';
 import { AppNavBar } from '../common/AppNavBar';
+import { TipsStore } from '../common/TipsStore';
+import {
+  REELS_FLOOR_REFRESH_AT,
+  ReelsFloorDim,
+  ReelsFloorGap,
+  ReelsFloorState,
+  ReelsFloorTipCard
+} from './ReelsFloor';
 import { Theme } from '../theme/AppTheme';
 import { TabBarCollapse } from '../common/TabBarCollapse';
 import { GlassButtonModifier, GlassTone } from '../common/GlassControls';
@@ -452,8 +461,27 @@ export struct LibraryHomeView {
   /** 首页行清单的懒加载数据源（LazyForEach 只建可视区附近的行） */
   private rowSource: HomeRowSource = new HomeRowSource();
 
+  // —— 下拉二楼（docs/design/reels.md §6）——
+  /** 拖动状态放在 @Observed 对象里：胶片/暗层各自订阅，首页主体不跟着逐帧重排 */
+  @State private floor: ReelsFloorState = new ReelsFloorState();
+  /** 胶片画格：首页已经拿到的条目剧照（只用背景图，不另发请求） */
+  @State private floorStills: string[] = [];
+  /** 每次进首页换一次画格顺序，拖动时不变 */
+  private floorSeed: number = Math.floor(Math.random() * 2147483647);
+  /** 这次进入首页已经压栈进片段，防止状态回调与刷新回调各进一次 */
+  private floorEntering: boolean = false;
+
+  private static readonly FLOOR_TIP: string = 'library.reels-floor';
+  @State private floorTipLoaded: boolean = false;
+  @State private floorTipVisible: boolean = false;
+  /** 本页已经对这张提示卡记过展示（每次重建页面各记一次，同 iOS / Android） */
+  private floorTipRecorded: boolean = false;
+  /** 用户关掉或从二楼进过一次：本页不再出 */
+  private floorTipDismissed: boolean = false;
+
   aboutToAppear(): void {
     this.permissions = Permissions.fromSession(AppModel.shared.session);
+    this.loadFloorTip();
     this.reload();
   }
 
@@ -505,6 +533,55 @@ export struct LibraryHomeView {
     });
     this.rowItems = record;
     this.rowSource.setRows(this.rows);
+    this.floorStills = this.computeFloorStills();
+    this.maybeShowFloorTip();
+  }
+
+  /** 二楼画格：接下来继续 + 各行条目的背景图，去重后按账号内稳定的随机序取 8 张（同 iOS floorStills） */
+  private computeFloorStills(): string[] {
+    const paths: string[] = [];
+    for (const item of this.upNext) {
+      if (item.backdrop_url !== null && item.backdrop_url !== undefined && item.backdrop_url.length > 0) {
+        paths.push(item.backdrop_url);
+      }
+    }
+    for (const key of Object.keys(this.rowItems)) {
+      for (const item of this.rowItems[key]) {
+        if (item.backdrop_url !== null && item.backdrop_url !== undefined && item.backdrop_url.length > 0) {
+          paths.push(item.backdrop_url);
+        }
+      }
+    }
+    const seen: Set<string> = new Set<string>();
+    const distinct: string[] = [];
+    for (const path of paths) {
+      if (!seen.has(path)) {
+        seen.add(path);
+        distinct.push(path);
+      }
+    }
+    const seed: number = this.floorSeed;
+    distinct.sort((a: string, b: string): number => {
+      return ((LibraryHomeView.hashString(a) + seed) % 1000003) - ((LibraryHomeView.hashString(b) + seed) % 1000003);
+    });
+    const origin: string = AppModel.origin();
+    const out: string[] = [];
+    for (const path of distinct.slice(0, 8)) {
+      const url: string | null = ImageUrls.resolve(origin, path, ImageVariant.reelStill);
+      if (url !== null) {
+        out.push(url);
+      }
+    }
+    return out;
+  }
+
+  private static hashString(value: string): number {
+    let hash: number = 2166136261;
+    for (let i: number = 0; i < value.length; i++) {
+      hash = hash ^ value.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
   }
 
   private stopPolling(): void {
@@ -785,6 +862,107 @@ export struct LibraryHomeView {
     }
   }
 
+  // MARK: 下拉二楼
+
+  private async loadFloorTip(): Promise<void> {
+    await TipsStore.shared.ensureLoaded();
+    if (AppModel.shared.api === null) {
+      return;
+    }
+    this.floorTipLoaded = true;
+    this.maybeShowFloorTip();
+  }
+
+  /** 提示卡的出现条件：服务端说还没作废、没有读屏、首页有库（docs/design/tips.md） */
+  private maybeShowFloorTip(): void {
+    if (!this.floorTipLoaded || this.floorTipVisible || this.floorTipDismissed) {
+      return;
+    }
+    if (this.visibleLibraries.length === 0) {
+      return;
+    }
+    if (this.screenReaderOpen()) {
+      return;
+    }
+    if (!TipsStore.shared.eligible(LibraryHomeView.FLOOR_TIP)) {
+      return;
+    }
+    this.floorTipVisible = true;
+    if (!this.floorTipRecorded) {
+      this.floorTipRecorded = true;
+      TipsStore.shared.recordDisplay(LibraryHomeView.FLOOR_TIP);
+    }
+  }
+
+  private screenReaderOpen(): boolean {
+    try {
+      return accessibility.isScreenReaderOpenSync();
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private closeFloorTip(): void {
+    this.floorTipDismissed = true;
+    this.floorTipVisible = false;
+    TipsStore.shared.invalidate(LibraryHomeView.FLOOR_TIP, 'closed');
+  }
+
+  /**
+   * 系统 Refresh 的状态机：这里只负责把手指拖动的那一段交给二楼。
+   * 过线后松手直接进片段；没到线时照常刷新（`onRefreshing` 里再判一次，防两个回调先后不一）。
+   */
+  private onFloorStateChange(status: RefreshStatus): void {
+    if (status === RefreshStatus.Drag) {
+      this.floor.begin();
+      return;
+    }
+    if (status === RefreshStatus.Refresh) {
+      if (this.floor.release()) {
+        this.enterReelsByFloor();
+      } else {
+        this.floor.reset();
+      }
+      return;
+    }
+    if (status === RefreshStatus.Inactive || status === RefreshStatus.Done) {
+      this.floor.release();
+      this.floor.reset();
+    }
+  }
+
+  private onFloorOffset(offset: number): void {
+    if (!this.floor.dragging) {
+      return;
+    }
+    this.floor.drag(offset);
+  }
+
+  /**
+   * 从二楼进片段：松手那一刻就压栈，首页的回弹被打断、卡在拉开的位置。进之前把列表放回顶端、
+   * 清掉拖动状态，返回时不会再挂着一截胶片。
+   */
+  private enterReelsByFloor(): void {
+    if (this.floorEntering) {
+      return;
+    }
+    this.floorEntering = true;
+    this.floorTipDismissed = true;
+    this.floorTipVisible = false;
+    TipsStore.shared.invalidate(LibraryHomeView.FLOOR_TIP, 'action_performed');
+    this.floor.reset();
+    this.refreshing = false;
+    setTimeout((): void => {
+      try {
+        this.scroller.scrollToIndex(0);
+      } catch (error) {
+      }
+      this.openReels();
+      this.refreshing = false;
+      this.floorEntering = false;
+    }, 0);
+  }
+
   // MARK: 片段入口
 
   /** 片段直接播原片，蜂窝/计费网络先确认一次（一期鸿蒙只识别蜂窝） */
@@ -829,46 +1007,108 @@ export struct LibraryHomeView {
 
   // MARK: 布局
 
-  build() {
-    Column() {
-      Refresh({ refreshing: $$this.refreshing }) {
-        // 用 List 而不是 Scroll + Column：只有 List / Grid / Swiper / WaterFlow 这类容器
-        // 才让 LazyForEach 按可视区建组件。首页每一行分节是一个 ListItem（见 Content）。
-        List({ scroller: this.scroller }) {
-          // 内容从 y=0 铺到标题栏下面：首屏空出标题栏高度（滚动时这段跟着走）
-          ListItem() {
-            Column()
-              .width('100%')
-              .height(AppNavBar.contentTop)
-          }
-          ListItem() {
-            this.StatsHeader()
-          }
-          this.Content()
-          ListItem() {
-            AppFooter()
-          }
-        }
-        .scrollBar(BarState.Off)
-        .width('100%')
-        .height('100%')
-        .edgeEffect(EdgeEffect.None)
-        // 可视区上下各多缓存几行，快速滑动时少建少销毁
-        // 向下滚累计到阈值：底栏收成圆形按钮（往回滑立刻放回）
-        .onDidScroll((xOffset: number, yOffset: number) => {
-          TabBarCollapse.shared().onScroll(this.scroller.currentOffset().yOffset);
-        })
-        .cachedCount(4)
-        // 底部让位用 contentEndOffset：内容能滚到页签胶囊/手势条下面，胶囊背后不再是黑底
-        .contentEndOffset(Theme.tabBarInset)
-      }
-      .onRefreshing(() => {
-        this.reload().then((): void => {
-          this.refreshing = false;
-        });
-      })
-      .layoutWeight(1)
+  /** 二楼自己画胶片，不要系统刷新的转圈/文案（仍然用 Refresh 的橡皮筋与回弹） */
+  @Builder
+  EmptyFloorIndicator() {
+    Column()
       .width('100%')
+      .height(0)
+  }
+
+  /** 首页内容上的暗层（胶片在页面级 Stack 里，不跟着暗） */
+  @Builder
+  FloorDimOverlay() {
+    ReelsFloorDim({ floor: this.floor })
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      Column() {
+        Refresh({
+          refreshing: $$this.refreshing,
+          builder: this.EmptyFloorIndicator()
+        }) {
+          // 用 List 而不是 Scroll + Column：只有 List / Grid / Swiper / WaterFlow 这类容器
+          // 才让 LazyForEach 按可视区建组件。首页每一行分节是一个 ListItem（见 Content）。
+          List({ scroller: this.scroller }) {
+            // 内容从 y=0 铺到标题栏下面：首屏空出标题栏高度（滚动时这段跟着走）
+            ListItem() {
+              Column()
+                .width('100%')
+                .height(AppNavBar.contentTop)
+            }
+            ListItem() {
+              this.StatsHeader()
+            }
+            if (this.floorTipVisible) {
+              ListItem() {
+                ReelsFloorTipCard({
+                  onClose: (): void => {
+                    this.closeFloorTip();
+                  }
+                })
+                  .padding({ left: Theme.pagePadding, right: Theme.pagePadding, top: 12 })
+              }
+            }
+            this.Content()
+            ListItem() {
+              AppFooter()
+            }
+          }
+          .scrollBar(BarState.Off)
+          .width('100%')
+          .height('100%')
+          // alwaysEnabled：即使下拉回弹不显示效果，也让 List 把越界手势交给 Refresh
+          .edgeEffect(EdgeEffect.None, { alwaysEnabled: true })
+          // 可视区上下各多缓存几行，快速滑动时少建少销毁
+          // 向下滚累计到阈值：底栏收成圆形按钮（往回滑立刻放回）
+          .onDidScroll((xOffset: number, yOffset: number) => {
+            TabBarCollapse.shared().onScroll(this.scroller.currentOffset().yOffset);
+          })
+          .cachedCount(4)
+          // 底部让位用 contentEndOffset：内容能滚到页签胶囊/手势条下面，胶囊背后不再是黑底
+          .contentEndOffset(Theme.tabBarInset)
+          // 首页随下拉暗下去；胶片画在页面级 Stack 里，不跟着变暗
+          .overlay(this.FloorDimOverlay(), { align: Alignment.TopStart })
+        }
+        .onOffsetChange((offset: number): void => {
+          this.onFloorOffset(offset);
+        })
+        .onStateChange((status: RefreshStatus): void => {
+          this.onFloorStateChange(status);
+        })
+        // 与 iPhone 17 Pro 实测的系统刷新点一致；之后 +20 胶片入画、+35 过线
+        .refreshOffset(REELS_FLOOR_REFRESH_AT)
+        // 默认的动态阻尼太沉（模拟器上拉 567vp 才走出 178vp），二楼够不到线；
+        // 改成跟手 1:1，再限一个上限，和 iOS / Android 的 183dp 触发点手感一致
+        .pullDownRatio(1)
+        .maxPullDownDistance(320)
+        .onRefreshing(() => {
+          if (this.floorEntering) {
+            this.refreshing = false;
+            return;
+          }
+          if (this.floor.armed) {
+            this.enterReelsByFloor();
+            return;
+          }
+          this.floor.reset();
+          this.reload().then((): void => {
+            this.refreshing = false;
+          });
+        })
+        .layoutWeight(1)
+        .width('100%')
+      }
+      .width('100%')
+      .height('100%')
+
+      // 胶片挂在标题栏下沿、首页内容上方：高度 = 本次下拉量，松手后隐藏
+      ReelsFloorGap({
+        floor: this.floor,
+        stills: this.floorStills,
+        topInset: AppNavBar.contentTop
+      })
     }
     .width('100%')
     .height('100%')
