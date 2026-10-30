@@ -532,7 +532,11 @@
     "removedCloudFiles": "保存后，拿掉的网盘目录里的 {count, number} 个视频会从库里移除（只删记录，网盘上的文件不动；重新挂上会重新识别）。",
     "localCollectionsHint": "视频旁的 NFO 里写了系列（{tag}）的，会在合集页按系列自动成集。这只是**展示**偏好：关掉之后系列信息照常读取，只是合集页不再自动生成；重新打开会把已有的补齐。改了 NFO 之后，在库的 ⋯ 菜单里点「重新读取 NFO 与封面」生效。",
     "editTitle": "编辑「{name}」",
-    "missingFields": "还需填写：{fields}"
+    "missingFields": "还需填写：{fields}",
+    "externalRootsHint": "「{source}」的内容在远程媒体服务器上，没有本地根目录；连接配置在创建向导里填写，改动来源连接请联系部署者调整插件配置。",
+    "configUnset": "（未设置）",
+    "configTrue": "是",
+    "configFalse": "否"
   },
   "directory": {
     "title": "选择服务器目录",

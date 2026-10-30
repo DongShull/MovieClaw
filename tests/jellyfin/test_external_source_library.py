@@ -208,3 +208,40 @@ def test_external_library_hidden_when_plugin_disabled(
     names = {v["Name"] for v in body["Items"]}
     assert "内置电影" in names
     assert "飞牛电影" not in names
+
+
+
+def test_plugin_disabled_entries_leave_the_whole_scope(
+    client: TestClient, seeded_external: dict
+) -> None:
+    """插件不可用：孤儿库条目从全部出口消失（PR #1111 审查意见 4）。
+
+    ``list_libraries`` 只挡住库视图列举；搜索、``/Items/Latest``、按库 GUID
+    直接浏览走 ``viewer_scope.visible``——暴露条件并入可见集后这些口子一起
+    收窄，内置库条目不受影响。
+    """
+    auth = {"ApiKey": jf_login(client)}
+    # 最新媒体：内置条目在、外部条目不在
+    latest = client.get("/Items/Latest", params=auth).json()
+    latest_names = [i["Name"] for i in latest]
+    assert "内置片" in latest_names
+    assert "外部片" not in latest_names
+    # 搜索：外部条目搜不到
+    search = client.get(
+        "/Items", params={**auth, "Recursive": "true", "SearchTerm": "外部片"}
+    ).json()
+    assert search["TotalRecordCount"] == 0
+    found = client.get(
+        "/Items", params={**auth, "Recursive": "true", "SearchTerm": "内置片"}
+    ).json()
+    assert found["TotalRecordCount"] == 1
+    # 按库 GUID 直接浏览：外部库整个不可见（Jellyfin 风格 404，不是空列表——
+    # 库从设备视野里消失而不是报错），内置库照常 1 条
+    ext = client.get(
+        "/Items", params={**auth, "parentId": library_guid(seeded_external["external_lib"])}
+    )
+    assert ext.status_code == 404
+    builtin = client.get(
+        "/Items", params={**auth, "parentId": library_guid(seeded_external["builtin_lib"])}
+    ).json()
+    assert builtin["TotalRecordCount"] == 1

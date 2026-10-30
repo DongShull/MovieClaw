@@ -89,6 +89,39 @@ class LibrarySourceProvider:
         if not isinstance(self.config_schema, dict):
             # i18n-ignore: developer validation message
             raise ValueError(f"外部库源 {self.source} 的 config_schema 须是 JSON Schema 对象")
+        self._validate_config_schema()
+
+    #: 建库向导支持的配置字段类型：表单按它渲染、提交时按它转换
+    #: （PR #1111 审查意见 3：超出的类型没有对应的表单控件，登记时挡下）
+    _SUPPORTED_CONFIG_FIELD_TYPES = frozenset({"string", "integer", "number", "boolean"})
+
+    def _validate_config_schema(self) -> None:
+        """连接配置表单声明只收支持的子集：字段类型、required 引用。"""
+        schema = self.config_schema
+        if not schema:
+            return
+        properties = schema.get("properties")
+        if not isinstance(properties, dict):
+            # i18n-ignore: developer validation message
+            raise ValueError(
+                f"外部库源 {self.source} 的 config_schema 缺少 properties 对象"
+            )
+        for field_name, field_schema in properties.items():
+            if not isinstance(field_schema, dict) or field_schema.get("type") not in (
+                self._SUPPORTED_CONFIG_FIELD_TYPES
+            ):
+                # i18n-ignore: developer validation message
+                raise ValueError(
+                    f"外部库源 {self.source} 的配置字段 {field_name!r} 类型不支持，"
+                    f"只支持 {sorted(self._SUPPORTED_CONFIG_FIELD_TYPES)}"
+                )
+        unknown_required = set(schema.get("required", [])) - set(properties)
+        if unknown_required:
+            # i18n-ignore: developer validation message
+            raise ValueError(
+                f"外部库源 {self.source} 的 config_schema.required 引用了不存在的字段："
+                f"{sorted(unknown_required)}"
+            )
 
     @property
     def kind_support(self) -> frozenset[str]:
@@ -120,10 +153,26 @@ def bind_source_providers(registry: Registry[LibrarySourceProvider]) -> Callable
 
 
 def registered_providers() -> dict[str, LibrarySourceProvider]:
-    """当前登记的外部库源：来源值 → 提供方。没有插件内核时为空。"""
+    """当前登记的外部库源：来源值 → 提供方。没有插件内核时为空。
+
+    两个插件登记了同一个来源值时直接抛错而不是静默取优先级高的那个
+    （PR #1111 审查意见 5）：来源值是库行的身份锚，静默覆盖会让两个插件
+    都以为这个来源是自己的，出问题时无从排查。内核的注册表观察者无法
+    否决登记（异常会被吞掉记日志），所以在读端把冲突顶出来——首次消费
+    即响，管理页与日志都能立刻看到是谁撞了谁。
+    """
     if _bound is None:
         return {}
-    return {item.source: item for item in _bound}
+    providers: dict[str, LibrarySourceProvider] = {}
+    for item in _bound:
+        previous = providers.get(item.source)
+        if previous is not None:
+            raise ValueError(
+                # i18n-ignore: developer validation message
+                f"外部库源 {item.source!r} 被登记了两次，请卸载其中一个插件后重试"
+            )
+        providers[item.source] = item
+    return providers
 
 
 def provider_of(source: str) -> LibrarySourceProvider | None:
