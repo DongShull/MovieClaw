@@ -30,5 +30,6 @@
   "apps/web/lib/session.tsx": 1,
   "apps/web/lib/theme-runtime.ts": 13,
   "apps/web/lib/tips/engine.ts": 1,
-  "apps/web/lib/ui-prefs.tsx": 3
+  "apps/web/lib/ui-prefs.tsx": 3,
+  "src/movieclaw_api/services/library/source_providers.py": 7
 }

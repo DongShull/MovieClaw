@@ -241,22 +241,32 @@ def _orphan_external_profile(kind: MediaKind) -> LibraryProfile:
     )
 
 
+def profile_of_values(kind: str, source: str | None) -> LibraryProfile:
+    """(形态, 来源) 二元组 → 能力档案：存量库的统一入口，登记缺失回落孤儿档案。
+
+    与 ``profile_of`` 的差别只在入参形态——不需要库行、只有二元组的地方
+    （抽样器的可见库投影、Jellyfin 的可见集收窄）走这里，孤儿回落语义
+    完全一致：插件停用/卸载不该让任何读这条链的接口整体 400。
+    """
+    try:
+        return profile_for(kind, source)
+    except BadRequestException:
+        from movieclaw_api.services.library.source_providers import is_external_source
+
+        if is_external_source(source):
+            profile = _orphan_external_profile(MediaKind(kind))
+            object.__setattr__(profile, "source", source or "")
+            return profile
+        raise
+
+
 def profile_of(library: Library) -> LibraryProfile:
     """库行 → 能力档案（存量库的 source 已由迁移回填为 tmdb）。
 
     外部库源在登记缺失（插件停用/卸载）时回落孤儿档案而不是 400：插件
     不可用不该让存量库的浏览、编辑与后台任务（实时监控、统计）跟着挂。
     """
-    try:
-        return profile_for(library.kind, library.source)
-    except BadRequestException:
-        from movieclaw_api.services.library.source_providers import is_external_source
-
-        if is_external_source(library.source):
-            profile = _orphan_external_profile(MediaKind(library.kind))
-            object.__setattr__(profile, "source", library.source)
-            return profile
-        raise
+    return profile_of_values(str(library.kind), library.source)
 
 
 def capabilities_of(profile: LibraryProfile) -> dict:

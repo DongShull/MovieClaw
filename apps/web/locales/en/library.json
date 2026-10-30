@@ -532,7 +532,11 @@
     "removedCloudFiles": "After saving, {count, plural, one {# video} other {# videos}} from removed cloud folders will be removed from the library. Only records are removed; cloud files are kept. Adding the folders again identifies the files again.",
     "localCollectionsHint": "Series information ({tag}) in the NFO beside each video creates collections automatically. This is a **display** preference: turning it off still reads series information but stops automatic collections here. Turning it back on fills existing collections. After changing NFO files, choose Read NFO files and covers again from the library’s ⋯ menu.",
     "editTitle": "Edit \"{name}\"",
-    "missingFields": "Still required: {fields}"
+    "missingFields": "Still required: {fields}",
+    "externalRootsHint": "“{source}” lives on a remote media server and has no local root folders; its connection is configured in the creation wizard. To change it, contact the deployer to adjust the plugin.",
+    "configUnset": "(unset)",
+    "configTrue": "Yes",
+    "configFalse": "No"
   },
   "directory": {
     "title": "Choose a server folder",

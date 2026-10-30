@@ -40,6 +40,7 @@ import {
   type RoutingOptions,
   type SourceProviderView,
   createLibrary,
+  isExternalLibrarySource,
   listSourceProviders,
   deleteLibraryCover,
   libraryCoverUrl,
@@ -706,6 +707,36 @@ function validGenres(kind: LibraryKind, genres: number[], options: RoutingOption
   return genres.filter((id) => valid.has(id));
 }
 
+/**
+ * 连接配置按 schema 类型转换后再提交（PR #1111 审查意见 3）：表单状态统一存
+ * 字符串，integer/number/boolean 在这里变成真正的 JSON 值，后端的 JSON Schema
+ * 严格校验才放得过。转换不了的（如 integer 栏填了 "abc"）原样保留字符串，
+ * 让后端的报错指名道姓地打回这一栏。空值不提交——必填项由后端 required 把关。
+ */
+function coerceSourceConfig(
+  provider: SourceProviderView,
+  config: Record<string, string>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [field, raw] of Object.entries(config)) {
+    const type = provider.config_schema.properties?.[field]?.type;
+    const text = raw.trim();
+    if (text === "") continue;
+    if (type === "integer") {
+      const n = Number(text);
+      out[field] = Number.isInteger(n) ? n : raw;
+    } else if (type === "number") {
+      const n = Number(text);
+      out[field] = Number.isNaN(n) ? raw : n;
+    } else if (type === "boolean") {
+      out[field] = text === "true";
+    } else {
+      out[field] = raw;
+    }
+  }
+  return out;
+}
+
 /** 表单入口：新建走向导，编辑走分区面板；调用方只关心 state 三态。 */
 export function LibraryFormDialog({
   state,
@@ -793,7 +824,7 @@ function CreateLibraryDialog({
       ...(activeProvider
         ? {
             source: activeProvider.source,
-            source_config: sourceConfig,
+            source_config: coerceSourceConfig(activeProvider, sourceConfig),
           }
         : {}),
       match_rules: hasScope ? buildMatchRules(validGenres(kind, genres, routingOptions), regions) : [],
@@ -963,14 +994,30 @@ function CreateLibraryDialog({
                               <span className="ml-1 text-[var(--accent)]">*</span>
                             )}
                           </label>
-                          <input
-                            type="text"
-                            value={sourceConfig[field] ?? ""}
-                            onChange={(e) => setSourceConfig({ ...sourceConfig, [field]: e.target.value })}
-                            placeholder={schema.description}
-                            autoComplete="off"
-                            className={INPUT_CLASS}
-                          />
+                          {schema.type === "boolean" ? (
+                            <select
+                              aria-label={schema.title ?? field}
+                              value={sourceConfig[field] ?? ""}
+                              onChange={(e) => setSourceConfig({ ...sourceConfig, [field]: e.target.value })}
+                              className={INPUT_CLASS}
+                            >
+                              <option value="">{t("library.form.configUnset")}</option>
+                              <option value="true">{t("library.form.configTrue")}</option>
+                              <option value="false">{t("library.form.configFalse")}</option>
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              inputMode={
+                                schema.type === "integer" || schema.type === "number" ? "decimal" : undefined
+                              }
+                              value={sourceConfig[field] ?? ""}
+                              onChange={(e) => setSourceConfig({ ...sourceConfig, [field]: e.target.value })}
+                              placeholder={schema.description}
+                              autoComplete="off"
+                              className={INPUT_CLASS}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1608,10 +1655,15 @@ function EditLibraryDialog({
   const [error, setError] = useState<string | null>(null);
   const routingOptions = useRoutingOptions();
 
-  const ready = name.trim().length > 0 && roots.length > 0;
-  const missing = [name.trim() ? null : t("library.form.name"), roots.length > 0 ? null : t("library.form.roots")].filter(
-    (v): v is string => v !== null,
-  );
+  // 外部库源：内容在远程媒体服务器上，没有本地根目录（创建时也不要求）。
+  // 仍按内置两个字面量判断与后端 BUILTIN_SOURCES 同口径——编辑面板不拉
+  // providers 列表（插件停用后编辑改名/权限还必须能用）。
+  const externalSource = isExternalLibrarySource(library.source);
+  const ready = name.trim().length > 0 && (externalSource || roots.length > 0);
+  const missing = [
+    name.trim() ? null : t("library.form.name"),
+    externalSource || roots.length > 0 ? null : t("library.form.roots"),
+  ].filter((v): v is string => v !== null);
   const scope = scopeSummary(library.kind, regions, genres, routingOptions);
   const scrapeText = scrapeOverrideSummary(scrapeOverrides);
   const { label: kindLabel, Icon: KindIcon } = libraryKindMeta(locale)[library.kind];
@@ -1660,7 +1712,11 @@ function EditLibraryDialog({
         <>
           <span className="text-[var(--text)]">{name.trim() || t("library.form.unnamed")}</span>
           <span dir="rtl" className="min-w-0 truncate font-mono text-[var(--text-faint)]">
-            {roots[0] ? "‎" + roots[0] + "‎" : t("library.form.noRoot")}
+            {roots[0]
+              ? "‎" + roots[0] + "‎"
+              : externalSource
+                ? (library.source_title ?? library.source)
+                : t("library.form.noRoot")}
           </span>
           {roots.length > 1 && <span className="text-[var(--text-faint)]">{t("library.form.rootCount", { count: roots.length })}</span>}
           {cloud.length > 0 && <span className="text-[var(--text-faint)]">{t("library.form.cloudRootCount", { count: cloud.length })}</span>}
@@ -1678,45 +1734,53 @@ function EditLibraryDialog({
               className={INPUT_CLASS}
             />
           </div>
-          <div>
-            <label className={LABEL_CLASS}>
-              {t("library.form.roots")}<span className="font-normal text-[var(--text-faint)]">{t("library.form.primaryNote")}</span>
-            </label>
-            <RootsEditor
-              roots={roots}
-              onChange={setRoots}
-              onPick={setPickerTarget}
-              cloudPrimary={cloudKnown && playable && cloud.some((c) => c.is_primary)}
-              onLocalPrimary={() => setCloud(cloud.map((c) => ({ ...c, is_primary: false })))}
-              cloud={
-                cloudKnown &&
-                playable && (
-                  <CloudRootRows
-                    drafts={cloud}
-                    onChange={setCloud}
-                    onAdd={() => setDrivePicker(true)}
-                    options={driveOptions}
-                    needsLocal={roots.length === 0}
+          {externalSource ? (
+            <p className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2 text-caption leading-5 text-[var(--text-muted)]">
+              {t("library.form.externalRootsHint", {
+                source: library.source_title ?? library.source,
+              })}
+            </p>
+          ) : (
+            <div>
+              <label className={LABEL_CLASS}>
+                {t("library.form.roots")}<span className="font-normal text-[var(--text-faint)]">{t("library.form.primaryNote")}</span>
+              </label>
+              <RootsEditor
+                roots={roots}
+                onChange={setRoots}
+                onPick={setPickerTarget}
+                cloudPrimary={cloudKnown && playable && cloud.some((c) => c.is_primary)}
+                onLocalPrimary={() => setCloud(cloud.map((c) => ({ ...c, is_primary: false })))}
+                cloud={
+                  cloudKnown &&
+                  playable && (
+                    <CloudRootRows
+                      drafts={cloud}
+                      onChange={setCloud}
+                      onAdd={() => setDrivePicker(true)}
+                      options={driveOptions}
+                      needsLocal={roots.length === 0}
+                    />
+                  )
+                }
+              />
+              {cloudKnown && playable && cloud.some((c) => c.is_primary) && library.keep_local !== undefined && (
+                <div className="mt-2">
+                  <SwitchRow
+                    title={t("library.form.keepLocal")}
+                    checked={keepLocal}
+                    onChange={setKeepLocal}
+                    detail={t("library.form.keepLocalHint")}
                   />
-                )
-              }
-            />
-            {cloudKnown && playable && cloud.some((c) => c.is_primary) && library.keep_local !== undefined && (
-              <div className="mt-2">
-                <SwitchRow
-                  title={t("library.form.keepLocal")}
-                  checked={keepLocal}
-                  onChange={setKeepLocal}
-                  detail={t("library.form.keepLocalHint")}
-                />
-              </div>
-            )}
-            {removedCloudFiles > 0 && (
-              <p className="mt-2 rounded-lg border border-[var(--warn)]/30 bg-[var(--warn)]/[0.07] px-3 py-2 text-caption leading-5 text-[var(--text-muted)]">
-                {t("library.form.removedCloudFiles", { count: removedCloudFiles })}
-              </p>
-            )}
-          </div>
+                </div>
+              )}
+              {removedCloudFiles > 0 && (
+                <p className="mt-2 rounded-lg border border-[var(--warn)]/30 bg-[var(--warn)]/[0.07] px-3 py-2 text-caption leading-5 text-[var(--text-muted)]">
+                  {t("library.form.removedCloudFiles", { count: removedCloudFiles })}
+                </p>
+              )}
+            </div>
+          )}
         </>
       ),
     },

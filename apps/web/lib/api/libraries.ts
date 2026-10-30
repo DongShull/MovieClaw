@@ -525,6 +525,14 @@ export function listLibraryRoutingOptions(locale: AppLocale = requestLocale() ??
  * 这种形态，列出来的库必须是随后能访问的库。成员两种口径结果相同。
  */
 /** 外部库源（外部媒体服务器插件登记的来源）在来源列表端点的形态。 */
+/** 内置来源（能力档案写死在服务端 PROFILES 表里）；其余来源都是插件登记的外部库源。 */
+const BUILTIN_LIBRARY_SOURCES = new Set(["tmdb", "local"]);
+
+/** 是否插件登记的外部库源（没有本地根目录；连接配置由来源插件管理）。 */
+export function isExternalLibrarySource(source: string | null | undefined): boolean {
+  return source != null && !BUILTIN_LIBRARY_SOURCES.has(source);
+}
+
 export interface SourceProviderView {
   source: string;
   title: string;
