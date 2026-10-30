@@ -1598,9 +1598,25 @@ data class LibraryView(
     @SerialName("name") val name: String = "",
     @SerialName("kind") val kind: MediaKind = "",
     /**
-     * 身份来源：tmdb / local
+     * 身份来源：tmdb / local / 外部库源
      */
     @SerialName("source") val source: String = "",
+    /**
+     * 外部库源的展示名（如「飞牛影视」）；内置来源为 null
+     */
+    @SerialName("source_title") val sourceTitle: String? = null,
+    /**
+     * 外部库源的标识图标（前端图标库的 key）；内置来源为 null
+     */
+    @SerialName("source_icon") val sourceIcon: String? = null,
+    /**
+     * 外部库源是否已带连接配置（source_config 非空）；内置来源恒 false
+     */
+    @SerialName("source_configured") val sourceConfigured: Boolean = false,
+    /**
+     * 外部库源最近一次同步时间；内置来源或从未同步为 null
+     */
+    @SerialName("last_source_sync_at") val lastSourceSyncAt: String? = null,
     @SerialName("capabilities") val capabilities: LibraryCapabilitiesView = LibraryCapabilitiesView(),
     /**
      * 缺图时是否抓帧生成缩略图（本地内容封面、TMDB 无剧照的分集）

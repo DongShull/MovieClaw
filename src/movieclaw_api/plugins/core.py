@@ -80,6 +80,16 @@ async def registries(ctx: Context) -> None:
         ),
         label="unbind-delete-participants",
     )
+    # 外部库源（services/library/source_providers.py）：外部媒体服务器插件
+    # 登记的新库来源（能力档案 + 连接配置声明），主线消费链经 profile_for 回落
+    from movieclaw_api.services.library import source_providers
+
+    ctx.effect(
+        source_providers.bind_source_providers(
+            ctx.registry(source_providers.LIBRARY_SOURCE_PROVIDERS)
+        ),
+        label="unbind-source-providers",
+    )
 
     ctx.effect(bind_registry(ctx.registry(SCHEDULED_TASKS)), label="unbind-scheduled-tasks")
     ctx.effect(
