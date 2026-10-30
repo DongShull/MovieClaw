@@ -76,8 +76,16 @@ export interface MediaLibrary {
   name: string;
   /** 每库单一形态（movie / tv / video），创建后不可改 */
   kind: LibraryKind;
-  /** 身份来源（tmdb / local），与 kind 一起定位能力档案，创建后不可改 */
-  source: ItemSource;
+  /** 身份来源（tmdb / local / 外部库源），与 kind 一起定位能力档案，创建后不可改 */
+  source: string;
+  /** 外部库源的展示名（如「飞牛影视」）；内置来源为 null */
+  source_title?: string | null;
+  /** 外部库源的标识图标；内置来源为 null */
+  source_icon?: string | null;
+  /** 外部库源是否已带连接配置 */
+  source_configured?: boolean;
+  /** 外部库源最近一次同步时间；内置来源或从未同步为 null */
+  last_source_sync_at?: string | null;
   capabilities: LibraryCapabilities;
   /** 缺图时是否从视频抓帧生成缩略图（本地内容封面、TMDB 无剧照的分集） */
   generate_thumbnails: boolean;
@@ -448,7 +456,9 @@ export interface LibraryPayload {
   name: string;
   kind: LibraryKind;
   /** 身份来源；不传按形态默认（movie/tv → tmdb，video → local） */
-  source?: ItemSource;
+  source?: string;
+  /** 外部库源的连接配置（按来源插件声明的表单提交）；内置来源不接受 */
+  source_config?: Record<string, unknown>;
   root_paths: string[];
   /** 缺图时是否从视频抓帧生成缩略图；不传=不改动（新建时默认开） */
   generate_thumbnails?: boolean;
@@ -514,6 +524,26 @@ export function listLibraryRoutingOptions(locale: AppLocale = requestLocale() ??
  * 接口的默认口径（只列可浏览的库）留给 CLI / Agent，它们没有「带锁卡片」
  * 这种形态，列出来的库必须是随后能访问的库。成员两种口径结果相同。
  */
+/** 外部库源（外部媒体服务器插件登记的来源）在来源列表端点的形态。 */
+export interface SourceProviderView {
+  source: string;
+  title: string;
+  kind_support: LibraryKind[];
+  config_schema: {
+    type?: string;
+    required?: string[];
+    properties?: Record<string, { type?: string; title?: string; description?: string }>;
+  };
+  icon: string;
+  help: string;
+  capabilities: Record<string, LibraryCapabilities>;
+}
+
+/** 已登记的外部库源：建库向导据此渲染"外部媒体服务器"选项；无插件时为空数组。 */
+export function listSourceProviders(init?: RequestInit): Promise<SourceProviderView[]> {
+  return unwrap(request<ApiEnvelope<SourceProviderView[]>>("/libraries/source-providers", init));
+}
+
 export function listLibraries(kind?: LibraryKind, init?: RequestInit): Promise<MediaLibrary[]> {
   const params = new URLSearchParams({ scope: "all" });
   if (kind) params.set("kind", kind);
