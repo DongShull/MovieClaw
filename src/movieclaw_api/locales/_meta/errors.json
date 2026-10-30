@@ -1838,6 +1838,12 @@
   "library.kindSourceUnsupported": {
     "sourceHash": "e5a2b0288a9e2f94d5d9970a903ad95538159f9b57d6f2a45c171b7de817424a"
   },
+  "library.sourceConfigUnsupported": {
+    "sourceHash": "69b4b81fa78a0ec9fad8381ac4f1a456e0b6c39169d27ad18b41a26010561841"
+  },
+  "library.sourceConfigInvalid": {
+    "sourceHash": "fbd16d15d566c70a50a235979ab5f1f856c248152516e14242c8ff39a0bd0058"
+  },
   "library.transferSame": {
     "sourceHash": "837910e6397cb4dcee517928d4e5c39f89515fad7f224bebe1c99fc334a56e7f"
   },
