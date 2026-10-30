@@ -848,6 +848,18 @@
   "form.namePlaceholder": {
     "sourceHash": "8795a1257516209502e4568c34380d4470895cfb162c8fc27cda698b99383194"
   },
+  "form.sourceLabel": {
+    "sourceHash": "e5295b1ffbb29871f98f15cf857cfc47ef37dee771e23d6fb5f515c530896e23"
+  },
+  "form.sourceLocal": {
+    "sourceHash": "740753093d4c98e19aba99ed59c4959271eb3050fbc58f01895b6d1e25e51dd5"
+  },
+  "form.sourceLocalHint": {
+    "sourceHash": "5950fff4dc5e278cae783bfb3fb5032f0c61b6820226ddd757eb5ab21190c366"
+  },
+  "form.sourceConfigTitle": {
+    "sourceHash": "86a5d8a6659a5bad9c37463943910dac8e91708d1728c423d79b97fe07d6aaa2"
+  },
   "form.roots": {
     "sourceHash": "42ee2863b6d776ffdd152c2b10998745c88982692a5d0bc3e9edbdcb7b144dae"
   },

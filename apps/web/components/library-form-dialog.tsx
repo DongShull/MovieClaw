@@ -38,7 +38,9 @@ import {
   type MatchRule,
   type MediaLibrary,
   type RoutingOptions,
+  type SourceProviderView,
   createLibrary,
+  listSourceProviders,
   deleteLibraryCover,
   libraryCoverUrl,
   listLibraryRoutingOptions,
@@ -55,6 +57,24 @@ import type { LibraryKind } from "@/lib/media-types";
  * 首页只做浏览入口，建库与编辑落在管理页（docs/design/library-manage.md），
  * 单库页头部的「编辑库」也用这里的 LibraryFormDialog。
  */
+/** 已登记的外部库源（外部媒体服务器插件）：建库向导的"来源"选项数据源。
+ * 拉取失败静默为空——没有插件或旧服务器都没有这个端点，表单照常只用内置来源。 */
+export function useSourceProviders(): SourceProviderView[] {
+  const [providers, setProviders] = useState<SourceProviderView[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void listSourceProviders()
+      .then((data) => {
+        if (!cancelled) setProviders(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return providers;
+}
+
 /** 收藏范围标签使用 API 的分语言缓存；切换语言时不展示旧语言的选项。 */
 export function useRoutingOptions(): RoutingOptions | null {
   const locale = useLocale();
@@ -729,19 +749,31 @@ function CreateLibraryDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const routingOptions = useRoutingOptions();
+  // 外部库源：null = 内置来源（本地目录 / TMDB 识别）；非空 = 插件登记的来源值
+  const [externalSource, setExternalSource] = useState<string | null>(null);
+  const [sourceConfig, setSourceConfig] = useState<Record<string, string>>({});
+  const providers = useSourceProviders();
+  const kindProviders = kind === null ? [] : providers.filter((p) => p.kind_support.includes(kind));
+  const activeProvider = kindProviders.find((p) => p.source === externalSource) ?? null;
 
-  const hasScope = kind !== null && kindIsScraped(kind);
+  const hasScope = kind !== null && (activeProvider ? activeProvider.capabilities[kind]?.scraped === true : kindIsScraped(kind));
   // 网盘目录只给能播放的库（相册没有取流这回事）
   const cloudCapable = kind !== null && kind !== "photo";
   const driveOptions = useDriveRootOptions(true);
   const totalSteps = hasScope ? 3 : 2;
-  const ready = name.trim().length > 0 && roots.length > 0;
+  // 外部来源没有本地根（内容在远程媒体服务器上），就绪条件换成连接配置必填项
+  const configReady =
+    activeProvider === null ||
+    (activeProvider.config_schema.required ?? []).every((f) => (sourceConfig[f] ?? "").trim().length > 0);
+  const ready = name.trim().length > 0 && (activeProvider ? configReady : roots.length > 0);
   const scope = kind ? scopeSummary(kind, regions, genres, routingOptions) : null;
 
   const chooseKind = (next: LibraryKind) => {
     // 名称按类型预填；用户已经改过的名字不动
     const untouched = name.trim() === "" || (kind !== null && name === kindCards(t)[kind].defaultName);
     setKind(next);
+    setExternalSource(null);
+    setSourceConfig({});
     if (untouched) setName(kindCards(t)[next].defaultName);
     if (!kindIsScraped(next)) {
       setRegions([]);
@@ -758,6 +790,12 @@ function CreateLibraryDialog({
       name: name.trim(),
       kind,
       root_paths: roots,
+      ...(activeProvider
+        ? {
+            source: activeProvider.source,
+            source_config: sourceConfig,
+          }
+        : {}),
       match_rules: hasScope ? buildMatchRules(validGenres(kind, genres, routingOptions), regions) : [],
       // 开关全按推荐值：监控开、自动清理关、封面开、章节关（抓帧成本高，按需在
       // 编辑里打开）、片头片尾识别开（只对剧集库起作用）、首页展示；建好后在编辑里调
@@ -876,6 +914,69 @@ function CreateLibraryDialog({
                   </div>
                 );
               })()}
+              {kindProviders.length > 0 && (
+                <div>
+                  <label className={LABEL_CLASS}>{t("library.form.sourceLabel")}</label>
+                  <div className="grid grid-cols-2 gap-2 max-md:grid-cols-1">
+                    <button
+                      type="button"
+                      data-active={activeProvider === null}
+                      onClick={() => {
+                        setExternalSource(null);
+                        setSourceConfig({});
+                      }}
+                      className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2.5 text-left transition-colors hover:border-white/20 data-[active=true]:border-[var(--accent-2)] data-[active=true]:bg-white/[0.12]"
+                    >
+                      <span className="text-ui font-medium text-white">{t("library.form.sourceLocal")}</span>
+                      <p className="mt-0.5 text-caption leading-relaxed text-[var(--text-muted)]">
+                        {t("library.form.sourceLocalHint")}
+                      </p>
+                    </button>
+                    {kindProviders.map((provider) => (
+                      <button
+                        key={provider.source}
+                        type="button"
+                        data-active={activeProvider?.source === provider.source}
+                        onClick={() => {
+                          setExternalSource(provider.source);
+                          setSourceConfig({});
+                        }}
+                        className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2.5 text-left transition-colors hover:border-white/20 data-[active=true]:border-[var(--accent-2)] data-[active=true]:bg-white/[0.12]"
+                      >
+                        <span className="text-ui font-medium text-white">{provider.title}</span>
+                        {provider.help && (
+                          <p className="mt-0.5 text-caption leading-relaxed text-[var(--text-muted)]">{provider.help}</p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {activeProvider && (
+                    <div className="mt-2.5 space-y-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+                      <p className="text-caption font-medium text-white">
+                        {t("library.form.sourceConfigTitle", { name: activeProvider.title })}
+                      </p>
+                      {Object.entries(activeProvider.config_schema.properties ?? {}).map(([field, schema]) => (
+                        <div key={field}>
+                          <label className={LABEL_CLASS}>
+                            {schema.title ?? field}
+                            {(activeProvider.config_schema.required ?? []).includes(field) && (
+                              <span className="ml-1 text-[var(--accent)]">*</span>
+                            )}
+                          </label>
+                          <input
+                            type="text"
+                            value={sourceConfig[field] ?? ""}
+                            onChange={(e) => setSourceConfig({ ...sourceConfig, [field]: e.target.value })}
+                            placeholder={schema.description}
+                            autoComplete="off"
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <label className={LABEL_CLASS}>{t("library.form.name")}</label>
                 <input
@@ -891,6 +992,7 @@ function CreateLibraryDialog({
                   className={INPUT_CLASS}
                 />
               </div>
+              {activeProvider === null && (
               <div>
                 <label className={LABEL_CLASS}>
                   {t("library.form.roots")}
@@ -915,6 +1017,7 @@ function CreateLibraryDialog({
                   }
                 />
               </div>
+              )}
               <div>
                 <label className={LABEL_CLASS}>{t("library.form.accessScope")}</label>
                 <AccessScopeEditor
