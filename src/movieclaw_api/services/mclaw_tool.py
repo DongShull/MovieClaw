@@ -24,9 +24,8 @@ logger = logging.getLogger("movieclaw_api.mclaw_tool")
 # 拦下，运行期仍回落 DOMAIN_HELP 的短标签，避免残缺部署直接阻断 Agent。
 _DOMAIN_LINES = {
     # i18n-ignore: agent tool description stays Chinese (i18n design 8.4)
-    "agent": "AI 助手域（自动化与会话管理：agent automations 把「定时/每到…就…」"
-    "的值守诉求落成无人值守任务——列出现有自动化、创建、修改触发计划、启停、"
-    "立即跑一轮、查运行历史；session 域看会话与转录）",
+    "agent": "定时自动化（把「定时/每到…就…」的值守诉求落成无人值守任务："
+    "列出现有自动化、创建、修改触发计划、启停、立即跑一轮、查运行历史）",
     # i18n-ignore: agent tool description stays Chinese (i18n design 8.4)
     "app": "应用设置与维护（设置外部访问地址、重启；检查/升级/回退应用，更新 NER "
     "模型并查看进度/兼容性）",

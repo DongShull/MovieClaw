@@ -79,10 +79,13 @@ def test_service_map_reflects_frontend_product_language() -> None:
     assert "播放、收藏" in lines["webhook"] and "HMAC" in lines["webhook"]
 
 
-def test_session_domain_is_exposed_without_agent_domain() -> None:
-    """Agent 分类已移除；模型直接看到一级 session 会话管理能力。"""
+def test_session_domain_is_exposed_and_agent_domain_only_automations() -> None:
+    """会话管理仍是一级 session 域；agent 域只承载定时自动化，不得吞并会话。"""
     entries = _entries()
-    assert "agent" not in entries, "目录不应残留旧 agent 域"
+    agent = entries.get("agent", "")
+    assert "自动化" in agent and "无人值守" in agent, "agent 域应只写定时自动化能力"
+    for forbidden in ("会话", "对话", "转录", "session"):
+        assert forbidden not in agent, f"agent 域不应收编会话能力：{forbidden}"
     session = entries["session"]
     for keyword in (
         "用户与智能体",
