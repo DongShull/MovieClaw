@@ -519,7 +519,8 @@ function RunRow({
 }: {
   title: string;
   running: boolean;
-  /** 插件发起的会话（"plugin:<条目 id>"）在时间前标一个「插件」 */
+  /** 插件发起的会话（"plugin:<条目 id>"）标「插件」，自动化值守会话
+      （"automation:<id>"）标「自动化」——时间前各占一个短徽标 */
   owner?: string | null;
   time: string;
   active: boolean;
@@ -597,6 +598,16 @@ function RunRow({
             }`}
           >
             {t("nav.sessions.plugin")}
+          </span>
+        )}
+        {owner?.startsWith("automation:") && (
+          <span
+            title={t("nav.sessions.automationOwner")}
+            className={`shrink-0 text-caption text-[var(--text-faint)] transition-opacity duration-200 ${
+              open ? "opacity-0" : "group-hover/run:opacity-0"
+            }`}
+          >
+            {t("nav.sessions.automation")}
           </span>
         )}
         {/* 行尾相对时间。桌面端悬停/菜单打开时让位给 ⋯ 按钮（两者占同一块地方）；

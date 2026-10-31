@@ -74,6 +74,42 @@
     "stability": "experimental",
     "version": "1.0"
   },
+  "agent.automation.delivered": {
+    "doc": "值守自动化跑完一轮且产生值得报告的结论（NO-OP 不发）",
+    "durable": true,
+    "kind": "event",
+    "mode": "emit",
+    "payload": {
+      "properties": {
+        "automation_id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "integer"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "automation_id",
+        "name",
+        "run_id",
+        "session_id",
+        "summary"
+      ],
+      "type": "object"
+    },
+    "result": null,
+    "stability": "experimental",
+    "version": "1.0"
+  },
   "agent.run.finished": {
     "doc": "AI 会话的一轮跑完（回答完或出错）",
     "durable": true,

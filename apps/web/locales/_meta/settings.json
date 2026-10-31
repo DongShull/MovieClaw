@@ -7269,5 +7269,23 @@
   },
   "devices.labels.windowsBody": {
     "sourceHash": "c5f282f55b6a412a5d65d79ce7750b3efb43e6143b6258b9f5cac2b827bcc8b3"
+  },
+  "ai.automations.title": {
+    "sourceHash": "7f6f5756f495db96c01d7b8fafa9cc87ebfa361e33bc55077515256d5eae8e4d"
+  },
+  "ai.automations.toggleLabel": {
+    "sourceHash": "091971a7dea97c505e43d023b336b82f425f9b8493409d7bfb5691ad33c6e4f7"
+  },
+  "ai.automations.onHint": {
+    "sourceHash": "9ac9b7a4171b8ae118d43e2244d372212fcdedbc395fc7a879ee4656b00906c9"
+  },
+  "ai.automations.offHint": {
+    "sourceHash": "97592ae276e240d2205aca5e3532bed401c71c24878e76ebb83b910cbc040552"
+  },
+  "ai.automations.budgetLabel": {
+    "sourceHash": "f7f3f308fa8239636a38dc4cf6f8491b0df07a8baf4009216d50ef80ec53bbc0"
+  },
+  "ai.automations.budgetHint": {
+    "sourceHash": "baf8210956438d643f3224c69d241f71e418aaabd1a0ee49c1b9b58bd4fb6ebe"
   }
 }

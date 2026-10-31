@@ -35,7 +35,9 @@
     "continue": "Continue in a new session",
     "copyId": "Copy session ID",
     "rename": "Rename",
-    "delete": "Delete session"
+    "delete": "Delete session",
+    "automationOwner": "Started on schedule by an agent automation",
+    "automation": "Auto"
   },
   "tabs": {
     "subscriptions": "Subscriptions",

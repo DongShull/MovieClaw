@@ -30,6 +30,7 @@ import {
   SettingsRow,
   SettingsSection,
 } from "@/components/settings-ui";
+import { AgentAutomationsSettings } from "@/components/agent-automations-settings";
 import { WebSearchSettings } from "@/components/web-search-settings";
 import {
   type LlmDefaults,
@@ -183,6 +184,8 @@ export function AiSettingsSection() {
       )}
 
       <WebSearchSettings />
+
+      <AgentAutomationsSettings />
     </div>
   );
 }

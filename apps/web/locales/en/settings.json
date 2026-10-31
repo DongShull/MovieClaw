@@ -1417,6 +1417,14 @@
       "thinkingSuffix": " (adjustable reasoning)",
       "stale": "The previous selection \"{previous}\" is no longer available. Using {effective} automatically; choose a model again.",
       "intro": "Choose a default model for each use. Available models come from all connected providers in <providers>AI providers</providers>. The first connected provider’s first model is selected automatically; you can change it at any time."
+    },
+    "automations": {
+      "title": "Agent automations",
+      "toggleLabel": "Allow scheduled automations",
+      "onHint": "On: due automations are picked up every minute and run unattended; conclusions are pushed to you.",
+      "offHint": "Off: all automations are paused (definitions and history kept; turning it back on resumes). In-flight rounds are cancelled within a minute.",
+      "budgetLabel": "Daily token budget",
+      "budgetHint": "Total tokens all automations may spend per day; once reached, due rounds defer to tomorrow."
     }
   },
   "cloud": {

@@ -29,7 +29,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from movieclaw_agent import AgentRunner, AgentStartParams
 from movieclaw_agent.events import AgentEvent
-from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.i18n.stored import source_text
 from movieclaw_api.services.agent_session_recorder import AgentSessionRecorder
@@ -120,7 +119,8 @@ def compute_next_run(
     )
     if fire is None:
         return now + timedelta(days=1)
-    return fire.replace(tzinfo=None)
+    # 触发点带触发器时区；落库统一 naive UTC（项目时间约定），必须换算而非剥时区
+    return fire.astimezone(UTC).replace(tzinfo=None)
 
 
 def validate_trigger(trigger_type: str, trigger_expr: str) -> None:
@@ -605,7 +605,11 @@ def _deliver(*, automation: AgentAutomation, session_id: str | None, summary: st
     channels = {c.strip() for c in automation.delivery_channels.split(",") if c.strip()}
     if "push" not in channels:
         return
-    body = summary if len(summary) <= DELIVERY_PREVIEW_CHARS else summary[: DELIVERY_PREVIEW_CHARS - 1] + "…"
+    body = (
+        summary
+        if len(summary) <= DELIVERY_PREVIEW_CHARS
+        else summary[: DELIVERY_PREVIEW_CHARS - 1] + "…"
+    )
     notify(
         event="agent.automation.delivered",
         recipients={0},  # v1 仅超管

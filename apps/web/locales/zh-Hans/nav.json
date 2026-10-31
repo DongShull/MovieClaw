@@ -35,7 +35,9 @@
     "continue": "在新会话中继续",
     "copyId": "复制会话 ID",
     "rename": "重命名",
-    "delete": "删除会话"
+    "delete": "删除会话",
+    "automationOwner": "由值守自动化定时拉起",
+    "automation": "自动化"
   },
   "tabs": {
     "subscriptions": "订阅",

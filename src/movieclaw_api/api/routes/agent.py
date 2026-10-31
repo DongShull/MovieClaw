@@ -44,7 +44,6 @@ from movieclaw_api.schemas.agent import (
     SessionTranscriptView,
     SkillView,
 )
-from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.schemas.agent_automation import (
     AutomationPolicyPayload,
     AutomationPolicyView,
@@ -52,6 +51,7 @@ from movieclaw_api.schemas.agent_automation import (
     AutomationUpsertPayload,
     AutomationView,
 )
+from movieclaw_api.schemas.response import ApiResponse, ok
 from movieclaw_api.services.agent_attachments import (
     MAX_IMAGE_BYTES,
     compose_user_content,
@@ -88,7 +88,7 @@ from movieclaw_api.services.auth import Principal
 from movieclaw_api.services.llm_config import acquire_llm_router
 from movieclaw_api.settings import AgentAutomationsSetting, get_setting_store
 from movieclaw_db.engine import get_session
-from movieclaw_db.models import AgentAutomation, AgentAutomationRun, AutomationRunStatus
+from movieclaw_db.models import AgentAutomation, AutomationRunStatus
 from movieclaw_db.models.agent_automation import AutomationTriggerType
 from movieclaw_db.models.base import utcnow
 from movieclaw_db.repositories.agent_automation_repo import AgentAutomationRepository
@@ -985,7 +985,9 @@ async def show_automation_policy(
     """设置页的开关数据源；发布默认关闭，打开即允许节拍拉起自动化。"""
     _reject_automation_identity(identity)
     policy = await get_setting_store().get(AgentAutomationsSetting)
-    return ok(AutomationPolicyView(enabled=policy.enabled, daily_token_budget=policy.daily_token_budget))
+    return ok(
+        AutomationPolicyView(enabled=policy.enabled, daily_token_budget=policy.daily_token_budget)
+    )
 
 
 @automations_router.put(
@@ -1007,7 +1009,9 @@ async def update_automation_policy(
         await store.set(AgentAutomationsSetting(**{**stored.model_dump(), **changes}))
     updated = await store.get(AgentAutomationsSetting)
     return ok(
-        AutomationPolicyView(enabled=updated.enabled, daily_token_budget=updated.daily_token_budget),
+        AutomationPolicyView(
+            enabled=updated.enabled, daily_token_budget=updated.daily_token_budget
+        ),
         message=t("agent.automations.policyUpdated"),
     )
 
@@ -1100,7 +1104,13 @@ async def update_automation(
     row = await repo.get(automation_id)
     if row is None:
         raise NotFoundException(message_key="errors.agent.automationMissing")
-    changes = payload.model_dump(exclude_none=True)
+    # 部分更新语义：只看调用方实际传了的字段；显式 null 一律视为「不改」
+    # （quiet_hours 用空串表示清除，enabled=False 是真停用，都要保得住）
+    changes = {
+        key: value
+        for key, value in payload.model_dump(exclude_unset=True).items()
+        if value is not None
+    }
     if "name" in changes and not str(changes["name"]).strip():
         raise BadRequestException(message_key="errors.agent.automationPromptRequired")
     if "prompt" in changes and not str(changes["prompt"]).strip():

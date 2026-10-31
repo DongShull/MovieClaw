@@ -166,5 +166,11 @@
   },
   "more.profileAria": {
     "sourceHash": "b12e19e5454597b26f9e8c1df8f13092c606030d5dad6fa13be637a60ad00758"
+  },
+  "sessions.automationOwner": {
+    "sourceHash": "47e506cc9d07ead0643fb97cb68fd4f2d31851d5a8a4e01afdf63c275df3ec18"
+  },
+  "sessions.automation": {
+    "sourceHash": "829a35554fa12c2d2d06e53dba8f650fd5b177cc7c874783c979382132801341"
   }
 }

@@ -1,0 +1,462 @@
+"""Agent 自动化的循环单测（docs/design/agent-automations.md 六循环验收）。
+
+- L1 到期计算与补跑合并（compute_next_run 表驱动用例）；
+- L2 闸门顺序：kill switch / 静默时段 / 日预算 / 单飞；
+- L5 观测：失败退避 1h→6h→24h、连续失败 ≥3 熔断 + 待处理事项、成功清零；
+- L4 投递：NO-OP 不投、delivered_at 幂等；
+- L3 令牌：automation 标记的签发与校验、mclaw 档位工具面。
+"""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime, timedelta
+
+import pytest
+from sqlmodel import select
+
+import movieclaw_api.services.agent_automations as auto
+from movieclaw_api.exceptions import BadRequestException
+from movieclaw_api.services.agent_automations import (
+    MAX_CONSECUTIVE_FAILURES,
+    compute_next_run,
+    is_no_op,
+    launch,
+    quiet_hours_end,
+    run_agent_automations,
+    validate_quiet_hours,
+    validate_trigger,
+)
+from movieclaw_api.settings import (
+    AgentAutomationsSetting,
+    get_setting_store,
+    init_setting_store,
+    reset_setting_store,
+)
+from movieclaw_db.engine import dispose_db, get_database, init_db
+from movieclaw_db.models import SystemNotice
+from movieclaw_db.models.agent_automation import (
+    AgentAutomation,
+    AgentAutomationRun,
+    AutomationRunStatus,
+    AutomationTriggerType,
+)
+from movieclaw_db.models.base import utcnow
+from movieclaw_db.repositories.agent_automation_repo import AgentAutomationRepository
+from movieclaw_scheduler.config import SchedulerConfig, set_scheduler_config
+
+
+@pytest.fixture
+async def db(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{tmp_path / 'loop.db'}")
+    monkeypatch.setenv("SECRET_KEY_FILE", str(tmp_path / ".secret_key"))
+    monkeypatch.setenv("AGENT_SESSIONS_DIR", str(tmp_path / "agent-sessions"))
+    monkeypatch.setenv("AGENT_WORKSPACE_DIR", str(tmp_path / "agent-workspace"))
+    monkeypatch.setenv("MEDIA_DIR", str(tmp_path / "media"))
+    from movieclaw_api.core.config import get_settings
+    from movieclaw_api.services.agent_sessions import reset_agent_session_store
+    from movieclaw_db.migrations import run_migrations
+
+    get_settings.cache_clear()
+    set_scheduler_config(SchedulerConfig(timezone="Asia/Shanghai"))
+    init_db(get_settings().database_url, echo=False)
+    reset_setting_store()
+    reset_agent_session_store()
+    auto._active_runs.clear()
+    # 令牌签发/解密要会话密钥：应用 lifespan 在服务级单测里不跑，这里手动初始化
+    from movieclaw_db.crypto import init_secret_box, reset_secret_box
+
+    reset_secret_box()
+    init_secret_box("test-master-key", tmp_path / ".secret_key")
+    await run_migrations()
+    init_setting_store()
+    yield get_database()
+    await dispose_db()
+    reset_secret_box()
+    reset_setting_store()
+    get_settings.cache_clear()
+    reset_agent_session_store()
+    auto._active_runs.clear()
+
+
+async def _seed_automation(**overrides) -> AgentAutomation:
+    row = AgentAutomation(
+        name="每分钟点个名",
+        prompt="检查待识别队列，无事项输出 NO-OP。",
+        trigger_type=AutomationTriggerType.INTERVAL,
+        trigger_expr="3600",
+        next_run_at=utcnow() - timedelta(seconds=1),
+    )
+    for key, value in overrides.items():
+        setattr(row, key, value)
+    async with get_database().session() as session:
+        created = await AgentAutomationRepository(session).create(row)
+        session.expunge(created)
+        return created
+
+
+async def _reload(automation_id: int) -> AgentAutomation | None:
+    async with get_database().session() as session:
+        row = await AgentAutomationRepository(session).get(automation_id)
+        if row is not None:
+            session.expunge(row)
+        return row
+
+
+def _noop_run(automation_id: int, run_id: int) -> None:  # pragma: no cover - 占位执行体
+    return None
+
+
+# ---------------------------------------------------------------------------
+# L1 · 到期计算（表驱动）
+# ---------------------------------------------------------------------------
+def test_interval_next_run_anchors_on_last_run() -> None:
+    """正常节拍：以最近一轮为锚点顺延（run-now 提前后不重置节奏）。"""
+    now = datetime(2026, 10, 30, 12, 0, 0)
+    last = now - timedelta(minutes=10)
+    nxt = compute_next_run("interval", "3600", now=now, last_run_at=last)
+    assert nxt == last + timedelta(hours=1)
+
+
+def test_interval_catchup_merges_missed_expiries() -> None:
+    """停机 5 小时只补跑一次：从「现在」重新起拍，不追历史（L1 验收②）。"""
+    now = datetime(2026, 10, 30, 12, 0, 0)
+    last = now - timedelta(hours=5)
+    nxt = compute_next_run("interval", "3600", now=now, last_run_at=last)
+    assert nxt == now + timedelta(hours=1)
+
+
+def test_cron_next_run_in_scheduler_timezone() -> None:
+    """cron「0 8 * * *」取下一个上海 08:00，落库仍是 UTC naive。"""
+    now = datetime(2026, 10, 30, 23, 30, 0)  # = 上海 10-31 07:30
+    nxt = compute_next_run("cron", "0 8 * * *", now=now)
+    assert abs((nxt - datetime(2026, 10, 31, 0, 0, 0)).total_seconds()) < 1
+
+
+def test_validate_trigger_rejects_bad_cron_and_short_interval() -> None:
+    with pytest.raises(BadRequestException):
+        validate_trigger("cron", "99 99 * * *")
+    with pytest.raises(BadRequestException):
+        validate_trigger("interval", "5")  # 低于 60s 节拍下限
+    with pytest.raises(BadRequestException):
+        validate_trigger("interval", "abc")
+    validate_trigger("cron", "*/5 * * * *")  # 合法不抛
+
+
+# ---------------------------------------------------------------------------
+# L2 · 静默时段（表驱动）
+# ---------------------------------------------------------------------------
+def test_quiet_hours_outside_window_returns_none() -> None:
+    now = datetime(2026, 10, 30, 23, 30, 0)  # = 上海 07:30，已出 23:00-07:00
+    assert quiet_hours_end("23:00-07:00", now) is None
+
+
+def test_quiet_hours_evening_until_next_morning() -> None:
+    later = datetime(2026, 10, 30, 15, 30, 0)  # = 上海 23:30，静默中
+    end = quiet_hours_end("23:00-07:00", later)
+    # 结束于上海 10-31 07:00 = UTC 10-30 23:00
+    assert end == datetime(2026, 10, 30, 23, 0, 0)
+
+
+def test_quiet_hours_after_midnight_ends_same_morning() -> None:
+    utc_2am = datetime(2026, 10, 30, 18, 0, 0)  # = 上海 10-31 02:00，跨午夜静默中
+    end = quiet_hours_end("23:00-07:00", utc_2am)
+    # 结束于上海 10-31 07:00 = UTC 10-30 23:00（不再加一天）
+    assert end == datetime(2026, 10, 30, 23, 0, 0)
+
+
+def test_quiet_hours_none_and_invalid() -> None:
+    some_utc = datetime(2026, 10, 30, 12, 0, 0)
+    assert quiet_hours_end(None, some_utc) is None
+    assert quiet_hours_end("not-a-range", some_utc) is None
+    with pytest.raises(BadRequestException):
+        validate_quiet_hours("08:00-08:00")  # 起止相同无意义
+    validate_quiet_hours("07:00-23:00")  # 合法不抛
+
+
+# ---------------------------------------------------------------------------
+# L4 · NO-OP 判定
+# ---------------------------------------------------------------------------
+def test_is_no_op_variants() -> None:
+    assert is_no_op(None)
+    assert is_no_op("")
+    assert is_no_op("   ")
+    assert is_no_op("NO-OP")
+    assert is_no_op("**no-op**")
+    assert is_no_op("无事项")
+    assert not is_no_op("今天入库了 3 部影片")
+    assert not is_no_op("no-op，但是有一件事")  # 附加内容不算 NO-OP
+
+
+# ---------------------------------------------------------------------------
+# L2 · 闸门（launch 路径）
+# ---------------------------------------------------------------------------
+async def test_launch_skips_when_kill_switch_off(db, monkeypatch) -> None:
+    monkeypatch.setattr(auto, "_execute_run", _noop_run)
+    row = await _seed_automation()
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        run = await launch(session, fresh, now=utcnow())
+    assert run.status == AutomationRunStatus.SKIPPED
+    assert run.skip_reason == "disabled"
+
+
+async def test_launch_single_flight_records_busy(db, monkeypatch) -> None:
+    monkeypatch.setattr(auto, "_execute_run", _noop_run)
+    row = await _seed_automation()
+    await get_setting_store().set(AgentAutomationsSetting(enabled=True))
+
+    sleeper = asyncio.create_task(asyncio.sleep(30))
+    auto._active_runs[row.id] = sleeper
+    try:
+        async with get_database().session() as session:
+            fresh = await AgentAutomationRepository(session).get(row.id)
+            run = await launch(session, fresh, now=utcnow())
+        assert run.status == AutomationRunStatus.SKIPPED
+        assert run.skip_reason == "busy"
+    finally:
+        sleeper.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await sleeper
+
+
+async def test_launch_daily_run_limit_defers_to_next_day(db, monkeypatch) -> None:
+    monkeypatch.setattr(auto, "_execute_run", _noop_run)
+    row = await _seed_automation(max_runs_per_day=1)
+    await get_setting_store().set(AgentAutomationsSetting(enabled=True))
+    # 今天已经跑过一轮（skipped 不占日预算，这里落一条 completed）
+    async with get_database().session() as session:
+        await AgentAutomationRepository(session).save_run(
+            AgentAutomationRun(
+                automation_id=row.id,
+                status=AutomationRunStatus.COMPLETED,
+                summary="早上那轮",
+            )
+        )
+    now = utcnow()
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        run = await launch(session, fresh, now=now)
+    assert run.status == AutomationRunStatus.SKIPPED
+    assert run.skip_reason == "daily_run_limit"
+    # 顺延到调度器时区的下一个自然日
+    reloaded = await _reload(row.id)
+    assert reloaded.next_run_at > now + timedelta(hours=20)
+
+
+async def test_launch_global_token_budget_skips(db, monkeypatch) -> None:
+    monkeypatch.setattr(auto, "_execute_run", _noop_run)
+    row = await _seed_automation()
+    await get_setting_store().set(
+        AgentAutomationsSetting(enabled=True, daily_token_budget=1000)
+    )
+    async with get_database().session() as session:
+        await AgentAutomationRepository(session).save_run(
+            AgentAutomationRun(
+                automation_id=row.id,
+                status=AutomationRunStatus.COMPLETED,
+                tokens_used=1500,
+            )
+        )
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        run = await launch(session, fresh, now=utcnow())
+    assert run.status == AutomationRunStatus.SKIPPED
+    assert run.skip_reason == "daily_token_budget"
+
+
+async def test_launch_happy_path_spawns_run(db, monkeypatch) -> None:
+    started = asyncio.Event()
+
+    async def _fake_run(automation_id: int, run_id: int) -> None:
+        started.set()
+
+    monkeypatch.setattr(auto, "_execute_run", _fake_run)
+    row = await _seed_automation()
+    await get_setting_store().set(AgentAutomationsSetting(enabled=True))
+    now = utcnow()
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        run = await launch(session, fresh, now=now)
+    assert run.status == AutomationRunStatus.RUNNING
+    assert run.session_id is None  # 稳定会话在执行体里首次创建
+    reloaded = await _reload(row.id)
+    assert reloaded.last_run_at is not None
+    assert reloaded.next_run_at > now
+    await asyncio.wait_for(started.wait(), timeout=2)
+
+
+# ---------------------------------------------------------------------------
+# L1 · 节拍任务本体
+# ---------------------------------------------------------------------------
+async def test_tick_cancels_in_flight_when_disabled(db) -> None:
+    """kill switch 关闭后 ≤1 tick：在途轮收到取消（L2 验收①）。"""
+    cancelled = asyncio.Event()
+
+    async def _stubborn() -> None:
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    auto._active_runs[42] = asyncio.create_task(_stubborn())
+    await run_agent_automations()  # 默认 policy.enabled=False
+    await asyncio.wait_for(cancelled.wait(), timeout=2)
+
+
+# ---------------------------------------------------------------------------
+# L5 · 失败退避与熔断（表驱动）
+# ---------------------------------------------------------------------------
+async def _finalize(row_id: int, run_id: int, **kwargs) -> None:
+    await auto._finalize_run(
+        automation_id=row_id,
+        run_id=run_id,
+        status=kwargs.pop("status", AutomationRunStatus.FAILED),
+        summary=kwargs.pop("summary", None),
+        tokens=kwargs.pop("tokens", 0),
+        error_text=kwargs.pop("error_text", "boom"),
+        count_failure=kwargs.pop("count_failure", True),
+        duration_ms=kwargs.pop("duration_ms", 10),
+    )
+
+
+async def test_backoff_table_one_hour_six_hours_day(db) -> None:
+    """连续失败退避 1h → 6h → 24h（L5 验收②，表驱动），第 3 次熔断停用。"""
+    row = await _seed_automation()
+    async with get_database().session() as session:
+        run = AgentAutomationRun(automation_id=row.id, status=AutomationRunStatus.RUNNING)
+        await AgentAutomationRepository(session).save_run(run)
+        run_id = run.id
+
+    for i, hours in enumerate((1, 6, 24), start=1):
+        before = utcnow()
+        await _finalize(row.id, run_id)
+        reloaded = await _reload(row.id)
+        gap = (reloaded.next_run_at - before).total_seconds()
+        assert hours * 3600 - 5 <= gap <= hours * 3600 + 5, f"第 {i} 次失败退避应为 {hours}h"
+
+    # 第 3 次失败：自动停用 + 待处理事项（L5 验收①）
+    reloaded = await _reload(row.id)
+    assert reloaded.enabled is False
+    assert reloaded.consecutive_failures == MAX_CONSECUTIVE_FAILURES
+    async with get_database().session() as session:
+        notice = (
+            await session.execute(
+                select(SystemNotice).where(
+                    SystemNotice.dedupe_key == f"agent.automation:{row.id}"
+                )
+            )
+        ).scalar_one_or_none()
+    assert notice is not None
+    assert notice.severity == "error"
+    assert "点个名" in notice.title  # 文案带上自动化名，人不用猜是哪条
+
+
+async def test_success_resets_failure_count(db, monkeypatch) -> None:
+    async def _fake_run(automation_id: int, run_id: int) -> None:
+        pass
+
+    monkeypatch.setattr(auto, "_execute_run", _fake_run)
+    row = await _seed_automation()
+    await get_setting_store().set(AgentAutomationsSetting(enabled=True))
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        run = await launch(session, fresh, now=utcnow())
+    await _finalize(row.id, run.id)
+    reloaded = await _reload(row.id)
+    assert reloaded.consecutive_failures == 1
+
+    # 再来一轮成功的：失败计数清零、last_error 清空
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        fresh.next_run_at = utcnow() - timedelta(seconds=1)
+        await AgentAutomationRepository(session).save(fresh)
+        run2 = await launch(session, fresh, now=utcnow())
+    await _finalize(
+        row.id,
+        run2.id,
+        status=AutomationRunStatus.COMPLETED,
+        summary="一切正常",
+        tokens=1200,
+    )
+    reloaded = await _reload(row.id)
+    assert reloaded.consecutive_failures == 0
+    assert reloaded.last_error is None
+
+
+# ---------------------------------------------------------------------------
+# L4 · 投递幂等与 NO-OP 抑制
+# ---------------------------------------------------------------------------
+async def test_delivery_idempotent_and_noop_suppressed(db) -> None:
+    row = await _seed_automation()
+    async with get_database().session() as session:
+        repo = AgentAutomationRepository(session)
+        run = AgentAutomationRun(automation_id=row.id, status=AutomationRunStatus.RUNNING)
+        await repo.save_run(run)
+        run_id = run.id
+
+    await _finalize(row.id, run_id, status=AutomationRunStatus.COMPLETED, summary="有结论")
+    async with get_database().session() as session:
+        delivered = await AgentAutomationRepository(session).get_run(run_id)
+    assert delivered.delivered_at is not None
+
+    # 同一 run 再走一遍收尾（重试路径）：已投递标记挡住，不重复投
+    await _finalize(row.id, run_id, status=AutomationRunStatus.COMPLETED, summary="有结论")
+
+    # NO-OP 轮：不投递
+    async with get_database().session() as session:
+        run2 = AgentAutomationRun(automation_id=row.id, status=AutomationRunStatus.RUNNING)
+        await AgentAutomationRepository(session).save_run(run2)
+        run2_id = run2.id
+    await _finalize(row.id, run2_id, status=AutomationRunStatus.NO_OP)
+    async with get_database().session() as session:
+        noop_run = await AgentAutomationRepository(session).get_run(run2_id)
+    assert noop_run.delivered_at is None
+    assert noop_run.summary is None
+
+
+# ---------------------------------------------------------------------------
+# L3 · 令牌与工具面
+# ---------------------------------------------------------------------------
+async def test_agent_token_carries_automation_marker(db) -> None:
+    from movieclaw_api.services.auth import issue_agent_token, verify_bearer_token
+
+    token = await issue_agent_token("sess1", automation_id=9)
+    principal = await verify_bearer_token(token)
+    assert principal.kind == "agent"
+    assert principal.automation_id == 9
+
+    plain = await issue_agent_token("sess2")
+    assert (await verify_bearer_token(plain)).automation_id is None
+
+
+async def test_mclaw_profile_excludes_workspace_tools(db) -> None:
+    """mclaw 档位工具面只有 mclaw（+搜索）：无 bash/read/write/edit（L3 验收②）。"""
+    from movieclaw_api.services.agent_toolkit import profile_tools
+
+    tools = await profile_tools("mclaw", "sess-x", "automation:1", automation_id=1)
+    names = {t.name for t in tools}
+    assert "mclaw" in names
+    assert names.isdisjoint({"bash", "read", "write", "edit"})
+
+
+# ---------------------------------------------------------------------------
+# L6 · 历史清理
+# ---------------------------------------------------------------------------
+async def test_cleanup_purges_old_runs(db) -> None:
+    row = await _seed_automation()
+    async with get_database().session() as session:
+        repo = AgentAutomationRepository(session)
+        await repo.save_run(
+            AgentAutomationRun(
+                automation_id=row.id,
+                status=AutomationRunStatus.COMPLETED,
+                started_at=utcnow() - timedelta(days=91),
+            )
+        )
+        await repo.save_run(
+            AgentAutomationRun(automation_id=row.id, status=AutomationRunStatus.COMPLETED)
+        )
+        deleted = await repo.purge_runs_older_than(utcnow() - timedelta(days=90))
+    assert deleted == 1
