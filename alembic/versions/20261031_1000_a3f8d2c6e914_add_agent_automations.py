@@ -5,7 +5,7 @@ docs/design/agent-automations.md：定时驱动的无人值守会话。定义表
 cleanup_agent_automations_runs 任务按保留期清理。
 
 Revision ID: a3f8d2c6e914
-Revises: 161724435305
+Revises: b8f21c4a90d3
 Create Date: 2026-10-31 10:00:00.000000
 
 """
@@ -19,7 +19,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "a3f8d2c6e914"
-down_revision: str | None = "161724435305"
+down_revision: str | None = "b8f21c4a90d3"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
