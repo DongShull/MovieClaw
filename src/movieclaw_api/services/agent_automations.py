@@ -35,7 +35,7 @@ from movieclaw_api.services.agent_session_recorder import AgentSessionRecorder
 from movieclaw_api.services.agent_sessions import get_agent_session_store
 from movieclaw_api.services.agent_toolkit import agent_system_prompt, profile_tools
 from movieclaw_api.services.llm_config import acquire_llm_router
-from movieclaw_api.services.push.notify import AlertContent, notify
+from movieclaw_api.services.push.automations import deliver_conclusion
 from movieclaw_api.services.system_notice import upsert_notice
 from movieclaw_api.settings import AgentAutomationsSetting, get_setting_store
 from movieclaw_db.engine import get_database
@@ -70,8 +70,6 @@ FAILURE_BACKOFF = (timedelta(hours=1), timedelta(hours=6), timedelta(hours=24))
 MAX_CONSECUTIVE_FAILURES = 3
 #: L6 run 历史保留天数
 RUN_HISTORY_RETENTION_DAYS = 90
-#: L4 推送正文的结论预览长度
-DELIVERY_PREVIEW_CHARS = 200
 #: 日预算类 skip 的顺延目标：调度器时区的下一个自然日开始
 _SKIP_UNTIL_NEXT_DAY: str = "next_day"
 
@@ -595,7 +593,10 @@ async def _finalize_run(
         ):
             run.delivered_at = now
             await repo.save_run(run)
-            _deliver(automation=automation, session_id=run.session_id, summary=summary)
+            # 投递入口在 push 包内（事件出口守护：业务侧不直接碰 notify）
+            deliver_conclusion(
+                automation, session_id=run.session_id, summary=summary
+            )
     logger.info(
         "自动化 %s 第 %d 轮完成 status=%s tokens=%d duration_ms=%d",
         automation_id,
@@ -603,36 +604,6 @@ async def _finalize_run(
         status.value if hasattr(status, "value") else status,
         tokens,
         duration_ms,
-    )
-
-
-def _deliver(*, automation: AgentAutomation, session_id: str | None, summary: str) -> None:
-    """按配置渠道推送结论（fire-and-forget；任何失败只记日志）。"""
-    channels = {c.strip() for c in automation.delivery_channels.split(",") if c.strip()}
-    if "push" not in channels:
-        return
-    body = (
-        summary
-        if len(summary) <= DELIVERY_PREVIEW_CHARS
-        else summary[: DELIVERY_PREVIEW_CHARS - 1] + "…"
-    )
-    notify(
-        event="agent.automation.delivered",
-        recipients={0},  # v1 仅超管
-        build=lambda _session, _member_id: _content(automation.name, session_id, body),
-        to_im="im" in channels,
-    )
-
-
-async def _content(name: str, session_id: str | None, body: str) -> AlertContent:
-    from movieclaw_api.i18n import t
-
-    return AlertContent(
-        title=t("notify.automation.deliveredTitle", name=name),
-        body=body,
-        open=f"/sessions/{session_id}" if session_id else "/sessions",
-        thread=f"automation:{name}",
-        source="server",
     )
 
 

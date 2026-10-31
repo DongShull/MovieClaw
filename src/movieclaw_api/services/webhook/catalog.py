@@ -61,6 +61,10 @@ _BUILTIN_TEXT = {
         "settings.webhook.events.agentRunFinished",
         "settings.webhook.groups.agent",
     ),
+    "agent.automation.delivered": (
+        "settings.webhook.events.agentAutomationDelivered",
+        "settings.webhook.groups.agent",
+    ),
     "download.completed": (
         "settings.webhook.events.downloadCompleted",
         "settings.webhook.groups.download",

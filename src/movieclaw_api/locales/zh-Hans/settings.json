@@ -365,7 +365,8 @@
       "systemAlertRaised": "出现需要处理的问题",
       "systemAlertResolved": "问题已消退",
       "systemUpdateAvailable": "有新版本",
-      "systemTipSuggested": "使用建议"
+      "systemTipSuggested": "使用建议",
+      "agentAutomationDelivered": "自动化有结论"
     },
     "groups": {
       "account": "账号",

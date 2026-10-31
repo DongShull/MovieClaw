@@ -365,7 +365,8 @@
       "systemAlertRaised": "Issue needs attention",
       "systemAlertResolved": "Issue resolved",
       "systemUpdateAvailable": "Update available",
-      "systemTipSuggested": "Usage suggestion"
+      "systemTipSuggested": "Usage suggestion",
+      "agentAutomationDelivered": "Automation has findings"
     },
     "groups": {
       "account": "Account",

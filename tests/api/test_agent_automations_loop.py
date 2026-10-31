@@ -17,7 +17,6 @@ from sqlmodel import select
 
 import movieclaw_api.services.agent_automations as auto
 from movieclaw_agent.events import AgentEvent
-from movieclaw_llm import ChatMessage, TokenUsage
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.services.agent_automations import (
     MAX_CONSECUTIVE_FAILURES,
@@ -45,6 +44,7 @@ from movieclaw_db.models.agent_automation import (
 )
 from movieclaw_db.models.base import utcnow
 from movieclaw_db.repositories.agent_automation_repo import AgentAutomationRepository
+from movieclaw_llm import ChatMessage, TokenUsage
 from movieclaw_scheduler.config import SchedulerConfig, set_scheduler_config
 
 
