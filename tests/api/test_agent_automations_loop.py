@@ -16,6 +16,8 @@ import pytest
 from sqlmodel import select
 
 import movieclaw_api.services.agent_automations as auto
+from movieclaw_agent.events import AgentEvent
+from movieclaw_llm import ChatMessage, TokenUsage
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.services.agent_automations import (
     MAX_CONSECUTIVE_FAILURES,
@@ -239,9 +241,9 @@ async def test_launch_daily_run_limit_defers_to_next_day(db, monkeypatch) -> Non
         run = await launch(session, fresh, now=now)
     assert run.status == AutomationRunStatus.SKIPPED
     assert run.skip_reason == "daily_run_limit"
-    # 顺延到调度器时区的下一个自然日
+    # 顺延到调度器时区的下一个自然日（精确断言：本地次日开始，换算回 UTC naive）
     reloaded = await _reload(row.id)
-    assert reloaded.next_run_at > now + timedelta(hours=20)
+    assert reloaded.next_run_at == auto._next_day_start(now)
 
 
 async def test_launch_global_token_budget_skips(db, monkeypatch) -> None:
@@ -439,6 +441,71 @@ async def test_mclaw_profile_excludes_workspace_tools(db) -> None:
     names = {t.name for t in tools}
     assert "mclaw" in names
     assert names.isdisjoint({"bash", "read", "write", "edit"})
+
+
+# ---------------------------------------------------------------------------
+# L3 · 熔断：墙钟超限优雅终止，内容照常落库（验收 §L3-4）
+# ---------------------------------------------------------------------------
+async def test_wall_clock_aborts_gracefully_and_keeps_content(db, monkeypatch) -> None:
+    from movieclaw_agent.events import AgentDone
+    from movieclaw_api.services.agent_sessions import get_agent_session_store
+
+    class _HangingRunner:
+        """挂住的 runner：只发 agent_start，然后永远挂着（直到被超时取消）。"""
+
+        def __init__(self, router, tools=None, on_message=None, on_compaction=None, **_kw):
+            self.on_message = on_message
+
+        async def start(self, params, *, run_id=None):
+            yield AgentEvent(type="agent_start", run_id=run_id or "t")
+            # 半截正文先落盘（经 on_message 定稿回调），再挂住——验证超限后
+            # 「已产生的内容照常保留」
+            from movieclaw_llm import ChatResponse
+
+            await self.on_message(
+                ChatMessage(role="assistant", content="查到一半的结论"),
+                ChatResponse(
+                    content="查到一半的结论",
+                    model="qwen3.7-max",
+                    provider="test",
+                    usage=TokenUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+                ),
+            )
+            await asyncio.sleep(30)
+            yield AgentEvent(
+                type="agent_done", run_id=run_id or "t", result=AgentDone(text="never")
+            )
+
+    async def _fake_router(_session):
+        return object()  # runner 是假的，路由器不会被真正调用
+
+    monkeypatch.setattr(auto, "AgentRunner", _HangingRunner)
+    monkeypatch.setattr(auto, "acquire_llm_router", _fake_router)
+    monkeypatch.setattr(auto, "RUN_WALL_CLOCK_SECONDS", 0.2)
+
+    row = await _seed_automation(prompt="查一查待识别队列")
+    async with get_database().session() as session:
+        repo = AgentAutomationRepository(session)
+        run = AgentAutomationRun(automation_id=row.id, status=AutomationRunStatus.RUNNING)
+        await repo.save_run(run)
+        run_id = run.id
+
+    await auto._execute_run(row.id, run_id)
+
+    reloaded = await _reload(row.id)
+    assert reloaded.session_id  # 稳定会话已建立
+    async with get_database().session() as session:
+        finished = await AgentAutomationRepository(session).get_run(run_id)
+    assert finished.status == AutomationRunStatus.BUDGET_EXCEEDED
+    assert finished.session_id == reloaded.session_id
+    # 内容照常落库：转录里用户指令与半截 assistant 正文都在
+    _, entries = get_agent_session_store().read(reloaded.session_id)
+    roles = [e.message.role for e in entries]
+    assert "user" in roles and "assistant" in roles
+    texts = [e.message.text() for e in entries if e.message.role == "assistant"]
+    assert any("查到一半" in t for t in texts)
+    # budget_exceeded 计入失败：退避生效
+    assert reloaded.consecutive_failures == 1
 
 
 # ---------------------------------------------------------------------------

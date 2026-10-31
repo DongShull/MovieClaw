@@ -380,6 +380,7 @@ async def _execute_run(automation_id: int, run_id: int) -> None:
     run_tag = uuid.uuid4().hex[:12]
     terminal_recorded = False
     token_cap = 0
+    session_id: str | None = None
 
     try:
         # automation 身份：domain-events 因果链记 automation，会话内发起的
@@ -520,6 +521,7 @@ async def _execute_run(automation_id: int, run_id: int) -> None:
             error_text=error_text,
             count_failure=count_failure,
             duration_ms=int((time.monotonic() - started) * 1000),
+            session_id=session_id,
         )
 
 
@@ -541,6 +543,7 @@ async def _finalize_run(
     error_text: str | None,
     count_failure: bool,
     duration_ms: int,
+    session_id: str | None = None,
 ) -> None:
     """统一收尾：run 行定稿 → 自动化台账（失败计数/退避）→ 投递 → 熔断。"""
     now = utcnow()
@@ -553,6 +556,9 @@ async def _finalize_run(
             run.status = status
             run.summary = summary
             run.tokens_used = tokens
+            if session_id is not None:
+                # 稳定会话在执行体里首次建立时，把映射回填到本轮留痕
+                run.session_id = session_id
             await repo.save_run(run)
         if automation is None:
             return

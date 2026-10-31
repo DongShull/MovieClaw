@@ -781,6 +781,7 @@ _PATH_DUMMIES = {
     "{backdrop_id}": "f" * 32,
     "{attachment_id}": "f" * 32,
     "{downloader_id}": "1",
+    "{automation_id}": "1",
     "{category}": "anime",
     "{provider_id}": "1",
     "{info_hash}": "f" * 40,

@@ -376,6 +376,7 @@ def fill_path_params(path: str) -> str:
         .replace("{theme_id}", "nope-theme")
         .replace("{attachment_id}", "f" * 32)
         .replace("{downloader_id}", "1")
+        .replace("{automation_id}", "1")
         .replace("{category}", "anime")
         .replace("{provider_id}", "1")
         .replace("{info_hash}", "f" * 40)

@@ -50,6 +50,7 @@ def test_preference_switches_follow_the_rule_table() -> None:
         "system.update.available",
         "system.tip.suggested",
         "agent.run.finished",
+        "agent.automation.delivered",
     ]
     # 偏好键就是触发它的事件名：每条都对得上一个系统事件（剧卡的事件在 P2/P4 定义；
     # 「订阅收齐了」是状态变化事件里的一种情形，单独一个开关）
