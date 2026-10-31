@@ -169,6 +169,9 @@ class Principal:
     member: Member | None = None
     #: 仅 Agent 工作区短时令牌携带，用于阻止当前 Agent 停止承载自己的会话。
     agent_session_id: str | None = None
+    #: 仅自动化签发的 Agent 令牌携带（哪个值守自动化在说话）。路由据此拒绝
+    #: automation 身份调用 automations 管理端点（防自我增殖，agent-automations.md §L3）。
+    automation_id: int | None = None
     #: 请求所用的登录设备；签名会话 Cookie / Agent / MCP / 分享主体为 None。
     device: DeviceRef | None = None
     #: 仅影片分享访客携带：可见面收窄到分享的那一个库、那一个条目
@@ -799,12 +802,22 @@ async def create_manual_token(name: str, *, scope: str = "full") -> tuple[str, L
         )
 
 
-async def issue_agent_token(session_id: str) -> str:
-    """为一次 Agent 运行签发短时效令牌（注入工作区环境变量 MOVIECLAW_TOKEN）。"""
+async def issue_agent_token(session_id: str, *, automation_id: int | None = None) -> str:
+    """为一次 Agent 运行签发短时效令牌（注入工作区环境变量 MOVIECLAW_TOKEN）。
+
+    ``automation_id`` 给值守自动化专用：令牌照常是超管级，但带着 automation
+    标记，automations 管理端点据此对它一律 403（automation 身份禁止
+    管理 automations，防「自动化建自动化」的环）。
+    """
     serializer = URLSafeSerializer(await _get_session_secret(), salt=_AGENT_TOKEN_SALT)
-    return serializer.dumps(
-        {"aud": "agent", "sid": session_id, "exp": int(time.time()) + AGENT_TOKEN_TTL_SECONDS}
-    )
+    claims: dict = {
+        "aud": "agent",
+        "sid": session_id,
+        "exp": int(time.time()) + AGENT_TOKEN_TTL_SECONDS,
+    }
+    if automation_id is not None:
+        claims["auto"] = automation_id
+    return serializer.dumps(claims)
 
 
 async def issue_mcp_token(endpoint_id: str) -> str:
@@ -903,11 +916,13 @@ async def verify_bearer_token(
         if int(payload.get("exp", 0)) < time.time():
             raise UnauthorizedException(message_key="errors.auth.agentTokenExpired")
         agent_session_id = str(payload.get("sid", ""))
+        raw_automation_id = payload.get("auto")
         return Principal(
             kind="agent",
             name=f"agent:{agent_session_id}",
             is_admin=True,
             agent_session_id=agent_session_id,
+            automation_id=int(raw_automation_id) if raw_automation_id is not None else None,
         )
 
     serializer = URLSafeSerializer(await _get_session_secret(), salt=_MCP_TOKEN_SALT)

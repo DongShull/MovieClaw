@@ -90,7 +90,11 @@
       "backfillUpgradeSnapshotsTitle": "洗版基线回填",
       "backfillUpgradeSnapshotsDescription": "为已配置洗版目标的规则组所引用订阅，补齐历史已入库单元的质量快照（洗版比较的基线）。纯数据库变换、分批慢跑，补完即空转。",
       "llmCatalogRefreshTitle": "更新模型目录",
-      "llmCatalogRefreshDescription": "从各模型服务商拉取最新的可用模型列表，并从 models.dev 更新模型参数。距上次更新不足 24 小时的会跳过；没有接入任何模型服务时什么也不做。"
+      "llmCatalogRefreshDescription": "从各模型服务商拉取最新的可用模型列表，并从 models.dev 更新模型参数。距上次更新不足 24 小时的会跳过；没有接入任何模型服务时什么也不做。",
+      "runAgentAutomationsTitle": "Agent 自动化节拍",
+      "runAgentAutomationsDescription": "每分钟挑出到期的 Agent 自动化，过闸门后以 automation 身份跑一轮值守会话并投递结论。",
+      "cleanupAgentAutomationRunsTitle": "清理 Agent 自动化运行历史",
+      "cleanupAgentAutomationRunsDescription": "删除超过保留期的 agent_automation_run 历史记录，防止表无限增长。"
     }
   },
   "ai": {

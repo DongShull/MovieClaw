@@ -1,3 +1,11 @@
+agent automations create
+agent automations delete
+agent automations list
+agent automations policy show
+agent automations policy update
+agent automations run-now
+agent automations runs
+agent automations update
 app addresses add
 app addresses list
 app addresses remove
@@ -322,9 +330,9 @@ subscriptions list-activities
 subscriptions list-today-arrivals
 subscriptions preview-download-routing
 subscriptions preview-removal
-subscriptions search-missing-resources
 subscriptions save-smart-defaults
 subscriptions save-smart-profile
+subscriptions search-missing-resources
 subscriptions set-follow-future
 subscriptions set-tracking-state
 subscriptions unsubscribe

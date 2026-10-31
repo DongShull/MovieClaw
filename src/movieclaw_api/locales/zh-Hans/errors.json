@@ -466,7 +466,13 @@
       "noTerminalRecord": "运行未留下终态事件",
       "unknown": "运行失败，原因未知"
     },
-    "specCorrupt": "服务端的 CLI 基线 spec 损坏（{path}）：{detail}。Agent 功能不可用。这通常是镜像或安装包不完整，请更新到新版镜像后重新部署。"
+    "specCorrupt": "服务端的 CLI 基线 spec 损坏（{path}）：{detail}。Agent 功能不可用。这通常是镜像或安装包不完整，请更新到新版镜像后重新部署。",
+    "automationMissing": "自动化不存在或已删除",
+    "automationSelfManage": "自动化身份不能管理自动化（防止自我增殖）。如需调整，请在网页设置里操作。",
+    "automationPromptRequired": "自动化名称与值守指令不能为空",
+    "automationTriggerInvalid": "触发配置无效：{detail}",
+    "automationQuietHoursInvalid": "静默时段格式无效，应为 HH:MM-HH:MM（如 23:00-07:00），起止不能相同",
+    "automationChannelsInvalid": "投递渠道无效，只能是 push / im 的组合"
   },
   "mcp": {
     "endpointMissing": "端点不存在或已被删除",

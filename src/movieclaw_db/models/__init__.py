@@ -8,6 +8,12 @@
 
 from __future__ import annotations
 
+from movieclaw_db.models.agent_automation import (
+    AgentAutomation,
+    AgentAutomationRun,
+    AutomationRunStatus,
+    AutomationTriggerType,
+)
 from movieclaw_db.models.agent_session import AgentSession
 from movieclaw_db.models.app_setting import AppSetting
 from movieclaw_db.models.base import TimestampMixin, utcnow
@@ -109,6 +115,10 @@ from movieclaw_db.models.watch_record import WatchRecord
 __all__ = [
     "TimestampMixin",
     "utcnow",
+    "AgentAutomation",
+    "AgentAutomationRun",
+    "AutomationRunStatus",
+    "AutomationTriggerType",
     "AgentSession",
     "CacheEntry",
     "ChannelAccount",

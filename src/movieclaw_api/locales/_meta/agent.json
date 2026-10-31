@@ -55,5 +55,29 @@
   },
   "im.imageFailed": {
     "sourceHash": "24928e2ed5624bd2ce302902476ef0060ef7bf0ebd8dc29387f7fe2b57718cf8"
+  },
+  "automations.created": {
+    "sourceHash": "ff51a11f17979805fa7230363e2ec699bbaecabb620c41d2933b188de8219893"
+  },
+  "automations.updated": {
+    "sourceHash": "46f594da651a13231df68f50b09fb1d3dd844789dc20a37030a104cc51ad3e4c"
+  },
+  "automations.deleted": {
+    "sourceHash": "bdf2436915bf1915da61e2fdbd9770a2d1e7ae7c09b5291b068e66a96cd7c00e"
+  },
+  "automations.runStarted": {
+    "sourceHash": "91362690f5c0bd99b35abdbb5f1844caa7efed11f7f1a11d1c4b4e6c36da8235"
+  },
+  "automations.runSkipped": {
+    "sourceHash": "48bbe1dec68870bf718439472fd64dda8bd874c4e346e6e6f51e785b39109f6a"
+  },
+  "automations.policyUpdated": {
+    "sourceHash": "049ddf5d5d4cc71ae8c411ec661137778f5a7ccd85ded44c2d57587c1161456a"
+  },
+  "automations.noticeTitle": {
+    "sourceHash": "9db18379b82e4580f515047a3be1d6101abe7f8efe7ee08e68d042fa39008e24"
+  },
+  "automations.noticeMessage": {
+    "sourceHash": "57deed5ae5fcd648152afc28fb1469168cb9700d1aa58137f7753d528f3b5891"
   }
 }

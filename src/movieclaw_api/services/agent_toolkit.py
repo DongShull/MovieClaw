@@ -31,15 +31,20 @@ from movieclaw_db.models.member import Member
 ToolProfile = Literal["web", "full", "mclaw", "none"]
 
 
-async def agent_cli_env(session_id: str) -> dict[str, str]:
+async def agent_cli_env(
+    session_id: str, *, automation_id: int | None = None
+) -> dict[str, str]:
     """构造工作区里 mclaw CLI 的自动授权环境（docs/design/cli.md §6.2）。
 
     令牌按运行签发、短时效、无状态签名（改密轮换密钥即全体失效）；
     服务器地址走容器内回环直连。Agent 在工作区内执行 `mclaw ...` 即可
     直接操作本产品，全程零登录零交互。
+
+    ``automation_id``：值守自动化的运行带上标记（Principal.automation_id），
+    automations 管理端点据此拒绝 automation 身份（防自我增殖）。
     """
     settings = get_settings()
-    token = await auth_service.issue_agent_token(session_id)
+    token = await auth_service.issue_agent_token(session_id, automation_id=automation_id)
     return {
         "MOVIECLAW_SERVER": f"http://127.0.0.1:{settings.port}",
         "MOVIECLAW_TOKEN": token,
@@ -68,15 +73,20 @@ def get_agent_tools(cli_env: dict[str, str], *, generative_ui: bool = False) -> 
 
 
 async def profile_tools(
-    profile: ToolProfile, session_id: str, owner: str | None
+    profile: ToolProfile,
+    session_id: str,
+    owner: str | None,
+    *,
+    automation_id: int | None = None,
 ) -> list[AgentTool]:
     """按档位构建工具集。令牌按会话签发，所以要在会话建好之后现建。
 
     网页搜索配好了才挂上；``none`` 档明确不要工具，连搜索也不给。
+    ``automation_id`` 只在值守自动化（mclaw 档）传入，令牌随之带标记。
     """
     if profile == "none":
         return []
-    cli_env = await agent_cli_env(session_id)
+    cli_env = await agent_cli_env(session_id, automation_id=automation_id)
     web_search = await load_web_search_provider()
     if profile == "mclaw":
         # 只有服务操作的档位：工作目录按来源隔开（插件各用各的）

@@ -68,7 +68,9 @@
     "tipTitle": "Tips",
     "tipDescription": "Notify once when a setting could improve your experience, such as precutting clips for browsing and TV trailers",
     "agentFinishedTitle": "AI reply ready",
-    "agentFinishedDescription": "When the AI assistant finishes or fails in the app or browser, even if you switched apps; IM conversations already receive their replies in chat"
+    "agentFinishedDescription": "When the AI assistant finishes or fails in the app or browser, even if you switched apps; IM conversations already receive their replies in chat",
+    "automationTitle": "Automation has findings",
+    "automationDescription": "Notifies when a scheduled automation finishes a round with reportable findings (silent NO-OP rounds never notify), opening its session"
   },
   "groups": {
     "subscriptions": "My subscriptions",
@@ -227,5 +229,8 @@
   },
   "channels": {
     "testSent": "Sent to {count, plural, one {# account} other {# accounts}}"
+  },
+  "automation": {
+    "deliveredTitle": "Automation “{name}” has findings"
   }
 }

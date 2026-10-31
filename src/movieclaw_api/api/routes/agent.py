@@ -23,6 +23,7 @@ from movieclaw_api.api.deps import require_login
 from movieclaw_api.core.config import get_settings
 from movieclaw_api.exceptions import (
     BadRequestException,
+    ForbiddenException,
     NotFoundException,
     UpstreamServiceException,
 )
@@ -44,12 +45,27 @@ from movieclaw_api.schemas.agent import (
     SkillView,
 )
 from movieclaw_api.schemas.response import ApiResponse, ok
+from movieclaw_api.schemas.agent_automation import (
+    AutomationPolicyPayload,
+    AutomationPolicyView,
+    AutomationRunView,
+    AutomationUpsertPayload,
+    AutomationView,
+)
 from movieclaw_api.services.agent_attachments import (
     MAX_IMAGE_BYTES,
     compose_user_content,
     extract_attachment_ids,
     get_agent_attachment_store,
     hydrate_images,
+)
+from movieclaw_api.services.agent_automations import (
+    compute_next_run,
+    launch,
+    mark_reenabled,
+    validate_delivery_channels,
+    validate_quiet_hours,
+    validate_trigger,
 )
 from movieclaw_api.services.agent_runs import get_agent_run_registry
 from movieclaw_api.services.agent_session_recorder import AgentSessionRecorder
@@ -70,7 +86,12 @@ from movieclaw_api.services.agent_toolkit import (
 )
 from movieclaw_api.services.auth import Principal
 from movieclaw_api.services.llm_config import acquire_llm_router
+from movieclaw_api.settings import AgentAutomationsSetting, get_setting_store
 from movieclaw_db.engine import get_session
+from movieclaw_db.models import AgentAutomation, AgentAutomationRun, AutomationRunStatus
+from movieclaw_db.models.agent_automation import AutomationTriggerType
+from movieclaw_db.models.base import utcnow
+from movieclaw_db.repositories.agent_automation_repo import AgentAutomationRepository
 from movieclaw_db.repositories.agent_session_repo import (
     AgentSessionRepository,
     is_running,
@@ -932,3 +953,258 @@ async def stop_session(
         raise BadRequestException(message_key="errors.agent.stopOwnSession")
     await get_agent_run_registry().cancel_session(session_id)
     return ok({}, message=t("agent.operations.stopRequested"))
+
+
+# ---------------------------------------------------------------------------
+# Agent 自动化（docs/design/agent-automations.md §5）：定时无人值守会话的管理面
+# ---------------------------------------------------------------------------
+# 挂管理区（router.py 的 _ADMIN_ROUTERS）：v1 仅超管可建/可跑。automation 身份
+# 的令牌在这里被一律 403——「自动化建自动化」的环必须在路由层就掐断。
+automations_router = APIRouter(prefix="/agent/automations", tags=["agent"])
+
+
+def _reject_automation_identity(identity: Principal) -> None:
+    """automation 令牌禁止管理 automations（防自我增殖，守护测试钉死）。
+
+    Agent 工作区令牌（正常网页会话签发的）照常放行——Agent 替用户建自动化
+    正是本设计的关键闭环；只有自动化自己的令牌（带 automation 标记）被拒。
+    """
+    if identity.automation_id is not None:
+        raise ForbiddenException(message_key="errors.agent.automationSelfManage")
+
+
+@automations_router.get(
+    "/policy",
+    response_model=ApiResponse[AutomationPolicyView],
+    summary="Agent 自动化全局闸门（开关与日 token 预算）",
+    operation_id="agent.automations.policy.show",
+)
+async def show_automation_policy(
+    identity: Principal = Depends(require_login),
+) -> ApiResponse[AutomationPolicyView]:
+    """设置页的开关数据源；发布默认关闭，打开即允许节拍拉起自动化。"""
+    _reject_automation_identity(identity)
+    policy = await get_setting_store().get(AgentAutomationsSetting)
+    return ok(AutomationPolicyView(enabled=policy.enabled, daily_token_budget=policy.daily_token_budget))
+
+
+@automations_router.put(
+    "/policy",
+    response_model=ApiResponse[AutomationPolicyView],
+    summary="更新 Agent 自动化全局闸门",
+    operation_id="agent.automations.policy.update",
+)
+async def update_automation_policy(
+    payload: AutomationPolicyPayload,
+    identity: Principal = Depends(require_login),
+) -> ApiResponse[AutomationPolicyView]:
+    """读改写整域配置（SettingStore 的域级覆盖语义）。"""
+    _reject_automation_identity(identity)
+    store = get_setting_store()
+    stored = await store.get(AgentAutomationsSetting)
+    changes = payload.model_dump(exclude_none=True)
+    if changes:
+        await store.set(AgentAutomationsSetting(**{**stored.model_dump(), **changes}))
+    updated = await store.get(AgentAutomationsSetting)
+    return ok(
+        AutomationPolicyView(enabled=updated.enabled, daily_token_budget=updated.daily_token_budget),
+        message=t("agent.automations.policyUpdated"),
+    )
+
+
+@automations_router.get(
+    "",
+    response_model=ApiResponse[list[AutomationView]],
+    summary="列出全部 Agent 自动化（含最近一轮摘要）",
+    operation_id="agent.automations.list",
+)
+async def list_automations(
+    identity: Principal = Depends(require_login),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[list[AutomationView]]:
+    """创建顺序倒序；每项带最近一轮 run（含 skipped）与调度台账。"""
+    _reject_automation_identity(identity)
+    repo = AgentAutomationRepository(session)
+    views = []
+    for row in await repo.list_all():
+        views.append(AutomationView.from_model(row, await repo.latest_run(row.id or 0)))
+    return ok(views)
+
+
+@automations_router.post(
+    "",
+    response_model=ApiResponse[AutomationView],
+    status_code=201,
+    summary="创建一条 Agent 自动化",
+    operation_id="agent.automations.create",
+)
+async def create_automation(
+    payload: AutomationUpsertPayload,
+    identity: Principal = Depends(require_login),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[AutomationView]:
+    """校验触发配置后落一条值守任务；``next_run_at`` 按触发方式从现在起算。
+
+    用户说「每天早上八点给我昨日入库汇总」即可由 Agent 经 CLI 工具调到这里，
+    此后无需任何人工触发。
+    """
+    _reject_automation_identity(identity)
+    if not payload.name.strip() or not payload.prompt.strip():
+        raise BadRequestException(message_key="errors.agent.automationPromptRequired")
+    trigger_type = payload.trigger_type or "interval"
+    trigger_expr = (payload.trigger_expr or "").strip()
+    validate_trigger(trigger_type, trigger_expr)
+    validate_quiet_hours(payload.quiet_hours)
+    validate_delivery_channels(payload.delivery_channels or "push")
+    now = utcnow()
+    row = AgentAutomation(
+        owner_member_id=0,  # v1 恒为超管
+        name=payload.name.strip(),
+        prompt=payload.prompt.strip(),
+        trigger_type=AutomationTriggerType(trigger_type),
+        trigger_expr=trigger_expr,
+        delivery_channels=payload.delivery_channels or "push",
+        quiet_hours=payload.quiet_hours or None,
+        max_runs_per_day=payload.max_runs_per_day or 12,
+        max_tokens_per_run=payload.max_tokens_per_run or 30000,
+        enabled=payload.enabled if payload.enabled is not None else True,
+        next_run_at=now,
+    )
+    row.next_run_at = compute_next_run(trigger_type, trigger_expr, now=now)
+    repo = AgentAutomationRepository(session)
+    row = await repo.create(row)
+    return ok(
+        AutomationView.from_model(row, await repo.latest_run(row.id or 0)),
+        message=t("agent.automations.created"),
+    )
+
+
+@automations_router.put(
+    "/{automation_id}",
+    response_model=ApiResponse[AutomationView],
+    summary="更新自动化（改名/触发/投递/启停）",
+    operation_id="agent.automations.update",
+)
+async def update_automation(
+    automation_id: int,
+    payload: AutomationUpsertPayload,
+    identity: Principal = Depends(require_login),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[AutomationView]:
+    """部分更新：只改传了的字段。触发计划变更后从现在重算 ``next_run_at``。
+
+    停用 → 启用是熔断恢复的人工通道：失败计数清零，停用告警随之熄灯。
+    """
+    _reject_automation_identity(identity)
+    repo = AgentAutomationRepository(session)
+    row = await repo.get(automation_id)
+    if row is None:
+        raise NotFoundException(message_key="errors.agent.automationMissing")
+    changes = payload.model_dump(exclude_none=True)
+    if "name" in changes and not str(changes["name"]).strip():
+        raise BadRequestException(message_key="errors.agent.automationPromptRequired")
+    if "prompt" in changes and not str(changes["prompt"]).strip():
+        raise BadRequestException(message_key="errors.agent.automationPromptRequired")
+    trigger_changed = "trigger_type" in changes or "trigger_expr" in changes
+    if trigger_changed:
+        trigger_type = str(changes.get("trigger_type", row.trigger_type.value))
+        trigger_expr = str(changes.get("trigger_expr", row.trigger_expr)).strip()
+        validate_trigger(trigger_type, trigger_expr)
+        row.trigger_type = AutomationTriggerType(trigger_type)
+        row.trigger_expr = trigger_expr
+        row.next_run_at = compute_next_run(trigger_type, trigger_expr, now=utcnow())
+    if "quiet_hours" in changes:
+        quiet = str(changes["quiet_hours"]).strip()
+        validate_quiet_hours(quiet or None)
+        row.quiet_hours = quiet or None
+    if "delivery_channels" in changes:
+        validate_delivery_channels(str(changes["delivery_channels"]))
+        row.delivery_channels = str(changes["delivery_channels"])
+    for field in ("name", "prompt", "max_runs_per_day", "max_tokens_per_run"):
+        if field in changes:
+            setattr(row, field, changes[field])
+    if "enabled" in changes and changes["enabled"] is not None:
+        was_disabled = not row.enabled
+        row.enabled = bool(changes["enabled"])
+        if row.enabled and was_disabled:
+            # 熔断恢复的人工通道：计数清零 + 停用告警熄灯；到期时间已过的话
+            # 下一拍即恢复运行
+            row.consecutive_failures = 0
+            await mark_reenabled(session, automation_id)
+    await repo.save(row)
+    return ok(
+        AutomationView.from_model(row, await repo.latest_run(automation_id)),
+        message=t("agent.automations.updated"),
+    )
+
+
+@automations_router.delete(
+    "/{automation_id}",
+    response_model=ApiResponse[dict],
+    summary="删除自动化（run 历史保留）",
+    operation_id="agent.automations.delete",
+    openapi_extra={"x-cli-dangerous": "confirm"},
+)
+async def delete_automation(
+    automation_id: int,
+    identity: Principal = Depends(require_login),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[dict]:
+    """删除定义；在途轮次自然结束后不再有新的一轮。run 历史与稳定会话保留。"""
+    _reject_automation_identity(identity)
+    repo = AgentAutomationRepository(session)
+    row = await repo.get(automation_id)
+    if row is None:
+        raise NotFoundException(message_key="errors.agent.automationMissing")
+    await repo.delete(row)
+    return ok({}, message=t("agent.automations.deleted"))
+
+
+@automations_router.post(
+    "/{automation_id}/run-now",
+    response_model=ApiResponse[AutomationRunView],
+    summary="立即跑一轮（同样过闸门）",
+    operation_id="agent.automations.run-now",
+)
+async def run_automation_now(
+    automation_id: int,
+    identity: Principal = Depends(require_login),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[AutomationRunView]:
+    """手动触发一轮：与节拍共用 launch（单飞/预算照常生效）。
+
+    上一轮还在跑时返回 skipped(busy) 的 run 行，不排队也不并发。
+    """
+    _reject_automation_identity(identity)
+    repo = AgentAutomationRepository(session)
+    row = await repo.get(automation_id)
+    if row is None:
+        raise NotFoundException(message_key="errors.agent.automationMissing")
+    run = await launch(session, row, now=utcnow())
+    if run.status == AutomationRunStatus.RUNNING:
+        message = t("agent.automations.runStarted")
+    else:
+        message = t("agent.automations.runSkipped", reason=run.skip_reason or "busy")
+    return ok(AutomationRunView.from_model(run), message=message)
+
+
+@automations_router.get(
+    "/{automation_id}/runs",
+    response_model=ApiResponse[list[AutomationRunView]],
+    summary="分页查询自动化运行历史",
+    operation_id="agent.automations.runs",
+)
+async def list_automation_runs(
+    automation_id: int,
+    identity: Principal = Depends(require_login),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+) -> ApiResponse[list[AutomationRunView]]:
+    """按时间倒序分页；观测与排错的数据源（L5 验收：run 历史分页可查）。"""
+    _reject_automation_identity(identity)
+    repo = AgentAutomationRepository(session)
+    if await repo.get(automation_id) is None:
+        raise NotFoundException(message_key="errors.agent.automationMissing")
+    rows, _total = await repo.list_runs(automation_id, offset=offset, limit=limit)
+    return ok([AutomationRunView.from_model(row) for row in rows])

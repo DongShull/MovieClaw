@@ -36,3 +36,31 @@ AGENT_RUN_FINISHED = define(
     sensitive=True,
     version="1.2",
 )
+
+
+class AutomationDelivered(Frozen):
+    """值守自动化的一轮跑完且**有值得报告的结论**（NO-OP 不发，不吵人）。
+
+    收件人按推送规则解析（v1 恒为管理员）；点开落到该自动化的稳定会话。
+    """
+
+    automation_id: int
+    name: str
+    """自动化名称（推送标题用）。"""
+    run_id: int
+    """本轮运行编号（幂等键：同一轮只投递一次）。"""
+    session_id: str
+    """该自动化长期复用的稳定会话；点开推送落到这里。"""
+    summary: str
+    """结论正文（一行纯文本预览）。"""
+
+
+AGENT_AUTOMATION_DELIVERED = define(
+    "agent.automation.delivered",
+    AutomationDelivered,
+    title="自动化有结论",
+    group="AI 助手",
+    doc="值守自动化跑完一轮且产生值得报告的结论（NO-OP 不发）",
+    sensitive=True,
+    version="1.0",
+)

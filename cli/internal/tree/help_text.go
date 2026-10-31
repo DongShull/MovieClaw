@@ -6,6 +6,7 @@ package tree
 //
 // 本文件由 Python 版逐字导出，两边内容必须一致（有守护测试）。
 var domainHelp = map[string]string{
+	"agent":         "AI 自动化：把「定时/每到…就…」的值守诉求落成无人值守任务，可立即跑一轮并查运行历史；AI 会话本身在 session 域",
 	"app":           "外部访问设置、访问地址（内网 / 外网）、应用重启、版本升级/回退与 NER 模型更新",
 	"appearance":    "首页背景与图库",
 	"auth":          "个人信息、会话与 API 令牌",
@@ -43,6 +44,7 @@ var domainHelp = map[string]string{
 // 二级分组同样是模型的探索入口，必须说明「这里解决什么问题」。只给一级域描述
 // 会让 items / identification / metadata 等孤立名词失去选择依据。
 var commandGroupHelp = map[string]string{
+	"agent.automations":      "值守自动化的增删改查与立即运行：创建、调整触发计划、启停、删除、立即跑一轮、查运行历史",
 	"dl.torrent":             "处理下载器里某一个具体的种子任务：换源、删除",
 	"library.artwork":        "查看、下载和选定媒体条目的海报、背景图或徽标",
 	"library.identification": "处理待识别、错识别和已忽略文件，明确指定文件所属影视条目",

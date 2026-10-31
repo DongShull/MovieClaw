@@ -24,6 +24,7 @@ from movieclaw_api.api.deps import (
     require_direct_download_capability,
     require_login,
 )
+from movieclaw_api.api.routes.agent import automations_router as agent_automations_router
 from movieclaw_api.api.routes.agent import router as session_router
 from movieclaw_api.api.routes.agent import skills_router as agent_skills_router
 from movieclaw_api.api.routes.agent_handoff import router as agent_handoff_router
@@ -206,6 +207,8 @@ _ADMIN_ROUTERS = [
     web_search_router,
     session_router,
     agent_skills_router,
+    # Agent 自动化的管理面（v1 仅超管；automation 身份的令牌在路由层被一律 403）
+    agent_automations_router,
     # 旧版 App 的通道接口（只为已发布的 App 保留，内部走通道中枢）
     channels_legacy_router,
     channels_router,

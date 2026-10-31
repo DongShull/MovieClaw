@@ -90,7 +90,11 @@
       "backfillUpgradeSnapshotsTitle": "Backfill upgrade baselines",
       "backfillUpgradeSnapshotsDescription": "Fill quality snapshots for previously ingested units in subscriptions referenced by rule sets with upgrade targets. These snapshots are the baseline for upgrade comparisons. Runs gradually in database-only batches and becomes a no-op when complete.",
       "llmCatalogRefreshTitle": "Update model catalog",
-      "llmCatalogRefreshDescription": "Fetches the latest model list from each model provider and refreshes model parameters from models.dev. Skips anything updated within the last 24 hours, and does nothing when no model provider is connected."
+      "llmCatalogRefreshDescription": "Fetches the latest model list from each model provider and refreshes model parameters from models.dev. Skips anything updated within the last 24 hours, and does nothing when no model provider is connected.",
+      "runAgentAutomationsTitle": "Agent automation heartbeat",
+      "runAgentAutomationsDescription": "Picks due agent automations every minute, passes the gates, and runs one attended-free session round as the automation identity.",
+      "cleanupAgentAutomationRunsTitle": "Clean agent automation run history",
+      "cleanupAgentAutomationRunsDescription": "Deletes agent_automation_run history past the retention window to keep the table from growing forever."
     }
   },
   "ai": {

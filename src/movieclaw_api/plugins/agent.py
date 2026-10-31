@@ -57,6 +57,22 @@ async def agent_invoke(ctx: Context) -> None:
     ctx.provide(AGENT, AgentService(ctx.use(HOST_OPS)))
 
 
+@plugin("agent.automations", title="Agent 自动化节拍", reloadable=True)
+async def agent_automations(ctx: Context) -> None:
+    """让值守自动化到点自己醒来：每分钟挑出到期的自动化，过闸门跑一轮无人值守会话。"""
+    from movieclaw_api.services import agent_automations
+    from movieclaw_scheduler import contribute_tasks
+
+    contribute_tasks(ctx, agent_automations)
+    # 停机/卸载时取消在途轮：runner 会把半截输出定稿落盘，转录保持配对完整
+    from movieclaw_api.services.agent_automations import cancel_active_runs
+
+    ctx.effect(
+        lambda: cancel_active_runs("自动化插件已卸载"),
+        label="cancel-active-automation-runs",
+    )
+
+
 @plugin("agent.model-catalog", title="模型目录更新", inject=(DB,), reloadable=True)
 async def agent_model_catalog(ctx: Context) -> None:
     """每天从各模型服务商拉取最新的可用模型，并从 models.dev 更新模型参数。"""

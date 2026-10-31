@@ -27,5 +27,15 @@
     "visionUnsupported": "当前模型「{model}」不支持看图，这张图我看不了（文字部分照常处理）。可在设置里把默认模型换成视觉模型（如 qwen3-vl-plus）；若它其实支持看图，在供应商设置的「补录模型」里为它勾上「视觉」后重发即可。",
     "tooManyImages": "一次最多处理 {max} 张图片，本轮只看前 {max} 张。",
     "imageFailed": "有一张图片没能处理（{error}）。"
+  },
+  "automations": {
+    "created": "自动化已创建",
+    "updated": "自动化已更新",
+    "deleted": "自动化已删除",
+    "runStarted": "自动化本轮已启动，结论会写回会话并按配置投递",
+    "runSkipped": "本轮已跳过（{reason}）",
+    "policyUpdated": "Agent 自动化设置已保存",
+    "noticeTitle": "自动化「{name}」连续失败已自动停用",
+    "noticeMessage": "连续 {count} 次运行失败，已停止调度并等你处理。最后错误：{error}。排查后到「Agent 自动化」里重新启用即可恢复。"
   }
 }

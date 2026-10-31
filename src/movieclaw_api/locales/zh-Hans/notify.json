@@ -68,7 +68,9 @@
     "tipTitle": "使用建议",
     "tipDescription": "发现有设置能改善体验时（比如家里有人在用刷片、电视大图预告，建议开启片段预切），每条只提醒一次",
     "agentFinishedTitle": "AI 回复完成",
-    "agentFinishedDescription": "AI 助手回答完你在 App、网页里的提问（或运行出错）时提醒，切到别的 App 也能知道；在 IM 里聊的回复本来就在聊天里，不另外提醒"
+    "agentFinishedDescription": "AI 助手回答完你在 App、网页里的提问（或运行出错）时提醒，切到别的 App 也能知道；在 IM 里聊的回复本来就在聊天里，不另外提醒",
+    "automationTitle": "自动化有结论",
+    "automationDescription": "值守自动化按计划跑完一轮且有值得报告的结论时提醒（无事项的轮次不打扰），点开落到该自动化的会话"
   },
   "groups": {
     "subscriptions": "我的订阅",
@@ -227,5 +229,8 @@
   },
   "channels": {
     "testSent": "已推送到 {count} 个账号"
+  },
+  "automation": {
+    "deliveredTitle": "自动化「{name}」有结论"
   }
 }

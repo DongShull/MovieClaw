@@ -2806,5 +2806,23 @@
   },
   "llm.modelParamsUnknown": {
     "sourceHash": "6aeb36e833dc50cdb5293cdb936c48fbc746ff159a584ce83589c0c74205ff80"
+  },
+  "agent.automationMissing": {
+    "sourceHash": "f8e8a68d27b3db9d15e598c65ca59bb655a83fb710760f79430f5353d69df635"
+  },
+  "agent.automationSelfManage": {
+    "sourceHash": "d258e32717a74e83ed2107ddb15d9d5f1df06f02c1c5301f5ecbd88e6aaa45de"
+  },
+  "agent.automationPromptRequired": {
+    "sourceHash": "2ee4238b73389276418097c9f51d9edec371a0992257b4f3457ab2030df06c2e"
+  },
+  "agent.automationTriggerInvalid": {
+    "sourceHash": "166f02e28c4d5c60d5b784c40876e375f3100f3005535bf8e87bfd7265ff639b"
+  },
+  "agent.automationQuietHoursInvalid": {
+    "sourceHash": "da84f1a24c09b1514d4c70354ca06d6ba39848d922a587b05da6deb4a33340f7"
+  },
+  "agent.automationChannelsInvalid": {
+    "sourceHash": "111a3dbd938a07b7ef696520f7402cb0bf56010fef2248cdaf780bc6ca77e989"
   }
 }

@@ -172,6 +172,18 @@ async def _agent_finished(_s: AsyncSession, _member: int, p: Any) -> AlertConten
     )
 
 
+async def _automation_delivered(_s: AsyncSession, _member: int, p: Any) -> AlertContent:
+    # 值守自动化的结论：标题点名自动化（多个自动化并存靠它区分），正文是结论
+    # 开头，点开落到该自动化长期复用的稳定会话。NO-OP 在发布侧就不发（L4）。
+    return AlertContent(
+        title=t("notify.automation.deliveredTitle", name=p.name),
+        body=p.summary,
+        open=f"/sessions/{p.session_id}",
+        thread=f"automation:{p.automation_id}",
+        source="server",
+    )
+
+
 def register_all() -> None:
     register(
         Aggregator(
@@ -357,5 +369,18 @@ def register_all() -> None:
             when=lambda p: p.source == "app",
             collapse=lambda p: ("agent-run", p.session_id),
             to_im=False,
+        )
+    )
+    register(
+        Rule(
+            event="agent.automation.delivered",
+            title="notify.preferences.automationTitle",
+            description=("notify.preferences.automationDescription"),
+            group="notify.groups.agent",
+            default=True,
+            admin_only=True,
+            audience=Audience.admins(),
+            render=_automation_delivered,
+            collapse=lambda p: ("automation", p.automation_id),
         )
     )

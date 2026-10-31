@@ -20,6 +20,7 @@ BT 下载器、媒体服务器……）提供基础支撑。分层与职责：
 
 from __future__ import annotations
 
+from movieclaw_api.settings.agent_automations import AgentAutomationsSetting
 from movieclaw_api.settings.app_server import AppServerSetting
 from movieclaw_api.settings.base import (
     SettingDescriptor,
@@ -120,6 +121,8 @@ __all__ = [
     "LlmCatalogSetting",
     "LlmDefaultsSetting",
     "WebSearchSetting",
+    # Agent 自动化（定时无人值守会话的全局闸门）
+    "AgentAutomationsSetting",
     "McpEndpoint",
     "McpEndpointsSetting",
     # 应用服务（外部访问地址）
