@@ -113,6 +113,10 @@ BUILTIN_MESSAGE_KEYS: dict[str, dict[str, str]] = {
         "title": "plugins.builtins.agentInvokeTitle",
         "description": "plugins.builtins.agentInvokeDescription",
     },
+    "agent.automations": {
+        "title": "plugins.builtins.agentAutomationsTitle",
+        "description": "plugins.builtins.agentAutomationsDescription",
+    },
     "enrich.backfill": {
         "title": "plugins.builtins.enrichBackfillTitle",
         "description": "plugins.builtins.enrichBackfillDescription",

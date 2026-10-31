@@ -243,7 +243,9 @@ def automation_instructions() -> str:
     title_key="settings.scheduledTasks.catalog.runAgentAutomationsTitle",
     trigger_type=TriggerType.INTERVAL,
     interval_seconds=TICK_SECONDS,
-    description="挑出到期的 Agent 自动化，过闸门后以 automation 身份跑一轮值守会话。",
+    description=(
+        "每分钟挑出到期的 Agent 自动化，过闸门后以 automation 身份跑一轮值守会话并投递结论。"
+    ),
     description_key="settings.scheduledTasks.catalog.runAgentAutomationsDescription",
 )
 async def run_agent_automations() -> None:
