@@ -194,7 +194,9 @@
     "appUpdateStartupCheckTitle": "Startup update check",
     "appUpdateStartupCheckDescription": "Checks for a new version a few minutes after startup in Docker deployments.",
     "agentModelCatalogTitle": "Model catalog updates",
-    "agentModelCatalogDescription": "Fetches each model provider's current model list daily and refreshes model parameters from models.dev."
+    "agentModelCatalogDescription": "Fetches each model provider's current model list daily and refreshes model parameters from models.dev.",
+    "agentAutomationsTitle": "Agent automation heartbeat",
+    "agentAutomationsDescription": "Picks due agent automations every minute and runs unattended session rounds behind the global gate."
   },
   "groups": {
     "core": "Core",

@@ -226,6 +226,20 @@ def test_runs_history_paginated(client) -> None:
     assert client.get(f"{_BASE}/999/runs").status_code == 404
 
 
+def test_startup_registers_automation_tasks(client) -> None:
+    """真实启动链（manifest → agent.automations 插件 → 内核注册表）：
+    节拍与清理任务必须在注册表里，且出现在定时任务管理面（审查意见 1）。"""
+    from movieclaw_scheduler.registry import get_task
+
+    # get_task 读的是内核绑定的注册表（bind_registry 在插件激活时发生）：
+    # 清单里没有 agent.automations 时这里拿到的就是 None
+    beat = get_task("run_agent_automations")
+    assert beat is not None
+    assert callable(beat.handler)
+    assert beat.default_interval_seconds == 60
+    assert get_task("cleanup_agent_automation_runs") is not None
+
+
 # ---------------------------------------------------------------------------
 # run-now：与节拍共用闸门
 # ---------------------------------------------------------------------------

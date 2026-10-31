@@ -34,7 +34,7 @@ class AutomationUpsertPayload(BaseModel):
     delivery_channels: str | None = Field(
         default=None,
         max_length=20,
-        description="投递渠道子集：push / im，逗号分隔（v1 仅 push 与 push,im）",
+        description="投递渠道（v1 仅 push；IM 跟随「账号 → 通知」的事件开关）",
     )
     quiet_hours: str | None = Field(
         default=None, max_length=11, description="静默时段 HH:MM-HH:MM；空串 = 清除"

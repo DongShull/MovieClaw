@@ -417,5 +417,12 @@
     "manifest_ref": "agent.agent_model_catalog",
     "title": "plugins.builtins.agentModelCatalogTitle",
     "description": "plugins.builtins.agentModelCatalogDescription"
+  },
+  "agent.automations": {
+    "path": "src/movieclaw_api/plugins/agent.py",
+    "function": "agent_automations",
+    "manifest_ref": "agent.agent_automations",
+    "title": "plugins.builtins.agentAutomationsTitle",
+    "description": "plugins.builtins.agentAutomationsDescription"
   }
 }

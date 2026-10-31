@@ -472,7 +472,7 @@
     "automationPromptRequired": "Automation name and prompt must not be empty",
     "automationTriggerInvalid": "Invalid trigger configuration: {detail}",
     "automationQuietHoursInvalid": "Invalid quiet hours, expected HH:MM-HH:MM (e.g. 23:00-07:00) with distinct start and end",
-    "automationChannelsInvalid": "Invalid delivery channels, must be a combination of push / im"
+    "automationChannelsInvalid": "Invalid delivery channels: only push is supported in v1 (IM follows the per-event notification switches)"
   },
   "mcp": {
     "endpointMissing": "This endpoint does not exist or has been deleted",

@@ -31,11 +31,11 @@ from movieclaw_agent import AgentRunner, AgentStartParams
 from movieclaw_agent.events import AgentEvent
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.i18n.stored import source_text
+from movieclaw_api.services.agent_runs import get_agent_run_registry
 from movieclaw_api.services.agent_session_recorder import AgentSessionRecorder
 from movieclaw_api.services.agent_sessions import get_agent_session_store
 from movieclaw_api.services.agent_toolkit import agent_system_prompt, profile_tools
 from movieclaw_api.services.llm_config import acquire_llm_router
-from movieclaw_api.services.push.automations import deliver_conclusion
 from movieclaw_api.services.system_notice import upsert_notice
 from movieclaw_api.settings import AgentAutomationsSetting, get_setting_store
 from movieclaw_db.engine import get_database
@@ -60,8 +60,18 @@ logger = logging.getLogger("movieclaw_api.agent_automations")
 TICK_SECONDS = 60
 #: 会话 owner 前缀：网页据此挂 automation 徽标（/sessions 列表）
 AUTOMATION_OWNER_PREFIX = "automation:"
-#: L2 单飞在途表：automation_id → 本轮任务（进程内；DB 侧以会话心跳兜底）
-_active_runs: dict[int, asyncio.Task[None]] = {}
+#: L2 单飞在途表：automation_id → 本轮 automation-run 的 DB id（进程内；
+#: DB 侧以会话心跳兜底）。登记在 launch 的锁内原子完成（审查意见 2）。
+_active_runs: dict[int, int] = {}
+#: 在途轮的注册表运行编号：automation-run DB id → AgentRunRegistry run_id。
+#: kill switch / 停机经它取消真正的 Agent 运行。
+_active_registry_runs: dict[int, str] = {}
+#: 全局日 token 预算的在途预留：automation-run DB id → 预留额度（审查意见 3）。
+#: launch 时按单轮上限预留、收尾按实际用量结算，正在跑的轮次不再隐形。
+_token_reservations: dict[int, int] = {}
+#: 每条自动化一把锁：覆盖「闸门检查 + 登记」全程。检查与登记之间隔着多次
+#: await，没有锁的话并发 run-now / 手动撞节拍会同时通过单飞检查（审查意见 2）。
+_launch_locks: dict[int, asyncio.Lock] = {}
 #: L3 熔断：单轮墙钟上限（秒）。token 上限在自动化行上（max_tokens_per_run）。
 RUN_WALL_CLOCK_SECONDS = 10 * 60
 #: L5 失败退避：连续失败第 1/2/≥3 次后的顺延（表驱动，验收 §L5-2）
@@ -84,10 +94,6 @@ _AUTOMATION_SPEC = """\
 _NO_OP_TOKENS = {"no-op", "noop", "no op", "无事项", "无变化"}
 
 _QUIET_HOURS_RE = re.compile(r"^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$")
-
-#: 合法投递渠道（v1：App 推送 + IM 账号）
-DELIVERY_CHANNELS = ("push", "im")
-
 
 # ---------------------------------------------------------------------------
 # 到期与静默时段（L1/L2 的纯函数，表驱动单测的直接对象）
@@ -163,9 +169,14 @@ def validate_quiet_hours(expr: str | None) -> None:
 
 
 def validate_delivery_channels(channels: str) -> None:
-    """投递渠道校验：``push`` / ``im`` 的逗号组合，至少一个。"""
-    parts = [c.strip() for c in channels.split(",") if c.strip()]
-    if not parts or any(c not in DELIVERY_CHANNELS for c in parts):
+    """投递渠道校验（v1）：只收 ``push``（审查意见 4 的 v1 收敛）。
+
+    结论经推送规则 ``agent.automation.delivered`` 分发：App 推送、绑定的 IM
+    账号与 Webhook 订阅同一个事件，跟「账号 → 通知」的事件开关走；引擎的
+    IM 语义是规则级的，per-automation 单独关 IM 需要事件消费者模型，随 v2
+    （设计稿 §9）。``delivery_channels`` 列保留，v2 在它上面扩展。
+    """
+    if channels.strip() != "push":
         raise BadRequestException(message_key="errors.agent.automationChannelsInvalid")
 
 
@@ -245,25 +256,32 @@ async def run_agent_automations() -> None:
     now = utcnow()
     async with get_database().session() as session:
         repo = AgentAutomationRepository(session)
-        due = await repo.due(now)
-        for automation in due:
-            # 静默时段：顺延到时段结束即返回，不留痕、不排队（验收 §L2-2）
-            quiet_end = quiet_hours_end(automation.quiet_hours, now)
-            if quiet_end is not None:
-                automation.next_run_at = quiet_end
-                await repo.save(automation)
-                continue
+        # 静默时段的判定在 launch 的共享闸门里（审查意见 5）：run-now 与节拍
+        # 同一套闸门，不再各说各话
+        for automation in await repo.due(now):
             await launch(session, automation, now=now)
 
 
 async def cancel_active_runs(reason: str) -> None:
-    """取消全部在途轮（kill switch / 插件卸载 / 停机时调用）。"""
-    tasks = [task for task in list(_active_runs.values()) if not task.done()]
-    for task in tasks:
-        task.cancel()
-    if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
-        logger.info("已取消 %d 个在途自动化运行：%s", len(tasks), reason)
+    """取消全部在途轮（kill switch / 插件卸载 / 停机时调用）。
+
+    经 AgentRunRegistry 取消：先落 agent_cancelled 事件再取消任务，半截输出
+    照常定稿、转录保持配对完整。
+    """
+    registry = get_agent_run_registry()
+    run_ids = [
+        rid
+        for rid in (
+            _active_registry_runs.get(db_run_id) for db_run_id in list(_active_runs.values())
+        )
+        if rid is not None
+    ]
+    for rid in run_ids:
+        await registry.cancel(rid)
+    for rid in run_ids:
+        await registry.wait_settled(rid, timeout=15)
+    if run_ids:
+        logger.info("已取消 %d 个在途自动化运行：%s", len(run_ids), reason)
 
 
 # ---------------------------------------------------------------------------
@@ -274,51 +292,69 @@ async def launch(
 ) -> AgentAutomationRun:
     """过 L2 闸门后拉起一轮运行；被挡下时返回 skipped 的 run 行。
 
-    节拍（tick）与 run-now 共用这一条路——手动立即跑同样过闸门（设计 §5）。
+    节拍（tick）与 run-now 共用这一条路——静默时段、预算、单飞对手动触发
+    一视同仁（设计 §5，审查意见 5）。闸门顺序固定：kill switch → 静默时段
+    → 日预算 → 单飞。
+
+    全程持有该自动化自己的锁：闸门检查与「登记在途 + 预留额度」之间隔着
+    多次 await，不锁住的话并发 run-now / 手动撞节拍会同时通过单飞检查
+    （审查意见 2）。
     """
     repo = AgentAutomationRepository(session)
-    in_flight = _active_runs.get(automation.id)
-    if in_flight is not None and not in_flight.done():
-        # 单飞：不排队，记 skip(busy)（验收 §L2-3）
-        return await _record_skip(repo, automation, "busy", now)
-    policy = await get_setting_store().get(AgentAutomationsSetting)
-    if not policy.enabled:
-        return await _record_skip(repo, automation, "disabled", now)
-    day_start = _day_start(now)
-    if await repo.count_runs_since(automation.id, day_start) >= automation.max_runs_per_day:
-        return await _record_skip(
-            repo, automation, "daily_run_limit", now, next_run=_next_day_start(now)
-        )
-    if await repo.tokens_used_since(day_start) >= policy.daily_token_budget:
-        return await _record_skip(
-            repo, automation, "daily_token_budget", now, next_run=_next_day_start(now)
-        )
+    lock = _launch_locks.setdefault(automation.id or 0, asyncio.Lock())
+    async with lock:
+        policy = await get_setting_store().get(AgentAutomationsSetting)
+        # L2-1 kill switch：总闸关着，谁也拉不起来
+        if not policy.enabled:
+            return await _record_skip(repo, automation, "disabled", now)
+        # L2-2 静默时段：顺延到时段结束（手动触发同样尊重静默）
+        quiet_end = quiet_hours_end(automation.quiet_hours, now)
+        if quiet_end is not None:
+            return await _record_skip(repo, automation, "quiet", now, next_run=quiet_end)
+        # L2-3 日预算：当日真实运行轮数
+        day_start = _day_start(now)
+        if await repo.count_runs_since(automation.id, day_start) >= automation.max_runs_per_day:
+            return await _record_skip(
+                repo, automation, "daily_run_limit", now, next_run=_next_day_start(now)
+            )
+        # L2-4 全局日 token 预算：已落库用量 + 在途预留（审查意见 3）——
+        # 正在跑的轮次按单轮上限占着额度，不会「预算 1000、单轮 30000」还连放多轮
+        reserved = sum(_token_reservations.values())
+        if await repo.tokens_used_since(day_start) + reserved >= policy.daily_token_budget:
+            return await _record_skip(
+                repo, automation, "daily_token_budget", now, next_run=_next_day_start(now)
+            )
+        # L2-5 单飞：上一轮没结束就不排队
+        if (automation.id or 0) in _active_runs:
+            return await _record_skip(repo, automation, "busy", now)
 
-    run = AgentAutomationRun(
-        automation_id=automation.id or 0,
-        started_at=now,
-        status=AutomationRunStatus.RUNNING,
-        session_id=automation.session_id,
-    )
-    session.add(run)
-    automation.last_run_at = now
-    # 到期推进以本轮启动为锚点：长轮次不会让下一次挤在一起（失败退避在 L5 覆盖）
-    automation.next_run_at = compute_next_run(
-        automation.trigger_type,
-        automation.trigger_expr,
-        now=now,
-        last_run_at=now,
-    )
-    await session.commit()
-    await session.refresh(run)
+        run = AgentAutomationRun(
+            automation_id=automation.id or 0,
+            started_at=now,
+            status=AutomationRunStatus.RUNNING,
+            session_id=automation.session_id,
+        )
+        session.add(run)
+        automation.last_run_at = now
+        # 到期推进以本轮启动为锚点：长轮次不会让下一次挤在一起（失败退避在 L5 覆盖）
+        automation.next_run_at = compute_next_run(
+            automation.trigger_type,
+            automation.trigger_expr,
+            now=now,
+            last_run_at=now,
+        )
+        await session.commit()
+        await session.refresh(run)
 
-    task = asyncio.create_task(
-        _execute_run(automation.id or 0, run.id or 0),
-        name=f"agent-automation-{automation.id}-run-{run.id}",
-    )
-    _active_runs[automation.id or 0] = task
-    task.add_done_callback(lambda _t: _active_runs.pop(automation.id or 0, None))
-    return run
+        # 登记（仍在锁内）：在途表 + token 预留；清除由 _execute_run 的收尾做，
+        # 且只清除仍属于自己那一轮的条目，先结束的轮次不会误删后一轮
+        _active_runs[automation.id or 0] = run.id or 0
+        _token_reservations[run.id or 0] = automation.max_tokens_per_run
+        asyncio.create_task(
+            _execute_run(automation.id or 0, run.id or 0),
+            name=f"agent-automation-{automation.id}-run-{run.id}",
+        )
+        return run
 
 
 async def _record_skip(
@@ -367,7 +403,13 @@ class _UsageMeter:
 
 
 async def _execute_run(automation_id: int, run_id: int) -> None:
-    """一轮完整执行（L3 会话 → L4 投递 → L5 观测）。自身不抛异常：结果都落 run 行。"""
+    """一轮完整执行（L3 会话 → L4 投递 → L5 观测）。自身不抛异常：结果都落 run 行。
+
+    运行登记进 ``AgentRunRegistry``（审查补充项）：网页 /sessions 的跟随（SSE）
+    与「停止」都认这一轮，侧栏不会再出现「显示运行中却停止不到」。token 与
+    墙钟两个上限各挂一个看门狗，到点走 ``registry.cancel``——先落
+    agent_cancelled 再取消任务，runner 把半截输出按 aborted 定稿，内容照常保留。
+    """
     started = time.monotonic()
     status = AutomationRunStatus.FAILED
     summary: str | None = None
@@ -375,10 +417,11 @@ async def _execute_run(automation_id: int, run_id: int) -> None:
     error_text: str | None = None
     count_failure = True
     recorder: AgentSessionRecorder | None = None
-    run_tag = uuid.uuid4().hex[:12]
-    terminal_recorded = False
-    token_cap = 0
     session_id: str | None = None
+    usage = _UsageMeter()
+    #: token/墙钟触发的预算终止标记：与「被人为停止」区分开（后者不计失败）
+    budget = {"abort": False}
+    run_started = False
 
     try:
         # automation 身份：domain-events 因果链记 automation，会话内发起的
@@ -424,12 +467,8 @@ async def _execute_run(automation_id: int, run_id: int) -> None:
 
         # 工具面：mclaw 档（无 bash/read/write/edit）；令牌带 automation 标记，
         # automations 管理端点据此拒绝 automation 身份（防自我增殖）
-        tools = await profile_tools(
-            "mclaw", session_id, owner, automation_id=automation_id
-        )
+        tools = await profile_tools("mclaw", session_id, owner, automation_id=automation_id)
         system_prompt = await agent_system_prompt(tools) + "\n\n" + _AUTOMATION_SPEC
-
-        usage = _UsageMeter()
 
         async def on_message(message: ChatMessage, response: ChatResponse | None) -> None:
             usage.add(response)
@@ -441,73 +480,106 @@ async def _execute_run(automation_id: int, run_id: int) -> None:
             on_message=on_message,
             on_compaction=recorder.on_compaction,  # type: ignore[union-attr]
         )
-        await recorder.begin(run_tag)
         await recorder.record_user_message(prompt)
         params = AgentStartParams(input=prompt, history=history, system_prompt=system_prompt)
 
-        wall_exceeded = False
-        token_exceeded = False
-        terminal: AgentEvent | None = None
+        registry = get_agent_run_registry()
+        rid = registry.start(
+            runner, params, session_id=session_id, on_terminal=recorder.on_terminal
+        )
+        _active_registry_runs[run_id] = rid
+        run_started = True
+        await recorder.begin(rid)
+
+        async def _watch_token_cap() -> None:
+            while True:
+                await asyncio.sleep(1.0)
+                if usage.tokens >= token_cap:
+                    budget["abort"] = True
+                    await registry.cancel(rid)
+                    return
+
+        watchdog = asyncio.create_task(
+            _watch_token_cap(), name=f"agent-automation-token-watch-{run_id}"
+        )
         try:
-            async with asyncio.timeout(RUN_WALL_CLOCK_SECONDS):
-                async with contextlib.aclosing(runner.start(params, run_id=run_tag)) as stream:
-                    async for event in stream:
-                        if event.type in ("agent_done", "agent_error"):
-                            terminal = event
-                            break
-                        if usage.tokens >= token_cap:
-                            token_exceeded = True
-                            break
-        except TimeoutError:
-            wall_exceeded = True
-        if terminal is not None:
-            terminal_recorded = True
-            await recorder.on_terminal(terminal, reason="service_interrupted")
-            done_usage = terminal.result.usage.total_tokens if terminal.result else 0
-            tokens = max(usage.tokens, done_usage)
-            if terminal.type == "agent_done":
-                text = (terminal.result.text or "").strip() if terminal.result else ""
-                summary = text or None
-                if token_exceeded or wall_exceeded or tokens > token_cap:
-                    status = AutomationRunStatus.BUDGET_EXCEEDED
-                elif is_no_op(text):
-                    status = AutomationRunStatus.NO_OP
-                    summary = None
-                else:
-                    status = AutomationRunStatus.COMPLETED
-            else:
-                status = AutomationRunStatus.FAILED
-                error_text = terminal.error or source_text("errors.agent.run.unknown")
+            await registry.wait_settled(rid, timeout=RUN_WALL_CLOCK_SECONDS)
+            if registry.is_active(rid):
+                # 墙钟到点（审查意见 3 的另一半）：优雅终止，内容照常落库
+                budget["abort"] = True
+                await registry.cancel(rid)
+                await registry.wait_settled(rid, timeout=15)
+        finally:
+            watchdog.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await watchdog
+
+        # 终态回读：registry 已完成收尾（on_terminal 由它调用，不在这里重复）。
+        # 事件按 StoredAgentEvent（.sequence/.event）包装，取 .event 看类型
+        stored, _terminal = await registry.get_events(rid, 0, timeout_seconds=0)
+        terminal = next(
+            (
+                stored_event.event
+                for stored_event in reversed(stored)
+                if stored_event.event.type
+                in ("agent_done", "agent_error", "agent_cancelled")
+            ),
+            None,
+        )
+        if terminal is not None and terminal.result and terminal.result.usage.total_tokens:
+            tokens = max(usage.tokens, terminal.result.usage.total_tokens)
         else:
-            # 超限优雅终止：runner 收到 aclose 会把半截输出按 aborted 定稿落
-            # 盘，内容照常保留（验收 §L3-4）；本轮按预算超限收场
-            terminal_recorded = True
-            await recorder.on_terminal(
-                AgentEvent(type="agent_cancelled", run_id=run_tag), reason="user_cancelled"
-            )
-            status = AutomationRunStatus.BUDGET_EXCEEDED
             tokens = usage.tokens
-    except TimeoutError:  # pragma: no cover - asyncio.timeout 已在内部消化
-        status = AutomationRunStatus.BUDGET_EXCEEDED
-        error_text = "单轮墙钟超限"
-    except asyncio.CancelledError:
-        # kill switch / 停机取消在途轮：runner 已把半截内容落盘，这里补收尾。
-        # 不计入失败（不是自动化的错），也不做退避——停用是用户 explicit 的决定。
-        status = AutomationRunStatus.FAILED
-        error_text = "运行被停止（自动化已停用或应用关闭）"
-        count_failure = False
+        if terminal is not None and terminal.type == "agent_done":
+            text = (terminal.result.text or "").strip() if terminal.result else ""
+            summary = text or None
+            if budget["abort"] or tokens > token_cap:
+                status = AutomationRunStatus.BUDGET_EXCEEDED
+            elif is_no_op(text):
+                status = AutomationRunStatus.NO_OP
+                summary = None
+            else:
+                status = AutomationRunStatus.COMPLETED
+        elif terminal is not None and terminal.type == "agent_cancelled":
+            if budget["abort"]:
+                status = AutomationRunStatus.BUDGET_EXCEEDED
+            else:
+                # kill switch / 会话被手动停止 / 停机：不是自动化的错，
+                # 不计入失败也不退避（停用是用户 explicit 的决定）
+                status = AutomationRunStatus.FAILED
+                error_text = "运行被停止（自动化已停用、会话被停止或应用关闭）"
+                count_failure = False
+        elif terminal is not None and terminal.type == "agent_error":
+            status = AutomationRunStatus.FAILED
+            error_text = terminal.error or source_text("errors.agent.run.unknown")
+        else:
+            status = AutomationRunStatus.FAILED
+            error_text = "Agent 运行未留下终态事件"
     except LlmError as exc:
         status = AutomationRunStatus.FAILED
         error_text = str(exc) or "模型调用失败"
+        tokens = usage.tokens
+    except asyncio.CancelledError:  # pragma: no cover - 停机兜底，正常路径走 registry
+        status = AutomationRunStatus.FAILED
+        error_text = "运行被停止（自动化已停用或应用关闭）"
+        count_failure = False
+        tokens = usage.tokens
     except Exception as exc:  # noqa: BLE001 - 一切意外都落成 failed run，绝不静默
         logger.exception("自动化 %s 第 %d 轮执行异常", automation_id, run_id)
         status = AutomationRunStatus.FAILED
         error_text = str(exc) or exc.__class__.__name__
+        tokens = usage.tokens
     finally:
-        if recorder is not None and not terminal_recorded:
+        # 预算结算：预留额度撤销，实际用量已在 run 行落库（审查意见 3）
+        _token_reservations.pop(run_id, None)
+        if _active_runs.get(automation_id) == run_id:
+            _active_runs.pop(automation_id, None)
+        _active_registry_runs.pop(run_id, None)
+        if recorder is not None and not run_started:
+            # 注册表接管之前就失败的轮次：补收尾（配对 + 清运行标记）
             with contextlib.suppress(Exception):
                 await recorder.on_terminal(
-                    AgentEvent(type="agent_cancelled", run_id=run_tag),
+                    AgentEvent(type="agent_cancelled", run_id=uuid.uuid4().hex[:12]),
                     reason="service_interrupted",
                 )
         await _finalize_run(
@@ -593,9 +665,23 @@ async def _finalize_run(
         ):
             run.delivered_at = now
             await repo.save_run(run)
-            # 投递入口在 push 包内（事件出口守护：业务侧不直接碰 notify）
-            deliver_conclusion(
-                automation, session_id=run.session_id, summary=summary
+            # L4 经事件出口分发（审查补充项：声明的 SDK 事件要真的发布）：
+            # App 推送、绑定的 IM 账号与 Webhook 都订阅 agent.automation.delivered，
+            # 跟随「账号 → 通知」的事件开关。发布与 delivered_at 同一事务——
+            # 崩溃要么都发生要么都不发生（至多一次，天然幂等）
+            from movieclaw_api import events
+            from movieclaw_sdk.events import AGENT_AUTOMATION_DELIVERED, AutomationDelivered
+
+            await events.publish(
+                session,
+                AGENT_AUTOMATION_DELIVERED,
+                lambda: AutomationDelivered(
+                    automation_id=automation.id or 0,
+                    name=automation.name,
+                    run_id=run_id,
+                    session_id=run.session_id or "",
+                    summary=summary,
+                ),
             )
     logger.info(
         "自动化 %s 第 %d 轮完成 status=%s tokens=%d duration_ms=%d",

@@ -1105,5 +1105,11 @@
   },
   "builtins.agentModelCatalogDescription": {
     "sourceHash": "e899c5c936642119ce465f9f04956844c619a6bc7d7136140fc7964211e8d6c0"
+  },
+  "builtins.agentAutomationsTitle": {
+    "sourceHash": "a5a48d08b1e0d577b60dc28d4e95eb23099e4cfa2794350e9c4860ae3a21af10"
+  },
+  "builtins.agentAutomationsDescription": {
+    "sourceHash": "4843e13cbd37f13cafbf8ad2692c05c6df921211e75f5ef6d10453de49256a21"
   }
 }

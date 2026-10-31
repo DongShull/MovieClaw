@@ -31,7 +31,7 @@
   "apps/web/lib/theme-runtime.ts": 13,
   "apps/web/lib/tips/engine.ts": 1,
   "apps/web/lib/ui-prefs.tsx": 3,
-  "src/movieclaw_api/services/library/source_providers.py": 7,
-  "src/movieclaw_api/services/agent_automations.py": 10,
-  "src/movieclaw_api/plugins/agent.py": 1
+  "src/movieclaw_api/plugins/agent.py": 1,
+  "src/movieclaw_api/services/agent_automations.py": 11,
+  "src/movieclaw_api/services/library/source_providers.py": 7
 }

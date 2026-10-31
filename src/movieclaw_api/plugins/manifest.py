@@ -141,6 +141,9 @@ BUILTIN_MANIFEST: tuple[Entry, ...] = tuple(
         agent.agent_attachments,
         agent.agent_model_catalog,
         agent.agent_invoke,
+        # 值守自动化的节拍与清理任务（agent.automations）：排在 agent_invoke 后面，
+        # 调度器插件（scheduling）在它之后激活，contribute 的任务赶得上注册
+        agent.agent_automations,
         library.enrich_backfill,
         library.disc_image_durations,
         library.dolby_vision_backfill,

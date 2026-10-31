@@ -10,12 +10,13 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlmodel import select
 
 import movieclaw_api.services.agent_automations as auto
+from movieclaw_agent import AgentStartParams
 from movieclaw_agent.events import AgentEvent
 from movieclaw_api.exceptions import BadRequestException
 from movieclaw_api.services.agent_automations import (
@@ -65,6 +66,9 @@ async def db(tmp_path, monkeypatch):
     reset_setting_store()
     reset_agent_session_store()
     auto._active_runs.clear()
+    auto._active_registry_runs.clear()
+    auto._token_reservations.clear()
+    auto._launch_locks.clear()
     # 令牌签发/解密要会话密钥：应用 lifespan 在服务级单测里不跑，这里手动初始化
     from movieclaw_db.crypto import init_secret_box, reset_secret_box
 
@@ -72,13 +76,24 @@ async def db(tmp_path, monkeypatch):
     init_secret_box("test-master-key", tmp_path / ".secret_key")
     await run_migrations()
     init_setting_store()
+    # 执行体经 AgentRunRegistry 跑（跟随/停止/取消统一走它）；服务级单测手动初始化
+    from movieclaw_api.services.agent_runs import (
+        close_agent_run_registry,
+        init_agent_run_registry,
+    )
+
+    init_agent_run_registry()
     yield get_database()
+    await close_agent_run_registry()
     await dispose_db()
     reset_secret_box()
     reset_setting_store()
     get_settings.cache_clear()
     reset_agent_session_store()
     auto._active_runs.clear()
+    auto._active_registry_runs.clear()
+    auto._token_reservations.clear()
+    auto._launch_locks.clear()
 
 
 async def _seed_automation(**overrides) -> AgentAutomation:
@@ -208,18 +223,39 @@ async def test_launch_single_flight_records_busy(db, monkeypatch) -> None:
     row = await _seed_automation()
     await get_setting_store().set(AgentAutomationsSetting(enabled=True))
 
-    sleeper = asyncio.create_task(asyncio.sleep(30))
-    auto._active_runs[row.id] = sleeper
-    try:
-        async with get_database().session() as session:
-            fresh = await AgentAutomationRepository(session).get(row.id)
-            run = await launch(session, fresh, now=utcnow())
-        assert run.status == AutomationRunStatus.SKIPPED
-        assert run.skip_reason == "busy"
-    finally:
-        sleeper.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await sleeper
+    # 在途登记是 run 行 id（不是 task）：执行体的收尾按「仍属于自己」清理
+    auto._active_runs[row.id] = 999
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        run = await launch(session, fresh, now=utcnow())
+    assert run.status == AutomationRunStatus.SKIPPED
+    assert run.skip_reason == "busy"
+    # 在途登记没有被这一轮 skip 覆盖
+    assert auto._active_runs[row.id] == 999
+
+
+async def test_concurrent_launch_single_flight(db, monkeypatch) -> None:
+    """两个并发 launch（run-now 撞节拍）：只有一轮真正起来（审查意见 2）。"""
+    release = asyncio.Event()
+
+    async def _hanging_run(automation_id: int, run_id: int) -> None:
+        await release.wait()
+
+    monkeypatch.setattr(auto, "_execute_run", _hanging_run)
+    row = await _seed_automation()
+    await get_setting_store().set(AgentAutomationsSetting(enabled=True))
+
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        results = await asyncio.gather(
+            launch(session, fresh, now=utcnow()),
+            launch(session, fresh, now=utcnow()),
+        )
+    statuses = sorted(r.status.value for r in results)
+    assert statuses == ["running", "skipped"]
+    busy = next(r for r in results if r.status == AutomationRunStatus.SKIPPED)
+    assert busy.skip_reason == "busy"
+    release.set()
 
 
 async def test_launch_daily_run_limit_defers_to_next_day(db, monkeypatch) -> None:
@@ -292,19 +328,51 @@ async def test_launch_happy_path_spawns_run(db, monkeypatch) -> None:
 # L1 · 节拍任务本体
 # ---------------------------------------------------------------------------
 async def test_tick_cancels_in_flight_when_disabled(db) -> None:
-    """kill switch 关闭后 ≤1 tick：在途轮收到取消（L2 验收①）。"""
-    cancelled = asyncio.Event()
+    """kill switch 关闭后 ≤1 tick：在途轮经运行注册表收到取消（L2 验收①）。"""
+    from movieclaw_api.services.agent_runs import get_agent_run_registry
 
-    async def _stubborn() -> None:
-        try:
+    class _HangingRunner:
+        async def start(self, params, *, run_id=None):
+            yield AgentEvent(type="agent_start", run_id=run_id or "t")
             await asyncio.sleep(30)
-        except asyncio.CancelledError:
-            cancelled.set()
-            raise
 
-    auto._active_runs[42] = asyncio.create_task(_stubborn())
-    await run_agent_automations()  # 默认 policy.enabled=False
-    await asyncio.wait_for(cancelled.wait(), timeout=2)
+    registry = get_agent_run_registry()
+    rid = registry.start(
+        _HangingRunner(), AgentStartParams(input="x"), session_id="s-kill", on_terminal=None
+    )
+    auto._active_runs[42] = 1
+    auto._active_registry_runs[1] = rid
+
+    await run_agent_automations()  # 默认 policy.enabled=False → cancel_active_runs
+
+    for _ in range(50):
+        if not registry.is_active(rid):
+            break
+        await asyncio.sleep(0.05)
+    assert not registry.is_active(rid)
+    events, _ = await registry.get_events(rid, 0, timeout_seconds=0)
+    assert any(e.event.type == "agent_cancelled" for e in events)
+
+
+async def test_tick_launches_due_automations(db, monkeypatch) -> None:
+    """节拍任务本体：启用的到期自动化被拉起（L1 验收①的任务侧）。"""
+    release = asyncio.Event()
+
+    async def _hanging_run(automation_id: int, run_id: int) -> None:
+        await release.wait()
+
+    monkeypatch.setattr(auto, "_execute_run", _hanging_run)
+    row = await _seed_automation()  # next_run_at 已在过去
+    await get_setting_store().set(AgentAutomationsSetting(enabled=True))
+
+    await run_agent_automations()
+
+    async with get_database().session() as session:
+        repo = AgentAutomationRepository(session)
+        runs, total = await repo.list_runs(row.id)
+    assert total == 1
+    assert runs[0].status == AutomationRunStatus.RUNNING
+    release.set()
 
 
 # ---------------------------------------------------------------------------
@@ -447,6 +515,7 @@ async def test_mclaw_profile_excludes_workspace_tools(db) -> None:
 # L3 · 熔断：墙钟超限优雅终止，内容照常落库（验收 §L3-4）
 # ---------------------------------------------------------------------------
 async def test_wall_clock_aborts_gracefully_and_keeps_content(db, monkeypatch) -> None:
+    """墙钟到点：经注册表优雅取消，半截正文按 aborted 定稿保留（L3 验收④）。"""
     from movieclaw_agent.events import AgentDone
     from movieclaw_api.services.agent_sessions import get_agent_session_store
 
@@ -506,6 +575,61 @@ async def test_wall_clock_aborts_gracefully_and_keeps_content(db, monkeypatch) -
     assert any("查到一半" in t for t in texts)
     # budget_exceeded 计入失败：退避生效
     assert reloaded.consecutive_failures == 1
+
+
+async def test_launch_quiet_hours_defers(db, monkeypatch) -> None:
+    """静默时段在 launch 的共享闸门里：run-now 也顺延（审查意见 5）。"""
+    monkey_now = utcnow()
+
+    async def _noop_run(automation_id: int, run_id: int) -> None:  # pragma: no cover
+        return None
+
+    monkeypatch.setattr(auto, "_execute_run", _noop_run)
+    await get_setting_store().set(AgentAutomationsSetting(enabled=True))  # 先过 kill switch
+    # 以「现在」为中心造一个必然命中的静默窗（调度器时区），不依赖测试跑在几点
+    from datetime import timedelta as _td
+    from zoneinfo import ZoneInfo as _ZI
+
+    local = monkey_now.replace(tzinfo=UTC).astimezone(_ZI("Asia/Shanghai"))
+    start = (local - _td(minutes=1)).strftime("%H:%M")
+    end = (local + _td(minutes=1)).strftime("%H:%M")
+    row = await _seed_automation(quiet_hours=f"{start}-{end}")
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        run = await launch(session, fresh, now=monkey_now)
+    assert run.status == AutomationRunStatus.SKIPPED
+    assert run.skip_reason == "quiet"
+    reloaded = await _reload(row.id)
+    assert reloaded.next_run_at > monkey_now  # 顺延到时段结束，不是原地重试
+
+
+async def test_global_token_budget_reserves_in_flight(db, monkeypatch) -> None:
+    """日 token 预算给在途轮预留额度（审查意见 3）：预算 1000、单轮上限 30000
+    时，第二轮不能因为「还没落账」就放行。"""
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _hanging_run(automation_id: int, run_id: int) -> None:
+        started.set()
+        await release.wait()
+
+    monkeypatch.setattr(auto, "_execute_run", _hanging_run)
+    row = await _seed_automation(max_tokens_per_run=30000)
+    await get_setting_store().set(AgentAutomationsSetting(enabled=True, daily_token_budget=1000))
+
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        first = await launch(session, fresh, now=utcnow())
+    assert first.status == AutomationRunStatus.RUNNING
+    assert auto._token_reservations[first.id] == 30000  # 在途预留已登记
+    await asyncio.wait_for(started.wait(), timeout=2)
+
+    async with get_database().session() as session:
+        fresh = await AgentAutomationRepository(session).get(row.id)
+        second = await launch(session, fresh, now=utcnow())
+    assert second.status == AutomationRunStatus.SKIPPED
+    assert second.skip_reason == "daily_token_budget"
+    release.set()
 
 
 # ---------------------------------------------------------------------------

@@ -73,8 +73,9 @@ class AgentAutomation(TimestampMixin, table=True):
     trigger_type: AutomationTriggerType = Field(description="触发方式：interval / cron")
     # INTERVAL 存秒数（≥60）；CRON 存标准 5 段表达式，求值时区取调度器时区
     trigger_expr: str = Field(description="触发表达式：秒数或 5 段 cron")
-    # 投递渠道子集，逗号分隔：push（App 推送）/ im（IM 账号）；NO-OP 永不投递
-    delivery_channels: str = Field(default="push", description="投递渠道：push / im 组合")
+    # 投递渠道：v1 仅 push（结论经推送规则分发，IM/Webhook 跟随事件开关；
+    # per-automation 的 im 渠道等事件消费者模型，v2 扩展）。NO-OP 永不投递
+    delivery_channels: str = Field(default="push", description="投递渠道（v1：push）")
     # 静默时段 "HH:MM-HH:MM"（如 23:00-07:00，支持跨午夜）；NULL = 全天可跑
     quiet_hours: str | None = Field(default=None, description="静默时段，如 23:00-07:00")
     # 单日最多真实运行轮数（skipped 不计）；默认 12 ≈ 两小时一轮

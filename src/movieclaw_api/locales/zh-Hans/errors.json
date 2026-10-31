@@ -472,7 +472,7 @@
     "automationPromptRequired": "自动化名称与值守指令不能为空",
     "automationTriggerInvalid": "触发配置无效：{detail}",
     "automationQuietHoursInvalid": "静默时段格式无效，应为 HH:MM-HH:MM（如 23:00-07:00），起止不能相同",
-    "automationChannelsInvalid": "投递渠道无效，只能是 push / im 的组合"
+    "automationChannelsInvalid": "投递渠道无效：v1 仅支持 push（IM 跟随「账号 → 通知」的事件开关）"
   },
   "mcp": {
     "endpointMissing": "端点不存在或已被删除",
