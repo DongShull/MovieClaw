@@ -1,6 +1,7 @@
 import { preferences } from '@kit.ArkData';
 import { util } from '@kit.ArkTS';
 import { deviceInfo } from '@kit.BasicServicesKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 import { Context } from '@kit.AbilityKit';
 import { ApiClient, ApiError } from '../api/ApiClient';
 import { MovieClawApi } from '../api/Endpoints';
@@ -225,6 +226,7 @@ export class AppModel {
 
   /** 冷启动恢复：读出本机的服务器与账号快照，再决定落到哪个 phase（对应 iOS `restore`） */
   async restore(): Promise<void> {
+    const bootStart: number = Date.now();
     await this.ready();
     this.savedServers = await SavedServers.load();
     const lastOrigin: string = await this.readString(SessionKeys.lastServer, '');
@@ -243,9 +245,11 @@ export class AppModel {
       return;
     }
     if (await this.tryRestoreSnapshot()) {
+      hilog.info(0x0000, 'Boot', 'restore 快照秒进 %{public}dms', Date.now() - bootStart);
       return;
     }
     await this.reconnect();
+    hilog.info(0x0000, 'Boot', 'restore 走了完整探测 %{public}dms', Date.now() - bootStart);
   }
 
   /**
@@ -343,6 +347,17 @@ export class AppModel {
       new ApiClient(address.origin, savedToken.length > 0 ? savedToken : null, 5000);
     const probeApi: MovieClawApi = new MovieClawApi(probeClient);
     try {
+      /*
+       * 有令牌就直接问身份：一步 `/auth/me` 代替「健康检查 → 初始化状态 → /auth/me」
+       * 三段串行往返（每段都是独立 TLS 握手，远端服务器上这就是启动页好几秒）。
+       * 401 走下面统一的令牌失效处理；服务器还没初始化（needsSetup）只可能发生在
+       * 本机一个账号都没有时——那个分支下面 savedToken 为空，仍走完整探测。
+       */
+      if (savedToken.length > 0) {
+        const session: SessionView = await probeApi.authMe();
+        this.activate(address, session, savedToken);
+        return;
+      }
       const health: HealthResponse = await probeApi.healthCheck();
       if (health.status !== 'ok') {
         this.launchError = `服务器状态异常：${health.status}`;
@@ -354,15 +369,10 @@ export class AppModel {
         this.phase = AppPhase.needsSetup;
         return;
       }
-      if (savedToken.length === 0) {
-        // 本机没有这台服务器当前账号的令牌：输一次密码
-        this.launchError = null;
-        this.expiredUsername = username.length > 0 ? username : null;
-        this.phase = AppPhase.needsLogin;
-        return;
-      }
-      const session: SessionView = await probeApi.authMe();
-      this.activate(address, session, savedToken);
+      // 本机没有这台服务器当前账号的令牌：输一次密码
+      this.launchError = null;
+      this.expiredUsername = username.length > 0 ? username : null;
+      this.phase = AppPhase.needsLogin;
     } catch (error) {
       if (error instanceof ApiError && error.isUnauthorized) {
         // 当前账号的令牌失效了：预填快照里它的用户名，让用户只输密码
