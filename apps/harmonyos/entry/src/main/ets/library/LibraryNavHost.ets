@@ -1,4 +1,5 @@
 import { HdsNavigation, HdsNavigationTitleMode } from '@kit.UIDesignKit';
+import { accessibility } from '@kit.AccessibilityKit';
 import { Theme } from '../theme/AppTheme';
 import { GlassButtonModifier, GlassTone } from '../common/GlassControls';
 import { AppNavBar, AppNavTitleBar } from '../common/AppNavBar';
@@ -17,11 +18,12 @@ import { ManageParams } from './LibraryManagePage';
  * - `ScrollEffectType.GRADIENT_BLUR`：官方「滚动渐变模糊」——静止时标题栏融入内容
  *   （海报大图透出），滚动后渐显毛玻璃（华为自家应用的标准行为）；
  * - `BlurStrategy.ENABLE`：标题栏背景模糊（系统实现，模拟器/真机一致）；
- * - 菜单行用 `stackBuilder`（官方提供的标题栏内容扩展点）：⋯ · 搜索 · 片段 的
+ * - 菜单行用 `stackBuilder`（官方提供的标题栏内容扩展点）：⋯ · 搜索 的
  *   自定义胶囊（bindMenu 下拉）原样迁入，标题栏背景/布局仍由官方渲染。
  *
- * 右上角三个动作的顺序照 iOS 的工具栏排布：**⋯ · 搜索 · 片段**
- * （片段是媒体库顶部的主操作，放最右；⋯ 是低频配置入口，放最里）。
+ * 右上角两个动作照 iOS 的工具栏排布：**⋯ · 搜索**（片段是首页下拉二楼，
+ * 与 Android / iOS 一致；只有读屏开启、做不了下拉手势时才在搜索右边多给一颗「片段」）。
+ * （⋯ 是低频配置入口，放最里）。
  *
  * 子页面用系统路由表（router_map.json）按名字 push——单库页 libraryDetail、
  * 全部合集 allCollections、条目页 libraryItem、搜索 search。
@@ -82,7 +84,7 @@ export struct LibraryNavHost {
      */
   }
 
-  /** 标题栏内容行（stackBuilder 扩展点）：标题 + ⋯ · 搜索 · 片段（顺序同 iOS 工具栏） */
+  /** 标题栏内容行（stackBuilder 扩展点）：标题 + ⋯ · 搜索（读屏时 + 片段） */
   @Builder
   TitleRow() {
     AppNavTitleBar({ title: '媒体库' }) {
@@ -90,7 +92,7 @@ export struct LibraryNavHost {
     }
   }
 
-  /** 右上角动作：⋯ · 搜索 · 片段（顺序同 iOS 工具栏） */
+  /** 右上角动作：⋯ · 搜索；读屏做不了下拉手势时再加「片段」（与 iOS / Android 的降级入口一致） */
   @Builder
   TopMenus() {
     Row({ space: 2 }) {
@@ -108,25 +110,35 @@ export struct LibraryNavHost {
         .onClick(() => {
           this.navStack.pushPathByName('search', null);
         })
-      Button() {
-        Row({ space: 4 }) {
-          SymbolGlyph($r('sys.symbol.play_circle'))
-            .fontSize(16)
-            .fontColor([Theme.textMuted])
-          Text('片段')
-            .fontSize(13)
-            .fontColor(Theme.textMuted)
+      if (this.screenReaderOpen()) {
+        Button() {
+          Row({ space: 4 }) {
+            SymbolGlyph($r('sys.symbol.play_circle'))
+              .fontSize(16)
+              .fontColor([Theme.textMuted])
+            Text('片段')
+              .fontSize(13)
+              .fontColor(Theme.textMuted)
+          }
+          .padding({ left: 12, right: 12, top: 7, bottom: 7 })
         }
-        .padding({ left: 12, right: 12, top: 7, bottom: 7 })
+        .attributeModifier(new GlassButtonModifier(GlassTone.Secondary))
+        .padding(0)
+        .clip(true)
+        .borderRadius(17)
+        .margin({ left: 4 })
+        .onClick(() => {
+          this.navStack.pushPathByName('reels', new ReelsParams(0));
+        })
       }
-      .attributeModifier(new GlassButtonModifier(GlassTone.Secondary))
-      .padding(0)
-      .clip(true)
-      .borderRadius(17)
-      .margin({ left: 4 })
-      .onClick(() => {
-        this.navStack.pushPathByName('reels', new ReelsParams(0));
-      })
+    }
+  }
+
+  private screenReaderOpen(): boolean {
+    try {
+      return accessibility.isScreenReaderOpenSync();
+    } catch (error) {
+      return false;
     }
   }
 
