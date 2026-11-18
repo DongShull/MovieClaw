@@ -6,6 +6,9 @@ import playbackControllerTest from './PlaybackController.test';
 import localUnitTest from './LocalUnit.test';
 import savedServersTest from './SavedServers.test';
 import pairingCodeTest from './PairingCode.test';
+import playerDiagnosticsTest from './PlayerDiagnostics.test';
+import chaptersTest from './Chapters.test';
+import appLanguageTest from './AppLanguage.test';
 
 export default function testsuite() {
   playerInteractionTest();
@@ -16,4 +19,7 @@ export default function testsuite() {
   localUnitTest();
   savedServersTest();
   pairingCodeTest();
+  playerDiagnosticsTest();
+  chaptersTest();
+  appLanguageTest();
 }

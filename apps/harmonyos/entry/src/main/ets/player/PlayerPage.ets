@@ -4,11 +4,14 @@ import { Theme } from '../theme/AppTheme';
 
 import { RemoteImage } from '../common/RemoteImage';
 
-import { PlaybackSessionView, AudioTrackView, SubtitlePlanView, PlaybackSegmentView, EpisodeView } from '../api/Models';
+import { PlaybackSessionView, AudioTrackView, SubtitlePlanView, PlaybackSegmentView, EpisodeView, PlaybackChapterMarkView } from '../api/Models';
 
 import { PlayerParams } from '../player/PlayerParams';
 
 import { PhonePlaybackHost, PlayerPhase, QualityOption } from '../playback/PhonePlaybackHost';
+import { AppLanguage } from '../common/AppLanguage';
+
+import { PlayerDiagnosticsPage } from '../player/PlayerDiagnosticsPage';
 
 interface PlayerMenuRowOptions {
   title: string;
@@ -354,7 +357,7 @@ export struct PlayerPage {
   Controls() {
     Column() {
       Row({ space: 12 }) {
-        this.IconAction($r('app.media.player_back'), this.host.isLandscape() ? '退出横屏' : '退出播放', 'player-close', (): void => { this.host.back(); })
+        this.IconAction($r('app.media.player_back'), this.host.isLandscape() ? this.t('player.landscape_exit') : this.t('player.exit_player'), 'player-close', (): void => { this.host.back(); })
         Column({ space: 2 }) {
           Text(this.host.title.length > 0 ? this.host.title : '播放')
             .fontSize(17).fontWeight(600).fontColor('#ffffff').maxLines(1)
@@ -386,18 +389,18 @@ export struct PlayerPage {
         }
         Row() {
           Row({ space: 0 }) {
-            this.MenuAction($r('app.media.player_audio'), '音轨', 'audio', 'player-audio')
-            this.MenuAction($r('app.media.player_subtitle'), '字幕', 'subtitle', 'player-subtitle')
+            this.MenuAction($r('app.media.player_audio'), this.t('player.menu_audio'), 'audio', 'player-audio')
+            this.MenuAction($r('app.media.player_subtitle'), this.t('player.menu_subtitle'), 'subtitle', 'player-subtitle')
             if (this.host.episodes.length > 0) {
-              this.MenuAction($r('app.media.player_episodes'), '选集', 'episodes', 'player-episodes')
+              this.MenuAction($r('app.media.player_episodes'), this.t('player.menu_episodes'), 'episodes', 'player-episodes')
             }
-            this.MenuAction($r('app.media.player_more'), '设置', 'settings', 'player-settings')
+            this.MenuAction($r('app.media.player_more'), this.t('player.menu_settings'), 'settings', 'player-settings')
           }
           .backgroundColor('rgba(45,45,48,0.65)')
           .backgroundBlurStyle(BlurStyle.Thin, { colorMode: ThemeColorMode.DARK })
           .borderRadius(22).border({ width: 0.5, color: 'rgba(255,255,255,0.16)' })
           Blank()
-          this.IconAction($r('app.media.player_rotate'), this.host.isLandscape() ? '退出横屏' : '横屏播放', 'player-rotate', (): void => { this.host.toggleLandscape(); })
+          this.IconAction($r('app.media.player_rotate'), this.host.isLandscape() ? this.t('player.landscape_exit') : this.t('player.landscape'), 'player-rotate', (): void => { this.host.toggleLandscape(); })
         }.width('100%')
           .onAreaChange((_old: Area, area: Area): void => { this.host.menuAnchorTop = this.host.vpOf(area.globalPosition?.y ?? 0) - this.host.layerOriginY; })
         Column() {
@@ -765,7 +768,7 @@ export struct PlayerPage {
             if (this.host.sheetKind !== 'audio' && this.host.sheetKind !== 'subtitle'
               && this.host.sheetKind !== 'episodes') {
               Button('‹').padding(0).width(28).height(36).fontSize(24).fontColor('#ffffff').backgroundColor(Color.Transparent)
-                .id('player-menu-back').accessibilityText('返回设置').onClick((): void => { this.host.sheetKind = 'settings'; })
+                .id('player-menu-back').accessibilityText(this.t('player.menu_back')).onClick((): void => { this.host.sheetKind = 'settings'; })
             }
             Text(this.host.menuTitle()).id('player-menu-title').fontSize(12).fontWeight(600)
               .fontColor('rgba(255,255,255,0.55)').layoutWeight(1)
@@ -800,60 +803,78 @@ export struct PlayerPage {
   @Builder
   MenuContents() {
     if (this.host.sheetKind === 'audio') {
-      this.MenuRow({ title: '跟随默认', selected: this.host.audioRef.length === 0, id: 'player-audio-default', action: (): void => { this.host.pickAudio(''); } })
+      this.MenuRow({ title: this.t('player.audio_default'), selected: this.host.audioRef.length === 0, id: 'player-audio-default', action: (): void => { this.host.pickAudio(''); } })
       ForEach(this.host.session?.decision.audio_tracks ?? [], (track: AudioTrackView, index: number) => {
         this.MenuRow({ title: this.host.audioLabel(track, index), selected: this.host.audioRef === track.ref, id: `player-audio-${index}`, action: (): void => { this.host.pickAudio(track.ref); } })
       }, (track: AudioTrackView): string => track.ref)
     } else if (this.host.sheetKind === 'subtitle') {
-      this.MenuRow({ title: '关闭字幕', selected: (this.host.subtitleIndex < 0), id: 'player-subtitle-off', action: (): void => { this.host.pickSubtitle(-1); } })
+      this.MenuRow({ title: this.t('player.subtitle_off'), selected: (this.host.subtitleIndex < 0), id: 'player-subtitle-off', action: (): void => { this.host.pickSubtitle(-1); } })
       ForEach(this.host.session?.decision.subtitles ?? [], (plan: SubtitlePlanView, index: number) => {
         this.MenuRow({ title: this.host.subtitleLabel(plan, index), selected: this.host.subtitleIndex === index, id: `player-subtitle-${index}`, action: (): void => { this.host.pickSubtitle(index); } })
       }, (plan: SubtitlePlanView): string => plan.track_ref)
       if (this.host.localSpec !== null) {
         Row() {
-          Text('字号').fontColor('#ffffff').layoutWeight(1)
+          Text(this.t('player.sub_font_size')).fontColor('#ffffff').layoutWeight(1)
           this.StyleStepButton('−', (): void => { this.host.adjustSubtitleStyle(-0.4, 0); })
           Text(`${Math.round(this.host.subFontScale * 10) / 10}`).fontColor('#ffffff').width(40).textAlign(TextAlign.Center)
           this.StyleStepButton('+', (): void => { this.host.adjustSubtitleStyle(0.4, 0); })
         }.padding(16)
         Row() {
-          Text('距底部').fontColor('#ffffff').layoutWeight(1)
+          Text(this.t('player.sub_bottom')).fontColor('#ffffff').layoutWeight(1)
           this.StyleStepButton('−', (): void => { this.host.adjustSubtitleStyle(0, -2); })
           Text(`${this.host.subBottom}%`).fontColor('#ffffff').width(40).textAlign(TextAlign.Center)
           this.StyleStepButton('+', (): void => { this.host.adjustSubtitleStyle(0, 2); })
         }.padding(16)
-        this.MenuRow({ title: '字幕背景', selected: this.host.subBackground, id: 'player-subtitle-background', action: (): void => { this.host.toggleSubtitleBackground(); } })
+        this.MenuRow({ title: this.t('player.sub_background'), selected: this.host.subBackground, id: 'player-subtitle-background', action: (): void => { this.host.toggleSubtitleBackground(); } })
       }
     } else if (this.host.sheetKind === 'settings') {
       if (this.host.shareSlug.length === 0) {
-        this.MenuRow({ title: '画质', selected: false, id: 'player-quality', icon: $r('app.media.player_quality'), action: (): void => { this.host.sheetKind = 'quality'; }, hint: this.host.maxHeight > 0 ? `${this.host.maxHeight}p` : '原画' })
+        this.MenuRow({ title: this.t('player.quality'), selected: false, id: 'player-quality', icon: $r('app.media.player_quality'), action: (): void => { this.host.sheetKind = 'quality'; }, hint: this.host.maxHeight > 0 ? `${this.host.maxHeight}p` : this.t('player.quality_original') })
       }
-      this.MenuRow({ title: '画面', selected: false, id: 'player-display', icon: $r('app.media.player_display'), action: (): void => { this.host.sheetKind = 'display'; }, hint: this.host.displayLabel() })
-      this.MenuRow({ title: '倍速', selected: false, id: 'player-speed', icon: $r('app.media.player_speed'), action: (): void => { this.host.sheetKind = 'speed'; }, hint: `${this.host.playbackRate}×` })
+      this.MenuRow({ title: this.t('player.display'), selected: false, id: 'player-display', icon: $r('app.media.player_display'), action: (): void => { this.host.sheetKind = 'display'; }, hint: this.host.displayLabel() })
+      this.MenuRow({ title: this.t('player.speed'), selected: false, id: 'player-speed', icon: $r('app.media.player_speed'), action: (): void => { this.host.sheetKind = 'speed'; }, hint: `${this.host.playbackRate}×` })
+      if (this.host.hasChapters()) {
+        this.MenuRow({ title: this.t('player.chapters'), selected: false, id: 'player-chapter', action: (): void => { this.host.sheetKind = 'chapter'; }, hint: this.host.chapterHint() })
+      }
       Divider().color('rgba(0,0,0,0.3)').strokeWidth(6).margin({ top: 4, bottom: 4 })
-      this.MenuRow({ title: '播放诊断', selected: false, id: 'player-diagnostics', icon: $r('app.media.player_diagnostics'), action: (): void => { this.host.sheetKind = 'stats'; } })
+      this.MenuRow({ title: this.t('player.diagnostics'), selected: false, id: 'player-diagnostics', icon: $r('app.media.player_diagnostics'), action: (): void => { this.host.sheetKind = 'stats'; } })
     } else if (this.host.sheetKind === 'quality') {
       ForEach(this.host.qualityOptions(), (option: QualityOption) => {
         this.MenuRow({ title: option.label, selected: this.host.maxHeight === option.maxHeight, id: `player-quality-${option.maxHeight}`, action: (): void => { this.host.pickQuality(option.maxHeight); } })
       }, (option: QualityOption): string => `${option.maxHeight}`)
     } else if (this.host.sheetKind === 'speed') {
       ForEach([0.5, 0.75, 1, 1.25, 1.5, 2], (rate: number) => {
-        this.MenuRow({ title: rate === 1 ? '正常' : `${rate}×`, selected: this.host.playbackRate === rate, id: `player-speed-${rate}`, action: (): void => { this.host.selectRate(rate); } })
+        this.MenuRow({ title: rate === 1 ? this.t('player.rate_normal') : `${rate}×`, selected: this.host.playbackRate === rate, id: `player-speed-${rate}`, action: (): void => { this.host.selectRate(rate); } })
       }, (rate: number): string => `${rate}`)
     } else if (this.host.sheetKind === 'display') {
-      this.MenuRow({ title: '完整显示', selected: this.host.displayMode === 'fit', id: 'player-display-fit', action: (): void => { this.host.selectDisplay('fit'); }, hint: '保持比例，显示完整画面' })
-      this.MenuRow({ title: '等比例铺满', selected: this.host.displayMode === 'fill', id: 'player-display-fill', action: (): void => { this.host.selectDisplay('fill'); }, hint: '保持比例，裁去超出屏幕的部分' })
-      this.MenuRow({ title: '拉伸铺满', selected: this.host.displayMode === 'stretch', id: 'player-display-stretch', action: (): void => { this.host.selectDisplay('stretch'); }, hint: '填满屏幕，改变画面比例' })
+      this.MenuRow({ title: this.t('player.display_fit'), selected: this.host.displayMode === 'fit', id: 'player-display-fit', action: (): void => { this.host.selectDisplay('fit'); }, hint: this.t('player.display_fit_hint') })
+      this.MenuRow({ title: this.t('player.display_fill'), selected: this.host.displayMode === 'fill', id: 'player-display-fill', action: (): void => { this.host.selectDisplay('fill'); }, hint: this.t('player.display_fill_hint') })
+      this.MenuRow({ title: this.t('player.display_stretch'), selected: this.host.displayMode === 'stretch', id: 'player-display-stretch', action: (): void => { this.host.selectDisplay('stretch'); }, hint: this.t('player.display_stretch_hint') })
     } else if (this.host.sheetKind === 'episodes') {
       ForEach(this.host.episodes, (episode: EpisodeView) => {
         this.EpisodeRow(episode)
       }, (episode: EpisodeView): string => `${episode.episode_number}`)
+    } else if (this.host.sheetKind === 'chapter') {
+      // 章节列表：点哪章 seek 到哪章；当前位置落点章打勾（iOS 无对应菜单，鸿蒙补齐）
+      ForEach(this.host.chapterMarks(), (mark: PlaybackChapterMarkView, index: number) => {
+        this.MenuRow({ title: this.host.chapterLabel(mark),
+          selected: this.host.chapterIndexAt(this.host.positionMs) === index,
+          id: `player-chapter-${index}`,
+          action: (): void => { this.host.jumpToChapter(mark); } })
+      }, (mark: PlaybackChapterMarkView, index: number): string => `${index}-${mark.start_ms}`)
     }
+  }
+
+  /** 取词便捷入口（@ComponentV2 build 里读 AppLanguage 的 @Trace，切语言当场重建） */
+  private t(key: string): string {
+    return AppLanguage.shared().t(key);
   }
 
   private episodeLabel(episode: EpisodeView): string {
     const name: string = episode.name ?? '';
-    return name.length > 0 ? `第 ${episode.episode_number} 集 · ${name}` : `第 ${episode.episode_number} 集`;
+    return name.length > 0
+      ? this.t('player.episode_named').replace('{0}', String(episode.episode_number)).replace('{1}', name)
+      : this.t('player.episode').replace('{0}', String(episode.episode_number));
   }
 
   /** 选集行：分集剧照 + 「第 N 集 · 集名」（最多两行自适应，长了才截断）+ 状态行（缺集/已看/进度）；缺集置灰不可点 */
@@ -879,15 +900,15 @@ export struct PlayerPage {
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .width('100%')
           if (!episode.owned) {
-            Text('缺集')
+            Text(this.t('player.episode_missing'))
               .fontSize(11)
               .fontColor('rgba(255,255,255,0.4)')
           } else if (episode.played) {
-            Text('已看')
+            Text(this.t('player.episode_watched'))
               .fontSize(11)
               .fontColor('rgba(255,255,255,0.4)')
           } else if ((episode.progress_percent ?? 0) > 0) {
-            Text(`已看 ${Math.round(episode.progress_percent ?? 0)}%`)
+            Text(this.t('player.episode_progress').replace('{0}', String(Math.round(episode.progress_percent ?? 0))))
               .fontSize(11)
               .fontColor('rgba(255,255,255,0.4)')
           }
@@ -908,7 +929,7 @@ export struct PlayerPage {
       .opacity(episode.owned ? 1 : 0.4)
     }
     .id(`player-episode-${episode.episode_number}`)
-    .accessibilityText(`第 ${episode.episode_number} 集`)
+    .accessibilityText(this.t('player.episode').replace('{0}', String(episode.episode_number)))
     .width('100%')
     .padding(0)
     .backgroundColor(Color.Transparent)
@@ -944,7 +965,7 @@ export struct PlayerPage {
   StatsSheet() {
     Column({ space: 14 }) {
       Row() {
-        Text('播放诊断')
+        Text(this.t('player.diagnostics'))
           .fontSize(17)
           .fontWeight(FontWeight.Medium)
           .fontColor(Theme.text)
@@ -1197,6 +1218,7 @@ export struct PlayerPage {
             .borderRadius(Theme.cardRadius)
             .border({ width: 1, color: Theme.line })
           }
+          PlayerDiagnosticsPage({ host: this.host })
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)

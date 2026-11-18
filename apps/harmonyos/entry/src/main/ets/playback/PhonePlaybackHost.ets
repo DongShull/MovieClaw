@@ -30,6 +30,7 @@ import { OfflinePlaybackSpec, OfflineProgress, OfflineUnit } from '../offline/Of
 import { ClientCapabilityIn, PlaybackSessionRequest, PlaybackSessionView, PlaybackDecisionView, PlaybackStateView, AudioTrackView, EpisodeView, LibraryItemDetailView, PlaybackChapterMarkView, PlaybackItemView, SeasonEpisodesView, SubtitlePlanView, TrickplayView, PlaybackSegmentView, PlaybackDiagnosticsView, PlaybackPolicyView, PlaybackArtifactUploadView } from '../api/Models';
 
 import { PlayerParams } from '../player/PlayerParams';
+import { Chapters } from '../player/Chapters';
 
 /** `PlaybackSessionRequest` 的 capability 是必填，其余可选 */
 export class SessionRequest implements PlaybackSessionRequest {
@@ -1508,8 +1509,34 @@ export class PhonePlaybackHost implements PlaybackTestHost {
 
   /** 章节行的标题：标题 + 起止时间 */
   chapterLabel(mark: PlaybackChapterMarkView): string {
-    const title: string | null = mark.title ?? null;
-    return title !== null && title.length > 0 ? title : this.clockText(mark.start_ms);
+    return Chapters.label(mark, this.clockText(mark.start_ms));
+  }
+
+  /** 会话里的章节刻度（无章节数据返回空数组，界面静默降级） */
+  chapterMarks(): PlaybackChapterMarkView[] {
+    const view: PlaybackSessionView | null = this.session;
+    return view !== null ? view.chapters : [];
+  }
+
+  /** 有章节数据才出「章节」入口 */
+  hasChapters(): boolean {
+    return Chapters.available(this.chapterMarks());
+  }
+
+  /** 当前位置落在哪一章的下标（最后一个 start_ms <= 位置）；无章节返回 -1 */
+  chapterIndexAt(positionMs: number): number {
+    return Chapters.indexAt(this.chapterMarks(), positionMs);
+  }
+
+  /** 设置菜单「章节」行的提示：当前章节名，无章节空串 */
+  chapterHint(): string {
+    return Chapters.currentLabel(this.chapterMarks(), this.positionMs, this.clockText(this.positionMs));
+  }
+
+  /** 跳到某一章：从章节起点 seek，弹层收掉 */
+  jumpToChapter(mark: PlaybackChapterMarkView): void {
+    this.closeMenu();
+    this.seekTo(mark.start_ms);
   }
 
   /** 字幕行的标题：语言 + 类型 + 是否 AI/默认 */
@@ -1841,6 +1868,7 @@ export class PhonePlaybackHost implements PlaybackTestHost {
     if (this.sheetKind === 'audio') { return '音轨'; }
     if (this.sheetKind === 'subtitle') { return '字幕'; }
     if (this.sheetKind === 'episodes') { return '选集'; }
+    if (this.sheetKind === 'chapter') { return '章节'; }
     if (this.sheetKind === 'quality') { return '画质'; }
     if (this.sheetKind === 'speed') { return '倍速'; }
     if (this.sheetKind === 'display') { return '画面'; }
